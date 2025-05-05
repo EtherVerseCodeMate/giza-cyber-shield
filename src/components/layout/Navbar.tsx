@@ -1,48 +1,110 @@
 
-import React from 'react';
-import { Shield, Bell, Settings, User, ChevronDown, Search } from 'lucide-react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { ShieldCheck, Menu, X, LayoutDashboard, DatabaseZap } from 'lucide-react';
 
-const Navbar: React.FC = () => {
+const Navbar = () => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const location = useLocation();
+  
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
+  
   return (
-    <nav className="bg-giza-navy border-b border-border h-16 flex items-center px-6 sticky top-0 z-50">
-      <div className="flex items-center gap-4">
-        <Shield className="h-8 w-8 text-giza-teal" />
-        <h1 className="text-2xl font-bold tracking-tight">
-          <span className="text-giza-teal">Giza</span>
-          <span className="text-giza-light ml-1">Shield</span>
-        </h1>
-      </div>
-      
-      <div className="flex-1 px-8">
-        <div className="relative max-w-md">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search alerts, systems, integrations..." 
-            className="pl-8 bg-giza-navy border-border focus:border-giza-teal" 
-          />
-        </div>
-      </div>
-      
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon">
-          <Bell className="h-5 w-5" />
-          <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500"></span>
-        </Button>
-        
-        <Button variant="ghost" size="icon">
-          <Settings className="h-5 w-5" />
-        </Button>
-        
-        <div className="flex items-center gap-2 ml-4">
-          <div className="h-8 w-8 rounded-full bg-giza-teal flex items-center justify-center">
-            <User className="h-5 w-5 text-giza-navy" />
+    <nav className="bg-giza-navy border-b border-border">
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between h-16">
+          <div className="flex items-center">
+            <Link to="/" className="flex items-center gap-2">
+              <ShieldCheck className="h-8 w-8 text-giza-teal" />
+              <span className="text-xl font-bold">Giza</span>
+            </Link>
           </div>
-          <span className="text-sm font-medium">Admin</span>
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          
+          <div className="hidden md:block">
+            <div className="ml-10 flex items-center space-x-4">
+              <Link 
+                to="/" 
+                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                  isActive('/') 
+                    ? 'bg-giza-teal text-giza-navy' 
+                    : 'text-gray-300 hover:bg-giza-dark hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <LayoutDashboard className="h-4 w-4" />
+                  <span>Dashboard</span>
+                </div>
+              </Link>
+              
+              <Link 
+                to="/architecture" 
+                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                  isActive('/architecture') 
+                    ? 'bg-giza-teal text-giza-navy' 
+                    : 'text-gray-300 hover:bg-giza-dark hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <DatabaseZap className="h-4 w-4" />
+                  <span>Architecture</span>
+                </div>
+              </Link>
+            </div>
+          </div>
+          
+          <div className="md:hidden">
+            <button
+              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              {isMenuOpen ? (
+                <X className="block h-6 w-6" />
+              ) : (
+                <Menu className="block h-6 w-6" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
+      
+      {/* Mobile menu */}
+      {isMenuOpen && (
+        <div className="md:hidden">
+          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+            <Link
+              to="/"
+              className={`block px-3 py-2 rounded-md text-sm font-medium ${
+                isActive('/') 
+                  ? 'bg-giza-teal text-giza-navy' 
+                  : 'text-gray-300 hover:bg-giza-dark hover:text-white'
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <div className="flex items-center gap-2">
+                <LayoutDashboard className="h-4 w-4" />
+                <span>Dashboard</span>
+              </div>
+            </Link>
+            
+            <Link
+              to="/architecture"
+              className={`block px-3 py-2 rounded-md text-sm font-medium ${
+                isActive('/architecture') 
+                  ? 'bg-giza-teal text-giza-navy' 
+                  : 'text-gray-300 hover:bg-giza-dark hover:text-white'
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <div className="flex items-center gap-2">
+                <DatabaseZap className="h-4 w-4" />
+                <span>Architecture</span>
+              </div>
+            </Link>
+          </div>
+        </div>
+      )}
     </nav>
   );
 };
