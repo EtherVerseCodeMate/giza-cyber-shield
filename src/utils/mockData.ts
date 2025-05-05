@@ -1,3 +1,4 @@
+
 // Define our own ChartData type instead of importing from recharts
 export type ChartData = {
   [key: string]: string | number | null;
