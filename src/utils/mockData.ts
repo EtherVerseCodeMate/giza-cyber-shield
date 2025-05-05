@@ -1,5 +1,7 @@
-
-import { type ChartData } from "recharts";
+// Define our own ChartData type instead of importing from recharts
+export type ChartData = {
+  [key: string]: string | number | null;
+};
 
 export type AlertPriority = "low" | "medium" | "high" | "critical";
 export type SystemStatus = "operational" | "degraded" | "outage";
