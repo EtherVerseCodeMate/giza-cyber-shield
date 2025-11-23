@@ -1,0 +1,22 @@
+[Unit]
+Description=KHEPRA Agent (Shells x AI - EtherVerseCodeMate/giza-cyber-shield)
+After=network.target
+
+[Service]
+User=shellsuser
+WorkingDirectory=/home/shellsuser/giza-cyber-shield
+Environment=KHEPRA_EXTERNAL_IP=168.100.240.19
+Environment=KHEPRA_AGENT_PORT=45444
+Environment=KHEPRA_SSH_PORT=17444
+Environment=KHEPRA_USER=shellsuser
+Environment=KHEPRA_TENANT=shells://UrGenCyX/ch01
+Environment=KHEPRA_REPO_NAME=EtherVerseCodeMate/giza-cyber-shield
+Environment=KHEPRA_REPO_SSH=git@github.com:EtherVerseCodeMate/giza-cyber-shield.git
+Environment=KHEPRA_GIT_EMAIL=skone@alumni.albany.edu
+ExecStart=/home/shellsuser/giza-cyber-shield/bin/khepra-agent
+Restart=on-failure
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
