@@ -1,7 +1,6 @@
-
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ShieldCheck, Menu, X, LayoutDashboard, DatabaseZap } from 'lucide-react';
+import { ShieldCheck, Menu, X, LayoutDashboard, DatabaseZap, KeyRound } from 'lucide-react';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -35,6 +34,20 @@ const Navbar = () => {
                 <div className="flex items-center gap-2">
                   <LayoutDashboard className="h-4 w-4" />
                   <span>Dashboard</span>
+                </div>
+              </Link>
+              
+              <Link 
+                to="/khepra-agent" 
+                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                  isActive('/khepra-agent') 
+                    ? 'bg-giza-teal text-giza-navy' 
+                    : 'text-gray-300 hover:bg-giza-dark hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <KeyRound className="h-4 w-4" />
+                  <span>KHEPRA Agent</span>
                 </div>
               </Link>
               
@@ -85,6 +98,21 @@ const Navbar = () => {
               <div className="flex items-center gap-2">
                 <LayoutDashboard className="h-4 w-4" />
                 <span>Dashboard</span>
+              </div>
+            </Link>
+            
+            <Link
+              to="/khepra-agent"
+              className={`block px-3 py-2 rounded-md text-sm font-medium ${
+                isActive('/khepra-agent') 
+                  ? 'bg-giza-teal text-giza-navy' 
+                  : 'text-gray-300 hover:bg-giza-dark hover:text-white'
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <div className="flex items-center gap-2">
+                <KeyRound className="h-4 w-4" />
+                <span>KHEPRA Agent</span>
               </div>
             </Link>
             
