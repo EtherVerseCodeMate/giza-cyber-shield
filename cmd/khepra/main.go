@@ -83,7 +83,7 @@ func keygenCmd(args []string) {
 
 	fmt.Println("KHEPRA key material generated.")
 	fmt.Printf("  Private: %s\n  Public : %s\n  Assert : %s\n", privPath, pubPath, assertPath)
-	fmt.Printf("Shells SSH: ssh -p %d %s@%s\n", cfg.SSHExternalPort, cfg.Username, cfg.ExternalIP)
+	fmt.Printf("SSH Command: ssh -p %d %s@%s\n", cfg.SSHExternalPort, cfg.Username, cfg.ExternalIP)
 	util.PrintNextSteps(pubPath)
 }
 

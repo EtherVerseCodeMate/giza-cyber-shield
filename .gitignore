@@ -1,0 +1,11 @@
+bin/
+dist/
+vendor/
+*.exe
+*.log
+.vscode/
+
+# Private Documentation
+docs/INTEGRATION_ROADMAP.md
+docs/INTEL_REPORT_2025_12.md
+docs/SURVIVAL_STRATEGY.md

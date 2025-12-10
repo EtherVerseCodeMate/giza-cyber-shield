@@ -1,17 +1,17 @@
 package main
 
 import (
-	"crypto/ed25519"
-	"crypto/rand"
 	"encoding/json"
 	"log"
-	"math/rand/v2"
+	mrand "math/rand/v2"
 	"net/http"
 
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/attest"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/config"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/lorentz"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/nkyinkyim"
 )
 
 type server struct {
@@ -29,8 +29,10 @@ func main() {
 	mux.HandleFunc("/dag/add", s.dagAdd)
 	mux.HandleFunc("/dag/state", s.dagState)
 
-	addr := ":" + itoa(cfg.AgentListenPort)
-	log.Printf("KHEPRA agent :: %s (external %s:15171 via Shells PF)\n", addr, cfg.ExternalIP)
+	// SECURITY: Bind ONLY to localhost to prevent external access.
+	// This acts as a primary firewall rule.
+	addr := "127.0.0.1:" + itoa(cfg.AgentListenPort)
+	log.Printf("KHEPRA agent :: %s (Shadow Mode: Local Only)\n", addr)
 	log.Fatal(http.ListenAndServe(addr, withJSON(mux)))
 }
 
@@ -48,24 +50,39 @@ func (s *server) health(w http.ResponseWriter, _ *http.Request) {
 	})
 }
 
-type attestRes struct {
-	Assertion attest.Assertion `json:"assertion"`
-	PubKey    []byte           `json:"pub_key"`
-	Signature []byte           `json:"signature"`
-}
-
 func (s *server) attestNew(w http.ResponseWriter, _ *http.Request) {
-	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
+	// [ADINKRA]: Generate Post-Quantum Identity (Dilithium)
+	pub, priv, err := adinkra.GenerateDilithiumKey()
+	if err != nil {
+		http.Error(w, `{"error":"adinkra fizzle"}`, http.StatusInternalServerError)
+		return
+	}
+
 	a := attest.Assertion{
-		Schema: "https://khepra.dev/attest/v1",
-		Symbol: "Eban",
+		Schema:    "https://khepra.dev/attest/v1",
+		Symbol:    "Eban",
 		Semantics: attest.Semantics{Boundary: s.cfg.Tenant, Purpose: "agent-attest", LeastPrivilege: true},
 		Lifecycle: attest.Lifecycle{Journey: "Nkyinkyim"},
 		Binding:   attest.Binding{Comment: s.cfg.GitEmail},
 	}
 	msg, _ := json.Marshal(a)
-	sig := ed25519.Sign(priv, msg)
-	_ = json.NewEncoder(w).Encode(attestRes{Assertion: a, PubKey: pub, Signature: sig})
+
+	// [ADINKRA]: Sign with the Spear
+	sig, err := adinkra.Sign(priv, msg)
+	if err != nil {
+		http.Error(w, `{"error":"signing failure"}`, http.StatusInternalServerError)
+		return
+	}
+
+	// [NKYINKYIM]: Shroud the Sacred Lattice
+	shroud := nkyinkyim.Shroud(sig)
+
+	// Return the Poetic Proof (Obfuscated)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"assertion":       a,
+		"pub_key":         pub,
+		"x_khepra_shroud": shroud, // The Hidden Verse
+	})
 }
 
 type dagAddReq struct {
@@ -98,17 +115,24 @@ func (s *server) dagState(w http.ResponseWriter, _ *http.Request) {
 }
 
 func itoa(n int) string {
-	if n == 0 { return "0" }
+	if n == 0 {
+		return "0"
+	}
 	var b [20]byte
 	i := len(b)
 	neg := n < 0
-	if neg { n = -n }
+	if neg {
+		n = -n
+	}
 	for n > 0 {
 		i--
 		b[i] = byte('0' + (n % 10))
 		n /= 10
 	}
-	if neg { i--; b[i] = '-' }
+	if neg {
+		i--
+		b[i] = '-'
+	}
 	return string(b[i:])
 }
 
@@ -116,7 +140,7 @@ func randID() string {
 	const letters = "abcdefghijklmnopqrstuvwxyz0123456789"
 	b := make([]byte, 12)
 	for i := range b {
-		b[i] = letters[rand.IntN(len(letters))]
+		b[i] = letters[mrand.IntN(len(letters))]
 	}
 	return string(b)
 }

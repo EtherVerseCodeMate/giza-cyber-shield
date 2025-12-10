@@ -1,0 +1,22 @@
+[Unit]
+Description=KHEPRA Agent (Generic Linux Host)
+After=network.target
+
+[Service]
+User=khepra
+WorkingDirectory=/opt/khepra/giza-cyber-shield
+Environment=KHEPRA_EXTERNAL_IP=your.server.ip
+Environment=KHEPRA_AGENT_PORT=45444
+Environment=KHEPRA_SSH_PORT=22
+Environment=KHEPRA_USER=khepra
+Environment=KHEPRA_TENANT=khepra://prod-node-1
+Environment=KHEPRA_REPO_NAME=EtherVerseCodeMate/giza-cyber-shield
+Environment=KHEPRA_REPO_SSH=git@github.com:EtherVerseCodeMate/giza-cyber-shield.git
+Environment=KHEPRA_GIT_EMAIL=skone@alumni.albany.edu
+Environment=KHEPRA_CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+ExecStart=/opt/khepra/giza-cyber-shield/bin/khepra-agent
+Restart=on-failure
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

@@ -85,6 +85,6 @@ func DefaultSSHPaths(base string) (priv, pub string) {
 }
 
 func PrintNextSteps(pubPath string) {
-	fmt.Printf("\nPaste this public key into Shells Keychain UI, then save:\n  %s\n\n", pubPath)
+	fmt.Printf("\nAdd this public key to ~/.ssh/authorized_keys on your target host:\n  %s\n\n", pubPath)
 	fmt.Println("It must begin with 'ssh-ed25519 ...'. If you see that prefix, you're good.")
 }

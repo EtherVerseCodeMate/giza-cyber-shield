@@ -35,11 +35,11 @@ func getenvInt(k string, def int) int {
 
 func Load() Config {
 	return Config{
-		ExternalIP:      getenv("KHEPRA_EXTERNAL_IP", "168.100.240.19"),
-		SSHExternalPort: getenvInt("KHEPRA_SSH_PORT", 17444),
+		ExternalIP:      getenv("KHEPRA_EXTERNAL_IP", "127.0.0.1"),
+		SSHExternalPort: getenvInt("KHEPRA_SSH_PORT", 22),
 		AgentListenPort: getenvInt("KHEPRA_AGENT_PORT", 45444),
-		Username:        getenv("KHEPRA_USER", "shellsuser"),
-		Tenant:          getenv("KHEPRA_TENANT", "shells://UrGenCyX/ch01"),
+		Username:        getenv("KHEPRA_USER", "khepra"),
+		Tenant:          getenv("KHEPRA_TENANT", "khepra://edge-node-1"),
 		Comment:         getenv("KHEPRA_COMMENT", "skone@alumni.albany.edu eban:prod nkyinkyim:v1"),
 		RotateDays:      getenvInt("KHEPRA_ROTATE_DAYS", 90),
 		RepoSSH:         getenv("KHEPRA_REPO_SSH", "git@github.com:EtherVerseCodeMate/giza-cyber-shield.git"),
