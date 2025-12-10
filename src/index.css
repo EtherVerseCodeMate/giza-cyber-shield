@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -43,6 +44,13 @@
     --sidebar-ring: 172 100% 70%;
 
     --radius: 0.5rem;
+
+    /* Giza Custom Colors */
+    --void-black: 0 0% 2%;
+    --gunmetal: 210 14% 11%;
+    --quantum-cyan: 180 100% 50%;
+    --khepra-gold: 46 65% 52%;
+    --canary-red: 0 100% 60%;
   }
 }
 
