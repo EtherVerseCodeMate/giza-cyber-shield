@@ -6,12 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { 
-  Shield, 
-  Activity, 
-  RefreshCw, 
-  Server, 
-  FileKey, 
+import {
+  Shield,
+  Activity,
+  RefreshCw,
+  Server,
+  FileKey,
   GitBranch,
   CheckCircle2,
   XCircle,
@@ -87,7 +87,7 @@ const ADINKRA_SYMBOLS: Record<string, { meaning: string; icon: string; color: st
 };
 
 const KhepraAgentDashboard = () => {
-  const [agentUrl, setAgentUrl] = useState('http://168.100.240.19:45444');
+  const [agentUrl, setAgentUrl] = useState('/api/agent');
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [attestation, setAttestation] = useState<AttestResponse | null>(null);
@@ -170,7 +170,7 @@ const KhepraAgentDashboard = () => {
               {canaryStatus === 'alive' ? 'CANARY ALIVE' : 'CANARY DEAD'}
             </span>
           </div>
-          
+
           {/* Heartbeat */}
           <div className="flex items-center gap-2">
             <Activity className={`h-4 w-4 ${connectionStatus === 'connected' ? 'text-primary' : 'text-muted-foreground'}`} />
@@ -217,15 +217,14 @@ const KhepraAgentDashboard = () => {
                 </CardDescription>
               </div>
             </div>
-            <Badge 
-              variant="outline" 
-              className={`font-mono text-xs px-3 py-1 ${
-                connectionStatus === 'connected' 
-                  ? 'border-primary text-primary glow-cyan' 
-                  : connectionStatus === 'disconnected' 
-                    ? 'border-destructive text-destructive' 
-                    : 'border-muted-foreground'
-              }`}
+            <Badge
+              variant="outline"
+              className={`font-mono text-xs px-3 py-1 ${connectionStatus === 'connected'
+                ? 'border-primary text-primary glow-cyan'
+                : connectionStatus === 'disconnected'
+                  ? 'border-destructive text-destructive'
+                  : 'border-muted-foreground'
+                }`}
             >
               {connectionStatus === 'connected' && <CheckCircle2 className="h-3 w-3 mr-1" />}
               {connectionStatus === 'disconnected' && <XCircle className="h-3 w-3 mr-1" />}
@@ -243,14 +242,14 @@ const KhepraAgentDashboard = () => {
                 id="agentUrl"
                 value={veilMode ? veilText(agentUrl) : agentUrl}
                 onChange={(e) => setAgentUrl(e.target.value)}
-                placeholder="http://localhost:45444"
+                placeholder="/api/agent"
                 className="bg-background/50 border-border font-mono text-sm"
                 disabled={veilMode}
               />
             </div>
             <div className="flex items-end">
-              <Button 
-                onClick={checkHealth} 
+              <Button
+                onClick={checkHealth}
                 disabled={isLoading === 'health'}
                 className="bg-primary text-primary-foreground hover:bg-primary/80 font-rajdhani font-semibold glow-cyan"
               >
@@ -309,8 +308,8 @@ const KhepraAgentDashboard = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <Button 
-              onClick={createAttestation} 
+            <Button
+              onClick={createAttestation}
               disabled={isLoading === 'attest' || connectionStatus !== 'connected'}
               className="w-full bg-secondary/20 hover:bg-secondary/30 border border-secondary/40 text-secondary font-rajdhani font-semibold"
             >
@@ -357,9 +356,9 @@ const KhepraAgentDashboard = () => {
                     </div>
                   </div>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="w-full border-secondary/30 text-secondary hover:bg-secondary/10 font-mono text-xs"
                   onClick={() => copyToClipboard(JSON.stringify(attestation, null, 2), 'Attestation')}
                 >
@@ -389,8 +388,8 @@ const KhepraAgentDashboard = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <Button 
-              onClick={fetchDAGState} 
+            <Button
+              onClick={fetchDAGState}
               disabled={isLoading === 'dag' || connectionStatus !== 'connected'}
               className="w-full bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary font-rajdhani font-semibold"
             >
@@ -405,8 +404,8 @@ const KhepraAgentDashboard = () => {
             {dagState.length > 0 ? (
               <div className="mt-4 space-y-2 max-h-72 overflow-y-auto">
                 {dagState.map((node, index) => (
-                  <div 
-                    key={node.id} 
+                  <div
+                    key={node.id}
                     className="p-3 glass-panel border-primary/10 hover:border-primary/40 transition-all duration-300 group"
                     style={{ animationDelay: `${index * 100}ms` }}
                   >
@@ -460,7 +459,7 @@ const KhepraAgentDashboard = () => {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {Object.entries(ADINKRA_SYMBOLS).map(([symbol, { meaning, icon, color }]) => (
-              <div 
+              <div
                 key={symbol}
                 className="p-4 glass-panel hover:border-primary/30 transition-all duration-300 flex items-center gap-4 group"
               >

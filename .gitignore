@@ -33,3 +33,4 @@ dist-ssr
 *.sln
 *.sw?
 >>>>>>> e09eebab4a54bc1a93cd8305b60cbb7a7aca3b91
+.next/
