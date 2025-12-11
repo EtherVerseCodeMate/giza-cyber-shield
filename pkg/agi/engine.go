@@ -8,6 +8,9 @@ import (
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/intel"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/lorentz"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner"
 )
 
 // Objective defines the high-level goal of the AGI
@@ -15,6 +18,7 @@ type Objective string
 
 const (
 	ObjectiveGuardian Objective = "Protect the integrity of the Khepra Lattice."
+	ObjectiveCommando Objective = "Delta Force Mode: Seek and Destroy Threats."
 )
 
 // Engine is the brain of the Khepra Agent.
@@ -26,8 +30,12 @@ const (
 type Engine struct {
 	Objective Objective
 	Status    string
+	Mode      string // "Guardian" or "Commando"
 
-	store  *dag.Memory
+	store   *dag.Memory
+	intel   *intel.KnowledgeBase
+	scanner *scanner.Scanner
+
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
@@ -37,9 +45,12 @@ type Engine struct {
 func NewEngine(store *dag.Memory) *Engine {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Engine{
-		Objective: ObjectiveGuardian,
+		Objective: ObjectiveCommando,
 		Status:    "Initialized",
+		Mode:      "Guardian",
 		store:     store,
+		intel:     intel.NewKnowledgeBase(),
+		scanner:   scanner.New(),
 		ctx:       ctx,
 		cancel:    cancel,
 	}
@@ -103,16 +114,54 @@ func (e *Engine) act(taskType, reason string) {
 	// Here we would actually call internal functions to sign/forge/alert
 }
 
+// RunMission: Scan triggers a vulnerability scan (Commando Capability)
+func (e *Engine) RunScan(target string) error {
+	e.Status = "Scanning Target: " + target
+	log.Printf("[AGI] COMMANDO: Initiating Vulnerability Scan on %s...", target)
+
+	results, err := e.scanner.Run(target)
+	if err != nil {
+		e.Status = "Scan Failed: " + err.Error()
+		return err
+	}
+
+	// [DAG]: Record Intelligence to the Constellation
+	e.Status = fmt.Sprintf("Processing %d findings...", len(results))
+
+	for _, r := range results {
+		// Create a DAG node for each finding
+		node := dag.Node{
+			// In production, use crypto-secure IDs. Using a simple random here for speed.
+			ID:     fmt.Sprintf("scan-%s-%d-%d", r.Target, r.Port, time.Now().UnixNano()),
+			Action: fmt.Sprintf("port-open:%d", r.Port),
+			Symbol: "Nkyinkyim", // Symbol for Versatility/Initiative
+			Time:   lorentz.StampNow(),
+			// We could attach metadata here in a Payload field if the node struct supported it
+		}
+
+		// Commit to Immutable Ledger
+		if err := e.store.Add(&node, []string{}); err != nil {
+			log.Printf("[AGI] ERROR: Failed to write intelligence to DAG: %v", err)
+		} else {
+			log.Printf("[AGI] INTEL SECURED: %s:%d IS OPEN -> DAG Node %s", r.Target, r.Port, node.ID)
+		}
+	}
+
+	e.Status = "Scan Complete"
+	return nil
+}
+
 // GetState returns the current status and objective
 func (e *Engine) GetState() map[string]string {
 	return map[string]string{
 		"status":    e.Status,
 		"objective": string(e.Objective),
+		"mode":      e.Mode,
 	}
 }
 
 // Chat handles a conversation message
 func (e *Engine) Chat(message string) string {
-	// Mock LLM response for now
-	return fmt.Sprintf("I am analyzing the Khepra Lattice. You said: '%s'. My primary directive is %s.", message, e.Objective)
+	// Updated Persona: SouHimBou Commando
+	return fmt.Sprintf("COMMANDO MODE ACTIVE. I have analyzed: '%s'. My directives are clear: Seek, Destroy, and Secure the Lattice. Awaiting orders.", message)
 }

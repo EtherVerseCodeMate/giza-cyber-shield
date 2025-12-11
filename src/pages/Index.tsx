@@ -30,7 +30,7 @@ const Index = () => {
 
   // Initial load
   useEffect(() => {
-    checkHealth(true).then((ok) => {
+    checkHealth(true).then((ok: boolean) => {
       if (ok) fetchNodes();
     });
   }, [checkHealth, fetchNodes]);
@@ -44,7 +44,7 @@ const Index = () => {
     return () => clearInterval(interval);
   }, [autoRefresh, isConnected, fetchNodes]);
 
-  const filteredNodes = nodes.filter(node =>
+  const filteredNodes = nodes.filter((node: DAGNode) =>
     node.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
     node.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
     node.action.toLowerCase().includes(searchQuery.toLowerCase())
@@ -66,7 +66,7 @@ const Index = () => {
                   placeholder="Search stream... (e.g. symbol:Eban OR action:init)"
                   className="pl-9 bg-background/50 border-primary/20 font-mono text-sm focus-visible:ring-giza-cyan"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
                 />
               </div>
               <Button variant="outline" size="icon" className="border-primary/20 text-giza-cyan hover:bg-giza-cyan/10">
@@ -136,13 +136,13 @@ const Index = () => {
                   <div className="flex justify-between items-center group cursor-pointer hover:text-giza-gold">
                     <span>Eban</span>
                     <span className="text-xs bg-primary/10 px-1 rounded">
-                      {nodes.filter(n => n.symbol === 'Eban').length}
+                      {nodes.filter((n: DAGNode) => n.symbol === 'Eban').length}
                     </span>
                   </div>
                   <div className="flex justify-between items-center group cursor-pointer hover:text-white">
                     <span>Nkyinkyim</span>
                     <span className="text-xs bg-primary/10 px-1 rounded">
-                      {nodes.filter(n => n.symbol === 'Nkyinkyim').length}
+                      {nodes.filter((n: DAGNode) => n.symbol === 'Nkyinkyim').length}
                     </span>
                   </div>
                 </div>
@@ -190,7 +190,7 @@ const Index = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-primary/10">
-                    {filteredNodes.map((node) => (
+                    {filteredNodes.map((node: DAGNode) => (
                       <tr key={node.id} className="hover:bg-primary/5 transition-colors group">
                         <td className="p-3 text-muted-foreground whitespace-nowrap">
                           {format(new Date(node.time), 'yyyy-MM-dd HH:mm:ss.SSS')}
