@@ -70,8 +70,11 @@ export default {
 				// Giza custom colors
 				giza: {
 					void: 'hsl(var(--void-black))',
+					dark: 'hsl(var(--void-black))',
 					gunmetal: 'hsl(var(--gunmetal))',
+					navy: 'hsl(var(--gunmetal))',
 					cyan: 'hsl(var(--quantum-cyan))',
+					teal: 'hsl(var(--quantum-cyan))',
 					gold: 'hsl(var(--khepra-gold))',
 					red: 'hsl(var(--canary-red))'
 				}
