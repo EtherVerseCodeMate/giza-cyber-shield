@@ -40,6 +40,7 @@ func main() {
 	mux.HandleFunc("/dag/state", s.dagState)
 	mux.HandleFunc("/agi/state", s.agiState) // AGI Status
 	mux.HandleFunc("/agi/chat", s.agiChat)   // AGI Chat
+	mux.HandleFunc("/agi/scan", s.agiScan)   // AGI Commando Scan
 
 	// SECURITY: Bind ONLY to localhost to prevent external access.
 	// This acts as a primary firewall rule.
@@ -186,6 +187,12 @@ func (s *server) agiChat(w http.ResponseWriter, r *http.Request) {
 	}
 	response := s.agi.Chat(req.Message)
 	_ = json.NewEncoder(w).Encode(map[string]string{"response": response})
+}
+
+func (s *server) agiScan(w http.ResponseWriter, r *http.Request) {
+	// Trigger a scan
+	go s.agi.RunScan("localhost")
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "Mission Initiated"})
 }
 
 func itoa(n int) string {

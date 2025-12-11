@@ -60,6 +60,7 @@ export const SouHimBouChat = () => {
             };
             setMessages(prev => [...prev, agiMsg]);
         } catch (error) {
+            console.error("AGI Chat Error:", error);
             const errorMsg: Message = { role: 'agi', content: "Connection to Cortex interrupted.", time: new Date() };
             setMessages(prev => [...prev, errorMsg]);
         } finally {
