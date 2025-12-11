@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"flag"
 	"fmt"
 	"os"
@@ -37,6 +38,10 @@ func main() {
 		kuntinkantanCmd(os.Args[2:])
 	case "sankofa":
 		sankofaCmd(os.Args[2:])
+	case "ogya": // Fire (Recursive Encrypt)
+		ogyaCmd(os.Args[2:])
+	case "nsuo": // Water (Recursive Decrypt)
+		nsuoCmd(os.Args[2:])
 	case "git-remote":
 		gitRemoteCmd()
 	default:
@@ -113,6 +118,154 @@ func sankofaCmd(args []string) {
 	}
 
 	fmt.Printf("[KHEPRA] Truth returned at: %s\n", outPath)
+}
+
+func ogyaCmd(args []string) {
+	if len(args) < 2 {
+		fmt.Println("Usage: khepra ogya <pubkey> <directory>")
+		return
+	}
+	pubKeyPath, targetDir := args[0], args[1]
+
+	pubKey, err := os.ReadFile(pubKeyPath)
+	if err != nil {
+		fatal("cannot read the staff", err)
+	}
+
+	fmt.Printf("[KHEPRA OGYA] Igniting the hearth in: %s\n", targetDir)
+
+	err = filepath.Walk(targetDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		if filepath.Ext(path) == ".khepra" {
+			return nil
+		} // Skip already burnt
+
+		fmt.Printf("   - Burning: %s ... ", info.Name())
+
+		// 1. Read
+		data, err := os.ReadFile(path)
+		if err != nil {
+			fmt.Printf("[FAIL: Read] \n")
+			return nil
+		}
+
+		// 2. Kuntinkantan (Encrypt)
+		artifact, err := adinkra.Kuntinkantan(pubKey, data)
+		if err != nil {
+			fmt.Printf("[FAIL: Bind] \n")
+			return nil
+		}
+
+		// 3. Scribe Artifact
+		if err := os.WriteFile(path+".khepra", artifact, 0644); err != nil {
+			fmt.Printf("[FAIL: Scribe] \n")
+			return nil
+		}
+
+		// 4. Incinerate Original (Secure Delete)
+		if err := secureDelete(path); err != nil {
+			fmt.Printf("[FAIL: Incinerate] \n")
+			return nil
+		}
+
+		fmt.Printf("[ASHES]\n")
+		return nil
+	})
+
+	if err != nil {
+		fatal("the fire spread uncontrollably", err)
+	}
+	fmt.Println("[KHEPRA] The purification is complete.")
+}
+
+func nsuoCmd(args []string) {
+	if len(args) < 2 {
+		fmt.Println("Usage: khepra nsuo <privkey> <directory>")
+		return
+	}
+	privKeyPath, targetDir := args[0], args[1]
+
+	privKey, err := os.ReadFile(privKeyPath)
+	if err != nil {
+		fatal("cannot grab the staff", err)
+	}
+
+	fmt.Printf("[KHEPRA NSUO] Summoning rain in: %s\n", targetDir)
+
+	err = filepath.Walk(targetDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		if filepath.Ext(path) != ".khepra" {
+			return nil
+		} // Only touch ash
+
+		fmt.Printf("   - Restoring: %s ... ", info.Name())
+
+		// 1. Read Artifact
+		artifact, err := os.ReadFile(path)
+		if err != nil {
+			fmt.Printf("[FAIL: Read]\n")
+			return nil
+		}
+
+		// 2. Sankofa (Decrypt)
+		plaintext, err := adinkra.Sankofa(privKey, artifact)
+		if err != nil {
+			fmt.Printf("[FAIL: Sankofa]\n")
+			return nil
+		}
+
+		// 3. Restore Form
+		outPath := path[:len(path)-7] // Remove .khepra
+		if err := os.WriteFile(outPath, plaintext, 0644); err != nil {
+			fmt.Printf("[FAIL: Restore]\n")
+			return nil
+		}
+
+		// 4. Wash away Ash (Delete Artifact)
+		os.Remove(path)
+
+		fmt.Printf("[LIFE]\n")
+		return nil
+	})
+
+	if err != nil {
+		fatal("the drought persists", err)
+	}
+	fmt.Println("[KHEPRA] The garden is restored.")
+}
+
+// secureDelete overwrites the file with noise before removing it.
+// This prevents forensic recovery.
+func secureDelete(path string) error {
+	f, err := os.OpenFile(path, os.O_WRONLY, 0)
+	if err != nil {
+		return err
+	}
+
+	info, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return err
+	}
+
+	// Overwrite with random noise
+	noise := make([]byte, info.Size())
+	rand.Read(noise)
+	f.Write(noise)
+	f.Sync()
+	f.Close()
+
+	return os.Remove(path)
 }
 
 // ... existing keygenCmd ...
