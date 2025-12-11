@@ -1,4 +1,7 @@
-# KHEPRA (MVP) — EtherVerseCodeMate/giza-cyber-shield
+# KHEPRA Protocol (ASAF) — EtherVerseCodeMate/giza-cyber-shield
+[![Patent Pending](https://img.shields.io/badge/PATENT-PENDING-blue?style=for-the-badge)](docs/PATENT_APPLICATION_UPDATED.md)  
+**Agentic Security Attestation Framework** | *Adinkra-Based Post-Quantum Cryptography*
+
 
 Author: **Souhimbou Doh Kone** — skone@alumni.albany.edu  
 Repo: **git@github.com:EtherVerseCodeMate/giza-cyber-shield.git**  
