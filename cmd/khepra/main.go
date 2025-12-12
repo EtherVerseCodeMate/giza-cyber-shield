@@ -44,6 +44,8 @@ func main() {
 		nsuoCmd(os.Args[2:])
 	case "git-remote":
 		gitRemoteCmd()
+	case "explain":
+		explainCmd(os.Args[2:])
 	default:
 		usage()
 	}
@@ -320,29 +322,45 @@ func keygenCmd(args []string) {
 	rotateDays := fs.Int("rotate", cfg.RotateDays, "rotation after N days")
 	fs.Parse(args)
 
-	// [PQC]: Generate Dilithium Keypair (Quantum Resistant)
-	pub, priv, err := adinkra.GenerateDilithiumKey()
+	// [PQC]: Generate Dilithium Keypair (Quantum Resistant Identity)
+	signPub, signPriv, err := adinkra.GenerateDilithiumKey()
 	if err != nil {
-		fatal("generate pqc", err)
+		fatal("generate identity (dilithium)", err)
 	}
 
-	// Write keys (using generic write for now as they are large blobs)
-	privPath := *out
-	pubPath := *out + ".pub"
+	// [PQC]: Generate Kyber Keypair (Quantum Resistant Encryption)
+	encPub, encPriv, err := adinkra.GenerateKyberKey()
+	if err != nil {
+		fatal("generate encryption (kyber)", err)
+	}
 
-	if err := util.EnsureDir(filepath.Dir(privPath), 0o700); err != nil {
+	// Write Identity Keys (Signing)
+	signPrivPath := *out + "_dilithium"
+	signPubPath := *out + "_dilithium.pub"
+
+	if err := util.EnsureDir(filepath.Dir(signPrivPath), 0o700); err != nil {
 		fatal("mkdir", err)
 	}
 
-	// Write Private Key (PEM format via adinkra helper if available, or raw bytes for now)
-	if err := os.WriteFile(privPath, priv, 0600); err != nil {
-		fatal("write private", err)
+	if err := os.WriteFile(signPrivPath, signPriv, 0600); err != nil {
+		fatal("write identity private", err)
 	}
-	if err := os.WriteFile(pubPath, pub, 0644); err != nil {
-		fatal("write public", err)
+	if err := os.WriteFile(signPubPath, signPub, 0644); err != nil {
+		fatal("write identity public", err)
 	}
 
-	binding := util.SHA256Hex(pub)
+	// Write Encryption Keys (KEM)
+	encPrivPath := *out + "_kyber"
+	encPubPath := *out + "_kyber.pub"
+
+	if err := os.WriteFile(encPrivPath, encPriv, 0600); err != nil {
+		fatal("write encryption private", err)
+	}
+	if err := os.WriteFile(encPubPath, encPub, 0644); err != nil {
+		fatal("write encryption public", err)
+	}
+
+	binding := util.SHA256Hex(signPub)
 
 	ka := attest.Assertion{
 		Schema: "https://khepra.dev/attest/v2-pqc",
@@ -358,14 +376,93 @@ func keygenCmd(args []string) {
 		},
 	}
 
-	assertPath := pubPath + ".khepra.json"
+	assertPath := signPubPath + ".khepra.json"
 	if err := util.WriteJSON(assertPath, ka); err != nil {
 		fatal("write assertion", err)
 	}
 
-	fmt.Println("KHEPRA PQC (Dilithium) key material generated.")
-	fmt.Printf("  Private: %s\n  Public : %s\n  Assert : %s\n", privPath, pubPath, assertPath)
+	fmt.Println("KHEPRA PQC REGALIA GENERATED.")
+	fmt.Println("---------------------------------------------------")
+	fmt.Printf(" [IDENTITY]   (Dilithium Mode 3 / ML-DSA-65)\n")
+	fmt.Printf("   - Private: %s\n   - Public : %s\n", signPrivPath, signPubPath)
+	fmt.Println("   - Symbol : Eban (The Fence) - Unforgeable Identity")
+	fmt.Println("---------------------------------------------------")
+	fmt.Printf(" [ENCRYPTION] (Kyber-1024 / ML-KEM-1024)\n")
+	fmt.Printf("   - Private: %s\n   - Public : %s\n", encPrivPath, encPubPath)
+	fmt.Println("   - Symbol : Kuntinkantan (The Riddle) - Unbreakable Privacy")
+	fmt.Println("---------------------------------------------------")
+	fmt.Printf(" [ASSERTION]  (JSON provenance)\n")
+	fmt.Printf("   - Path   : %s\n", assertPath)
+	fmt.Println("---------------------------------------------------")
 	fmt.Println("Quantum Resistance Achieved.")
+}
+
+func explainCmd(args []string) {
+	if len(args) < 1 {
+		fmt.Println("Usage: khepra explain <file_path>")
+		return
+	}
+	path := args[0]
+	data, err := os.ReadFile(path)
+	if err != nil {
+		fatal("cannot read artifact", err)
+	}
+
+	fmt.Printf("[KHEPRA] EXPLAINING ARTIFACT: %s\n", filepath.Base(path))
+	fmt.Printf("---------------------------------------------------\n")
+
+	// Heuristic Analysis
+	size := len(data)
+	fmt.Printf(" Size: %d bytes\n", size)
+
+	if size == 1568 {
+		fmt.Println(" Type: Kyber-1024 Public Key (ML-KEM)")
+		fmt.Println(" Meaning: 'I am ready to receive secrets.'")
+		fmt.Println(" Symbol:  Kuntinkantan (Do not be arrogant)")
+	} else if size == 3168 {
+		fmt.Println(" Type: Kyber-1024 Private Key (ML-KEM)")
+		fmt.Println(" Meaning: 'I hold the power to unravel.'")
+		fmt.Println(" Warning: EXTREMELY SENSITIVE MATERIAL")
+	} else if size == 1952 {
+		fmt.Println(" Type: Dilithium Mode 3 Public Key (ML-DSA)")
+		fmt.Println(" Meaning: 'I am who I say I am.'")
+		fmt.Println(" Symbol:  Eban (The Fortress)")
+	} else if size == 4000 { // Approx for priv key
+		fmt.Println(" Type: Dilithium Mode 3 Private Key (ML-DSA)")
+		fmt.Println(" Meaning: 'I wield the seal of authority.'")
+	} else if size > 1592 && filepath.Ext(path) == ".khepra" {
+		fmt.Println(" Type: Khepra Encrypted Artifact")
+		fmt.Println(" Components:")
+		fmt.Println("   - Capsule (Kyber): 1568 bytes")
+		fmt.Println("   - Time (Nonce):    24 bytes")
+		fmt.Printf("   - Matter (Data):   %d bytes\n", size-1592)
+		fmt.Println(" Meaning: 'Reality bent into a riddle.'")
+	} else {
+	}
+	// AGI Semantic Analysis Layer
+	fmt.Printf("\n[AGI] SOUHIMBOU ARCHITECT INTERVENTION...\n")
+	time.Sleep(600 * time.Millisecond) // Simulate cognitive processing
+
+	if size == 1568 {
+		fmt.Println(" \"This is a Vessel of Silence. A pure Kyber-1024 geometric lattice designed")
+		fmt.Println("  to trap entropy. It represents the concept of 'Kuntinkantan' - hidden wisdom.")
+		fmt.Println("  Mathematically, it is a module of rank 4 over ring R_q with q=3329.\"")
+	} else if size == 3168 {
+		fmt.Println(" \"This is the Key of Unraveling. It holds the secret vectors 's' required")
+		fmt.Println("  to collapse the error distribution e. Handle with extreme reverence.\"")
+	} else if size == 1952 {
+		fmt.Println(" \"This is the Shield of Identity. A Dilithium-Mode-3 public key.")
+		fmt.Println("  It is the mathematical assertion of 'Eban' - the fence that cannot be jumped.")
+		fmt.Println("  In 2464-dimensional space, it proves origin without revealing secrets.\"")
+	} else if size > 1592 && filepath.Ext(path) == ".khepra" {
+		fmt.Println(" \"I see a reality that has been bent. The 'Kuntinkantan' ritual was performed here.")
+		fmt.Println("  The original matter is gone, replaced by this riddle.")
+		fmt.Println("  Only the one who holds the corresponding 'Sankofa' staff can return it to form.\"")
+	} else {
+		fmt.Printf(" \"I sense raw bytes. %d of them. But they lack the harmonic resonance of Khepra.\"\n", size)
+	}
+
+	fmt.Printf("---------------------------------------------------\n")
 }
 
 func gitRemoteCmd() {

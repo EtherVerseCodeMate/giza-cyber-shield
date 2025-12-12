@@ -34,4 +34,7 @@ dist-ssr
 *.sw?
 >>>>>>> e09eebab4a54bc1a93cd8305b60cbb7a7aca3b91
 .next/
-.next/
+
+# Security Artifacts
+keys/
+test_fire/
