@@ -102,7 +102,25 @@ func auditCmd(args []string) {
 		fmt.Println("[KHEPRA] SHODAN_API_KEY DETECTED. ACTIVATING THREAT INTELLIGENCE.")
 	}
 
-	report, err := audit.Ingest(snapPath, shodanKey)
+	// [NEW] Gitleaks / Secret Integration
+	// khepra audit ingest <scan> -leaks <gitleaks.json>
+	gitleaksFlag := ""
+	for i, arg := range args {
+		if arg == "-leaks" && i+1 < len(args) {
+			gitleaksFlag = args[i+1]
+		}
+	}
+
+	// [SELF-HOSTED] ZScan / IVRE Integration
+	// khepra audit ingest <scan> -zscan <zgrab.json>
+	zscanFlag := ""
+	for i, arg := range args {
+		if arg == "-zscan" && i+1 < len(args) {
+			zscanFlag = args[i+1]
+		}
+	}
+
+	report, err := audit.Ingest(snapPath, shodanKey, gitleaksFlag, zscanFlag)
 	if err != nil {
 		fatal("ingest failed", err)
 	}
