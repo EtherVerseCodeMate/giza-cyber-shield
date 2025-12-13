@@ -95,12 +95,9 @@ func auditCmd(args []string) {
 	snapPath := args[1]
 
 	// Check for SHODAN_API_KEY env var
-	shodanKey := os.Getenv("SHODAN_API_KEY")
+	// Removed.
 
 	fmt.Printf("[KHEPRA] INGESTING EXTERNAL AUDIT ARTIFACT: %s\n", snapPath)
-	if shodanKey != "" {
-		fmt.Println("[KHEPRA] SHODAN_API_KEY DETECTED. ACTIVATING THREAT INTELLIGENCE.")
-	}
 
 	// [NEW] Gitleaks / Secret Integration
 	// khepra audit ingest <scan> -leaks <gitleaks.json>
@@ -120,7 +117,7 @@ func auditCmd(args []string) {
 		}
 	}
 
-	report, err := audit.Ingest(snapPath, shodanKey, gitleaksFlag, zscanFlag)
+	report, err := audit.Ingest(snapPath, gitleaksFlag, zscanFlag)
 	if err != nil {
 		fatal("ingest failed", err)
 	}
