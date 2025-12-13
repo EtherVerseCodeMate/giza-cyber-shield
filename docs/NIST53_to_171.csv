@@ -1,0 +1,123 @@
+NIST_171_Ref,NIST_53_Ref,Control_Family
+3.1.1,AC-3,Access Control
+3.1.2,AC-2,Access Control
+3.1.3,AC-17,Access Control
+3.1.4,AC-19,Access Control
+3.1.4,AC-20,Access Control
+3.1.5,AC-6,Access Control
+3.1.6,AC-6(7),Access Control
+3.1.6,AC-6(9),Access Control
+3.1.7,AC-7,Access Control
+3.1.8,AC-11,Access Control
+3.1.9,AC-12,Access Control
+3.1.10,AC-14,Access Control
+3.1.11,AC-4,Access Control
+3.1.12,AC-8,Access Control
+3.1.13,AC-22,Access Control
+3.1.14,AC-2(11),Access Control
+3.1.15,AC-2(12),Access Control
+3.1.16,AC-2(13),Access Control
+3.1.17,AC-2(1),Access Control
+3.1.18,AC-2(7),Access Control
+3.1.19,AC-17(1),Access Control
+3.1.20,AC-3(7),Access Control
+3.1.21,AC-5,Access Control
+3.1.22,AC-6(1),Access Control
+3.2.1,AT-2,Awareness and Training
+3.2.1,PM-13,Awareness and Training
+3.2.2,AT-3,Awareness and Training
+3.2.2,PS-7,Awareness and Training
+3.2.3,AT-3(3),Awareness and Training
+3.2.4,AT-4,Awareness and Training
+3.3.1,AU-2,Audit and Accountability
+3.3.2,AU-3,Audit and Accountability
+3.3.3,AU-6,Audit and Accountability
+3.3.4,AU-9,Audit and Accountability
+3.3.5,AU-11,Audit and Accountability
+3.3.6,AU-12,Audit and Accountability
+3.3.7,AU-4,Audit and Accountability
+3.3.8,AU-6(1),Audit and Accountability
+3.3.8,AU-7,Audit and Accountability
+3.3.9,AU-9(2),Audit and Accountability
+3.4.1,CM-2,Configuration Management
+3.4.2,CM-6,Configuration Management
+3.4.3,CM-7,Configuration Management
+3.4.4,CM-8,Configuration Management
+3.4.5,CM-5,Configuration Management
+3.4.6,CM-3,Configuration Management
+3.4.7,CM-7(1),Configuration Management
+3.4.8,CM-8(1),Configuration Management
+3.4.9,CM-11,Configuration Management
+3.5.1,IA-2,Identification and Authentication
+3.5.2,IA-2(1),Identification and Authentication
+3.5.2,IA-2(2),Identification and Authentication
+3.5.2,IA-2(8),Identification and Authentication
+3.5.2,IA-2(9),Identification and Authentication
+3.5.3,IA-8,Identification and Authentication
+3.5.4,IA-4,Identification and Authentication
+3.5.5,IA-5,Identification and Authentication
+3.5.6,IA-5(1),Identification and Authentication
+3.5.7,IA-5(6),Identification and Authentication
+3.5.8,IA-5(7),Identification and Authentication
+3.5.9,IA-2(5),Identification and Authentication
+3.5.10,IA-8(1),Identification and Authentication
+3.5.10,IA-8(2),Identification and Authentication
+3.5.10,IA-8(4),Identification and Authentication
+3.5.11,IA-12(4),Identification and Authentication
+3.5.11,IA-12(5),Identification and Authentication
+3.6.1,IR-4,Incident Response
+3.6.1,IR-5,Incident Response
+3.6.2,IR-6,Incident Response
+3.6.3,IR-8,Incident Response
+3.7.1,MA-2,Maintenance
+3.7.2,MA-3,Maintenance
+3.7.3,MA-4,Maintenance
+3.7.4,MA-5,Maintenance
+3.7.5,MA-6,Maintenance
+3.8.1,MP-2,Media Protection
+3.8.2,MP-4,Media Protection
+3.8.3,MP-6,Media Protection
+3.8.4,MP-7,Media Protection
+3.8.5,MP-3,Media Protection
+3.8.6,MP-5,Media Protection
+3.8.7,MP-7(1),Media Protection
+3.8.8,MP-7(2),Media Protection
+3.9.1,PS-3,Personnel Security
+3.9.2,PS-6,Personnel Security
+3.10.1,PE-2,Physical Protection
+3.10.2,PE-3,Physical Protection
+3.10.3,PE-6,Physical Protection
+3.10.4,PE-8,Physical Protection
+3.10.5,PE-16,Physical Protection
+3.10.6,PE-17,Physical Protection
+3.11.1,RA-3,Risk Assessment
+3.11.2,RA-5,Risk Assessment
+3.11.3,RA-5(5),Risk Assessment
+3.12.1,CA-2,Security Assessment
+3.12.2,CA-7,Security Assessment
+3.12.3,CA-5,Security Assessment
+3.12.4,CA-6,Security Assessment
+3.13.1,SC-7,System and Communications Protection
+3.13.2,SC-8,System and Communications Protection
+3.13.3,SC-12,System and Communications Protection
+3.13.4,SC-13,System and Communications Protection
+3.13.5,SC-15,System and Communications Protection
+3.13.6,SC-20,System and Communications Protection
+3.13.7,SC-21,System and Communications Protection
+3.13.8,SC-23,System and Communications Protection
+3.13.9,SC-28,System and Communications Protection
+3.13.10,SC-7(3),System and Communications Protection
+3.13.11,SC-7(4),System and Communications Protection
+3.13.11,SC-7(5),System and Communications Protection
+3.13.12,SC-7(7),System and Communications Protection
+3.13.13,SC-7(8),System and Communications Protection
+3.13.14,SC-8(1),System and Communications Protection
+3.13.15,SC-28(1),System and Communications Protection
+3.13.16,SC-39,System and Communications Protection
+3.14.1,SI-2,System and Information Integrity
+3.14.2,SI-3,System and Information Integrity
+3.14.3,SI-4,System and Information Integrity
+3.14.4,SI-7,System and Information Integrity
+3.14.5,SI-10,System and Information Integrity
+3.14.6,SI-16,System and Information Integrity
+3.14.7,SI-4(5),System and Information Integrity

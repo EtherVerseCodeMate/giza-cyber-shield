@@ -10,7 +10,9 @@ import (
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/attest"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/audit"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/config"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stigs"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/util"
 )
 
@@ -46,9 +48,72 @@ func main() {
 		gitRemoteCmd()
 	case "explain":
 		explainCmd(os.Args[2:])
+	case "audit":
+		auditCmd(os.Args[2:])
+	case "stigs":
+		stigsCmd(os.Args[2:])
 	default:
 		usage()
 	}
+}
+
+func stigsCmd(args []string) {
+	if len(args) < 2 || args[0] != "ingest" {
+		fmt.Println("Usage: khepra stigs ingest <file.xlsx>")
+		return
+	}
+	// Import pkg/stigs inside logic if needed or top level.
+	// Will add logic block here.
+	path := args[1]
+	fmt.Printf("[KHEPRA] INGESTING STIG LIBRARY: %s\n", path)
+
+	items, err := stigs.LoadLibrary(path)
+	if err != nil {
+		fatal("load stigs failed", err)
+	}
+
+	fmt.Printf(" [SUCCESS] Loaded %d STIG Controls.\n", len(items))
+	// Analytics
+	families := make(map[string]int)
+	for _, it := range items {
+		families[it.Family]++
+	}
+	fmt.Println(" [Distrubution]")
+	for k, v := range families {
+		if k != "" {
+			fmt.Printf("   - %s: %d\n", k, v)
+		}
+	}
+}
+
+func auditCmd(args []string) {
+	if len(args) < 2 || args[0] != "ingest" {
+		fmt.Println("Usage: khepra audit ingest <snapshot_file.json>")
+		return
+	}
+	snapPath := args[1]
+
+	fmt.Printf("[KHEPRA] INGESTING EXTERNAL AUDIT ARTIFACT: %s\n", snapPath)
+
+	report, err := audit.Ingest(snapPath)
+	if err != nil {
+		fatal("ingest failed", err)
+	}
+
+	// Print Executive Summary
+	fmt.Printf(" [SUCCESS] Snapshot Ingested. ID: %s\n", report.ScanID)
+	fmt.Printf(" [CLIENT]  %s\n", report.Client)
+	fmt.Printf(" [RISKS]   %d Issues Identified\n", len(report.Risks))
+
+	for _, r := range report.Risks {
+		fmt.Printf("   - [%s] %s\n", r.Severity, r.Title)
+	}
+
+	outReport := snapPath + ".risk_report.json"
+	if err := audit.SaveReport(report, outReport); err != nil {
+		fatal("save report", err)
+	}
+	fmt.Printf("\n[OUTPUT] Risk Report generated: %s\n", outReport)
 }
 
 // ... existing keygen and crack cmds ...
