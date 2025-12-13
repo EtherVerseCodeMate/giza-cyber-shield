@@ -3,6 +3,22 @@
   "scan_id": "40733160cd88",
   "risks": [
     {
+      "severity": "MEDIUM",
+      "title": "Quantum-Vulnerable Handshake (ZScan)",
+      "description": "Detected TLSv1.2 using TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256. Susceptible to Harvest-Now-Decrypt-Later.",
+      "remediation": "Plan Migration to Kyber-1024 or similar KEM.",
+      "causal_link_id": "risk:zscan:188.71.249.125",
+      "stig_ref": "SC-13"
+    },
+    {
+      "severity": "CRITICAL",
+      "title": "Hardcoded Secret Detected",
+      "description": "Secret leaked in config/aws.json (Line 12). Rule: AWS Access Key. Author: Developer X",
+      "remediation": "Rotate secret IMMEDIATELY. Revoke prior commits. Ref: STIG IA-5 (Authenticator Management).",
+      "causal_link_id": "risk:leak:config/aws.json:12",
+      "stig_ref": "IA-000000"
+    },
+    {
       "severity": "HIGH",
       "title": "Unpinned NPM Dependency Tree",
       "description": "Manifest found at node_modules\\@alloc\\quick-lru\\package.json. Violation of CM protocol.",
