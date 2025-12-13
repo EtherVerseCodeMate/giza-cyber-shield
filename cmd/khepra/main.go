@@ -12,6 +12,7 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/attest"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/audit"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/config"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/packet"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stigs"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/util"
 )
@@ -136,6 +137,32 @@ func auditCmd(args []string) {
 		fmt.Printf("[WARN] Failed to scribe Executive Memo: %v\n", err)
 	} else {
 		fmt.Printf("[OUTPUT] Executive Decision Memo generated: %s\n", affinePath)
+	}
+	// [NEW] Packet Analysis Integration
+	// khepra audit ingest <scan> -pcap <file.json>
+	pcapFlag := ""
+	for i, arg := range args {
+		if arg == "-pcap" && i+1 < len(args) {
+			pcapFlag = args[i+1]
+		}
+	}
+
+	if pcapFlag != "" {
+		fmt.Printf("\n[KHEPRA] PACKET INTERCEPTION DETECTED: %s\n", pcapFlag)
+		res, err := packet.AnalyzeWiresharkJSON(pcapFlag)
+		if err != nil {
+			fmt.Printf("[FAIL] Packet Reconstruction Error: %v\n", err)
+		} else {
+			fmt.Println("[KHEPRA] DEEP PACKET INSPECTION COMPLETE.")
+			fmt.Printf("   - Processed Packets: %d\n", res.TotalPackets)
+			fmt.Printf("   - Cleartext (HTTP) : %d\n", res.CleartextCount)
+			fmt.Printf("   - Legacy TLS       : %d\n", res.LegacyTLSCount)
+			fmt.Printf("   - Quantum Risky    : %d (RSA/ECDSA)\n", res.QuantumRiskyCount)
+
+			if res.QuantumRiskyCount > 0 {
+				fmt.Println("   > ALERT: S-N-D-L Attack Vector Confirmed.")
+			}
+		}
 	}
 }
 
