@@ -1,11 +1,18 @@
-# KHEPRA Protocol (ASAF) — EtherVerseCodeMate/giza-cyber-shield
-[![Patent Pending](https://img.shields.io/badge/PATENT-PENDING-blue?style=for-the-badge)](docs/PATENT_APPLICATION_UPDATED.md)  
+# KHEPRA Protocol (ASAF) — Advisory Attestation Engine
+[![Patent Pending](https://img.shields.io/badge/PATENT-PENDING-blue?style=for-the-badge)](docs/PATENT_APPLICATION_UPDATED.md) [![Status: PROPRIETARY](https://img.shields.io/badge/STATUS-PROPRIETARY_INTERNAL_TOOL-red?style=for-the-badge)](docs/ENTERPRISE_OFFER_STRATEGY.md)
+
 **Agentic Security Attestation Framework** | *Adinkra-Based Post-Quantum Cryptography*
 
+> **Operational Note:** This protocol is the proprietary internal engine used by the **Enterprise Risk & Readiness Advisory** service. It is not currently licensed for standalone resale. It facilitates the cryptographic modeling of trust, risk causality, and clean-room IP lineage for advisory clients.
 
 Author: **Souhimbou Doh Kone** — skone@alumni.albany.edu  
 Repo: **git@github.com:EtherVerseCodeMate/giza-cyber-shield.git**  
 Shells x AI Host: **Generic Linux Node** (Ubuntu 24.04 Reference)
+
+## 📄 Executive Usage
+*   **[Consulting Offer & Strategy](docs/ENTERPRISE_OFFER_STRATEGY.md)**: How we use Khepra to eliminate enterprise risk.
+*   **[Executive Brief](docs/KHEPRA_EXECUTIVE_BRIEF.md)**: What Khepra actually *does* for your architecture (The X-Ray).
+
 
 ### Sanity Check (Validate on Laptop)
 To test everything (Unit Tests + CLI PQC + Agent API) in one go:

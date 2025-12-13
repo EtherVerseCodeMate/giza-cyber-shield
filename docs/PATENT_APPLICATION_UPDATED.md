@@ -8,7 +8,7 @@ System and Method for Agentic Security Attestation (ASAF) using Adinkra Symbol-B
 
 **INVENTOR INFORMATION:**
 Primary Inventor: Souhimbou D. Kone
-Residence: 2022 10th Street, Rensselaer, NY 12144
+Residence:
 Entity: NouchiX / SecRed Knowledge Inc.
 
 **DOCKET NUMBER:** KHEPRA-2025-PROV-002
