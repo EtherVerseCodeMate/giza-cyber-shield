@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -38,6 +40,7 @@ func main() {
 			Hostname: getHostname(),
 			OS:       runtime.GOOS,
 			Arch:     runtime.GOARCH,
+			PublicIP: getPublicIP(), // V2 Real Collector
 		},
 		Network:   []audit.NetworkPort{}, // Populate real data in v2
 		Processes: []audit.ProcessInfo{}, // Populate real data in v2
@@ -73,6 +76,19 @@ func getHostname() string {
 		return h
 	}
 	return "unknown"
+}
+
+func getPublicIP() string {
+	resp, err := http.Get("https://api.ipify.org")
+	if err != nil {
+		return "0.0.0.0" // Fail safe
+	}
+	defer resp.Body.Close()
+	ip, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "0.0.0.0"
+	}
+	return string(ip)
 }
 
 func scanManifests(root string) []audit.FileManifest {

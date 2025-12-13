@@ -93,9 +93,15 @@ func auditCmd(args []string) {
 	}
 	snapPath := args[1]
 
-	fmt.Printf("[KHEPRA] INGESTING EXTERNAL AUDIT ARTIFACT: %s\n", snapPath)
+	// Check for SHODAN_API_KEY env var
+	shodanKey := os.Getenv("SHODAN_API_KEY")
 
-	report, err := audit.Ingest(snapPath)
+	fmt.Printf("[KHEPRA] INGESTING EXTERNAL AUDIT ARTIFACT: %s\n", snapPath)
+	if shodanKey != "" {
+		fmt.Println("[KHEPRA] SHODAN_API_KEY DETECTED. ACTIVATING THREAT INTELLIGENCE.")
+	}
+
+	report, err := audit.Ingest(snapPath, shodanKey)
 	if err != nil {
 		fatal("ingest failed", err)
 	}
@@ -114,6 +120,23 @@ func auditCmd(args []string) {
 		fatal("save report", err)
 	}
 	fmt.Printf("\n[OUTPUT] Risk Report generated: %s\n", outReport)
+
+	// Export to Superset CSV
+	csvPath := snapPath + ".superset.csv"
+	if err := audit.ExportToCSV(report, csvPath); err != nil {
+		fmt.Printf("[WARN] Failed to export CSV: %v\n", err)
+	} else {
+		fmt.Printf("[OUTPUT] Superset CSV generated: %s\n", csvPath)
+	}
+
+	// Generate Executive Memo (AFFiNE Block Format)
+	affinePath := snapPath + ".affine.md"
+	markdown := audit.GenerateAFFiNE(report)
+	if err := os.WriteFile(affinePath, []byte(markdown), 0644); err != nil {
+		fmt.Printf("[WARN] Failed to scribe Executive Memo: %v\n", err)
+	} else {
+		fmt.Printf("[OUTPUT] Executive Decision Memo generated: %s\n", affinePath)
+	}
 }
 
 // ... existing keygen and crack cmds ...

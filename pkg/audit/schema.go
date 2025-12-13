@@ -25,6 +25,7 @@ type InfoHost struct {
 	Hostname string `json:"hostname"`
 	OS       string `json:"os"`
 	Arch     string `json:"arch"`
+	PublicIP string `json:"public_ip"` // Detected via external echo
 }
 
 type NetworkPort struct {

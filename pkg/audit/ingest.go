@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/shodan"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stigs"
 )
 
@@ -29,7 +30,7 @@ type RiskItem struct {
 }
 
 // Ingest processing a Sonar snapshot and generates a Risk Report.
-func Ingest(snapshotPath string) (*RiskReport, error) {
+func Ingest(snapshotPath string, shodanKey string) (*RiskReport, error) {
 	data, err := os.ReadFile(snapshotPath)
 	if err != nil {
 		return nil, err
@@ -41,8 +42,6 @@ func Ingest(snapshotPath string) (*RiskReport, error) {
 	}
 
 	// [KHEPRA INTELLIGENCE] Load STIG Library
-	// In a real scenario, we might cache this or pass it in context.
-	// For now, we attempt to load it if present in the docs folder.
 	var stigLib []stigs.STIGItem
 	if items, err := stigs.LoadLibrary("docs/STIG_to_NIST171_Mapping_Ultimate.xlsx"); err == nil {
 		stigLib = items
@@ -64,6 +63,36 @@ func Ingest(snapshotPath string) (*RiskReport, error) {
 	}, nil)
 
 	risks := []RiskItem{}
+
+	// [SHODAN] External Exposure Verification
+	if shodanKey != "" && snap.Host.PublicIP != "" {
+		fmt.Printf("[KHEPRA] Verifying External Exposure for %s via Shodan...\n", snap.Host.PublicIP)
+		client := shodan.New(shodanKey)
+		hostInfo, err := client.GetHost(snap.Host.PublicIP)
+		if err != nil {
+			fmt.Printf("[KHEPRA] Shodan/Intel Warning: %v\n", err)
+		} else {
+			// Found open ports visible to the world
+			if len(hostInfo.Ports) > 0 {
+				nodeID := "risk:exposure:" + snap.Host.PublicIP
+				d.Add(&dag.Node{
+					ID:     nodeID,
+					Action: "External Reconnaissance",
+					Symbol: "Owo Foro Adobe (Snake/Prudence)",
+					Time:   time.Now().Format(time.RFC3339),
+				}, []string{hostNodeID})
+
+				risks = append(risks, RiskItem{
+					Severity:      "CRITICAL",
+					Title:         "Publicly Exposed Services",
+					Description:   fmt.Sprintf("Host %s is visible on public internet with open ports: %v. Detected via Shodan Intel.", snap.Host.PublicIP, hostInfo.Ports),
+					Remediation:   "Immediate Firewall Review. Reference STIG AC-4 (Information Flow Enforcement).",
+					CausalLink:    nodeID,
+					STIGReference: "AC-000000", // Heuristic
+				})
+			}
+		}
+	}
 
 	// Analyze Manifests (Supply Chain Risk)
 	for _, m := range snap.Manifests {
