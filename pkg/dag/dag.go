@@ -6,11 +6,12 @@ import (
 )
 
 type Node struct {
-	ID      string   `json:"id"`
-	Action  string   `json:"action"`
-	Symbol  string   `json:"symbol"`
-	Time    string   `json:"time"` // ISO8601
-	Parents []string `json:"parents,omitempty"`
+	ID      string            `json:"id"`
+	Action  string            `json:"action"`
+	Symbol  string            `json:"symbol"`
+	Time    string            `json:"time"` // ISO8601
+	Parents []string          `json:"parents,omitempty"`
+	PQC     map[string]string `json:"pqc_metadata,omitempty"` // Quantum-Safe Attestation Data
 }
 
 type Memory struct {
