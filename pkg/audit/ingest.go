@@ -9,7 +9,6 @@ import (
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/arsenal"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/shodan"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stigs"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/zscan"
 )
@@ -32,7 +31,7 @@ type RiskItem struct {
 }
 
 // Ingest processing a Sonar snapshot and generates a Risk Report.
-func Ingest(snapshotPath string, shodanKey string, gitleaksPath string, zscanPath string) (*RiskReport, error) {
+func Ingest(snapshotPath string, gitleaksPath string, zscanPath string) (*RiskReport, error) {
 	data, err := os.ReadFile(snapshotPath)
 	if err != nil {
 		return nil, err
@@ -66,37 +65,8 @@ func Ingest(snapshotPath string, shodanKey string, gitleaksPath string, zscanPat
 
 	risks := []RiskItem{}
 
-	// [SHODAN] External Exposure Verification
-	if shodanKey != "" && snap.Host.PublicIP != "" {
-		fmt.Printf("[KHEPRA] Verifying External Exposure for %s via Shodan...\n", snap.Host.PublicIP)
-		client := shodan.New(shodanKey)
-		hostInfo, err := client.GetHost(snap.Host.PublicIP)
-		if err != nil {
-			fmt.Printf("[KHEPRA] Shodan/Intel Warning: %v\n", err)
-		} else {
-			// Found open ports visible to the world
-			if len(hostInfo.Ports) > 0 {
-				nodeID := "risk:exposure:" + snap.Host.PublicIP
-				d.Add(&dag.Node{
-					ID:     nodeID,
-					Action: "External Reconnaissance",
-					Symbol: "Owo Foro Adobe (Snake/Prudence)",
-					Time:   time.Now().Format(time.RFC3339),
-				}, []string{hostNodeID})
-
-				risks = append(risks, RiskItem{
-					Severity:      "CRITICAL",
-					Title:         "Publicly Exposed Services",
-					Description:   fmt.Sprintf("Host %s is visible on public internet with open ports: %v. Detected via Shodan Intel.", snap.Host.PublicIP, hostInfo.Ports),
-					Remediation:   "Immediate Firewall Review. Reference STIG AC-4 (Information Flow Enforcement).",
-					CausalLink:    nodeID,
-					STIGReference: "AC-000000", // Heuristic
-				})
-			}
-		}
-	} else {
-		fmt.Println("[KHEPRA] External Reconnaissance (Shodan) disabled (No Key provided).")
-	}
+	// [SHODAN REMOVED] - Zero External Dependency Architecture Enforced.
+	// External Exposure Verification is now handled by ZScan (Passive) or Scanner (Active).
 
 	// [SELF-HOSTED INTEL] ZScan Ingstion (IVRE/Natlas/ZGrab2)
 	// Replaces Shodan Dependency
@@ -112,11 +82,30 @@ func Ingest(snapshotPath string, shodanKey string, gitleaksPath string, zscanPat
 				if res.IP == snap.Host.PublicIP || snap.Host.PublicIP == "" {
 					// We treat any finding here as an exposure if it matches our IP
 					nodeID := "risk:zscan:" + res.IP
+
+					// [PQC] Metadata Enrichment
+					pqcMeta := map[string]string{
+						"crypto_agility": "unknown", // Default
+						"cipher_suite":   "unknown",
+						"source":         "zscan_passive",
+					}
+
+					if res.Data.TLS.Status == "success" {
+						cs := res.Data.TLS.Result.HandshakeLog.ServerHello.CipherSuite.Name
+						pqcMeta["cipher_suite"] = cs
+						if strings.Contains(cs, "RSA") || strings.Contains(cs, "ECDH") {
+							pqcMeta["crypto_agility"] = "legacy_vulnerable"
+						} else if strings.Contains(cs, "KYBER") || strings.Contains(cs, "DILITHIUM") {
+							pqcMeta["crypto_agility"] = "quantum_safe"
+						}
+					}
+
 					d.Add(&dag.Node{
 						ID:     nodeID,
 						Action: "ZGrab2 Verification",
 						Symbol: "Hwe Mu Dua (Examination)",
 						Time:   time.Now().Format(time.RFC3339),
+						PQC:    pqcMeta,
 					}, []string{hostNodeID})
 
 					// TLS Analysis
