@@ -18,9 +18,11 @@ type Result struct {
 }
 
 // Scanner is the core reconnaissance engine
+// Scanner is the core reconnaissance engine
 type Scanner struct {
 	Ports       []int
-	Concurrency int // Number of concurrent threads (default: 1000)
+	Concurrency int    // Number of concurrent threads (default: 1000)
+	Proxy       string // SOCKS5 Proxy Address (e.g. "127.0.0.1:9050")
 }
 
 // New creates a new Scanner instance.
@@ -31,6 +33,11 @@ func New() *Scanner {
 		Ports:       commonPorts,
 		Concurrency: 1000,
 	}
+}
+
+// SetProxy enables SOCKS5 routing for IP masking (e.g. Tor)
+func (s *Scanner) SetProxy(proxyAddr string) {
+	s.Proxy = proxyAddr
 }
 
 // SetFullScan enables scanning of all 65535 TCP ports
@@ -79,12 +86,19 @@ func (s *Scanner) FocusPorts(intel []int) {
 
 // Run performs a concurrent port scan on the target using a worker pool
 func (s *Scanner) Run(target string) ([]Result, error) {
-	// Resolve IP
-	ips, err := net.LookupIP(target)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve target: %v", err)
+	// Resolve IP (Local or Proxy?)
+	// If Proxy is set, we let the Proxy resolve it! So we don't leak DNS locally.
+	// But Scanner code was doing LookupIP first.
+	// FIX: If Proxy is set, use target string directly. IF not, resolve.
+
+	targetIP := target
+	if s.Proxy == "" {
+		ips, err := net.LookupIP(target)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve target: %v", err)
+		}
+		targetIP = ips[0].String()
 	}
-	ip := ips[0].String()
 
 	results := make(chan Result)
 	var finalResults []Result
@@ -99,7 +113,7 @@ func (s *Scanner) Run(target string) ([]Result, error) {
 		go func() {
 			defer wg.Done()
 			for port := range portsChan {
-				res := scanPort(ip, port)
+				res := s.scanPort(targetIP, port) // Pass scanner instance method
 				if res != nil {
 					results <- *res
 				}
@@ -123,6 +137,11 @@ func (s *Scanner) Run(target string) ([]Result, error) {
 
 	for r := range results {
 		finalResults = append(finalResults, r)
+
+		if s.Proxy != "" && len(finalResults) == 1 {
+			// Print first success to confirm tunnel is working
+			fmt.Printf("[SCANNER] Tunnel Active. Found open port via %s\n", s.Proxy)
+		}
 	}
 
 	// Sort by port for clean output
@@ -133,20 +152,81 @@ func (s *Scanner) Run(target string) ([]Result, error) {
 	return finalResults, nil
 }
 
-func scanPort(ip string, port int) *Result {
-	address := fmt.Sprintf("%s:%d", ip, port)
-	conn, err := net.DialTimeout("tcp", address, 1500*time.Millisecond)
+func (s *Scanner) scanPort(host string, port int) *Result {
+	address := fmt.Sprintf("%s:%d", host, port)
+	timeout := 2000 * time.Millisecond // Slightly higher/adaptive
+
+	var conn net.Conn
+	var err error
+
+	if s.Proxy != "" {
+		conn, err = s.dialSOCKS5(address)
+	} else {
+		conn, err = net.DialTimeout("tcp", address, timeout)
+	}
+
 	if err != nil {
 		return nil // Closed or Filtered
 	}
 	defer conn.Close()
 
 	return &Result{
-		Target:  ip,
+		Target:  host,
 		Port:    port,
 		Status:  "OPEN",
 		Service: identifyService(port),
 	}
+}
+
+// dialSOCKS5 implements a minimal Zero-Dependency SOCKS5 client handshake
+func (s *Scanner) dialSOCKS5(targetAddr string) (net.Conn, error) {
+	// 1. Connect to Proxy
+	proxyConn, err := net.DialTimeout("tcp", s.Proxy, 2000*time.Millisecond)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Client Greeting [Ver: 0x05, NMethods: 1, Method: 0x00 (No Auth)]
+	_, err = proxyConn.Write([]byte{0x05, 0x01, 0x00})
+	if err != nil {
+		proxyConn.Close()
+		return nil, err
+	}
+
+	// 3. Server Choice
+	header := make([]byte, 2)
+	_, err = proxyConn.Read(header)
+	if err != nil || header[0] != 0x05 || header[1] != 0x00 {
+		proxyConn.Close()
+		return nil, fmt.Errorf("proxy handshake failed")
+	}
+
+	// 4. Client Connection Request
+	// Cmd: 0x01 (Connect), RSV: 0x00, ATYP: 0x03 (DomainName), Len, Domain..., Port(2)
+	host, portStr, _ := net.SplitHostPort(targetAddr)
+	portInt := commonPorts[0] // safe default
+	fmt.Sscanf(portStr, "%d", &portInt)
+
+	req := []byte{0x05, 0x01, 0x00, 0x03, byte(len(host))}
+	req = append(req, []byte(host)...)
+	req = append(req, byte(portInt>>8), byte(portInt&0xff))
+
+	_, err = proxyConn.Write(req)
+	if err != nil {
+		proxyConn.Close()
+		return nil, err
+	}
+
+	// 5. Server Response
+	// Ver: 0x05, Rep: 0x00 (Success), RSV, ATYP(1), BND.ADDR(4), BND.PORT(2) = 10 bytes min
+	resp := make([]byte, 256)
+	n, err := proxyConn.Read(resp)
+	if err != nil || n < 4 || resp[1] != 0x00 {
+		proxyConn.Close()
+		return nil, fmt.Errorf("proxy connect failed")
+	}
+
+	return proxyConn, nil
 }
 
 func identifyService(port int) string {
