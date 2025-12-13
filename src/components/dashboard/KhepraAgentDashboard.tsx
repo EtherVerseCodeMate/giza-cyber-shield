@@ -6,11 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
+import DAGConstellation from './DAGConstellation';
 import {
   Shield,
   Activity,
-  RefreshCw,
-  Server,
   FileKey,
   GitBranch,
   CheckCircle2,
@@ -401,49 +400,9 @@ const KhepraAgentDashboard = () => {
               {displayText('SYNCHRONIZE DAG')}
             </Button>
 
-            {dagState.length > 0 ? (
-              <div className="mt-4 space-y-2 max-h-72 overflow-y-auto">
-                {dagState.map((node, index) => (
-                  <div
-                    key={node.id}
-                    className="p-3 glass-panel border-primary/10 hover:border-primary/40 transition-all duration-300 group"
-                    style={{ animationDelay: `${index * 100}ms` }}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-mono text-xs text-primary/70 group-hover:text-primary transition-colors">
-                        {displayText(node.id.substring(0, 16))}...
-                      </span>
-                      <Badge variant="outline" className="text-xs font-mono border-primary/30 text-primary">
-                        <span className={`mr-1 ${ADINKRA_SYMBOLS[node.symbol]?.color}`}>
-                          {ADINKRA_SYMBOLS[node.symbol]?.icon}
-                        </span>
-                        {displayText(node.symbol)}
-                      </Badge>
-                    </div>
-                    <p className="text-sm font-rajdhani font-medium">{displayText(node.action)}</p>
-                    <p className="text-xs text-muted-foreground font-mono mt-1">
-                      {new Date(node.time).toLocaleString()}
-                    </p>
-                    {node.parents && node.parents.length > 0 && (
-                      <div className="mt-2 flex items-center gap-1 text-xs text-primary/50">
-                        <GitBranch className="h-3 w-3" />
-                        <span className="font-mono">{displayText('← ' + node.parents.map(p => p.substring(0, 8)).join(', '))}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="mt-4 p-6 text-center border border-dashed border-primary/20 rounded-lg">
-                <Network className="h-8 w-8 mx-auto text-primary/30 mb-2" />
-                <p className="text-muted-foreground text-sm font-mono">
-                  {displayText('NO NODES IN GRAPH')}
-                </p>
-                <p className="text-xs text-muted-foreground/50 mt-1">
-                  {displayText('Synchronize to load trust constellation')}
-                </p>
-              </div>
-            )}
+            <div className="mt-4">
+              <DAGConstellation nodes={dagState} veilMode={veilMode} />
+            </div>
           </CardContent>
         </Card>
       </div>
