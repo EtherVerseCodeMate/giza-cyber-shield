@@ -244,6 +244,60 @@ export type Database = {
           },
         ]
       }
+      consulting_access: {
+        Row: {
+          advisory_approved: boolean
+          advisory_approved_at: string | null
+          advisory_approved_by: string | null
+          advisory_requested: boolean
+          advisory_requested_at: string | null
+          created_at: string
+          diagnostic_paid: boolean
+          diagnostic_paid_at: string | null
+          id: string
+          stripe_customer_id: string | null
+          subscription_id: string | null
+          subscription_status: string | null
+          subscription_updated_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          advisory_approved?: boolean
+          advisory_approved_at?: string | null
+          advisory_approved_by?: string | null
+          advisory_requested?: boolean
+          advisory_requested_at?: string | null
+          created_at?: string
+          diagnostic_paid?: boolean
+          diagnostic_paid_at?: string | null
+          id?: string
+          stripe_customer_id?: string | null
+          subscription_id?: string | null
+          subscription_status?: string | null
+          subscription_updated_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          advisory_approved?: boolean
+          advisory_approved_at?: string | null
+          advisory_approved_by?: string | null
+          advisory_requested?: boolean
+          advisory_requested_at?: string | null
+          created_at?: string
+          diagnostic_paid?: boolean
+          diagnostic_paid_at?: string | null
+          id?: string
+          stripe_customer_id?: string | null
+          subscription_id?: string | null
+          subscription_status?: string | null
+          subscription_updated_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       cultural_policies: {
         Row: {
           applicable_environments: string[] | null
@@ -612,6 +666,27 @@ export type Database = {
           policy_name?: string
           updated_at?: string
           version?: number
+        }
+        Relationships: []
+      }
+      processed_stripe_events: {
+        Row: {
+          event_id: string
+          metadata: Json | null
+          processed_at: string
+          stripe_event_type: string
+        }
+        Insert: {
+          event_id: string
+          metadata?: Json | null
+          processed_at?: string
+          stripe_event_type: string
+        }
+        Update: {
+          event_id?: string
+          metadata?: Json | null
+          processed_at?: string
+          stripe_event_type?: string
         }
         Relationships: []
       }
