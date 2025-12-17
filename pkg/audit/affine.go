@@ -32,7 +32,7 @@ func GenerateAFFiNE(r *RiskReport) string {
 		}
 	}
 
-	sb.WriteString(fmt.Sprintf("### Risk Posture At-A-Glance\n"))
+	sb.WriteString("### Risk Posture At-A-Glance\n")
 	sb.WriteString(fmt.Sprintf("- **CRITICAL Vulnerabilities:** %d\n", criticalCount))
 	sb.WriteString(fmt.Sprintf("- **HIGH Severity Risks:** %d\n", highCount))
 	sb.WriteString(fmt.Sprintf("- **Total Findings:** %d\n\n", len(r.Risks)))

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useKhepraAgent } from '@/hooks/useKhepraAgent';
+
 
 interface Message {
     role: 'user' | 'agi';
@@ -25,7 +25,7 @@ export const SouHimBouChat = () => {
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const { callEndpoint } = useKhepraAgent();
+
 
     useEffect(() => {
         if (scrollRef.current) {

@@ -16,6 +16,10 @@ type Config struct {
 	RepoSSH         string
 	RepoName        string
 	GitEmail        string
+	// LLM
+	LLMProvider string
+	LLMModel    string
+	LLMUrl      string
 }
 
 func getenv(k, def string) string {
@@ -45,5 +49,9 @@ func Load() Config {
 		RepoSSH:         getenv("KHEPRA_REPO_SSH", "git@github.com:EtherVerseCodeMate/giza-cyber-shield.git"),
 		RepoName:        getenv("KHEPRA_REPO_NAME", "EtherVerseCodeMate/giza-cyber-shield"),
 		GitEmail:        getenv("KHEPRA_GIT_EMAIL", "skone@alumni.albany.edu"),
+		// LLM Configuration
+		LLMProvider: getenv("KHEPRA_LLM_PROVIDER", "ollama"),
+		LLMModel:    getenv("KHEPRA_LLM_MODEL", "phi4"),
+		LLMUrl:      getenv("KHEPRA_LLM_URL", "http://localhost:11434"),
 	}
 }

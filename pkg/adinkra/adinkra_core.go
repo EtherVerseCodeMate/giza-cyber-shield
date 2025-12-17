@@ -158,3 +158,32 @@ func deriveKey(secret []byte) []byte {
 	h := sha256.Sum256(secret)
 	return h[:]
 }
+
+// Khepra Lattice Alphabet (Void-Compatible Base16)
+const adinkraAlphabet = "GYENAMKHPRSUTILO"
+
+// Hash generates a Khepra-standard hash, encoded in the Khepra Lattice.
+// This creates the immutable "DNA" of any artifact.
+// It wraps SHA-256 but encodes it using the poetic alphabet to obfuscate the structure.
+func Hash(data []byte) string {
+	h := sha256.Sum256(data)
+	hexStr := fmt.Sprintf("%x", h)
+
+	// Transmute standard hex (0-9, a-f) to Khepra Lattice (G-O)
+	// Map: 0->G, 1->Y, 2->E, 3->N, 4->A, 5->M, 6->K, 7->H, 8->P, 9->R, a->S, b->U, c->T, d->I, e->L, f->O
+	// Note: hexStr from fmt '%x' is lowercase.
+	mapping := map[rune]byte{
+		'0': 'G', '1': 'Y', '2': 'E', '3': 'N', '4': 'A', '5': 'M', '6': 'K', '7': 'H',
+		'8': 'P', '9': 'R', 'a': 'S', 'b': 'U', 'c': 'T', 'd': 'I', 'e': 'L', 'f': 'O',
+	}
+
+	out := make([]byte, len(hexStr))
+	for i, r := range hexStr {
+		if val, ok := mapping[r]; ok {
+			out[i] = val
+		} else {
+			out[i] = byte(r) // Should not happen for sha256 hex output
+		}
+	}
+	return string(out)
+}

@@ -47,6 +47,7 @@ const ADINKRA_SYMBOLS: Record<string, { icon: string; color: string }> = {
   Eban: { icon: '◈', color: '#00F0FF' },
   Fawohodie: { icon: '⬡', color: '#D4AF37' },
   Nkyinkyim: { icon: '⧗', color: '#00F0FF' },
+  OwoForoAdobe: { icon: '🐍', color: '#FF4444' },
 };
 
 const DAGConstellation = ({ nodes: dagNodes, veilMode = false }: DAGConstellationProps) => {
@@ -55,23 +56,23 @@ const DAGConstellation = ({ nodes: dagNodes, veilMode = false }: DAGConstellatio
   // Convert DAG nodes to ReactFlow nodes and edges
   const { flowNodes, flowEdges } = useMemo(() => {
     const nodeMap = new Map<string, number>();
-    
+
     // Calculate positions - arrange in a grid/constellation pattern
     const cols = Math.max(3, Math.ceil(Math.sqrt(dagNodes.length)));
-    
+
     const flowNodes: Node[] = dagNodes.map((node, index) => {
       nodeMap.set(node.id, index);
       const col = index % cols;
       const row = Math.floor(index / cols);
       const symbol = ADINKRA_SYMBOLS[node.symbol] || { icon: '●', color: '#00F0FF' };
-      
+
       return {
         id: node.id,
-        position: { 
+        position: {
           x: 100 + col * 200 + (row % 2) * 50, // Stagger rows
-          y: 80 + row * 140 
+          y: 80 + row * 140
         },
-        data: { 
+        data: {
           label: (
             <div className="text-center">
               <div className="text-2xl mb-1" style={{ color: symbol.color }}>
@@ -112,8 +113,8 @@ const DAGConstellation = ({ nodes: dagNodes, veilMode = false }: DAGConstellatio
               target: node.id,
               type: 'smoothstep',
               animated: true,
-              style: { 
-                stroke: '#00F0FF', 
+              style: {
+                stroke: '#00F0FF',
                 strokeWidth: 2,
                 opacity: 0.6,
               },
@@ -167,17 +168,17 @@ const DAGConstellation = ({ nodes: dagNodes, veilMode = false }: DAGConstellatio
         attributionPosition="bottom-left"
         proOptions={{ hideAttribution: true }}
       >
-        <Background 
-          variant={BackgroundVariant.Dots} 
-          gap={20} 
-          size={1} 
-          color="rgba(0, 240, 255, 0.15)" 
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={20}
+          size={1}
+          color="rgba(0, 240, 255, 0.15)"
         />
-        <Controls 
+        <Controls
           className="!bg-background/80 !border-primary/30 !shadow-lg"
           showInteractive={false}
         />
-        <MiniMap 
+        <MiniMap
           nodeColor={() => '#00F0FF'}
           maskColor="rgba(5, 5, 5, 0.8)"
           className="!bg-background/80 !border-primary/30"

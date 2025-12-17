@@ -2,16 +2,21 @@ package main
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/attest"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/audit"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/compliance"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/config"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/packet"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stigs"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/util"
@@ -50,12 +55,119 @@ func main() {
 	case "explain":
 		explainCmd(os.Args[2:])
 	case "audit":
+		// enforceLicense() // Optional: Enforce for ingest too? Yes, usually.
 		auditCmd(os.Args[2:])
 	case "stigs":
 		stigsCmd(os.Args[2:])
+	case "hostid":
+		printHostID()
+	case "license-gen":
+		licenseGenCmd(os.Args[2:])
+	case "compliance":
+		enforceLicense()
+		complianceCmd(os.Args[2:])
 	default:
 		usage()
 	}
+}
+
+// EnforceLicense checks for valid license or panics
+func enforceLicense() {
+	// In production, embed this Public Key via -ldflags
+	// For now, we look for 'master_key.pub' or similar, or hardcoded dev key.
+	// Let's assume user must provide key path or we use a localized one.
+	// SIMPLIFICATION: We look for 'license.khepra' and 'khepra_master.pub' locally.
+
+	// Check if we are in dev mode (env var)
+	if os.Getenv("KHEPRA_DEV") == "1" {
+		return
+	}
+
+	pubKey, err := os.ReadFile("khepra_master.pub")
+	if err != nil {
+		fmt.Println("FATAL: Khepra Master Key (khepra_master.pub) not found. Integrity check failed.")
+		os.Exit(1)
+	}
+
+	claims, err := license.Verify("license.khepra", pubKey)
+	if err != nil {
+		fmt.Printf("FATAL: LICENSE VIOLATION: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("[KHEPRA] Licensed to: %s (Expires: %s)\n", claims.Tenant, claims.Expiry.Format("2006-01-02"))
+}
+
+func printHostID() {
+	id, _ := license.GetHostID()
+	fmt.Printf("KHEPRA HOST ID: %s (Len: %d)\nShare this ID with Khepra HQ to receive your license key.\n", id, len(id))
+}
+
+func licenseGenCmd(args []string) {
+	if len(args) < 3 { // license-gen <privKey> <tenant> <hostID> [days]
+		// Args come in as: [privKey, tenant, hostID, days]
+		// Actually, main dispatch passes os.Args[2:] ...
+		// if command is 'khepra license-gen A B C'
+		// args[0] = A, args[1] = B, args[2] = C
+		fmt.Println("Usage: khepra license-gen <privKeyPath> <tenant> <hostID> [days]")
+		return
+	}
+	privKeyPath := args[0]
+	tenant := args[1]
+	hostID := strings.TrimSpace(args[2])
+
+	if hostID == "self" {
+		var err error
+		hostID, err = license.GetHostID()
+		if err != nil {
+			fatal("failed to get local host ID", err)
+		}
+		fmt.Printf("[INFO] Using Local HostID: %s\n", hostID)
+	}
+
+	privKey, err := os.ReadFile(privKeyPath)
+	if err != nil {
+		fatal("cannot read private key", err)
+	}
+
+	days := 365
+	if len(args) > 3 {
+		// use strconv
+		if d, err := strconv.Atoi(args[3]); err == nil {
+			days = d
+		} else {
+			fmt.Printf("[WARN] Invalid days '%s', defaulting to 365.\n", args[3])
+		}
+	}
+
+	claims := license.LicenseClaims{
+		Tenant:       tenant,
+		HostID:       hostID,
+		Expiry:       time.Now().Add(time.Hour * 24 * time.Duration(days)),
+		Capabilities: []string{"full_suite"},
+	}
+
+	lic, err := license.Generate(privKey, claims)
+	if err != nil {
+		fatal("keygen failed", err)
+	}
+
+	data, _ := json.MarshalIndent(lic, "", "  ")
+	os.WriteFile("license.khepra", data, 0644)
+	fmt.Println("Generated license.khepra")
+}
+
+func complianceCmd(_ []string) {
+	eng := compliance.NewEngine()
+	results := eng.Run()
+
+	// Simple report for now
+	failCount := 0
+	for _, r := range results {
+		if r.Status == compliance.StatusFail {
+			failCount++
+		}
+	}
+	fmt.Printf("\n[KHEPRA COMPLIANCE] Scan Complete. %d Checks Run. %d Failures.\n", len(results), failCount)
 }
 
 func stigsCmd(args []string) {
@@ -108,7 +220,6 @@ func auditCmd(args []string) {
 		}
 	}
 
-	// [SELF-HOSTED] ZScan / IVRE Integration
 	// khepra audit ingest <scan> -zscan <zgrab.json>
 	zscanFlag := ""
 	for i, arg := range args {
@@ -117,7 +228,50 @@ func auditCmd(args []string) {
 		}
 	}
 
-	report, err := audit.Ingest(snapPath, gitleaksFlag, zscanFlag)
+	// [BIG BROTHER] TruffleHog Integration
+	// khepra audit ingest <scan> -truffle <trufflehog.json>
+	truffleFlag := ""
+	for i, arg := range args {
+		if arg == "-truffle" && i+1 < len(args) {
+			truffleFlag = args[i+1]
+		}
+	}
+
+	// [ARSENAL EXPANSION] ZAP, RetireJS, SARIF, Detect-Secrets
+	zapFlag, retireFlag, sarifFlag, detectFlag := "", "", "", ""
+	for i, arg := range args {
+		if arg == "-zap" && i+1 < len(args) {
+			zapFlag = args[i+1]
+		}
+		if arg == "-retire" && i+1 < len(args) {
+			retireFlag = args[i+1]
+		}
+		if arg == "-sarif" && i+1 < len(args) {
+			sarifFlag = args[i+1]
+		}
+		if arg == "-detect" && i+1 < len(args) {
+			detectFlag = args[i+1]
+		}
+	}
+
+	// [STIG NATIVE] SCAP / Checklist / ACAS / K8s
+	scapFlag, checklistFlag, nessusFlag, kubeFlag := "", "", "", ""
+	for i, arg := range args {
+		if arg == "-stig-scap" && i+1 < len(args) {
+			scapFlag = args[i+1]
+		}
+		if arg == "-stig-checklist" && i+1 < len(args) {
+			checklistFlag = args[i+1]
+		}
+		if arg == "-nessus" && i+1 < len(args) {
+			nessusFlag = args[i+1]
+		}
+		if arg == "-kube" && i+1 < len(args) {
+			kubeFlag = args[i+1]
+		}
+	}
+
+	report, err := audit.Ingest(snapPath, gitleaksFlag, zscanFlag, truffleFlag, zapFlag, retireFlag, sarifFlag, detectFlag, scapFlag, checklistFlag, nessusFlag, kubeFlag)
 	if err != nil {
 		fatal("ingest failed", err)
 	}

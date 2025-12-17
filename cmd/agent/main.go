@@ -124,7 +124,6 @@ func (s *server) attestNew(w http.ResponseWriter, _ *http.Request) {
 	// [DAG]: Automatically record this event in the constellation
 	// We create a new node to represent this attestation
 	node := dag.Node{
-		ID:     randID(),
 		Action: "attestation-forged",
 		Symbol: a.Symbol,
 		Time:   lorentz.StampNow(),
@@ -157,7 +156,6 @@ func (s *server) dagAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	n := dag.Node{
-		ID:     randID(),
 		Action: req.Action,
 		Symbol: req.Symbol,
 		Time:   lorentz.StampNow(),
