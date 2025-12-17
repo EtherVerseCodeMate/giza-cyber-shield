@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import DAGConstellation from './DAGConstellation';
+import D3DAGConstellation from './D3DAGConstellation';
 import {
   Shield,
   Activity,
@@ -22,7 +22,9 @@ import {
   Eye,
   EyeOff,
   Hexagon,
-  Network
+  Network,
+  Send,
+  ArrowRight
 } from 'lucide-react';
 
 // Khepra Lattice Alphabet for "Veil" mode
@@ -83,6 +85,7 @@ const ADINKRA_SYMBOLS: Record<string, { meaning: string; icon: string; color: st
   Eban: { meaning: 'Safety, Security, Protection', icon: '◈', color: 'text-primary' },
   Fawohodie: { meaning: 'Independence, Freedom', icon: '⬡', color: 'text-secondary' },
   Nkyinkyim: { meaning: 'Resilience, Adaptability', icon: '⧗', color: 'text-primary' },
+  OwoForoAdobe: { meaning: 'Prudence, Diligence, Caution', icon: '🐍', color: 'text-destructive' },
 };
 
 const KhepraAgentDashboard = () => {
@@ -94,6 +97,43 @@ const KhepraAgentDashboard = () => {
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'unknown'>('unknown');
   const [veilMode, setVeilMode] = useState(false);
   const [canaryStatus, setCanaryStatus] = useState<'alive' | 'dead'>('alive');
+
+  // Chat State
+  const [chatInput, setChatInput] = useState('');
+  const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'agent', content: string }[]>([]);
+
+  const handleChatSubmit = async () => {
+    if (!chatInput.trim()) return;
+
+    const message = chatInput;
+    setChatInput('');
+    setChatHistory(prev => [...prev, { role: 'user', content: message }]);
+    setIsLoading('chat');
+
+    try {
+      const response = await fetch(`${agentUrl}/agi/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message })
+      });
+
+      if (!response.ok) throw new Error('Failed to send');
+
+      const data = await response.json();
+      setChatHistory(prev => [...prev, { role: 'agent', content: data.response }]);
+
+      // Refresh DAG if scan was triggered (simple heuristic check)
+      if (message.toLowerCase().includes('scan')) {
+        setTimeout(fetchDAGState, 2000);
+      }
+
+    } catch (err) {
+      toast.error('Command transmission failed');
+      setChatHistory(prev => [...prev, { role: 'agent', content: 'ERROR: Signal Lost.' }]);
+    } finally {
+      setIsLoading(null);
+    }
+  };
 
   const displayText = (text: string) => veilMode ? veilText(text) : text;
 
@@ -240,7 +280,7 @@ const KhepraAgentDashboard = () => {
               <Input
                 id="agentUrl"
                 value={veilMode ? veilText(agentUrl) : agentUrl}
-                onChange={(e) => setAgentUrl(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAgentUrl(e.target.value)}
                 placeholder="/api/agent"
                 className="bg-background/50 border-border font-mono text-sm"
                 disabled={veilMode}
@@ -401,11 +441,84 @@ const KhepraAgentDashboard = () => {
             </Button>
 
             <div className="mt-4">
-              <DAGConstellation nodes={dagState} veilMode={veilMode} />
+              <D3DAGConstellation nodes={dagState} veilMode={veilMode} />
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Command Link (Chat) */}
+      <Card className="glass-panel border-primary/30">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-lg bg-primary/20 glow-cyan">
+              <Shield className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-lg font-orbitron gradient-text-cyan">
+                {displayText('COMMAND LINK')}
+              </CardTitle>
+              <CardDescription className="font-rajdhani">
+                {displayText('Direct Neural Interface to KASA')}
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="h-96 p-4 rounded-md bg-[#050505] border border-primary/20 font-mono text-sm overflow-y-auto space-y-2 relative">
+              {/* Placeholder Chat History */}
+              {!chatHistory.length && (
+                <div className="text-muted-foreground opacity-50 flex items-center gap-2">
+                  <ArrowRight className="h-3 w-3" />
+                  {displayText('System initialized. Awaiting directives...')}
+                </div>
+              )}
+              {chatHistory.map((msg, i) => (
+                <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'text-secondary' : 'text-primary'}`}>
+                  <span className="opacity-50 flex-shrink-0">{msg.role === 'user' ? '>' : '#'}</span>
+                  <span className="whitespace-pre-line">{displayText(msg.content)}</span>
+                </div>
+              ))}
+              {isLoading === 'chat' && (
+                <div className="text-primary animate-pulse flex items-start gap-2">
+                  <span className="opacity-50 mt-1">#</span>
+                  <div className="flex flex-col gap-1">
+                    <span>{displayText('Thinking (Neural Link Active)...')}</span>
+                    <span className="text-xs text-muted-foreground">{displayText('KASA is analyzing vectors via Ollama...')}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleChatSubmit();
+              }}
+              className="flex gap-2"
+            >
+              <div className="relative flex-1">
+                <span className="absolute left-3 top-2.5 text-muted-foreground font-mono">{'>'}</span>
+                <Input
+                  value={veilMode ? veilText(chatInput) : chatInput}
+                  onChange={(e) => setChatInput(e.target.value)} // Note: in real veil mode would need inverse map
+                  placeholder={displayText("Enter command (e.g., 'status of ports', 'run scan')")}
+                  className="pl-8 bg-background/50 border-primary/30 font-mono text-sm"
+                  disabled={isLoading === 'chat' || connectionStatus !== 'connected'}
+                />
+              </div>
+              <Button
+                type="submit"
+                disabled={isLoading === 'chat' || !chatInput.trim() || connectionStatus !== 'connected'}
+                className="bg-primary/20 hover:bg-primary/30 text-primary border border-primary/40"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </form>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Adinkra Symbol Reference */}
       <Card className="glass-panel">

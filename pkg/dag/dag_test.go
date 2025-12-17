@@ -9,14 +9,14 @@ func TestMemoryStore(t *testing.T) {
 	m := NewMemory()
 
 	// Genesis
-	n1 := &Node{ID: "n1", Symbol: "test1", Time: time.Now().Format(time.RFC3339)}
+	n1 := &Node{Symbol: "test1", Time: time.Now().Format(time.RFC3339)}
 	if err := m.Add(n1, nil); err != nil {
 		t.Fatalf("Failed to add genesis node: %v", err)
 	}
 
 	// Child
-	n2 := &Node{ID: "n2", Symbol: "test2", Time: time.Now().Format(time.RFC3339)}
-	if err := m.Add(n2, []string{"n1"}); err != nil {
+	n2 := &Node{Symbol: "test2", Time: time.Now().Format(time.RFC3339)}
+	if err := m.Add(n2, []string{n1.ID}); err != nil {
 		t.Fatalf("Failed to add child node: %v", err)
 	}
 

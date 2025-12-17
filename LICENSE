@@ -1,22 +1,30 @@
-BUSL-1.1-source-available
-Business Source License 1.1
+🔒 KHEPRA PROPRIETARY LICENSE AGREEMENT
+File Name: LICENSE Licensor: SecRed Knowledge Inc. (operating as Nouchix) Effective Date: 12/14/2025
 
-Parameters
+This PROPRIETARY LICENSE AGREEMENT (the "Agreement") is a binding legal contract between SecRed Knowledge Inc. dba NouchiX, a Delaware C-Corporation (the "Licensor"), with a principal office at 401 New Karner Rd, Suite 301, Albany, NY, 12205 and operating under the trade name Nouchix., and the entity or individual (the "Licensee") that accepts, installs, or uses the Software.
 
-Licensor: Souhimbou Doh Kone
-Licensed Work: The Khepra Protocol and all related source code in this repository.
-Change Date: 2028-12-11
-Change License: Apache License, Version 2.0
-Additional Use Grant: You may make use of the Licensed Work, provided that your use does not assist in the operation of a commercial service that generates more than $1,000,000 USD in annual revenue.
+This Agreement supersedes and cancels all previous statements, licenses, or understandings relating to the use of the Software.
 
-License Text
+1. DEFINITIONS AND OWNERSHIP
+1.1. Software. The term "Software" refers to the binary executable software, associated code, and proprietary algorithms marketed as the KHEPRA Protocol and its commercial implementation, SouHimBou AI™, including any updates, patches, and associated documentation. 1.2. Licensor IP. Licensor retains exclusive interest and ownership of all intellectual property rights in and to the Software, including, but not limited to, Trade Secrets, Copyrights, the Symbolic Attestation Logic, and the KASA Orchestration Framework. 1.3. Proprietary Nature. Licensee acknowledges that the Software's architecture, underlying algorithms, and source code constitute the valuable, confidential, and proprietary trade secrets of the Licensor.
 
-The Licensor hereby grants you the right to copy, modify, create derivative works, redistribute, and make non-production use of the Licensed Work. The Licensor may make an Additional Use Grant, above, permitting limited production use.
+2. GRANT OF LIMITED USE LICENSE
+2.1. Limited Grant. Subject to the terms of this Agreement and the payment of all applicable fees defined in the governing Master Services Agreement (MSA) or Statement of Work (SOW), Licensor grants Licensee a non-exclusive, non-transferable, non-sublicensable, revocable, and limited license to install and use the Software solely for the Licensee's internal business purposes.
 
-Effective on the Change Date, or the fourth anniversary of the first publicly available distribution of a specific version of the Licensed Work under this License, whichever comes first, the Licensor hereby grants you rights under the Change License regarding the Licensed Work.
+2.2. Permitted Purpose & Scope. Use is strictly limited to: * IT Audit, Compliance Monitoring, and Risk Analysis. * The specific Deployment Model (SKU) purchased: KHEPRA-EDGE, KHEPRA-HYBRID, or KHEPRA-SOVEREIGN. * The licensed capacity (e.g., per tenant, per node) specified in the Order Form.
 
-You may not use the Licensed Work for any production purpose unless your use is permitted by the Additional Use Grant.
+3. MANDATORY RESTRICTIONS ON USE (Trade Secret Protection)
+Licensee SHALL NOT, directly or indirectly, nor permit any third party to:
 
-This License does not grant you any right in any trademark or logo of Licensor or its affiliates.
+3.1. Reverse Engineering: Decompile, disassemble, translate, or reverse-engineer the Software, or otherwise attempt to discover the Software’s source code, object code, underlying structure, Symbolic Attestation Logic (AAE), algorithms, or know-how. 3.2. Modification/Derivatives: Copy, modify, alter, or create derivative works based on the Software. 3.3. Redistribution: Provide, sell, transfer, sublicense, lend, distribute, rent, or otherwise allow any third party to access or use the Software. 3.4. Competing Use: Use the Software to develop a competing service or product. 3.5. Proprietary Notices: Remove any proprietary notices, labels, or marks from the Software. 3.6. High Risk Activities: Use the Product with any High Risk Activities (including, without limitation, life-support, nuclear facilities, or air traffic control).
 
-TO THE EXTENT PERMITTED BY APPLICABLE LAW, THE LICENSED WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE LICENSED WORK OR THE USE OR OTHER DEALINGS IN THE LICENSED WORK.
+4. WARRANTY DISCLAIMER AND LIABILITY LIMITATION
+4.1. Disclaimer of Warranty. THE SOFTWARE AND ALL SERVICES ARE PROVIDED "AS IS" AND "AS AVAILABLE", without warranty of any kind. Licensor disclaims all warranties, express or implied, including, but not limited to, implied warranties of merchantability and fitness for a particular purpose. Licensor does not warrant that the Software will be uninterrupted or error-free.
+
+4.2. Limitation of Liability. IN NO EVENT SHALL LICENSOR BE LIABLE FOR ANY LOST PROFITS, LOST REVENUES, INDIRECT, EXEMPLARY, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES. LICENSOR'S TOTAL CUMULATIVE LIABILITY UNDER THIS AGREEMENT SHALL NOT EXCEED THE FEES PAID BY LICENSEE TO LICENSOR FOR THE SPECIFIC SERVICE GIVING RISE TO THE CLAIM IN THE TWELVE (12) MONTHS PRIOR TO THE ACT THAT GAVE RISE TO THE LIABILITY.
+
+5. CONFIDENTIALITY AND TERMINATION
+5.1. Confidentiality. Licensee acknowledges that the Software, its non-public features, functionality, and performance constitute Proprietary Information of the Licensor. Licensee agrees to take reasonable precautions to protect this Confidential Information and not to use or disclose it to any third person. 5.2. Termination. Licensor may terminate this Agreement immediately (without notice in the case of nonpayment) if Licensee materially breaches Section 3 (Restrictions on Use). Upon termination, all rights granted to Licensee shall immediately revert to Licensor, and Licensee must discontinue all use of the Software and destroy all copies.
+
+6. MISCELLANEOUS
+6.1. Governing Law. This Agreement shall be governed by the laws of the State of Delaware. 6.2. Assignment. This Agreement is not assignable, transferable, or sublicensable by Licensee except with Licensor’s prior written consent.
