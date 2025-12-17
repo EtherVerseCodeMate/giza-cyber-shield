@@ -6,9 +6,9 @@ vendor/
 .vscode/
 
 # Private Documentation
-docs/INTEGRATION_ROADMAP.md
-docs/INTEL_REPORT_2025_12.md
-docs/SURVIVAL_STRATEGY.md
+#docs/INTEGRATION_ROADMAP.md
+#docs/INTEL_REPORT_2025_12.md
+#docs/SURVIVAL_STRATEGY.md
 
 # Logs
 logs
@@ -32,9 +32,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
->>>>>>> e09eebab4a54bc1a93cd8305b60cbb7a7aca3b91
 .next/
 
 # Security Artifacts
 keys/
 test_fire/
+
+# Internal
+docs/internal/
+

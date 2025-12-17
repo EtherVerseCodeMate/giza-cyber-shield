@@ -1,0 +1,2 @@
+scan_id,client,severity,title,description,remediation,causal_link_id,stig_reference,risk_score
+test-snapshot-001,,MEDIUM,Quantum-Vulnerable Handshake (ZScan),Detected TLSv1.2 using TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256. Susceptible to Harvest-Now-Decrypt-Later.,Plan Migration to Kyber-1024 or similar KEM.,risk:zscan:192.168.1.10,SC-13,50

@@ -1,0 +1,10 @@
+{
+    "scan_id": "test-snapshot-001",
+    "timestamp": "2025-12-13T23:00:00Z",
+    "host": {
+        "hostname": "khepra-test-node",
+        "public_ip": "192.168.1.10",
+        "os": "linux"
+    },
+    "manifests": []
+}

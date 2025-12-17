@@ -15,9 +15,9 @@ type Result struct {
 	Service     string `json:"service"`
 	Status      string `json:"status"` // "OPEN", "FILTERED"
 	Fingerprint string `json:"fingerprint"`
+	Banner      string `json:"banner"` // The "Voice" of the service
 }
 
-// Scanner is the core reconnaissance engine
 // Scanner is the core reconnaissance engine
 type Scanner struct {
 	Ports       []int
@@ -88,16 +88,17 @@ func (s *Scanner) FocusPorts(intel []int) {
 func (s *Scanner) Run(target string) ([]Result, error) {
 	// Resolve IP (Local or Proxy?)
 	// If Proxy is set, we let the Proxy resolve it! So we don't leak DNS locally.
-	// But Scanner code was doing LookupIP first.
-	// FIX: If Proxy is set, use target string directly. IF not, resolve.
-
 	targetIP := target
 	if s.Proxy == "" {
 		ips, err := net.LookupIP(target)
 		if err != nil {
-			return nil, fmt.Errorf("failed to resolve target: %v", err)
+			// Fallback: maybe it's already an IP
+			if net.ParseIP(target) == nil {
+				return nil, fmt.Errorf("failed to resolve target: %v", err)
+			}
+		} else {
+			targetIP = ips[0].String()
 		}
-		targetIP = ips[0].String()
 	}
 
 	results := make(chan Result)
@@ -113,7 +114,7 @@ func (s *Scanner) Run(target string) ([]Result, error) {
 		go func() {
 			defer wg.Done()
 			for port := range portsChan {
-				res := s.scanPort(targetIP, port) // Pass scanner instance method
+				res := s.scanPort(targetIP, port)
 				if res != nil {
 					results <- *res
 				}
@@ -137,9 +138,7 @@ func (s *Scanner) Run(target string) ([]Result, error) {
 
 	for r := range results {
 		finalResults = append(finalResults, r)
-
 		if s.Proxy != "" && len(finalResults) == 1 {
-			// Print first success to confirm tunnel is working
 			fmt.Printf("[SCANNER] Tunnel Active. Found open port via %s\n", s.Proxy)
 		}
 	}
@@ -153,8 +152,8 @@ func (s *Scanner) Run(target string) ([]Result, error) {
 }
 
 func (s *Scanner) scanPort(host string, port int) *Result {
-	address := fmt.Sprintf("%s:%d", host, port)
-	timeout := 2000 * time.Millisecond // Slightly higher/adaptive
+	address := net.JoinHostPort(host, fmt.Sprint(port))
+	timeout := 2000 * time.Millisecond
 
 	var conn net.Conn
 	var err error
@@ -166,16 +165,65 @@ func (s *Scanner) scanPort(host string, port int) *Result {
 	}
 
 	if err != nil {
-		return nil // Closed or Filtered
+		return nil // Closed
 	}
 	defer conn.Close()
+
+	// [raid] Active Recon: Grab the Banner
+	banner := s.grabBanner(conn, port, host)
+	serviceName := identifyService(port)
+	if banner != "" {
+		// Heuristic: If banner contains SSH, correct the service name
+		if len(banner) > 3 && banner[:3] == "SSH" {
+			serviceName = "SSH"
+		}
+	}
 
 	return &Result{
 		Target:  host,
 		Port:    port,
 		Status:  "OPEN",
-		Service: identifyService(port),
+		Service: serviceName,
+		Banner:  banner,
 	}
+}
+
+// grabBanner attempts to coerce the service into identifying itself.
+func (s *Scanner) grabBanner(conn net.Conn, port int, host string) string {
+	// Protocol-Specific Probes
+	switch port {
+	case 80, 443, 8080, 8443:
+		return s.httpBanner(conn, host)
+	default:
+		return s.genericBanner(conn)
+	}
+}
+
+// genericBanner just listens. Good for SSH, FTP, SMTP.
+func (s *Scanner) genericBanner(conn net.Conn) string {
+	conn.SetReadDeadline(time.Now().Add(1000 * time.Millisecond))
+	buffer := make([]byte, 1024)
+	n, err := conn.Read(buffer)
+	if err != nil {
+		return ""
+	}
+	return string(buffer[:n])
+}
+
+// httpBanner sends a HEAD request to extract Server header
+func (s *Scanner) httpBanner(conn net.Conn, host string) string {
+	conn.SetWriteDeadline(time.Now().Add(500 * time.Millisecond))
+	conn.SetReadDeadline(time.Now().Add(1000 * time.Millisecond))
+
+	req := fmt.Sprintf("HEAD / HTTP/1.0\r\nHost: %s\r\nUser-Agent: Khepra-Commando/1.0\r\n\r\n", host)
+	conn.Write([]byte(req))
+
+	buffer := make([]byte, 2048)
+	n, err := conn.Read(buffer)
+	if err != nil {
+		return ""
+	}
+	return string(buffer[:n])
 }
 
 // dialSOCKS5 implements a minimal Zero-Dependency SOCKS5 client handshake
@@ -186,7 +234,7 @@ func (s *Scanner) dialSOCKS5(targetAddr string) (net.Conn, error) {
 		return nil, err
 	}
 
-	// 2. Client Greeting [Ver: 0x05, NMethods: 1, Method: 0x00 (No Auth)]
+	// 2. Client Greeting
 	_, err = proxyConn.Write([]byte{0x05, 0x01, 0x00})
 	if err != nil {
 		proxyConn.Close()
@@ -202,9 +250,8 @@ func (s *Scanner) dialSOCKS5(targetAddr string) (net.Conn, error) {
 	}
 
 	// 4. Client Connection Request
-	// Cmd: 0x01 (Connect), RSV: 0x00, ATYP: 0x03 (DomainName), Len, Domain..., Port(2)
 	host, portStr, _ := net.SplitHostPort(targetAddr)
-	portInt := commonPorts[0] // safe default
+	portInt := commonPorts[0]
 	fmt.Sscanf(portStr, "%d", &portInt)
 
 	req := []byte{0x05, 0x01, 0x00, 0x03, byte(len(host))}
@@ -218,7 +265,6 @@ func (s *Scanner) dialSOCKS5(targetAddr string) (net.Conn, error) {
 	}
 
 	// 5. Server Response
-	// Ver: 0x05, Rep: 0x00 (Success), RSV, ATYP(1), BND.ADDR(4), BND.PORT(2) = 10 bytes min
 	resp := make([]byte, 256)
 	n, err := proxyConn.Read(resp)
 	if err != nil || n < 4 || resp[1] != 0x00 {
@@ -243,36 +289,14 @@ func identifyService(port int) string {
 		return "DNS"
 	case 80:
 		return "HTTP"
-	case 110:
-		return "POP3"
-	case 135:
-		return "RPC"
-	case 139:
-		return "NetBIOS"
-	case 143:
-		return "IMAP"
 	case 443:
 		return "HTTPS"
-	case 445:
-		return "SMB"
-	case 1433:
-		return "MSSQL"
-	case 3306:
-		return "MySQL"
 	case 3389:
 		return "RDP"
-	case 5432:
-		return "PostgreSQL"
-	case 5900:
-		return "VNC"
-	case 6379:
-		return "Redis"
 	case 8080:
 		return "HTTP-Alt"
 	case 8443:
 		return "HTTPS-Alt"
-	case 27017:
-		return "MongoDB"
 	default:
 		return "Unknown"
 	}

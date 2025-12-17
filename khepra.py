@@ -8,8 +8,8 @@ def get_binary_name(component):
     ext = ".exe" if system == "windows" else ""
     return f"bin/{component}{ext}"
 
-def build(component):
-    print(f"[Python] Building {component}...")
+def build(component, fips=False):
+    print(f"[Python] Building {component} (FIPS={fips})...")
     binary = get_binary_name(component)
     cmd_path = f"./cmd/{component.replace('khepra-', '')}"
     
@@ -20,10 +20,20 @@ def build(component):
         cmd_path = "./cmd/khepra"
 
     # Go build command
-    cmd = ["go", "build", "-mod=vendor", "-o", binary, cmd_path]
+    cmd = ["go", "build", "-mod=vendor", "-o", binary]
+    
+    # Inject FIPS experiment if requested
+    env = os.environ.copy()
+    if fips:
+        env["GOEXPERIMENT"] = "boringcrypto"
+        # boringcrypto usually requires CGO
+        env["CGO_ENABLED"] = "1" 
+        print("      > [FIPS] Enabled GOEXPERIMENT=boringcrypto + CGO_ENABLED=1")
+
+    cmd.append(cmd_path)
     
     try:
-        subprocess.check_call(cmd)
+        subprocess.check_call(cmd, env=env)
         print(f"[Python] Build successful: {binary}")
     except subprocess.CalledProcessError:
         print(f"[Python] Error: Failed to build {component}")
@@ -61,7 +71,7 @@ def validate():
 
     # 1. Run Unit Tests
     print("\n[1/4] Running Unit Tests...")
-    test_code = subprocess.call(["go", "test", "-mod=vendor", "./pkg/...", "./cmd/..."])
+    test_code = subprocess.call(["go", "test", "-count=1", "-mod=vendor", "./pkg/...", "./cmd/..."])
     if test_code != 0:
         print("❌ Unit tests failed.")
         sys.exit(1)
@@ -73,18 +83,24 @@ def validate():
     cli_bin = get_binary_name("khepra")
     
     # Run keygen to a temporary location
+    # Run keygen to a temporary location
     try:
         subprocess.check_output([cli_bin, "keygen", "-out", "test_key", "-comment", "test-run"], stderr=subprocess.STDOUT)
-        if os.path.exists("test_key") and os.path.exists("test_key.pub"):
+        
+        # New naming convention check
+        if os.path.exists("test_key_dilithium") and os.path.exists("test_key_dilithium.pub"):
             print("✅ PQC Key generation successful.")
             # Cleanup
             try:
-                os.remove("test_key")
-                os.remove("test_key.pub")
-                os.remove("test_key.pub.khepra.json")
+                os.remove("test_key_dilithium")
+                os.remove("test_key_dilithium.pub")
+                os.remove("test_key_dilithium.pub.khepra.json")
+                os.remove("test_key_kyber")
+                os.remove("test_key_kyber.pub")
             except: pass
         else:
             print("❌ PQC Key generation failed: output files missing.")
+            print(f"Checked for: test_key_dilithium, test_key_dilithium.pub")
             sys.exit(1)
     except subprocess.CalledProcessError as e:
         print(f"❌ CLI execution failed: {e.output.decode()}")
@@ -151,33 +167,101 @@ def validate():
         
     print("\n✨ ALL SYSTEMS GO. KHEPRA IS READY ON THIS MACHINE.")
     print("=" * 60)
+    
+    # Auto-launch stack
+    launch()
+
+def launch():
+    print("\n[🚀] LAUNCHING KHEPRA FULL STACK...")
+    
+    # 1. Start Agent
+    agent_bin = get_binary_name("khepra-agent")
+    if not os.path.exists(agent_bin):
+        build("khepra-agent")
+        
+    print(f"      > Starting Backend: {agent_bin} (Port 45444)")
+    agent_proc = subprocess.Popen([agent_bin], cwd=".")
+
+    # 2. Start Frontend
+    print(f"      > Starting Frontend: npm run dev (Port 3000)")
+    # Use shell=True for npm to resolve correctly on Windows
+    frontend_proc = subprocess.Popen(["npm", "run", "dev"], shell=True, cwd=".")
+
+    print("\n   >>> PRESS CTRL+C TO STOP THE STACK <<<")
+    
+    try:
+        while True:
+            time.sleep(1)
+            if agent_proc.poll() is not None:
+                print("❌ Agent died unexpectedly.")
+                break
+    except KeyboardInterrupt:
+        print("\n[🛑] Stopping Stack...")
+        
+        # Kill Agent
+        if platform.system().lower() == "windows":
+            subprocess.call(["taskkill", "/F", "/IM", "khepra-agent.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:
+            agent_proc.terminate()
+            
+        # Kill Frontend (Best Effort)
+        frontend_proc.terminate()
+        sys.exit(0)
 
 def main():
     if len(sys.argv) < 2:
         print("Usage: python khepra.py [command]")
         print("Commands:")
-        print("  validate         -> Run full test suite (Tests + CLI + Agent + API)")
+        print("  validate         -> Run full test suite then LAUNCH stack")
+        print("  launch           -> Launch Agent + Frontend")
         print("  agent  [args...] -> Runs the KHEPRA agent")
         print("  cli    [args...] -> Runs the KHEPRA CLI tool")
         print("  build            -> Rebuilds binaries")
         print("  test             -> Runs Go tests")
+        print("  tnok             -> Starts Tnok Stealth Gateway (tnokd)")
         sys.exit(1)
 
     command = sys.argv[1].lower()
     extra_args = sys.argv[2:]
 
     if command == "build":
-        build("khepra")
-        build("khepra-agent")
+        fips_mode = "--fips" in extra_args
+        build("khepra", fips=fips_mode)
+        build("khepra-agent", fips=fips_mode)
     elif command == "agent":
         run("khepra-agent", extra_args)
     elif command == "cli":
         run("khepra", extra_args)
+    elif command == "launch":
+        launch()
     elif command == "test":
         print("[Python] Running tests...")
-        subprocess.call(["go", "test", "-mod=vendor", "./pkg/...", "./cmd/..."])
+        subprocess.call(["go", "test", "-count=1", "-mod=vendor", "./pkg/...", "./cmd/..."])
     elif command == "validate":
         validate()
+    elif command == "tnok":
+        print("\n[KHEPRA] 🛡️  Initializing Tnok Stealth Gateway (CSfC Mode)...")
+        tnok_path = "./pkg/tnok/tnok"
+        
+        # 1. Install Tnok in editable mode (if not already)
+        print(f"      > Installing Tnok from {tnok_path}...")
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "-e", tnok_path], stdout=subprocess.DEVNULL)
+        except subprocess.CalledProcessError:
+            print("❌ Failed to install Tnok. Ensure 'pkg/tnok/tnok' exists and has pyproject.toml.")
+            sys.exit(1)
+
+        # 2. Run Tnok Daemon
+        print("      > Starting Tnok Daemon (tnokd)...")
+        print("      > ℹ️  Use 'tnokd --help' to see options.")
+        try:
+            # We run tnokd.exe (Windows) or tnokd (Linux) - assuming it's in path after pip install
+            # Using sys.executable -m tnokd is safer if it supports it, but pyproject says:
+            # tnokd = "tnokd.__main__:main_cli"
+            # So we can run: python -m tnokd.__main__
+            subprocess.call([sys.executable, "-m", "tnokd.__main__"] + extra_args)
+        except KeyboardInterrupt:
+            print("\n[KHEPRA] Tnok Stealth Gateway Shutdown.")
     else:
         # Default to CLI if command unknown
         run("khepra", sys.argv[1:])
