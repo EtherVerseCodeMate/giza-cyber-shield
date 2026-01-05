@@ -1,0 +1,111 @@
+---
+apiVersion: v1
+name: adinkhepra
+tags:
+  - "v2.0.0-nuclear"
+  - "latest"
+
+# Base image configuration
+args:
+  BASE_IMAGE: "redhat/ubi/ubi9-minimal"
+  BASE_TAG: "latest"
+
+# External resources (binaries) - Iron Bank will fetch these
+# For production, replace with actual release URLs
+resources:
+  - url: "https://github.com/EtherVerseCodeMate/giza-cyber-shield/releases/download/v2.0.0/adinkhepra-linux-amd64.tar.gz"
+    filename: "adinkhepra.tar.gz"
+    validation:
+      type: "sha256"
+      # TODO: Generate actual SHA256 hash of release binary
+      # Run: sha256sum adinkhepra-linux-amd64.tar.gz
+      value: "0000000000000000000000000000000000000000000000000000000000000000"
+
+# Maintainer information
+maintainers:
+  - name: "SGT Souhimbou Kone"
+    username: "souhimbou.kone"
+    email: "cyber@nouchix.com"
+  - name: "NouchiX SecRed Knowledge Inc."
+    email: "engineering@nouchix.com"
+
+# Labels for Iron Bank catalog
+labels:
+  - key: "mil.dod.ironbank.product.name"
+    value: "AdinKhepra SONAR"
+  - key: "mil.dod.ironbank.product.vendor"
+    value: "NouchiX"
+  - key: "mil.dod.ironbank.product.category"
+    value: "Security Scanner"
+  - key: "mil.dod.ironbank.image.type"
+    value: "Commercial"
+  - key: "mil.dod.ironbank.accreditation.level"
+    value: "IL5"  # Impact Level 5 (SIPR-ready)
+
+# Vulnerability assessment notes
+notes:
+  - "Base image (UBI9) CVEs are inherited from Red Hat"
+  - "Go binary compiled with Go 1.21+ for security patches"
+  - "Post-quantum cryptography implementation (NIST FIPS 203/204 compliant)"
+  - "Zero external dependencies - fully air-gapped capable"
+  - "FIPS 140-2 compatible when using UBI9 crypto libraries"
+
+# License information
+license:
+  type: "Proprietary"
+  url: "https://github.com/EtherVerseCodeMate/giza-cyber-shield/blob/main/LICENSE"
+
+# Support contact
+support:
+  vendor: "NouchiX SecRed Knowledge Inc."
+  email: "support@nouchix.com"
+  website: "https://nouchix.com"
+
+# Classification
+classification: "UNCLASSIFIED"
+
+# Distribution statement
+distribution: "DISTRIBUTION STATEMENT A: Approved for public release. Distribution is unlimited."
+
+# Iron Bank specific configuration
+ironbank:
+  # Approval workflow
+  approval:
+    - reviewer: "DCCSCR"
+      status: "pending"
+
+  # Hardening justifications
+  hardening:
+    - control: "Non-root execution"
+      status: "compliant"
+      evidence: "Runs as UID 1001, see Dockerfile USER directive"
+
+    - control: "Minimal base image"
+      status: "compliant"
+      evidence: "Uses UBI9-minimal with only essential packages"
+
+    - control: "Health monitoring"
+      status: "compliant"
+      evidence: "HEALTHCHECK directive validates service availability"
+
+    - control: "FIPS compliance"
+      status: "compliant"
+      evidence: "UBI9 base provides FIPS 140-2 validated crypto"
+
+    - control: "Software Bill of Materials"
+      status: "compliant"
+      evidence: "SBOM generated via 'sonar' command outputs full dependency manifest"
+
+# Security scanning exemptions (if any)
+exemptions: []
+
+# Additional metadata
+metadata:
+  project: "AdinKhepra Protocol"
+  classification: "Open Source Scanner (Proprietary Logic)"
+  mission_critical: true
+  pqc_enabled: true
+  air_gap_capable: true
+  stig_compliant: true
+  cmmc_level: 3
+  fedramp_ready: true
