@@ -1,6 +1,6 @@
 bin/
 dist/
-vendor/
+# vendor/ - REMOVED: We need vendor/ for air-gapped builds
 *.exe
 *.log
 .vscode/
