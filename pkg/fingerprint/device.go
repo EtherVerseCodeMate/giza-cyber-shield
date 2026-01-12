@@ -286,13 +286,13 @@ func collectDiskSerialsDarwin() ([]string, error) {
 
 	// Use diskutil to get disk serial numbers
 	cmd := exec.Command("diskutil", "list")
-	output, err := cmd.Output()
+	out, err := cmd.Output()
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse diskutil output to find physical disks
-	lines := strings.Split(string(output), "\n")
+	// Parse output
+	lines := strings.Split(string(out), "\n")
 	for _, line := range lines {
 		if strings.Contains(line, "/dev/disk") && !strings.Contains(line, "disk image") {
 			// Extract disk identifier
@@ -471,7 +471,7 @@ func collectTPMInfoLinux() (bool, string, string) {
 		// TPM 2.0 is present
 		// Try to get TPM version
 		cmd := exec.Command("tpm2_getcap", "properties-fixed")
-		output, err := cmd.Output()
+		_, err := cmd.Output()
 		if err == nil {
 			// TPM 2.0 detected
 			// Generate TPM fingerprint from EK (Endorsement Key) if available

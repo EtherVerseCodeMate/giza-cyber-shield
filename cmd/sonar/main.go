@@ -15,49 +15,41 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/enumerate"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/fingerprint"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanners"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/telemetry"
 )
 
-// AdinKhepra Sonar: NUCLEAR-GRADE Enterprise Security Audit Scanner
-// DoD/SCIF Ready - ZERO EXTERNAL DEPENDENCIES - Post-Quantum Cryptography
-//
-// COMPREHENSIVE 360° VISIBILITY (All Built-In):
-// ✓ Device Fingerprinting (Anti-Spoofing, License Enforcement)
-// ✓ Network Intelligence (Ports, Services, OS Fingerprinting)
-// ✓ System Enumeration (Processes, Services, Kernel Modules, Users)
-// ✓ Vulnerability Scanning (Built-In CVE Patterns + Heuristics)
-// ✓ Secret Detection (Entropy Analysis + Pattern Matching)
-// ✓ Container Security (Dockerfile Analysis + Configuration Audit)
-// ✓ Compliance Checks (Built-In CIS, STIG, NIST Rules)
-// ✓ Rootkit Detection (Kernel Module Analysis)
-// ✓ PQC Signatures (Dilithium3 Non-Repudiation)
-//
-// SOVEREIGNTY: 100% Self-Contained - No Third-Party Tools Required
-
-const VERSION = "2.0.0-NUCLEAR"
+const VERSION = "1.5.0-NUCLEAR"
 
 var (
-	outputFile    = flag.String("out", "adinkhepra_snapshot.json", "Output file path")
-	scanDir       = flag.String("dir", ".", "Directory to scan for manifests and secrets")
-	containerScan = flag.String("container", "", "Container image to scan with Trivy (optional)")
-	targetHost    = flag.String("target", "", "Target host for vulnerability scanning with Nuclei (optional)")
-	fullScan      = flag.Bool("full", false, "Enable full comprehensive scan (all modules)")
-	quickScan     = flag.Bool("quick", false, "Quick scan (fingerprint + network + manifests only)")
-	noExternal    = flag.Bool("no-external", false, "Disable external scanner tools (Grype, Nuclei, Trivy, Gitleaks)")
-	complianceCheck = flag.String("compliance", "", "Compliance framework to check: cis, stig, nist (optional)")
-	verboseOutput = flag.Bool("verbose", false, "Enable verbose output")
-	signOutput    = flag.Bool("sign", true, "Sign output with PQC (Dilithium3)")
+	scanDir        = flag.String("dir", ".", "Directory to scan")
+	quickScan      = flag.Bool("quick", false, "Perform quick scan (skip deep enumeration)")
+	noExternal     = flag.Bool("no-external", false, "Disable external calls (offline mode)")
+	containerScan  = flag.String("container", "", "Scan container image")
+	complianceFlag = flag.String("compliance", "", "Run compliance check (cis/stig/nist)")
+	signOutput     = flag.Bool("sign", false, "Sign output with PQC")
+	outputFile     = flag.String("out", "snapshot.json", "Output file path")
+	verboseOutput  = flag.Bool("verbose", false, "Enable verbose logging")
+
+	// Telemetry signing key (embedded at build time via -ldflags)
+	telemetryPrivateKey string = ""
 )
 
 func main() {
 	flag.Parse()
 
-	printBanner()
+	// Track scan start time for telemetry
+	scanStartTime := time.Now()
 
 	if *verboseOutput {
-		fmt.Println("[SONAR] Verbose mode enabled")
+		printBanner()
 	}
 
-	// Initialize snapshot with PQC-ready schema
+	// Initialize license and heartbeat
+	if err := initLicense(); err != nil {
+		logWarn("License initialization failed: %v", err)
+	}
+
+	// Initialize the audit snapshot
 	snapshot := initializeSnapshot()
 
 	log("Collecting Device Fingerprint (Anti-Spoofing)...")
@@ -97,47 +89,45 @@ func main() {
 		}
 	}
 
-	// Quick scan mode - stop here
-	if *quickScan {
-		log("Quick scan mode - skipping deep enumeration")
-		goto manifest_scan
-	}
+	// Deep enumeration (skip if quick scan)
+	if !*quickScan {
+		log("Collecting System Intelligence...")
+		systemInfo, err := enumerate.CollectSystemIntelligence()
+		if err != nil {
+			logWarn("System collection failed: %v", err)
+		} else {
+			snapshot.System = systemInfo
+			logSuccess("System: %d processes, %d services, %d users",
+				len(systemInfo.Processes),
+				len(systemInfo.Services),
+				len(systemInfo.Users))
 
-	log("Collecting System Intelligence...")
-	systemInfo, err := enumerate.CollectSystemIntelligence()
-	if err != nil {
-		logWarn("System collection failed: %v", err)
-	} else {
-		snapshot.System = systemInfo
-		logSuccess("System: %d processes, %d services, %d users",
-			len(systemInfo.Processes),
-			len(systemInfo.Services),
-			len(systemInfo.Users))
-
-		// Rootkit detection via hidden kernel modules
-		if runtime.GOOS == "linux" {
-			hiddenModules := 0
-			for _, mod := range systemInfo.KernelModules {
-				if mod.Hidden {
-					hiddenModules++
-					snapshot.ThreatDetection.RootkitIndicators = append(
-						snapshot.ThreatDetection.RootkitIndicators,
-						audit.RootkitIndicator{
-							Type:        "hidden_kernel_module",
-							Severity:    "HIGH",
-							Description: fmt.Sprintf("Hidden kernel module detected: %s", mod.Name),
-							Evidence:    "Module present in /sys/module but not in /proc/modules",
-						},
-					)
+			// Rootkit detection via hidden kernel modules
+			if runtime.GOOS == "linux" {
+				hiddenModules := 0
+				for _, mod := range systemInfo.KernelModules {
+					if mod.Hidden {
+						hiddenModules++
+						snapshot.ThreatDetection.RootkitIndicators = append(
+							snapshot.ThreatDetection.RootkitIndicators,
+							audit.RootkitIndicator{
+								Type:        "hidden_kernel_module",
+								Severity:    "HIGH",
+								Description: fmt.Sprintf("Hidden kernel module detected: %s", mod.Name),
+								Evidence:    "Module present in /sys/module but not in /proc/modules",
+							},
+						)
+					}
 				}
-			}
-			if hiddenModules > 0 {
-				logWarn("ROOTKIT ALERT: %d hidden kernel modules detected!", hiddenModules)
+				if hiddenModules > 0 {
+					logWarn("ROOTKIT ALERT: %d hidden kernel modules detected!", hiddenModules)
+				}
 			}
 		}
 	}
 
-manifest_scan:
+	// Manifest Scan (Always run unless dir is explicitly empty?)
+	// Implicit label replacement by fallthrough
 	log("Scanning for Dependency Manifests...")
 	snapshot.Manifests = scanManifests(*scanDir)
 	logSuccess("Manifests: %d files found", len(snapshot.Manifests))
@@ -193,9 +183,9 @@ manifest_scan:
 	}
 
 	// BUILT-IN COMPLIANCE SCANNER (Zero External Dependencies)
-	if *complianceCheck != "" {
-		log("Running Built-In %s Compliance Scanner...", strings.ToUpper(*complianceCheck))
-		complianceReport, err := scanners.RunBuiltInComplianceScan(*complianceCheck)
+	if *complianceFlag != "" {
+		log("Running Built-In %s Compliance Scanner...", strings.ToUpper(*complianceFlag))
+		complianceReport, err := scanners.RunBuiltInComplianceScan(*complianceFlag)
 		if err != nil {
 			logWarn("Compliance scan failed: %v", err)
 		} else {
@@ -244,9 +234,109 @@ manifest_scan:
 		fatal("Failed to write output: %v", err)
 	}
 
+	// Generate Telemetry Proof (Dark Crypto Moat)
+	// This creates a sanitized, signed proof of scan that can be uploaded for verification
+	// without exposing sensitive data.
+	log("Generating Telemetry Proof (Dark Crypto)...")
+	pk, sk, err := adinkra.GenerateDilithiumKey() // Ideally use persistent identity key
+	if err == nil {
+		proof, err := snapshot.GenerateTelemetryProof(sk, pk, VERSION, fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH))
+		if err != nil {
+			logWarn("Telemetry proof generation failed: %v", err)
+		} else {
+			proofData, _ := json.MarshalIndent(proof, "", "  ")
+			proofFile := "khepra_proof.sig"
+			if err := os.WriteFile(proofFile, proofData, 0644); err == nil {
+				logSuccess("Telemetry Proof saved to: %s", proofFile)
+				fmt.Println("  [!] Upload this proof to https://khepra.io/verify for your Certificate of Compliance")
+			}
+		}
+	}
+
 	printSummary(snapshot)
 	logSuccess("Scan complete. Snapshot saved to: %s", *outputFile)
+
+	// Send anonymous telemetry (Option C: Opt-in for community, opt-out for enterprise)
+	sendTelemetryBeacon(&snapshot, scanStartTime)
+
 	fmt.Println("\n🔒 AdinKhepra Sonar - NUCLEAR-GRADE Security Audit Complete")
+}
+
+// sendTelemetryBeacon transmits anonymous usage data for traction metrics + dark crypto database
+func sendTelemetryBeacon(snapshot *audit.AuditSnapshot, startTime time.Time) {
+	mode := os.Getenv("KHEPRA_MODE")
+	if mode == "" {
+		mode = "community" // Default from container ENV
+	}
+
+	telemetryEnabled := os.Getenv("KHEPRA_TELEMETRY")
+
+	// Option C: Community = opt-in, Enterprise = opt-out
+	if mode == "community" && telemetryEnabled != "true" {
+		log("Anonymous telemetry disabled (set KHEPRA_TELEMETRY=true to help improve KHEPRA)")
+		log("Learn more: https://khepra.io/privacy")
+		return
+	}
+
+	if telemetryEnabled == "false" {
+		log("Telemetry disabled by user")
+		return
+	}
+
+	// Build telemetry beacon
+	beacon := &telemetry.Beacon{
+		TelemetryVersion: "1.0",
+		Timestamp:        time.Now().UTC().Format(time.RFC3339),
+		AnonymousID:      telemetry.GenerateAnonymousID(),
+		ScanMetadata: telemetry.ScanMetadata{
+			ScanDuration:         int(time.Since(startTime).Seconds()),
+			TargetsScanned:       countTargetsScanned(snapshot),
+			FindingsCount:        len(snapshot.Compliance.Findings),
+			ComplianceFrameworks: detectComplianceFrameworks(),
+			ScannerVersion:       VERSION,
+			ContainerRuntime:     telemetry.DetectContainerRuntime(),
+			DeploymentEnv:        mode,
+		},
+		CryptoInventory: telemetry.ExtractCryptoInventory(snapshot),
+		GeographicHint:  telemetry.DetectGeographicHint(),
+	}
+
+	// Send beacon (with embedded Dilithium3 private key for anti-spoofing)
+	err := telemetry.SendBeacon(beacon, telemetryPrivateKey)
+	if err != nil {
+		if *verboseOutput {
+			logWarn("Telemetry transmission failed: %v", err)
+		}
+	} else {
+		logSuccess("Anonymous usage data sent (thank you for helping build the Dark Crypto Database!)")
+	}
+}
+
+// countTargetsScanned counts total assets scanned
+func countTargetsScanned(snapshot *audit.AuditSnapshot) int {
+	total := 0
+	total += len(snapshot.Network.Ports)
+	total += len(snapshot.System.Processes)
+	total += len(snapshot.System.Services)
+	return total
+}
+
+// detectComplianceFrameworks identifies which frameworks were used in scan
+func detectComplianceFrameworks() []string {
+	frameworks := []string{}
+
+	// Check if public CSVs are accessible (indicates compliance mapping is active)
+	if _, err := os.Stat("/app/docs/CCI_to_NIST53.csv"); err == nil {
+		frameworks = append(frameworks, "nist800-53")
+	}
+	if _, err := os.Stat("/app/docs/NIST53_to_171.csv"); err == nil {
+		frameworks = append(frameworks, "nist800-171")
+	}
+
+	// Always include STIG (core capability)
+	frameworks = append(frameworks, "stig")
+
+	return frameworks
 }
 
 func initializeSnapshot() audit.AuditSnapshot {
@@ -269,7 +359,7 @@ func initializeSnapshot() audit.AuditSnapshot {
 func generateScanID() string {
 	timestamp := fmt.Sprintf("%d", time.Now().UnixNano())
 	hash := adinkra.Hash([]byte(timestamp))
-	return hash[:16]
+	return hash[:12]
 }
 
 func scanManifests(root string) []audit.FileManifest {
@@ -363,106 +453,6 @@ func addManifest(manifests *[]audit.FileManifest, path, fileType string, info os
 	})
 }
 
-func runComplianceChecks(framework string) audit.ComplianceReport {
-	report := audit.ComplianceReport{
-		Framework: strings.ToUpper(framework),
-		Findings:  []audit.ComplianceFinding{},
-	}
-
-	// Sample compliance checks (expand with actual CIS/STIG/NIST rules)
-	checks := getComplianceChecks(framework)
-
-	for _, check := range checks {
-		// Execute check (simplified for now)
-		passed := executeComplianceCheck(check)
-
-		status := "FAIL"
-		if passed {
-			report.PassedChecks++
-			status = "PASS"
-		} else {
-			report.FailedChecks++
-		}
-
-		report.TotalChecks++
-
-		finding := audit.ComplianceFinding{
-			ID:          check.ID,
-			Title:       check.Title,
-			Description: check.Description,
-			Status:      status,
-			Severity:    check.Severity,
-			Remediation: check.Remediation,
-		}
-
-		report.Findings = append(report.Findings, finding)
-	}
-
-	if report.TotalChecks > 0 {
-		report.ComplianceRate = float64(report.PassedChecks) / float64(report.TotalChecks) * 100
-	}
-
-	switch framework {
-	case "cis":
-		report.Profile = "Level 1"
-	case "stig":
-		report.Profile = "CAT II"
-	case "nist":
-		report.Profile = "800-53"
-	}
-
-	return report
-}
-
-type complianceCheck struct {
-	ID          string
-	Title       string
-	Description string
-	Severity    string
-	Remediation string
-}
-
-func getComplianceChecks(framework string) []complianceCheck {
-	// Sample checks - expand with full compliance rules
-	switch framework {
-	case "cis":
-		return []complianceCheck{
-			{
-				ID:          "CIS-1.1.1",
-				Title:       "Ensure mounting of cramfs filesystems is disabled",
-				Description: "The cramfs filesystem type is a compressed read-only Linux filesystem",
-				Severity:    "MEDIUM",
-				Remediation: "Edit /etc/modprobe.d/CIS.conf: install cramfs /bin/true",
-			},
-			{
-				ID:          "CIS-1.5.1",
-				Title:       "Ensure permissions on bootloader config are configured",
-				Description: "Bootloader configuration files contain sensitive information",
-				Severity:    "HIGH",
-				Remediation: "Run: chmod og-rwx /boot/grub/grub.cfg",
-			},
-		}
-	case "stig":
-		return []complianceCheck{
-			{
-				ID:          "STIG-V-38472",
-				Title:       "All accounts must be assigned unique User Identification Numbers (UID)",
-				Description: "Unique UIDs prevent unauthorized access and privilege escalation",
-				Severity:    "MEDIUM",
-				Remediation: "Ensure all UIDs in /etc/passwd are unique",
-			},
-		}
-	default:
-		return []complianceCheck{}
-	}
-}
-
-func executeComplianceCheck(check complianceCheck) bool {
-	// Simplified check execution - expand with actual tests
-	// This would integrate with the compliance package
-	return true // Placeholder
-}
-
 func calculateThreatScore(snapshot audit.AuditSnapshot) int {
 	score := 0
 
@@ -471,9 +461,10 @@ func calculateThreatScore(snapshot audit.AuditSnapshot) int {
 
 	// Critical vulnerabilities
 	for _, v := range snapshot.Vulnerabilities {
-		if v.Severity == "CRITICAL" {
+		switch v.Severity {
+		case "CRITICAL":
 			score += 5
-		} else if v.Severity == "HIGH" {
+		case "HIGH":
 			score += 2
 		}
 	}
@@ -612,13 +603,4 @@ func logWarn(format string, args ...interface{}) {
 func fatal(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "[FATAL] "+format+"\n", args...)
 	os.Exit(1)
-}
-
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
 }
