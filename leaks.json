@@ -1,22 +1,22 @@
-[
-    {
-        "Description": "AWS Access Key",
-        "StartLine": 12,
-        "EndLine": 12,
-        "StartColumn": 15,
-        "EndColumn": 35,
-        "Match": "AKIAIOSFODNN7EXAMPLE",
-        "Secret": "AKIAIOSFODNN7EXAMPLE",
-        "File": "config/aws.json",
-        "Commit": "a1b2c3d",
-        "Entropy": 3.4,
-        "Author": "Developer X",
-        "Email": "dev@company.com",
-        "Date": "2025-12-01",
-        "Message": "Add AWS config",
-        "Tags": [
-            "key",
-            "AWS"
-        ]
-    }
-]
+                                                                    [
+                                                                        {
+                                                                            "Description": "AWS Access Key",
+                                                                            "StartLine": 12,
+                                                                            "EndLine": 12,
+                                                                            "StartColumn": 15,
+                                                                            "EndColumn": 35,
+                                                                            "Match": "AKIAIOSFODNN7EXAMPLE",
+                                                                            "Secret": "AKIAIOSFODNN7EXAMPLE",
+                                                                            "File": "config/aws.json",
+                                                                            "Commit": "a1b2c3d",
+                                                                            "Entropy": 3.4,
+                                                                            "Author": "Developer X",
+                                                                            "Email": "dev@company.com",
+                                                                            "Date": "2025-12-01",
+                                                                            "Message": "Add AWS config",
+                                                                            "Tags": [
+                                                                                "key",
+                                                                                "AWS"
+                                                                            ]
+                                                                        }
+                                                                    ]

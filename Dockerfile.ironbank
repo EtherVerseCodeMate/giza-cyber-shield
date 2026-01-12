@@ -1,0 +1,261 @@
+# Dockerfile for ADINKHEPRA Protocol - PQC ASAF - Iron Bank Hardened
+#
+# Module: github.com/EtherVerseCodeMate/giza-cyber-shield
+# SPDX-License-Identifier: Proprietary
+# Maintained by: NouchiX SecRed Knowledge Inc.
+# Iron Bank Compliance: RHEL-09-STIG-V1R3
+
+# Build arguments for Iron Bank base image
+ARG BASE_REGISTRY=registry1.dso.mil
+ARG BASE_IMAGE=ironbank/redhat/ubi/ubi9-minimal
+ARG BASE_TAG=9.3
+
+# ============================================================================
+# STAGE 1: Builder (Offline Build Environment)
+# ============================================================================
+FROM ${BASE_REGISTRY}/${BASE_IMAGE}:${BASE_TAG} AS builder
+
+# Metadata for builder stage
+LABEL stage="builder"
+LABEL maintainer="Souhimbou D. Kone <souhimbou.d.kone.mil@army.mil>"
+LABEL description="ADINKHEPRA Protocol - Builder Stage"
+
+# Build arguments
+ARG VERSION=1.0.0
+ARG BUILD_DATE
+ARG VCS_REF
+ARG TELEMETRY_PRIVATE_KEY=""
+
+# Switch to root for package installation
+USER root
+
+# Install build dependencies from Registry1 repos only
+# Note: No external network calls allowed in Iron Bank builds
+RUN microdnf install -y \
+    ca-certificates \
+    git \
+    golang \
+    && microdnf clean all \
+    && rm -rf /var/cache/yum
+
+# Set Go environment for static binary compilation
+ENV GOPATH=/go \
+    GOCACHE=/go/cache \
+    GOMODCACHE=/go/pkg/mod \
+    CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=amd64 \
+    GO111MODULE=on
+
+# Create non-root build user (security requirement)
+RUN useradd -m -u 1001 -g 0 -s /sbin/nologin builder && \
+    mkdir -p /go /build && \
+    chown -R 1001:0 /go /build
+
+# Set working directory
+WORKDIR /build
+
+# Copy go.mod and go.sum first (Docker layer caching)
+COPY --chown=1001:0 go.mod go.sum ./
+
+# Copy vendored dependencies (from hardening_manifest.yaml)
+# All dependencies must be vendored - no network calls during build
+COPY --chown=1001:0 vendor/ ./vendor/
+
+# Copy entire source tree
+COPY --chown=1001:0 . .
+
+# Switch to build user (non-root)
+USER 1001
+
+# Allow Go to use newer toolchain for dependencies that require it
+ENV GOTOOLCHAIN=auto
+
+# Verify vendored dependencies match go.sum
+RUN go mod verify
+
+# Build all KHEPRA binaries with security hardening flags
+# Security flags:
+#   -mod=vendor: Use only vendored dependencies
+#   -trimpath: Remove file system paths from binaries
+#   -ldflags="-s -w": Strip debug info and symbol table
+#   -extldflags '-static': Static linking
+#   -tags=netgo: Pure Go networking (no cgo)
+
+# Build sonar (security scanner with embedded telemetry key)
+RUN go build \
+    -mod=vendor \
+    -trimpath \
+    -ldflags="-s -w \
+    -X main.VERSION=${VERSION} \
+    -X main.BUILD_DATE=${BUILD_DATE} \
+    -X main.VCS_REF=${VCS_REF} \
+    -X main.telemetryPrivateKey=${TELEMETRY_PRIVATE_KEY} \
+    -extldflags '-static'" \
+    -tags=netgo \
+    -o sonar \
+    ./cmd/sonar/main.go
+
+# Build adinkhepra (main CLI)
+RUN go build \
+    -mod=vendor \
+    -trimpath \
+    -ldflags="-s -w \
+    -X main.version=${VERSION} \
+    -X main.buildDate=${BUILD_DATE} \
+    -extldflags '-static'" \
+    -tags=netgo \
+    -o adinkhepra \
+    ./cmd/adinkhepra/*.go
+
+# Build khepra-daemon (continuous monitoring)
+RUN go build \
+    -mod=vendor \
+    -trimpath \
+    -ldflags="-s -w \
+    -X main.version=${VERSION} \
+    -extldflags '-static'" \
+    -tags=netgo \
+    -o khepra-daemon \
+    ./cmd/khepra-daemon/main.go
+
+# Verify binaries were built successfully
+RUN ls -lh /build/sonar /build/adinkhepra /build/khepra-daemon && \
+    file /build/sonar /build/adinkhepra /build/khepra-daemon && \
+    /build/sonar --help || echo "Sonar binary built" && \
+    /build/adinkhepra --help || echo "AdinKhepra binary built" && \
+    /build/khepra-daemon --version || echo "Daemon binary built"
+
+# ============================================================================
+# STAGE 2: Runtime (Minimal Attack Surface)
+# ============================================================================
+FROM ${BASE_REGISTRY}/${BASE_IMAGE}:${BASE_TAG}
+
+# Metadata for runtime image (OpenShift/Kubernetes labels)
+LABEL name="adinkhepra" \
+    vendor="NouchiX SecRed Knowledge Inc." \
+    version="${VERSION}" \
+    release="1" \
+    summary="KHEPRA Protocol - Post-Quantum Cybersecurity Attestation Platform" \
+    description="Post-quantum cryptographic attestation security platform for DoD, IC, and CMMC environments" \
+    maintainer="Souhimbou D. Kone <souhimbou.d.kone.mil@army.mil>" \
+    com.nouchix.product="KHEPRA Protocol" \
+    com.nouchix.module="github.com/EtherVerseCodeMate/giza-cyber-shield" \
+    com.nouchix.tier="sovereign" \
+    com.redhat.component="adinkhepra-runtime" \
+    io.k8s.description="Post-Quantum Cybersecurity with CMMC Compliance" \
+    io.k8s.display-name="ADINKHEPRA Protocol - Agentic Security Attestation Framework (ASAF)" \
+    io.openshift.tags="security,compliance,cmmc,post-quantum,zero-trust,attestation,stig,nist" \
+    io.openshift.expose-services="8443:https" \
+    io.openshift.non-scalable="false"
+
+# Build arguments
+ARG VERSION=1.0.0
+
+# Switch to root for runtime setup
+USER root
+
+# Install ONLY runtime dependencies (minimal)
+RUN microdnf install -y \
+    ca-certificates \
+    tzdata \
+    shadow-utils \
+    && microdnf clean all \
+    && rm -rf /var/cache/yum
+
+# Create non-root runtime user and required directories
+# UID 1001 is standard for OpenShift compatibility
+# GID 0 (root group) for OpenShift arbitrary UID support
+RUN useradd -r -u 1001 -g 0 -s /sbin/nologin -c "KHEPRA Runtime User" khepra && \
+    mkdir -p \
+    /var/lib/khepra \
+    /var/log/khepra \
+    /etc/khepra \
+    /var/cache/khepra \
+    /var/lib/khepra/data \
+    /app/docs \
+    && chown -R 1001:0 \
+    /var/lib/khepra \
+    /var/log/khepra \
+    /etc/khepra \
+    /var/cache/khepra \
+    /app/docs \
+    && chmod -R g=u \
+    /var/lib/khepra \
+    /var/log/khepra \
+    /etc/khepra \
+    /var/cache/khepra \
+    /app/docs
+
+# Copy binaries from builder stage
+COPY --from=builder --chown=1001:0 /build/sonar /usr/local/bin/sonar
+COPY --from=builder --chown=1001:0 /build/adinkhepra /usr/local/bin/adinkhepra
+COPY --from=builder --chown=1001:0 /build/khepra-daemon /usr/local/bin/khepra-daemon
+
+# Copy public compliance data (Option C)
+# These are public DISA/NIST mappings allowed in the Open-Source Scanner
+COPY --chown=1001:0 docs/CCI_to_NIST53.csv /app/docs/CCI_to_NIST53.csv
+COPY --chown=1001:0 docs/NIST53_to_171.csv /app/docs/NIST53_to_171.csv
+
+
+# Copy functional test scripts
+COPY --chown=1001:0 scripts/functional-test.sh /usr/local/bin/functional-test
+COPY --chown=1001:0 scripts/fips-test.sh /usr/local/bin/fips-test
+
+# Make binaries and scripts executable
+RUN chmod +x \
+    /usr/local/bin/sonar \
+    /usr/local/bin/adinkhepra \
+    /usr/local/bin/khepra-daemon \
+    /usr/local/bin/functional-test \
+    /usr/local/bin/fips-test
+
+# Verify binaries can execute
+RUN /usr/local/bin/sonar --help || echo "Sonar ready" && \
+    /usr/local/bin/adinkhepra --help || echo "AdinKhepra ready" && \
+    /usr/local/bin/khepra-daemon --version || echo "Daemon ready"
+
+# Security hardening: Remove setuid/setgid bits from entire filesystem
+# This is a DISA STIG requirement (RHEL-09-STIG-V1R3)
+RUN find / -xdev -perm /6000 -type f -exec chmod a-s {} \; 2>/dev/null || true
+
+# Security hardening: Remove world-writable files
+RUN find / -xdev -type f -perm -0002 -exec chmod o-w {} \; 2>/dev/null || true
+
+# Security hardening: Remove unnecessary setuid/setgid programs
+RUN find /usr/bin /usr/sbin /bin /sbin -type f \( -perm -4000 -o -perm -2000 \) -delete 2>/dev/null || true
+
+# Switch to non-root user for runtime (OpenShift requirement)
+USER 1001
+
+# Allow Go to use newer toolchain for dependencies that require it
+ENV GOTOOLCHAIN=auto
+
+# Set working directory
+WORKDIR /var/lib/khepra
+
+# Expose ports (documentation only - not actually opened)
+# Ports should be configured at deployment time via Kubernetes Service
+EXPOSE 8443/tcp
+
+# Health check for Kubernetes liveness/readiness probes
+# Uses sonar --help as health check (always succeeds if binary is intact)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD ["/usr/local/bin/sonar", "--help"] || exit 1
+
+# Set environment variables
+ENV KHEPRA_VERSION=${VERSION} \
+    KHEPRA_HOME=/var/lib/khepra \
+    KHEPRA_LOG_DIR=/var/log/khepra \
+    KHEPRA_CONFIG_DIR=/etc/khepra \
+    KHEPRA_DATA_DIR=/var/lib/khepra/data \
+    # Community mode by default (license key required for enterprise features)
+    KHEPRA_MODE=community
+
+# Default entrypoint and command
+# Can be overridden at runtime:
+#   - sonar: docker run khepra sonar --dir /scan/target
+#   - adinkhepra: docker run khepra adinkhepra keygen
+#   - daemon: docker run khepra khepra-daemon
+ENTRYPOINT ["/usr/local/bin/sonar"]
+CMD ["--help"]

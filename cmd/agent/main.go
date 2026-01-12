@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	mrand "math/rand/v2"
@@ -15,19 +16,43 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/attest"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/config"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/lorentz"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/net/tailnet"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/nkyinkyim"
 )
 
 type server struct {
 	cfg   config.Config
-	store *dag.Memory
+	store dag.Store
 	agi   *agi.Engine
 }
 
 func main() {
 	cfg := config.Load()
-	store := dag.NewMemory()
+	// [DAG]: Use the global singleton immutable DAG (production-grade)
+	// This ensures the agent server, standalone DAG viewer, and ERT all
+	// write to the same cryptographically-secured data structure
+	store := dag.GlobalDAG()
+
+	// [LICENSE]: Initialize License Manager
+	licenseServer := os.Getenv("KHEPRA_LICENSE_SERVER")
+	if licenseServer == "" {
+		licenseServer = "https://telemetry.souhimbou.org"
+	}
+
+	licMgr, err := license.NewManager(licenseServer)
+	if err != nil {
+		log.Printf("[LICENSE] Failed to create manager: %v", err)
+	} else {
+		// Attempt validation (blocking or strict?)
+		// We'll log warning and proceed if it fails (Community Edition fallback)
+		if err := licMgr.Initialize(); err != nil {
+			log.Printf("[LICENSE] Validation warning: %v. Running in Community Mode.", err)
+		} else {
+			defer licMgr.Stop()
+		}
+	}
 
 	// [AGI]: Initialize the Autonomous Architect
 	arch := agi.NewEngine(store)
@@ -42,17 +67,30 @@ func main() {
 	mux.HandleFunc("/agi/chat", s.agiChat)   // AGI Chat
 	mux.HandleFunc("/agi/scan", s.agiScan)   // AGI Commando Scan
 
-	// SECURITY: Bind ONLY to localhost to prevent external access.
-	// This acts as a primary firewall rule.
-	addr := "127.0.0.1:" + itoa(cfg.AgentListenPort)
-	log.Printf("KHEPRA agent :: %s (Shadow Mode: Local Only)\n", addr)
-
 	// Start the AGI in the background
 	arch.Start()
 
 	// Handle Graceful Shutdown
 	go func() {
-		log.Fatal(http.ListenAndServe(addr, withJSON(mux)))
+		// [ZERO-TRUST FABRIC]: If Tailscale Auth Key is present, join the mesh.
+		if cfg.TailscaleAuthKey != "" {
+			log.Println("[ADINKHEPRA] 🛡️  Initializing ZERO-TRUST FABRIC (Tailscale)...")
+			ts, err := tailnet.NewServer("adinkhepra-node-" + randID())
+			if err != nil {
+				log.Fatalf("[ADINKHEPRA] Failed to start Tailscale: %v", err)
+			}
+			listener, err := ts.Listen(context.TODO(), ":45444")
+			if err != nil {
+				log.Fatalf("[ADINKHEPRA] Failed to listen on Tailscale: %v", err)
+			}
+			log.Printf("[ADINKHEPRA] 🟢 Agent is LIVE on Tailscale Mesh.")
+			log.Fatal(http.Serve(listener, withJSON(mux)))
+		} else {
+			// SECURITY: Bind ONLY to localhost to prevent external access by default.
+			addr := "127.0.0.1:" + itoa(cfg.AgentListenPort)
+			log.Printf("ADINKHEPRA agent :: %s (Shadow Mode: Local Only)\n", addr)
+			log.Fatal(http.ListenAndServe(addr, withJSON(mux)))
+		}
 	}()
 
 	// Wait for interrupt signal
@@ -103,7 +141,7 @@ func (s *server) attestNew(w http.ResponseWriter, _ *http.Request) {
 	}
 
 	a := attest.Assertion{
-		Schema:    "https://khepra.dev/attest/v1",
+		Schema:    "https://adinkhepra.dev/attest/v1",
 		Symbol:    "Eban",
 		Semantics: attest.Semantics{Boundary: s.cfg.Tenant, Purpose: "agent-attest", LeastPrivilege: true},
 		Lifecycle: attest.Lifecycle{Journey: "Nkyinkyim"},
@@ -137,9 +175,9 @@ func (s *server) attestNew(w http.ResponseWriter, _ *http.Request) {
 
 	// Return the Poetic Proof (Obfuscated)
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"assertion":       a,
-		"pub_key":         pub,
-		"x_khepra_shroud": shroud, // The Hidden Verse
+		"assertion":           a,
+		"pub_key":             pub,
+		"x_adinkhepra_shroud": shroud, // The Hidden Verse
 	})
 }
 

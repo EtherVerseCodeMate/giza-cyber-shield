@@ -51,7 +51,7 @@ type Engine struct {
 	Tasks         []Task
 	LastGuardTime time.Time
 
-	store   *dag.Memory
+	store   dag.Store // Use interface to support both Memory and PersistentMemory
 	intel   *intel.KnowledgeBase
 	scanner *scanner.Scanner
 
@@ -68,14 +68,14 @@ type Task struct {
 }
 
 // NewEngine creates a new Khepra AGI Engine
-func NewEngine(store *dag.Memory) *Engine {
+func NewEngine(store dag.Store) *Engine {
 	ctx, cancel := context.WithCancel(context.Background())
 	cfg := config.Load()
 
 	// Initialize LLM Client (Hybrid Cognition)
 	var cognitiveLayer llm.Provider
 	if cfg.LLMProvider == "ollama" {
-		cognitiveLayer = ollama.NewClient(cfg.LLMUrl, cfg.LLMModel)
+		cognitiveLayer = ollama.NewClient(cfg.LLMUrl, cfg.LLMModel, cfg.LLMApiKey)
 		// Quick health check in background so we don't block startup
 		go func() {
 			if cognitiveLayer.CheckHealth() {

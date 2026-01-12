@@ -1,0 +1,213 @@
+========================================
+KHEPRA PROTOCOL - EXECUTIVE DEMO SCRIPT
+========================================
+Duration: 18-20 minutes (including sonar scan)
+Audience: CISOs, CTOs, Compliance Directors
+
+PRE-DEMO CHECKLIST:
+✓ Binaries organized in bin/ folder
+✓ .sonarignore file created (keeps sonar scan under 30 seconds)
+✓ demo-snapshot.json in root directory (3.1 MB)
+✓ Web browser ready for DAG visualization
+✓ Zoom screen share tested
+
+========================================
+PART 1: OPENING (2 minutes)
+========================================
+"I'm going to show you how Khepra automates CMMC Level 3 compliance in 30 days instead of 6 months."
+
+"This is a live demo on my laptop. Everything you're about to see is real - we're scanning this machine right now."
+
+========================================
+PART 2: SHOW THE TOOLKIT (1 minute)
+========================================
+Command:
+.\bin\adinkhepra.exe
+
+Talking Points:
+- "This is the Adinkhepra CLI - your compliance automation engine"
+- "Post-quantum cryptography built-in (Dilithium3, Kyber)"
+- "Five core capabilities: keygen, attest, SBOM, network mapping, and DAG audit trails"
+
+========================================
+PART 3: LIVE SONAR SCAN (3 minutes) ⭐
+========================================
+Command:
+.\bin\sonar.exe --target . --output scan-results.json
+
+Talking Points DURING SCAN:
+- "Sonar is our autonomous intelligence agent"
+- "It's crawling this laptop right now - finding every package.json, go.mod, requirements.txt"
+- "This builds your Software Bill of Materials (SBOM) - required by Executive Order 14028"
+- "Notice how fast this is? We're using .sonarignore to skip irrelevant folders like node_modules"
+
+Expected Output:
+Found manifest: go.mod (go)
+Found manifest: package.json (npm)
+Found manifest: pkg/tnok/tnok/pyproject.toml (python)
+...
+[Scan completes in ~20-30 seconds]
+
+Transition:
+"Now let's turn this raw scan data into actionable intelligence..."
+
+========================================
+PART 4: NETWORK TOPOLOGY (4 minutes)
+========================================
+Command:
+.\bin\adinkhepra.exe network build --input demo-snapshot.json --output topology.json
+
+Expected Output:
+[SUCCESS] Topology built.
+   - Hosts: 12
+   - Connections: 47
+   - Vulnerabilities: 8
+
+Talking Points:
+- "This is a snapshot from a realistic DoD contractor network"
+- "12 hosts, 47 network connections - Khepra just mapped the entire attack surface"
+- "8 vulnerabilities detected automatically"
+
+Command:
+.\bin\adinkhepra.exe network attack-paths --topology topology.json --from web-01 --to database-01
+
+Expected Output:
+[ATTACK PATHS] From web-01 to database-01:
+  Path 1: web-01 → app-server-01 → database-01 (Cost: 2.4)
+  Path 2: web-01 → app-server-02 → database-01 (Cost: 3.1)
+
+Talking Points:
+- "THIS is why Khepra is different from every other compliance tool"
+- "We show you EXACTLY how an attacker moves through your network"
+- "Palantir charges $2M/year for this. We're giving it to you for $50K."
+- "Your compliance auditor has NEVER seen this level of detail"
+
+========================================
+PART 5: DAG VISUALIZATION (5 minutes)
+========================================
+Command:
+.\bin\adinkhepra.exe engine visualize --web --port 8080 demo-snapshot.json
+
+Browser:
+Open http://localhost:8080
+
+Talking Points:
+- "This is the DAG - Directed Acyclic Graph"
+- "Every action is cryptographically signed and immutable"
+- "You can drag nodes around, zoom in, see the full audit trail"
+- "If an auditor asks 'Who changed this registry key?' - you have proof"
+- [Drag a node, zoom in, click on event details]
+
+Transition:
+"Now let me show you the executive summary - what you'd actually send to the auditor..."
+
+========================================
+PART 6: EXECUTIVE REPORT (3 minutes)
+========================================
+Browser:
+Open executive-summary.html
+
+Talking Points:
+- "This is auto-generated - zero manual effort"
+- "All 110 CMMC controls mapped automatically"
+- "Notice the post-quantum cryptographic signatures at the bottom"
+- "This report is audit-ready. You can send this to DIBCAC today."
+
+Scroll to:
+- CMMC control mapping table
+- SBOM section
+- Network topology summary
+- Dilithium3 signature footer
+
+========================================
+PART 7: CLOSE (2 minutes)
+========================================
+"So let's recap what you just saw in 18 minutes:
+1. Live SBOM generation (EO 14028 compliance)
+2. Network attack path analysis (threat modeling automation)
+3. Immutable audit trails (zero-trust evidence collection)
+4. Auto-generated executive reports (audit-ready artifacts)
+
+All protected by post-quantum cryptography - you're future-proofed against quantum attacks.
+
+Your alternative? Hire 3 consultants for 6 months at $200K+ and HOPE they get it right.
+
+Our pilot is $50K for 90 days. You'll have audit-ready evidence in 30 days or we refund your money.
+
+Who should I send the pilot agreement to?"
+
+========================================
+OBJECTION HANDLING
+========================================
+"Isn't this just like Tenable/Rapid7/Qualys?"
+→ "No. Those are vulnerability scanners. Khepra is a COMPLIANCE AUTOMATION engine. We map vulnerabilities to CMMC controls, compute attack paths, and generate audit artifacts. Completely different problem."
+
+"What if we already have a compliance tool?"
+→ "Great - Khepra integrates with your existing stack. We ingest SBOM data from any source. Most clients use us as the 'compliance layer' on top of their security tools."
+
+"Why should we trust a startup with our compliance?"
+→ "Fair question. Two things: (1) Our crypto is NIST-approved post-quantum algorithms - same tech the DoD is mandating. (2) You own all the data - it never leaves your network. We're just the tooling."
+
+"Can we try it for free first?"
+→ "We don't do free trials because compliance work requires hands-on setup. But our $10K proof-of-concept gets you a working SBOM and network map in 2 weeks. If you don't see value, we refund it. Zero risk."
+
+========================================
+TECHNICAL ADDENDUM (IF ASKED)
+========================================
+Post-Quantum Algorithms:
+- Dilithium3 (NIST ML-DSA-65) - Digital signatures
+- Kyber1024 (NIST ML-KEM-1024) - Key encapsulation
+
+Compliance Standards:
+- CMMC Level 3 (110 controls)
+- NIST SP 800-171 Rev 3
+- Executive Order 14028 (SBOM requirement)
+- FIPS 140-3 cryptographic modules
+
+Integration Points:
+- REST API on port 45444 (Khepra Daemon)
+- JSON export for all artifacts
+- CycloneDX SBOM format (industry standard)
+- GraphQL endpoint for custom queries (roadmap)
+
+========================================
+POST-DEMO FOLLOW-UP EMAIL (SEND WITHIN 1 HOUR)
+========================================
+Subject: Khepra Demo Follow-Up - Pilot Pricing & Next Steps
+
+Hi [Name],
+
+Thanks for joining the Khepra demo today. As promised, here's the pilot pricing:
+
+PROOF-OF-CONCEPT ($10K - 2 weeks)
+- SBOM generation for 1 critical system
+- Network topology map
+- Gap analysis against CMMC Level 3
+
+PILOT ($50K - 90 days)
+- Full CMMC Level 3 automation
+- 5 critical systems
+- Attack path analysis
+- Audit-ready artifacts
+- 2 executive briefings
+
+ENTERPRISE ($150K - 12 months)
+- Unlimited systems
+- Continuous monitoring (Sonar agents)
+- Dedicated compliance engineer
+- Integration with your existing tools
+
+Next Steps:
+1. I'll send you a pilot agreement by EOD tomorrow
+2. We can kick off as early as next Monday
+3. First audit-ready report delivered in 30 days
+
+Let me know if you have any questions.
+
+Best,
+[Your Name]
+[Your Title]
+Khepra Protocol
+[email] | [phone]
+
+========================================

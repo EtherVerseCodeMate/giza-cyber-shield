@@ -28,6 +28,7 @@ type Vulnerability struct {
 	Source      string  `json:"source"` // NVD, MITRE, CISA
 	Severity    string  `json:"severity"`
 	CVSS        float64 `json:"cvss,omitempty"`
+	CVSSVector  string  `json:"cvss_vector,omitempty"` // CVSS:3.1/AV:N/AC:L/...
 	Description string  `json:"description"`
 	IsExploited bool    `json:"is_exploited"` // From CISA KEV
 }
@@ -83,11 +84,24 @@ func NewKnowledgeBase() *KnowledgeBase {
 		},
 	}
 
-	// Attempt to load Enterprise CVE Database if present
-	if err := kb.LoadExternalData("data/cve-database"); err != nil {
-		// Non-fatal, just log that we are running without offline DB
-		log.Printf("[INTEL] Enterprise CVE Database not found at data/cve-database. Running in online-only mode.")
-	}
+	// Attempt to load Enterprise CVE Database if present. Do this asynchronously
+	// so engine startup isn't blocked by potentially large on-disk databases.
+	go func() {
+		if err := kb.LoadExternalData("data/cve-database"); err != nil {
+			// Non-fatal, just log that we are running without offline DB
+			log.Printf("[INTEL] Enterprise CVE Database not found at data/cve-database. Running in online-only mode.")
+			return
+		}
+
+		// Load MITRE CVE database with CVSS scores if present
+		mitreDBPath := "data/cve-database/cve-data/mitre/cves"
+		if _, err := os.Stat(mitreDBPath); err == nil {
+			log.Printf("[INTEL] Loading MITRE CVE database (this may take 30-60 seconds)...")
+			if err := kb.LoadMITRECVEDatabase(mitreDBPath); err != nil {
+				log.Printf("[INTEL] Failed to load MITRE CVEs: %v", err)
+			}
+		}
+	}()
 
 	return kb
 }
