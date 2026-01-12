@@ -1,152 +1,111 @@
-# KHEPRA Protocol (ASAF) — Advisory Attestation Engine
+# ADINKHEPRA Protocol (ASAF) — Advisory Attestation Engine
 [![Patent Pending](https://img.shields.io/badge/PATENT-PENDING-blue?style=for-the-badge)](docs/PATENT_APPLICATION_UPDATED.md) [![Status: PROPRIETARY](https://img.shields.io/badge/STATUS-PROPRIETARY_INTERNAL_TOOL-red?style=for-the-badge)](docs/ENTERPRISE_OFFER_STRATEGY.md)
 
 **Agentic Security Attestation Framework** | *Adinkra-Based Post-Quantum Cryptography*
 
-> **Operational Note:** This protocol is the proprietary internal engine used by the **Enterprise Risk & Readiness Advisory** service. It is not currently licensed for standalone resale. It facilitates the cryptographic modeling of trust, risk causality, and clean-room IP lineage for advisory clients.
+## From Compliance Theater to Causal Reality
 
-Author: **Souhimbou Doh Kone** — skone@alumni.albany.edu  
-Repo: **git@github.com:EtherVerseCodeMate/giza-cyber-shield.git**  
-Shells x AI Host: **Generic Linux Node** (Ubuntu 24.04 Reference)
+> **Philosophy:** Most security assessments rely on checklists and "best practices"—subjective frameworks that often miss the structural reality of your system. Khepra moves from **opinion to mathematical proof**, using post-quantum cryptography, directed acyclic graphs (DAGs), and threat intelligence fusion to create **verifiable security postures** instead of compliance theater.
+# ADINKHEPRA Protocol (ASAF) — Advisory Attestation Engine
 
-## 📄 Executive Usage
-*   **[Consulting Offer & Strategy](docs/ENTERPRISE_OFFER_STRATEGY.md)**: How we use Khepra to eliminate enterprise risk.
-*   **[Executive Brief](docs/KHEPRA_EXECUTIVE_BRIEF.md)**: What Khepra actually *does* for your architecture (The X-Ray).
+[![Patent Pending](https://img.shields.io/badge/PATENT-PENDING-blue?style=for-the-badge)](docs/PATENT_APPLICATION_UPDATED.md) [![Status: PROPRIETARY](https://img.shields.io/badge/STATUS-PROPRIETARY_INTERNAL_TOOL-red?style=for-the-badge)](docs/ENTERPRISE_OFFER_STRATEGY.md)
 
+**Agentic Security Attestation Framework** — Adinkra-based post-quantum attestation and causal risk modeling.
 
-### Sanity Check (Validate on Laptop)
-To test everything (Unit Tests + CLI PQC + Agent API) in one go:
+Overview
+--------
+
+ADINKHEPRA (Khepra) is a proprietary advisory-grade attestation engine built to move security assessments from checklist-driven "compliance theater" to verifiable, causality-aware proofs. It combines post-quantum cryptography, DAG-based causal graphs, threat-intel fusion, and native compliance automation to produce client-verifiable evidence of security posture and event lineage.
+
+Key capabilities
+----------------
+- Post-Quantum Cryptography: NIST-aligned schemes (Dilithium/Kyber via Cloudflare CIRCL) for quantum-safe attestations.
+- Causal Risk Graphs: Directed acyclic graphs (DAGs) model causes, propagations, and remediation paths instead of isolated findings.
+- Threat Intelligence Fusion: Correlates CISA KEV, MITRE ATT&CK, and external scan sources (Shodan/Censys) for context-aware risk scoring.
+- Native Compliance Engine: STIG-style enforcement and mapping without external agents.
+- Disaster Recovery & Archival (DRBC): Cryptographically-bound recovery and archival workflows.
+
+Project structure & languages
+----------------------------
+- Backend & tooling: Go (core binaries under `cmd/`, see `go.mod` and `Makefile`).
+- Frontend / Dashboard: Next.js / React / TypeScript + Tailwind (see `package.json`).
+- Orchestration: Python helper runner `adinkhepra.py` for local validation and convenience commands.
+- Docs & demos: Extensive materials under `docs/` and `demo/` for pilots and executive briefings.
+
+Build & run (quick)
+-------------------
+Build Go binaries:
+
 ```bash
-python khepra.py validate
-```
-This runs the full "smoke test" sequence to ensure KHEPRA is ready for deployment.
-
-### Quick Start (Cross-Platform)
-
-**Option A: Python (Any OS / venv)**
-```bash
-python khepra.py build        # Build binaries
-python khepra.py agent        # Run the agent
-python khepra.py cli keygen   # Run CLI commands
-```
-
-**Option B: PowerShell (Windows)**
-```powershell
-.\run.ps1 build
-.\run.ps1 agent
-.\run.ps1 cli keygen
-```
-
-**Option C: Manual / WSL**
-```bash
-# Linux/WSL/Mac
 make build
-# or manual Go:
-go build -mod=vendor -o bin/khepra ./cmd/khepra
-go build -mod=vendor -o bin/khepra-agent ./cmd/agent
 ```
 
-### Generate SSH key (OpenSSH-compatible)
-```bash
-# Using Python runner:
-python khepra.py cli keygen -comment "skone@alumni.albany.edu eban:prod"
+Secure, static builds (recommended for distribution):
 
-# Or manual binary:
-./bin/khepra keygen -comment "user@host"
+```bash
+make secure-build
 ```
 
-### Run agent (internal :45444 → external)
-```bash
-# Using Python runner:
-python khepra.py agent
+Run the agent locally (default port 45444):
 
-# Or manual:
-./bin/khepra-agent
+```bash
+make run-agent
+# or using the Python runner
+python adinkhepra.py agent
 ```
 
-### API
+Frontend (development):
+
 ```bash
-# Replace 127.0.0.1 with your actual server IP
+cd web || true
+npm i
+npm run dev
+```
+
+Smoke test / validate full stack (unit tests + CLI PQC + agent API):
+
+```bash
+python adinkhepra.py validate
+```
+
+API examples
+------------
+Replace `127.0.0.1` with your server IP as appropriate:
+
+```bash
 curl -s http://127.0.0.1:45444/healthz | jq
 curl -s -X POST http://127.0.0.1:45444/attest/new | jq
 curl -s -X POST http://127.0.0.1:45444/dag/add -d '{"action":"Initialize perimeter","symbol":"Eban"}' | jq
 curl -s http://127.0.0.1:45444/dag/state | jq
 ```
 
-## Documentation
+Documentation highlights
+-----------------------
+- Architecture: `docs/architecture/CAUSAL_REALITY_ANALYSIS.md` and `docs/architecture/IMPLEMENTATION_ROADMAP.md`.
+- Executive materials & pilots: `docs/consulting/` (pilot summary, demo scripts, deployment playbook).
+- Patent & research: `docs/PATENT_APPLICATION_UPDATED.md` and `docs/internal/` (intel reports).
 
-- [Integration Roadmap (SouHimBou.AI)](docs/INTEGRATION_ROADMAP.md)
+Security & sensitive artifacts
+------------------------------
+This repository contains generated keys, snapshots, and sealed artifacts (for example: `khepra_master.pub`, `master_seed.sealed`, `khepra_v0.0_genesis.kpkg`). Treat these as sensitive — do not expose them publicly. Use the secure-build targets and FIPS mode (`make fips-build`) when producing production binaries.
 
----
+Who is this for
+----------------
+This codebase is designed for internal advisory teams and pilot customers who require cryptographic, auditable evidence of security posture and remediation causality. It is not currently packaged or licensed for general resale.
 
-## Web Dashboard (Lovable Project)
+Contact & authorship
+--------------------
+Author: Souhimbou Doh Kone — skone@alumni.albany.edu
+Repository: git@github.com:EtherVerseCodeMate/giza-cyber-shield.git
 
-**URL**: https://lovable.dev/projects/39c447ce-60a6-4740-8eb4-b07fc082365c
+Next steps (suggested)
+-----------------------
+- Run `make build` and `python adinkhepra.py validate` to verify local environment.
+- Inspect `cmd/` entry points: `cmd/adinkhepra`, `cmd/agent`, `cmd/khepra-daemon`, `cmd/sonar` for service responsibilities.
+- Review `docs/consulting/` for demo choreography and deployment playbooks.
 
-### How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/39c447ce-60a6-4740-8eb4-b07fc082365c) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-### What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-### How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/39c447ce-60a6-4740-8eb4-b07fc082365c) and click on Share -> Publish.
-
-### Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+License & status
+----------------
+This project is proprietary internal tooling. See `docs/ENTERPRISE_OFFER_STRATEGY.md` for the licensing and deployment model.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)

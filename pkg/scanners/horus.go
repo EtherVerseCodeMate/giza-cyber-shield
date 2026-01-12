@@ -326,34 +326,34 @@ func RunBuiltInSecretScan(target string) ([]audit.SecretFinding, error) {
 	// Secret patterns (expandable)
 	secretPatterns := []secretPattern{
 		{
-			name:        "AWS Access Key",
-			pattern:     `AKIA[0-9A-Z]{16}`,
-			secretType:  "AWS Key",
-			minEntropy:  3.5,
+			name:       "AWS Access Key",
+			pattern:    `AKIA[0-9A-Z]{16}`,
+			secretType: "AWS Key",
+			minEntropy: 3.5,
 		},
 		{
-			name:        "Private Key",
-			pattern:     `-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----`,
-			secretType:  "Private Key",
-			minEntropy:  4.0,
+			name:       "Private Key",
+			pattern:    `-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----`,
+			secretType: "Private Key",
+			minEntropy: 4.0,
 		},
 		{
-			name:        "Generic API Key",
-			pattern:     `(?i)(api[_-]?key|apikey|api[_-]?secret)["\s:=]+([a-zA-Z0-9_\-]{32,})`,
-			secretType:  "API Key",
-			minEntropy:  3.0,
+			name:       "Generic API Key",
+			pattern:    `(?i)(api[_-]?key|apikey|api[_-]?secret)["\s:=]+([a-zA-Z0-9_\-]{32,})`,
+			secretType: "API Key",
+			minEntropy: 3.0,
 		},
 		{
-			name:        "Password in Code",
-			pattern:     `(?i)(password|passwd|pwd)["\s:=]+([^\s"']{8,})`,
-			secretType:  "Password",
-			minEntropy:  2.5,
+			name:       "Password in Code",
+			pattern:    `(?i)(password|passwd|pwd)["\s:=]+([^\s"']{8,})`,
+			secretType: "Password",
+			minEntropy: 2.5,
 		},
 		{
-			name:        "JWT Token",
-			pattern:     `eyJ[a-zA-Z0-9_\-]+\.eyJ[a-zA-Z0-9_\-]+\.[a-zA-Z0-9_\-]+`,
-			secretType:  "JWT",
-			minEntropy:  3.8,
+			name:       "JWT Token",
+			pattern:    `eyJ[a-zA-Z0-9_\-]+\.eyJ[a-zA-Z0-9_\-]+\.[a-zA-Z0-9_\-]+`,
+			secretType: "JWT",
+			minEntropy: 3.8,
 		},
 	}
 
@@ -449,6 +449,13 @@ func calculateEntropy(s string) float64 {
 	return entropy
 }
 
+func redactSecret(secret string) string {
+	if len(secret) <= 8 {
+		return "********"
+	}
+	return secret[:4] + "..." + secret[len(secret)-4:]
+}
+
 // RunBuiltInContainerScan performs native container image analysis
 // Analyzes Docker images without external tools
 func RunBuiltInContainerScan(imagePath string) (*audit.ContainerFindings, error) {
@@ -489,11 +496,11 @@ func scanDockerfile(path string) []string {
 	lines := strings.Split(content, "\n")
 
 	insecurePatterns := map[string]string{
-		`FROM.*:latest`:                   "Using 'latest' tag is not recommended",
-		`USER root`:                        "Running as root user",
-		`--no-check-certificate`:           "Disabling certificate verification",
-		`chmod 777`:                        "Overly permissive file permissions",
-		`(?i)ADD.*http`:                    "Using ADD with URLs can introduce vulnerabilities",
+		`FROM.*:latest`:          "Using 'latest' tag is not recommended",
+		`USER root`:              "Running as root user",
+		`--no-check-certificate`: "Disabling certificate verification",
+		`chmod 777`:              "Overly permissive file permissions",
+		`(?i)ADD.*http`:          "Using ADD with URLs can introduce vulnerabilities",
 	}
 
 	for _, line := range lines {

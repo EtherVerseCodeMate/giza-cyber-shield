@@ -1,0 +1,325 @@
+# AdinKhepra Iron Bank - Kubernetes StatefulSet
+# ECR-01: DoD Platform One Persistent Storage Architecture
+#
+# This manifest implements the ephemeral container-safe deployment pattern
+# required by the DoD DevSecOps Reference Design.
+#
+# Key Features:
+# - StatefulSet (not Deployment) for stable network IDs and storage binding
+# - PersistentVolumeClaim for DAG/database persistence across pod restarts
+# - Non-root user (UID 1001) per Iron Bank hardening requirements
+# - Configurable storage class for DoD cloud environments (AWS EBS, Azure Disk, etc.)
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: adinkhepra
+  namespace: adinkhepra-system
+  labels:
+    app: adinkhepra
+    component: compliance-engine
+spec:
+  clusterIP: None  # Headless service for StatefulSet
+  selector:
+    app: adinkhepra
+  ports:
+  - name: agent
+    port: 45444
+    targetPort: 45444
+    protocol: TCP
+  - name: ssh
+    port: 22
+    targetPort: 22
+    protocol: TCP
+
+---
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: adinkhepra-node
+  namespace: adinkhepra-system
+  labels:
+    app: adinkhepra
+    version: v1.0.0
+spec:
+  serviceName: "adinkhepra"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: adinkhepra
+  template:
+    metadata:
+      labels:
+        app: adinkhepra
+        version: v1.0.0
+      annotations:
+        # Iron Bank compliance metadata
+        mil.dso.ironbank/product: "adinkhepra"
+        mil.dso.ironbank/version: "1.0.0"
+        # Pod security annotations
+        seccomp.security.alpha.kubernetes.io/pod: "runtime/default"
+    spec:
+      serviceAccountName: adinkhepra
+      securityContext:
+        # Pod-level security context (DoD hardening)
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+      - name: adinkhepra
+        image: registry1.dso.mil/ironbank/adinkhepra:v1.0.0
+        imagePullPolicy: Always
+
+        securityContext:
+          # Container-level security (Iron Bank requirements)
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1001
+          capabilities:
+            drop:
+            - ALL
+
+        env:
+        # ECR-01: Storage path for persistent volume mount
+        - name: ADINKHEPRA_STORAGE_PATH
+          value: "/var/lib/adinkhepra/data"
+
+        # ECR-02: FIPS mode enforcement
+        - name: ADINKHEPRA_FIPS_MODE
+          value: "true"
+
+        # Application configuration
+        - name: ADINKHEPRA_TENANT
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name  # Use pod name as tenant ID
+        - name: ADINKHEPRA_EXTERNAL_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: ADINKHEPRA_AGENT_PORT
+          value: "45444"
+
+        # License configuration (from Secret)
+        - name: ADINKHEPRA_LICENSE
+          valueFrom:
+            secretKeyRef:
+              name: adinkhepra-license
+              key: license.jwt
+              optional: true
+
+        ports:
+        - name: agent
+          containerPort: 45444
+          protocol: TCP
+        - name: ssh
+          containerPort: 22
+          protocol: TCP
+
+        volumeMounts:
+        # Persistent storage for DAG and compliance database
+        - name: dag-store
+          mountPath: /var/lib/adinkhepra/data
+
+        # Temporary directories (writable with readOnlyRootFilesystem)
+        - name: tmp
+          mountPath: /tmp
+        - name: var-tmp
+          mountPath: /var/tmp
+
+        # Liveness probe: Verify application is running
+        livenessProbe:
+          exec:
+            command:
+            - /usr/local/bin/adinkhepra
+            - health
+          initialDelaySeconds: 30
+          periodSeconds: 60
+          timeoutSeconds: 10
+          failureThreshold: 3
+
+        # Readiness probe: Verify storage is accessible
+        readinessProbe:
+          exec:
+            command:
+            - /usr/local/bin/adinkhepra
+            - health
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 2
+
+        # Resource limits (adjust based on workload)
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+          limits:
+            cpu: "2000m"
+            memory: "2Gi"
+
+      volumes:
+      # Ephemeral volumes for temporary data
+      - name: tmp
+        emptyDir: {}
+      - name: var-tmp
+        emptyDir: {}
+
+      # Tolerations for DoD node pools
+      tolerations:
+      - key: "mil.dso.platform-one/workload"
+        operator: "Equal"
+        value: "compliance"
+        effect: "NoSchedule"
+
+      # Node affinity for compliance workloads
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: mil.dso.platform-one/role
+                operator: In
+                values:
+                - compliance
+                - security
+
+  # PersistentVolumeClaim template - THIS IS CRITICAL FOR ECR-01
+  volumeClaimTemplates:
+  - metadata:
+      name: dag-store
+      labels:
+        app: adinkhepra
+        component: storage
+    spec:
+      accessModes:
+      - ReadWriteOnce  # Single pod writes to this volume
+
+      # Storage class depends on cloud provider:
+      # AWS EBS: gp3 or io2
+      # Azure Disk: managed-premium
+      # VMware: thin or thick
+      # On-premise: local-storage or nfs
+      storageClassName: gp3  # Change based on DoD environment
+
+      resources:
+        requests:
+          storage: 10Gi  # Adjust based on compliance database size + DAG growth
+
+---
+
+# ServiceAccount for RBAC
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: adinkhepra
+  namespace: adinkhepra-system
+  labels:
+    app: adinkhepra
+
+---
+
+# RBAC: ClusterRole for STIG scanning (read-only access to cluster resources)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: adinkhepra-scanner
+  labels:
+    app: adinkhepra
+rules:
+# Read access to scan cluster compliance posture
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps", "secrets"]
+  verbs: ["get", "list"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets", "daemonsets"]
+  verbs: ["get", "list"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["networkpolicies"]
+  verbs: ["get", "list"]
+- apiGroups: ["policy"]
+  resources: ["podsecuritypolicies"]
+  verbs: ["get", "list"]
+
+---
+
+# RBAC: Bind ClusterRole to ServiceAccount
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: adinkhepra-scanner
+  labels:
+    app: adinkhepra
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: adinkhepra-scanner
+subjects:
+- kind: ServiceAccount
+  name: adinkhepra
+  namespace: adinkhepra-system
+
+---
+
+# NetworkPolicy: Restrict egress to DoD boundaries
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: adinkhepra-netpol
+  namespace: adinkhepra-system
+spec:
+  podSelector:
+    matchLabels:
+      app: adinkhepra
+  policyTypes:
+  - Ingress
+  - Egress
+
+  ingress:
+  # Allow agent connections from within cluster
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: adinkhepra-system
+    ports:
+    - protocol: TCP
+      port: 45444
+
+  egress:
+  # Allow DNS (required for Kubernetes service discovery)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+
+  # Allow connections to DoD license server (if KHEPRA-SOVEREIGN mode)
+  - to:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+
+---
+
+# ConfigMap: Deployment model documentation
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: adinkhepra-deployment-info
+  namespace: adinkhepra-system
+data:
+  deployment-model: "KHEPRA-SOVEREIGN"
+  deployment-date: "2026-01-12"
+  classification: "UNCLASSIFIED"
+  technical-manual: "TC 25-ADINKHEPRA-001"
+  support-contact: "cyber@nouchix.com"

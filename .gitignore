@@ -41,3 +41,20 @@ test_fire/
 # Internal
 docs/internal/
 
+
+# Large Assets
+pkg/llm/ollama/blobs/
+pkg/llm/*/blobs/
+pkg/llm/*/blobs/
+*.kpkg
+*.tar.gz
+
+
+
+# Temporary / Garbage
+NUL
+.claude/
+demo-snapshot.json
+*.tmp
+ANONYMOUS_GIT_*.md
+pkg/llm/ollama/manifests/registry.ollama.ai/library/gemma3/4b
