@@ -11,6 +11,13 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 )
 
+// Store is the interface for DAG storage (memory, persistent, etc.)
+type Store interface {
+	Add(n *Node, parents []string) error
+	Get(id string) (*Node, bool)
+	All() []*Node
+}
+
 // Node represents an immutable vertex in the Living Trust Constellation.
 type Node struct {
 	// Header (The immutable identity)
@@ -134,6 +141,14 @@ func (m *Memory) Add(n *Node, parents []string) error {
 
 	m.nodes[n.ID] = n
 	return nil
+}
+
+// Get retrieves a node by ID
+func (m *Memory) Get(id string) (*Node, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	node, exists := m.nodes[id]
+	return node, exists
 }
 
 func (m *Memory) All() []*Node {
