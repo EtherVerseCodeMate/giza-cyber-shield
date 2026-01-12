@@ -7,17 +7,17 @@ import (
 
 func TestLoadDefaults(t *testing.T) {
 	// Ensure clean env
-	os.Unsetenv("KHEPRA_USER")
+	os.Unsetenv("ADINKHEPRA_USER")
 
 	cfg := Load()
-	if cfg.Username != "khepra" {
-		t.Errorf("Expected default username 'khepra', got '%s'", cfg.Username)
+	if cfg.Username != "adinkhepra" {
+		t.Errorf("Expected default username 'adinkhepra', got '%s'", cfg.Username)
 	}
 }
 
 func TestLoadEnvOverride(t *testing.T) {
-	os.Setenv("KHEPRA_USER", "testuser")
-	defer os.Unsetenv("KHEPRA_USER")
+	os.Setenv("ADINKHEPRA_USER", "testuser")
+	defer os.Unsetenv("ADINKHEPRA_USER")
 
 	cfg := Load()
 	if cfg.Username != "testuser" {

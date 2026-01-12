@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/audit"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/types"
 )
 
 // CKLGenerator creates DISA STIG Viewer-compatible .CKL files
@@ -21,17 +21,17 @@ type Checklist struct {
 
 // Asset defines the system being assessed
 type Asset struct {
-	Role        string `xml:"ROLE"`
-	AssetType   string `xml:"ASSET_TYPE"`
-	HostName    string `xml:"HOST_NAME"`
-	HostIP      string `xml:"HOST_IP"`
-	HostMAC     string `xml:"HOST_MAC"`
-	HostFQDN    string `xml:"HOST_FQDN"`
-	TargetKey   string `xml:"TARGET_KEY"`
-	WebOrDB     string `xml:"WEB_OR_DATABASE"`
-	WebDBSite   string `xml:"WEB_DB_SITE,omitempty"`
-	WebDBInst   string `xml:"WEB_DB_INSTANCE,omitempty"`
-	TechArea    string `xml:"TECH_AREA"`
+	Role          string `xml:"ROLE"`
+	AssetType     string `xml:"ASSET_TYPE"`
+	HostName      string `xml:"HOST_NAME"`
+	HostIP        string `xml:"HOST_IP"`
+	HostMAC       string `xml:"HOST_MAC"`
+	HostFQDN      string `xml:"HOST_FQDN"`
+	TargetKey     string `xml:"TARGET_KEY"`
+	WebOrDB       string `xml:"WEB_OR_DATABASE"`
+	WebDBSite     string `xml:"WEB_DB_SITE,omitempty"`
+	WebDBInst     string `xml:"WEB_DB_INSTANCE,omitempty"`
+	TechArea      string `xml:"TECH_AREA"`
 	TargetComment string `xml:"TARGET_COMMENT,omitempty"`
 }
 
@@ -74,18 +74,18 @@ type STIGData struct {
 }
 
 // GeneratePQCReadinessSTIG creates a comprehensive PQC readiness checklist
-func GeneratePQCReadinessSTIG(snapshot audit.AuditSnapshot, outputPath string) error {
+func GeneratePQCReadinessSTIG(snapshot types.AuditSnapshot, outputPath string) error {
 	checklist := &Checklist{
 		Asset: Asset{
-			Role:        "None",
-			AssetType:   "Computing",
-			HostName:    snapshot.Host.Hostname,
-			HostIP:      getFirstIP(snapshot.Network.Interfaces),
-			HostMAC:     getFirstMAC(snapshot.Network.Interfaces),
-			HostFQDN:    snapshot.Host.Hostname,
-			TargetKey:   "CRYPTO-PQC-001",
-			WebOrDB:     "false",
-			TechArea:    "Application Security",
+			Role:      "None",
+			AssetType: "Computing",
+			HostName:  snapshot.Host.Hostname,
+			HostIP:    getFirstIP(snapshot.Network.Interfaces),
+			HostMAC:   getFirstMAC(snapshot.Network.Interfaces),
+			HostFQDN:  snapshot.Host.Hostname,
+			TargetKey: "CRYPTO-PQC-001",
+			WebOrDB:   "false",
+			TechArea:  "Application Security",
 		},
 		STIGs: STIGs{
 			ISTIGs: []ISTIG{
@@ -120,7 +120,7 @@ func createPQCSTIGInfo() STIGInfo {
 }
 
 // generatePQCVulns creates vulnerability checks for PQC readiness
-func generatePQCVulns(snapshot audit.AuditSnapshot) []Vuln {
+func generatePQCVulns(snapshot types.AuditSnapshot) []Vuln {
 	vulns := []Vuln{
 		createVulnV260001(snapshot), // RSA < 3072-bit detection
 		createVulnV260002(snapshot), // ECC < P-384 detection
@@ -140,7 +140,7 @@ func generatePQCVulns(snapshot audit.AuditSnapshot) []Vuln {
 }
 
 // createVulnV260001 - CAT I - RSA < 3072-bit keys
-func createVulnV260001(snapshot audit.AuditSnapshot) Vuln {
+func createVulnV260001(snapshot types.AuditSnapshot) Vuln {
 	// Scan for RSA keys in snapshot
 	rsaFindings := scanForRSAKeys(snapshot)
 
@@ -203,14 +203,14 @@ Framework: ASAF (Agentic Security Attestation Framework)`, time.Now().UTC().Form
 }
 
 // createVulnV260002 - CAT I - ECC < P-384
-func createVulnV260002(snapshot audit.AuditSnapshot) Vuln {
+func createVulnV260002(snapshot types.AuditSnapshot) Vuln {
 	eccFindings := scanForECCKeys(snapshot)
 
 	status := "NotAFinding"
 	findingDetails := "No vulnerable ECC curves detected."
 
 	if len(eccFindings) > 0 {
-		status := "Open"
+		status = "Open" // FIXED: was status := "Open", shadowing variable
 		findingDetails = fmt.Sprintf("Vulnerable ECC implementations found:\n%s", eccFindings)
 	}
 
@@ -234,7 +234,7 @@ func createVulnV260002(snapshot audit.AuditSnapshot) Vuln {
 }
 
 // createVulnV260003 - CAT I - Hardcoded cryptographic keys
-func createVulnV260003(snapshot audit.AuditSnapshot) Vuln {
+func createVulnV260003(snapshot types.AuditSnapshot) Vuln {
 	status := "NotAFinding"
 	if len(snapshot.Secrets) > 0 {
 		status = "Open"
@@ -259,7 +259,7 @@ func createVulnV260003(snapshot audit.AuditSnapshot) Vuln {
 }
 
 // createVulnV260004 - CAT II - CBOM Documentation
-func createVulnV260004(snapshot audit.AuditSnapshot) Vuln {
+func createVulnV260004(_ types.AuditSnapshot) Vuln {
 	return Vuln{
 		STIGData: []STIGData{
 			{VulnAttribute: "Vuln_Num", AttributeData: "V-260004"},
@@ -274,7 +274,7 @@ func createVulnV260004(snapshot audit.AuditSnapshot) Vuln {
 }
 
 // createVulnV260005 - CAT I - Hybrid PQC/Classical TLS
-func createVulnV260005(snapshot audit.AuditSnapshot) Vuln {
+func createVulnV260005(_ types.AuditSnapshot) Vuln {
 	return Vuln{
 		STIGData: []STIGData{
 			{VulnAttribute: "Vuln_Num", AttributeData: "V-260005"},
@@ -289,35 +289,35 @@ func createVulnV260005(snapshot audit.AuditSnapshot) Vuln {
 }
 
 // Remaining vulns (V-260010 through V-260022) - CAT II/III
-func createVulnV260010(snapshot audit.AuditSnapshot) Vuln {
+func createVulnV260010(_ types.AuditSnapshot) Vuln {
 	return createGenericVuln("V-260010", "medium", "All cryptographic libraries must be version-controlled and patched.", "CCI-002605")
 }
 
-func createVulnV260011(snapshot audit.AuditSnapshot) Vuln {
+func createVulnV260011(_ types.AuditSnapshot) Vuln {
 	return createGenericVuln("V-260011", "medium", "Cryptographic parameters must not be exposed in application logs.", "CCI-000162")
 }
 
-func createVulnV260012(snapshot audit.AuditSnapshot) Vuln {
+func createVulnV260012(_ types.AuditSnapshot) Vuln {
 	return createGenericVuln("V-260012", "medium", "Key rotation policies must be documented and enforced.", "CCI-000162")
 }
 
-func createVulnV260013(snapshot audit.AuditSnapshot) Vuln {
+func createVulnV260013(_ types.AuditSnapshot) Vuln {
 	return createGenericVuln("V-260013", "medium", "Quantum-resistant algorithms must be tested in staging environment.", "CCI-003217")
 }
 
-func createVulnV260014(snapshot audit.AuditSnapshot) Vuln {
+func createVulnV260014(_ types.AuditSnapshot) Vuln {
 	return createGenericVuln("V-260014", "medium", "Legacy cryptographic implementations must have documented sunset timeline.", "CCI-000162")
 }
 
-func createVulnV260020(snapshot audit.AuditSnapshot) Vuln {
+func createVulnV260020(_ types.AuditSnapshot) Vuln {
 	return createGenericVuln("V-260020", "low", "Cryptographic operations must be logged for audit purposes.", "CCI-000172")
 }
 
-func createVulnV260021(snapshot audit.AuditSnapshot) Vuln {
+func createVulnV260021(_ types.AuditSnapshot) Vuln {
 	return createGenericVuln("V-260021", "low", "Cryptographic configuration must be centrally managed.", "CCI-000366")
 }
 
-func createVulnV260022(snapshot audit.AuditSnapshot) Vuln {
+func createVulnV260022(_ types.AuditSnapshot) Vuln {
 	return createGenericVuln("V-260022", "low", "PQC migration plan must include rollback procedures.", "CCI-001190")
 }
 
@@ -337,7 +337,7 @@ func createGenericVuln(vulnNum, severity, title, cci string) Vuln {
 }
 
 // scanForRSAKeys analyzes snapshot for RSA key usage
-func scanForRSAKeys(snapshot audit.AuditSnapshot) string {
+func scanForRSAKeys(snapshot types.AuditSnapshot) string {
 	findings := ""
 	// TODO: Implement actual RSA key detection from manifests and file system
 	// For now, placeholder
@@ -350,7 +350,7 @@ func scanForRSAKeys(snapshot audit.AuditSnapshot) string {
 }
 
 // scanForECCKeys analyzes snapshot for ECC usage
-func scanForECCKeys(snapshot audit.AuditSnapshot) string {
+func scanForECCKeys(_ types.AuditSnapshot) string {
 	findings := ""
 	// TODO: Implement ECC curve detection
 	return findings
@@ -370,9 +370,9 @@ func writeCKL(checklist *Checklist, path string) error {
 }
 
 // Helper functions
-func getFirstIP(interfaces []audit.NetworkInterface) string {
+func getFirstIP(interfaces []types.NetworkInterface) string {
 	for _, iface := range interfaces {
-		for _, addr := range iface.Addresses {
+		for _, addr := range iface.IPAddresses {
 			if addr != "127.0.0.1" && addr != "::1" {
 				return addr
 			}
@@ -381,19 +381,11 @@ func getFirstIP(interfaces []audit.NetworkInterface) string {
 	return "0.0.0.0"
 }
 
-func getFirstMAC(interfaces []audit.NetworkInterface) string {
+func getFirstMAC(interfaces []types.NetworkInterface) string {
 	for _, iface := range interfaces {
-		if iface.MAC != "" && iface.MAC != "00:00:00:00:00:00" {
-			return iface.MAC
+		if iface.MACAddress != "" && iface.MACAddress != "00:00:00:00:00:00" {
+			return iface.MACAddress
 		}
 	}
 	return "00:00:00:00:00:00"
-}
-
-// redactSecret masks sensitive data for STIG output
-func redactSecret(secret string) string {
-	if len(secret) <= 8 {
-		return "***REDACTED***"
-	}
-	return secret[:4] + "***REDACTED***" + secret[len(secret)-4:]
 }

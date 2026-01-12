@@ -82,7 +82,11 @@ func (kb *KnowledgeBase) LoadExternalDataWalk(root string) error {
 			}
 		}
 
-		// Future: Handler for NVD/MITRE raw JSONs
+		// Load MITRE CVE database (CVE 5.1 format JSON files)
+		if strings.Contains(path, "mitre/cves") && strings.HasSuffix(path, ".json") {
+			// Handled by LoadMITRECVEDatabase (batch loader)
+			// Skip individual file loading here to avoid spam
+		}
 
 		return nil
 	})

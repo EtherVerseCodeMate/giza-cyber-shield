@@ -272,7 +272,7 @@ func findPIDByInode(inode string) int {
 
 			// Check if link target contains the inode
 			if strings.Contains(target, fmt.Sprintf("[%s]", inode)) ||
-			   strings.Contains(target, fmt.Sprintf("socket:[%s]", inode)) {
+				strings.Contains(target, fmt.Sprintf("socket:[%s]", inode)) {
 				return pid
 			}
 		}
@@ -848,7 +848,7 @@ func detectOSHeuristic() string {
 }
 
 // identifyService identifies the service running on a port
-func identifyService(port int, protocol string) string {
+func identifyService(port int, _ string) string {
 	commonPorts := map[int]string{
 		20:    "FTP-DATA",
 		21:    "FTP",

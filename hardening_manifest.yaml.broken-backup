@@ -1,0 +1,17 @@
+apiVersion: v1
+name: adinkhepra
+tags:
+- "v1.0.0"
+args:
+  BASE_IMAGE: "redhat/ubi/ubi9-minimal"
+  BASE_TAG: "latest"
+resources:
+  - url: "https://dl.adinkhepra.io/releases/v1.0.0/adinkhepra-linux-amd64.tar.gz"
+    filename: "adinkhepra.tar.gz"
+    validation:
+      type: "sha256"
+      value: "0000000000000000000000000000000000000000000000000000000000000000" # Placeholder: Must be updated after build
+maintainers:
+  - name: "SGT Souhimbou Kone"
+    username: "souhimbou.d.kone"
+    email: "skone@alumni.albany.edu"

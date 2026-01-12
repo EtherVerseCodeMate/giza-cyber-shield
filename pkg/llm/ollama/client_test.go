@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewClient(t *testing.T) {
-	client := NewClient("http://localhost:11434", "phi4")
+	client := NewClient("http://localhost:11434", "phi4", "")
 	if client.BaseURL != "http://localhost:11434" {
 		t.Errorf("Expected BaseURL http://localhost:11434, got %s", client.BaseURL)
 	}
@@ -27,7 +27,7 @@ func TestCheckHealth(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL, "phi4")
+	client := NewClient(server.URL, "phi4", "")
 	if !client.CheckHealth() {
 		t.Error("Expected CheckHealth to return true")
 	}
@@ -63,7 +63,7 @@ func TestGenerate(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL, "phi4")
+	client := NewClient(server.URL, "phi4", "")
 	response, err := client.Generate("Test Prompt", "System Prompt")
 	if err != nil {
 		t.Fatalf("Generate failed: %v", err)

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"os/user"
@@ -12,7 +13,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/audit"
@@ -569,8 +569,7 @@ func collectInstalledSoftwareWindows() ([]audit.Software, error) {
 
 func collectInstalledSoftwareDarwin() ([]audit.Software, error) {
 	cmd := exec.Command("system_profiler", "SPApplicationsDataType", "-xml")
-	output, err := cmd.Output()
-	if err != nil {
+	if _, err := cmd.Output(); err != nil {
 		return nil, err
 	}
 
@@ -1041,12 +1040,9 @@ func getUptimeInfo() (int64, time.Time) {
 		}
 
 	case "windows":
-		var info syscall.Timeofday
-		if err := syscall.Gettimeofday(&info); err == nil {
-			bootTime := time.Unix(info.Sec, info.Usec*1000)
-			uptime := time.Since(bootTime).Seconds()
-			return int64(uptime), bootTime
-		}
+		// Windows uptime collection not implemented here; return zero values.
+		// Implement with Windows-specific APIs if precise uptime is required.
+		return 0, time.Time{}
 
 	case "darwin":
 		cmd := exec.Command("sysctl", "-n", "kern.boottime")

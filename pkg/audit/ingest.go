@@ -10,6 +10,7 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/arsenal"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/connectors"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stigs"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/zscan"
 )
@@ -32,7 +33,7 @@ type RiskItem struct {
 }
 
 // Ingest processing a Sonar snapshot and generates a Risk Report.
-func Ingest(snapshotPath, gitleaksPath, zscanPath, trufflePath, zapPath, retirePath, sarifPath, detectPath, scapPath, checklistPath, nessusPath, kubePath string) (*RiskReport, error) {
+func Ingest(snapshotPath, gitleaksPath, zscanPath, trufflePath, zapPath, retirePath, sarifPath, detectPath, scapPath, checklistPath, nessusPath, kubePath, crawlerPath string) (*RiskReport, error) {
 	data, err := os.ReadFile(snapshotPath)
 	if err != nil {
 		return nil, err
@@ -433,6 +434,50 @@ func Ingest(snapshotPath, gitleaksPath, zscanPath, trufflePath, zapPath, retireP
 					Description: f.Audit, Remediation: f.ActualValue,
 					CausalLink: nodeID, STIGReference: stigRef,
 				})
+			}
+		}
+	}
+
+	// [INTELLIGENCE] Crawler (SpiderFoot)
+	if crawlerPath != "" {
+		fmt.Printf("[KHEPRA] Processing Deep SpiderFoot Intelligence: %s\n", crawlerPath)
+		findings, err := scanner.ParseCrawler(crawlerPath)
+		if err != nil {
+			fmt.Printf("[WARN] Failed to parse Crawler Intel: %v\n", err)
+		} else {
+			fmt.Printf("[KHEPRA] Crawler returned %d data points.\n", len(findings))
+			for i, f := range findings {
+				// We map "Internal" or "Sensitive" findings to Risks
+				// This requires heuristic filtering, otherwise it's too noisy.
+				isRisky := false
+				severity := "INFO"
+
+				if strings.Contains(f.Type, "VULNERABILITY") || strings.Contains(f.Data, "exposed") {
+					isRisky = true
+					severity = "HIGH"
+				} else if strings.Contains(f.Type, "LEAK") || strings.Contains(f.Type, "PASSWORD") {
+					isRisky = true
+					severity = "CRITICAL"
+				}
+
+				if isRisky {
+					nodeID := fmt.Sprintf("intel:crawler:%d", i)
+					d.Add(&dag.Node{
+						ID:     nodeID,
+						Action: "OSINT Artifact",
+						Symbol: "Hwe Mu Dua",
+						Time:   time.Now().Format(time.RFC3339),
+						PQC:    map[string]string{"type": f.Type, "module": f.Module},
+					}, []string{hostNodeID})
+
+					stigRef := linkToSTIG("crawler", f.Type, f.Data, nodeID, severity)
+					risks = append(risks, RiskItem{
+						Severity: severity, Title: "OSINT: " + f.Type,
+						Description: fmt.Sprintf("Found %s via %s. Data: %s", f.Type, f.Module, f.Data),
+						Remediation: "Investigate exposure.",
+						CausalLink:  nodeID, STIGReference: stigRef,
+					})
+				}
 			}
 		}
 	}

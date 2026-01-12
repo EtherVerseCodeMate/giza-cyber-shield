@@ -11,6 +11,8 @@ The KHEPRA Audit Platform is designed for high-assurance, regulated environments
 
 We offer three distinct delivery models, each mathematically guaranteed by our **Post-Quantum Cryptography (PQC)** and **Causal Integrity (DAG)** primitives.
 
+**Operator Manual Reference**: Complete technical deployment procedures are documented in **TC 25-ADINKHEPRA-001** (Training Circular 25, AdinKhepra Iron Bank, Edition 001), an Army-standard operator manual covering installation, operation, and troubleshooting. Request from your account manager.
+
 ---
 
 ## 2. Product SKUs & Technical Guarantees
@@ -26,9 +28,15 @@ We offer three distinct delivery models, each mathematically guaranteed by our *
 | **Security** | **PQC Identity**: Audit artifacts are signed with **Dilithium-Mode3**, offering formally verifiable proof of origin. | Baseline Install SOW |
 
 **Workflow**:
-1.  **Drop**: Client receives signed `khepra` binary and STIG library via secure media.
-2.  **Audit**: Client runs `khepra compliance` locally.
+1.  **Drop**: Client receives signed `adinkhepra` binary and STIG library via secure media.
+2.  **Audit**: Client runs `adinkhepra stig scan -root / -out report.json` locally.
 3.  **Result**: A locally stored, signed JSON/PDF Risk Report. Data never leaves the room.
+
+**Technical Implementation** (TC 25-ADINKHEPRA-001):
+- Installation: Chapter 3, Section 3-2 (Binary Installation)
+- STIG Scanning: Chapter 4, Section 4-3 (STIG Compliance Validation)
+- Genesis Backups: Chapter 4, Section 4-6 (Phoenix Protocol for disaster recovery)
+- License Requirements: Premium or HSM edition (Section 3-4)
 
 ---
 
@@ -44,9 +52,16 @@ We offer three distinct delivery models, each mathematically guaranteed by our *
 
 **Workflow**:
 1.  **Scan**: Client runs audit locally.
-2.  **Encrypt**: Client runs `khepra kuntinkantan operator_key.pub report.json`.
-3.  **Transfer**: The mathematically locked `.khepra` file is emailed/uploaded to the Service Provider.
-4.  **Restore**: Service Provider decrypts (`sankofa`) and analyzes.
+2.  **Encrypt**: Client runs `adinkhepra kuntinkantan operator_key.pub report.json`.
+3.  **Transfer**: The mathematically locked `.adinkhepra` file is emailed/uploaded to the Service Provider.
+4.  **Restore**: Service Provider decrypts (`adinkhepra sankofa operator_key report.json.adinkhepra`) and analyzes.
+
+**Technical Implementation** (TC 25-ADINKHEPRA-001):
+- Local STIG Scan: Chapter 4, Section 4-3
+- PQC Encryption (Kuntinkantan): Chapter 4, Section 4-5 ("Bend Reality" - Kyber-1024 envelope)
+- PQC Decryption (Sankofa): Chapter 4, Section 4-5 ("Return and Retrieve")
+- Symbolic Classification: Chapter 2, Section 2-2 (Adinkra Symbolism for data tagging)
+- License Requirements: Premium edition with encryption capabilities (Section 3-4)
 
 ---
 
@@ -65,6 +80,13 @@ We offer three distinct delivery models, each mathematically guaranteed by our *
 2.  **Monitor**: Real-time STIG drift detection logged to a private S3/Database.
 3.  **Alert**: Non-compliance triggers internal alerts within the client's sovereign boundary.
 
+**Technical Implementation** (TC 25-ADINKHEPRA-001):
+- Container Deployment: Chapter 3, Section 3-2 (Iron Bank Registry Installation)
+- Continuous Validation: Chapter 4, Section 4-1 (Health Monitoring) + Section 4-3 (Automated STIG Scanning)
+- Telemetry Silence: Chapter 2, Section 2-1 (Zero-Dependency Architecture)
+- Multi-Classification Support: Chapter 2, Section 2-1 (Federated License Coordinator for NIPR/SIPR/JWICS)
+- License Requirements: HSM edition with TPM binding and multi-tenant isolation (Section 3-4)
+
 ---
 
 ## 3. Technical Due Diligence (The "Why Khepra?" Proof)
@@ -72,8 +94,24 @@ We offer three distinct delivery models, each mathematically guaranteed by our *
 KHEPRA is not just a tool; it is a **Chain of Custody**.
 
 1.  **Mathematical Non-Repudiation**: Every line item in a KHEPRA report is linked to a time-stamped, signed node in the Trust Constellation DAG. You can mathematically prove *who* ran the scan, *when* it was run, and *that* the data hasn't been altered.
+   - **TC Reference**: Section 2-2 (Competitive Differentiation - Mathematical Non-Repudiation)
+   - **Technical Detail**: Dilithium3 (ML-DSA-65) signatures over SHA-256 hashes with operator fingerprints
+
 2.  **Future-Proof Crypto**: While competitors rely on RSA/ECC (vulnerable to future quantum attacks), KHEPRA secures your audit trail with NIST-standardized **ML-DSA (Dilithium)** and **ML-KEM (Kyber)**. Your compliance proof remains valid in the post-quantum era.
+   - **TC Reference**: Section 2-2 (Future-Proof Compliance Validity)
+   - **ROI Impact**: Eliminates multi-million dollar re-certification burden when NIST mandates PQC migration (~2030)
+
 3.  **Semantic Policy**: Our **Adinkra** engine allows us to embed policy directly into the data structure. A record tagged `Eban` (Fence) is treated differently by the code than one tagged `Funtunfunefu` (Dependency), enforcing logic at the data level.
+   - **TC Reference**: Section 2-2 (Adinkra Symbolism)
+   - **Cultural Foundation**: West African wisdom symbols encoding security semantics (Kuntinkantan = "Bend Reality", Sankofa = "Return and Retrieve")
+
+4.  **36,195-Row Compliance Database**: Embedded STIG↔CCI↔NIST 800-53↔NIST 800-171↔CMMC mappings eliminate external dependencies and supply chain attack vectors.
+   - **TC Reference**: Section 2-3 (Database Schema and Coverage)
+   - **Business Value**: Automatic CMMC evidence generation for AC.3.018, SC.3.177, SI.3.216 controls
+
+5.  **AR 27-60 Clean-Room Lineage**: Developed under Army intellectual property regulations to ensure audit-ready provenance and zero GPL/AI contamination.
+   - **TC Reference**: Section 1-5 (System Provenance and Clean-Room Lineage)
+   - **Due Diligence Advantage**: Pre-documented invention disclosures and ownership claims for VC/acquisition scenarios
 
 ---
 
