@@ -1,120 +1,139 @@
 package license
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"net"
-	"os"
-	"runtime"
-	"sort"
-	"strings"
+	"log"
+	"net/http"
+	"sync"
 	"time"
-
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 )
 
-// LicenseClaims represents the data signed by the Khepra Authority.
-type LicenseClaims struct {
-	Tenant       string    `json:"tenant"`
-	HostID       string    `json:"host_id"` // Hardware Fingerprint
-	Expiry       time.Time `json:"expiry"`
-	Capabilities []string  `json:"capabilities"` // e.g. ["compliance", "audit"]
+// Manager handles license validation lifecycle
+type Manager struct {
+	client           *LicenseClient
+	cachedValidation *ValidateResponse
+	lastValidated    time.Time
+	validationMu     sync.RWMutex
+	heartbeatStopCh  chan struct{}
 }
 
-// LicenseFile is the artifact distributed to the client.
-type LicenseFile struct {
-	Claims    LicenseClaims `json:"claims"`
-	Signature []byte        `json:"signature"` // Dilithium Signature
-}
+// NewManager creates license manager
+func NewManager(serverURL string) (*Manager, error) {
+	// Generate or retrieve the hardware-bound Machine ID
+	machineID := GenerateMachineID()
 
-// GetHostID generates a unique fingerprint for the current machine.
-// Strategy: Hash(Hostname + First Stable MAC Address + OS/Arch)
-func GetHostID() (string, error) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = "unknown"
+	// TODO: Retrieve persisted private key or generate one if strictly transient.
+	// For production, this PrivateKey should be loaded from secure storage (e.g., encoded file on disk)
+	// associated with this Machine ID, or generated once and saved.
+	// For this implementation, we will assume it's passed via ENV or config,
+	// OR we generate a temporary one if signing is part of the handshake (but we need it for subsequent reqs).
+	// Since the user spec says "privateKeyHex", we'll leave it empty here to be set by the caller or loaded.
+
+	client := &LicenseClient{
+		ServerURL:  serverURL,
+		MachineID:  machineID,
+		HTTPClient: &http.Client{Timeout: 10 * time.Second},
 	}
 
-	interfaces, _ := net.Interfaces()
-	// Sort interfaces to ensure deterministic order so we always pick the same MAC
-	sort.Slice(interfaces, func(i, j int) bool {
-		return interfaces[i].Name < interfaces[j].Name
-	})
+	return &Manager{
+		client: client,
+	}, nil
+}
 
-	mac := ""
-	for _, i := range interfaces {
-		// specific flags might be needed (e.g. Up, Loopback)
-		// For now, any non-empty MAC is better than random
-		if len(i.HardwareAddr) > 0 {
-			mac = i.HardwareAddr.String()
-			break
+// SetPrivateKey allows setting the Dilithium key for signing requests
+func (m *Manager) SetPrivateKey(privateKey string) {
+	m.client.PrivateKey = privateKey
+}
+
+// GetMachineID returns the machine ID
+func (m *Manager) GetMachineID() string {
+	return m.client.MachineID
+}
+
+// Initialize validates license and starts heartbeat daemon
+func (m *Manager) Initialize() error {
+	// Initial validation
+	resp, err := m.client.Validate()
+	if err != nil {
+		log.Printf("[LICENSE] Initial validation failed: %v", err)
+		log.Printf("[LICENSE] Checking for cached grace period...")
+
+		// Logic for Grace Period Check (Mocked for now as we don't have disk persistence yet)
+		// If persisted validation exists and is < 30 days old, return nil (success)
+		// For now, we fallback to community edition if online validation fails.
+		return fmt.Errorf("license validation failed: %w", err)
+	}
+
+	m.validationMu.Lock()
+	m.cachedValidation = resp
+	m.lastValidated = time.Now()
+	m.validationMu.Unlock()
+
+	if !resp.Valid {
+		log.Printf("[LICENSE] License invalid: %s", resp.Error)
+		if resp.FallbackAvailable {
+			log.Printf("[LICENSE] Falling back to community edition")
+			// We don't error here, we just run in community mode
+			return nil
+		}
+		return fmt.Errorf("license invalid: %s", resp.Error)
+	}
+
+	log.Printf("[LICENSE] ✅ License validated: %s (%s)",
+		resp.Organization, resp.LicenseTier)
+	// log.Printf("[LICENSE] Features: %v", resp.Features)
+	log.Printf("[LICENSE] Expires: %s", resp.ExpiresAt)
+
+	// Start heartbeat daemon
+	m.heartbeatStopCh = make(chan struct{})
+	m.client.StartHeartbeatDaemon(m.heartbeatStopCh)
+
+	return nil
+}
+
+// HasFeature checks if license includes specific feature
+func (m *Manager) HasFeature(feature string) bool {
+	m.validationMu.RLock()
+	defer m.validationMu.RUnlock()
+
+	// Grace Period Check: If cached validation is expired > 30 days, force fail
+	if time.Since(m.lastValidated) > 30*24*time.Hour {
+		return false
+	}
+
+	if m.cachedValidation == nil || !m.cachedValidation.Valid {
+		return false // Community edition
+	}
+
+	for _, f := range m.cachedValidation.Features {
+		if f == feature {
+			return true
 		}
 	}
 
-	// Fallback if no MAC
-	if mac == "" {
-		mac = "00:00:00:00:00:00"
-	}
-
-	raw := fmt.Sprintf("%s|%s|%s|%s", hostname, mac, runtime.GOOS, runtime.GOARCH)
-	hash := sha256.Sum256([]byte(raw))
-	return hex.EncodeToString(hash[:]), nil
+	return false
 }
 
-// Verify checks if the license is valid for THIS machine.
-// Takes the master public key (embedded in binary usually, or passed).
-func Verify(path string, pubKey []byte) (*LicenseClaims, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("license file not found: %v", err)
+// GetTier returns license tier
+func (m *Manager) GetTier() string {
+	m.validationMu.RLock()
+	defer m.validationMu.RUnlock()
+
+	// Grace Period Check
+	if time.Since(m.lastValidated) > 30*24*time.Hour {
+		return "community" // Expired grace period
 	}
 
-	var lic LicenseFile
-	if err := json.Unmarshal(data, &lic); err != nil {
-		return nil, fmt.Errorf("invalid license format")
+	if m.cachedValidation == nil || !m.cachedValidation.Valid {
+		return "community"
 	}
 
-	// 1. Verify Expiry
-	if time.Now().After(lic.Claims.Expiry) {
-		return nil, fmt.Errorf("license expired on %s", lic.Claims.Expiry.Format("2006-01-02"))
-	}
-
-	// 2. Verify Host Binding (Anti-Copy)
-	currentHostID, _ := GetHostID()
-
-	// Normalize
-	licHostID := strings.TrimSpace(lic.Claims.HostID)
-	currHostID := strings.TrimSpace(currentHostID)
-
-	// Skip check if HostID is "*" (Floating/Dev License)
-	if licHostID != "*" && licHostID != currHostID {
-		return nil, fmt.Errorf("license host mismatch. bound to '%s', running on '%s' (len: %d vs %d)", licHostID, currHostID, len(licHostID), len(currHostID))
-	}
-
-	// 3. Verify Cryptographic Signature (Dilithium)
-	// Reconstruct the signed payload
-	payload, _ := json.Marshal(lic.Claims)
-
-	valid, err := adinkra.Verify(pubKey, payload, lic.Signature)
-	if err != nil || !valid {
-		return nil, fmt.Errorf("invalid signature (forged license)")
-	}
-
-	return &lic.Claims, nil
+	return m.cachedValidation.LicenseTier
 }
 
-// Generate creates a signed license (For Khepra HQ use only).
-func Generate(privKey []byte, claims LicenseClaims) (*LicenseFile, error) {
-	payload, _ := json.Marshal(claims)
-	sig, err := adinkra.Sign(privKey, payload)
-	if err != nil {
-		return nil, err
+// Stop stops heartbeat daemon
+func (m *Manager) Stop() {
+	if m.heartbeatStopCh != nil {
+		close(m.heartbeatStopCh)
 	}
-
-	return &LicenseFile{
-		Claims:    claims,
-		Signature: sig,
-	}, nil
 }

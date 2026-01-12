@@ -12,22 +12,22 @@ import (
 
 // CBOM represents a complete cryptographic bill of materials
 type CBOM struct {
-	BOMFormat   string      `json:"bomFormat"`
-	SpecVersion string      `json:"specVersion"`
-	SerialNumber string     `json:"serialNumber"`
-	Version     int         `json:"version"`
-	Metadata    CBOMMetadata `json:"metadata"`
-	Components  []CBOMComponent `json:"components"`
-	Dependencies []CBOMDependency `json:"dependencies,omitempty"`
+	BOMFormat    string            `json:"bomFormat"`
+	SpecVersion  string            `json:"specVersion"`
+	SerialNumber string            `json:"serialNumber"`
+	Version      int               `json:"version"`
+	Metadata     CBOMMetadata      `json:"metadata"`
+	Components   []CBOMComponent   `json:"components"`
+	Dependencies []CBOMDependency  `json:"dependencies,omitempty"`
 	Compositions []CBOMComposition `json:"compositions,omitempty"`
 }
 
 // CBOMMetadata contains scan/generation metadata
 type CBOMMetadata struct {
-	Timestamp time.Time       `json:"timestamp"`
-	Tools     []CBOMTool      `json:"tools"`
-	Authors   []CBOMAuthor    `json:"authors,omitempty"`
-	Component CBOMComponent   `json:"component,omitempty"` // Root component
+	Timestamp  time.Time      `json:"timestamp"`
+	Tools      []CBOMTool     `json:"tools"`
+	Authors    []CBOMAuthor   `json:"authors,omitempty"`
+	Component  CBOMComponent  `json:"component,omitempty"` // Root component
 	Properties []CBOMProperty `json:"properties,omitempty"`
 }
 
@@ -46,15 +46,15 @@ type CBOMAuthor struct {
 
 // CBOMComponent represents a cryptographic component
 type CBOMComponent struct {
-	Type       string           `json:"type"` // "cryptographic-asset"
-	BOMRef     string           `json:"bom-ref"`
-	Name       string           `json:"name"`
-	Version    string           `json:"version,omitempty"`
-	Description string          `json:"description,omitempty"`
-	Hashes     []CBOMHash      `json:"hashes,omitempty"`
-	Licenses   []CBOMLicense   `json:"licenses,omitempty"`
-	Properties []CBOMProperty  `json:"properties"`
-	Evidence   *CBOMEvidence   `json:"evidence,omitempty"`
+	Type        string         `json:"type"` // "cryptographic-asset"
+	BOMRef      string         `json:"bom-ref"`
+	Name        string         `json:"name"`
+	Version     string         `json:"version,omitempty"`
+	Description string         `json:"description,omitempty"`
+	Hashes      []CBOMHash     `json:"hashes,omitempty"`
+	Licenses    []CBOMLicense  `json:"licenses,omitempty"`
+	Properties  []CBOMProperty `json:"properties"`
+	Evidence    *CBOMEvidence  `json:"evidence,omitempty"`
 }
 
 // CBOMHash represents a cryptographic hash
@@ -88,8 +88,8 @@ type CBOMOccurrence struct {
 
 // CBOMDependency describes component relationships
 type CBOMDependency struct {
-	Ref          string   `json:"ref"` // BOM-Ref of dependent
-	DependsOn    []string `json:"dependsOn"`
+	Ref       string   `json:"ref"` // BOM-Ref of dependent
+	DependsOn []string `json:"dependsOn"`
 }
 
 // CBOMComposition describes aggregate relationships
@@ -152,10 +152,10 @@ func GenerateCBOM(inventory *CryptoInventory) (*CBOM, error) {
 
 // assetToComponent converts a CryptoAsset to a CBOMComponent
 func assetToComponent(asset CryptoAsset, index int) CBOMComponent {
-	return CBOMComponent{
-		Type:   "cryptographic-asset",
-		BOMRef: fmt.Sprintf("crypto-asset-%d", index),
-		Name:   fmt.Sprintf("%s-%d", asset.Algorithm, asset.KeyLength),
+	component := CBOMComponent{
+		Type:    "cryptographic-asset",
+		BOMRef:  fmt.Sprintf("crypto-asset-%d", index),
+		Name:    fmt.Sprintf("%s-%d", asset.Algorithm, asset.KeyLength),
 		Version: asset.Implementation,
 		Description: fmt.Sprintf("%s cryptographic implementation (Usage: %s, Risk: %s)",
 			asset.Algorithm, asset.UsageContext, asset.QuantumRisk),

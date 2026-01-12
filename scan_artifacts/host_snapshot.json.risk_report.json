@@ -1,15 +1,6 @@
 {
   "client": "",
   "scan_id": "test-snapshot-001",
-  "risks": [
-    {
-      "severity": "MEDIUM",
-      "title": "Quantum-Vulnerable Handshake (ZScan)",
-      "description": "Detected TLSv1.2 using TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256. Susceptible to Harvest-Now-Decrypt-Later.",
-      "remediation": "Plan Migration to Kyber-1024 or similar KEM.",
-      "causal_link_id": "risk:zscan:192.168.1.10",
-      "stig_ref": "SC-13"
-    }
-  ],
+  "risks": [],
   "trust_map_snapshot": {}
 }

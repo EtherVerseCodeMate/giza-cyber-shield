@@ -1,0 +1,83 @@
+{
+    "meta": {
+        "source": "NIST IR 8596 (Preliminary Draft)",
+        "title": "Cybersecurity Framework Profile for Artificial Intelligence",
+        "version": "Draft 2026",
+        "release_date": "2025-12-01",
+        "comment_deadline": "2026-01-30"
+    },
+    "structure": {
+        "philosophy": "Integrates with CSF 2.0. Focuses on outcomes rather than new compliance checklists.",
+        "core_functions": [
+            "GOVERN",
+            "IDENTIFY",
+            "PROTECT",
+            "DETECT",
+            "RESPOND",
+            "RECOVER"
+        ]
+    },
+    "pillars": [
+        {
+            "id": "AI.SECURE",
+            "name": "Securing AI Systems",
+            "intent": "Integrate AI into the environment without creating new attack surfaces.",
+            "controls": [
+                {
+                    "id": "AI.SECURE.01",
+                    "title": "Infrastructure Hardening",
+                    "desc": "Ensure underlying GPU/TPU clusters and orchestration layers (K8s) are hardened."
+                },
+                {
+                    "id": "AI.SECURE.02",
+                    "title": "Model Integrity",
+                    "desc": "Cryptographically sign models to prevent supply chain poisoning (Pickle/Serialization attacks)."
+                },
+                {
+                    "id": "AI.SECURE.03",
+                    "title": "Data Sanitation",
+                    "desc": "Validate input pipelines to prevent poisoning and injection attacks."
+                }
+            ]
+        },
+        {
+            "id": "AI.DEFEND",
+            "name": "AI Enabled Cyber Defense",
+            "intent": "Use AI to enhance threat detection, automation, and defensive operations.",
+            "controls": [
+                {
+                    "id": "AI.DEFEND.01",
+                    "title": "Adaptive Threat Detection",
+                    "desc": "Utilize ML models to detect subtle anomalies in network traffic and user behavior."
+                },
+                {
+                    "id": "AI.DEFEND.02",
+                    "title": "Automated Remediation",
+                    "desc": "Deploy autonomous agents (like Khepra Sonar) to self-heal configuration drift."
+                }
+            ]
+        },
+        {
+            "id": "AI.THWART",
+            "name": "Thwarting AI Enabled Cyberattacks",
+            "intent": "Prepare for next-gen threats driven by LLMs, deepfakes, and automated exploitation.",
+            "controls": [
+                {
+                    "id": "AI.THWART.01",
+                    "title": "Anti-Reconnaissance",
+                    "desc": "Detect and disrupt automated AI scrapers and vulnerability scanners."
+                },
+                {
+                    "id": "AI.THWART.02",
+                    "title": "Adversarial Robustness",
+                    "desc": "Defend against prompt injection, jailbreaking, and model inversion attacks."
+                },
+                {
+                    "id": "AI.THWART.03",
+                    "title": "Synthetic Content Detection",
+                    "desc": "Implement mechanisms to identify deepfakes and AI-generated social engineering."
+                }
+            ]
+        }
+    ]
+}

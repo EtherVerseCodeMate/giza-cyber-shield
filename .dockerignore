@@ -1,0 +1,204 @@
+# Git and version control
+.git
+.gitignore
+.gitattributes
+
+# Documentation (not needed in runtime container)
+*.md
+docs/
+# EXCEPTION: Include public compliance CSVs (Option C - Partial Exposure)
+!docs/CCI_to_NIST53.csv
+!docs/NIST53_to_171.csv
+demo/
+examples/
+
+# Build artifacts and binaries (built fresh in container)
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+sonar
+adinkhepra
+khepra-daemon
+
+# Test files
+*_test.go
+**/testdata/
+coverage.txt
+coverage.html
+
+# Development tools
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+.DS_Store
+Thumbs.db
+
+# Node.js (web dashboard not needed in Go binary container)
+web/
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+.npm
+.yarn
+
+# Python files (helper scripts not needed in runtime)
+*.py
+*.pyc
+__pycache__/
+.pytest_cache/
+venv/
+.env
+
+# CI/CD (not needed in container)
+.github/
+.gitlab-ci.yml
+Jenkinsfile
+azure-pipelines.yml
+
+# Data and secrets (NEVER include in container images)
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.sealed
+*.license
+*.kpkg
+master_seed.sealed
+khepra_master.pub
+khepra_genesis_*.json
+license_*.json
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# CVE databases (downloaded at runtime if needed)
+data/cve-database/
+*.json.gz
+nvdcve-*.json
+
+# Tools and external dependencies
+tools/
+scripts/deploy_intel.sh
+scripts/bastion_wall.sh
+
+# Backup and archive files
+*.bak
+*.backup
+*.old
+*.orig
+*.tar
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# IDE and editor files
+.editorconfig
+.prettierrc
+.eslintrc
+tsconfig.json
+
+# OS-specific files
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+
+# Kubernetes and deployment configs (managed separately)
+k8s/
+helm/
+*.yaml
+*.yml
+!hardening_manifest.yaml
+
+# Iron Bank specific exclusions
+Dockerfile
+Dockerfile.*
+!Dockerfile.ironbank
+docker-compose.yml
+
+# Vendor directory is INCLUDED (required for air-gapped builds)
+# DO NOT ignore vendor/
+
+# Go build cache and modules cache (rebuilt in container)
+.cache/
+go.sum.backup
+
+# License and patent materials (sensitive/proprietary)
+PATENT_*.md
+LICENSE_ENTERPRISE.md
+ENTERPRISE_OFFER_STRATEGY.md
+STIGVIEWER_*.md
+IRONBANK_*.md
+
+# Snapshots and demo materials
+*_snapshot.json
+demo-*.json
+
+# SpiderFoot and other scanning tools
+tools/spiderfoot/
+*.spiderfoot
+
+# ============================================================================
+# PROPRIETARY SOURCE CODE EXCLUSIONS (Iron Bank Container)
+# ============================================================================
+# Per IRON_BANK_SOURCE_CODE_AUDIT.md - Option C (Open-Source Scanner Only)
+# These components are compiled into binaries but source code NOT exposed
+
+# Proprietary licensing system (CRITICAL - license bypass prevention)
+pkg/license/
+pkg/kms/
+
+# AGI/LLM intelligence engines (HIGH VALUE - competitive moat)
+pkg/agi/
+pkg/llm/
+pkg/intel/rag.go
+pkg/intel/drift.go
+pkg/intel/risk_engine.go
+pkg/intel/cve_parser.go
+
+# Patent-protected cryptography (USPTO #73565085)
+pkg/nkyinkyim/
+
+# Disaster Recovery/Business Continuity (Enterprise feature)
+pkg/drbc/
+
+# OSINT integrations (API key security)
+pkg/scanner/osint/
+pkg/config/secrets.go
+
+# Advanced enterprise features
+pkg/souhimbou/
+pkg/packet/
+pkg/lorentz/
+pkg/net/tailnet/
+pkg/dag/dag.go
+pkg/fim/dag_integration.go
+
+# Proprietary compliance mapping library (Option C: Exclude proprietary CSVs)
+# Public CSVs included above: CCI_to_NIST53.csv, NIST53_to_171.csv
+docs/STIG_CCI_Map.csv
+docs/STIG_to_*.xlsx
+docs/*_Ultimate.xlsx
+docs/*_Complete_Mapping.xlsx
+
+# Proprietary command implementations (keep in binaries only)
+cmd/adinkhepra/cmd_engine.go
+pkg/adinkra/
