@@ -12,14 +12,16 @@ import (
 type Client struct {
 	BaseURL string
 	Model   string
+	ApiKey  string // Optional API Key
 	Client  *http.Client
 }
 
 // NewClient creates a new Ollama client.
-func NewClient(url, model string) *Client {
+func NewClient(url, model, apiKey string) *Client {
 	return &Client{
 		BaseURL: url,
 		Model:   model,
+		ApiKey:  apiKey,
 		Client:  &http.Client{Timeout: 60 * time.Second},
 	}
 }
@@ -56,6 +58,9 @@ func (c *Client) Generate(prompt string, systemPrompt string) (string, error) {
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if c.ApiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.ApiKey)
+	}
 
 	resp, err := c.Client.Do(req)
 	if err != nil {
@@ -77,7 +82,15 @@ func (c *Client) Generate(prompt string, systemPrompt string) (string, error) {
 
 // CheckHealth attempts to connect to the Ollama version endpoint.
 func (c *Client) CheckHealth() bool {
-	resp, err := c.Client.Get(fmt.Sprintf("%s/api/version", c.BaseURL))
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/version", c.BaseURL), nil)
+	if err != nil {
+		return false
+	}
+	if c.ApiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.ApiKey)
+	}
+
+	resp, err := c.Client.Do(req)
 	if err != nil {
 		return false
 	}

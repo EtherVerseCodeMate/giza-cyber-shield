@@ -1,0 +1,19 @@
+# AdinKhepra Iron Bank - Kubernetes Namespace
+# Creates isolated namespace for AdinKhepra compliance workloads
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: adinkhepra-system
+  labels:
+    name: adinkhepra-system
+    app: adinkhepra
+    istio-injection: enabled  # Enable service mesh if using Platform One Istio
+    # Pod Security Standards (PSS) enforcement
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+  annotations:
+    mil.dso.platform-one/description: "AdinKhepra Iron Bank - STIG Compliance Automation"
+    mil.dso.platform-one/classification: "UNCLASSIFIED"
+    mil.dso.platform-one/poc: "cyber@nouchix.com"
