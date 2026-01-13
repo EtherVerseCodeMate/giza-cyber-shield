@@ -267,8 +267,7 @@ export async function handleLicenseHeartbeat(request, env, corsHeaders) {
  * @returns {Response}
  */
 export async function handleLicenseRevoke(request, env, corsHeaders, machineId, admin) {
-	try
-
+	try {
 		const result = await env.DB.prepare(`
 			UPDATE licenses
 			SET revoked = 1, revoked_at = ?, revoked_reason = ?
