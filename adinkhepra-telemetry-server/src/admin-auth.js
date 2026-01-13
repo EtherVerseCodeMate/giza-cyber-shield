@@ -22,7 +22,21 @@ import bcrypt from 'bcryptjs';
  */
 export async function handleAdminLogin(request, env, corsHeaders) {
 	try {
-		const { username, password } = await request.json();
+		// Parse request body
+		let body;
+		try {
+			body = await request.json();
+		} catch (jsonError) {
+			console.error('JSON parse error:', jsonError.message);
+			return new Response(JSON.stringify({
+				error: 'Invalid JSON in request body'
+			}), {
+				status: 400,
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+			});
+		}
+
+		const { username, password } = body;
 
 		if (!username || !password) {
 			return new Response(JSON.stringify({
