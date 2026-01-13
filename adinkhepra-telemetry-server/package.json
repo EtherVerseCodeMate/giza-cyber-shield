@@ -8,7 +8,8 @@
         "deploy": "wrangler deploy"
     },
     "dependencies": {
-        "@noble/post-quantum": "^0.2.0"
+        "@noble/post-quantum": "^0.2.0",
+        "bcryptjs": "^2.4.3"
     },
     "devDependencies": {
         "wrangler": "^4.58.0"
