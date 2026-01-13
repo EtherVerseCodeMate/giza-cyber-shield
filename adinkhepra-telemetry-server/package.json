@@ -11,7 +11,7 @@
         "@noble/post-quantum": "^0.2.0"
     },
     "devDependencies": {
-        "wrangler": "^3.0.0"
+        "wrangler": "^4.58.0"
     },
     "private": true
 }
