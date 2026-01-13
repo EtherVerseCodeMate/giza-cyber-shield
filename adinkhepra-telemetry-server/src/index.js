@@ -20,6 +20,13 @@ import {
 	handleLicenseIssue
 } from './license.js';
 
+import {
+	handleAdminLogin,
+	handleAdminLogout,
+	handleChangePassword,
+	verifyAdminAuth
+} from './admin-auth.js';
+
 import { ml_dsa65 } from "@noble/post-quantum/ml-dsa";
 
 export default {
@@ -58,7 +65,20 @@ export default {
 			return handleHealth(request, env, corsHeaders);
 		}
 
-		// Route handling - License Management
+		// Route handling - Admin Authentication
+		if (url.pathname === '/admin/login' && request.method === 'POST') {
+			return handleAdminLogin(request, env, corsHeaders);
+		}
+
+		if (url.pathname === '/admin/logout' && request.method === 'POST') {
+			return handleAdminLogout(request, env, corsHeaders);
+		}
+
+		if (url.pathname === '/admin/change-password' && request.method === 'POST') {
+			return handleChangePassword(request, env, corsHeaders);
+		}
+
+		// Route handling - License Management (Public)
 		if (url.pathname === '/license/validate' && request.method === 'POST') {
 			return handleLicenseValidate(request, env, corsHeaders);
 		}
@@ -67,18 +87,30 @@ export default {
 			return handleLicenseHeartbeat(request, env, corsHeaders);
 		}
 
-		// ADMIN ROUTES (Protected)
+		// ADMIN ROUTES (Protected with JWT)
 		if (url.pathname === '/license/issue' && request.method === 'POST') {
-			if (!checkAdminAuth(request, env)) return new Response('Unauthorized', { status: 401 });
-			return handleLicenseIssue(request, env, corsHeaders);
+			const admin = await verifyAdminAuth(request, env);
+			if (!admin) {
+				return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+					status: 401,
+					headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+				});
+			}
+			return handleLicenseIssue(request, env, corsHeaders, admin);
 		}
 
 		// License revocation by machine ID
 		const revokeMatch = url.pathname.match(/^\/license\/revoke\/([^\/]+)$/);
 		if (revokeMatch && request.method === 'DELETE') {
-			if (!checkAdminAuth(request, env)) return new Response('Unauthorized', { status: 401 });
+			const admin = await verifyAdminAuth(request, env);
+			if (!admin) {
+				return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+					status: 401,
+					headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+				});
+			}
 			const machineId = revokeMatch[1];
-			return handleLicenseRevoke(request, env, corsHeaders, machineId);
+			return handleLicenseRevoke(request, env, corsHeaders, machineId, admin);
 		}
 
 		return new Response('Not Found', {
@@ -88,21 +120,8 @@ export default {
 	}
 };
 
-/**
- * Check Admin Authentication (API Key)
- */
-function checkAdminAuth(request, env) {
-	const authHeader = request.headers.get('Authorization');
-	if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
-	const key = authHeader.split(' ')[1];
-	// Compare with env.ADMIN_API_KEY (securely stored in secrets)
-	// If env.ADMIN_API_KEY is not set, fail closed
-	if (!env.ADMIN_API_KEY) return false;
-
-	// Constant-time comparison (to prevent timing attacks) leads to paranoid implementation,
-	// but simple string comparison is acceptable here for this threat model.
-	return key === env.ADMIN_API_KEY;
-}
+// Legacy checkAdminAuth removed - now using JWT authentication via verifyAdminAuth()
+// Emergency API key fallback is built into verifyAdminAuth()
 
 /**
  * Handle incoming telemetry beacon
