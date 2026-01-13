@@ -258,18 +258,16 @@ export async function handleLicenseHeartbeat(request, env, corsHeaders) {
 
 /**
  * Revoke a license (admin endpoint)
- * Should be protected by authentication in production
  *
  * @param {Request} request
  * @param {Env} env
  * @param {Object} corsHeaders
  * @param {string} machineId
+ * @param {Object} admin - Admin user info from JWT
  * @returns {Response}
  */
-export async function handleLicenseRevoke(request, env, corsHeaders, machineId) {
-	try {
-		// TODO: Add admin authentication check here
-		// For now, this is a placeholder
+export async function handleLicenseRevoke(request, env, corsHeaders, machineId, admin) {
+	try
 
 		const result = await env.DB.prepare(`
 			UPDATE licenses
@@ -290,15 +288,16 @@ export async function handleLicenseRevoke(request, env, corsHeaders, machineId) 
 			});
 		}
 
-		// Log revocation
+		// Log revocation with admin username
 		await env.DB.prepare(`
 			INSERT INTO license_audit_log (
-				machine_id, action, timestamp, details
-			) VALUES (?, 'revoke', ?, ?)
+				machine_id, action, timestamp, details, admin_user
+			) VALUES (?, 'revoke', ?, ?, ?)
 		`).bind(
 			machineId,
 			Math.floor(Date.now() / 1000),
-			'License revoked via API'
+			'License revoked via API',
+			admin?.username || 'unknown'
 		).run();
 
 		return new Response(JSON.stringify({
@@ -327,9 +326,10 @@ export async function handleLicenseRevoke(request, env, corsHeaders, machineId) 
  * @param {Request} request
  * @param {Env} env
  * @param {Object} corsHeaders
+ * @param {Object} admin - Admin user info from JWT
  * @returns {Response}
  */
-export async function handleLicenseIssue(request, env, corsHeaders) {
+export async function handleLicenseIssue(request, env, corsHeaders, admin) {
 	try {
 		const {
 			machine_id,
@@ -375,15 +375,16 @@ export async function handleLicenseIssue(request, env, corsHeaders) {
 			max_devices || 1
 		).run();
 
-		// Log issuance
+		// Log issuance with admin username
 		await env.DB.prepare(`
 			INSERT INTO license_audit_log (
-				machine_id, action, timestamp, details
-			) VALUES (?, 'issue', ?, ?)
+				machine_id, action, timestamp, details, admin_user
+			) VALUES (?, 'issue', ?, ?, ?)
 		`).bind(
 			machine_id,
 			now,
-			JSON.stringify({ organization, license_tier, expires_in_days })
+			JSON.stringify({ organization, license_tier, expires_in_days }),
+			admin?.username || 'unknown'
 		).run();
 
 		return new Response(JSON.stringify({
