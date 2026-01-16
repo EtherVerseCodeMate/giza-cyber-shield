@@ -1,0 +1,196 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Simplified GitHub App Token Generator Lambda for KHEPRA Protocol CI/CD'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: khepra-protocol
+    Description: Name of the project
+  Environment:
+    Type: String
+    Default: production
+    Description: Environment name
+  GitHubAppSecretName:
+    Type: String
+    Description: Name of the secret in Secrets Manager containing GitHub App credentials
+
+Resources:
+  # IAM Role for Lambda function
+  GitHubAppTokenLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-github-app-token-lambda-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${GitHubAppSecretName}*'
+
+  # Lambda function for GitHub App token generation
+  GitHubAppTokenLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-github-app-token-generator'
+      Runtime: nodejs18.x
+      Handler: index.handler
+      Role: !GetAtt GitHubAppTokenLambdaRole.Arn
+      Timeout: 30
+      Environment:
+        Variables:
+          GITHUB_APP_SECRET_NAME: !Ref GitHubAppSecretName
+      Code:
+        ZipFile: |
+          const https = require('https');
+          const crypto = require('crypto');
+          
+          // Simple JWT implementation for GitHub App
+          function base64urlEncode(str) {
+            return Buffer.from(str)
+              .toString('base64')
+              .replace(/\+/g, '-')
+              .replace(/\//g, '_')
+              .replace(/=/g, '');
+          }
+          
+          function createJWT(appId, privateKey) {
+            const now = Math.floor(Date.now() / 1000);
+            const header = { alg: 'RS256', typ: 'JWT' };
+            const payload = {
+              iat: now - 60,
+              exp: now + 600,
+              iss: appId
+            };
+            
+            const encodedHeader = base64urlEncode(JSON.stringify(header));
+            const encodedPayload = base64urlEncode(JSON.stringify(payload));
+            const signingInput = `${encodedHeader}.${encodedPayload}`;
+            
+            const signature = crypto.sign('RSA-SHA256', Buffer.from(signingInput), privateKey);
+            const encodedSignature = signature.toString('base64')
+              .replace(/\+/g, '-')
+              .replace(/\//g, '_')
+              .replace(/=/g, '');
+            
+            return `${signingInput}.${encodedSignature}`;
+          }
+          
+          async function getSecret(secretName) {
+            const AWS = require('/opt/nodejs/node_modules/@aws-sdk/client-secrets-manager') || 
+                       require('aws-sdk');
+            
+            if (AWS.SecretsManagerClient) {
+              // AWS SDK v3
+              const client = new AWS.SecretsManagerClient({ region: process.env.AWS_REGION });
+              const command = new AWS.GetSecretValueCommand({ SecretId: secretName });
+              const response = await client.send(command);
+              return JSON.parse(response.SecretString);
+            } else {
+              // AWS SDK v2 (fallback)
+              const secretsManager = new AWS.SecretsManager({ region: process.env.AWS_REGION });
+              const response = await secretsManager.getSecretValue({ SecretId: secretName }).promise();
+              return JSON.parse(response.SecretString);
+            }
+          }
+          
+          function getInstallationAccessToken(jwtToken, installationId) {
+            return new Promise((resolve, reject) => {
+              const postData = JSON.stringify({});
+              
+              const options = {
+                hostname: 'api.github.com',
+                port: 443,
+                path: `/app/installations/${installationId}/access_tokens`,
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${jwtToken}`,
+                  'Accept': 'application/vnd.github.v3+json',
+                  'User-Agent': 'KHEPRA-Protocol-CI-CD',
+                  'Content-Type': 'application/json',
+                  'Content-Length': Buffer.byteLength(postData)
+                }
+              };
+              
+              const req = https.request(options, (res) => {
+                let data = '';
+                
+                res.on('data', (chunk) => {
+                  data += chunk;
+                });
+                
+                res.on('end', () => {
+                  if (res.statusCode === 201) {
+                    const response = JSON.parse(data);
+                    resolve(response.token);
+                  } else {
+                    reject(new Error(`GitHub API error: ${res.statusCode} - ${data}`));
+                  }
+                });
+              });
+              
+              req.on('error', (error) => {
+                reject(error);
+              });
+              
+              req.write(postData);
+              req.end();
+            });
+          }
+          
+          exports.handler = async (event) => {
+            try {
+              console.log('Generating GitHub App installation token...');
+              
+              const secretName = process.env.GITHUB_APP_SECRET_NAME;
+              const secrets = await getSecret(secretName);
+              const { appId, installationId, privateKey } = secrets;
+              
+              const jwtToken = createJWT(appId, privateKey);
+              const accessToken = await getInstallationAccessToken(jwtToken, installationId);
+              
+              console.log('Successfully generated installation access token');
+              
+              return {
+                statusCode: 200,
+                body: JSON.stringify({
+                  token: accessToken,
+                  expiresAt: new Date(Date.now() + 3600000).toISOString()
+                })
+              };
+              
+            } catch (error) {
+              console.error('Error generating GitHub App token:', error);
+              return {
+                statusCode: 500,
+                body: JSON.stringify({
+                  error: 'Failed to generate GitHub App token',
+                  message: error.message
+                })
+              };
+            }
+          };
+
+Outputs:
+  GitHubAppTokenLambdaArn:
+    Description: 'ARN of the GitHub App token generation Lambda function'
+    Value: !GetAtt GitHubAppTokenLambda.Arn
+    Export:
+      Name: !Sub '${ProjectName}-github-app-token-lambda-arn'
+  
+  GitHubAppTokenLambdaName:
+    Description: 'Name of the GitHub App token generation Lambda function'
+    Value: !Ref GitHubAppTokenLambda
+    Export:
+      Name: !Sub '${ProjectName}-github-app-token-lambda-name'
