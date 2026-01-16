@@ -1,0 +1,237 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CI/CD Pipeline for KHEPRA Protocol using CodeStar Connections (GitHub App)'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: khepra-protocol
+    Description: Name of the project
+  Environment:
+    Type: String
+    Default: production
+    Description: Environment name
+  GitHubOwner:
+    Type: String
+    Description: GitHub repository owner
+  GitHubRepo:
+    Type: String
+    Description: GitHub repository name
+
+Resources:
+  # GitHub connection (you must authorize it in the console after stack creation)
+  CodeStarConnection:
+    Type: AWS::CodeStarConnections::Connection
+    Properties:
+      ConnectionName: !Sub '${ProjectName}-github-connection'
+      ProviderType: GitHub
+
+  # ECR Repository
+  ECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub '${ProjectName}-app'
+      ImageTagMutability: MUTABLE
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep only 10 images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 10
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+
+  # S3 Bucket for CodePipeline artifacts
+  ArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-pipeline-artifacts-${AWS::AccountId}'
+      VersioningConfiguration: { Status: Enabled }
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # CodeBuild Service Role
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-codebuild-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: codebuild.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CodeBuildPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # CloudWatch Logs (CreateLogGroup needs *)
+              - Effect: Allow
+                Action: [ logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents ]
+                Resource: "*"
+              # Artifacts bucket objects
+              - Effect: Allow
+                Action: [ s3:GetObject, s3:GetObjectVersion, s3:PutObject ]
+                Resource: !Sub 'arn:aws:s3:::${ArtifactsBucket}/*'
+              # ECR push/pull
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+                  - ecr:PutImage
+                Resource: "*"
+
+  # CodePipeline Service Role
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-codepipeline-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: codepipeline.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CodePipelinePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # S3 artifact bucket + objects (proper ARNs)
+              - Effect: Allow
+                Action: [ s3:GetObject, s3:GetObjectVersion, s3:PutObject, s3:GetBucketVersioning ]
+                Resource:
+                  - !Sub 'arn:aws:s3:::${ArtifactsBucket}'
+                  - !Sub 'arn:aws:s3:::${ArtifactsBucket}/*'
+              # Start/inspect CodeBuild
+              - Effect: Allow
+                Action: [ codebuild:BatchGetBuilds, codebuild:StartBuild ]
+                Resource: !GetAtt CodeBuildProject.Arn
+              # Allow using the CodeStar connection
+              - Effect: Allow
+                Action: [ codestar-connections:UseConnection ]
+                Resource: !GetAtt CodeStarConnection.ConnectionArn
+
+  # CodeBuild Project
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${ProjectName}-build'
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts: { Type: CODEPIPELINE }
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_MEDIUM
+        Image: aws/codebuild/standard:7.0
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: ECR_REPO_URI
+            Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}'
+          - Name: CONTAINER_NAME
+            Value: app
+          - Name: DOCKERFILE
+            Value: Dockerfile
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            install:
+              runtime-versions:
+                docker: 20
+              commands:
+                - echo "Docker privileged mode must be ON."
+            pre_build:
+              commands:
+                - echo "Logging in to Amazon ECR..."
+                - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" \
+                  | docker login --username AWS --password-stdin "$(echo "$ECR_REPO_URI" | cut -d/ -f1)"
+                - IMAGE_TAG="${CODEBUILD_RESOLVED_SOURCE_VERSION:-latest}"
+                - echo "Using tag: $IMAGE_TAG"
+            build:
+              commands:
+                - echo "Building image..."
+                - docker build -f "$DOCKERFILE" -t "$ECR_REPO_URI:$IMAGE_TAG" .
+                - docker tag "$ECR_REPO_URI:$IMAGE_TAG" "$ECR_REPO_URI:latest"
+            post_build:
+              commands:
+                - echo "Pushing images..."
+                - docker push "$ECR_REPO_URI:$IMAGE_TAG"
+                - docker push "$ECR_REPO_URI:latest"
+                - echo "Creating imagedefinitions.json (for optional ECS deploy)…"
+                - printf '[{"name":"%s","imageUri":"%s"}]\n' "$CONTAINER_NAME" "$ECR_REPO_URI:$IMAGE_TAG" > imagedefinitions.json
+          artifacts:
+            files:
+              - imagedefinitions.json
+
+  # CodePipeline
+  CodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub '${ProjectName}-pipeline'
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactsBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: GitHub
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: '1'
+              Configuration:
+                ConnectionArn: !GetAtt CodeStarConnection.ConnectionArn
+                FullRepositoryId: !Sub '${GitHubOwner}/${GitHubRepo}'
+                BranchName: main
+                OutputArtifactFormat: CODE_ZIP
+                DetectChanges: true
+              OutputArtifacts: [ { Name: SourceOutput } ]
+        - Name: Build
+          Actions:
+            - Name: CodeBuild
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              InputArtifacts:  [ { Name: SourceOutput } ]
+              OutputArtifacts: [ { Name: BuildOutput } ]
+
+Outputs:
+  CodeStarConnectionArn:
+    Description: CodeStar Connection ARN
+    Value: !GetAtt CodeStarConnection.ConnectionArn
+  ECRRepositoryURI:
+    Description: ECR Repository URI
+    Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}'
+  PipelineName:
+    Description: CodePipeline Name
+    Value: !Ref CodePipeline
+  ArtifactsBucketName:
+    Description: S3 Artifacts Bucket Name
+    Value: !Ref ArtifactsBucket
