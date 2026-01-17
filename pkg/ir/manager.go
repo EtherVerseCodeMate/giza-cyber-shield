@@ -29,7 +29,7 @@ func (m *Manager) CreateIncident(title, desc string, severity Severity, iType st
 		Type:        iType,
 		DetectedAt:  time.Now(),
 		UpdatedAt:   time.Now(),
-		Timeline: []Event{
+		Events: []Event{
 			{
 				Timestamp: time.Now(),
 				Message:   fmt.Sprintf("Incident Created: %s", title),
