@@ -248,6 +248,11 @@ func (e *Engine) execute(t Task) (string, error) {
 		return e.executeVulnHunt()
 	}
 
+	// Forensic Snapshot Execution
+	if t.Description == "Forensic System Snapshot" {
+		return e.executeForensics()
+	}
+
 	// Auto-Remediation Execution
 	if strings.HasPrefix(t.Description, "Remediate:") {
 		return e.executeRemediation(t)
