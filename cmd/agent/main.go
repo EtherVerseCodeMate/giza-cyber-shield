@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
+	"fmt"
 	"log"
 	mrand "math/rand/v2"
 	"net/http"
@@ -29,6 +31,25 @@ type server struct {
 }
 
 func main() {
+	// CLI Flags for license management
+	showMachineID := flag.Bool("machine-id", false, "Print machine ID and exit (for license registration)")
+	flag.Parse()
+
+	// If --machine-id flag, print and exit
+	if *showMachineID {
+		machineID := license.GenerateMachineID()
+		fmt.Println("===========================================")
+		fmt.Println("  KHEPRA MACHINE ID (License Fingerprint)")
+		fmt.Println("===========================================")
+		fmt.Printf("  Machine ID: %s\n", machineID)
+		fmt.Println("===========================================")
+		fmt.Println("")
+		fmt.Println("Send this Machine ID to your administrator")
+		fmt.Println("to receive your license activation.")
+		fmt.Println("")
+		os.Exit(0)
+	}
+
 	cfg := config.Load()
 	// [DAG]: Use the global singleton immutable DAG (production-grade)
 	// This ensures the agent server, standalone DAG viewer, and ERT all
