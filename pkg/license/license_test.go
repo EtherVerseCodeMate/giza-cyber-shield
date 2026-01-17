@@ -1,11 +1,14 @@
 package license
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 )
 
 // TestGenerateMachineID ensures the ID is consistent and follows format
@@ -31,8 +34,8 @@ func TestManager_Initialize(t *testing.T) {
 	// 1. Mock Server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify Request
-		if r.URL.Path != "/v1/license/validate" {
-			t.Errorf("Expected path /v1/license/validate, got %s", r.URL.Path)
+		if r.URL.Path != "/license/validate" {
+			t.Errorf("Expected path /license/validate, got %s", r.URL.Path)
 		}
 
 		// Mock Response
@@ -52,6 +55,18 @@ func TestManager_Initialize(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
 	}
+
+	// Generate and set valid private key for signing
+	_, priv, err := mldsa65.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	// We need the hex string of the PRIVATE key
+	privBytes, _ := priv.MarshalBinary()
+	manager.SetPrivateKey(hex.EncodeToString(privBytes))
+
+	// Note: In a real test we'd verify the signature on the server side causing issues if pub key isn't known
+	// But our mock server ignores signature validation, just returns valid json.
 
 	// 3. Run Initialize
 	err = manager.Initialize()
