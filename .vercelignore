@@ -1,0 +1,26 @@
+# Go backend code (not deployed to Vercel)
+pkg/
+cmd/
+vendor/
+bin/
+*.go
+go.mod
+go.sum
+
+# Python services
+services/
+*.py
+*.pt
+models/
+
+# Other non-frontend
+souhimbou_ai/
+data/
+docs/
+*.exe
+*.dll
+*.so
+
+# Dev files
+.env.local
+*.log

@@ -8,7 +8,11 @@
   "exclude": [
     "node_modules",
     "supabase/functions",
-    "vendor"
+    "vendor",
+    "souhimbou_ai",
+    "pkg",
+    "cmd",
+    "services"
   ],
   "compilerOptions": {
     "baseUrl": ".",
