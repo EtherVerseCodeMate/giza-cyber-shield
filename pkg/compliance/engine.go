@@ -2,103 +2,84 @@ package compliance
 
 import (
 	"fmt"
-	"runtime"
-	"time"
+	"log"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 )
 
-// CheckStatus represents the verdict of a compliance check.
-type CheckStatus string
-
-const (
-	StatusPass  CheckStatus = "PASS"
-	StatusFail  CheckStatus = "FAIL"
-	StatusError CheckStatus = "ERROR"
-	StatusSkip  CheckStatus = "SKIP"
-)
-
-// NativeCheck defines a single pure-Go compliance auditor.
-type NativeCheck struct {
-	ID          string // Internal ID
-	STIGID      string // Mapped STIG ID (e.g. "WN10-00-000005")
-	Title       string
-	Description string
-	OS          string // "windows", "linux", "all"
-	Run         func() (CheckStatus, string, error)
-}
-
-// ComplianceResult captures the output of a native scan.
-type ComplianceResult struct {
-	Check  NativeCheck
-	Status CheckStatus
-	Output string
-	Time   time.Time
-}
-
-// Engine manages the library of native checks.
+// Engine orchestrates compliance checks
 type Engine struct {
-	Checks []NativeCheck
+	Manager *Manager
+	store   dag.Store
 }
 
-// NewEngine initializes the compliance subsystem with OS-specific checks.
-func NewEngine() *Engine {
-	e := &Engine{
-		Checks: make([]NativeCheck, 0),
+// NewEngine creates a new Compliance Engine
+func NewEngine(store dag.Store, scanner ScannerInterface) *Engine {
+	return &Engine{
+		Manager: NewManager(store, scanner),
+		store:   store,
 	}
-	e.loadChecks()
-	return e
 }
 
-// Run performs all applicable checks for the current OS.
-func (e *Engine) Run() []ComplianceResult {
-	var results []ComplianceResult
-	os := runtime.GOOS
+// EvaluateCompliance runs a check across all controls in the SSP
+func (e *Engine) EvaluateCompliance(privKey []byte) (string, error) {
+	ssp := e.Manager.SSP
+	totalControls := 110 // CMMC Level 2
+	implemented := 0
+	failed := 0
 
-	fmt.Printf("[KHEPRA] Starting Native Compliance Scan (OS: %s)...\n", os)
+	report := "CMMC Level 2 Compliance Report:\n"
 
-	for _, check := range e.Checks {
-		if check.OS != "all" && check.OS != os {
-			continue
+	// Iterate over known controls (mocked list for MVP, usually this iterates over a loaded standard)
+	// For this MVP, we iterate over controls present in the SSP
+	for _, ctrl := range ssp.Controls {
+		// If scanner is available, try to audit real-time status
+		if e.Manager.scanner != nil {
+			passed, err := e.Manager.AuditControl(ctrl.ControlID, privKey)
+			if err != nil {
+				log.Printf("Error auditing control %s: %v", ctrl.ControlID, err)
+			}
+			if !passed {
+				failed++
+			} else {
+				implemented++
+			}
+		} else {
+			// Manual/Static check
+			if ctrl.Status == "IMPLEMENTED" {
+				implemented++
+			}
 		}
-
-		fmt.Printf(" -> Checking %s [%s]... ", check.ID, check.STIGID)
-		status, output, err := check.Run()
-		if err != nil {
-			status = StatusError
-			output = err.Error()
-		}
-
-		color := "\033[32mPASS\033[0m"
-		switch status {
-		case StatusFail:
-			color = "\033[31mFAIL\033[0m"
-		case StatusError:
-			color = "\033[33mERR \033[0m"
-		}
-		fmt.Printf("%s\n", color)
-
-		results = append(results, ComplianceResult{
-			Check:  check,
-			Status: status,
-			Output: output,
-			Time:   time.Now(),
-		})
 	}
-	return results
+
+	score := float64(implemented) / float64(totalControls) * 100
+	report += fmt.Sprintf("Score: %.2f%% (%d/%d Controls Implemented)\n", score, implemented, totalControls)
+	report += fmt.Sprintf("Critical Failures: %d\n", failed)
+
+	if score < 100 {
+		report += "Status: NON-COMPLIANT. Remediation Required."
+	} else {
+		report += "Status: COMPLIANT. Ready for C3PAO Assessment."
+	}
+
+	return report, nil
 }
 
-func (e *Engine) loadChecks() {
-	// Common Checks
-	e.Checks = append(e.Checks, NativeCheck{
-		ID:          "check_os_arch",
-		STIGID:      "GEN-000010",
-		Title:       "System Architecture Verification",
-		Description: "Ensure basic system identity parameters are readable.",
-		OS:          "all",
-		Run: func() (CheckStatus, string, error) {
-			return StatusPass, fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH), nil
-		},
-	})
+// AutoRemediate attempts to fix failed controls
+func (e *Engine) AutoRemediate(privKey []byte) (string, error) {
+	if e.Manager.scanner == nil {
+		return "Scanner interface not available for remediation.", nil
+	}
 
-	// Load Platform Specifics
-	e.loadPlatformChecks()
+	fixed := 0
+	for _, ctrl := range e.Manager.SSP.Controls {
+		if ctrl.Status == "FAILED_SCAN" {
+			success, msg, _ := e.Manager.scanner.RemediateControl(ctrl.ControlID)
+			if success {
+				e.Manager.UpdateControl(ctrl.ControlID, "AUTO_REMEDIATED", msg, privKey)
+				fixed++
+			}
+		}
+	}
+	return fmt.Sprintf("Auto-Remediation Complete. Fixed %d controls.", fixed), nil
 }
