@@ -79,6 +79,9 @@ type Hunter struct {
 	autoFix     bool
 	dryRun      bool
 
+	// Threat Intelligence
+	intelManager *IntelFeedManager
+
 	// Callbacks for AGI integration
 	OnVulnDiscovered func(v Vulnerability)
 	OnRemediationComplete func(v Vulnerability, success bool)
@@ -91,9 +94,21 @@ func NewHunter(rootPath string) *Hunter {
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		autoFix: false,
-		dryRun:  true,
+		autoFix:      false,
+		dryRun:       true,
+		intelManager: NewIntelFeedManager(),
 	}
+}
+
+// RefreshIntelligence fetches latest threat intel from all feeds
+func (h *Hunter) RefreshIntelligence(ctx context.Context) error {
+	log.Println("[HUNTER] Refreshing threat intelligence from all feeds...")
+	return h.intelManager.FetchAll(ctx)
+}
+
+// GetIntelStats returns threat intelligence statistics
+func (h *Hunter) GetIntelStats() map[string]int {
+	return h.intelManager.Stats()
 }
 
 // SetAutoFix enables autonomous remediation (USE WITH CAUTION)
@@ -158,8 +173,12 @@ func (h *Hunter) Scan(ctx context.Context) (*ScanResult, error) {
 		}
 	}
 
-	// Generate remediation plans
+	// Enrich with threat intelligence and generate remediation plans
 	for i := range allVulns {
+		// Enrich with threat intel (CISA KEV, NVD, InTheWild, etc.)
+		h.intelManager.EnrichVulnerability(&allVulns[i])
+
+		// Generate remediation plan
 		allVulns[i].RemediationPlan = h.generateRemediationPlan(&allVulns[i])
 		result.BySeverity[allVulns[i].Severity]++
 
