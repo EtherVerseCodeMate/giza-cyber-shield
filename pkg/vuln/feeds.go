@@ -26,35 +26,35 @@ import (
 
 // FeedSource represents a threat intelligence feed
 type FeedSource struct {
-	Name        string `json:"name"`
-	URL         string `json:"url"`
-	Type        string `json:"type"` // "json", "rss", "api"
-	Description string `json:"description"`
-	Enabled     bool   `json:"enabled"`
+	Name        string    `json:"name"`
+	URL         string    `json:"url"`
+	Type        string    `json:"type"` // "json", "rss", "api"
+	Description string    `json:"description"`
+	Enabled     bool      `json:"enabled"`
 	LastFetch   time.Time `json:"last_fetch"`
-	Priority    int    `json:"priority"` // Lower = higher priority
+	Priority    int       `json:"priority"` // Lower = higher priority
 }
 
 // ThreatIntel represents enriched vulnerability intelligence
 type ThreatIntel struct {
-	CVEID           string    `json:"cve_id"`
-	GHSAID          string    `json:"ghsa_id,omitempty"`
-	Title           string    `json:"title"`
-	Description     string    `json:"description"`
-	Severity        Severity  `json:"severity"`
-	CVSSv3Score     float64   `json:"cvss_v3_score"`
-	CVSSv3Vector    string    `json:"cvss_v3_vector,omitempty"`
-	ExploitedInWild bool      `json:"exploited_in_wild"`
-	ExploitAvailable bool     `json:"exploit_available"`
-	PatchAvailable  bool      `json:"patch_available"`
-	AffectedProducts []string `json:"affected_products"`
-	References      []string  `json:"references"`
-	PublishedDate   time.Time `json:"published_date"`
-	LastModified    time.Time `json:"last_modified"`
-	Source          string    `json:"source"`
+	CVEID            string    `json:"cve_id"`
+	GHSAID           string    `json:"ghsa_id,omitempty"`
+	Title            string    `json:"title"`
+	Description      string    `json:"description"`
+	Severity         Severity  `json:"severity"`
+	CVSSv3Score      float64   `json:"cvss_v3_score"`
+	CVSSv3Vector     string    `json:"cvss_v3_vector,omitempty"`
+	ExploitedInWild  bool      `json:"exploited_in_wild"`
+	ExploitAvailable bool      `json:"exploit_available"`
+	PatchAvailable   bool      `json:"patch_available"`
+	AffectedProducts []string  `json:"affected_products"`
+	References       []string  `json:"references"`
+	PublishedDate    time.Time `json:"published_date"`
+	LastModified     time.Time `json:"last_modified"`
+	Source           string    `json:"source"`
 
 	// MITRE ATT&CK Mapping
-	ATTACKTactics   []string `json:"attack_tactics,omitempty"`
+	ATTACKTactics    []string `json:"attack_tactics,omitempty"`
 	ATTACKTechniques []string `json:"attack_techniques,omitempty"`
 }
 
@@ -263,9 +263,9 @@ func (m *IntelFeedManager) fetchNVD(ctx context.Context) error {
 
 // NVDResponse represents the NVD API response structure
 type NVDResponse struct {
-	ResultsPerPage int `json:"resultsPerPage"`
-	StartIndex     int `json:"startIndex"`
-	TotalResults   int `json:"totalResults"`
+	ResultsPerPage  int `json:"resultsPerPage"`
+	StartIndex      int `json:"startIndex"`
+	TotalResults    int `json:"totalResults"`
 	Vulnerabilities []struct {
 		CVE struct {
 			ID          string `json:"id"`
@@ -571,10 +571,9 @@ func (m *IntelFeedManager) rssItemToThreatIntel(item *struct {
 	}
 
 	// Try to extract CVE ID from title or description
-	cvePattern := "CVE-[0-9]{4}-[0-9]+"
-	if cve := extractPattern(item.Title, cvePattern); cve != "" {
+	if cve := extractCVE(item.Title); cve != "" {
 		intel.CVEID = cve
-	} else if cve := extractPattern(item.Description, cvePattern); cve != "" {
+	} else if cve := extractCVE(item.Description); cve != "" {
 		intel.CVEID = cve
 	}
 
@@ -676,7 +675,7 @@ func (m *IntelFeedManager) EnrichVulnerability(v *Vulnerability) {
 	} else if strings.HasPrefix(v.ID, "GHSA-") {
 		// For GHSA, we might have a CVE reference
 		for _, ref := range v.References {
-			if cve := extractPattern(ref, "CVE-[0-9]{4}-[0-9]+"); cve != "" {
+			if cve := extractCVE(ref); cve != "" {
 				intel = m.LookupCVE(cve)
 				break
 			}
@@ -706,8 +705,8 @@ func (m *IntelFeedManager) EnrichVulnerability(v *Vulnerability) {
 	v.References = append(v.References, intel.References...)
 }
 
-// extractPattern extracts a regex pattern from text
-func extractPattern(text, pattern string) string {
+// extractCVE extracts a CVE ID from text
+func extractCVE(text string) string {
 	// Simple implementation - in production use regexp
 	// This is a placeholder for CVE extraction
 	if strings.Contains(text, "CVE-") {
@@ -736,11 +735,11 @@ func (m *IntelFeedManager) Stats() map[string]int {
 	defer m.cacheMu.RUnlock()
 
 	stats := map[string]int{
-		"total":    len(m.cache),
-		"critical": 0,
-		"high":     0,
-		"moderate": 0,
-		"low":      0,
+		"total":     len(m.cache),
+		"critical":  0,
+		"high":      0,
+		"moderate":  0,
+		"low":       0,
 		"exploited": 0,
 	}
 
