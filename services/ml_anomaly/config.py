@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # Model Configuration
-    model_path: str = "./models/anomaly_detector.pt"
+    model_path: str = "./models/souhimbou_v1.pt"
     model_version: str = "v1.0.0"
     feature_dim: int = 32
     hidden_dim: int = 64
