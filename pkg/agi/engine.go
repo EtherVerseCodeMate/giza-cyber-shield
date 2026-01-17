@@ -516,12 +516,12 @@ func (e *Engine) executePentest(t Task) (string, error) {
 		parts := strings.Split(t.Description, "Target: ")
 		if len(parts) > 1 {
 			candidate := strings.Fields(parts[1])[0]
-				// Validate it looks like an IP or hostname (not a word like "test")
-				if strings.Contains(candidate, ".") || candidate == "localhost" {
-					target = candidate
-				}
+			// Validate it looks like an IP or hostname (not a word like "test")
+			if strings.Contains(candidate, ".") || candidate == "localhost" {
+				target = candidate
 			}
 		}
+	}
 
 	// Record pentest initiation
 	startNode := dag.Node{
@@ -859,6 +859,7 @@ func (e *Engine) Chat(message string) string {
 		"HELP":      0,
 	}
 
+	keywords := map[string]map[string]int{
 		"SCAN": {
 			"scan": 10, "sweep": 8, "probe": 7, "recon": 8, "nmap": 9, "analyze": 5,
 			"assess": 5, "check": 4,
@@ -1103,7 +1104,7 @@ func (e *Engine) Chat(message string) string {
 			return fmt.Sprintf("FAILED TO LOG INCIDENT: %v", err)
 		}
 		return fmt.Sprintf("COMMANDO ACKNOWLEDGED.\n\nAction: INCIDENT RESPONSE INITIATED\nIncident ID: %s\nStatus: OPEN\nPlaybook: Analyizing...", inc.ID)
-		
+
 	case "HELP":
 		return "AVAILABLE DIRECTIVES:\n" +
 			"- SCAN: 'Run port scan' (AI-Enhanced perimeter sweep)\n" +
