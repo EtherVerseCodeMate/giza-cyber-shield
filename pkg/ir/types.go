@@ -39,7 +39,7 @@ type Incident struct {
 
 // IOC represents an Indicator of Compromise
 type IOC struct {
-	Type  string `json:"type"`  // IP, HASH, DOMAIN, URL, EMAIL
+	Type  string `json:"type"` // IP, HASH, DOMAIN, URL, EMAIL
 	Value string `json:"value"`
 	Desc  string `json:"description,omitempty"`
 }
