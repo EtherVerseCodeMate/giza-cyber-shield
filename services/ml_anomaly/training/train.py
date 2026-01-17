@@ -98,6 +98,7 @@ class SoulBiasedTrainer:
         
         # 2. Generate Data
         train_data = self.generate_soul_biased_data(soul_embedding, n_samples=5000)
+        logger.info(f"Training Data Shape: {train_data.shape}")
         
         # 3. Training Loop
         self.model.train()
@@ -105,6 +106,7 @@ class SoulBiasedTrainer:
             self.optimizer.zero_grad()
             
             # Forward pass
+            logger.debug(f"Starting Epoch {epoch}")
             results = self.model.autoencoder.compute_anomaly_score(train_data, return_details=True)
             reconstruction = results["reconstruction"]
             
