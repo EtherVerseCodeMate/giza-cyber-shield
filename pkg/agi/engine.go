@@ -59,13 +59,13 @@ type Engine struct {
 	intel     *intel.KnowledgeBase
 	scanner   *scanner.Scanner
 	python    *apiserver.PythonServiceClient
-	hunter    *vuln.Hunter            // Vulnerability Hunter
-	forensics *forensics.Collector    // Digital Forensics
+	hunter    *vuln.Hunter         // Vulnerability Hunter
+	forensics *forensics.Collector // Digital Forensics
 
 	// Autonomous Operations
-	LastVulnScan     time.Time
-	VulnScanInterval time.Duration
-	LastForensics    time.Time
+	LastVulnScan      time.Time
+	VulnScanInterval  time.Duration
+	LastForensics     time.Time
 	ForensicsInterval time.Duration
 
 	ctx    context.Context
@@ -125,7 +125,7 @@ func NewEngine(store dag.Store) *Engine {
 		python:            apiserver.NewPythonServiceClient("http://localhost:8000"), // Motherboard Link
 		hunter:            hunter,
 		forensics:         forensicsCollector,
-		VulnScanInterval:  1 * time.Hour,  // Scan for vulnerabilities every hour
+		VulnScanInterval:  1 * time.Hour,    // Scan for vulnerabilities every hour
 		ForensicsInterval: 15 * time.Minute, // Forensic snapshot every 15 minutes
 		ctx:               ctx,
 		cancel:            cancel,
@@ -378,15 +378,15 @@ func (e *Engine) executeForensics() (string, error) {
 		Symbol: "Sankofa",
 		Time:   lorentz.StampNow(),
 		PQC: map[string]string{
-			"snapshot_id":    snapshot.SnapshotID,
-			"hostname":       snapshot.Hostname,
-			"os":             snapshot.OS,
-			"process_count":  fmt.Sprintf("%d", len(snapshot.Processes)),
-			"conn_count":     fmt.Sprintf("%d", len(snapshot.NetworkConns)),
-			"port_count":     fmt.Sprintf("%d", len(snapshot.OpenPorts)),
-			"file_count":     fmt.Sprintf("%d", len(snapshot.FileHashes)),
-			"snapshot_hash":  snapshot.Hash,
-			"agent":          "KASA-Forensics-v1",
+			"snapshot_id":   snapshot.SnapshotID,
+			"hostname":      snapshot.Hostname,
+			"os":            snapshot.OS,
+			"process_count": fmt.Sprintf("%d", len(snapshot.Processes)),
+			"conn_count":    fmt.Sprintf("%d", len(snapshot.NetworkConns)),
+			"port_count":    fmt.Sprintf("%d", len(snapshot.OpenPorts)),
+			"file_count":    fmt.Sprintf("%d", len(snapshot.FileHashes)),
+			"snapshot_hash": snapshot.Hash,
+			"agent":         "KASA-Forensics-v1",
 		},
 	}
 
@@ -409,10 +409,10 @@ func (e *Engine) executeForensics() (string, error) {
 					Symbol: "Dwennimmen",
 					Time:   lorentz.StampNow(),
 					PQC: map[string]string{
-						"change_type":  "SYSTEM_CHANGE",
-						"description":  change,
-						"snapshot_id":  snapshot.SnapshotID,
-						"agent":        "KASA-Forensics-v1",
+						"change_type": "SYSTEM_CHANGE",
+						"description": change,
+						"snapshot_id": snapshot.SnapshotID,
+						"agent":       "KASA-Forensics-v1",
 					},
 				}
 				if err := changeNode.Sign(e.privKey); err == nil {
@@ -649,6 +649,7 @@ func (e *Engine) Chat(message string) string {
 		"REMEDIATE": 0,
 		"SCAN":      0,
 		"VULNHUNT":  0,
+		"PENTEST":   0,
 		"IDENTITY":  0,
 		"HELP":      0,
 	}
@@ -669,6 +670,10 @@ func (e *Engine) Chat(message string) string {
 		"SCAN": {
 			"scan": 10, "sweep": 8, "probe": 7, "recon": 8, "nmap": 9, "analyze": 5,
 			"assess": 5, "check": 4,
+		},
+		"PENTEST": {
+			"pentest": 15, "penetration": 15, "attack": 10, "hack": 10, "simulation": 8,
+			"red": 5, "team": 5, "offensive": 8, "drill": 6,
 		},
 		"VULNHUNT": {
 			"vulnerability": 12, "vuln": 12, "dependabot": 15, "dependency": 10, "cve": 12,
@@ -762,8 +767,55 @@ func (e *Engine) Chat(message string) string {
 
 	case "VULNHUNT":
 		e.Status = "Initiating Dependency Vulnerability Hunt..."
-		e.AddTask("Dependency Vulnerability Hunt", "OwoForoAdobe")
+		taskDesc := fmt.Sprintf("Hunt for Vulnerabilities (Target: %s)", target)
+		e.AddTask(taskDesc, "OwoForoAdobe") // Symbol of ingenuity
+		go func() {
+			report, err := e.intel.HuntVulnerabilities(target, e.dag)
+			if err != nil {
+				e.Status = "Vulnerability Hunt Failed"
+				return
+			}
+			e.Status = fmt.Sprintf("Hunt Complete. %d Vulnerabilities Found.", len(report.Vulnerabilities))
+		}()
 		return "COMMANDO ACKNOWLEDGED.\n\nAction: INITIATING DEPENDENCY VULNERABILITY HUNT\nTarget: All ecosystems (Go, NPM, Python)\nMode: OSV + Native Audit Tools\nCapabilities:\n  - CVE/GHSA Detection\n  - Auto-Remediation Planning\n  - DAG-Secured Findings\n\nStatus: Task queued. Check logs for real-time intelligence."
+
+	case "PENTEST":
+		target = "127.0.0.1" // Default to safe local target if not specified, though logic usually extracts it
+		if strings.Contains(msg, "on ") {
+			parts := strings.Split(msg, "on ")
+			if len(parts) > 1 {
+				target = strings.Fields(parts[1])[0]
+			}
+		}
+
+		taskDesc := fmt.Sprintf("Internal Penetration Test (Target: %s)", target)
+		e.AddTask(taskDesc, "Eban") // Symbol of protection/fence
+
+		// Launch Async Pentest Routine
+		go func() {
+			e.Status = "PENTEST: PHASE 1 - T1046 Network Service Discovery"
+			time.Sleep(1 * time.Second) // Simulate phase transition
+
+			// 1. Port Scan (T1046) - Trigger standard scan logic locally
+			if err := e.RunScan(target); err != nil {
+				log.Printf("Pentest T1046 failed: %v", err)
+			}
+
+			e.Status = "PENTEST: PHASE 2 - T1595.002 Vulnerability Scanning"
+			time.Sleep(1 * time.Second)
+
+			// 2. Vuln Hunt (T1595.002)
+			report, err := e.intel.HuntVulnerabilities(target, e.dag)
+			if err != nil {
+				e.Status = "Pentest Failed at Phase 2"
+				return
+			}
+
+			// 3. Finalize
+			e.Status = fmt.Sprintf("Pentest Complete. Findings: %d active vectors.", len(report.Vulnerabilities))
+		}()
+
+		return fmt.Sprintf("COMMANDO ACKNOWLEDGED. \n\nAction: INITIATING INTERNAL PENETRATION TEST. \nTarget: %s. \n\nMITRE ATT&CK TTPs Active:\n- T1046: Network Service Discovery\n- T1595.002: Active Scanning", target)
 
 	case "REPORT":
 		// Check if we have vulnerability scan results
