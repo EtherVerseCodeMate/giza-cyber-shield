@@ -18,6 +18,7 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/llm/ollama"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/lorentz"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/vuln"
 )
 
 // Objective defines the high-level goal of the AGI
@@ -56,6 +57,11 @@ type Engine struct {
 	intel   *intel.KnowledgeBase
 	scanner *scanner.Scanner
 	python  *apiserver.PythonServiceClient
+	hunter  *vuln.Hunter // Vulnerability Hunter
+
+	// Autonomous Hunting
+	LastVulnScan time.Time
+	VulnScanInterval time.Duration
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -94,20 +100,26 @@ func NewEngine(store dag.Store) *Engine {
 		log.Fatalf("FAILED TO GENERATE AGENT IDENTITY: %v", err)
 	}
 
+	// Initialize Vulnerability Hunter
+	hunter := vuln.NewHunter(".")
+	hunter.SetDryRun(true) // Safety first - dry run by default
+
 	return &Engine{
-		Objective: ObjectiveAuditor,
-		Status:    "Initialized",
-		Mode:      "KASA-Hybrid-v2",
-		pubKey:    pub,
-		privKey:   priv,
-		store:     store,
-		intel:     intel.NewKnowledgeBase(),
-		scanner:   scanner.New(),
-		llm:       cognitiveLayer,
-		python:    apiserver.NewPythonServiceClient("http://localhost:8000"), // Motherboard Link
-		ctx:       ctx,
-		cancel:    cancel,
-		Tasks:     []Task{},
+		Objective:        ObjectiveAuditor,
+		Status:           "Initialized",
+		Mode:             "KASA-Hybrid-v2",
+		pubKey:           pub,
+		privKey:          priv,
+		store:            store,
+		intel:            intel.NewKnowledgeBase(),
+		scanner:          scanner.New(),
+		llm:              cognitiveLayer,
+		python:           apiserver.NewPythonServiceClient("http://localhost:8000"), // Motherboard Link
+		hunter:           hunter,
+		VulnScanInterval: 1 * time.Hour, // Scan for vulnerabilities every hour
+		ctx:              ctx,
+		cancel:           cancel,
+		Tasks:            []Task{},
 	}
 }
 
@@ -146,7 +158,20 @@ func (e *Engine) loop() {
 func (e *Engine) think() {
 	// 0. Autonomy: If idle, the Guardian must remain vigilant.
 	if len(e.Tasks) == 0 {
-		// Interval: Every 60 seconds (approx 12 ticks)
+		// Vulnerability Hunting: Scan dependencies periodically
+		if time.Since(e.LastVulnScan) > e.VulnScanInterval {
+			e.Status = "Autonomously hunting vulnerabilities..."
+			e.Tasks = append(e.Tasks, Task{
+				ID:          fmt.Sprintf("auto-vuln-%d", time.Now().Unix()),
+				Description: "Dependency Vulnerability Hunt",
+				Priority:    "HIGH",
+				Symbol:      "OwoForoAdobe", // Symbol of vigilance/watchfulness
+			})
+			e.LastVulnScan = time.Now()
+			log.Println("[KASA] INITIATING AUTONOMOUS VULNERABILITY HUNT.")
+		}
+
+		// Perimeter Sweep: Every 60 seconds
 		if time.Since(e.LastGuardTime) > 60*time.Second {
 			e.Status = "Autonomously generating directives..."
 			e.Tasks = append(e.Tasks, Task{
@@ -195,6 +220,16 @@ func (e *Engine) execute(t Task) (string, error) {
 		return fmt.Sprintf("Sweep Complete. Found %d open ports.", len(results)), nil
 	}
 
+	// Vulnerability Hunt Execution
+	if t.Description == "Dependency Vulnerability Hunt" {
+		return e.executeVulnHunt()
+	}
+
+	// Auto-Remediation Execution
+	if strings.HasPrefix(t.Description, "Remediate:") {
+		return e.executeRemediation(t)
+	}
+
 	// Real Firewall Execution
 	if strings.Contains(t.Description, "Micro-Firewall Rule") {
 		// Extract port from description "Deploy Micro-Firewall Rule: Block Inbound Port 80"
@@ -215,6 +250,87 @@ func (e *Engine) execute(t Task) (string, error) {
 	// Mock Execution Logic for Generic Tasks
 	time.Sleep(1 * time.Second)
 	return fmt.Sprintf("Completed %s. Verified incidents: 0.", t.Description), nil
+}
+
+// executeVulnHunt runs the vulnerability scanner and generates remediation tasks
+func (e *Engine) executeVulnHunt() (string, error) {
+	log.Println("[KASA] VULNERABILITY HUNTER ACTIVATED - Scanning all ecosystems...")
+	e.Status = "Hunting Vulnerabilities (Go, NPM, Python)..."
+
+	result, err := e.hunter.Scan(e.ctx)
+	if err != nil {
+		return "", fmt.Errorf("vulnerability scan failed: %w", err)
+	}
+
+	// Log each vulnerability to DAG for immutable record
+	for _, v := range result.Vulnerabilities {
+		node := dag.Node{
+			Action: fmt.Sprintf("vuln-discovered:%s", v.ID),
+			Symbol: "OwoForoAdobe",
+			Time:   lorentz.StampNow(),
+			PQC: map[string]string{
+				"vuln_id":       v.ID,
+				"package":       v.Package,
+				"ecosystem":     v.Ecosystem,
+				"severity":      string(v.Severity),
+				"fixed_version": v.FixedVersion,
+				"agent":         "KASA-VulnHunter-v1",
+			},
+		}
+		if err := node.Sign(e.privKey); err == nil {
+			e.store.Add(&node, []string{})
+		}
+
+		// Create remediation tasks for HIGH and CRITICAL vulnerabilities
+		if v.Severity == vuln.SeverityCritical || v.Severity == vuln.SeverityHigh {
+			e.Tasks = append(e.Tasks, Task{
+				ID:          fmt.Sprintf("remediate-%s-%d", v.ID, time.Now().Unix()),
+				Description: fmt.Sprintf("Remediate: %s in %s (%s)", v.ID, v.Package, v.Ecosystem),
+				Priority:    "HIGH",
+				Symbol:      "Dwennimmen", // Ram's horns - strength/conflict resolution
+			})
+			log.Printf("[KASA] QUEUED REMEDIATION: %s (%s) - %s", v.ID, v.Severity, v.Package)
+		}
+	}
+
+	// Generate summary
+	summary := fmt.Sprintf("Hunt Complete. Found %d vulnerabilities (CRITICAL: %d, HIGH: %d, MODERATE: %d, LOW: %d)",
+		result.TotalVulns,
+		result.BySeverity[vuln.SeverityCritical],
+		result.BySeverity[vuln.SeverityHigh],
+		result.BySeverity[vuln.SeverityModerate],
+		result.BySeverity[vuln.SeverityLow])
+
+	log.Printf("[KASA] %s", summary)
+	return summary, nil
+}
+
+// executeRemediation attempts to fix a specific vulnerability
+func (e *Engine) executeRemediation(t Task) (string, error) {
+	// Extract vuln ID from task description
+	// Format: "Remediate: GHSA-xxxx in package-name (ecosystem)"
+	log.Printf("[KASA] EXECUTING REMEDIATION: %s", t.Description)
+	e.Status = "Remediating: " + t.Description
+
+	// Get the last scan results
+	lastScan := e.hunter.GetLastScan()
+	if lastScan == nil {
+		return "No scan data available for remediation", nil
+	}
+
+	// Find the matching vulnerability
+	for i := range lastScan.Vulnerabilities {
+		v := &lastScan.Vulnerabilities[i]
+		if strings.Contains(t.Description, v.ID) {
+			// Execute remediation (dry-run by default for safety)
+			if err := e.hunter.Remediate(e.ctx, v); err != nil {
+				return fmt.Sprintf("Remediation failed: %v", err), nil
+			}
+			return fmt.Sprintf("Remediation plan executed for %s (dry-run mode)", v.ID), nil
+		}
+	}
+
+	return "Vulnerability not found in last scan", nil
 }
 
 func (e *Engine) logToDAG(t Task, result string) {
@@ -416,6 +532,7 @@ func (e *Engine) Chat(message string) string {
 		"FIREWALL":  0,
 		"REMEDIATE": 0,
 		"SCAN":      0,
+		"VULNHUNT":  0,
 		"IDENTITY":  0,
 		"HELP":      0,
 	}
@@ -435,7 +552,12 @@ func (e *Engine) Chat(message string) string {
 		},
 		"SCAN": {
 			"scan": 10, "sweep": 8, "probe": 7, "recon": 8, "nmap": 9, "analyze": 5,
-			"vulnerability": 6, "assess": 5, "check": 4,
+			"assess": 5, "check": 4,
+		},
+		"VULNHUNT": {
+			"vulnerability": 12, "vuln": 12, "dependabot": 15, "dependency": 10, "cve": 12,
+			"ghsa": 12, "npm": 8, "audit": 10, "hunt": 8, "supply": 6, "chain": 5,
+			"sbom": 10, "sca": 10, "oss": 6,
 		},
 		"IDENTITY": {
 			"who": 5, "identity": 8, "role": 5, "objective": 5, "yourself": 4, "agent": 2,
@@ -522,19 +644,35 @@ func (e *Engine) Chat(message string) string {
 		}()
 		return "COMMANDO ACKNOWLEDGED. \n\nAction: INITIATING COMPREHENSIVE VULNERABILITY SCAN (Target: localhost). \nMode: AI-Enhanced (LLM4Cyber RAG). \nStatus: Running in background... Watch logs for AI Intelligence Report."
 
+	case "VULNHUNT":
+		e.Status = "Initiating Dependency Vulnerability Hunt..."
+		e.AddTask("Dependency Vulnerability Hunt", "OwoForoAdobe")
+		return "COMMANDO ACKNOWLEDGED.\n\nAction: INITIATING DEPENDENCY VULNERABILITY HUNT\nTarget: All ecosystems (Go, NPM, Python)\nMode: OSV + Native Audit Tools\nCapabilities:\n  - CVE/GHSA Detection\n  - Auto-Remediation Planning\n  - DAG-Secured Findings\n\nStatus: Task queued. Check logs for real-time intelligence."
+
 	case "REPORT":
-		return "INTELLIGENCE REPORT: My perimeter sweep identified Ports 80 (HTTP) and 443 (HTTPS) as OPEN. \n\nAnalysis: \n- Port 80: Unencrypted web traffic. RISK: HIGH. \n- Port 443: Encrypted. Recommendation: Verify TLS 1.3 compliance immediately."
+		// Check if we have vulnerability scan results
+		if lastScan := e.hunter.GetLastScan(); lastScan != nil && lastScan.TotalVulns > 0 {
+			return fmt.Sprintf("VULNERABILITY INTELLIGENCE REPORT:\n\nLast Scan: %s\nTotal Vulnerabilities: %d\n  - CRITICAL: %d\n  - HIGH: %d\n  - MODERATE: %d\n  - LOW: %d\n\nUse 'fix vulnerabilities' to initiate remediation.",
+				lastScan.Timestamp.Format("2006-01-02 15:04:05"),
+				lastScan.TotalVulns,
+				lastScan.BySeverity[vuln.SeverityCritical],
+				lastScan.BySeverity[vuln.SeverityHigh],
+				lastScan.BySeverity[vuln.SeverityModerate],
+				lastScan.BySeverity[vuln.SeverityLow])
+		}
+		return "INTELLIGENCE REPORT: My perimeter sweep identified Ports 80 (HTTP) and 443 (HTTPS) as OPEN. \n\nAnalysis: \n- Port 80: Unencrypted web traffic. RISK: HIGH. \n- Port 443: Encrypted. Recommendation: Verify TLS 1.3 compliance immediately.\n\nNo dependency vulnerability scan performed yet. Say 'hunt vulnerabilities' to start."
 
 	case "IDENTITY":
 		return fmt.Sprintf("IDENTITY: KASA (Khepra Agentic Security Auditor). \nSTATUS: %s \nMODE: %s \nOBJECTIVE: %s", e.Status, e.Mode, e.Objective)
 
 	case "HELP":
 		return "AVAILABLE DIRECTIVES:\n" +
-			"- SCAN: 'Run vulnerability scan' (AI-Enhanced)\n" +
+			"- SCAN: 'Run port scan' (AI-Enhanced perimeter sweep)\n" +
+			"- VULNHUNT: 'Hunt vulnerabilities' (Dependency SCA - Go/NPM/Python)\n" +
 			"- FIREWALL: 'Block port 80'\n" +
-			"- REMEDIATE: 'Apply TLS fixes'\n" +
-			"- REPORT: 'Show status'\n" +
-			"- [NEW] RAG QUERY: Ask complex security questions (e.g. 'What is Agent4Cybersecurity?')"
+			"- REMEDIATE: 'Fix vulnerabilities' / 'Apply TLS fixes'\n" +
+			"- REPORT: 'Show status' / 'Vulnerability report'\n" +
+			"- RAG QUERY: Ask complex security questions"
 	}
 
 	return "ERROR: Neural Router Malfunction."
