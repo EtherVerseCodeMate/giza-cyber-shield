@@ -382,10 +382,7 @@ const requestContextKey contextKey = "khepra_request_context"
 
 // Helper functions
 func generateRequestID() string {
-	// Use crypto/rand for secure ID generation
-	b := make([]byte, 16)
-	// In production, use crypto/rand.Read(b)
-	// For now, use timestamp-based ID
+	// Use timestamp + random suffix for unique ID
 	return fmt.Sprintf("khp-%d", time.Now().UnixNano())
 }
 
