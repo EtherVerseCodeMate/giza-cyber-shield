@@ -49,6 +49,10 @@ pkg/llm/*/blobs/
 *.kpkg
 *.tar.gz
 
+# CVE Database (fetched on demand via `make fetch-cve` or build)
+# Run: make fetch-cve OR data/cve-database/fetch-cve-data.sh
+data/cve-database/cve-data/
+
 
 
 # Temporary / Garbage
