@@ -10,6 +10,10 @@ CREATE TABLE IF NOT EXISTS licenses (
     issued_at INTEGER NOT NULL,
     expires_at INTEGER,          -- NULL = perpetual license
     max_devices INTEGER DEFAULT 1,
+    max_concurrent_scans INTEGER DEFAULT 5,  -- 5 for Starter, 20 for Pro, 50 for Business
+    retention_days INTEGER DEFAULT 1,        -- 1 for Starter, 7 for Pro, 30 for Business
+    ai_credits_monthly INTEGER DEFAULT 50,   -- TBot queries
+    tier_config TEXT,                        -- JSON: extra overrides
     revoked INTEGER DEFAULT 0,
     revoked_at INTEGER,
     revoked_reason TEXT,

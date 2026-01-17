@@ -1,5 +1,5 @@
 """
-Khepra ML Anomaly Detection Models
+Adinkhepra ML Anomaly Detection Models
 "The Mind of Thoth Perceives the Hidden"
 
 This module implements the PyTorch neural network models for behavioral

@@ -65,9 +65,17 @@ type LicenseResponse struct {
 	ValidatedAt       string   `json:"validated_at"`
 	ClientCountry     string   `json:"client_country"`
 	LegalNotice       string   `json:"legal_notice"`
-	Error             string   `json:"error,omitempty"`
-	Message           string   `json:"message,omitempty"`
-	FallbackAvailable bool     `json:"fallback_available,omitempty"`
+	Limits            LicenseLimits `json:"limits"`
+	Error             string        `json:"error,omitempty"`
+	Message           string        `json:"message,omitempty"`
+	FallbackAvailable bool          `json:"fallback_available,omitempty"`
+}
+
+type LicenseLimits struct {
+	MaxDevices         int `json:"max_devices"`
+	MaxConcurrentScans int `json:"max_concurrent_scans"`
+	RetentionDays      int `json:"retention_days"`
+	AICreditsMonthly   int `json:"ai_credits_monthly"`
 }
 
 // LicenseState holds the current license status
@@ -75,6 +83,7 @@ type LicenseState struct {
 	Valid            bool
 	Features         []string
 	Tier             string
+	Limits           LicenseLimits
 	UsePremiumCrypto bool
 	UseHSM           bool
 }
@@ -101,6 +110,7 @@ func initLicense() error {
 			Valid:            false,
 			Features:         []string{"basic_pqc"},
 			Tier:             "community",
+			Limits:           LicenseLimits{MaxConcurrentScans: 5, RetentionDays: 1, AICreditsMonthly: 50},
 			UsePremiumCrypto: false,
 			UseHSM:           false,
 		}
@@ -141,6 +151,7 @@ func initLicense() error {
 				Valid:            true,
 				Features:         offlineLicense.Features,
 				Tier:             offlineLicense.LicenseTier,
+				Limits:           offlineLicense.Limits,
 				UsePremiumCrypto: contains(offlineLicense.Features, "premium_pqc"),
 				UseHSM:           contains(offlineLicense.Features, "hsm_integration"),
 			}
@@ -162,6 +173,7 @@ func initLicense() error {
 		Valid:            true,
 		Features:         license.Features,
 		Tier:             license.LicenseTier,
+		Limits:           license.Limits,
 		UsePremiumCrypto: contains(license.Features, "premium_pqc"),
 		UseHSM:           contains(license.Features, "hsm_integration"),
 	}
@@ -369,6 +381,7 @@ func fallbackToCommunity(reason string) error {
 		Valid:            false,
 		Features:         []string{"basic_pqc"},
 		Tier:             "community",
+		Limits:           LicenseLimits{MaxConcurrentScans: 5, RetentionDays: 1, AICreditsMonthly: 50},
 		UsePremiumCrypto: false,
 		UseHSM:           false,
 	}
