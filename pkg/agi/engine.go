@@ -2,6 +2,7 @@ package agi
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/arsenal"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/config"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/forensics"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/intel"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/llm"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/llm/ollama"
@@ -53,15 +55,18 @@ type Engine struct {
 	Tasks         []Task
 	LastGuardTime time.Time
 
-	store   dag.Store // Use interface to support both Memory and PersistentMemory
-	intel   *intel.KnowledgeBase
-	scanner *scanner.Scanner
-	python  *apiserver.PythonServiceClient
-	hunter  *vuln.Hunter // Vulnerability Hunter
+	store     dag.Store // Use interface to support both Memory and PersistentMemory
+	intel     *intel.KnowledgeBase
+	scanner   *scanner.Scanner
+	python    *apiserver.PythonServiceClient
+	hunter    *vuln.Hunter            // Vulnerability Hunter
+	forensics *forensics.Collector    // Digital Forensics
 
-	// Autonomous Hunting
-	LastVulnScan time.Time
+	// Autonomous Operations
+	LastVulnScan     time.Time
 	VulnScanInterval time.Duration
+	LastForensics    time.Time
+	ForensicsInterval time.Duration
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -104,22 +109,27 @@ func NewEngine(store dag.Store) *Engine {
 	hunter := vuln.NewHunter(".")
 	hunter.SetDryRun(true) // Safety first - dry run by default
 
+	// Initialize Forensics Collector
+	forensicsCollector := forensics.NewCollector()
+
 	return &Engine{
-		Objective:        ObjectiveAuditor,
-		Status:           "Initialized",
-		Mode:             "KASA-Hybrid-v2",
-		pubKey:           pub,
-		privKey:          priv,
-		store:            store,
-		intel:            intel.NewKnowledgeBase(),
-		scanner:          scanner.New(),
-		llm:              cognitiveLayer,
-		python:           apiserver.NewPythonServiceClient("http://localhost:8000"), // Motherboard Link
-		hunter:           hunter,
-		VulnScanInterval: 1 * time.Hour, // Scan for vulnerabilities every hour
-		ctx:              ctx,
-		cancel:           cancel,
-		Tasks:            []Task{},
+		Objective:         ObjectiveAuditor,
+		Status:            "Initialized",
+		Mode:              "KASA-Hybrid-v2",
+		pubKey:            pub,
+		privKey:           priv,
+		store:             store,
+		intel:             intel.NewKnowledgeBase(),
+		scanner:           scanner.New(),
+		llm:               cognitiveLayer,
+		python:            apiserver.NewPythonServiceClient("http://localhost:8000"), // Motherboard Link
+		hunter:            hunter,
+		forensics:         forensicsCollector,
+		VulnScanInterval:  1 * time.Hour,  // Scan for vulnerabilities every hour
+		ForensicsInterval: 15 * time.Minute, // Forensic snapshot every 15 minutes
+		ctx:               ctx,
+		cancel:            cancel,
+		Tasks:             []Task{},
 	}
 }
 
@@ -158,6 +168,19 @@ func (e *Engine) loop() {
 func (e *Engine) think() {
 	// 0. Autonomy: If idle, the Guardian must remain vigilant.
 	if len(e.Tasks) == 0 {
+		// Digital Forensics: Collect system snapshot periodically
+		if time.Since(e.LastForensics) > e.ForensicsInterval {
+			e.Status = "Collecting forensic snapshot..."
+			e.Tasks = append(e.Tasks, Task{
+				ID:          fmt.Sprintf("auto-forensics-%d", time.Now().Unix()),
+				Description: "Forensic System Snapshot",
+				Priority:    "HIGH",
+				Symbol:      "Sankofa", // Symbol of learning from the past
+			})
+			e.LastForensics = time.Now()
+			log.Println("[KASA] INITIATING AUTONOMOUS FORENSIC COLLECTION.")
+		}
+
 		// Vulnerability Hunting: Scan dependencies periodically
 		if time.Since(e.LastVulnScan) > e.VulnScanInterval {
 			e.Status = "Autonomously hunting vulnerabilities..."
