@@ -19,6 +19,7 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/audit"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/compliance"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/config"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/drbc"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/intel"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/kms"
@@ -238,17 +239,25 @@ func licenseGenCmd(args []string) {
 }
 
 func complianceCmd(_ []string) {
-	eng := compliance.NewEngine()
-	results := eng.Run()
-
-	// Simple report for now
-	failCount := 0
-	for _, r := range results {
-		if r.Status == compliance.StatusFail {
-			failCount++
-		}
+	// Initialize DAG Store (Memory for ephemeral CLI checks, or Persistent if needed)
+	store, err := dag.NewPersistentMemory("./khepra.dag")
+	if err != nil {
+		fmt.Printf("Failed to init DAG: %v\n", err)
+		return
 	}
-	fmt.Printf("\n[ADINKHEPRA COMPLIANCE] Scan Complete. %d Checks Run. %d Failures.\n", len(results), failCount)
+
+	// Create Engine with no external scanner for basic checks
+	eng := compliance.NewEngine(store, nil)
+
+	// Evaluate Compliance (Simulated key for now)
+	privKey := []byte("ephemeral-key")
+	report, err := eng.EvaluateCompliance(privKey)
+	if err != nil {
+		fmt.Printf("\n[ADINKHEPRA COMPLIANCE] Error: %v\n", err)
+		return
+	}
+
+	fmt.Printf("\n[ADINKHEPRA COMPLIANCE] Audit Complete.\n%s\n", report)
 }
 
 func stigsCmd(args []string) {
