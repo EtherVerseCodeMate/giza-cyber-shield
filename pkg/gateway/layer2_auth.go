@@ -125,16 +125,9 @@ func (auth *AuthLayer) Authenticate(r *http.Request) (*Identity, error) {
 		authMethod = "mTLS"
 	}
 
-	// === PRIORITY 2: API Key ===
+	// === PRIORITY 2: API Key (from custom header only) ===
 	if identity == nil {
 		apiKey := r.Header.Get(auth.config.APIKeyHeader)
-		if apiKey == "" {
-			// Also check Authorization header
-			authHeader := r.Header.Get("Authorization")
-			if strings.HasPrefix(authHeader, "Bearer ") {
-				apiKey = strings.TrimPrefix(authHeader, "Bearer ")
-			}
-		}
 
 		if apiKey != "" {
 			entry, err := auth.validateAPIKey(apiKey)
@@ -162,28 +155,57 @@ func (auth *AuthLayer) Authenticate(r *http.Request) (*Identity, error) {
 		}
 	}
 
-	// === PRIORITY 3: JWT Token ===
+	// === PRIORITY 3: Bearer Token (JWT or API Key) ===
 	if identity == nil {
 		authHeader := r.Header.Get("Authorization")
 		if strings.HasPrefix(authHeader, "Bearer ") {
 			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
-			claims, err := auth.validateJWT(tokenString)
-			if err != nil {
-				return nil, fmt.Errorf("JWT validation failed: %w", err)
+			// Try JWT first if configured
+			if auth.jwtKey != nil {
+				claims, err := auth.validateJWT(tokenString)
+				if err == nil {
+					identity = &Identity{
+						ID:           claims.Subject,
+						Type:         "jwt",
+						Organization: claims.Issuer,
+						TrustScore:   0.8,
+						Metadata: map[string]string{
+							"jwt_issuer":   claims.Issuer,
+							"jwt_audience": strings.Join(claims.Audience, ","),
+						},
+					}
+					authMethod = "JWT"
+				}
 			}
 
-			identity = &Identity{
-				ID:           claims.Subject,
-				Type:         "jwt",
-				Organization: claims.Issuer,
-				TrustScore:   0.8,
-				Metadata: map[string]string{
-					"jwt_issuer":   claims.Issuer,
-					"jwt_audience": strings.Join(claims.Audience, ","),
-				},
+			// Fall back to API key if JWT didn't work
+			if identity == nil {
+				entry, err := auth.validateAPIKey(tokenString)
+				if err == nil {
+					identity = &Identity{
+						ID:           hashAPIKey(tokenString)[:16],
+						Type:         "api_key",
+						Organization: entry.Organization,
+						TrustScore:   entry.TrustScore,
+						Permissions:  entry.Permissions,
+						Metadata: map[string]string{
+							"key_created": entry.CreatedAt.String(),
+							"key_expires": entry.ExpiresAt.String(),
+						},
+					}
+					authMethod = "API-Key"
+
+					auth.apiKeysMu.Lock()
+					entry.LastUsed = time.Now()
+					auth.apiKeysMu.Unlock()
+				}
 			}
-			authMethod = "JWT"
+
+			// If neither worked, return error
+			if identity == nil {
+				return nil, errors.New("invalid Bearer token")
+			}
 		}
 	}
 
