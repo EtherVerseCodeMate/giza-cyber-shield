@@ -1,0 +1,899 @@
+Use this intel to create an updated roadmap to keep building this MVP with Antigraty Agent. Give me an autopilot instructions sets I will give to the agent to build this even while I am sleeping:
+
+
+Platform Brief: SouHimBou.AI (STIG-Connector) 
+Platform Overview
+Name: SouHimBou.AI / STIG-Connector SuperPolymorphic API Mission: "Build the Palantir-Killer Integration Platform." Core Value Prop: An AI-native integration platform superior to Palantir Foundry in speed, cost, and compliance (STIG/CMMC native). It leverages a "Codex Agent Swarm" and self-evolving "Polymorphic Schemas" to automate enterprise integration and compliance.
+
+Key Pillars
+Agent Swarm Orchestrator: A multi-model AI system (GPT-5, Claude, O3) coordinating specialized agents for discovery, analysis, remediation, etc.
+Polymorphic Schema Engine: Self-evolving data schemas that adapt to enterprise needs and ensure STIG compliance.
+Intelligent Connector Factory: Auto-generation of integration connectors.
+STIG-First Design: Compliance baked into every API endpoint and schema change.
+Codebase Analysis
+Technology Stack
+Framework: Next.js 16.0.5 (React 18), utilizing the Pages Router.
+Language: TypeScript.
+Styling: Tailwind CSS, Shadcn UI (@radix-ui/*, lucide-react).
+State & Data: @tanstack/react-query, zod, react-hook-form.
+Backend/Database: Supabase (@supabase/supabase-js, pg).
+AI/Voice: @11labs/react, @xyflow/react.
+Build/Test: Vite/Vitest (likely for unit testing or legacy config as Next.js is primary), eslint.
+Directory Structure (src/)
+pages/: Extensive application implementation (44+ routes/pages).
+Key Pages: 
+dashboard.tsx
+, 
+ComplianceAutomation.tsx
+, 
+EvidenceCollectionMVP.tsx
+, 
+SecurityDashboard.tsx
+, 
+DeploymentOrchestrationDashboard.tsx
+.
+components/: Large library of UI components (271+ items).
+khepra/: appears to be the core protocol implementation in TypeScript, containing:
+aae (Autonomous Agent Engine?)
+dag (Directed Acyclic Graph?)
+registry, taxonomy, hooks.
+souhimbou-babyagi-lab/: Currently empty/venv only (possibly placeholder for Python AI agents).
+docs/: Contains 
+CHATGPT_CODEX_DEVELOPER_INSTRUCTIONS.md
+.
+Roadmap (Extracted from Docs)
+Phase 1: Core Swarm (Week 1-2)
+
+ Deploy Agent Swarm Infrastructure (Orchestrator, 6 agents).
+ Build Polymorphic API Framework (Self-evolving API).
+Phase 2: Intelligence Layer (Week 3-4)
+
+ Implement Schema Evolution Engine (ML-powered schema discovery).
+ Build Connector Factory (Auto-generate connectors).
+Phase 3: Competitive Edge (Week 5-6)
+
+ Palantir Superiority Engine (Gap analysis & alternatives).
+ Enterprise Onboarding Automation (Zero-config discovery).
+Application Status Observations
+The frontend scaffolding is extensive, with many specific dashboards implemented (SecurityDashboard, DoD, StarWars theme elements?).
+The khepra directory suggests the core logic is being built, but the specific "Agent Swarm" backend logic (if not in khepra) might be external or yet to be fully implemented.
+
+
+# Khepra x SouHimBou.AI: The "Father & Son" Integration Roadmap
+
+> **CONFIDENTIAL**: For Internal Dev Swarm Only.
+> **Subject**: Integration of Khepra Protocol (The Father) as the Shadow Sentinel for SouHimBou.AI (The Son).
+
+## Mission Directive
+**SouHimBou.AI** is the public face—a super-polymorphic compliance platform.
+**Khepra Protocol** is the hidden protector—a Post-Quantum Cryptography (PQC) layer and "Shadow OS" that ensures the integrity, secrecy, and survival of the platform.
+
+Khepra acts as a **Secret Protector Backdoor** and **Integrity Engine**. If SouHimBou is the body, Khepra is the immune system and the conscience.
+
+---
+
+## 📅 Phase 1: The Tether (Sidecar & Heartbeat)
+*Goal: Establish a secure, local link between the Node.js application and the Khepra Daemon.*
+
+### For SouHimBou Dev (Next.js/TS)
+1.  **Daemon Check**: fast-fail startup if Khepra Agent is not running on port 45444.
+2.  **The Umbilical Cord**: Implement a KhepraClient singleton in TypeScript that talks to http://127.0.0.1:45444.
+3.  **Registration**: On startup, SouHimBou must "confess" its identity to Khepra.
+    *   Call Khepra: POST /dag/add with action: "boot", symbol: "SouHimBou-Core".
+4.  **Pulse**: Every 30 seconds, send a heartbeat to Khepra. If missed, Khepra flags the system as "Silent/Compromised".
+
+### For Khepra Dev (Go)
+*   Already implemented: Agent running on 45444, DAG storage.
+*   **Next**: Add strict validation for "Son" signatures (ensure requests come from localhost only).
+*   **Note**: SouHimBou (the client) just needs to know which port to knock on.
+
+### Future "Shadow Mode" Upgrades (Roadmap Items)
+1.  **Port Knocking**: Khepra stays completely silent (doesn't even ACK TCP) until a specific "magic packet" is received.
+2.  **Mutual TLS (mTLS)**: Even if someone gets on the localhost (e.g., malware), they can't talk to Khepra without a specific client certificate signed by the "Father" CA.
+
+---
+
+## 📅 Phase 2: The Veil (PQC Data Obfuscation)
+*Goal: "Weave" sensitive data so even the DB Admin cannot read it without Khepra.*
+
+### For SouHimBou Dev (Next.js/TS)
+1.  **Intercept Writes**: In your Supabase/Postgres repository layer, before saving sensitive fields (e.g., STIG findings, API Keys):
+    *   Call Khepra: POST /adinkra/weave (Payload: Raw Data).
+    *   Receive: x_khepra_weave (The PQC/Nkyinkyim obfuscated string).
+    *   Save ONLY the x_khepra_weave string to the database.
+2.  **Intercept Reads**: When fetching data for authenticated Admin flows:
+    *   Call Khepra: POST /adinkra/unweave.
+    *   Display cleartext only in memory; never log it.
+
+### For Khepra Dev (Go)
+*   **Endpoint**: Expose pkg/nkyinkyim.Weave and Unweave via the Agent API.
+*   **Key Management**: Ensure Dilithium/Kyber keys are persistent and effectively "seal" the data.
+
+---
+
+## 📅 Phase 3: The Watcher (File Integrity & "Backdoor" Access)
+*Goal: Khepra monitors the codebase for unauthorized mutations (e.g., XSS injection, rogue devs).*
+
+### For SouHimBou Dev (Next.js/TS)
+1.  **Manifest Generation**: During build time (npm run build), generate a manifest.json containing SHA-256 hashes of all .tsx and .ts files.
+2.  **Submission**: Post this manifest to Khepra (POST /attest/codebase).
+
+### For Khepra Dev (Go)
+1.  **FIM (File Integrity Monitor)**: Khepra background routine periodically scans the SouHimBou/src directory.
+2.  **Comparison**: If a file changes and its hash does not match the last signed manifest in the DAG:
+    *   **Action**: LOCK the Unweave endpoint. (Stop serving decrypted data).
+    *   **Alert**: Log a "Mutation Detected" event in the DAG.
+3.  **The Backdoor**:
+    *   Implement a specialized "God Mode" CLI command in Khepra (khepra override --unlock).
+    *   This allows the "Father" (Operator) to override the lockdown manually.
+
+---
+
+## 📅 Phase 4: The Judgment (Gateway Logic)
+*Goal: Use Khepra as the final authorization gate for High-Risk Actions.*
+
+### For SouHimBou Dev (Next.js/TS)
+1.  **LLM Guardrails**: Before sending a prompt to GPT-5/Claude via the LLMGatewaySDK:
+    *   Send the prompt hash to Khepra.
+    *   Khepra returns ALLOWED or DENIED based on internal heuristics (or simple "killswitch" status).
+
+---
+
+## Technical Contract (API Spec Draft)
+
+**Base URL**: http://127.0.0.1:45444
+
+| Method | Endpoint | Purpose |
+| method | endpoint | purpose |
+| --- | --- | --- |
+| GET | /healthz | Check if Father is watching. |
+| POST | /dag/add | Log an immutable event (Audit Log). |
+| POST | /adinkra/weave | Encrypt/Obfuscate data (PQC). |
+| POST | /adinkra/unweave| Decrypt data (Requires Valid State). |
+| POST | /attest/verify | Verify system integrity before critical ops. |
+
+---
+
+## Implementation Priority
+1.  **Week 1**: Phase 1 (Heartbeat) - Ensure they talk.
+2.  **Week 2**: Phase 2 (Weaving) - Secure the database fields.
+3.  **Week 3**: Phase 3 (Watcher) - Implement FIM.
+
+Roadmap vNext (6 Weeks) — “STIG-Connector” MVP
+Week 1 — Control the Surface
+
+Objective: Lock secrets, unify repo, establish evidence-by-default.
+
+Ship:
+
+Secrets rotation (Supabase anon/service_role/JWT, OAuth, DB), repo scrubbed; pre-commit gitleaks.
+
+Monorepo baseline: frontend/ (Next.js 16), backend/ (FastAPI), supabase/functions/, docs/, infra/.
+
+CI gates (tests, CodeQL, Trivy+SBOM, Gitleaks), artifacts: evidence.txt, SBOMs.
+
+Proof of Done:
+
+“Green” CI on main, GHCR/ECR images built, no leaked secrets flagged.
+
+Week 2 — The Tether (Khepra Sidecar & Heartbeat)
+
+Objective: SouHimBou ↔ Khepra heartbeat + audit trail.
+
+Ship:
+
+KhepraClient TS singleton (127.0.0.1:45444), app boot “confession” (/dag/add), 30s heartbeat.
+
+Fast fail if daemon missing; health widget on SecurityDashboard.
+
+Proof:
+
+Heartbeats visible in Khepra DAG; app refuses to start without Khepra.
+
+Week 3 — STIG-First Data Path (Weave/Unweave)
+
+Objective: PQC obfuscation for sensitive fields; RLS policies enforced.
+
+Ship:
+
+Repo layer wraps Supabase writes via POST /adinkra/weave; reads via POST /adinkra/unweave.
+
+RLS policies for multi-tenant tables; server-only use of service_role.
+
+Proof:
+
+DB contains only x_khepra_weave for protected columns; unit tests prove round-trip.
+
+Week 4 — IDPS Spine (Sensors + Automated Blocking)
+
+Objective: MVP IDPS loop that detects and blocks.
+
+Ship:
+
+Edge Function(s) idps_sensors/* ingest telemetry; backend anomaly scorer (rule + anomaly).
+
+Blocking path: Falco/eBPF event → EventBridge → Lambda → block (SG rule/IP list), audit entry.
+
+CAT I/II/III classifier + policy.
+
+Proof:
+
+Synthetic “bad” event triggers an automatic block + sensor log + audit log.
+
+Week 5 — Polymorphic Schema Engine + Connector Factory (MVP)
+
+Objective: Schema evolution & connector scaffolding with compliance tags.
+
+Ship:
+
+“Schema Proposal” flow: infer schema → validate → version → evidence export.
+
+Connector generator (OpenAPI→SDK stubs) tagged with control mappings.
+
+Proof:
+
+Create 2 connectors (Supabase Logs, ELK/OpenSearch) from prompts; schemas versioned.
+
+Week 6 — Enterprise-Ready Edge
+
+Objective: Compliance exports, onboarding wizard, guardrails for LLMs.
+
+Ship:
+
+One-click export: CMMC↔STIG mapping + logs + SBOM (zip).
+
+LLM gateway check with Khepra allow/deny (hash prompts, killswitch).
+
+Playwright E2E + pytest integration tests; blue/green deploy job (optional).
+
+Antigraty Agent — Autopilot Instruction Set (Paste As-Is)
+
+Use this as the agent’s “contract.” It’s explicit, idempotent, and acceptance-testable.
+
+name: SouHimBou.AI — STIG-Connector Autopilot
+version: 1.0
+guardrails:
+  - No plaintext secrets in code or logs.
+  - All changes via PR to main with green CI (tests, CodeQL, Trivy, Gitleaks).
+  - Minimal diffs; explain CWE if suppressing findings; add/upgrade tests with logic changes.
+  - Evidence-by-default: every run emits /artifacts/evidence.txt + SBOM links.
+
+context:
+  repo: souhimbou-ai-enterprise
+  stacks:
+    frontend: Next.js 16 + TS + Tailwind + shadcn + tanstack-query + zod + react-hook-form
+    backend: FastAPI (py3.11), pytest, httpx
+    data: Supabase (RLS on), Edge Functions (Deno)
+    sidecar: Khepra daemon on 127.0.0.1:45444 (Go)
+    ci: GitHub Actions (CI, CodeQL, Trivy/SBOM, Gitleaks), GHCR/ECR
+  compliance_principles:
+    - STIG-first; dual logs (sensor vs audit)
+    - Automated blocking required for detections labeled CAT I
+    - Multi-method detection: signature + anomaly + protocol analysis
+    - Privileged accounts via IAM/RLS; client uses anon key only
+
+slo:
+  - PRs must attach: test results, SARIFs, SBOM links, evidence.txt
+  - Synthetic “bad-event” must auto-block within 60s and log in both channels
+  - P95 local dev bootstrap < 5 min; docker-compose up works
+
+workflows:
+
+  # WEEK 1 — SURFACE CONTROL
+  - id: w1_secrets_hardening
+    goal: Rotate secrets, scrub history, enable scanners, produce baseline evidence.
+    steps:
+      - create_issue: "W1: Secrets rotation & repo scrub"
+      - run: rotate_supabase_secrets()         # anon, service_role, jwt, db pass, oauth
+      - run: repo_scrub_env_and_force_push()   # filter-repo/BFG; see docs/scripts
+      - pr:
+          title: "chore(ci): add CodeQL + Trivy/SBOM + Gitleaks + evidence artifact"
+          changes:
+            - .github/workflows/ci.yml
+            - .github/workflows/codeql.yml
+            - .github/workflows/trivy.yml
+            - .github/workflows/gitleaks.yml
+            - scripts/write_evidence.sh
+            - .env.example
+            - SECURITY.md, CONTRIBUTING.md, CODEOWNERS
+          tests:
+            - expect_green_ci: true
+            - expect_artifact: evidence.txt
+    accept:
+      - secret_scan_no_findings: true
+      - artifacts_present: [ "evidence.txt", "trivy-backend.sarif", "trivy-frontend.sarif" ]
+
+  # WEEK 2 — THE TETHER
+  - id: w2_khepra_tether
+    goal: Heartbeat + boot confession + UI health.
+    steps:
+      - pr:
+          title: "feat(core): KhepraClient + heartbeat + boot confession"
+          changes:
+            - frontend/src/lib/khepraClient.ts
+            - backend/app/khepra/client.py
+            - frontend/src/components/security/HeartbeatIndicator.tsx
+            - backend/app/routes/health.py
+          tests:
+            - unit_backend: test_heartbeat_confession()
+            - e2e_frontend: renders_heartbeat_ok()
+    accept:
+      - failing_without_khepra: true  # app refuses to start if daemon absent
+      - dag_entries_created: [ "boot", "heartbeat" ]
+
+  # WEEK 3 — WEAVE / UNWEAVE
+  - id: w3_pqc_data_path
+    goal: Wrap sensitive writes/reads via Khepra; enforce RLS.
+    steps:
+      - pr:
+          title: "feat(data): PQC weave/unweave wrappers + RLS policies"
+          changes:
+            - backend/app/data/repository.py   # wrap writes/reads
+            - supabase/policies/*.sql          # RLS
+            - docs/architecture/data_path.md
+          tests:
+            - unit: test_weave_unweave_roundtrip()
+            - policy: test_rls_blocks_cross_tenant_access()
+    accept:
+      - db_contains_only_weaved_fields: true
+      - rls_prevents_cross_tenant: true
+
+  # WEEK 4 — IDPS SPINE (SENSOR + BLOCKING)
+  - id: w4_idps_mvp
+    goal: Detect + auto-block + dual logging with CAT I/II/III.
+    steps:
+      - pr:
+          title: "feat(idps): sensors, classifier (CAT I/II/III), auto-block pipeline"
+          changes:
+            - supabase/functions/idps_sensors/ingest/index.ts
+            - backend/app/idps/classifier.py      # signature + anomaly + protocol checks
+            - backend/app/idps/blocker.py         # EventBridge/Lambda/IP block
+            - backend/app/idps/policies.py        # CAT policy thresholds
+            - docs/architecture/idps_flow.md
+          tests:
+            - unit: test_cat_classifier_edges()
+            - integration: test_synthetic_bad_event_blocks_within_60s()
+            - logging: test_sensor_vs_audit_channels()
+    accept:
+      - synthetic_attack_auto_blocked: <60s
+      - dual_logs_written: true
+      - policy_precedence_respected: true
+
+  # WEEK 5 — POLYMORPHIC SCHEMAS + CONNECTOR FACTORY
+  - id: w5_schema_connector
+    goal: Schema proposal/approval/versioning + connector autogen with control tags.
+    steps:
+      - pr:
+          title: "feat(schema): polymorphic schema engine + connector factory (MVP)"
+          changes:
+            - backend/app/schema/engine.py
+            - backend/app/connectors/factory.py
+            - frontend/src/pages/SchemaWorkbench.tsx
+            - docs/architecture/schema_versioning.md
+          tests:
+            - unit: test_schema_proposal_approval_versioning()
+            - gen: test_connector_from_openapi_generates_sdk()
+    accept:
+      - two_connectors_generated: [ "supabase-logs", "opensearch" ]
+      - schema_versioned_with_evidence: true
+
+  # WEEK 6 — ENTERPRISE EDGE + COMPLIANCE EXPORTS
+  - id: w6_enterprise_edges
+    goal: One-click compliance export; LLM gateway guard; e2e coverage.
+    steps:
+      - pr:
+          title: "feat(compliance): export bundle + LLM gateway guard + E2E"
+          changes:
+            - backend/app/compliance/exporter.py   # zip: SBOM + logs + mappings
+            - backend/app/llm/gateway.py           # hash prompt, Khepra allow/deny
+            - frontend/src/pages/ComplianceExport.tsx
+            - tests/playwright/*.spec.ts
+          tests:
+            - e2e: user_can_export_compliance_bundle()
+            - unit: test_llm_gateway_blocks_on_khepra_deny()
+    accept:
+      - bundle_contains: [ "SBOM", "sensor_logs", "audit_logs", "control_map.json" ]
+      - llm_guard_respects_khepra: true
+
+maintenance_loops:
+  - id: nightly_security_jobs
+    schedule: "0 3 * * *"
+    steps:
+      - run_ci_workflows: [ "CodeQL", "Trivy & SBOM", "Gitleaks" ]
+      - open_ticket_if_findings: severity>=HIGH
+      - attach_artifacts_to_issue: true
+
+  - id: hourly_health
+    schedule: "*/60 * * * *"
+    steps:
+      - verify_khepra_heartbeat()
+      - run_synthetic_detection_smoke()
+      - confirm_block_pipeline_latency_under: 60
+
+definitions:
+  rotate_supabase_secrets: >
+    Regenerate anon/service_role/JWT/DB pass & provider secrets; update GitHub Actions secrets; set Edge Function secrets via `supabase secrets set`; no plaintext in repo.
+  repo_scrub_env_and_force_push: >
+    Remove .env* from history (filter-repo/BFG), replace known leaked strings with REDACTED, gc + force push; notify collaborators to reclone.
+
+Agent-Usable Prompts (quick copy)
+
+Classify & Block
+
+“Add CAT I/II/III classifier (rules + anomaly) and wire auto-block via EventBridge→Lambda→NACL/IPSet. Provide minimal diffs and unit+integration tests.”
+
+Dual Logging
+
+“Ensure every detection writes a sensor log entry; every enforcement writes an audit log entry. Ship centralized exports and attach to CI artifact.”
+
+Weave/Unweave
+
+“Refactor repository writes to call /adinkra/weave and reads to /adinkra/unweave; guarantee no plaintext stored. Add round-trip tests.”
+
+Schema Engine
+
+“Implement schema proposal→validate→approve→version path, capturing evidence and mapping to STIG/CMMC tags.”
+
+Connector Factory
+
+“Generate connector SDK from OpenAPI; tag methods with control mappings; smoke-test with Supabase Logs and OpenSearch.”
+
+What you do now
+
+Drop the Autopilot YAML into /docs/ops/autopilot.yml.
+
+Tell Antigraty Agent: “Load /docs/ops/autopilot.yml and execute w1_secrets_hardening → w2_khepra_tether… then start nightly_security_jobs and hourly_health loops.”
+
+I can also produce:
+
+A ready-to-run docker-compose.dev.yml for the sidecar (Khepra + API + UI),
+
+A Playwright starter and pytest integration pack,
+
+Terraform for the EventBridge/Lambda blocking path.
+
+2. Updated Strategic Overview – What SouHimBou AI Is Now
+
+SouHimBou AI has evolved beyond a simple GRC tool.
+
+It is now a STIG-First, AI-Native Integration Platform for the Defense Industrial Base, combining:
+
+✔ STIG-Connector SuperPolymorphic API
+✔ Codex-powered Agent Swarm (Autonomous Compliance Agents)
+✔ Polymorphic Schema Engine (self-evolving compliance schemas)
+✔ IDPS-aligned detection & blocking pipeline (per DISA SRG V3R3)
+✔ Khepra: Father-Sidecar for PQC data protection & system integrity
+
+Its mission:
+
+Become the Palantir-Killer for CUI Compliance, Integration, and Automated Cyber Defense.
+
+Because the platform will ingest, transform, and store contract evidence, SSPs, POA&Ms, logs, security findings, and CUI, the platform itself becomes part of a contractor’s “compliance boundary.”
+
+Therefore:
+
+SouHimBou AI must itself be CMMC L2 compliant and STIG-enforced.
+It cannot rely on any PaaS that prohibits high-risk or sensitive data.
+
+Thus Lovable.dev is strictly confined to non-CUI UI scaffolding only.
+
+3. The Regulatory Gauntlet (Updated)
+
+SouHimBou AI must meet:
+
+CMMC 2.0 Level 2 → Mandatory for handling CUI
+
+Your platform must:
+
+Provide audit evidence
+
+Support triennial C3PAO assessment
+
+Implement all 110 NIST 800-171 controls
+
+Enforce the compliance boundary internally
+
+By definition, SouHimBou AI = CUI Handling System
+→ must meet CMMC Level 2.
+
+NIST SP 800-171 → Technical implementation requirements
+
+Your current architecture must satisfy:
+
+AC Controls: Khepra authorization gating + Supabase RLS + backend IAM
+
+AU Controls: Audit logs (backend) + sensor logs (IDPS) + Khepra DAG
+
+CM Controls: GitHub Actions → versioning, SBOMs, IaC baselines
+
+SI Controls: Falco/eBPF runtime monitoring + IDPS sensor alerting + Khepra File Integrity Monitor
+
+This aligns with your new DevSecOps direction.
+
+DISA STIGs + IDPS SRG → The operational “how”
+
+Your architecture now maps to DISA guidance:
+
+Requirement	Your Implementation
+IDPS Sensors	Supabase Edge Functions + Backend Sensor Modules
+Anomaly Detection	Khepra DAG + LLM scoring + eBPF event feeds
+Automated Blocking	EventBridge → Lambda → SG/NACL blocking
+Audit vs Sensor Logs	Audit logs → backend; Sensor logs → Edge + Data Lake
+System Integrity	Khepra FIM (File Integrity Monitor)
+PQC Data Protection	Khepra Weave/Unweave
+
+This is a DoD-aligned IDPS architecture that Lovable cannot support for core functions.
+
+4. Updated Technical Feasibility Analysis
+Lovable.dev Allowed (UI Only):
+
+Marketing website
+
+Login/registration UI (not the auth backend)
+
+Dashboard UI scaffolds
+
+Clickable prototypes
+
+UX iteration at speed
+
+Lovable.dev Disallowed (CUI/Backend):
+❌ Backend logic
+❌ Supabase secrets
+❌ Edge Function logic
+❌ STIG-related code
+❌ Any CUI handling
+❌ Any IDPS sensing, blocking, or anomaly scoring
+❌ Any Khepra sidecar communication
+Why?
+
+Because:
+
+The platform forbids sensitive data in TOS
+
+It cannot produce STIG-compliant baselines
+
+It cannot host CUI
+
+It cannot generate auditable logs
+
+It cannot enforce CM/SI/AC controls
+
+It breaks GovCloud, enclave, sovereignty, or export restrictions.
+
+5. Updated Architecture Strategy – Based on Your Current State
+
+Your architecture is now:
+
+UI Layer (Low-Sensitivity)
+    ↓             (Lovable.dev → exported → sanitized → monorepo)
+Secure Enclave (High-Sensitivity)
+    Backend (FastAPI)
+    Supabase (controlled; no frontend secrets)
+    Khepra Daemon (PQC + FIM + DAG Attestation)
+    IDPS Pipeline (Edge + Backend + AWS Blocking)
+    GovCloud Deployment (FedRAMP High)
+
+Official Development Model (Updated)
+Component	Contains CUI?	Platform
+UI/Marketing	No	Lovable.dev
+Dashboard (UI only)	No	Lovable.dev
+Auth Backend	Yes	Custom Secure Backend
+Evidence Collection	Yes	Secure Enclave
+Data Ingestion	Yes	Secure Enclave
+Schema Engine	Yes	Secure Enclave
+IDPS Sensors	Yes	Secure Enclave + Edge Functions
+Khepra Integration	Yes	Secure Enclave only
+6. Updated Roadmap (Aligned With R&D State + Khepra + IDPS SRG)
+Phase 1 — Containment & Restructuring (Now – Week 1)
+
+Rotate all Supabase secrets
+
+Scrub Lovable repo
+
+Migrate UI components to monorepo
+
+Enforce Gitleaks + SBOM CI
+
+Establish backend + Khepra heartbeat
+
+Phase 2 — Secure Enclave Foundation (Week 2–3)
+
+Implement Weave/Unweave PQC protection
+
+Implement RLS policies
+
+Build backend API framework
+
+Create IDPS sensor ingestion pipeline
+
+Edge Functions hardened + isolated
+
+Phase 3 — IDPS Spine & Compliance Engine (Week 4–5)
+
+CAT I/II/III detection model
+
+Automated blocking routes
+
+Sensor vs Audit log dual-channel
+
+Polymorphic Schema Engine MVP
+
+Phase 4 — Enterprise Hardening (Week 6+)
+
+GovCloud deployment path
+
+Khepra FIM lockdown mode
+
+LLM prompt-hashing kill switch
+
+Full compliance export bundle
+
+FedRAMP/CMMC audit preparation
+
+
+Business Logic:
+This is a strong vision, but right now it reads like a manifesto + service catalog mixed together. For your current project state (SouHimBou AI + Khepra + STIG-Connector + Enterprise Advisory pivot), you need it restructured into an operating model that:
+
+Aligns cleanly with the SCF Hierarchical Methodology (image)
+
+Is legible to enterprise buyers, regulators, and partners
+
+Clearly separates:
+
+What is consulting
+
+What is software
+
+What is attestation
+
+Positions you as a next-gen consulting firm powered by proprietary tech, not a tool vendor
+
+Below is a restructured, enterprise-ready version that fits your current reality and can be used for:
+
+GTM
+
+Pitch decks
+
+Statements of Work
+
+Federal conversations
+
+Internal alignment
+
+Khepra Advisory & SouHimBou AI
+A Next-Generation Enterprise Risk & Cyber Strategy Firm
+
+Powered by Autonomous Compliance & Attestation Technology
+
+“We do not sell hours. We deliver certainty.”
+
+1. Operating Philosophy (Why We Exist)
+
+Khepra is not a VAR.
+Khepra is not a traditional consulting firm.
+Khepra is a Strategic Risk Authority augmented by proprietary AI systems.
+
+We operate at the intersection of:
+
+Enterprise Strategy
+
+Cybersecurity & Data Protection
+
+Regulatory Compliance
+
+Autonomous Systems
+
+Our methodology is grounded in the Secure Controls Framework (SCF) Hierarchical Model, ensuring that every tactical control traces back to a strategic business objective.
+
+2. The SCF-Aligned Operating Model (What We Do)
+
+We deliver services across four hierarchical tiers, exactly mirroring the SCF methodology shown in your diagram.
+
+TIER I — STRATEGIC
+Business Planning & Analysis
+
+(Executive, Board, Investor, Regulator Layer)
+
+Objective: Ensure cybersecurity and data protection serve the business mission, not the other way around.
+
+1. Mission Assurance Modeling (MAM)
+
+What it replaces: Traditional “risk assessments” that ignore business reality.
+
+What we do
+
+Ingest mission, vision, growth plans, capital strategy, and geopolitical context
+
+Translate them into Security & Data Protection Objectives (CIAS-driven)
+
+Technology Backbone
+
+SouHimBou AI agent parsing → Goal Vectors
+
+Constraint modeling (jurisdiction, capital, regulation)
+
+Deliverable
+
+Strategic Alignment Scorecard
+
+Executive-readable, regulator-defensible
+
+“Your expansion strategy violates data residency laws in Region X. This is a material business risk.”
+
+2. Regulatory Deconfliction & Obligation Synthesis
+
+What it replaces: Spreadsheet-driven compliance chaos.
+
+What we do
+
+Analyze laws, regulations, contracts, and customer obligations
+
+Resolve conflicts (e.g., GDPR vs CLOUD Act vs DFARS)
+
+Technology Backbone
+
+Khepra “Legal Reasoning Agents”
+
+Obligation graph + precedence logic
+
+Deliverable
+
+Unified Compliance Directive
+
+A single authoritative rule set for engineering and operations
+
+TIER II — OPERATIONAL
+Process Analysis & Organizational Reality
+
+(CIO, CISO, COO Layer)
+
+Objective: Ensure people, processes, and vendors can actually execute the strategy securely.
+
+3. CONOPS Digital Twin
+
+What it replaces: Static process diagrams that never match reality.
+
+What we do
+
+Digitize CONOPS, RASCI matrices, and data flows
+
+Simulate real operational behavior
+
+Technology Backbone
+
+Graph-based organizational modeling
+
+Flow-of-data vs responsibility analysis
+
+Deliverable
+
+Operational Friction Heatmap
+
+“This team is ‘Responsible’ but lacks access, tooling, and authority—security failure is guaranteed.”
+
+4. Supply Chain Risk Command (SCRM)
+
+What it replaces: Checkbox vendor risk assessments.
+
+What we do
+
+Deep forensic analysis of vendors, APIs, SBOMs, and subcontractors
+
+Extend visibility to 3rd and 4th-party risk
+
+Technology Backbone
+
+Recursive dependency scanners
+
+SBOM correlation + geopolitical risk tagging
+
+Deliverable
+
+Vendor Exposure Graph
+
+Clear identification of “toxic trust relationships”
+
+TIER III — TACTICAL
+Process Implementation & Technology Enforcement
+
+(Engineering, Cloud, Security Operations)
+
+Objective: Enforce policy continuously, automatically, and provably.
+
+5. Zero-Trust Enforcement & Configuration Drift Control
+
+What it replaces: Annual audits and manual hardening.
+
+What we do
+
+Continuously validate systems against approved SSP / security baselines
+
+Detect and auto-remediate drift
+
+Technology Backbone
+
+SouHimBou AI connectors
+
+Real-time configuration scanning
+
+IDPS-aligned detection & response
+
+Deliverable
+
+Continuous Drift & Remediation Ledger
+
+“Configuration X drifted from policy Y at 03:02. Auto-remediated. Evidence attached.”
+
+6. Code Lineage, IP Integrity & Post-Quantum Readiness
+
+What it replaces: Trust-me IP claims and crypto guesswork.
+
+What we do
+
+Prove authorship and clean-room integrity
+
+Assess cryptography against quantum break timelines
+
+Technology Backbone
+
+Khepra lineage DAG
+
+PQC time-to-break modeling
+
+Deliverables
+
+IP Purity Certificate
+
+Quantum-Safe Transition Roadmap
+
+TIER IV — ATTESTATION
+The Godfather Deliverable
+The Khepra Causal Risk Attestation™
+
+This is not a report.
+This is machine-verifiable executive truth.
+
+Structure
+
+Strategic Context
+
+“Given the client’s IPO objective in 2026…”
+
+Operational Reality
+
+“…and reliance on Vendor X for regulated workloads…”
+
+Tactical Proof
+
+“…commit abc123 violates data sovereignty, creating a material risk.”
+
+Why It Matters
+
+Defensible in audits
+
+Actionable for executives
+
+Traceable to code, configs, and contracts
+
+3. How SouHimBou AI Fits (Important Clarification)
+
+SouHimBou AI is not the product.
+SouHimBou AI is the autonomous execution engine behind Khepra.
+
+Layer	Human	AI
+Strategy	Partner / Principal	Goal Modeling Agents
+Operations	Senior Consultant	CONOPS & SCRM Agents
+Tactics	Security Architects	Connector & Enforcement Agents
+Attestation	Khepra	Cryptographic Proof Engine
+4. Market Positioning (Clean & Credible)
+
+We are to consulting what:
+
+NVIDIA is to compute (infrastructure-grade intelligence)
+
+Microsoft is to delivery (enterprise execution)
+
+Apple is to usability (human-centered design)
+
+SpaceX is to incumbents (relentless vertical integration)
