@@ -696,8 +696,6 @@ export async function handleLicenseIssue(request, env, corsHeaders, admin) {
 			features,
 			license_tier,
 			expires_in_days,
-			license_tier,
-			expires_in_days,
 			max_devices,
 			max_concurrent_scans,
 			retention_days,
