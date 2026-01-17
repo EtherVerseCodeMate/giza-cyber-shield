@@ -92,24 +92,27 @@ func TestFirewallLayer_XSSDetection(t *testing.T) {
 	}
 
 	tests := []struct {
-		name    string
-		path    string
-		blocked bool
+		name       string
+		queryValue string
+		blocked    bool
 	}{
-		{"Clean path", "/api/search?q=hello", false},
-		{"XSS script tag", "/api/search?q=<script>alert('xss')</script>", true},
-		{"XSS event handler", "/api/search?q=<img onerror=alert(1)>", true},
-		{"XSS javascript:", "/api/search?q=javascript:alert(1)", true},
-		{"XSS iframe", "/api/search?q=<iframe src='evil.com'>", true},
-		{"Clean HTML entity", "/api/search?q=hello&amp;world", false},
+		{"Clean query", "hello", false},
+		{"XSS script tag", "<script>alert('xss')</script>", true},
+		{"XSS event handler", "<img onerror=alert(1)>", true},
+		{"XSS javascript:", "javascript:alert(1)", true},
+		{"XSS iframe", "<iframe src='evil.com'>", true},
+		{"Clean text", "hello world", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", tt.path, nil)
+			req := httptest.NewRequest("GET", "/api/search", nil)
+			q := req.URL.Query()
+			q.Set("q", tt.queryValue)
+			req.URL.RawQuery = q.Encode()
 			blocked, reason := fw.Check(req)
 			if blocked != tt.blocked {
-				t.Errorf("Path %s: expected blocked=%v, got blocked=%v (reason: %s)", tt.path, tt.blocked, blocked, reason)
+				t.Errorf("Query q=%s: expected blocked=%v, got blocked=%v (reason: %s)", tt.queryValue, tt.blocked, blocked, reason)
 			}
 		})
 	}
@@ -127,24 +130,31 @@ func TestFirewallLayer_LFIDetection(t *testing.T) {
 	}
 
 	tests := []struct {
-		name    string
-		path    string
-		blocked bool
+		name       string
+		path       string
+		queryKey   string
+		queryValue string
+		blocked    bool
 	}{
-		{"Clean path", "/api/files/document.pdf", false},
-		{"LFI path traversal", "/api/files/../../../etc/passwd", true},
-		{"LFI etc passwd", "/api/files?path=/etc/passwd", true},
-		{"LFI windows path", "/api/files?path=c:\\windows\\system32", true},
-		{"LFI php filter", "/api/files?path=php://filter/convert.base64-encode/resource=index.php", true},
-		{"Clean relative", "/api/files/subfolder/doc.pdf", false},
+		{"Clean path", "/api/files/document.pdf", "", "", false},
+		{"LFI path traversal", "/api/files/../../../etc/passwd", "", "", true},
+		{"LFI etc passwd", "/api/files", "path", "/etc/passwd", true},
+		{"LFI windows path", "/api/files", "path", "c:\\windows\\system32", true},
+		{"LFI php filter", "/api/files", "path", "php://filter/convert.base64-encode/resource=index.php", true},
+		{"Clean relative", "/api/files/subfolder/doc.pdf", "", "", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest("GET", tt.path, nil)
+			if tt.queryKey != "" {
+				q := req.URL.Query()
+				q.Set(tt.queryKey, tt.queryValue)
+				req.URL.RawQuery = q.Encode()
+			}
 			blocked, reason := fw.Check(req)
 			if blocked != tt.blocked {
-				t.Errorf("Path %s: expected blocked=%v, got blocked=%v (reason: %s)", tt.path, tt.blocked, blocked, reason)
+				t.Errorf("Path %s query=%s: expected blocked=%v, got blocked=%v (reason: %s)", tt.path, tt.queryValue, tt.blocked, blocked, reason)
 			}
 		})
 	}
