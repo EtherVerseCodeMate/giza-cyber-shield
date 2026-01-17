@@ -21,6 +21,7 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/lorentz"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/vuln"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/arsenal"
 )
 
 // Objective defines the high-level goal of the AGI
@@ -57,6 +58,7 @@ type Engine struct {
 
 	store     dag.Store // Use interface to support both Memory and PersistentMemory
 	intel     *intel.KnowledgeBase
+	arsenal   *arsenal.Inventory // Dynamic Tool Arsenal
 	scanner   *scanner.Scanner
 	python    *apiserver.PythonServiceClient
 	hunter    *vuln.Hunter         // Vulnerability Hunter
@@ -793,17 +795,23 @@ func (e *Engine) Chat(message string) string {
 
 		// Launch Async Pentest Routine
 		go func() {
-			e.Status = "PENTEST: PHASE 1 - T1046 Network Service Discovery"
-			time.Sleep(1 * time.Second) // Simulate phase transition
+			e.Status = "PENTEST: Analyzing Arsenal & Phase 1..."
+			
+			// 0. Arsenal Check
+			gapReport := e.arsenal.ReportGaps()
 
-			// 1. Port Scan (T1046) - Trigger standard scan logic locally
+			// 1. Port Scan (T1046)
+			// Trigger standard scan logic locally
 			if err := e.RunScan(target); err != nil {
 				log.Printf("Pentest T1046 failed: %v", err)
 			}
+			
+			// Load Scan Results for Graphing
+			scanReports := e.store.All() // Simplified: In real code, filter by target
+			// We'll just graph the last few nodes for the demo
 
 			e.Status = "PENTEST: PHASE 2 - T1595.002 Vulnerability Scanning"
-			time.Sleep(1 * time.Second)
-
+			
 			// 2. Vuln Hunt (T1595.002)
 			report, err := e.intel.HuntVulnerabilities(target, e.dag)
 			if err != nil {
@@ -811,11 +819,26 @@ func (e *Engine) Chat(message string) string {
 				return
 			}
 
-			// 3. Finalize
-			e.Status = fmt.Sprintf("Pentest Complete. Findings: %d active vectors.", len(report.Vulnerabilities))
+			// 3. Generate Visual Report (Mermaid)
+			graph := "graph TD;\n"
+			graph += fmt.Sprintf("    Attacker[Khepra Commando] -->|Pentest| Target(%s);\n", target)
+			if len(report.Vulnerabilities) > 0 {
+				for i, v := range report.Vulnerabilities {
+					if i < 5 { // Limit to top 5 for visual clarity
+						graph += fmt.Sprintf("    Target --> Vuln%d[%s - %s];\n", i, v.ID, v.Severity)
+						graph += fmt.Sprintf("    Vuln%d -.-> Impact(Confidentiality/Integrity);\n", i)
+					}
+				}
+			} else {
+				graph += "    Target --> Secure[No Vulnerabilities Found];\n"
+			}
+			graph += "    style Attacker fill:#f9f,stroke:#333,stroke-width:4px"
+
+			// Finalize Status with Mermaid
+			e.Status = fmt.Sprintf("Pentest Complete.\n\n%s\n\n[ATTACK GRAPH]\n```mermaid\n%s\n```", gapReport, graph)
 		}()
 
-		return fmt.Sprintf("COMMANDO ACKNOWLEDGED. \n\nAction: INITIATING INTERNAL PENETRATION TEST. \nTarget: %s. \n\nMITRE ATT&CK TTPs Active:\n- T1046: Network Service Discovery\n- T1595.002: Active Scanning", target)
+		return fmt.Sprintf("COMMANDO ACKNOWLEDGED. \n\nAction: INITIATING INTERNAL PENETRATION TEST. \nTarget: %s. \n\nMITRE ATT&CK TTPs Active:\n- T1046: Network Service Discovery\n- T1595.002: Active Scanning\n\nArsenal Status: Verifying capabilities...", target)
 
 	case "REPORT":
 		// Check if we have vulnerability scan results
