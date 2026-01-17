@@ -1,7 +1,6 @@
 package ir
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -52,7 +51,7 @@ func (m *Manager) AddIOC(incident *Incident, iocType, value, desc string, privKe
 	ioc := IOC{Type: iocType, Value: value, Desc: desc}
 	incident.IOCs = append(incident.IOCs, ioc)
 	incident.UpdatedAt = time.Now()
-	
+
 	// Add event
 	incident.Events = append(incident.Events, Event{
 		Timestamp: time.Now(),
@@ -79,7 +78,7 @@ func (m *Manager) UpdateStatus(incident *Incident, status Status, msg string, pr
 // logToDAG serializes the incident and writes a signed node to the DAG
 func (m *Manager) logToDAG(inc *Incident, action string, privKey []byte) error {
 	// data, err := json.Marshal(inc) // unused currently
-	
+
 	node := dag.Node{
 		Action: action,
 		Symbol: "Sankofa", // "Go back and get it" - Learn from the past
@@ -93,7 +92,7 @@ func (m *Manager) logToDAG(inc *Incident, action string, privKey []byte) error {
 			"title":       inc.Title,
 		},
 	}
-	
+
 	// Sign and Add
 	if err := node.Sign(privKey); err != nil {
 		return err
