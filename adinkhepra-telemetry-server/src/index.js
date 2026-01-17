@@ -17,7 +17,10 @@ import {
 	handleLicenseValidate,
 	handleLicenseHeartbeat,
 	handleLicenseRevoke,
-	handleLicenseIssue
+	handleLicenseIssue,
+	handleLicenseRegister,
+	handleEnrollmentTokenCreate,
+	handleEnrollmentTokenList
 } from './license.js';
 
 import {
@@ -87,6 +90,11 @@ export default {
 			return handleLicenseHeartbeat(request, env, corsHeaders);
 		}
 
+		// Auto-registration endpoint (public - uses enrollment token for auth)
+		if (url.pathname === '/license/register' && request.method === 'POST') {
+			return handleLicenseRegister(request, env, corsHeaders);
+		}
+
 		// ADMIN ROUTES (Protected with JWT)
 		if (url.pathname === '/license/issue' && request.method === 'POST') {
 			const admin = await verifyAdminAuth(request, env);
@@ -111,6 +119,29 @@ export default {
 			}
 			const machineId = revokeMatch[1];
 			return handleLicenseRevoke(request, env, corsHeaders, machineId, admin);
+		}
+
+		// Enrollment token management (admin endpoints)
+		if (url.pathname === '/enrollment/tokens' && request.method === 'POST') {
+			const admin = await verifyAdminAuth(request, env);
+			if (!admin) {
+				return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+					status: 401,
+					headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+				});
+			}
+			return handleEnrollmentTokenCreate(request, env, corsHeaders, admin);
+		}
+
+		if (url.pathname === '/enrollment/tokens' && request.method === 'GET') {
+			const admin = await verifyAdminAuth(request, env);
+			if (!admin) {
+				return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+					status: 401,
+					headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+				});
+			}
+			return handleEnrollmentTokenList(request, env, corsHeaders, admin);
 		}
 
 		return new Response('Not Found', {
