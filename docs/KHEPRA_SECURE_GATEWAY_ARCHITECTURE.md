@@ -55,6 +55,39 @@ The Khepra Secure Gateway is the **critical demarcation point** between customer
 
 ---
 
+
+
+## Infrastructure Layer: Cloudflare for SaaS
+
+**Purpose**: Extend Khepra's security perimeter to customer-owned domains (e.g., `api.paulscuminmall.com`) while maintaining a single, hardened origin.
+
+**Why Cloudflare for SaaS?**
+Khepra operates as a multi-tenant SaaS. Our customers (Paul's Cumin Mall, Enterprises, DoD) want to access our API via their own branded domains, not just `api.khepra.io`. Cloudflare for SaaS allows us to:
+1.  **Issuance of SSL/TLS Certificates**: Automatically generate and renew certificates for customer custom domains.
+2.  **DDos & WAF Inheritance**: Customer domains inherit the same WAF and DDoS protection rules we apply to our main zone.
+3.  **Unified Origin**: All custom domains route to our fallback origin (`gateway.khepra.io`), preventing the need for complex load balancer rules per customer.
+
+**Traffic Flow**:
+```
+User (https://api.paulscuminmall.com)
+       │
+       ▼
+Cloudflare Edge location (Anywhere)
+  [SSL Termination for paulscuminmall.com]
+  [DDos Protection]
+  [WAF Rules]
+       │
+       ▼
+Khepra Origin (gateway.khepra.io)
+       │
+       ▼
+┌──────────────────────────────────────┐
+│  KHEPRA SECURE GATEWAY (Layer 1-4)   │
+└──────────────────────────────────────┘
+```
+
+---
+
 ## Security Layers (Defense-in-Depth)
 
 ### Layer 1: Firewall & WAF (Perimeter Defense)
@@ -95,7 +128,7 @@ type WAFRule struct {
 ```
 
 **Implementation**:
-- Cloudflare WAF in front (already have this)
+- Cloudflare WAF / Cloudflare for SaaS in front (Unified Control Plane)
 - Go-level request validation as second layer
 - IP reputation check against:
   - Local blocklist (updated from CISA, Spamhaus)
@@ -156,6 +189,7 @@ type Identity struct {
 3. **Assume breach** - Log everything for forensics
 4. **Verify explicitly** - Multiple auth factors
 5. **Visualize Auditability** - Create AI-explainable logs via DAG Constellations PQC-metadata focused
+
 
 ### Layer 3: Anomaly Detection (The ML Brain)
 
