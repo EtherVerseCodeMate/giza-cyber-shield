@@ -15,6 +15,7 @@ type Manager struct {
 	lastValidated    time.Time
 	validationMu     sync.RWMutex
 	heartbeatStopCh  chan struct{}
+	enrollmentToken  string // Optional enrollment token for auto-registration
 }
 
 // NewManager creates license manager
@@ -45,6 +46,11 @@ func (m *Manager) SetPrivateKey(privateKey string) {
 	m.client.PrivateKey = privateKey
 }
 
+// SetEnrollmentToken sets the enrollment token for auto-registration
+func (m *Manager) SetEnrollmentToken(token string) {
+	m.enrollmentToken = token
+}
+
 // GetMachineID returns the machine ID
 func (m *Manager) GetMachineID() string {
 	return m.client.MachineID
@@ -56,12 +62,37 @@ func (m *Manager) Initialize() error {
 	resp, err := m.client.Validate()
 	if err != nil {
 		log.Printf("[LICENSE] Initial validation failed: %v", err)
-		log.Printf("[LICENSE] Checking for cached grace period...")
 
-		// Logic for Grace Period Check (Mocked for now as we don't have disk persistence yet)
-		// If persisted validation exists and is < 30 days old, return nil (success)
-		// For now, we fallback to community edition if online validation fails.
-		return fmt.Errorf("license validation failed: %w", err)
+		// If we have an enrollment token, attempt auto-registration
+		if m.enrollmentToken != "" {
+			log.Printf("[LICENSE] Attempting auto-registration with enrollment token...")
+			regResp, regErr := m.client.Register(m.enrollmentToken)
+			if regErr != nil {
+				log.Printf("[LICENSE] Auto-registration failed: %v", regErr)
+			} else if regResp.Status == "registered" || regResp.Status == "already_registered" {
+				log.Printf("[LICENSE] ✅ Auto-registration successful: %s", regResp.Organization)
+				log.Printf("[LICENSE] License tier: %s, Expires: %s", regResp.LicenseTier, regResp.ExpiresAt)
+				log.Printf("[LICENSE] %s", regResp.Message)
+
+				// Re-attempt validation after registration
+				resp, err = m.client.Validate()
+				if err != nil {
+					log.Printf("[LICENSE] Post-registration validation failed: %v", err)
+					return fmt.Errorf("license validation failed after registration: %w", err)
+				}
+			} else {
+				log.Printf("[LICENSE] Registration response: %s - %s", regResp.Status, regResp.Error)
+			}
+		}
+
+		// If still failing, check grace period
+		if err != nil {
+			log.Printf("[LICENSE] Checking for cached grace period...")
+			// Logic for Grace Period Check (Mocked for now as we don't have disk persistence yet)
+			// If persisted validation exists and is < 30 days old, return nil (success)
+			// For now, we fallback to community edition if online validation fails.
+			return fmt.Errorf("license validation failed: %w", err)
+		}
 	}
 
 	m.validationMu.Lock()

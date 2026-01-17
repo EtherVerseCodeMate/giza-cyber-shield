@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"runtime"
 	"time"
 
@@ -55,6 +56,84 @@ type HeartbeatResponse struct {
 	Action          string `json:"action,omitempty"`
 	Message         string `json:"message,omitempty"`
 	NextHeartbeatIn int    `json:"next_heartbeat_in"`
+}
+
+// RegisterRequest sent to /license/register for auto-enrollment
+type RegisterRequest struct {
+	MachineID       string `json:"machine_id"`
+	EnrollmentToken string `json:"enrollment_token"`
+	Hostname        string `json:"hostname"`
+	Platform        string `json:"platform"`
+	AgentVersion    string `json:"agent_version"`
+}
+
+// RegisterResponse from /license/register
+type RegisterResponse struct {
+	Status        string   `json:"status"` // 'registered', 'already_registered', error
+	MachineID     string   `json:"machine_id"`
+	Organization  string   `json:"organization"`
+	Features      []string `json:"features"`
+	LicenseTier   string   `json:"license_tier"`
+	IssuedAt      string   `json:"issued_at"`
+	ExpiresAt     string   `json:"expires_at"`
+	DaysRemaining int      `json:"days_remaining"`
+	Message       string   `json:"message"`
+	Error         string   `json:"error,omitempty"`
+	Help          string   `json:"help,omitempty"`
+}
+
+// Register attempts to auto-register the agent using an enrollment token
+// This is called on first boot when no license exists
+func (lc *LicenseClient) Register(enrollmentToken string) (*RegisterResponse, error) {
+	hostname, _ := os.Hostname()
+
+	req := RegisterRequest{
+		MachineID:       lc.MachineID,
+		EnrollmentToken: enrollmentToken,
+		Hostname:        hostname,
+		Platform:        fmt.Sprintf("%s-%s", runtime.GOOS, runtime.GOARCH),
+		AgentVersion:    "v1.0.0", // TODO: Get from build info
+	}
+
+	payload, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	client := lc.HTTPClient
+	if client == nil {
+		client = http.DefaultClient
+	}
+
+	resp, err := client.Post(
+		lc.ServerURL+"/license/register",
+		"application/json",
+		bytes.NewBuffer(payload),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("registration server unreachable: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var registerResp RegisterResponse
+	if err := json.Unmarshal(body, &registerResp); err != nil {
+		return nil, err
+	}
+
+	// Check for error responses (non-2xx status codes)
+	if resp.StatusCode >= 400 {
+		if registerResp.Error != "" {
+			return &registerResp, fmt.Errorf("registration failed: %s", registerResp.Error)
+		}
+		return nil, fmt.Errorf("registration failed with status: %d", resp.StatusCode)
+	}
+
+	return &registerResp, nil
 }
 
 // Validate sends license validation request to telemetry server

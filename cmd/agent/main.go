@@ -33,6 +33,7 @@ type server struct {
 func main() {
 	// CLI Flags for license management
 	showMachineID := flag.Bool("machine-id", false, "Print machine ID and exit (for license registration)")
+	enrollmentToken := flag.String("enrollment-token", "", "Enrollment token for automatic license registration")
 	flag.Parse()
 
 	// If --machine-id flag, print and exit
@@ -48,6 +49,11 @@ func main() {
 		fmt.Println("to receive your license activation.")
 		fmt.Println("")
 		os.Exit(0)
+	}
+
+	// Check for enrollment token from environment variable if not provided via flag
+	if *enrollmentToken == "" {
+		*enrollmentToken = os.Getenv("KHEPRA_ENROLLMENT_TOKEN")
 	}
 
 	cfg := config.Load()
@@ -66,6 +72,12 @@ func main() {
 	if err != nil {
 		log.Printf("[LICENSE] Failed to create manager: %v", err)
 	} else {
+		// Set enrollment token if provided (enables auto-registration on first boot)
+		if *enrollmentToken != "" {
+			log.Printf("[LICENSE] Enrollment token provided - auto-registration enabled")
+			licMgr.SetEnrollmentToken(*enrollmentToken)
+		}
+
 		// Attempt validation (blocking or strict?)
 		// We'll log warning and proceed if it fails (Community Edition fallback)
 		if err := licMgr.Initialize(); err != nil {
