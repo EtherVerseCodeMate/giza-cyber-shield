@@ -172,25 +172,32 @@ func TestFirewallLayer_RCEDetection(t *testing.T) {
 	}
 
 	tests := []struct {
-		name    string
-		path    string
-		blocked bool
+		name       string
+		path       string
+		queryKey   string
+		queryValue string
+		blocked    bool
 	}{
-		{"Clean path", "/api/execute?cmd=list", false},
-		{"RCE pipe", "/api/execute?cmd=ls|cat /etc/passwd", true},
-		{"RCE semicolon", "/api/execute?cmd=ls;rm -rf /", true},
-		{"RCE backtick", "/api/execute?cmd=`whoami`", true},
-		{"RCE bash", "/api/execute?cmd=/bin/bash -c 'ls'", true},
-		{"RCE netcat", "/api/execute?cmd=nc -e /bin/sh", true},
-		{"Clean command name", "/api/commands/backup", false},
+		{"Clean path", "/api/execute", "cmd", "list", false},
+		{"RCE pipe", "/api/execute", "cmd", "ls|cat /etc/passwd", true},
+		{"RCE semicolon", "/api/execute", "cmd", "ls;rm -rf /", true},
+		{"RCE backtick", "/api/execute", "cmd", "`whoami`", true},
+		{"RCE bash", "/api/execute", "cmd", "/bin/bash -c 'ls'", true},
+		{"RCE netcat", "/api/execute", "cmd", "nc -e /bin/sh", true},
+		{"Clean command name", "/api/commands/backup", "", "", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest("GET", tt.path, nil)
+			if tt.queryKey != "" {
+				q := req.URL.Query()
+				q.Set(tt.queryKey, tt.queryValue)
+				req.URL.RawQuery = q.Encode()
+			}
 			blocked, reason := fw.Check(req)
 			if blocked != tt.blocked {
-				t.Errorf("Path %s: expected blocked=%v, got blocked=%v (reason: %s)", tt.path, tt.blocked, blocked, reason)
+				t.Errorf("Query %s=%s: expected blocked=%v, got blocked=%v (reason: %s)", tt.queryKey, tt.queryValue, tt.blocked, blocked, reason)
 			}
 		})
 	}
