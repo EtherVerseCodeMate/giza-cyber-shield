@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     """Service configuration loaded from environment variables"""
 
     # Service Configuration
-    service_name: str = "khepra-ml-anomaly"
+    service_name: str = "adinkhepra-ml-anomaly"
     service_version: str = "1.0.0"
     host: str = "0.0.0.0"
     port: int = 8080
@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     metrics_port: int = 9090
 
     class Config:
-        env_prefix = "KHEPRA_ML_"
+        env_prefix = "ADINKHEPRA_ML_"
 
 
 settings = Settings()
