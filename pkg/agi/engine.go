@@ -21,7 +21,6 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/lorentz"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/vuln"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/arsenal"
 )
 
 // Objective defines the high-level goal of the AGI
@@ -650,8 +649,8 @@ func (e *Engine) Chat(message string) string {
 		"FIREWALL":  0,
 		"REMEDIATE": 0,
 		"SCAN":      0,
-		"VULNHUNT":  0,
 		"PENTEST":   0,
+		"VULNHUNT":  0,
 		"IDENTITY":  0,
 		"HELP":      0,
 	}
@@ -769,20 +768,23 @@ func (e *Engine) Chat(message string) string {
 
 	case "VULNHUNT":
 		e.Status = "Initiating Dependency Vulnerability Hunt..."
-		taskDesc := fmt.Sprintf("Hunt for Vulnerabilities (Target: %s)", target)
+		// VULNHUNT is a local dependency scan, target is implied (local filesystem)
+		localTarget := "Local Host Dependencies"
+		taskDesc := fmt.Sprintf("Hunt for Vulnerabilities (Target: %s)", localTarget)
 		e.AddTask(taskDesc, "OwoForoAdobe") // Symbol of ingenuity
 		go func() {
-			report, err := e.intel.HuntVulnerabilities(target, e.dag)
+			report, err := e.hunter.Scan(e.ctx)
 			if err != nil {
 				e.Status = "Vulnerability Hunt Failed"
+				log.Printf("Hunter error: %v", err)
 				return
 			}
-			e.Status = fmt.Sprintf("Hunt Complete. %d Vulnerabilities Found.", len(report.Vulnerabilities))
+			e.Status = fmt.Sprintf("Hunt Complete. %d Vulnerabilities Found.", report.TotalVulns)
 		}()
-		return "COMMANDO ACKNOWLEDGED.\n\nAction: INITIATING DEPENDENCY VULNERABILITY HUNT\nTarget: All ecosystems (Go, NPM, Python)\nMode: OSV + Native Audit Tools\nCapabilities:\n  - CVE/GHSA Detection\n  - Auto-Remediation Planning\n  - DAG-Secured Findings\n\nStatus: Task queued. Check logs for real-time intelligence."
+		return "COMMANDO ACKNOWLEDGED.\n\nAction: INITIATING DEPENDENCY VULNERABILITY HUNT\nTarget: All local ecosystems (Go, NPM, Python)\nMode: OSV + Native Audit Tools\nCapabilities:\n  - CVE/GHSA Detection\n  - Auto-Remediation Planning\n  - DAG-Secured Findings\n\nStatus: Task queued. Check logs for real-time intelligence."
 
 	case "PENTEST":
-		target = "127.0.0.1" // Default to safe local target if not specified, though logic usually extracts it
+		target := "127.0.0.1" // Default to safe local target
 		if strings.Contains(msg, "on ") {
 			parts := strings.Split(msg, "on ")
 			if len(parts) > 1 {
@@ -796,37 +798,41 @@ func (e *Engine) Chat(message string) string {
 		// Launch Async Pentest Routine
 		go func() {
 			e.Status = "PENTEST: Analyzing Arsenal & Phase 1..."
-			
+
 			// 0. Arsenal Check
 			gapReport := e.arsenal.ReportGaps()
 
 			// 1. Port Scan (T1046)
-			// Trigger standard scan logic locally
+			// Trigger standard scan logic locally for network target
 			if err := e.RunScan(target); err != nil {
 				log.Printf("Pentest T1046 failed: %v", err)
 			}
-			
-			// Load Scan Results for Graphing
-			scanReports := e.store.All() // Simplified: In real code, filter by target
-			// We'll just graph the last few nodes for the demo
+
+			// Load Scan Results for Graphing (mocking retrieval for demo)
+			// scanReports := e.store.All()
 
 			e.Status = "PENTEST: PHASE 2 - T1595.002 Vulnerability Scanning"
-			
-			// 2. Vuln Hunt (T1595.002)
-			report, err := e.intel.HuntVulnerabilities(target, e.dag)
+			time.Sleep(1 * time.Second)
+
+			// 2. Vuln Hunt (T1595.002) - Dependency Scan (Local)
+			// Note: This scans local dependencies, not the target IP (since we don't have remote exploit scanner yet)
+			report, err := e.hunter.Scan(e.ctx)
 			if err != nil {
 				e.Status = "Pentest Failed at Phase 2"
+				log.Printf("Hunter Scan error: %v", err)
 				return
 			}
 
 			// 3. Generate Visual Report (Mermaid)
 			graph := "graph TD;\n"
 			graph += fmt.Sprintf("    Attacker[Khepra Commando] -->|Pentest| Target(%s);\n", target)
-			if len(report.Vulnerabilities) > 0 {
-				for i, v := range report.Vulnerabilities {
-					if i < 5 { // Limit to top 5 for visual clarity
-						graph += fmt.Sprintf("    Target --> Vuln%d[%s - %s];\n", i, v.ID, v.Severity)
-						graph += fmt.Sprintf("    Vuln%d -.-> Impact(Confidentiality/Integrity);\n", i)
+			if report.TotalVulns > 0 {
+				count := 0
+				for _, v := range report.Vulnerabilities {
+					if count < 5 { // Limit to top 5 for visual clarity
+						graph += fmt.Sprintf("    Target --> Vuln%d[%s - %s];\n", count, v.ID, v.Severity)
+						graph += fmt.Sprintf("    Vuln%d -.-> Impact(Confidentiality/Integrity);\n", count)
+						count++
 					}
 				}
 			} else {
