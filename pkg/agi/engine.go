@@ -222,6 +222,19 @@ func (e *Engine) think() {
 			log.Println("[KASA] INITIATING AUTONOMOUS PENETRATION TEST (NIST 800-53 CA-8 / PCI-DSS 11.3).")
 		}
 
+		// Compliance Audit: Daily
+		if time.Since(e.LastCompliance) > e.ComplianceInterval {
+			e.Status = "Autonomously auditing CMMC alignment..."
+			e.Tasks = append(e.Tasks, Task{
+				ID:          fmt.Sprintf("auto-comply-%d", time.Now().Unix()),
+				Description: "CMMC Level 2 Compliance Audit",
+				Priority:    "MEDIUM",
+				Symbol:      "Eban",
+			})
+			e.LastCompliance = time.Now()
+			log.Println("[KASA] INITIATING AUTONOMOUS CMMC COMPLIANCE AUDIT.")
+		}
+
 		// Perimeter Sweep: Every 60 seconds
 		if time.Since(e.LastGuardTime) > 60*time.Second {
 			e.Status = "Autonomously generating directives..."
@@ -289,6 +302,16 @@ func (e *Engine) execute(t Task) (string, error) {
 	// Auto-Remediation Execution
 	if strings.HasPrefix(t.Description, "Remediate:") {
 		return e.executeRemediation(t)
+	}
+
+	// Compliance Audit Execution
+	if strings.Contains(t.Description, "Compliance Audit") {
+		report, err := e.compliance.EvaluateCompliance(e.privKey)
+		if err != nil {
+			return fmt.Sprintf("Audit Failed: %v", err), nil
+		}
+		e.Status = "Compliance Audit Complete"
+		return report, nil
 	}
 
 	// Real Firewall Execution
@@ -492,9 +515,13 @@ func (e *Engine) executePentest(t Task) (string, error) {
 	if strings.Contains(t.Description, "Target: ") {
 		parts := strings.Split(t.Description, "Target: ")
 		if len(parts) > 1 {
-			target = strings.TrimSuffix(parts[1], ")")
+			candidate := strings.Fields(parts[1])[0]
+				// Validate it looks like an IP or hostname (not a word like "test")
+				if strings.Contains(candidate, ".") || candidate == "localhost" {
+					target = candidate
+				}
+			}
 		}
-	}
 
 	// Record pentest initiation
 	startNode := dag.Node{
@@ -827,22 +854,11 @@ func (e *Engine) Chat(message string) string {
 		"PENTEST":   0,
 		"VULNHUNT":  0,
 		"IDENTITY":  0,
+		"COMPLY":    0,
+		"INCIDENT":  0,
 		"HELP":      0,
 	}
 
-	keywords := map[string]map[string]int{
-		"REPORT": {
-			"status": 5, "report": 5, "show": 3, "list": 3, "what": 2, "details": 4,
-			"intel": 4, "intelligence": 4, "findings": 4, "open": 2, // "open ports" usually means asking for report
-		},
-		"FIREWALL": {
-			"firewall": 10, "block": 8, "deny": 8, "ban": 8, "iptables": 10, "netsh": 10,
-			"drop": 7, "close": 5, "secure": 3, "restrict": 5, "perimeter": 2,
-		},
-		"REMEDIATE": {
-			"apply": 8, "fix": 8, "remediate": 10, "patch": 8, "mitigate": 8,
-			"enforce": 6, "compliance": 5, "tls": 4, "recommendation": 6, "solve": 5,
-		},
 		"SCAN": {
 			"scan": 10, "sweep": 8, "probe": 7, "recon": 8, "nmap": 9, "analyze": 5,
 			"assess": 5, "check": 4,
@@ -1067,6 +1083,27 @@ func (e *Engine) Chat(message string) string {
 	case "IDENTITY":
 		return fmt.Sprintf("IDENTITY: KASA (Khepra Agentic Security Auditor). \nSTATUS: %s \nMODE: %s \nOBJECTIVE: %s", e.Status, e.Mode, e.Objective)
 
+	case "COMPLY":
+		e.Status = "Auditing Compliance Status..."
+		report, err := e.compliance.EvaluateCompliance(e.privKey)
+		if err != nil {
+			return fmt.Sprintf("ERROR RUNNING COMPLIANCE AUDIT: %v", err)
+		}
+		return fmt.Sprintf("COMMANDO ACKNOWLEDGED.\n\nAction: CMMC LEVEL 2 AUDIT\n\n%s", report)
+
+	case "INCIDENT":
+		e.Status = "Processing Incident Report..."
+		// For MVP, simplistic parsing. "INCIDENT: Title"
+		title := "Manual Incident Report"
+		if len(msg) > 9 {
+			title = msg[9:]
+		}
+		inc, err := e.ir.CreateIncident(title, "Reported via Chat Interface", ir.SevMedium, "Undetermined", e.privKey)
+		if err != nil {
+			return fmt.Sprintf("FAILED TO LOG INCIDENT: %v", err)
+		}
+		return fmt.Sprintf("COMMANDO ACKNOWLEDGED.\n\nAction: INCIDENT RESPONSE INITIATED\nIncident ID: %s\nStatus: OPEN\nPlaybook: Analyizing...", inc.ID)
+		
 	case "HELP":
 		return "AVAILABLE DIRECTIVES:\n" +
 			"- SCAN: 'Run port scan' (AI-Enhanced perimeter sweep)\n" +
