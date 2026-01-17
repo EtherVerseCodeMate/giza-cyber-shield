@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/apiserver"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/arsenal"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/config"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
@@ -54,6 +55,7 @@ type Engine struct {
 	store   dag.Store // Use interface to support both Memory and PersistentMemory
 	intel   *intel.KnowledgeBase
 	scanner *scanner.Scanner
+	python  *apiserver.PythonServiceClient
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -102,6 +104,7 @@ func NewEngine(store dag.Store) *Engine {
 		intel:     intel.NewKnowledgeBase(),
 		scanner:   scanner.New(),
 		llm:       cognitiveLayer,
+		python:    apiserver.NewPythonServiceClient("http://localhost:8000"), // Motherboard Link
 		ctx:       ctx,
 		cancel:    cancel,
 		Tasks:     []Task{},
@@ -319,6 +322,22 @@ func (e *Engine) RunScan(target string) error {
 		aiAnalysis = "LLM Offline. Standard Heuristics Only."
 	}
 
+	// Python AGI Intuition Check
+	var intuition *apiserver.PredictResponse
+	// In prod, this would be derived from scan metrics (open ports, ttl, response_time)
+	features := make([]float64, 32)
+	features[0] = float64(len(results)) // Feature 0: Number of open ports
+
+	if e.python != nil {
+		pred, err := e.python.GetIntuition(features, map[string]string{"target": target})
+		if err == nil {
+			intuition = pred
+			log.Printf("[KASA] INTUITION RECEIVED: Anomaly Score=%.4f (Confidence: %.4f)", pred.AnomalyScore, pred.Confidence)
+		} else {
+			log.Printf("[KASA] INTUITION OFFLINE: %v", err)
+		}
+	}
+
 	// Log Findings to DAG
 	for _, r := range results {
 		// Threat Correlation Engine (Commando Logic)
@@ -346,7 +365,13 @@ func (e *Engine) RunScan(target string) error {
 				"target":               r.Target,
 				"risk_level":           riskLevel,
 				"banner":               r.Banner,
-				"ai_analysis":          aiAnalysis, // Store the Brain's thoughts in the Chain
+				"ai_analysis":          aiAnalysis,
+				"intuition_score": fmt.Sprintf("%.4f", func() float64 {
+					if intuition != nil {
+						return intuition.AnomalyScore
+					}
+					return 0.0
+				}()),
 			},
 		}
 
@@ -514,4 +539,55 @@ func (e *Engine) Chat(message string) string {
 	}
 
 	return "ERROR: Neural Router Malfunction."
+}
+
+// extractFeatures converts raw scan results into the 32-dim vector expected by SouHimBou
+func extractFeatures(results []scanner.Result, target string) []float64 {
+	f := make([]float64, 32)
+	// F0: Number of Open Ports (Normalized 1-100)
+	f[0] = float64(len(results)) / 100.0
+
+	// F1-F10: Specific High-Risk Ports
+	riskPorts := map[int]int{21: 1, 22: 2, 23: 3, 25: 4, 80: 5, 443: 6, 445: 7, 3389: 8, 8080: 9, 27017: 10}
+	for _, r := range results {
+		if idx, ok := riskPorts[r.Port]; ok {
+			f[idx] = 1.0
+		}
+	}
+
+	// F11-F12: Service Diversity
+	services := make(map[string]bool)
+	totalBannerLen := 0
+	for _, r := range results {
+		services[r.Service] = true
+		totalBannerLen += len(r.Banner)
+	}
+	f[11] = float64(len(services)) / 10.0
+	f[12] = float64(totalBannerLen) / 1000.0 // Normalized banner entropy proxy
+
+	// F13: HTTP Presence
+	if services["HTTP"] || services["HTTPS"] {
+		f[13] = 1.0
+	}
+
+	// F14: SSH Presence
+	if services["SSH"] {
+		f[14] = 1.0
+	}
+
+	// F15: Database Presence
+	if services["MySQL"] || services["PostgreSQL"] || services["MongoDB"] {
+		f[15] = 1.0
+	}
+
+	// F16-F31: Reserved for Behavioral Time-Series or advanced fingerprinting
+	// For now, we seed a unique signature based on the target string hash
+	// to allow "memory" of distinct targets.
+	hash := 0
+	for _, char := range target {
+		hash = (hash*31 + int(char)) % 100
+	}
+	f[16] = float64(hash) / 100.0
+
+	return f
 }
