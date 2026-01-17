@@ -19,7 +19,7 @@ import torch
 import numpy as np
 
 # Add project root to path
-sys.path.append(str(Path(__file__).parents[3]))
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 # Import internal services
 try:
