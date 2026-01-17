@@ -33,7 +33,37 @@ except ImportError as e:
     # We will let it fail hard so we know to fix paths
     raise e
 
+# Setup Logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("souhimbou.api")
+
+# Global State
+model_state = {
+    "status": "INITIALIZING",
+    "soul_embedding": {},
+    "model_loaded": False
+}
+
+model_instance = None
+loader_instance = None
+
 from contextlib import asynccontextmanager
+
+# --- Data Models ---
+
+class PredictRequest(BaseModel):
+    features: List[float]
+    metadata: Optional[Dict] = None
+
+class PredictResponse(BaseModel):
+    anomaly_score: float
+    is_anomaly: bool
+    confidence: float
+    archetype_influence: Dict[str, float]  # How much each archetype contributed
+
+class TrainingRequest(BaseModel):
+    epochs: int = 50
+    force_reload: bool = False
 
 # --- Startup/Shutdown ---
 
