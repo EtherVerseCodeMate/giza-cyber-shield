@@ -53,3 +53,51 @@ test:
 ci-test:
 	# CI-friendly test runner: vendor-aware and no-cache
 	CGO_ENABLED=0 go test -count=1 -mod=vendor ./...
+
+# ============================================================
+# CVE Database Management
+# ============================================================
+
+CVE_DATA_DIR=data/cve-database/cve-data
+
+# Check if CVE data exists
+.PHONY: check-cve
+check-cve:
+	@if [ ! -d "$(CVE_DATA_DIR)/mitre" ] || [ ! -f "$(CVE_DATA_DIR)/cisa-kev/known_exploited_vulnerabilities.json" ]; then \
+		echo "[ADINKHEPRA] CVE data not found. Run 'make fetch-cve' to download."; \
+		exit 1; \
+	else \
+		echo "[ADINKHEPRA] CVE data present."; \
+	fi
+
+# Fetch CVE data from all sources
+.PHONY: fetch-cve
+fetch-cve:
+	@echo "[ADINKHEPRA] Fetching CVE data from multiple sources..."
+	@cd data/cve-database && bash fetch-cve-data.sh
+	@echo "[ADINKHEPRA] CVE data fetch complete."
+
+# Quick CVE update (CISA KEV only - fastest, most critical)
+.PHONY: fetch-cve-quick
+fetch-cve-quick:
+	@echo "[ADINKHEPRA] Quick fetch: CISA Known Exploited Vulnerabilities..."
+	@mkdir -p $(CVE_DATA_DIR)/cisa-kev
+	@curl -s -o $(CVE_DATA_DIR)/cisa-kev/known_exploited_vulnerabilities.json \
+		"https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+	@echo "Last updated: $$(date)" > $(CVE_DATA_DIR)/cisa-kev/last-updated.txt
+	@echo "[ADINKHEPRA] CISA KEV updated."
+
+# Build with CVE data validation
+.PHONY: build-with-cve
+build-with-cve: fetch-cve-quick build
+	@echo "[ADINKHEPRA] Build complete with fresh CVE data."
+
+# Validate build (includes CVE check)
+.PHONY: validate
+validate: check-cve test
+	@echo "[ADINKHEPRA] Validation complete."
+
+# Full CI pipeline with CVE data
+.PHONY: ci
+ci: fetch-cve-quick ci-test secure-build
+	@echo "[ADINKHEPRA] CI pipeline complete."
