@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
-	agiconfig "github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/agi/config" // Renamed to avoid conflict
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/apiserver"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/arsenal"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/compliance" // CMMC/SSP Engine
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/compliance"       // CMMC/SSP Engine
+	agiconfig "github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/config" // Revert to valid pkg/config
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/forensics"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/intel"

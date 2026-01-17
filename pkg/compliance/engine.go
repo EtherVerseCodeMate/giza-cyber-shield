@@ -11,14 +11,21 @@ import (
 type Engine struct {
 	Manager *Manager
 	store   dag.Store
+	Checks  []NativeCheck // Built-in platform checks
 }
 
 // NewEngine creates a new Compliance Engine
 func NewEngine(store dag.Store, scanner ScannerInterface) *Engine {
-	return &Engine{
+	e := &Engine{
 		Manager: NewManager(store, scanner),
 		store:   store,
+		Checks:  []NativeCheck{},
 	}
+
+	// Load platform-specific checks (defined in checks_windows.go / checks_linux.go)
+	e.loadPlatformChecks()
+
+	return e
 }
 
 // EvaluateCompliance runs a check across all controls in the SSP
