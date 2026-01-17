@@ -1,7 +1,6 @@
 package compliance
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -29,6 +28,14 @@ const (
 	DomainSR ComplianceDomain = "Supply Chain Risk Management"
 )
 
+// ScannerInterface defines the contract for real-time detection tools (OpenSCAP, STIG-Viewer)
+type ScannerInterface interface {
+	// ScanControl checks if a specific CMMC/STIG control is passing
+	ScanControl(controlID string) (bool, string, error)
+	// RemediateControl attempts to fix a failing control automatically
+	RemediateControl(controlID string) (bool, string, error)
+}
+
 // Control represents a single CMMC practice (e.g., AC.L2-3.1.1)
 type Control struct {
 	ID          string           `json:"id"`
@@ -39,11 +46,12 @@ type Control struct {
 
 // ControlImplementation tracks how a control is satisfied in the SSP
 type ControlImplementation struct {
-	ControlID   string `json:"control_id"`
-	Status      string `json:"status"` // IMPLEMENTED, PLANNED, PARTIAL, N/A
-	Narrative   string `json:"narrative"`
-	EvidenceIDs []string `json:"evidence_ids"` // Links to DAG nodes verifying this
-	LastAudited time.Time `json:"last_audited"`
+	ControlID      string    `json:"control_id"`
+	Status         string    `json:"status"` // IMPLEMENTED, PLANNED, PARTIAL, N/A, FAILED_SCAN, AUTO_REMEDIATED
+	Narrative      string    `json:"narrative"`
+	EvidenceIDs    []string  `json:"evidence_ids"` // Links to DAG nodes verifying this
+	LastAudited    time.Time `json:"last_audited"`
+	LastScanResult string    `json:"last_scan_result,omitempty"`
 }
 
 // SystemSecurityPlan represents the digital SSP
@@ -63,16 +71,18 @@ type SystemComponent struct {
 	IsCUIAsset bool   `json:"is_cui_asset"`
 }
 
-// Manager handles the SSP
+// Manager handles the SSP and Compliance Lifecycle
 type Manager struct {
-	store dag.Store
-	SSP   *SystemSecurityPlan
+	store   dag.Store
+	SSP     *SystemSecurityPlan
+	scanner ScannerInterface
 }
 
-// NewManager creates a new Compliance Manager with an empty SSP
-func NewManager(store dag.Store) *Manager {
+// NewManager creates a new Compliance Manager
+func NewManager(store dag.Store, scanner ScannerInterface) *Manager {
 	return &Manager{
-		store: store,
+		store:   store,
+		scanner: scanner,
 		SSP: &SystemSecurityPlan{
 			SystemName: "Khepra Protected Enclave",
 			Controls:   make(map[string]ControlImplementation),
@@ -81,7 +91,7 @@ func NewManager(store dag.Store) *Manager {
 	}
 }
 
-// UpdateControl updates the implementation status of a specific control
+// UpdateControl updates the implementation status of a specific control manually
 func (m *Manager) UpdateControl(controlID, status, narrative string, privKey []byte) error {
 	impl := ControlImplementation{
 		ControlID:   controlID,
@@ -96,8 +106,40 @@ func (m *Manager) UpdateControl(controlID, status, narrative string, privKey []b
 	return m.logControlUpdate(impl, privKey)
 }
 
+// AuditControl triggers a scan for a specific control and updates the SSP
+func (m *Manager) AuditControl(controlID string, privKey []byte) (bool, error) {
+	if m.scanner == nil {
+		return false, fmt.Errorf("scanner not initialized")
+	}
+
+	passed, evidence, err := m.scanner.ScanControl(controlID)
+	if err != nil {
+		return false, err
+	}
+
+	status := "IMPLEMENTED"
+	if !passed {
+		status = "FAILED_SCAN"
+		// Attempt Auto-Remediation?
+		// For now, just log failure.
+	}
+
+	impl := ControlImplementation{
+		ControlID:      controlID,
+		Status:         status,
+		Narrative:      fmt.Sprintf("Automated Scan Result: %s. Evidence: %s", status, evidence),
+		LastAudited:    time.Now(),
+		LastScanResult: evidence,
+	}
+
+	m.SSP.Controls[controlID] = impl
+	m.SSP.UpdatedAt = time.Now()
+
+	return passed, m.logControlUpdate(impl, privKey)
+}
+
 func (m *Manager) logControlUpdate(impl ControlImplementation, privKey []byte) error {
-	// data, _ := json.Marshal(impl) // Unused for now
+	// data, _ := json.Marshal(impl) // unused
 
 	node := dag.Node{
 		Action: fmt.Sprintf("ssp-update:%s", impl.ControlID),
