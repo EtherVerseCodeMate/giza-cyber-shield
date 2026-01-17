@@ -361,6 +361,94 @@ func (e *Engine) executeRemediation(t Task) (string, error) {
 	return "Vulnerability not found in last scan", nil
 }
 
+// executeForensics performs a digital forensic snapshot and records it to the DAG
+func (e *Engine) executeForensics() (string, error) {
+	log.Println("[KASA] IMHOTEP'S EYE ACTIVATED - Collecting forensic snapshot...")
+	e.Status = "Collecting Forensic Evidence..."
+
+	snapshot, err := e.forensics.CollectSnapshot(e.ctx)
+	if err != nil {
+		return "", fmt.Errorf("forensic collection failed: %w", err)
+	}
+
+	// Record the forensic snapshot to DAG for immutable audit trail
+	snapshotJSON, _ := json.Marshal(snapshot)
+	node := dag.Node{
+		Action: fmt.Sprintf("forensic-snapshot:%s", snapshot.SnapshotID),
+		Symbol: "Sankofa",
+		Time:   lorentz.StampNow(),
+		PQC: map[string]string{
+			"snapshot_id":    snapshot.SnapshotID,
+			"hostname":       snapshot.Hostname,
+			"os":             snapshot.OS,
+			"process_count":  fmt.Sprintf("%d", len(snapshot.Processes)),
+			"conn_count":     fmt.Sprintf("%d", len(snapshot.NetworkConns)),
+			"port_count":     fmt.Sprintf("%d", len(snapshot.OpenPorts)),
+			"file_count":     fmt.Sprintf("%d", len(snapshot.FileHashes)),
+			"snapshot_hash":  snapshot.Hash,
+			"agent":          "KASA-Forensics-v1",
+		},
+	}
+
+	// Sign and store
+	if err := node.Sign(e.privKey); err == nil {
+		e.store.Add(&node, []string{})
+	}
+
+	// Check for changes from last snapshot (anomaly detection)
+	if lastSnapshot := e.forensics.GetLastSnapshot(); lastSnapshot != nil && lastSnapshot.SnapshotID != snapshot.SnapshotID {
+		changes := e.forensics.CompareSnapshots(lastSnapshot, snapshot)
+		if len(changes) > 0 {
+			log.Printf("[KASA] FORENSIC ANOMALY DETECTED: %d changes since last snapshot", len(changes))
+			for _, change := range changes {
+				log.Printf("[KASA]   -> %s", change)
+
+				// Record each change as evidence
+				changeNode := dag.Node{
+					Action: fmt.Sprintf("forensic-change:%s", change),
+					Symbol: "Dwennimmen",
+					Time:   lorentz.StampNow(),
+					PQC: map[string]string{
+						"change_type":  "SYSTEM_CHANGE",
+						"description":  change,
+						"snapshot_id":  snapshot.SnapshotID,
+						"agent":        "KASA-Forensics-v1",
+					},
+				}
+				if err := changeNode.Sign(e.privKey); err == nil {
+					e.store.Add(&changeNode, []string{node.ID})
+				}
+			}
+		}
+	}
+
+	summary := fmt.Sprintf("Forensic Snapshot Complete: %s (Processes: %d, Connections: %d, Ports: %d, Files: %d)",
+		snapshot.SnapshotID,
+		len(snapshot.Processes),
+		len(snapshot.NetworkConns),
+		len(snapshot.OpenPorts),
+		len(snapshot.FileHashes))
+
+	log.Printf("[KASA] %s", summary)
+	log.Printf("[KASA] Snapshot Hash: %s", snapshot.Hash)
+
+	// Store snapshot data separately for detailed analysis
+	dataNode := dag.Node{
+		Action: fmt.Sprintf("forensic-data:%s", snapshot.SnapshotID),
+		Symbol: "Sankofa",
+		Time:   lorentz.StampNow(),
+		PQC: map[string]string{
+			"data":  string(snapshotJSON),
+			"agent": "KASA-Forensics-v1",
+		},
+	}
+	if err := dataNode.Sign(e.privKey); err == nil {
+		e.store.Add(&dataNode, []string{node.ID})
+	}
+
+	return summary, nil
+}
+
 func (e *Engine) logToDAG(t Task, result string) {
 	node := dag.Node{
 		// ID is computed automatically by hash
