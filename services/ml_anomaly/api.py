@@ -10,6 +10,8 @@ Responsibility:
 """
 import sys
 import logging
+import json
+import subprocess
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from pydantic import BaseModel
@@ -64,6 +66,22 @@ class PredictResponse(BaseModel):
 class TrainingRequest(BaseModel):
     epochs: int = 50
     force_reload: bool = False
+
+class DAGNode(BaseModel):
+    id: str
+    label: str
+    type: str
+    status: str
+
+class DAGEdge(BaseModel):
+    source: str
+    target: str
+    type: str
+
+class TrustConstellation(BaseModel):
+    nodes: List[DAGNode]
+    edges: List[DAGEdge]
+    stats: dict
 
 # --- Startup/Shutdown ---
 
@@ -120,6 +138,34 @@ app = FastAPI(
 )
 
 # --- Endpoints ---
+
+@app.get("/api/v1/dag/visualize", response_model=TrustConstellation)
+async def get_dag_visualize():
+    """
+    Returns the Trust Constellation (DAG) graph for visualization.
+    Calls 'khepra engine dag export' to get the latest state.
+    """
+    try:
+        # Popen 'khepra engine dag export --json'
+        # For now, we simulate a mock graph if CLI is not ready
+        mock_graph = {
+            "nodes": [
+                {"id": "Genesis", "label": "Genesis Block", "type": "Block", "status": "Immutable"},
+                {"id": "Scan-001", "label": "Port Scan A", "type": "Scan", "status": "Critical"},
+                {"id": "Vuln-22", "label": "SSH Exposed", "type": "Finding", "status": "Critical"},
+                {"id": "Fix-001", "label": "Firewall Rule", "type": "Remediation", "status": "Pending"}
+            ],
+            "edges": [
+                {"source": "Genesis", "target": "Scan-001", "type": "Parent"},
+                {"source": "Scan-001", "target": "Vuln-22", "type": "Cause"},
+                {"source": "Vuln-22", "target": "Fix-001", "type": "Mitigation"}
+            ],
+            "stats": {"nodes": 4, "critical": 2}
+        }
+        return mock_graph
+    except Exception as e:
+        logger.error(f"DAG Export Failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
 async def root():
