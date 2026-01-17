@@ -78,11 +78,8 @@ func (m *Manager) UpdateStatus(incident *Incident, status Status, msg string, pr
 
 // logToDAG serializes the incident and writes a signed node to the DAG
 func (m *Manager) logToDAG(inc *Incident, action string, privKey []byte) error {
-	data, err := json.Marshal(inc)
-	if err != nil {
-		return err
-	}
-
+	// data, err := json.Marshal(inc) // unused currently
+	
 	node := dag.Node{
 		Action: action,
 		Symbol: "Sankofa", // "Go back and get it" - Learn from the past
@@ -93,16 +90,9 @@ func (m *Manager) logToDAG(inc *Incident, action string, privKey []byte) error {
 			"type":        inc.Type,
 			"status":      string(inc.Status),
 			"version":     "1.0",
+			"title":       inc.Title,
 		},
 	}
-	// We could embed the full JSON in the PQC map or as a separate payload field if Node supported it.
-	// For now, we'll stringify it into a "payload" key, though that's heavy.
-	// Better pattern: The Node IS the record.
-	// But `pkg/dag` structure is rigid. Let's use PQC map for critical metadata and rely on file persistence for full body if needed.
-	// Actually, `pkg/dag/persistence.go` just dumps the node.
-	// We'll stick to critical metadata in PQC for the chain, and maybe extended data elsewhere?
-	// For this MVP, let's put the essential fields in PQC and assume the "title" is enough context.
-	node.PQC["title"] = inc.Title
 	
 	// Sign and Add
 	if err := node.Sign(privKey); err != nil {
