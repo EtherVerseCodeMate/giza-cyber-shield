@@ -104,28 +104,26 @@ class SoulBiasedTrainer:
         self.model.train()
         for epoch in range(epochs):
             self.optimizer.zero_grad()
-            
-            # Forward pass
+
+            # Forward pass (use autoencoder.forward directly for gradient flow)
             logger.debug(f"Starting Epoch {epoch}")
-            results = self.model.autoencoder.compute_anomaly_score(train_data, return_details=True)
-            reconstruction = results["reconstruction"]
-            
+            reconstruction, mu, logvar, anomaly_score = self.model.autoencoder(train_data)
+
             # VAE Loss (Unsupervised - learning "Self")
-            mu, logvar = self.model.autoencoder.encode(train_data)
-            loss, _ = vae_loss(
-                reconstruction, 
-                train_data, 
-                mu, 
-                logvar, 
-                results["anomaly_score"],
+            loss, loss_details = vae_loss(
+                reconstruction,
+                train_data,
+                mu,
+                logvar,
+                anomaly_score,
                 beta=1.0
-            ) # Standard VAE loss
-            
+            )
+
             loss.backward()
             self.optimizer.step()
-            
+
             if epoch % 10 == 0:
-                logger.info(f"Epoch {epoch}: Loss = {loss.item():.4f} (Internalizing Soul Patterns)")
+                logger.info(f"Epoch {epoch}: Loss = {loss.item():.4f} | Recon: {loss_details['reconstruction_loss']:.4f} | KL: {loss_details['kl_loss']:.4f}")
 
         # 4. Save
         save_path = Path("./models/souhimbou_v1.pt")
