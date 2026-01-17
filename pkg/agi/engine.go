@@ -68,6 +68,8 @@ type Engine struct {
 	VulnScanInterval  time.Duration
 	LastForensics     time.Time
 	ForensicsInterval time.Duration
+	LastPentest       time.Time
+	PentestInterval   time.Duration
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -129,6 +131,7 @@ func NewEngine(store dag.Store) *Engine {
 		arsenal:           arsenal.NewInventory(),
 		VulnScanInterval:  1 * time.Hour,    // Scan for vulnerabilities every hour
 		ForensicsInterval: 15 * time.Minute, // Forensic snapshot every 15 minutes
+		PentestInterval:   24 * time.Hour,   // Internal pentest daily (NIST 800-53 CA-8, PCI-DSS 11.3)
 		ctx:               ctx,
 		cancel:            cancel,
 		Tasks:             []Task{},
@@ -196,6 +199,20 @@ func (e *Engine) think() {
 			log.Println("[KASA] INITIATING AUTONOMOUS VULNERABILITY HUNT.")
 		}
 
+		// Internal Penetration Testing: NIST 800-53 CA-8 / PCI-DSS 11.3 compliance
+		// Industry standard: Daily for critical systems, weekly for standard
+		if time.Since(e.LastPentest) > e.PentestInterval {
+			e.Status = "Autonomously executing internal penetration test..."
+			e.Tasks = append(e.Tasks, Task{
+				ID:          fmt.Sprintf("auto-pentest-%d", time.Now().Unix()),
+				Description: "Internal Penetration Test (Target: 127.0.0.1)",
+				Priority:    "HIGH",
+				Symbol:      "Eban", // Symbol of protection/fence
+			})
+			e.LastPentest = time.Now()
+			log.Println("[KASA] INITIATING AUTONOMOUS PENETRATION TEST (NIST 800-53 CA-8 / PCI-DSS 11.3).")
+		}
+
 		// Perimeter Sweep: Every 60 seconds
 		if time.Since(e.LastGuardTime) > 60*time.Second {
 			e.Status = "Autonomously generating directives..."
@@ -253,6 +270,11 @@ func (e *Engine) execute(t Task) (string, error) {
 	// Forensic Snapshot Execution
 	if t.Description == "Forensic System Snapshot" {
 		return e.executeForensics()
+	}
+
+	// Internal Penetration Test Execution
+	if strings.HasPrefix(t.Description, "Internal Penetration Test") {
+		return e.executePentest(t)
 	}
 
 	// Auto-Remediation Execution
@@ -447,6 +469,149 @@ func (e *Engine) executeForensics() (string, error) {
 	if err := dataNode.Sign(e.privKey); err == nil {
 		e.store.Add(&dataNode, []string{node.ID})
 	}
+
+	return summary, nil
+}
+
+// executePentest runs an internal penetration test with MITRE ATT&CK TTPs
+func (e *Engine) executePentest(t Task) (string, error) {
+	log.Println("[KASA] IMHOTEP PENTEST ACTIVATED - Executing internal penetration test...")
+	e.Status = "Executing Internal Penetration Test..."
+
+	// Extract target from task description
+	target := "127.0.0.1"
+	if strings.Contains(t.Description, "Target: ") {
+		parts := strings.Split(t.Description, "Target: ")
+		if len(parts) > 1 {
+			target = strings.TrimSuffix(parts[1], ")")
+		}
+	}
+
+	// Record pentest initiation
+	startNode := dag.Node{
+		Action: fmt.Sprintf("pentest-start:%s", target),
+		Symbol: "Eban",
+		Time:   lorentz.StampNow(),
+		PQC: map[string]string{
+			"target":     target,
+			"phase":      "INITIATION",
+			"mitre_ttp":  "T1595",
+			"agent":      "KASA-Pentest-v1",
+			"compliance": "NIST-800-53-CA-8,PCI-DSS-11.3",
+		},
+	}
+	if err := startNode.Sign(e.privKey); err == nil {
+		e.store.Add(&startNode, []string{})
+	}
+
+	// Phase 1: Arsenal Check
+	e.Status = "PENTEST Phase 1: Arsenal Verification..."
+	gapReport := e.arsenal.ReportGaps()
+	log.Printf("[KASA] PENTEST ARSENAL: %s", gapReport)
+
+	// Phase 2: Network Service Discovery (T1046)
+	e.Status = "PENTEST Phase 2: T1046 Network Service Discovery..."
+	log.Printf("[KASA] PENTEST T1046: Scanning %s for open ports...", target)
+
+	scanResults, scanErr := e.scanner.Run(target)
+	openPorts := 0
+	if scanErr == nil {
+		openPorts = len(scanResults)
+		// Log each port discovery to DAG
+		for _, r := range scanResults {
+			portNode := dag.Node{
+				Action: fmt.Sprintf("pentest-discovery:%s:%d", target, r.Port),
+				Symbol: "OwoForoAdobe",
+				Time:   lorentz.StampNow(),
+				PQC: map[string]string{
+					"target":    target,
+					"port":      fmt.Sprintf("%d", r.Port),
+					"service":   r.Service,
+					"banner":    r.Banner,
+					"mitre_ttp": "T1046",
+					"phase":     "DISCOVERY",
+					"agent":     "KASA-Pentest-v1",
+				},
+			}
+			if err := portNode.Sign(e.privKey); err == nil {
+				e.store.Add(&portNode, []string{startNode.ID})
+			}
+		}
+	}
+
+	// Phase 3: Vulnerability Scanning (T1595.002)
+	e.Status = "PENTEST Phase 3: T1595.002 Vulnerability Scanning..."
+	log.Println("[KASA] PENTEST T1595.002: Scanning for vulnerabilities...")
+
+	vulnReport, vulnErr := e.hunter.Scan(e.ctx)
+	totalVulns := 0
+	criticalVulns := 0
+	if vulnErr == nil {
+		totalVulns = vulnReport.TotalVulns
+		criticalVulns = vulnReport.BySeverity[vuln.SeverityCritical]
+
+		// Log vulnerability findings
+		for _, v := range vulnReport.Vulnerabilities {
+			vulnNode := dag.Node{
+				Action: fmt.Sprintf("pentest-vuln:%s", v.ID),
+				Symbol: "Dwennimmen",
+				Time:   lorentz.StampNow(),
+				PQC: map[string]string{
+					"vuln_id":       v.ID,
+					"package":       v.Package,
+					"severity":      string(v.Severity),
+					"ecosystem":     v.Ecosystem,
+					"fixed_version": v.FixedVersion,
+					"mitre_ttp":     "T1595.002",
+					"phase":         "VULNERABILITY_SCAN",
+					"agent":         "KASA-Pentest-v1",
+				},
+			}
+			if err := vulnNode.Sign(e.privKey); err == nil {
+				e.store.Add(&vulnNode, []string{startNode.ID})
+			}
+		}
+	}
+
+	// Phase 4: Generate Attack Graph (Mermaid)
+	attackGraph := "graph TD;\n"
+	attackGraph += fmt.Sprintf("    Attacker[KASA Pentest Agent] -->|T1595| Target(%s);\n", target)
+	attackGraph += fmt.Sprintf("    Target -->|T1046| Ports[%d Open Ports];\n", openPorts)
+	if totalVulns > 0 {
+		attackGraph += fmt.Sprintf("    Target -->|T1595.002| Vulns[%d Vulnerabilities];\n", totalVulns)
+		if criticalVulns > 0 {
+			attackGraph += fmt.Sprintf("    Vulns -->|CRITICAL| Impact[%d Critical Findings];\n", criticalVulns)
+		}
+	} else {
+		attackGraph += "    Target --> Secure[No Vulnerabilities Found];\n"
+	}
+	attackGraph += "    style Attacker fill:#9f6,stroke:#333,stroke-width:2px"
+
+	// Record pentest completion
+	completionNode := dag.Node{
+		Action: fmt.Sprintf("pentest-complete:%s", target),
+		Symbol: "Eban",
+		Time:   lorentz.StampNow(),
+		PQC: map[string]string{
+			"target":         target,
+			"phase":          "COMPLETION",
+			"open_ports":     fmt.Sprintf("%d", openPorts),
+			"total_vulns":    fmt.Sprintf("%d", totalVulns),
+			"critical_vulns": fmt.Sprintf("%d", criticalVulns),
+			"attack_graph":   attackGraph,
+			"agent":          "KASA-Pentest-v1",
+			"compliance":     "NIST-800-53-CA-8,PCI-DSS-11.3",
+		},
+	}
+	if err := completionNode.Sign(e.privKey); err == nil {
+		e.store.Add(&completionNode, []string{startNode.ID})
+	}
+
+	summary := fmt.Sprintf("Pentest Complete (Target: %s). Open Ports: %d, Vulnerabilities: %d (Critical: %d). Compliance: NIST 800-53 CA-8, PCI-DSS 11.3",
+		target, openPorts, totalVulns, criticalVulns)
+
+	log.Printf("[KASA] %s", summary)
+	e.Status = summary
 
 	return summary, nil
 }
@@ -786,10 +951,40 @@ func (e *Engine) Chat(message string) string {
 
 	case "PENTEST":
 		target := "127.0.0.1" // Default to safe local target
+		// Extract target IP/hostname - look for IP patterns or explicit "on <target>" syntax
 		if strings.Contains(msg, "on ") {
 			parts := strings.Split(msg, "on ")
 			if len(parts) > 1 {
-				target = strings.Fields(parts[1])[0]
+				candidate := strings.Fields(parts[1])[0]
+				// Validate it looks like an IP or hostname (not a word like "test")
+				if strings.Contains(candidate, ".") || candidate == "localhost" {
+					target = candidate
+				}
+			}
+		}
+		// Also check for bare IP addresses in the message
+		words := strings.Fields(msg)
+		for _, word := range words {
+			// Check if it looks like an IP address (contains dots and numbers)
+			if strings.Count(word, ".") >= 1 {
+				isIP := true
+				for _, part := range strings.Split(word, ".") {
+					if len(part) == 0 {
+						isIP = false
+						break
+					}
+					// Check if it's numeric (for IP) or alphanumeric (for hostname)
+					for _, c := range part {
+						if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '-') {
+							isIP = false
+							break
+						}
+					}
+				}
+				if isIP {
+					target = word
+					break
+				}
 			}
 		}
 
