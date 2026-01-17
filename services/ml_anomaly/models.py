@@ -29,21 +29,24 @@ class FeatureAttention(nn.Module):
         Args:
             x: Input tensor of shape (batch_size, feature_dim)
         Returns:
-            attended_features: Attended feature tensor
-            attention_weights: Feature importance weights
+            attended_features: Attended feature tensor (batch_size, feature_dim)
+            attention_weights: Feature importance weights (batch_size, hidden_dim)
         """
-        # Compute attention scores
-        q = self.query(x)
-        k = self.key(x)
-        v = self.value(x)
+        # Project to query, key, value spaces
+        q = self.query(x)  # (batch_size, hidden_dim)
+        k = self.key(x)    # (batch_size, hidden_dim)
+        v = self.value(x)  # (batch_size, hidden_dim)
 
-        # Self-attention on features
-        attention_scores = torch.matmul(q.unsqueeze(-1), k.unsqueeze(-2)) / self.scale
-        attention_weights = F.softmax(attention_scores.squeeze(-1), dim=-1)
+        # Compute attention scores per feature dimension (element-wise scaled dot product)
+        # This creates feature importance weights
+        attention_scores = (q * k) / self.scale  # (batch_size, hidden_dim)
+        attention_weights = F.softmax(attention_scores, dim=-1)  # (batch_size, hidden_dim)
 
-        # Apply attention
-        attended = torch.matmul(attention_weights.unsqueeze(-2), v.unsqueeze(-1)).squeeze()
-        output = self.output(attended)
+        # Apply attention weights to values
+        attended = attention_weights * v  # (batch_size, hidden_dim)
+
+        # Project back to feature space
+        output = self.output(attended)  # (batch_size, feature_dim)
 
         return output, attention_weights
 
