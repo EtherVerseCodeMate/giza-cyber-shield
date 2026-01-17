@@ -97,7 +97,7 @@ func (m *Manager) UpdateControl(controlID, status, narrative string, privKey []b
 }
 
 func (m *Manager) logControlUpdate(impl ControlImplementation, privKey []byte) error {
-	data, _ := json.Marshal(impl) // Ignore error, simple struct
+	// data, _ := json.Marshal(impl) // Unused for now
 
 	node := dag.Node{
 		Action: fmt.Sprintf("ssp-update:%s", impl.ControlID),
