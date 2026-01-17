@@ -324,9 +324,8 @@ func (e *Engine) RunScan(target string) error {
 
 	// Python AGI Intuition Check
 	var intuition *apiserver.PredictResponse
-	// In prod, this would be derived from scan metrics (open ports, ttl, response_time)
-	features := make([]float64, 32)
-	features[0] = float64(len(results)) // Feature 0: Number of open ports
+	// TRL10 Feature Extraction (Production Grade)
+	features := extractFeatures(results, target)
 
 	if e.python != nil {
 		pred, err := e.python.GetIntuition(features, map[string]string{"target": target})
