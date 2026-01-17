@@ -33,47 +33,12 @@ except ImportError as e:
     # We will let it fail hard so we know to fix paths
     raise e
 
-# Initialize API
-app = FastAPI(
-    title="SouHimBou AI API",
-    description="Interface for the Khepra Anomaly Detection Service (The Right Brain)",
-    version=settings.service_version
-)
-
-# Setup Logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("souhimbou.api")
-
-# Global State
-model_state = {
-    "status": "INITIALIZING",
-    "soul_embedding": {},
-    "model_loaded": False
-}
-
-model_instance = None
-loader_instance = None
-
-# --- Data Models ---
-
-class PredictRequest(BaseModel):
-    features: List[float]
-    metadata: Optional[Dict] = None
-
-class PredictResponse(BaseModel):
-    anomaly_score: float
-    is_anomaly: bool
-    confidence: float
-    archetype_influence: Dict[str, float]  # How much each archetype contributed
-
-class TrainingRequest(BaseModel):
-    epochs: int = 50
-    force_reload: bool = False
+from contextlib import asynccontextmanager
 
 # --- Startup/Shutdown ---
 
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     global model_instance, loader_instance, model_state
     logger.info("SouHimBou API Awakening...")
     
@@ -114,6 +79,16 @@ async def startup_event():
         logger.error(f"Failed to load Model: {e}")
         model_state["status"] = "BRAIN_DAMAGE"
 
+    yield
+
+# Initialize API
+app = FastAPI(
+    title="SouHimBou AI API",
+    description="Interface for the Khepra Anomaly Detection Service (The Right Brain)",
+    version=settings.service_version,
+    lifespan=lifespan
+)
+
 # --- Endpoints ---
 
 @app.get("/")
@@ -145,7 +120,7 @@ async def predict(request: PredictRequest):
              anomaly_score=0.0,
              is_anomaly=False,
              confidence=0.0,
-             archetype_influence={"Note": "Model not loaded"}
+             archetype_influence={"Note": 0.0} # Fixed Validation Error
          )
     
     try:
