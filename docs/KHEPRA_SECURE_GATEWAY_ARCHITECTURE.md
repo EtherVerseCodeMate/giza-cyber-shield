@@ -155,6 +155,7 @@ type Identity struct {
 2. **Least privilege** - Tokens only grant necessary permissions
 3. **Assume breach** - Log everything for forensics
 4. **Verify explicitly** - Multiple auth factors
+5. **Visualize Auditability** - Create AI-explainable logs via DAG Constellations PQC-metadata focused
 
 ### Layer 3: Anomaly Detection (The ML Brain)
 
