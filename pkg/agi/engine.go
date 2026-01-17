@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
+	agiconfig "github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/agi/config" // Renamed to avoid conflict
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/apiserver"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/arsenal"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/config"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/compliance" // CMMC/SSP Engine
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/forensics"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/intel"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/ir" // Incident Response
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/llm"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/llm/ollama"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/lorentz"
@@ -55,21 +57,25 @@ type Engine struct {
 	Tasks         []Task
 	LastGuardTime time.Time
 
-	store     dag.Store // Use interface to support both Memory and PersistentMemory
-	intel     *intel.KnowledgeBase
-	arsenal   *arsenal.Inventory // Dynamic Tool Arsenal
-	scanner   *scanner.Scanner
-	python    *apiserver.PythonServiceClient
-	hunter    *vuln.Hunter         // Vulnerability Hunter
-	forensics *forensics.Collector // Digital Forensics
+	store      dag.Store // Use interface to support both Memory and PersistentMemory
+	intel      *intel.KnowledgeBase
+	arsenal    *arsenal.Inventory // Dynamic Tool Arsenal
+	scanner    *scanner.Scanner
+	python     *apiserver.PythonServiceClient
+	hunter     *vuln.Hunter         // Vulnerability Hunter
+	forensics  *forensics.Collector // Digital Forensics
+	ir         *ir.Manager          // Incident Response Manager
+	compliance *compliance.Engine   // Compliance Engine
 
 	// Autonomous Operations
-	LastVulnScan      time.Time
-	VulnScanInterval  time.Duration
-	LastForensics     time.Time
-	ForensicsInterval time.Duration
-	LastPentest       time.Time
-	PentestInterval   time.Duration
+	LastVulnScan       time.Time
+	VulnScanInterval   time.Duration
+	LastForensics      time.Time
+	ForensicsInterval  time.Duration
+	LastPentest        time.Time
+	PentestInterval    time.Duration
+	LastCompliance     time.Time
+	ComplianceInterval time.Duration
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -86,7 +92,7 @@ type Task struct {
 // NewEngine creates a new Khepra AGI Engine
 func NewEngine(store dag.Store) *Engine {
 	ctx, cancel := context.WithCancel(context.Background())
-	cfg := config.Load()
+	cfg := agiconfig.Load() // Use agiconfig
 
 	// Initialize LLM Client (Hybrid Cognition)
 	var cognitiveLayer llm.Provider
@@ -116,25 +122,28 @@ func NewEngine(store dag.Store) *Engine {
 	forensicsCollector := forensics.NewCollector()
 
 	return &Engine{
-		Objective:         ObjectiveAuditor,
-		Status:            "Initialized",
-		Mode:              "KASA-Hybrid-v2",
-		pubKey:            pub,
-		privKey:           priv,
-		store:             store,
-		intel:             intel.NewKnowledgeBase(),
-		scanner:           scanner.New(),
-		llm:               cognitiveLayer,
-		python:            apiserver.NewPythonServiceClient("http://localhost:8000"), // Motherboard Link
-		hunter:            hunter,
-		forensics:         forensicsCollector,
-		arsenal:           arsenal.NewInventory(),
-		VulnScanInterval:  1 * time.Hour,    // Scan for vulnerabilities every hour
-		ForensicsInterval: 15 * time.Minute, // Forensic snapshot every 15 minutes
-		PentestInterval:   24 * time.Hour,   // Internal pentest daily (NIST 800-53 CA-8, PCI-DSS 11.3)
-		ctx:               ctx,
-		cancel:            cancel,
-		Tasks:             []Task{},
+		Objective:          ObjectiveAuditor,
+		Status:             "Initialized",
+		Mode:               "KASA-Hybrid-v2",
+		pubKey:             pub,
+		privKey:            priv,
+		store:              store,
+		intel:              intel.NewKnowledgeBase(),
+		scanner:            scanner.New(),
+		llm:                cognitiveLayer,
+		python:             apiserver.NewPythonServiceClient("http://localhost:8000"), // Motherboard Link
+		hunter:             hunter,
+		forensics:          forensicsCollector,
+		arsenal:            arsenal.NewInventory(),
+		ir:                 ir.NewManager(store),
+		compliance:         compliance.NewEngine(store, nil), // Scanner to be injected later
+		VulnScanInterval:   1 * time.Hour,                    // Scan for vulnerabilities every hour
+		ForensicsInterval:  15 * time.Minute,                 // Forensic snapshot every 15 minutes
+		PentestInterval:    24 * time.Hour,                   // Internal pentest daily (NIST 800-53 CA-8, PCI-DSS 11.3)
+		ComplianceInterval: 24 * time.Hour,                   // Daily Compliance Audit
+		ctx:                ctx,
+		cancel:             cancel,
+		Tasks:              []Task{},
 	}
 }
 
