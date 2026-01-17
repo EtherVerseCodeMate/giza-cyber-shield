@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     enable_metrics: bool = True
     metrics_port: int = 9090
 
+    # Data Source (The "Soul")
+    secret_docs_path: str = r"c:\Users\intel\blackbox\khepra protocol\docs\top-secret"
+    cyber_brain_path: str = r"c:\Users\intel\blackbox\khepra protocol\docs\cyber-brain"
+
     class Config:
         env_prefix = "ADINKHEPRA_ML_"
 
