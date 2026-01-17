@@ -126,6 +126,7 @@ func NewEngine(store dag.Store) *Engine {
 		python:            apiserver.NewPythonServiceClient("http://localhost:8000"), // Motherboard Link
 		hunter:            hunter,
 		forensics:         forensicsCollector,
+		arsenal:           arsenal.NewInventory(),
 		VulnScanInterval:  1 * time.Hour,    // Scan for vulnerabilities every hour
 		ForensicsInterval: 15 * time.Minute, // Forensic snapshot every 15 minutes
 		ctx:               ctx,
