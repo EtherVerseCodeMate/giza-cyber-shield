@@ -50,24 +50,31 @@ func TestFirewallLayer_SQLInjectionDetection(t *testing.T) {
 	}
 
 	tests := []struct {
-		name    string
-		path    string
-		blocked bool
+		name       string
+		path       string
+		queryKey   string
+		queryValue string
+		blocked    bool
 	}{
-		{"Clean path", "/api/users/123", false},
-		{"SQLi union select", "/api/users?id=1 UNION SELECT * FROM users", true},
-		{"SQLi comment", "/api/users?id=1--", true},
-		{"SQLi OR injection", "/api/users?name=admin' OR '1'='1", true},
-		{"SQLi semicolon", "/api/users?id=1; DROP TABLE users", true},
-		{"Clean query", "/api/users?name=john&age=25", false},
+		{"Clean path", "/api/users/123", "", "", false},
+		{"SQLi union select", "/api/users", "id", "1 UNION SELECT * FROM users", true},
+		{"SQLi comment", "/api/users", "id", "1--", true},
+		{"SQLi OR injection", "/api/users", "name", "admin' OR '1'='1", true},
+		{"SQLi semicolon", "/api/users", "id", "1; DROP TABLE users", true},
+		{"Clean query", "/api/users", "name", "john", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest("GET", tt.path, nil)
+			if tt.queryKey != "" {
+				q := req.URL.Query()
+				q.Set(tt.queryKey, tt.queryValue)
+				req.URL.RawQuery = q.Encode()
+			}
 			blocked, reason := fw.Check(req)
 			if blocked != tt.blocked {
-				t.Errorf("Path %s: expected blocked=%v, got blocked=%v (reason: %s)", tt.path, tt.blocked, blocked, reason)
+				t.Errorf("Query %s=%s: expected blocked=%v, got blocked=%v (reason: %s)", tt.queryKey, tt.queryValue, tt.blocked, blocked, reason)
 			}
 		})
 	}
