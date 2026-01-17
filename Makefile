@@ -1,5 +1,6 @@
 APP?=adinkhepra
 AGENT?=adinkhepra-agent
+GATEWAY?=khepra-gateway
 
 all: build
 
@@ -7,14 +8,22 @@ build:
 	go mod tidy
 	go build -o bin/$(APP) ./cmd/adinkhepra
 	go build -o bin/$(AGENT) ./cmd/agent
+	go build -o bin/$(GATEWAY) ./cmd/gateway
 
 run-agent: build
 	ADINKHEPRA_AGENT_PORT=45444 ./bin/$(AGENT)
+
+run-gateway: build
+	./bin/$(GATEWAY) -addr=:8443 -debug
+
+run-gateway-learning: build
+	./bin/$(GATEWAY) -addr=:8443 -debug -learning
 
 
 secure-build:
 	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -mod=vendor -o bin/$(APP).exe ./cmd/adinkhepra
 	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -mod=vendor -o bin/$(AGENT).exe ./cmd/agent
+	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -mod=vendor -o bin/$(GATEWAY).exe ./cmd/gateway
 
 # ECR-02: FIPS 140-3 Compliance Build (DoD Iron Bank)
 # This builds with BoringCrypto (FIPS-validated cryptography module)
