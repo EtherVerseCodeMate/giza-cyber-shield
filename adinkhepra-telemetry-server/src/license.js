@@ -59,7 +59,12 @@ export async function handleLicenseValidate(request, env, corsHeaders) {
 				expires_at,
 				revoked,
 				license_tier,
-				max_devices
+				revoked,
+				license_tier,
+				max_devices,
+				max_concurrent_scans,
+				retention_days,
+				ai_credits_monthly
 			FROM licenses
 			WHERE machine_id = ? AND revoked = 0
 		`).bind(machine_id).first();
@@ -130,6 +135,12 @@ export async function handleLicenseValidate(request, env, corsHeaders) {
 			expires_at: expiresAt ? new Date(expiresAt * 1000).toISOString() : null,
 			issued_at: new Date(license.issued_at * 1000).toISOString(),
 			validated_at: new Date(now * 1000).toISOString(),
+			limits: {
+				max_devices: license.max_devices,
+				max_concurrent_scans: license.max_concurrent_scans,
+				retention_days: license.retention_days,
+				ai_credits_monthly: license.ai_credits_monthly
+			},
 			validation_server: 'telemetry.souhimbou.org',
 			client_country: country,
 			legal_notice: 'This software contains proprietary algorithms protected under 18 U.S.C. § 1831-1839. Unauthorized use prohibited.'
@@ -454,11 +465,11 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 
 		// Create new license
 		await env.DB.prepare(`
-			INSERT INTO licenses (
 				machine_id, organization, features, license_tier,
 				issued_at, expires_at, max_devices, revoked, validation_count,
-				enrollment_token_id, hostname, platform, agent_version
-			) VALUES (?, ?, ?, ?, ?, ?, 1, 0, 0, ?, ?, ?, ?)
+				enrollment_token_id, hostname, platform, agent_version,
+				max_concurrent_scans, retention_days, ai_credits_monthly
+			) VALUES (?, ?, ?, ?, ?, ?, 1, 0, 0, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT(machine_id) DO UPDATE SET
 				organization = excluded.organization,
 				features = excluded.features,
@@ -479,7 +490,12 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 			enrollment.id,
 			hostname || 'unknown',
 			platform || 'unknown',
-			agent_version || 'unknown'
+			platform || 'unknown',
+			agent_version || 'unknown',
+			// Set limits based on tier (hardcoded mapping for now)
+			(enrollment.license_tier === 'business') ? 50 : (enrollment.license_tier === 'pro') ? 20 : 5,
+			(enrollment.license_tier === 'business') ? 30 : (enrollment.license_tier === 'pro') ? 7 : 1,
+			(enrollment.license_tier === 'business') ? 500 : (enrollment.license_tier === 'pro') ? 150 : 50
 		).run();
 
 		// Increment registration count
@@ -680,7 +696,12 @@ export async function handleLicenseIssue(request, env, corsHeaders, admin) {
 			features,
 			license_tier,
 			expires_in_days,
-			max_devices
+			license_tier,
+			expires_in_days,
+			max_devices,
+			max_concurrent_scans,
+			retention_days,
+			ai_credits_monthly
 		} = await request.json();
 
 		if (!machine_id || !organization) {
@@ -699,8 +720,9 @@ export async function handleLicenseIssue(request, env, corsHeaders, admin) {
 		await env.DB.prepare(`
 			INSERT INTO licenses (
 				machine_id, organization, features, license_tier,
-				issued_at, expires_at, max_devices, revoked, validation_count
-			) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0)
+				issued_at, expires_at, max_devices, revoked, validation_count,
+				max_concurrent_scans, retention_days, ai_credits_monthly
+			) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?)
 			ON CONFLICT(machine_id) DO UPDATE SET
 				organization = excluded.organization,
 				features = excluded.features,
@@ -715,7 +737,10 @@ export async function handleLicenseIssue(request, env, corsHeaders, admin) {
 			license_tier || 'dod_premium',
 			now,
 			expiresAt,
-			max_devices || 1
+			max_devices || 1,
+			max_concurrent_scans || 5,
+			retention_days || 1,
+			ai_credits_monthly || 50
 		).run();
 
 		// Log issuance with admin username

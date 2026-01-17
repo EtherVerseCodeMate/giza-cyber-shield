@@ -1,0 +1,145 @@
+The artificial intelligence (AI) is a broad field that embraces many technologies, but at its core, the term AI revolves around systems that can perform tasks usually involving human intelligence: recognizing objects and sounds, reading, writing, making assumptions and predictions, and more.
+
+  
+
+Some tasks are easy for a human brain, but rather difficult for a computer. For example, distinguishing between a cat and a dog was impossible for a computer in the 90s, because at that time, machines relied mostly on programming, and writing a program that would explain to a machine all the differences between a cat and a dog was a complex endeavor.
+
+
+However, it was efficient to create algorithms that would let computers find patterns in data on their own. These computer capabilities are called machine learning. For more complicated tasks, such as learning patterns in unstructured data like images and text, machine learning uses neural networks—a cornerstone technology in the artificial intelligence nowadays.
+
+A neural network is a mathematical model that processes data through functions called neurons. It performs complex calculations to define the features and patterns in data and generate predictions or decisions based on the learned patterns. As neural networks are organized in layers that may go very deep, this process is called deep learning.
+
+Deep learning requires high computing capacity, and it became possible thanks to the evolution of processing units. All this finally enabled computers to recognize patterns in unstructured data, including images, sounds, and language.
+
+For instance, neural networks specialized in image analysis have long been part of digital forensics tools, including Belkasoft X. They help automatically detect and categorize pictures with objects of interest, including faces, guns, pornography, and more.
+
+Now, let us look into the inner workings of the large language model (LLM)—one of today's go-to AI technologies used by many. 
+
+A model, in a general sense, is a simplified representation of a real-life phenomenon, and it is used in many fields. Models can be physical or abstract, and their purpose is to help us understand or predict the behavior of the original.
+
+But how can you model something as complex and multifaceted as a human language? How can you encode its structures and nuances for a computer to understand? Well, it takes huge amounts of text, a large neural network, and multiple training iterations.
+
+Training
+Here is a simplified workflow of the large language model (LLM) training phase:
+
+First, the text is split into units called tokens (which may be parts of words, whole words, or short phrases, depending on the model and language).
+During training, the model processes these tokens and learns statistical patterns and relationships among them (often via self-attention).
+Each token is assigned a numerical vector (embedding), and through many training updates, these embeddings and the model’s other parameters come to capture the meaning and other properties of the text.
+
+
+Training on large text datasets allows LLMs to learn many different contexts and establish a versatile model of human language and, to some degree, knowledge.
+
+Inference
+After training, using the model is called inference. The LLM turns your input into tokens, looks up their embeddings, and runs various computational tasks to produce a probability distribution for the next token.
+
+For text generation, the model considers the current context (your input plus anything it has already generated), predicts the most likely next token, adds it to the context, and repeats until a stop condition. 
+
+
+
+The text you give the model to start (your question, instructions, or examples) is the prompt. The prompt sets the task and guides the response.
+
+Many LLMs use a decoding mechanism that introduces controlled randomness when choosing the next token. Instead of always picking the single most likely option, the mechanism selects from several candidates according to their probabilities. This helps avoid repetitive loops, makes text feel more natural, and allows for multiple valid answers to the same prompt. The amount of randomness is adjustable (often via a temperature setting): lower values make outputs more consistent, higher values make them more diverse.
+
+Usage
+Large language models are usually good at the following tasks:
+
+Creating human-like text based on prompts
+Providing answers to questions
+Condensing long texts into shorter summaries while retaining the main points
+Determining the sentiment or emotional tone of a text
+And even reasoning
+LLMs have become the core AI technology not just because of their ability to understand and generate text, but because they serve as a bridge between humans and other types of AI. Whether you’re working with speech recognition, computer vision, or structured data, the LLM often sits at the center. It interprets your input, makes sense of it in context, and presents the output in a way that’s easy for humans to understand. This ability to translate between different AI systems and human language is what makes LLMs so powerful and versatile.
+
+Watch a video on LLM in a nutshell.
+
+
+Automatic speech recognition is another widely used technology nowadays. It turns spoken audio into written text, either in real time (live captions, voice typing) or in batches (voice messages, meeting recordings, voicemail). 
+
+ASR models are trained on large sets of speech recordings paired with exact transcripts:
+
+The audio is converted into simple time-based patterns so it can be analyzed consistently.
+The sound component learns how these patterns correspond to letters, word pieces, or words, while the language component learns which word sequences are most likely in natural language (for example, common phrases and grammar).
+Over many rounds, the system adjusts its internal settings to reduce errors and also learns useful extras such as punctuation, capitalization, and coping with noise and accents.
+During inference, the ASR system converts new pieces of speech in the following steps:
+
+Detects the recording parts that contain spoken words, and converts the signal into the same kind of patterns used in training. 
+Proposes likely text units and checks which choices make sense with the sentence so far.
+A decoding mechanism selects the best option step by step as audio arrives or after the full recording is available. 
+Finally, it tidies the output by adding punctuation and capitalization, formatting numbers and dates, and other detected features.
+
+Most classic AI systems are single-modality: an LLM works over text; an ASR model works over audio. Modern systems are increasingly multimodal—they can take in (and sometimes output) text, images, audio, video, or sensor streams. This matters because many real-world tasks combine signals: describing a picture, answering questions about a chart, translating speech in a video, or summarizing a meeting recording with slides.
+
+Different modalities look nothing alike (pixels, waves, words), but computers only “speak” numbers. The core trick is to encode each modality into a vector representation (embeddings) that preserves meaning and then align these representations so they can interact, either inside one model or across a pipeline. Contrastive alignment (image↔text) and LLM-conditioning over visual/audio features are two widely used routes.
+
+How it actually works:
+
+Encoders turn raw inputs into embeddings:
+Images → patch embeddings (visual tokens)
+Audio → time-frequency features → acoustic embeddings
+Text → token embeddings
+Alignment makes embeddings comparable/compatible:
+Simple projection layers (linear “connector”) map one space to another.
+Cross-attention lets text tokens attend to visual/audio tokens and vice versa.
+Training uses paired data (image–text, audio–text, etc.) so the model learns that “these vectors go with these words.”
+Generation or decision:
+A decoder (often an LLM) conditions on the aligned embeddings and the user prompt to produce text, or a classifier makes a decision.
+Example: Image captioning
+During the training:
+
+Learn to see: A vision encoder splits an image into patches and turns them into visual tokens—compact embeddings that capture patterns and positions (numbers, not raw pixels).
+
+Learn to talk about what it sees: A small connector (projection/adapter) maps those visual embeddings into the language model’s token/embedding space, or the LLM is given cross-attention so it can attend to the visual tokens while generating text.
+
+Practice following instructions: Fine-tune on paired image–text tasks (captions, Q&A, instructions), so the system learns to respond naturally to prompts about images.
+
+During inference:
+
+Encode the image: Produce visual tokens/embeddings.
+
+Bridge to the LLM: Pass visual embeddings through the learned connector or cross-attention so they sit alongside the prompt tokens.
+
+Generate the caption: The LLM attends to the relevant visual tokens and emits text token by token.
+
+AI systems are trained on large datasets—text, images, audio, video, tabular data, logs, sensor streams. During training, raw signals are converted into numerical representations (embeddings) and optimized to predict a target (classify or describe an image, transcribe speech, forecast demand, plan an action, generate text, and so on). 
+
+However, AI tools come with important caveats:
+
+Sounds sure, but can be wrong. Generative models may “make things up,” while image captioning can misinterpret similar objects.
+
+Gets out of date. Models are trained on past data. When the world changes (new slang, new fraud patterns, new laws), accuracy drops.
+
+Touchy about small changes. Tiny edits to a prompt or settings can lead to very different answers. Results are not always repeatable.
+
+Struggles with strict logic. Without calculators, tools, or solid grounding, models can fumble with multi-step math and cause-and-effect.
+
+Cannot cite by itself. Unless you connect it to documents or a search tool, it will not reliably tell you where facts came from.
+
+Reflects data bias. If the training data is uneven, performance can vary across accents, demographics, or niche domains.
+
+Privacy and security risks. What you type may be stored or shared, depending on the product. Attacks are possible (e.g., prompt tricks, data leaks).
+
+Costs time, money, and power. Big models and audio/video pipelines can be expensive to run, slower at scale, and energy-hungry.
+
+What this means in practice:
+
+Keep a human in the loop. For high-stakes work, have a person review the output. Decide upfront what “good enough” looks like.
+
+Tie answers to your sources. Let the model look things up in your documents or tools.
+
+Test and watch it over time. Run regular checks, watch for quality drift, verify confidence scores, and keep audit logs.
+
+Deploy it the smart way. Choose where it runs (locally vs cloud).
+
+Traditional digital forensics tools help handle the overwhelming amount of data as they automate many tasks. They streamline the acquisition of data, decryption, and extraction of digital evidence. However, after data is extracted and presented in an easy-to-use interface, there are still thousands of artifacts that need to be carefully examined.
+
+And the part where AI is needed the most is the field of media file and textual content analysis, which in many cases takes hours of manual examination.
+
+Traditional digital forensics tools are good at parsing structured data sources like file systems, databases, and various proprietary data storage formats, but when it comes to working with more abstract content like pictures, audio, and language, AI is a much better assistant:
+
+Large language model: Devices involved in digital forensic investigations typically include years of text records in messengers, emails, notes, documents, logs, and other files. LLMs can help analyze these immense volumes to detect topics of interest for your investigations, do sentiment analysis, and much more.
+Image captioning: While automatic picture classification helps quickly narrow down the scope of analysis, the number of categories is usually limited, and the process still requires a lot of the investigator's attention. Classification works great for triage, but when you need a more precise overview, image captioning can be a deal breaker. Pictures can capture a location, or even just a subtle clue in the background—a clock on the wall, a logo on a shirt, or a reflection in a mirror—and a multimodal LLM can transform all these details into searchable text. The LLM will also allow you to look for precise scenes ("a boy near a gas station"), people with certain appearance traits ("a bold white male wearing glasses"), and other combinations of details.
+Automatic speech recognition: With the growing usage of voice messages, speech-to-text conversion becomes an indispensable part of a digital forensics toolkit. Instead of listening to hours of conversation, you can quickly scan transcripts for keywords. And if you also have an LLM, you can use natural-language queries to perform sentiment analysis and look for specific evidence in audio communication records.
+AI does not replace core forensic tooling; it augments it. By converting images, audio, and long-form text into searchable signals, AI shortens review cycles, reduces human fatigue, and helps investigators focus their expertise where it matters most: interpreting findings and building defensible conclusions.
+
+Watch a video on why DFIR needs AI.
+
