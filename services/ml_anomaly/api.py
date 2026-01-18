@@ -167,6 +167,41 @@ async def get_dag_visualize():
         logger.error(f"DAG Export Failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/v1/compliance/cmmc")
+async def get_cmmc_status():
+    """
+    Returns the CMMC Level 2 Compliance Scorecard.
+    Calls 'khepra compliance status' or mocks data.
+    """
+    # Mock for MVP Dashboard Development
+    return {
+        "score": 78.5,
+        "level": "Level 2 (In Progress)",
+        "controls": {
+            "total": 110,
+            "passing": 86,
+            "failing": 24
+        },
+        "domains": {
+            "AC": {"score": 80, "status": "WARN"},
+            "AU": {"score": 60, "status": "FAIL"},
+            "SC": {"score": 90, "status": "PASS"},
+            "IR": {"score": 100, "status": "PASS"}
+        }
+    }
+
+@app.get("/api/v1/ir/playbooks")
+async def get_ir_playbooks():
+    """
+    Returns available Incident Response Playbooks.
+    """
+    # Mock Playbooks
+    return [
+        {"id": "pb-001", "name": "Isolate Host (Windows)", "risk_level": "CRITICAL", "type": "Automated"},
+        {"id": "pb-002", "name": "Block IP (Firewall)", "risk_level": "HIGH", "type": "Automated"},
+        {"id": "pb-003", "name": "Forensic Snapshot Capture", "risk_level": "MEDIUM", "type": "Manual"}
+    ]
+
 @app.get("/")
 async def root():
     return {
