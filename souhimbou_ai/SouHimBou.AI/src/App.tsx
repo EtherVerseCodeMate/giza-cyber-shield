@@ -30,6 +30,7 @@ import SimpleBilling from "./pages/SimpleBilling";
 import DoD from "./pages/DoD";
 import MasterAdmin from "./pages/MasterAdmin";
 import ClientPortal from "./pages/ClientPortal";
+import UltimateDashboard from "./pages/UltimateDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -66,7 +67,7 @@ const App = () => {
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/onboarding" element={<Onboarding />} />
-                  
+
                   {/* STIG-First MVP Routes */}
                   <Route path="/stig-dashboard" element={<ProtectedRoute><STIGDashboard /></ProtectedRoute>} />
                   <Route path="/dashboard" element={<ProtectedRoute><STIGDashboard /></ProtectedRoute>} />
@@ -74,10 +75,11 @@ const App = () => {
                   <Route path="/compliance-reports" element={<ProtectedRoute><ComplianceReports /></ProtectedRoute>} />
                   <Route path="/evidence-collection" element={<ProtectedRoute><EvidenceCollectionMVP /></ProtectedRoute>} />
                   <Route path="/billing" element={<ProtectedRoute><SimpleBilling /></ProtectedRoute>} />
-                  
+                  <Route path="/ultimate" element={<ProtectedRoute><UltimateDashboard /></ProtectedRoute>} />
+
                   {/* DoD STIG-Codex Center */}
                   <Route path="/dod" element={<ProtectedRoute><DoD /></ProtectedRoute>} />
-                  
+
                   {/* Admin Routes */}
                   <Route path="/admin" element={<ProtectedRoute><MasterAdmin /></ProtectedRoute>} />
 
