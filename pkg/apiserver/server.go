@@ -15,13 +15,13 @@ import (
 
 // Server represents the Khepra API server
 type Server struct {
-	router    *gin.Engine
-	wsHub     *WebSocketHub
-	dagStore  DAGStore
-	licMgr    LicenseManager
-	config    *Config
-	startTime time.Time
-	version   string
+	router     *gin.Engine
+	wsHub      *WebSocketHub
+	dagStore   DAGStore
+	licMgr     LicenseManager
+	config     *Config
+	startTime  time.Time
+	version    string
 	httpServer *http.Server
 }
 
