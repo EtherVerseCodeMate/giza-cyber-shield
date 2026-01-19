@@ -51,16 +51,42 @@ primary_region = "iad" # US East (Ashburn, VA)
   protocol = "http"
 
 # Secrets (set via `fly secrets set`)
-# FLY_API_TOKEN - Fly.io API token
-# SUPABASE_URL - Supabase project URL
-# SUPABASE_KEY - Supabase anon key
-# STRIPE_SECRET_KEY - Stripe secret key (for billing)
-# OPENAI_API_KEY - OpenAI API key (for Papyrus LLM)
+# These secrets are required for full functionality
+# Set them before deploying with: fly secrets set KEY=value
+
+# Supabase (Database & Auth)
+# SUPABASE_URL - Supabase project URL (e.g., https://xxxxx.supabase.co)
+# SUPABASE_ANON_KEY - Supabase anon/public key (starts with eyJ...)
+# SUPABASE_SERVICE_KEY - Supabase service role key (for admin operations)
+
+# Stripe (Billing & Payments)
+# STRIPE_SECRET_KEY - Stripe secret key (sk_live_... or sk_test_...)
+# STRIPE_WEBHOOK_SECRET - Stripe webhook signing secret (whsec_...)
+
+# OpenAI (Papyrus LLM)
+# OPENAI_API_KEY - OpenAI API key for GPT models (sk-...)
+
+# Telemetry Server
+# TELEMETRY_SERVER_URL - URL of adinkhepra-telemetry-server (default: http://localhost:3001)
+# TELEMETRY_ADMIN_TOKEN - Admin token for telemetry API access
+
+# License Management
+# LICENSE_MASTER_PUBLIC_KEY - ML-DSA-65 public key for license verification (hex encoded)
+
+# Optional: LLM Alternatives
+# OLLAMA_URL - Ollama server URL if using local LLM (default: http://localhost:11434)
+# ANTHROPIC_API_KEY - Claude API key if using Anthropic
 
 # Deploy commands:
 # fly launch --no-deploy  # Initial setup
-# fly secrets set SUPABASE_URL=https://xxx.supabase.co
-# fly secrets set SUPABASE_KEY=eyJxxx
+# fly secrets set SUPABASE_URL=https://xxxxx.supabase.co
+# fly secrets set SUPABASE_ANON_KEY=eyJhbGc...
+# fly secrets set SUPABASE_SERVICE_KEY=eyJhbGc...
+# fly secrets set STRIPE_SECRET_KEY=sk_live_...
+# fly secrets set STRIPE_WEBHOOK_SECRET=whsec_...
+# fly secrets set OPENAI_API_KEY=sk-...
+# fly secrets set TELEMETRY_SERVER_URL=https://telemetry.souhimbou.ai
+# fly secrets set LICENSE_MASTER_PUBLIC_KEY=<hex_encoded_public_key>
 # fly deploy  # Deploy the app
 # fly logs  # View logs
 # fly ssh console  # SSH into the machine
