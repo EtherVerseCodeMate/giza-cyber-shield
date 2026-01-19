@@ -11,12 +11,30 @@
 
 The Khepra Protocol licensing system integrates **Ancient Egyptian cosmology** with modern security and business models:
 
-- **1 Node = 1 License** — Each DAG node created consumes one unit from the license quota
+- **1 License = 1 Merkaba** — Each license provisions a complete Merkaba (rotating cube) that houses the organization's DAG, organized along the Sephirot Tree path
 - **4 License Tiers** — Khepri (Scout), Ra (Hunter), Atum (Hive), Osiris (Pharaoh)
-- **Sephirot Access Control** — Tiers unlock access to higher Tree of Life levels
-- **Hypercube Fates** — Node states mapped to Egyptian afterlife outcomes
-- **Merkaba Billing** — Tri-polar pricing (Sun/Earth/Seed) based on consumption
-- **Shu Breath** — Air-gapped offline licensing for Pharaoh tier
+  - **Khepri (Scout)**: $50/mo, 1 node, Malkuth/Yesod access (Khepri, Ptah authority)
+  - **Ra (Hunter)**: $500/mo, 3 nodes, through Tiphereth (7 deity authorities)
+  - **Atum (Hive)**: $2,000/mo, 10 nodes, through Chesed (8 deity authorities)
+  - **Osiris (Pharaoh)**: Custom pricing, unlimited nodes, full Sephirot access (all deities)
+- **Sephirot Access Control** — Each tier unlocks progressively higher Tree of Life levels
+  - Malkuth (Raw Events) & Yesod (Agent Action) → Scout tier
+  - Through Tiphereth (Finding) → Hunter tier
+  - Through Chesed (Asset) → Hive tier
+  - Full Sephirot tree (Keter) → Pharaoh tier
+- **Node-to-Deity Mapping** — 10 Egyptian deities govern Sephirot access:
+  - Khepri (Malkuth - Birth), Ptah (Yesod - Foundation), Anubis (Hod - Proof)
+  - Isis (Netzach - Healing), Ma'at (Tiphereth - Balance), Horus (Geburah - Severity)
+  - Ra (Chesed - Abundance), Thoth (Binah - Understanding), Osiris (Chokmah - Wisdom)
+  - Atum (Keter - Crown)
+- **Merkaba Tri-Polar Revenue Model** — Hybrid billing based on three dimensions:
+  - **Sun** ☀️ (Active Threats): $0.10/scan + $1.00/critical + $0.25/high + $0.05/medium
+  - **Earth** 🌍 (Assets Protected): $50/node + $5/SAN + $25/instance
+  - **Seed** ⚪ (Evidence/Storage): $0.01/GB-day + $10/report + $0.005/archive GB
+- **Hypercube Fates** — Node states (0-15) mapped to Egyptian afterlife outcomes
+  - State 0: Field of Reeds (Paradise)
+  - State 15: Ammit the Devourer (Critical alert)
+- **Shu Breath** — Air-gapped offline licensing for Pharaoh tier (365-day validity)
 
 ---
 
