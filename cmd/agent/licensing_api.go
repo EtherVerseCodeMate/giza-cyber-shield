@@ -152,9 +152,16 @@ func handleUpgradeLicense(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updatedLic, err := licenseManager.UpgradeLicense(licenseID, newTier)
+	err := licenseManager.UpgradeLicense(licenseID, newTier)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Fetch updated license
+	updatedLic, err := licenseManager.GetLicense(licenseID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -215,7 +222,7 @@ func handleCreateNode(w http.ResponseWriter, r *http.Request) {
 	// Note: node.ID will be computed by Store.Add() based on content hash
 
 	// CHECK LICENSE BEFORE CREATING NODE
-	nodeID := node.ComputeID() // Compute the content hash ID
+	nodeID := node.ComputeHash() // Compute the content hash ID
 	if err := dagLicenseEnforcer.CanCreateNode(licenseID, nodeID, nodeReq.Symbol, sephirotLevel); err != nil {
 		http.Error(w, fmt.Sprintf("license violation: %v", err), http.StatusForbidden)
 		return
@@ -303,18 +310,9 @@ func handleListNodesByLicense(w http.ResponseWriter, r *http.Request) {
 // BILLING ENDPOINTS
 // ============================================================================
 
-// handleGetMonthlyCost returns monthly billing for a license
-// GET /billing/{license_id}/monthly
 func handleGetMonthlyCost(w http.ResponseWriter, r *http.Request) {
 	licenseID := r.PathValue("license_id")
 
-	lic, err := licenseManager.GetLicense(licenseID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-
-	// Get license info
 	lic, err := licenseManager.GetLicense(licenseID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
