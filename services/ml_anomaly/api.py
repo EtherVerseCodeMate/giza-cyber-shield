@@ -108,6 +108,72 @@ class TrustConstellation(BaseModel):
     edges: List[DAGEdge]
     stats: dict
 
+
+# --- SouHimBou AGI Data Models ---
+
+class ChatRequest(BaseModel):
+    """Request for chat endpoint - replaces LLM chat."""
+    message: str = Field(..., description="User message to process")
+    context: Optional[Dict[str, str]] = Field(default=None, description="Additional context")
+    features: Optional[List[float]] = Field(default=None, description="Feature vector for anomaly context")
+
+
+class ChatResponse(BaseModel):
+    """Response from chat endpoint."""
+    message: str = Field(..., description="Generated response")
+    intent: str = Field(..., description="Classified intent")
+    confidence: float = Field(..., description="Classification confidence")
+    recommended_actions: List[str] = Field(default_factory=list, description="Suggested follow-up actions")
+    anomaly_context: Optional[Dict[str, float]] = Field(default=None, description="Anomaly info if applicable")
+
+
+class TaskRecommendationResponse(BaseModel):
+    """A single task recommendation."""
+    id: str
+    description: str
+    priority: str
+    symbol: str
+    reason: str
+    source: str
+    anomaly_score: float
+    confidence: float
+    cvss_score: Optional[float] = None
+    affected_systems: int = 1
+
+
+class RecommendTasksRequest(BaseModel):
+    """Request for task recommendations."""
+    anomaly_score: float = Field(0.0, description="Anomaly score from ML analysis")
+    source: str = Field("unknown", description="Source of analysis (sonar, forensics, etc.)")
+    intent: Optional[str] = Field(None, description="Security intent if from chat")
+    findings: List[Dict] = Field(default_factory=list, description="List of findings")
+    context: Optional[Dict] = Field(default=None, description="Additional context")
+
+
+class RecommendTasksResponse(BaseModel):
+    """Response with task recommendations."""
+    tasks: List[TaskRecommendationResponse]
+    total_count: int
+
+
+class PrioritizeRequest(BaseModel):
+    """Request for task prioritization."""
+    tasks: List[TaskRecommendationResponse]
+
+
+class PrioritizedTaskResponse(BaseModel):
+    """A prioritized task with score breakdown."""
+    task: TaskRecommendationResponse
+    composite_score: float
+    rank: int
+    score_breakdown: Dict[str, float]
+
+
+class PrioritizeResponse(BaseModel):
+    """Response with prioritized tasks."""
+    tasks: List[PrioritizedTaskResponse]
+
+
 # --- Startup/Shutdown ---
 
 @asynccontextmanager
@@ -310,10 +376,248 @@ async def trigger_training(request: TrainingRequest, background_tasks: Backgroun
     """Triggers the 'Awakening' (Retraining) process in the background."""
     if model_state["status"] == "TRAINING":
         raise HTTPException(status_code=409, detail="Training already in progress")
-    
+
     model_state["status"] = "TRAINING"
     background_tasks.add_task(run_training_task)
     return {"message": "Awakening Sequence Initiated", "estimated_duration": "2 minutes"}
+
+
+# --- SouHimBou AGI Endpoints (BabyAGI Pattern) ---
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    """
+    Process user chat message - replaces LLM-based chat.
+    Implements the conversational interface for SouHimBou AGI.
+
+    This is the primary endpoint for the KASA Commando chat interface,
+    providing security-focused responses without requiring an LLM.
+    """
+    try:
+        # 1. Classify intent
+        intent_result = intent_classifier.classify(request.message)
+        logger.info(f"Intent classified: {intent_result.intent.value} (confidence: {intent_result.confidence:.2f})")
+
+        # 2. Get anomaly context if features provided
+        anomaly_context = None
+        if request.features and model_instance and model_state["model_loaded"]:
+            try:
+                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                features_tensor = torch.tensor(request.features, dtype=torch.float32).unsqueeze(0).to(device)
+                with torch.no_grad():
+                    result = model_instance(features_tensor)
+                anomaly_context = {
+                    "anomaly_score": result["anomaly_score"].item(),
+                    "confidence": result["confidence"].item(),
+                }
+                model_state["last_anomaly_time"] = datetime.now().isoformat()
+            except Exception as e:
+                logger.warning(f"Anomaly context extraction failed: {e}")
+
+        # 3. Build response context
+        response_context = ResponseContext(
+            intent=intent_result.intent,
+            params=intent_result.extracted_params,
+            anomaly_score=anomaly_context.get("anomaly_score") if anomaly_context else None,
+            state="ack",
+            extra={
+                "ml_status": model_state["status"],
+                "engine_status": "ACTIVE",
+                "dag_status": "SYNCHRONIZED",
+                "sonar_status": "READY",
+                "queue_count": model_state.get("queue_count", 0),
+                "active_scans": model_state.get("active_scans", 0),
+                "last_anomaly_time": model_state.get("last_anomaly_time", "N/A"),
+                "soul_status": "STABLE" if model_state["soul_embedding"] else "FRAGMENTED",
+            }
+        )
+
+        # 4. Generate response
+        response_message = security_responder.generate_response(response_context)
+
+        # 5. Get task recommendations based on intent
+        analysis = AnalysisResult(
+            anomaly_score=anomaly_context.get("anomaly_score", 0) if anomaly_context else 0,
+            source="chat",
+            intent=intent_result.intent,
+            findings=[],
+            context=request.context or {},
+        )
+        recommendations = task_recommender.recommend_tasks(analysis)
+        recommended_actions = [r.description for r in recommendations[:3]]  # Top 3
+
+        return ChatResponse(
+            message=response_message,
+            intent=intent_result.intent.value,
+            confidence=intent_result.confidence,
+            recommended_actions=recommended_actions,
+            anomaly_context=anomaly_context,
+        )
+
+    except Exception as e:
+        logger.error(f"Chat processing error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/recommend_tasks", response_model=RecommendTasksResponse)
+async def recommend_tasks(request: RecommendTasksRequest):
+    """
+    Generate task recommendations from analysis results.
+    Called after scans, forensics, compliance checks.
+
+    Implements the "Task Creation Agent" from BabyAGI pattern.
+    """
+    try:
+        # Convert intent string to enum if provided
+        intent_enum = None
+        if request.intent:
+            try:
+                intent_enum = SecurityIntent(request.intent)
+            except ValueError:
+                pass  # Invalid intent, leave as None
+
+        # Build analysis result
+        analysis = AnalysisResult(
+            anomaly_score=request.anomaly_score,
+            source=request.source,
+            intent=intent_enum,
+            findings=request.findings,
+            context=request.context or {},
+        )
+
+        # Generate recommendations
+        recommendations = task_recommender.recommend_tasks(analysis)
+
+        # Convert to response format
+        task_responses = [
+            TaskRecommendationResponse(
+                id=r.id,
+                description=r.description,
+                priority=r.priority.value,
+                symbol=r.symbol.value,
+                reason=r.reason,
+                source=r.source,
+                anomaly_score=r.anomaly_score,
+                confidence=r.confidence,
+                cvss_score=r.cvss_score,
+                affected_systems=r.affected_systems,
+            )
+            for r in recommendations
+        ]
+
+        logger.info(f"Generated {len(task_responses)} task recommendations from {request.source}")
+
+        return RecommendTasksResponse(
+            tasks=task_responses,
+            total_count=len(task_responses),
+        )
+
+    except Exception as e:
+        logger.error(f"Task recommendation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/prioritize", response_model=PrioritizeResponse)
+async def prioritize_tasks(request: PrioritizeRequest):
+    """
+    Reorder task list by risk priority.
+    Called by KASA engine periodically.
+
+    Implements the "Prioritization Agent" from BabyAGI pattern.
+    """
+    try:
+        # Convert request tasks to TaskRecommendation objects
+        tasks = []
+        for t in request.tasks:
+            # Map priority string to enum
+            try:
+                priority = TaskPriority(t.priority)
+            except ValueError:
+                priority = TaskPriority.MEDIUM
+
+            # Map symbol string to enum (simplified - use EBAN as default)
+            from services.ml_anomaly.task_recommender import AdinkraSymbol
+            try:
+                symbol = AdinkraSymbol(t.symbol)
+            except ValueError:
+                symbol = AdinkraSymbol.EBAN
+
+            task = TaskRecommendation(
+                id=t.id,
+                description=t.description,
+                priority=priority,
+                symbol=symbol,
+                reason=t.reason,
+                source=t.source,
+                anomaly_score=t.anomaly_score,
+                confidence=t.confidence,
+                cvss_score=t.cvss_score,
+                affected_systems=t.affected_systems,
+            )
+            tasks.append(task)
+
+        # Prioritize
+        prioritized = task_prioritizer.prioritize(tasks)
+
+        # Convert to response format
+        response_tasks = []
+        for p in prioritized:
+            task_resp = TaskRecommendationResponse(
+                id=p.task.id,
+                description=p.task.description,
+                priority=p.task.priority.value,
+                symbol=p.task.symbol.value,
+                reason=p.task.reason,
+                source=p.task.source,
+                anomaly_score=p.task.anomaly_score,
+                confidence=p.task.confidence,
+                cvss_score=p.task.cvss_score,
+                affected_systems=p.task.affected_systems,
+            )
+            response_tasks.append(PrioritizedTaskResponse(
+                task=task_resp,
+                composite_score=p.composite_score,
+                rank=p.rank,
+                score_breakdown=p.score_breakdown,
+            ))
+
+        logger.info(f"Prioritized {len(response_tasks)} tasks")
+
+        return PrioritizeResponse(tasks=response_tasks)
+
+    except Exception as e:
+        logger.error(f"Task prioritization error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/agi/status")
+async def get_agi_status():
+    """
+    Returns SouHimBou AGI system status.
+    Provides visibility into the autonomous agent state.
+    """
+    return {
+        "service": "SouHimBou AGI",
+        "version": settings.service_version,
+        "status": model_state["status"],
+        "components": {
+            "intent_classifier": "ACTIVE",
+            "responder": "ACTIVE",
+            "task_recommender": "ACTIVE",
+            "prioritizer": "ACTIVE",
+            "anomaly_detector": "ACTIVE" if model_state["model_loaded"] else "UNTRAINED",
+        },
+        "soul_integrity": "STABLE" if model_state["soul_embedding"] else "FRAGMENTED",
+        "dominant_archetype": max(model_state["soul_embedding"], key=model_state["soul_embedding"].get) if model_state["soul_embedding"] else "None",
+        "last_anomaly_time": model_state.get("last_anomaly_time"),
+        "nist_ai_rmf": {
+            "govern": "IMPLEMENTED",
+            "map": "IMPLEMENTED",
+            "measure": "ACTIVE",
+            "manage": "ACTIVE",
+        },
+    }
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
