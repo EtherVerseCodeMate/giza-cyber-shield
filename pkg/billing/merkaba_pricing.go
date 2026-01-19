@@ -312,7 +312,7 @@ func PricingExample(tierName string, scans, criticals, nodes, gbDays int) {
 
 // ExampleHunterTierBilling demonstrates pricing for Hunter tier customer.
 func ExampleHunterTierBilling() {
-	fmt.Println(`
+	fmt.Print(`
 SCENARIO: Hunter Tier Customer
 ──────────────────────────────
 Base Tier:           $500/month
