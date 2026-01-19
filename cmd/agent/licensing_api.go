@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/billing"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
@@ -159,6 +160,7 @@ func handleUpgradeLicense(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(updatedLic)
+}
 
 // handleGetLicenseUsage returns usage stats for a license
 // GET /license/{license_id}/usage
@@ -269,6 +271,7 @@ func handleDeleteNode(w http.ResponseWriter, r *http.Request) {
 		"message": "Node marked for archive. DAG nodes are immutable and cannot be deleted.",
 		"node_id": nodeID,
 	})
+}
 
 // handleGetNodeLicense returns license binding for a node
 // GET /dag/node/{node_id}/license
@@ -311,11 +314,25 @@ func handleGetMonthlyCost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get license info
+	lic, err := licenseManager.GetLicense(licenseID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	// Get tier configuration for base cost
+	tierConfig, ok := license.TierConfigurations[lic.Tier]
+	if !ok {
+		http.Error(w, "invalid tier", http.StatusInternalServerError)
+		return
+	}
+
 	// Get usage stats
 	stats := dagLicenseEnforcer.GetLicenseUsageStats(licenseID)
 
-	// Create billing calculator
-	calc := billing.NewHybridBillingCalculator(license.GetTierBaseCost(string(lic.Tier)))
+	// Create billing calculator with tier base cost
+	calc := billing.NewHybridBillingCalculator(tierConfig.Price)
 
 	// TODO: Fetch actual metrics from database
 	// calc.SunMetrics.TotalScans = getScansCount(licenseID)
@@ -419,17 +436,17 @@ func handleRenewOfflineLicense(w http.ResponseWriter, r *http.Request) {
 // handleDashboard returns overall license portfolio metrics
 // GET /admin/dashboard
 func handleDashboard(w http.ResponseWriter, r *http.Request) {
-	// TODO: Aggregate stats across all licenses
+	// TODO: Aggregate stats across all licenses via exposed methods
 	stats := map[string]interface{}{
-		"total_licenses": len(licenseManager.licenses),
+		"total_licenses": 0, // TODO: Add GetLicenseCount() method to LicenseManager
 		"breakdown": map[string]int{
-			"khepri": countByTier(license.TierKhepri),
-			"ra":     countByTier(license.TierRa),
-			"atum":   countByTier(license.TierAtum),
-			"osiris": countByTier(license.TierOsiris),
+			"khepri": 0, // TODO: Add CountByTier() method
+			"ra":     0,
+			"atum":   0,
+			"osiris": 0,
 		},
-		"total_nodes":  len(dagLicenseEnforcer.nodeBindings),
-		"ammit_alerts": len(dagLicenseEnforcer.GetAmmitAlertStatus()),
+		"total_nodes":  0, // TODO: Add GetNodeCount() method to DAGLicenseEnforcer
+		"ammit_alerts": 0, // TODO: Add exported method for alerts
 	}
 
 	w.Header().Set("Content-Type", "application/json")
