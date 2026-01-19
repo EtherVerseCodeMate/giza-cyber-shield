@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, AlertTriangle, Activity, Eye, MessageSquare } from "lucide-react";
+import { Shield, AlertTriangle, Activity, Eye, MessageSquare, Settings } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 // Import sovereignty modules
@@ -9,11 +9,13 @@ import ExecutiveSovereignty from "@/components/dashboard/ExecutiveSovereignty";
 import ComplianceSovereignty from "@/components/dashboard/ComplianceSovereignty";
 import SecOpsSovereignty from "@/components/dashboard/SecOpsSovereignty";
 import IntelligenceSovereignty from "@/components/dashboard/IntelligenceSovereignty";
+import AdminSovereignty from "@/components/dashboard/AdminSovereignty";
 import PapyrusWizard from "@/components/dashboard/PapyrusWizard";
 
 const UltimateDashboard = () => {
     const [activeTab, setActiveTab] = useState("executive");
     const [papyrusOpen, setPapyrusOpen] = useState(false);
+    const [dagData, setDagData] = useState<any>(null);
 
     // Fetch dashboard health status
     const { data: healthStatus } = useQuery({
@@ -24,6 +26,35 @@ const UltimateDashboard = () => {
         },
         refetchInterval: 30000, // Refresh every 30s
     });
+
+    // WebSocket connection for real-time DAG updates
+    useEffect(() => {
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const wsUrl = `${protocol}//${window.location.host}/ws/dag`;
+
+        const ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            console.log("WebSocket connected for real-time DAG updates");
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            setDagData(data);
+        };
+
+        ws.onerror = (error) => {
+            console.error("WebSocket error:", error);
+        };
+
+        ws.onclose = () => {
+            console.log("WebSocket disconnected");
+        };
+
+        return () => {
+            ws.close();
+        };
+    }, []);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
@@ -46,6 +77,14 @@ const UltimateDashboard = () => {
                                     {healthStatus?.status || "INITIALIZING"}
                                 </span>
                             </div>
+                            {dagData && (
+                                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800/50 border border-slate-700">
+                                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                                    <span className="text-sm text-slate-300">
+                                        Live: {dagData.stats?.nodes || 0} nodes
+                                    </span>
+                                </div>
+                            )}
                             <button
                                 onClick={() => setPapyrusOpen(!papyrusOpen)}
                                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 transition-all"
@@ -61,7 +100,7 @@ const UltimateDashboard = () => {
             {/* Main Content */}
             <div className="container mx-auto px-6 py-8">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                    <TabsList className="grid w-full grid-cols-4 bg-slate-900/50 border border-slate-800">
+                    <TabsList className="grid w-full grid-cols-5 bg-slate-900/50 border border-slate-800">
                         <TabsTrigger value="executive" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-600 data-[state=active]:to-blue-600">
                             <Shield className="w-4 h-4 mr-2" />
                             Executive
@@ -77,6 +116,10 @@ const UltimateDashboard = () => {
                         <TabsTrigger value="intelligence" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600">
                             <Eye className="w-4 h-4 mr-2" />
                             Intelligence
+                        </TabsTrigger>
+                        <TabsTrigger value="admin" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-slate-700">
+                            <Settings className="w-4 h-4 mr-2" />
+                            Admin
                         </TabsTrigger>
                     </TabsList>
 
@@ -94,6 +137,10 @@ const UltimateDashboard = () => {
 
                     <TabsContent value="intelligence" className="space-y-6">
                         <IntelligenceSovereignty />
+                    </TabsContent>
+
+                    <TabsContent value="admin" className="space-y-6">
+                        <AdminSovereignty />
                     </TabsContent>
                 </Tabs>
             </div>
