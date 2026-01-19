@@ -1,0 +1,273 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Khepra DAG Node Schema",
+  "description": "Sacred Geometry-aligned DAG node definition for Giza Cyber Shield",
+  "version": "1.0.0",
+
+  "definitions": {
+    "NodeType": {
+      "type": "string",
+      "enum": [
+        "meta_governance",
+        "strategic_control",
+        "tactical_control",
+        "asset",
+        "threat",
+        "finding",
+        "remediation",
+        "attestation",
+        "agent_action",
+        "raw_event"
+      ],
+      "description": "Sephirot-aligned node type hierarchy (Keter → Malkuth)"
+    },
+
+    "NodePolarity": {
+      "type": "string",
+      "enum": [
+        "sun",
+        "earth",
+        "seed"
+      ],
+      "description": "Merkaba polarity (Sun=Active/Threat, Earth=Passive/Protection, Seed=Neutral/Observation)"
+    },
+
+    "NodeState": {
+      "type": "object",
+      "properties": {
+        "severity": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"],
+          "description": "Severity level (Hypercube bit 3)"
+        },
+        "verified": {
+          "type": "boolean",
+          "description": "Cryptographically verified (Hypercube bit 2)"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["open", "in_progress", "remediated", "accepted_risk", "false_positive"],
+          "description": "Remediation status (Hypercube bit 1)"
+        },
+        "lifecycle": {
+          "type": "string",
+          "enum": ["live", "archived", "expired"],
+          "description": "Lifecycle state (Hypercube bit 0)"
+        },
+        "state_code": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15,
+          "description": "4-bit Hypercube vertex encoding"
+        }
+      },
+      "required": ["severity", "verified", "status", "lifecycle"]
+    },
+
+    "SephirotMetadata": {
+      "type": "object",
+      "properties": {
+        "sephira": {
+          "type": "string",
+          "enum": [
+            "Keter",
+            "Chokmah",
+            "Binah",
+            "Chesed",
+            "Geburah",
+            "Tiphereth",
+            "Netzach",
+            "Hod",
+            "Yesod",
+            "Malkuth"
+          ],
+          "description": "Tree of Life position"
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Hierarchy level (1=Malkuth/bottom, 10=Keter/top)"
+        },
+        "path_to_keter": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Upward path through Tree of Life to root governance"
+        }
+      },
+      "required": ["sephira", "level"]
+    },
+
+    "EdgeType": {
+      "type": "string",
+      "enum": [
+        "causes",
+        "enables",
+        "requires",
+        "mitigates",
+        "remediates",
+        "attests",
+        "derives_from",
+        "implements",
+        "violates",
+        "complies_with",
+        "spawns",
+        "supersedes"
+      ],
+      "description": "Semantic relationship between nodes"
+    },
+
+    "EdgeWeight": {
+      "type": "object",
+      "properties": {
+        "strength": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Relationship strength (0=weak, 1=strong)"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Confidence in relationship (0=uncertain, 1=certain)"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "Processing priority (1=low, 5=critical)"
+        }
+      },
+      "required": ["strength", "confidence"]
+    }
+  },
+
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Content hash (SHA-256) or Adinkra-encoded ID"
+    },
+
+    "parents": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Parent node IDs (DAG links)"
+    },
+
+    "node_type": {
+      "$ref": "#/definitions/NodeType"
+    },
+
+    "polarity": {
+      "$ref": "#/definitions/NodePolarity"
+    },
+
+    "state": {
+      "$ref": "#/definitions/NodeState"
+    },
+
+    "sephirot": {
+      "$ref": "#/definitions/SephirotMetadata"
+    },
+
+    "action": {
+      "type": "string",
+      "description": "Human-readable action description"
+    },
+
+    "symbol": {
+      "type": "string",
+      "description": "Adinkra or Sacred Rune symbol (Unicode)"
+    },
+
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO8601 timestamp"
+    },
+
+    "attributes": {
+      "type": "object",
+      "description": "Type-specific attributes",
+      "properties": {
+        "asset": {
+          "type": "object",
+          "properties": {
+            "hostname": {"type": "string"},
+            "ip_address": {"type": "string"},
+            "asset_type": {"type": "string", "enum": ["host", "container", "vm", "service"]},
+            "classification": {"type": "string", "enum": ["unclassified", "cui", "secret", "top_secret"]}
+          }
+        },
+        "threat": {
+          "type": "object",
+          "properties": {
+            "cve_id": {"type": "string"},
+            "cvss_score": {"type": "number"},
+            "threat_actor": {"type": "string"},
+            "attack_vector": {"type": "string"}
+          }
+        },
+        "finding": {
+          "type": "object",
+          "properties": {
+            "stig_id": {"type": "string"},
+            "rule_id": {"type": "string"},
+            "check_content": {"type": "string"},
+            "fix_text": {"type": "string"},
+            "severity_override": {"type": "string"}
+          }
+        },
+        "control": {
+          "type": "object",
+          "properties": {
+            "control_id": {"type": "string"},
+            "framework": {"type": "string", "enum": ["NIST_800-53", "STIG", "CIS", "DISA"]},
+            "implementation_status": {"type": "string"}
+          }
+        },
+        "agent": {
+          "type": "object",
+          "properties": {
+            "agent_id": {"type": "string"},
+            "agent_type": {"type": "string"},
+            "trust_score": {"type": "number", "minimum": 0, "maximum": 1},
+            "cultural_context": {"type": "string"}
+          }
+        }
+      }
+    },
+
+    "pqc_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Post-Quantum Cryptography metadata"
+    },
+
+    "hash": {
+      "type": "string",
+      "description": "Content hash (immutability proof)"
+    },
+
+    "signature": {
+      "type": "string",
+      "description": "Dilithium signature (base64)"
+    }
+  },
+
+  "required": [
+    "id",
+    "node_type",
+    "polarity",
+    "state",
+    "sephirot",
+    "action",
+    "symbol",
+    "timestamp",
+    "hash"
+  ],
+
+  "additionalProperties": false
+}
