@@ -15,9 +15,9 @@ Four critical optimization tasks must be completed before proceeding with the So
 ## Optimization Tasks
 
 ### 1. LLM Model Size Decision
-**Status**: 🟡 Analysis Complete - Decision Required
-**Priority**: P0 - Critical
-**Blocks**: IronBank submission, air-gap strategy, container architecture
+**Status**: 🟢 RESOLVED - LLM is Optional, SouHimBou AGI is Core
+**Priority**: P0 - Critical (COMPLETE)
+**Blocks**: ~~IronBank submission, air-gap strategy, container architecture~~ UNBLOCKED
 
 #### Why This Matters
 | Model Size | IronBank Feasibility | Air-Gap Transfer | Container Strategy |
@@ -63,15 +63,26 @@ Four critical optimization tasks must be completed before proceeding with the So
 | **Cloud/Connected** | ✅ Include | ✅ Remote Ollama | Centralized LLM |
 | **Edge/Minimal** | ✅ Include | ❌ Heuristics only | No LLM required |
 
-#### Decision Required
-- [x] Document current model dependencies ✅ (See above)
-- [x] Identify model size requirements ✅ (270KB + 3-10GB)
-- [ ] **DECIDE**: Ship PHI4 (9GB) or GEMMA3 (3GB) for air-gap?
-- [ ] **DECIDE**: Is LLM optional or required for core functionality?
-- [ ] **DECIDE**: Single container with volume mount OR multi-container?
-- [ ] Determine quantization options (Q4_K_M reduces PHI4 to ~5GB)
-- [ ] Define minimum viable model for air-gap deployment
-- [ ] Establish model distribution strategy (IronBank artifact vs USB bundle)
+#### Final Decision (2026-01-19)
+
+| Question | Decision | Rationale |
+|----------|----------|-----------|
+| Ship PHI4 or GEMMA3? | **Neither for core** | LLM is optional add-on |
+| Is LLM required? | **NO - SouHimBou AGI replaces it** | BabyAGI-style agent provides chat + task management |
+| Container strategy? | **Multi-container, LLM optional sidecar** | Core product = Go API + Python ML only |
+| Air-gap model? | **None required for Community** | Pharaoh tier includes GEMMA3 as separate artifact |
+
+#### Completed Items
+- [x] Document current model dependencies ✅
+- [x] Identify model size requirements ✅ (270KB core, 3-10GB optional)
+- [x] **DECIDED**: LLM is optional - SouHimBou AGI provides chat/assistant
+- [x] **DECIDED**: Multi-container (LLM as optional sidecar)
+- [x] Quantization: N/A for core (GEMMA3 Q4 for Pharaoh tier only)
+- [x] Air-gap strategy: SouHimBou AGI (270KB) ships with all editions
+- [x] Distribution: IronBank = core containers only, LLM = separate artifact
+
+**Architecture Document**: [SOUHIMBOU_AGI_ARCHITECTURE.md](./SOUHIMBOU_AGI_ARCHITECTURE.md)
+**Integration Document**: [COMMUNITY_EDITION_INTEGRATION.md](./COMMUNITY_EDITION_INTEGRATION.md)
 
 ---
 
@@ -209,7 +220,7 @@ DoD customers have varied auth requirements:
 
 | Task | Owner | Started | Completed | Notes |
 |------|-------|---------|-----------|-------|
-| 1. LLM Model Size | TBD | - | - | |
+| 1. LLM Model Size | - | 2026-01-19 | 2026-01-19 | ✅ LLM optional, SouHimBou AGI is core |
 | 2. DAG Schema | TBD | - | - | |
 | 3. gRPC Bridge | TBD | - | - | |
 | 4. Auth Interface | TBD | - | - | |

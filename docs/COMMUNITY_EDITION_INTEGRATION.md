@@ -12,21 +12,35 @@ The Community Edition delivers a **complete, autonomous security platform** with
 
 ---
 
-## Strategic Decision: LLM is Optional
+## Strategic Decision: LLM is Optional, SouHimBou AGI is Core
 
-| Tier | LLM Status | SouHimBou ML | Core Features |
-|------|------------|--------------|---------------|
-| **Community** | Not included | ✅ Full | All features below |
-| **Enterprise** | Optional add-on | ✅ Full | + Priority support |
-| **Pharaoh** | Included (GEMMA3) | ✅ Full | + Air-gap deployment |
+| Tier | LLM Status | SouHimBou AGI | Core Features |
+|------|------------|---------------|---------------|
+| **Community** | Not included | ✅ Full AGI | All features below + chat |
+| **Enterprise** | Optional add-on | ✅ Full AGI | + Priority support |
+| **Pharaoh** | Included (GEMMA3) | ✅ Full AGI | + Air-gap + enhanced NLP |
 
 ### What This Means
 
-- **Core product works without any LLM**
+- **SouHimBou AGI replaces LLM** for chat and user assistance
 - **No 3-10GB model distribution problem**
 - **8GB RAM systems fully supported**
 - **IronBank submission simplified** (no Ollama container needed for core)
-- **SouHimBou ML (~270KB) ships with every edition**
+- **SouHimBou AGI (~270KB model) ships with every edition**
+- **BabyAGI-style autonomous agent capabilities** included free
+
+### SouHimBou AGI Capabilities (LLM-Free)
+
+| Capability | Implementation | Status |
+|------------|---------------|--------|
+| Chat/Assistant | Template + Rule-based | NEW |
+| Intent Classification | Keyword + Pattern matching | NEW |
+| Task Creation | ML + Rule engine | NEW |
+| Task Prioritization | Risk scoring (CVSS + Anomaly) | NEW |
+| Anomaly Detection | VAE + Isolation Forest | Existing |
+| Response Generation | Structured templates | NEW |
+
+See: [SOUHIMBOU_AGI_ARCHITECTURE.md](./SOUHIMBOU_AGI_ARCHITECTURE.md) for full design
 
 ---
 
