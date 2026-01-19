@@ -404,6 +404,122 @@ async def papyrus_chat(request: dict):
             "error": str(e)
         }
 
+# --- WebSocket for Real-time DAG Updates ---
+# Import WebSocket functionality
+from typing import List
+active_connections: List = []
+
+@app.websocket("/ws/dag")
+async def dag_websocket(websocket):
+    """WebSocket endpoint for real-time DAG updates."""
+    try:
+        from fastapi import WebSocket, WebSocketDisconnect
+        import asyncio
+        
+        await websocket.accept()
+        active_connections.append(websocket)
+        logger.info(f"WebSocket client connected. Total: {len(active_connections)}")
+        
+        # Send initial DAG state
+        initial_dag = await get_current_dag()
+        await websocket.send_json(initial_dag)
+        
+        # Keep connection alive and send updates
+        while True:
+            await asyncio.sleep(5)
+            dag_update = await get_current_dag()
+            await websocket.send_json(dag_update)
+            
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+    finally:
+        if websocket in active_connections:
+            active_connections.remove(websocket)
+
+async def get_current_dag() -> dict:
+    """Fetch current DAG state from Go CLI."""
+    try:
+        result = subprocess.run(
+            ["khepra", "engine", "dag", "export", "--json"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return json.loads(result.stdout)
+    except:
+        pass
+    return {"nodes": [], "edges": [], "stats": {"nodes": 0, "critical": 0}}
+
+# --- PDF Export for Compliance Reports ---
+@app.get("/api/v1/export/compliance-report")
+async def export_compliance_report():
+    """Generate PDF compliance report from current CMMC status."""
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.lib import colors
+        from reportlab.lib.enums import TA_CENTER
+        from reportlab.lib.units import inch
+        from io import BytesIO
+        from fastapi.responses import Response
+        
+        # Fetch compliance data
+        result = subprocess.run(
+            ["adinkhepra", "compliance", "status", "--json"],
+            capture_output=True,
+            text=True,
+            timeout=15
+        )
+        
+        compliance_data = json.loads(result.stdout) if result.returncode == 0 and result.stdout.strip() else {
+            "score": 0.0,
+            "level": "Unknown",
+            "controls": {"total": 110, "passing": 0, "failing": 0},
+            "domains": {}
+        }
+        
+        # Generate PDF
+        pdf_buffer = BytesIO()
+        doc = SimpleDocTemplate(pdf_buffer, pagesize=letter)
+        story = []
+        styles = getSampleStyleSheet()
+        
+        title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=24, textColor=colors.HexColor('#1e40af'), spaceAfter=30, alignment=TA_CENTER)
+        
+        story.append(Paragraph("CMMC Level 2 Compliance Report", title_style))
+        story.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+        story.append(Spacer(1, 0.5*inch))
+        
+        # Summary table
+        summary_data = [
+            ["Metric", "Value"],
+            ["Compliance Score", f"{compliance_data.get('score', 0)}%"],
+            ["CMMC Level", compliance_data.get('level', 'Unknown')],
+            ["Total Controls", str(compliance_data.get('controls', {}).get('total', 110))],
+        ]
+        
+        summary_table = Table(summary_data, colWidths=[3*inch, 3*inch])
+        summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e40af')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        story.append(summary_table)
+        
+        doc.build(story)
+        pdf_buffer.seek(0)
+        
+        return Response(
+            content=pdf_buffer.getvalue(),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=cmmc-report-{datetime.now().strftime('%Y%m%d')}.pdf"}
+        )
+    except Exception as e:
+        logger.error(f"PDF generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}")
+
 @app.get("/")
 async def root():
     return {

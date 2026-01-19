@@ -1,0 +1,75 @@
+# Fly.io deployment configuration for SouHimBou AI
+app = "souhimbou-ai"
+primary_region = "iad" # US East (Ashburn, VA)
+
+[build]
+  # Use Docker for build
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  PYTHONUNBUFFERED = "1"
+  # Environment variables for the application
+  FEATURE_DIM = "128"
+  HIDDEN_DIM = "64"
+  LATENT_DIM = "32"
+  MODEL_PATH = "/app/models/anomaly_detector.pth"
+  SECRET_DOCS_PATH = "/app/top_secret_intel"
+  CYBER_BRAIN_PATH = "/app/data/cyber_brain"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [[http_service.concurrency]]
+    type = "connections"
+    hard_limit = 250
+    soft_limit = 200
+
+[mounts]
+  # Persistent storage for models and data
+  source = "souhimbou_data"
+  destination = "/app/data"
+  initial_size = "10gb"
+
+[[vm]]
+  size = "shared-cpu-2x" # 2 vCPUs, 4GB RAM
+  memory = "4gb"
+  cpus = 2
+
+# Health checks
+[[services.http_checks]]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "10s"
+  method = "GET"
+  path = "/"
+  protocol = "http"
+
+# Secrets (set via `fly secrets set`)
+# FLY_API_TOKEN - Fly.io API token
+# SUPABASE_URL - Supabase project URL
+# SUPABASE_KEY - Supabase anon key
+# STRIPE_SECRET_KEY - Stripe secret key (for billing)
+# OPENAI_API_KEY - OpenAI API key (for Papyrus LLM)
+
+# Deploy commands:
+# fly launch --no-deploy  # Initial setup
+# fly secrets set SUPABASE_URL=https://xxx.supabase.co
+# fly secrets set SUPABASE_KEY=eyJxxx
+# fly deploy  # Deploy the app
+# fly logs  # View logs
+# fly ssh console  # SSH into the machine
+
+# Scaling:
+# fly scale count 2  # Scale to 2 machines
+# fly scale vm shared-cpu-4x  # Upgrade to 4 vCPUs
+# fly scale memory 8192  # Upgrade to 8GB RAM
+
+[metrics]
+  port = 9091
+  path = "/metrics"

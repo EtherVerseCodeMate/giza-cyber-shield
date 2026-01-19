@@ -1,47 +1,41 @@
-# STEP 1: Define the Iron Bank Base Image
-ARG BASE_REGISTRY=registry1.dso.mil
-ARG BASE_IMAGE=redhat/ubi/ubi9-minimal
-ARG BASE_TAG=latest
+# Dockerfile for Fly.io deployment
+FROM python:3.11-slim
 
-FROM ${BASE_REGISTRY}/${BASE_IMAGE}:${BASE_TAG}
-
-# STEP 2: Metadata
-LABEL name="AdinKhepra Protocol" \
-    description="Air-Gapped Modular Monolith Security Engine" \
-    vendor="AdinKhepra"
-
-# STEP 3: Environment Setup
+# Set working directory
 WORKDIR /app
-ENV PATH="/app:${PATH}"
 
-# STEP 4: Install Dependencies (Minimal)
-# Using microdnf for UBI9. We need ca-certificates for PQC verification if needed.
-USER root
-RUN microdnf update -y && \
-    microdnf install -y ca-certificates shadow-utils && \
-    microdnf clean all && \
-    rm -rf /var/cache/yum
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# STEP 5: Create Non-Root User (MANDATORY)
-RUN groupadd -g 1001 adinkhepra && \
-    useradd -u 1001 -g adinkhepra -s /sbin/nologin adinkhepra
+# Copy Python requirements
+COPY services/ml_anomaly/requirements.txt /app/requirements.txt
 
-# STEP 6: Ingest the Binary
-# The pipeline downloads 'resources' from hardening_manifest.yaml into the build context automatically
-# We expect the structure to be flat after download or we need to untar it.
-COPY adinkhepra.tar.gz /app/
-RUN tar -xzf adinkhepra.tar.gz && \
-    rm adinkhepra.tar.gz && \
-    chmod +x /app/adinkhepra && \
-    chown -R adinkhepra:adinkhepra /app
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-# STEP 7: Security Locking
-USER 1001
+# Install additional dependencies for PDF export and WebSocket
+RUN pip install --no-cache-dir \
+    reportlab \
+    websockets
 
-# STEP 8: Healthcheck (MANDATORY)
-# Since we are an agent, we can check if the process is alive or hit a localhost health endpoint
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD /app/adinkhepra health || exit 1
+# Copy application code
+COPY services/ml_anomaly /app/services/ml_anomaly
+COPY top_secret_intel /app/top_secret_intel
+COPY data/cyber_brain /app/data/cyber_brain
+COPY models /app/models
 
-ENTRYPOINT ["/app/adinkhepra"]
-CMD ["run"]
+# Create necessary directories
+RUN mkdir -p /app/data /app/models
+
+# Expose port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8080/ || exit 1
+
+# Run the application
+CMD ["uvicorn", "services.ml_anomaly.api:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "2"]
