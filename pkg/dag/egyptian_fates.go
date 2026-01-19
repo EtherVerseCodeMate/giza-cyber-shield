@@ -38,13 +38,12 @@ var FateTranslations = map[EgyptianFate]string{
 }
 
 // StateCodeToFate maps the 4-bit hypercube state code to Egyptian fate.
+// Hypercube bit structure:
+// - Bit 3 (severity): 1=High, 0=Low
+// - Bit 2 (verified): 1=Verified, 0=Not verified
+// - Bit 1 (status): 1=Open, 0=Resolved
+// - Bit 0 (lifecycle): 1=Live, 0=Archived
 func StateCodeToFate(stateCode int) EgyptianFate {
-	// Extract bits
-	severity := (stateCode >> 3) & 1 // Bit 3: 1=High, 0=Low
-	verified := (stateCode >> 2) & 1 // Bit 2: 1=Verified, 0=Not verified
-	status := (stateCode >> 1) & 1   // Bit 1: 1=Open, 0=Resolved
-	lifecycle := stateCode & 1       // Bit 0: 1=Live, 0=Archived
-
 	// Judgment criteria
 	switch {
 	// State 0 (0b0000): Low, Not Verified, Resolved, Archived
