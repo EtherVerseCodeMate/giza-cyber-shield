@@ -18,12 +18,19 @@ var (
 	licenseManager     *license.LicenseManager
 	dagLicenseEnforcer *license.DAGLicenseEnforcer
 	billingCalculator  *billing.HybridBillingCalculator
+	telemetryClient    *license.TelemetryClient
 	dagStore           dag.Store
 	systemIsAirGapped  bool
 	httpMux            *http.ServeMux
+	machineID          string // Set during initialization
 )
 
 // InitializeLicensing sets up Egyptian mythology licensing for the agent
+// Integrates with Cloudflare telemetry server for:
+// - License validation
+// - Enrollment token processing
+// - Heartbeat/usage reporting
+// - Offline license generation (Shu Breath)
 func InitializeLicensing(storageBackend dag.Store, isAirGapped bool) error {
 	var err error
 
@@ -40,7 +47,36 @@ func InitializeLicensing(storageBackend dag.Store, isAirGapped bool) error {
 	dagStore = storageBackend
 	systemIsAirGapped = isAirGapped
 
-	log.Println("[LICENSE] Initialized Egyptian mythology licensing system")
+	// Generate machine ID for license binding
+	machineID = license.GenerateMachineID()
+	log.Printf("[LICENSE] Machine ID: %s", machineID)
+
+	// Initialize telemetry client for remote license management
+	telemetryConfig := license.TelemetryConfig{
+		ServerURL:     "", // Will use ADINKHEPRA_TELEMETRY_SERVER env or default
+		EnrollmentKey: "", // Will use KHEPRA_ENROLLMENT_TOKEN env or default
+		Timeout:       10 * time.Second,
+		MaxRetries:    3,
+	}
+
+	telemetryClient = license.NewTelemetryClient(telemetryConfig)
+
+	// Verify connectivity to telemetry server (unless air-gapped)
+	if !isAirGapped {
+		log.Println("[LICENSE] Attempting connection to Cloudflare telemetry server...")
+		healthy, err := telemetryClient.HealthCheck()
+		if err != nil {
+			log.Printf("[LICENSE] ⚠️ Warning: Telemetry server unavailable: %v", err)
+			log.Println("[LICENSE] Will operate in offline/cached mode")
+		} else if healthy {
+			log.Printf("[LICENSE] ✅ Connected to telemetry server: %s", telemetryClient.GetServerURL())
+		}
+	} else {
+		log.Println("[LICENSE] 🌬️ Air-gap mode enabled")
+		log.Println("[LICENSE] Using Shu Breath offline licensing (no telemetry contact)")
+	}
+
+	log.Println("[LICENSE] ✅ Initialized Merkaba Egyptian mythology licensing system")
 
 	// Register HTTP handlers
 	registerLicenseEndpoints(httpMux)
@@ -449,6 +485,196 @@ func handleDashboard(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stats)
+}
+
+// ============================================================================
+// TELEMETRY INTEGRATION ENDPOINTS
+// ============================================================================
+
+// handleEnrollWithToken auto-registers machine using enrollment token
+// POST /telemetry/enroll
+// Body: {"enrollment_token": "...", "customer_name": "...", "tier": "khepri|ra|atum|osiris"}
+func handleEnrollWithToken(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		EnrollmentToken string `json:"enrollment_token"`
+		CustomerName    string `json:"customer_name"`
+		Tier            string `json:"tier"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if telemetryClient == nil {
+		http.Error(w, "telemetry client not initialized", http.StatusInternalServerError)
+		return
+	}
+
+	// Call telemetry server to validate enrollment token and create license
+	enrollResp, err := telemetryClient.RegisterWithEnrollmentToken(machineID, req.CustomerName, req.Tier)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("enrollment failed: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if enrollResp.Error != "" {
+		http.Error(w, enrollResp.Error, http.StatusBadRequest)
+		return
+	}
+
+	// Register license locally
+	tier := license.TierKhepri
+	if enrollResp.Tier != "" {
+		tierMap := map[string]license.EgyptianTier{
+			"khepri": license.TierKhepri,
+			"ra":     license.TierRa,
+			"atum":   license.TierAtum,
+			"osiris": license.TierOsiris,
+		}
+		if t, ok := tierMap[enrollResp.Tier]; ok {
+			tier = t
+		}
+	}
+
+	// Create local license record
+	_, err = licenseManager.CreateLicense(enrollResp.LicenseID, tier, 365)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to create local license: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("[TELEMETRY] ✅ Enrolled machine %s as %s (Tier: %s)", machineID, req.CustomerName, enrollResp.Tier)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"license_id": enrollResp.LicenseID,
+		"tier":       enrollResp.Tier,
+		"expires_at": enrollResp.ExpiresAt,
+		"machine_id": machineID,
+		"message":    "Successfully enrolled with Cloudflare telemetry server",
+	})
+}
+
+// handleValidateLicense calls telemetry server to validate current license
+// POST /telemetry/validate
+// Body: {"license_id": "...", "signature": "..."}
+func handleValidateLicense(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		LicenseID      string `json:"license_id"`
+		Signature      string `json:"signature"`
+		InstallationID string `json:"installation_id,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if telemetryClient == nil {
+		http.Error(w, "telemetry client not initialized", http.StatusInternalServerError)
+		return
+	}
+
+	// Get client version from env or use default
+	version := "1.0.0"
+
+	// Call telemetry server for validation
+	valResp, err := telemetryClient.ValidateLicense(machineID, req.Signature, version, req.InstallationID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("validation failed: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if !valResp.Valid {
+		http.Error(w, valResp.Error, http.StatusForbidden)
+		return
+	}
+
+	log.Printf("[TELEMETRY] ✅ License %s validated via telemetry server", req.LicenseID)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"valid":        valResp.Valid,
+		"license_id":   valResp.LicenseID,
+		"tier":         valResp.Tier,
+		"expires_at":   valResp.ExpiresAt,
+		"revoked":      valResp.Revoked,
+		"grace_period": valResp.GracePeriod,
+		"machine_id":   machineID,
+	})
+}
+
+// handleHeartbeat sends license usage telemetry to server
+// POST /telemetry/heartbeat
+// Body: {"license_id": "...", "signature": "...", "nodes_created": N}
+func handleHeartbeat(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		LicenseID     string `json:"license_id"`
+		Signature     string `json:"signature"`
+		NodesCreated  int    `json:"nodes_created"`
+		NodeQuotaUsed int    `json:"node_quota_used"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if telemetryClient == nil {
+		http.Error(w, "telemetry client not initialized", http.StatusInternalServerError)
+		return
+	}
+
+	// Send heartbeat to telemetry server
+	hbResp, err := telemetryClient.HeartbeatLicense(req.LicenseID, machineID, req.Signature, req.NodesCreated, req.NodeQuotaUsed)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("heartbeat failed: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if hbResp.Revoked {
+		http.Error(w, "license has been revoked", http.StatusForbidden)
+		return
+	}
+
+	log.Printf("[TELEMETRY] 💓 Heartbeat sent for %s (nodes: %d/%d)", req.LicenseID, req.NodesCreated, req.NodeQuotaUsed)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"ok":         hbResp.OK,
+		"next_check": hbResp.NextCheckAfter,
+		"revoked":    hbResp.Revoked,
+		"machine_id": machineID,
+		"license_id": req.LicenseID,
+	})
+}
+
+// handleTelemetryStatus returns current telemetry server connection status
+// GET /telemetry/status
+func handleTelemetryStatus(w http.ResponseWriter, r *http.Request) {
+	if telemetryClient == nil {
+		http.Error(w, "telemetry client not initialized", http.StatusInternalServerError)
+		return
+	}
+
+	healthy, err := telemetryClient.HealthCheck()
+	status := "offline"
+	if healthy {
+		status = "online"
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":              status,
+		"air_gapped":          systemIsAirGapped,
+		"telemetry_server":    telemetryClient.GetServerURL(),
+		"machine_id":          machineID,
+		"connection_error":    err,
+		"supports_enrollment": true,
+		"supports_validation": true,
+		"supports_heartbeat":  true,
+	})
 }
 
 // ============================================================================
