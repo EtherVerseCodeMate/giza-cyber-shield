@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 )
 
 // NodeLicenseBinding tracks which license authorizes which nodes
@@ -86,7 +88,7 @@ func (dle *DAGLicenseEnforcer) RegisterNodeCreation(licenseID string, nodeID str
 // Called by: pkg/attest/attest.go when creating attestation
 func (dle *DAGLicenseEnforcer) EvaluateNodeFate(nodeID string, stateCode int, complianceDebt float64) (string, error) {
 	dle.mu.Lock()
-	binding, exists := dle.nodeBindings[nodeID]
+	_, exists := dle.nodeBindings[nodeID]
 	dle.mu.Unlock()
 
 	if !exists {
@@ -98,16 +100,16 @@ func (dle *DAGLicenseEnforcer) EvaluateNodeFate(nodeID string, stateCode int, co
 	dle.complianceWeights[nodeID] = complianceDebt
 	dle.mu.Unlock()
 
-	// Perform judgment
-	judgment := PerformJudgment(nodeID, stateCode, complianceDebt)
+	// Map state code to Egyptian fate using hypercube judgment
+	fate := dag.StateCodeToFate(stateCode)
 
-	// If critical, log for management escalation
-	if judgment.EscalationLevel == "pharaoh" {
-		return "", fmt.Errorf("Ammit the Devourer awaits node %s: escalation=%s, state=%d",
-			nodeID, judgment.EscalationLevel, stateCode)
+	// If Ammit (state 15 = 0b1111, all bits set), escalate to Pharaoh
+	if stateCode == 15 {
+		return "", fmt.Errorf("Ammit the Devourer awaits node %s: state=%d (CRITICAL), fate=%s",
+			nodeID, stateCode, fate)
 	}
 
-	return judgment.Outcome, nil
+	return string(fate), nil
 }
 
 // CanRemoveNode checks if node can be deleted (compliance cleared)
@@ -116,7 +118,7 @@ func (dle *DAGLicenseEnforcer) CanRemoveNode(nodeID string) error {
 	dle.mu.Lock()
 	defer dle.mu.Unlock()
 
-	binding, exists := dle.nodeBindings[nodeID]
+	_, exists := dle.nodeBindings[nodeID]
 	if !exists {
 		return fmt.Errorf("node %s not tracked by license system", nodeID)
 	}
@@ -287,7 +289,7 @@ func (dle *DAGLicenseEnforcer) RekeyOfflineLicense(licenseID string) (string, er
 	}
 
 	// Generate new offline license (valid 365 days)
-	newSig, err := dle.manager.GenerateOfflineLicense(licenseID)
+	newSig, err := dle.manager.GenerateOfflineLicense(licenseID, 365)
 	if err != nil {
 		return "", err
 	}
