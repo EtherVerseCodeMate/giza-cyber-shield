@@ -8,6 +8,24 @@ import (
 )
 
 // ============================================================================
+// Framework Definitions for Compliance Mapping
+// ============================================================================
+
+type Framework string
+
+const (
+	FrameworkSTIG        Framework = "STIG"        // DISA Security Technical Implementation Guide
+	FrameworkNIST800_53  Framework = "NIST-800-53" // NIST SP 800-53 Security Controls
+	FrameworkNIST800_171 Framework = "NIST-800-171" // NIST SP 800-171 CUI Controls
+	FrameworkCIS         Framework = "CIS"         // CIS Controls
+	FrameworkPCI_DSS     Framework = "PCI-DSS"     // Payment Card Industry
+	FrameworkHIPAA       Framework = "HIPAA"       // Health Information
+	FrameworkSOC2        Framework = "SOC2"        // Service Organization Control
+	FrameworkISO27001    Framework = "ISO-27001"   // Information Security Management
+	FrameworkCobIT       Framework = "COBIT"       // IT Governance & Management
+)
+
+// ============================================================================
 // Node Type Definitions (Sephirot Hierarchy)
 // ============================================================================
 
@@ -417,6 +435,114 @@ func CreateSephirotPath(fromNode, toNode *SchemaNode) SephirotPath {
 	}
 }
 
+// ============================================================================
+// Visualization & Edge Types (for Frontend Rendering)
+// ============================================================================
+
+// Edge represents a directed relationship between two DAG nodes.
+type Edge struct {
+	FromNodeID   string        `json:"from_node_id"`
+	ToNodeID     string        `json:"to_node_id"`
+	RelationType string        `json:"relation_type"`
+	Label        string        `json:"label,omitempty"`
+	Strength     int           `json:"strength,omitempty"` // 0-100
+	Timestamp    time.Time     `json:"timestamp"`
+	Metadata     EdgeMetadata  `json:"metadata,omitempty"`
+}
+
+// EdgeMetadata carries additional information about relationships.
+type EdgeMetadata struct {
+	CausalityChain []string `json:"causality_chain,omitempty"`
+	Impact         string   `json:"impact,omitempty"`
+	Bidirectional  bool     `json:"bidirectional,omitempty"`
+}
+
+// VisualizationNode is a simplified Node for frontend rendering.
+type VisualizationNode struct {
+	ID          string        `json:"id"`
+	Label       string        `json:"label"`
+	Type        NodeType      `json:"type"`
+	Status      NodeStatus    `json:"status"`
+	Severity    SeverityLevel `json:"severity,omitempty"`
+	Timestamp   time.Time     `json:"timestamp"`
+	Color       string        `json:"color,omitempty"`
+	Size        int           `json:"size,omitempty"`
+	Icon        string        `json:"icon,omitempty"`
+	ParentCount int           `json:"parent_count"`
+	ChildCount  int           `json:"child_count"`
+	Frameworks  []Framework   `json:"frameworks,omitempty"`
+	ControlID   string        `json:"control_id,omitempty"`
+}
+
+// VisualizationData contains aggregated data for frontend rendering.
+type VisualizationData struct {
+	Nodes      []*VisualizationNode `json:"nodes"`
+	Edges      []*Edge              `json:"edges"`
+	Statistics *GraphStatistics     `json:"statistics,omitempty"`
+	Clusters   []*NodeCluster       `json:"clusters,omitempty"`
+}
+
+// GraphStatistics provides metrics for dashboards.
+type GraphStatistics struct {
+	TotalNodes       int                `json:"total_nodes"`
+	TotalEdges       int                `json:"total_edges"`
+	CriticalNodes    int                `json:"critical_nodes"`
+	ComplianceGaps   int                `json:"compliance_gaps"`
+	RiskDistribution map[string]int     `json:"risk_distribution"`
+	FrameworkCoverage map[Framework]int `json:"framework_coverage"`
+}
+
+// NodeCluster represents grouped nodes for visualization.
+type NodeCluster struct {
+	ID          string      `json:"id"`
+	Name        string      `json:"name"`
+	Framework   Framework   `json:"framework,omitempty"`
+	NodeIDs     []string    `json:"node_ids"`
+	Color       string      `json:"color,omitempty"`
+	Description string      `json:"description,omitempty"`
+}
+
+// FrameworkMapping bridges compliance frameworks to Adinkra symbols.
+type FrameworkMapping struct {
+	Framework   Framework       `json:"framework"`
+	ControlID   string          `json:"control_id"`
+	Description string          `json:"description"`
+	Symbol      Sephira         `json:"symbol"` // Sephirot for semantic coherence
+	Severity    SeverityLevel   `json:"severity"`
+	NodeType    NodeType        `json:"node_type"`
+}
+
+// Severity color mapping for visualization.
+func (s SeverityLevel) Color() string {
+	switch s {
+	case SeverityCritical:
+		return "#D32F2F" // Red
+	case SeverityHigh:
+		return "#F57C00" // Orange
+	case SeverityMedium:
+		return "#FBC02D" // Yellow
+	case SeverityLow:
+		return "#388E3C" // Green
+	default:
+		return "#9E9E9E" // Gray
+	}
+}
+
+// SeverityScore for sorting and comparison.
+func (s SeverityLevel) Score() int {
+	switch s {
+	case SeverityCritical:
+		return 4
+	case SeverityHigh:
+		return 3
+	case SeverityMedium:
+		return 2
+	case SeverityLow:
+		return 1
+	default:
+		return 0
+	}
+}
 // DetermineMerbakaFlow calculates Merkaba flow between nodes
 func DetermineMerbakaFlow(fromPolarity, toPolarity NodePolarity) MerbakaFlow {
 	switch {
