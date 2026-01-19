@@ -39,6 +39,10 @@ The Community Edition delivers a **complete, autonomous security platform** with
 | Task Prioritization | Risk scoring (CVSS + Anomaly) | NEW |
 | Anomaly Detection | VAE + Isolation Forest | Existing |
 | Response Generation | Structured templates | NEW |
+| **NIST AI RMF Compliance** | Built-in validation | NEW |
+| **Explainable AI** | Adinkra framework | NEW |
+| **Adversarial Defense** | Input validation | NEW |
+| **Model Drift Detection** | Continuous validation | NEW |
 
 See: [SOUHIMBOU_AGI_ARCHITECTURE.md](./SOUHIMBOU_AGI_ARCHITECTURE.md) for full design
 
