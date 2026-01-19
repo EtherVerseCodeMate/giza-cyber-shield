@@ -132,10 +132,26 @@ func (s *Server) setupRoutes() {
 			})
 		}
 
-		// License endpoints
+		// License endpoints (Merkaba Egyptian mythology licensing system)
 		license := v1.Group("/license")
 		{
+			// Basic license management
 			license.GET("/status", s.handleGetLicenseStatus)
+			license.POST("/create", s.handleCreateLicense)
+			license.GET("/:license_id", s.handleGetLicense)
+			license.POST("/:license_id/upgrade", s.handleUpgradeLicense)
+			license.GET("/:license_id/usage", s.handleGetLicenseUsage)
+
+			// Admin/list endpoints
+			license.GET("/admin/list", s.handleListLicenses)
+
+			// Telemetry integration with Cloudflare server
+			telemetry := license.Group("/telemetry")
+			{
+				telemetry.POST("/enroll", s.handleTelemetryEnroll)
+				telemetry.POST("/heartbeat", s.handleTelemetryHeartbeat)
+				telemetry.GET("/status", s.handleTelemetryStatus)
+			}
 		}
 	}
 
