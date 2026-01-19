@@ -54,6 +54,10 @@ See: [SOUHIMBOU_AGI_ARCHITECTURE.md](./SOUHIMBOU_AGI_ARCHITECTURE.md) for full d
 
 | Feature | Component | Status | Integration Required |
 |---------|-----------|--------|---------------------|
+| **Sonar Scanner** | `cmd/sonar/` | ✅ Complete | Primary data source → ML |
+| **Vulnerability Scanner** | `pkg/scanner/`, `pkg/vuln/` | ✅ Complete | CVE/CVSS → ML prioritization |
+| **Secret Detection** | `pkg/arsenal/` (Gitleaks, TruffleHog) | ✅ Complete | Entropy → ML |
+| **Container Scanner** | `pkg/arsenal/` | ✅ Complete | Misconfig → ML |
 | **Autonomous Digital Forensics** | `pkg/forensics/` | ✅ Framework | Feature extraction → ML |
 | **Penetration Testing** | `cmd/khepra-pentest/`, `pkg/arsenal/` | ✅ Complete | Scan results → ML |
 | **Incident Response (IR)** | `pkg/ir/` | ✅ Complete | Incident patterns → ML |
@@ -61,6 +65,67 @@ See: [SOUHIMBOU_AGI_ARCHITECTURE.md](./SOUHIMBOU_AGI_ARCHITECTURE.md) for full d
 | **Encryption/Decryption** | `pkg/adinkra/` | ✅ Complete | None (standalone) |
 | **STIG/CMMC 2.0 Compliance** | `pkg/stig/`, `pkg/compliance/` | ✅ Complete | Compliance gaps → ML |
 | **PQC Migration Scanning** | `pkg/stig/pqc_migration.go` | ✅ Complete | Crypto inventory → ML |
+| **ERT Analysis** | `pkg/ert/` | ✅ Complete | Risk scoring → ML |
+| **Knowledge Base (Intel)** | `pkg/intel/` | ✅ Complete | RAG context → ML |
+| **Telemetry Server** | `adinkhepra-telemetry-server/` | ✅ Complete | License + beacon |
+| **DAG Store** | `pkg/dag/` | ✅ Complete | Immutable audit trail |
+
+### Sonar Scanner & Complementary Modules
+
+**Sonar** (`cmd/sonar/main.go`) is the primary data collection engine that feeds SouHimBou AGI:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    SONAR v1.5.0-NUCLEAR                         │
+│              Unified Security Audit Pipeline                    │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ Device Fingerprinting (Anti-spoofing)                   │   │
+│  │ Host Enumeration (OS, processes, services, users)       │   │
+│  │ Network Intelligence (ports, interfaces, OS fingerprint)│   │
+│  │ System Intelligence (kernel modules, rootkit detection) │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                             │                                   │
+│                             ▼                                   │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ Built-In Scanners (Zero External Dependencies)          │   │
+│  ├─────────────────────────────────────────────────────────┤   │
+│  │ • Vulnerability Scanner (CVE + heuristics)              │   │
+│  │ • Secret Detection (entropy + pattern matching)         │   │
+│  │ • Container Scanner (misconfigurations)                 │   │
+│  │ • Compliance Scanner (CIS/STIG/NIST)                    │   │
+│  │ • Dependency Manifest Scanning                          │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                             │                                   │
+│                             ▼                                   │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ Output: JSON, CSV (Superset), AFFiNE (Executive Memo)   │   │
+│  │ Signing: Dilithium-3 PQC signatures on all artifacts    │   │
+│  │ Telemetry: Anonymous beacon (opt-in/opt-out)            │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼ 32-dim feature vector
+┌─────────────────────────────────────────────────────────────────┐
+│                    SouHimBou AGI                                │
+│              Anomaly Detection + Task Creation                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Complementary Module Integration Matrix
+
+| Module | Location | Feeds SouHimBou | SouHimBou Triggers |
+|--------|----------|-----------------|-------------------|
+| **Sonar** | `cmd/sonar/` | Host/network/vuln data | Scan recommendations |
+| **Vulnerability Hunter** | `pkg/vuln/` | CVE findings | Patch prioritization |
+| **Arsenal** | `pkg/arsenal/` | Tool outputs (Gitleaks, ZAP, etc.) | Tool selection |
+| **Scanner** | `pkg/scanner/` | Port/service data | Network isolation |
+| **Forensics** | `pkg/forensics/` | Evidence snapshots | Investigation tasks |
+| **IR Manager** | `pkg/ir/` | Incident data | Severity prediction |
+| **Compliance** | `pkg/compliance/` | Control status | Remediation tasks |
+| **ERT** | `pkg/ert/` | Risk assessments | Executive alerts |
+| **DRBC** | `pkg/drbc/` | Backup status | Auto-backup triggers |
+| **Intel** | `pkg/intel/` | CISA KEV, MITRE CVE | Context enrichment |
 
 ---
 
