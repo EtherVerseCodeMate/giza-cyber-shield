@@ -3,17 +3,15 @@ app = "souhimbou-ai"
 primary_region = "iad" # US East (Ashburn, VA)
 
 [build]
-  # Use Docker for build
   dockerfile = "Dockerfile"
 
 [env]
   PORT = "8080"
   PYTHONUNBUFFERED = "1"
-  # Environment variables for the application
   FEATURE_DIM = "128"
   HIDDEN_DIM = "64"
   LATENT_DIM = "32"
-  MODEL_PATH = "/app/models/anomaly_detector.pth"
+  MODEL_PATH = "/app/models/souhimbou_v1.pt"
   SECRET_DOCS_PATH = "/app/top_secret_intel"
   CYBER_BRAIN_PATH = "/app/data/cyber_brain"
 
@@ -25,76 +23,28 @@ primary_region = "iad" # US East (Ashburn, VA)
   min_machines_running = 1
   processes = ["app"]
 
-  [[http_service.concurrency]]
+  [http_service.concurrency]
     type = "connections"
     hard_limit = 250
     soft_limit = 200
 
-[mounts]
-  # Persistent storage for models and data
-  source = "souhimbou_data"
-  destination = "/app/data"
-  initial_size = "10gb"
-
 [[vm]]
-  size = "shared-cpu-2x" # 2 vCPUs, 4GB RAM
+  size = "shared-cpu-2x"
   memory = "4gb"
   cpus = 2
 
-# Health checks
-[[services.http_checks]]
-  interval = "30s"
-  timeout = "5s"
-  grace_period = "10s"
-  method = "GET"
-  path = "/"
-  protocol = "http"
+[mounts]
+  source = "souhimbou_data"
+  destination = "/app/data"
 
-# Secrets (set via `fly secrets set`)
-# These secrets are required for full functionality
-# Set them before deploying with: fly secrets set KEY=value
-
-# Supabase (Database & Auth)
-# SUPABASE_URL - Supabase project URL (e.g., https://xxxxx.supabase.co)
-# SUPABASE_ANON_KEY - Supabase anon/public key (starts with eyJ...)
-# SUPABASE_SERVICE_KEY - Supabase service role key (for admin operations)
-
-# Stripe (Billing & Payments)
-# STRIPE_SECRET_KEY - Stripe secret key (sk_live_... or sk_test_...)
-# STRIPE_WEBHOOK_SECRET - Stripe webhook signing secret (whsec_...)
-
-# OpenAI (Papyrus LLM)
-# OPENAI_API_KEY - OpenAI API key for GPT models (sk-...)
-
-# Telemetry Server
-# TELEMETRY_SERVER_URL - URL of adinkhepra-telemetry-server (default: http://localhost:3001)
-# TELEMETRY_ADMIN_TOKEN - Admin token for telemetry API access
-
-# License Management
-# LICENSE_MASTER_PUBLIC_KEY - ML-DSA-65 public key for license verification (hex encoded)
-
-# Optional: LLM Alternatives
-# OLLAMA_URL - Ollama server URL if using local LLM (default: http://localhost:11434)
-# ANTHROPIC_API_KEY - Claude API key if using Anthropic
-
-# Deploy commands:
-# fly launch --no-deploy  # Initial setup
-# fly secrets set SUPABASE_URL=https://xxxxx.supabase.co
-# fly secrets set SUPABASE_ANON_KEY=eyJhbGc...
-# fly secrets set SUPABASE_SERVICE_KEY=eyJhbGc...
-# fly secrets set STRIPE_SECRET_KEY=sk_live_...
-# fly secrets set STRIPE_WEBHOOK_SECRET=whsec_...
-# fly secrets set OPENAI_API_KEY=sk-...
-# fly secrets set TELEMETRY_SERVER_URL=https://telemetry.souhimbou.ai
-# fly secrets set LICENSE_MASTER_PUBLIC_KEY=<hex_encoded_public_key>
-# fly deploy  # Deploy the app
-# fly logs  # View logs
-# fly ssh console  # SSH into the machine
-
-# Scaling:
-# fly scale count 2  # Scale to 2 machines
-# fly scale vm shared-cpu-4x  # Upgrade to 4 vCPUs
-# fly scale memory 8192  # Upgrade to 8GB RAM
+[checks]
+  [checks.health]
+    type = "http"
+    port = 8080
+    path = "/"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
 
 [metrics]
   port = 9091
