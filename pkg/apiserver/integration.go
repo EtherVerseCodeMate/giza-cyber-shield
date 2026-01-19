@@ -26,13 +26,13 @@ func (a *DAGStoreAdapter) GetPersistentMemory() *dag.PersistentMemory {
 	return a.pm
 }
 
-// LicenseManagerAdapter adapts the license.LicenseManager (Merkaba Egyptian system) to the apiserver's LicenseManager interface
+// LicenseManagerAdapter adapts the license.Manager (Merkaba Egyptian system) to the apiserver's LicenseManager interface
 type LicenseManagerAdapter struct {
-	mgr *license.LicenseManager
+	mgr *license.Manager
 }
 
 // NewLicenseManagerAdapter creates a new license manager adapter for Merkaba system
-func NewLicenseManagerAdapter(mgr *license.LicenseManager) *LicenseManagerAdapter {
+func NewLicenseManagerAdapter(mgr *license.Manager) *LicenseManagerAdapter {
 	return &LicenseManagerAdapter{mgr: mgr}
 }
 
@@ -56,7 +56,7 @@ func (a *LicenseManagerAdapter) ValidateAPIKey(apiKey string) (bool, error) {
 	return true, nil
 }
 
-// GetManager returns the underlying license.LicenseManager
-func (a *LicenseManagerAdapter) GetManager() *license.LicenseManager {
+// GetManager returns the underlying license.Manager
+func (a *LicenseManagerAdapter) GetManager() *license.Manager {
 	return a.mgr
 }
