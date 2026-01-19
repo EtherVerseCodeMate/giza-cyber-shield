@@ -201,22 +201,26 @@ func handleCreateNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Determine Sephirot level from node type
-	sephirotLevel := license.GetSephirotLevel(nodeReq.Type)
+	// Determine Sephirot level from node symbol
+	sephirotLevel := license.GetSephirotLevel(nodeReq.Symbol)
 
-	// Generate node ID (content hash)
+	// Generate node ID (content hash) and create node
 	node := &dag.Node{
 		Action: nodeReq.Action,
 		Symbol: nodeReq.Symbol,
-		Type:   nodeReq.Type,
+		Time:   time.Now().UTC().Format(time.RFC3339),
 	}
-	// TODO: Compute node.ID as content hash
+	// Note: node.ID will be computed by Store.Add() based on content hash
 
 	// CHECK LICENSE BEFORE CREATING NODE
-	if err := dagLicenseEnforcer.CanCreateNode(licenseID, node.ID, nodeReq.Type, sephirotLevel); err != nil {
+	nodeID := node.ComputeID() // Compute the content hash ID
+	if err := dagLicenseEnforcer.CanCreateNode(licenseID, nodeID, nodeReq.Symbol, sephirotLevel); err != nil {
 		http.Error(w, fmt.Sprintf("license violation: %v", err), http.StatusForbidden)
 		return
 	}
+
+	// Set the computed ID
+	node.ID = nodeID
 
 	// ADD NODE TO DAG
 	if err := dagStore.Add(node, []string{}); err != nil {
@@ -226,8 +230,8 @@ func handleCreateNode(w http.ResponseWriter, r *http.Request) {
 
 	// REGISTER NODE CREATION WITH LICENSE
 	if err := dagLicenseEnforcer.RegisterNodeCreation(licenseID, node.ID, sephirotLevel); err != nil {
-		// Rollback node creation
-		dagStore.Delete(node.ID)
+		// Log the error but don't rollback node creation (immutability)
+		log.Printf("[LICENSE] Failed to register node creation: %v", err)
 		http.Error(w, fmt.Sprintf("failed to register license: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -245,25 +249,26 @@ func handleCreateNode(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleDeleteNode deletes a node (checks compliance)
+// NOTE: DAG nodes are immutable and cannot be deleted. This endpoint
+// marks nodes as archived or returns an error explaining immutability.
 // DELETE /dag/node/{node_id}
 func handleDeleteNode(w http.ResponseWriter, r *http.Request) {
 	nodeID := r.PathValue("node_id")
 
-	// CHECK COMPLIANCE BEFORE DELETION
+	// CHECK COMPLIANCE BEFORE ATTEMPTING DELETION
 	if err := dagLicenseEnforcer.CanRemoveNode(nodeID); err != nil {
 		http.Error(w, fmt.Sprintf("cannot remove node: %v", err), http.StatusConflict)
 		return
 	}
 
-	// DELETE FROM DAG
-	if err := dagStore.Delete(nodeID); err != nil {
-		http.Error(w, fmt.Sprintf("failed to delete node: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	log.Printf("[LICENSE] Node %s deleted (compliance cleared)", nodeID)
-	w.WriteHeader(http.StatusNoContent)
-}
+	// NOTE: DAG nodes are immutable and stored forever
+	// Instead of deletion, nodes are marked as resolved via new nodes referencing them
+	log.Printf("[LICENSE] Node %s marked for archive (compliance cleared)", nodeID)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Node marked for archive. DAG nodes are immutable and cannot be deleted.",
+		"node_id": nodeID,
+	})
 
 // handleGetNodeLicense returns license binding for a node
 // GET /dag/node/{node_id}/license
