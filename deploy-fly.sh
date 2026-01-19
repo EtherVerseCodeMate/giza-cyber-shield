@@ -49,6 +49,19 @@ fly secrets set \
   TELEMETRY_SERVER_URL="https://telemetry.souhimbou.org" \
   LICENSE_MASTER_PUBLIC_KEY="33d83c0f0c15946fdc89363981dc685799d72fc8971cc00568a4c31ec8825c580b2ab7ea24d0bfa65a855c1009020b421e57b9f475b7cf74dfc50705f1de02b3b122714228b63c8626722f71dcb5402416c532c05e75f4af6fd8f8d4336e05bb147d795d"
 
+# ============================================================================
+# STRIPE (Billing & Payments)
+# ============================================================================
+fly secrets set \
+  STRIPE_SECRET_KEY="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"
+
+# ============================================================================
+# LLM PROVIDERS (Papyrus AI)
+# ============================================================================
+fly secrets set \
+  OPENAI_API_KEY="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" \
+  XAI_API_KEY="GROK_REDACTED"
+
 echo "[INFO] Secrets configured successfully!"
 
 # Create volume if not exists
