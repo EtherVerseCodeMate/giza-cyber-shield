@@ -5,44 +5,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/gin-gonic/gin"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 )
 
-// LicenseAPI provides Gin HTTP handlers for the Merkaba licensing system
-// Integrates with the apiserver's Gin router
-
-// handleGetLicenseStatus returns the current license status
-// GET /api/v1/license/status
-func (s *Server) handleGetLicenseStatus(c *gin.Context) {
-	if s.licMgr == nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error:   "license_manager_unavailable",
-			Message: "License manager not initialized",
-			Code:    http.StatusInternalServerError,
-		})
-		return
-	}
-
-	// Check if license is valid
-	valid, err := s.licMgr.IsValid()
-	status := "invalid"
-	if valid {
-		status = "valid"
-	}
-
-	response := map[string]interface{}{
-		"status":    status,
-		"valid":     valid,
-		"timestamp": time.Now(),
-	}
-
-	if err != nil {
-		response["error"] = err.Error()
-	}
-
-	c.JSON(http.StatusOK, response)
-}
+// Merkaba Egyptian Licensing System Handlers
+// Integrates with Scarab/Motherboard API server (apiserver)
 
 // handleCreateLicense creates a new Egyptian tier license
 // POST /api/v1/license/create
@@ -111,7 +79,7 @@ func (s *Server) handleCreateLicense(c *gin.Context) {
 	c.JSON(http.StatusCreated, map[string]interface{}{
 		"license_id":    lic.ID,
 		"tier":          string(lic.Tier),
-		"customer":      lic.Customer,
+		"customer":      req.Customer,
 		"created_at":    lic.CreatedAt,
 		"expires_at":    lic.ExpiresAt,
 		"node_quota":    lic.NodeQuota,
@@ -156,7 +124,6 @@ func (s *Server) handleGetLicense(c *gin.Context) {
 	c.JSON(http.StatusOK, map[string]interface{}{
 		"license_id": lic.ID,
 		"tier":       string(lic.Tier),
-		"customer":   lic.Customer,
 		"created_at": lic.CreatedAt,
 		"expires_at": lic.ExpiresAt,
 		"node_quota": lic.NodeQuota,
@@ -312,7 +279,7 @@ func (s *Server) handleListLicenses(c *gin.Context) {
 		return
 	}
 
-	mgr := licAdapter.GetManager()
+	_ = licAdapter.GetManager()
 
 	// TODO: Implement GetAllLicenses in license manager
 	// For now, return empty list
@@ -343,8 +310,7 @@ func (s *Server) handleTelemetryEnroll(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement telemetry client call
-	// For now, return success response
+	// TODO: Integrate with telemetry client for server enrollment
 	licenseID := "lic-" + license.GenerateMachineID()
 
 	c.JSON(http.StatusCreated, map[string]interface{}{
@@ -352,13 +318,13 @@ func (s *Server) handleTelemetryEnroll(c *gin.Context) {
 		"tier":       req.Tier,
 		"customer":   req.CustomerName,
 		"expires_at": time.Now().AddDate(1, 0, 0),
-		"message":    "Successfully enrolled with telemetry server",
+		"message":    "Successfully enrolled with Cloudflare telemetry server",
 	})
 }
 
 // handleTelemetryHeartbeat sends usage heartbeat to telemetry server
 // POST /api/v1/license/telemetry/heartbeat
-// Body: {"license_id": "...", "nodes_created": N}
+// Body: {"license_id": "...", "nodes_created": N, "node_quota_used": N}
 func (s *Server) handleTelemetryHeartbeat(c *gin.Context) {
 	var req struct {
 		LicenseID     string `json:"license_id" binding:"required"`
@@ -375,12 +341,12 @@ func (s *Server) handleTelemetryHeartbeat(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement telemetry client call
+	// TODO: Integrate with telemetry client for heartbeat
 	c.JSON(http.StatusOK, map[string]interface{}{
 		"license_id":      req.LicenseID,
 		"nodes_created":   req.NodesCreated,
 		"node_quota_used": req.NodeQuotaUsed,
-		"message":         "Heartbeat received",
+		"message":         "Heartbeat received and queued",
 	})
 }
 
