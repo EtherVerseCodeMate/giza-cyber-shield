@@ -59,11 +59,20 @@ logger = logging.getLogger("souhimbou.api")
 model_state = {
     "status": "INITIALIZING",
     "soul_embedding": {},
-    "model_loaded": False
+    "model_loaded": False,
+    "last_anomaly_time": None,
+    "active_scans": 0,
+    "queue_count": 0,
 }
 
 model_instance = None
 loader_instance = None
+
+# SouHimBou AGI component instances
+intent_classifier = IntentClassifier()
+security_responder = SecurityResponder()
+task_recommender = TaskRecommender()
+task_prioritizer = TaskPrioritizer()
 
 from contextlib import asynccontextmanager
 
