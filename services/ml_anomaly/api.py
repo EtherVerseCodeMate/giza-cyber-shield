@@ -234,26 +234,49 @@ app = FastAPI(
 async def get_dag_visualize():
     """
     Returns the Trust Constellation (DAG) graph for visualization.
-    Calls 'khepra engine dag export' to get the latest state.
+    Calls 'khepra engine dag export --json' to get the latest state.
     """
     try:
-        # Popen 'khepra engine dag export --json'
-        # For now, we simulate a mock graph if CLI is not ready
-        mock_graph = {
-            "nodes": [
-                {"id": "Genesis", "label": "Genesis Block", "type": "Block", "status": "Immutable"},
-                {"id": "Scan-001", "label": "Port Scan A", "type": "Scan", "status": "Critical"},
-                {"id": "Vuln-22", "label": "SSH Exposed", "type": "Finding", "status": "Critical"},
-                {"id": "Fix-001", "label": "Firewall Rule", "type": "Remediation", "status": "Pending"}
-            ],
-            "edges": [
-                {"source": "Genesis", "target": "Scan-001", "type": "Parent"},
-                {"source": "Scan-001", "target": "Vuln-22", "type": "Cause"},
-                {"source": "Vuln-22", "target": "Fix-001", "type": "Mitigation"}
-            ],
-            "stats": {"nodes": 4, "critical": 2}
+        # Call the Go CLI to export DAG as JSON
+        result = subprocess.run(
+            ["khepra", "engine", "dag", "export", "--json"],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode != 0:
+            logger.error(f"DAG export failed: {result.stderr}")
+            # Return empty graph if CLI fails
+            return {
+                "nodes": [],
+                "edges": [],
+                "stats": {"nodes": 0, "critical": 0, "error": "DAG export failed"}
+            }
+        
+        # Parse CLI output
+        dag_data = json.loads(result.stdout)
+        
+        # Transform to frontend format if needed
+        return {
+            "nodes": dag_data.get("nodes", []),
+            "edges": dag_data.get("edges", []),
+            "stats": dag_data.get("stats", {"nodes": 0, "critical": 0})
         }
-        return mock_graph
+    except subprocess.TimeoutExpired:
+        logger.error("DAG export timed out")
+        return {
+            "nodes": [],
+            "edges": [],
+            "stats": {"nodes": 0, "critical": 0, "error": "Timeout"}
+        }
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse DAG JSON: {e}")
+        return {
+            "nodes": [],
+            "edges": [],
+            "stats": {"nodes": 0, "critical": 0, "error": "Parse error"}
+        }
     except Exception as e:
         logger.error(f"DAG Export Failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -262,36 +285,81 @@ async def get_dag_visualize():
 async def get_cmmc_status():
     """
     Returns the CMMC Level 2 Compliance Scorecard.
-    Calls 'khepra compliance status' or mocks data.
+    Calls 'adinkhepra compliance status' to get real-time data.
     """
-    # Mock for MVP Dashboard Development
-    return {
-        "score": 78.5,
-        "level": "Level 2 (In Progress)",
-        "controls": {
-            "total": 110,
-            "passing": 86,
-            "failing": 24
-        },
-        "domains": {
-            "AC": {"score": 80, "status": "WARN"},
-            "AU": {"score": 60, "status": "FAIL"},
-            "SC": {"score": 90, "status": "PASS"},
-            "IR": {"score": 100, "status": "PASS"}
+    try:
+        # Call the Go CLI to get compliance status
+        result = subprocess.run(
+            ["adinkhepra", "compliance", "status", "--json"],
+            capture_output=True,
+            text=True,
+            timeout=15
+        )
+        
+        if result.returncode != 0:
+            logger.error(f"Compliance check failed: {result.stderr}")
+            # Return placeholder if CLI fails
+            return {
+                "score": 0.0,
+                "level": "Unknown",
+                "controls": {"total": 110, "passing": 0, "failing": 0},
+                "domains": {},
+                "error": "Compliance engine unavailable"
+            }
+        
+        # Parse CLI output
+        compliance_data = json.loads(result.stdout)
+        return compliance_data
+        
+    except subprocess.TimeoutExpired:
+        logger.error("Compliance check timed out")
+        return {
+            "score": 0.0,
+            "level": "Timeout",
+            "controls": {"total": 110, "passing": 0, "failing": 0},
+            "domains": {},
+            "error": "Timeout"
         }
-    }
+    except Exception as e:
+        logger.error(f"Compliance check error: {e}")
+        return {
+            "score": 0.0,
+            "level": "Error",
+            "controls": {"total": 110, "passing": 0, "failing": 0},
+            "domains": {},
+            "error": str(e)
+        }
 
 @app.get("/api/v1/ir/playbooks")
 async def get_ir_playbooks():
     """
     Returns available Incident Response Playbooks.
+    Calls 'khepra ir playbooks list --json' for real data.
     """
-    # Mock Playbooks
-    return [
-        {"id": "pb-001", "name": "Isolate Host (Windows)", "risk_level": "CRITICAL", "type": "Automated"},
-        {"id": "pb-002", "name": "Block IP (Firewall)", "risk_level": "HIGH", "type": "Automated"},
-        {"id": "pb-003", "name": "Forensic Snapshot Capture", "risk_level": "MEDIUM", "type": "Manual"}
-    ]
+    try:
+        # Call the Go CLI to list IR playbooks
+        result = subprocess.run(
+            ["khepra", "ir", "playbooks", "list", "--json"],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode != 0:
+            logger.error(f"IR playbooks list failed: {result.stderr}")
+            # Return empty list if CLI fails
+            return []
+        
+        # Parse CLI output
+        playbooks = json.loads(result.stdout)
+        return playbooks
+        
+    except subprocess.TimeoutExpired:
+        logger.error("IR playbooks list timed out")
+        return []
+    except Exception as e:
+        logger.error(f"IR playbooks error: {e}")
+        return []
 
 @app.get("/")
 async def root():
