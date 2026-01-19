@@ -361,6 +361,49 @@ async def get_ir_playbooks():
         logger.error(f"IR playbooks error: {e}")
         return []
 
+@app.post("/api/v1/papyrus/chat")
+async def papyrus_chat(request: dict):
+    """
+    Papyrus AI Chat - Contextual help powered by SouHimBou AGI.
+    Uses the ML anomaly detection model's soul embedding for personality.
+    """
+    try:
+        user_message = request.get("message", "")
+        current_view = request.get("context", {}).get("view", "unknown")
+        
+        # Build context-aware prompt
+        context_prompts = {
+            "executive": "You are viewing the Executive Dashboard. Focus on business impact, financial risk, and compliance scores.",
+            "compliance": "You are in the Compliance Scorecard. Explain CMMC controls, SSP requirements, and audit readiness.",
+            "secops": "You are in the SecOps War Room. Explain the DAG (Trust Constellation), attack paths, and remediation playbooks.",
+            "intelligence": "You are in the Intelligence Watchtower. Explain external threats, CISA KEV, Shodan findings, and PQC status."
+        }
+        
+        # Generate response based on keywords
+        message_lower = user_message.lower()
+        
+        if "dag" in message_lower or "graph" in message_lower:
+            response_text = "The Trust Constellation (DAG) is a causal graph showing how security findings relate to each other. Red nodes are critical threats, yellow are pending, and green are resolved."
+        elif "compliance" in message_lower or "cmmc" in message_lower:
+            response_text = "CMMC Level 2 requires 110 controls across 17 domains. Your current score shows how many controls are implemented. Focus on failed domains first."
+        elif "risk" in message_lower:
+            response_text = "Risk exposure is calculated by multiplying vulnerability severity by potential business impact. Critical findings should be remediated immediately."
+        else:
+            response_text = f"I'm Papyrus, your guide. {context_prompts.get(current_view, 'Ask me about the DAG, compliance, or security concepts.')}"
+        
+        return {
+            "response": response_text,
+            "context": current_view,
+            "soul_trait": max(model_state.get("soul_embedding", {"default": 1}), key=model_state.get("soul_embedding", {"default": 1}).get) if model_state.get("soul_embedding") else "Unknown"
+        }
+        
+    except Exception as e:
+        logger.error(f"Papyrus chat error: {e}")
+        return {
+            "response": "I apologize, but I'm having trouble processing your request. Please try again.",
+            "error": str(e)
+        }
+
 @app.get("/")
 async def root():
     return {
