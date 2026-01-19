@@ -60,10 +60,10 @@ func InitializeLicensing(storageBackend dag.Store, isAirGapped bool) error {
 // Body: {"tier": "khepri|ra|atum|osiris", "customer": "...", "duration_days": 365}
 func handleCreateLicense(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Tier        string   `json:"tier"`
-		Customer    string   `json:"customer"`
+		Tier         string   `json:"tier"`
+		Customer     string   `json:"customer"`
 		DurationDays int      `json:"duration_days"`
-		Features    []string `json:"features"`
+		Features     []string `json:"features"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
