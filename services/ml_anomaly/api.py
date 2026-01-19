@@ -1,21 +1,30 @@
 
 """
-SouHimBou AI - The Speech Center (API)
+SouHimBou AGI - The Speech Center (API)
 "The Voice of the Soul"
 
 Responsibility:
     - Expose the Anomaly Detection Model via HTTP
     - Allow the Motherboard (Go Layer) to query for "Intuition" (Anomaly Scores)
     - Allow triggering of "Awakening" (Retraining)
+    - Provide BabyAGI-style autonomous agent capabilities (NEW)
+    - Chat endpoint replaces LLM for user interaction (NEW)
+    - Task recommendation and prioritization (NEW)
+
+NIST AI RMF Alignment:
+    - GOVERN: Auditable API with full request/response logging
+    - MANAGE: Safety guardrails on all autonomous actions
+    - Accountable: Every decision traceable
 """
 import sys
 import logging
 import json
 import subprocess
 from pathlib import Path
+from datetime import datetime
 from fastapi import FastAPI, HTTPException, BackgroundTasks
-from pydantic import BaseModel
-from typing import List, Dict, Optional
+from pydantic import BaseModel, Field
+from typing import List, Dict, Optional, Any
 import uvicorn
 import torch
 import numpy as np
@@ -29,6 +38,13 @@ try:
     from services.ml_anomaly.config import settings
     from services.ml_anomaly.training.data_loader import SouHimBouLoader
     from services.ml_anomaly.training.train import SoulBiasedTrainer
+    # SouHimBou AGI components
+    from services.ml_anomaly.intent import IntentClassifier, SecurityIntent, IntentResult
+    from services.ml_anomaly.responder import SecurityResponder, ResponseContext
+    from services.ml_anomaly.task_recommender import (
+        TaskRecommender, TaskRecommendation, AnalysisResult, TaskPriority
+    )
+    from services.ml_anomaly.prioritizer import TaskPrioritizer, PrioritizedTask
 except ImportError as e:
     # Fallback/Mock for initial setup if imports fail due to path issues
     logging.error(f"Import Error: {e}")
