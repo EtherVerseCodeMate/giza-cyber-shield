@@ -21,14 +21,15 @@ RUN pip install --no-cache-dir \
     reportlab \
     websockets
 
+# Create necessary directories first
+RUN mkdir -p /app/data/cyber_brain /app/models /app/top_secret_intel
+
 # Copy application code
 COPY services/ml_anomaly /app/services/ml_anomaly
-COPY top_secret_intel /app/top_secret_intel
-COPY data/cyber_brain /app/data/cyber_brain
 COPY models /app/models
 
-# Create necessary directories
-RUN mkdir -p /app/data /app/models
+# Copy optional directories (may not exist)
+COPY top_secret_intel /app/top_secret_intel
 
 # Expose port
 EXPOSE 8080
