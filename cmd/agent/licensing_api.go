@@ -56,16 +56,23 @@ func InitializeLicensing(storageBackend dag.Store, isAirGapped bool) error {
 
 // handleCreateLicense creates a new license
 // POST /license/create
-// Body: {"tier": "khepri|ra|atum|osiris", "customer": "..."}
+// Body: {"tier": "khepri|ra|atum|osiris", "customer": "...", "duration_days": 365}
 func handleCreateLicense(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Tier     string   `json:"tier"`
-		Customer string   `json:"customer"`
-		Features []string `json:"features"`
+		Tier        string   `json:"tier"`
+		Customer    string   `json:"customer"`
+		DurationDays int      `json:"duration_days"`
+		Features    []string `json:"features"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Validate required fields
+	if req.Tier == "" || req.Customer == "" || req.DurationDays == 0 {
+		http.Error(w, "missing required fields: tier, customer, duration_days", http.StatusBadRequest)
 		return
 	}
 
@@ -83,8 +90,15 @@ func handleCreateLicense(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Generate license ID (machine-based for consistency)
+	licenseID := "lic-" + license.GenerateMachineID()
+
 	// Create license via manager
-	lic := licenseManager.CreateLicense(tier, req.Customer)
+	lic, err := licenseManager.CreateLicense(licenseID, tier, req.DurationDays)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(lic)
@@ -110,10 +124,34 @@ func handleGetLicense(w http.ResponseWriter, r *http.Request) {
 
 // handleUpgradeLicense upgrades license to next tier
 // POST /license/{license_id}/upgrade
+// Body: {"new_tier": "ra|atum|osiris"}
 func handleUpgradeLicense(w http.ResponseWriter, r *http.Request) {
 	licenseID := r.PathValue("license_id")
 
-	updatedLic, err := licenseManager.UpgradeLicense(licenseID)
+	var req struct {
+		NewTier string `json:"new_tier"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Map tier string to enum
+	tierMap := map[string]license.EgyptianTier{
+		"khepri": license.TierKhepri,
+		"ra":     license.TierRa,
+		"atum":   license.TierAtum,
+		"osiris": license.TierOsiris,
+	}
+
+	newTier, ok := tierMap[req.NewTier]
+	if !ok {
+		http.Error(w, fmt.Sprintf("invalid tier: %s", req.NewTier), http.StatusBadRequest)
+		return
+	}
+
+	updatedLic, err := licenseManager.UpgradeLicense(licenseID, newTier)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -121,7 +159,6 @@ func handleUpgradeLicense(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(updatedLic)
-}
 
 // handleGetLicenseUsage returns usage stats for a license
 // GET /license/{license_id}/usage
