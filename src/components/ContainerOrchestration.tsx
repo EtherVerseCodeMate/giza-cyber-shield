@@ -1,16 +1,30 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Container, Cpu, HardDrive, Activity, CheckCircle, RefreshCw } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useToast } from "@/hooks/use-toast";
 
+interface Cluster {
+  name: string;
+  nodes: number;
+  pods: number;
+  cpu: number;
+  memory: number;
+  status: string;
+}
+
+interface Module {
+  name: string;
+  replicas: string;
+  status: string;
+  version: string;
+  health: number;
+}
+
 export const ContainerOrchestration = () => {
-  const [clusters, setClusters] = useState<any[]>([]);
-  const [modules, setModules] = useState<any[]>([]);
+  const [clusters, setClusters] = useState<Cluster[]>([]);
+  const [modules, setModules] = useState<Module[]>([]);
   const [loading, setLoading] = useState(true);
   const { currentOrganization } = useOrganization();
   const { toast } = useToast();
@@ -27,30 +41,20 @@ export const ContainerOrchestration = () => {
     try {
       setLoading(true);
       
-      // Fetch infrastructure assets to simulate containers/pods
-      const { data: assets, error } = await supabase
-        .from('infrastructure_assets')
-        .select('*')
-        .eq('organization_id', currentOrganization.id)
-        .eq('asset_type', 'application')
-        .order('discovered_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Create realistic cluster data based on infrastructure
-      const clusterData = [
+      // Placeholder cluster data since infrastructure_assets and performance_metrics tables don't exist
+      const clusterData: Cluster[] = [
         { 
           name: "Production EKS", 
-          nodes: Math.max(3, Math.floor((assets?.length || 0) / 3)), 
-          pods: assets?.filter(a => a.compliance_status === 'COMPLIANT').length || 0, 
+          nodes: 3, 
+          pods: 12, 
           cpu: Math.floor(Math.random() * 30) + 50, 
           memory: Math.floor(Math.random() * 40) + 40, 
           status: "healthy" 
         },
         { 
           name: "Staging AKS", 
-          nodes: Math.max(2, Math.floor((assets?.length || 0) / 4)), 
-          pods: assets?.filter(a => a.compliance_status !== 'NON_COMPLIANT').length || 0, 
+          nodes: 2, 
+          pods: 8, 
           cpu: Math.floor(Math.random() * 25) + 30, 
           memory: Math.floor(Math.random() * 30) + 35, 
           status: "healthy" 
@@ -59,22 +63,13 @@ export const ContainerOrchestration = () => {
 
       setClusters(clusterData);
 
-      // Get real performance metrics for modules if available
-      const { data: metrics } = await supabase
-        .from('performance_metrics')
-        .select('*')
-        .eq('organization_id', currentOrganization.id)
-        .eq('metric_type', 'application_health')
-        .order('recorded_at', { ascending: false })
-        .limit(10);
-
-      // Create module status based on real metrics
-      const moduleData = [
+      // Placeholder module data
+      const moduleData: Module[] = [
         { name: "M-XDR Core", replicas: "3/3", status: "running", version: "v2.1.0", health: 98 },
         { name: "SOAR Engine", replicas: "2/2", status: "running", version: "v1.8.2", health: 95 },
         { name: "IPS Agent", replicas: "8/8", status: "running", version: "v3.0.1", health: 97 },
         { name: "SIEM Collector", replicas: "4/4", status: "running", version: "v2.5.0", health: 94 },
-        { name: "AI Reasoning", replicas: metrics?.length > 5 ? "3/3" : "2/3", status: metrics?.length > 5 ? "running" : "scaling", version: "v1.2.0", health: 92 },
+        { name: "AI Reasoning", replicas: "3/3", status: "running", version: "v1.2.0", health: 92 },
         { name: "Threat Intel", replicas: "1/1", status: "running", version: "v1.9.1", health: 99 }
       ];
 
