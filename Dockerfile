@@ -13,13 +13,17 @@ RUN apt-get update && apt-get install -y \
 # Copy Python requirements
 COPY services/ml_anomaly/requirements.txt /app/requirements.txt
 
-# Install Python dependencies
+# Install CPU-only PyTorch first (much smaller than full torch)
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
+# Install Python dependencies (torch already installed, skip it)
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install additional dependencies for PDF export and WebSocket
+# Install additional dependencies for PDF export, WebSocket, and settings
 RUN pip install --no-cache-dir \
     reportlab \
-    websockets
+    websockets \
+    pydantic-settings
 
 # Create necessary directories first
 RUN mkdir -p /app/data/cyber_brain /app/models /app/top_secret_intel
