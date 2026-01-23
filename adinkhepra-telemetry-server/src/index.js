@@ -20,7 +20,11 @@ import {
 	handleLicenseIssue,
 	handleLicenseRegister,
 	handleEnrollmentTokenCreate,
-	handleEnrollmentTokenList
+	handleEnrollmentTokenList,
+	handleStripeWebhook,
+	handlePilotSignup,
+	handleLicensesPending,
+	handleLicenseComplete
 } from './license.js';
 
 import {
@@ -142,6 +146,43 @@ export default {
 				});
 			}
 			return handleEnrollmentTokenList(request, env, corsHeaders, admin);
+		}
+
+		// ====================================================================
+		// AUTOMATED LICENSING ENDPOINTS
+		// ====================================================================
+
+		// Stripe webhook (Phase 1) - No auth, uses Stripe signature verification
+		if (url.pathname === '/api/webhooks/stripe' && request.method === 'POST') {
+			return handleStripeWebhook(request, env, corsHeaders);
+		}
+
+		// Pilot signup (Phase 2) - Public endpoint for trial signups
+		if (url.pathname === '/api/pilot/signup' && request.method === 'POST') {
+			return handlePilotSignup(request, env, corsHeaders);
+		}
+
+		// License queue endpoints (for local signer via Cloudflare Tunnel)
+		if (url.pathname === '/api/licenses/pending' && request.method === 'GET') {
+			const admin = await verifyAdminAuth(request, env);
+			if (!admin) {
+				return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+					status: 401,
+					headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+				});
+			}
+			return handleLicensesPending(request, env, corsHeaders, admin);
+		}
+
+		if (url.pathname === '/api/licenses/complete' && request.method === 'POST') {
+			const admin = await verifyAdminAuth(request, env);
+			if (!admin) {
+				return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+					status: 401,
+					headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+				});
+			}
+			return handleLicenseComplete(request, env, corsHeaders, admin);
 		}
 
 		return new Response('Not Found', {
