@@ -3,28 +3,31 @@ package ir
 import (
 	"testing"
 	"time"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 )
 
 // MockStore implements dag.Store for testing
 type MockStore struct {
-	nodes []interface{}
+	nodes []*dag.Node
 }
 
-func (m *MockStore) Add(node interface{}, parents []string) error {
+func (m *MockStore) Add(node *dag.Node, parents []string) error {
 	m.nodes = append(m.nodes, node)
 	return nil
 }
 
-func (m *MockStore) Get(id string) (interface{}, error) {
-	return nil, nil
+func (m *MockStore) Get(id string) (*dag.Node, bool) {
+	for _, n := range m.nodes {
+		if n.ID == id {
+			return n, true
+		}
+	}
+	return nil, false
 }
 
-func (m *MockStore) All() []interface{} {
+func (m *MockStore) All() []*dag.Node {
 	return m.nodes
-}
-
-func (m *MockStore) Close() error {
-	return nil
 }
 
 func TestIncidentTypes(t *testing.T) {
