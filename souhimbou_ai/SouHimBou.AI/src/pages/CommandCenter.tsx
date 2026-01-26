@@ -92,17 +92,17 @@ const CommandCenter = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
-            {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-4xl font-black bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 bg-clip-text text-transparent">
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 md:p-6">
+            {/* Header with animation */}
+            <div className="mb-6 md:mb-8 animate-fade-in">
+                <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 bg-clip-text text-transparent animate-gradient">
                     KHEPRA COMMAND CENTER
                 </h1>
-                <p className="text-slate-400 mt-2">Compliance in 4 Clicks • Post-Quantum Attestation</p>
+                <p className="text-slate-400 mt-2 text-sm md:text-base">Compliance in 4 Clicks • Post-Quantum Attestation</p>
             </div>
 
-            {/* 4-Quadrant Grid */}
-            <div className="grid grid-cols-2 gap-6 h-[calc(100vh-200px)]">
+            {/* 4-Quadrant Grid - Mobile Responsive */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 min-h-[calc(100vh-200px)]">
 
                 {/* Q1: DISCOVER */}
                 <Card className="bg-slate-900/50 border-cyan-500/30 backdrop-blur-sm overflow-hidden">
@@ -127,8 +127,8 @@ const CommandCenter = () => {
                                     key={ep.id}
                                     onClick={() => setSelectedEndpoint(ep)}
                                     className={`p-3 rounded-lg border cursor-pointer transition-all ${selectedEndpoint?.id === ep.id
-                                            ? "bg-cyan-500/20 border-cyan-500"
-                                            : "bg-slate-800/50 border-slate-700 hover:border-cyan-500/50"
+                                        ? "bg-cyan-500/20 border-cyan-500"
+                                        : "bg-slate-800/50 border-slate-700 hover:border-cyan-500/50"
                                         }`}
                                 >
                                     <div className="flex items-center justify-between">
@@ -142,7 +142,7 @@ const CommandCenter = () => {
                                         <div className="flex items-center gap-2">
                                             <Badge variant="outline" className="text-xs">{ep.profile}</Badge>
                                             <div className={`w-2 h-2 rounded-full ${ep.status === "online" ? "bg-green-500" :
-                                                    ep.status === "scanning" ? "bg-blue-500 animate-pulse" : "bg-red-500"
+                                                ep.status === "scanning" ? "bg-blue-500 animate-pulse" : "bg-red-500"
                                                 }`} />
                                         </div>
                                     </div>
