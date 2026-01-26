@@ -1,7 +1,5 @@
 package stig
 
-import "time"
-
 // NIST800171Requirement represents a single security requirement from NIST SP 800-171 Rev 2
 type NIST800171Requirement struct {
 	ID          string   `json:"id"`
