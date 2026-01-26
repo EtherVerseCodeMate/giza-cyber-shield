@@ -54,19 +54,15 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
   const [organizationName, setOrganizationName] = useState("Organization");
 
   useEffect(() => {
-    initializeCMMCData();
-    fetchPOAMItems();
+    if (cmmc.data) {
+      updateDashboardData(cmmc.data);
+    }
     fetchOrganizationData();
-  }, [frameworks, controls]);
+  }, [cmmc.data]);
 
-  const initializeCMMCData = () => {
-    const cmmcFramework = frameworks.find(f => f.name.toLowerCase().includes('cmmc'));
-    if (!cmmcFramework) return;
-
-    // Filter controls for each CMMC level based on their description or tags
-    // For MVP, we use the standard counts but calculate 'implemented' from real data
-    const cmmcControls = controls.filter(c => c.framework_id === cmmcFramework?.id);
-    const implementedCount = cmmcControls.filter(c => c.status === 'IMPLEMENTED').length;
+  const updateDashboardData = (data: any) => {
+    // 1. Calculate CMMC Levels from Findings
+    const findings = data.Findings || [];
 
     const levels: CMMCLevel[] = [
       {
@@ -74,7 +70,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
         name: "Basic Cyber Hygiene",
         description: "Safeguard Federal Contract Information (FCI)",
         controls: 17,
-        implemented: cmmcControls.filter(c => c.status === 'IMPLEMENTED' && c.control_id.includes('L1')).length,
+        implemented: findings.filter((f: any) => f.Status === 'Pass' && f.ID.includes('L1')).length,
         color: "bg-blue-500"
       },
       {
@@ -82,41 +78,38 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
         name: "Intermediate Cyber Hygiene",
         description: "Protect Controlled Unclassified Information (CUI)",
         controls: 110,
-        implemented: cmmcControls.filter(c => c.status === 'IMPLEMENTED' && c.control_id.includes('L2')).length,
+        implemented: findings.filter((f: any) => f.Status === 'Pass' && (f.ID.includes('L2') || f.References.some((r: string) => r.startsWith('NIST-800-171')))).length,
         color: "bg-green-500"
       },
       {
         level: 3,
         name: "Good Cyber Hygiene",
         description: "Protect CUI and reduce risk of APTs",
-        controls: 130,
-        implemented: cmmcControls.filter(c => c.status === 'IMPLEMENTED' && c.control_id.includes('L3')).length,
+        controls: 130, // 110 + 20 advanced
+        implemented: findings.filter((f: any) => f.Status === 'Pass' && f.ID.includes('L3')).length,
         color: "bg-yellow-500"
       }
     ];
 
     setCmmcLevels(levels);
 
+    // 2. Update overall score
     const totalControls = levels.reduce((sum, level) => sum + level.controls, 0);
     const totalImplemented = levels.reduce((sum, level) => sum + level.implemented, 0);
     setOverallScore(totalControls > 0 ? Math.round((totalImplemented / totalControls) * 100) : 0);
-  };
 
-  const fetchPOAMItems = async () => {
-    // Dynamically generate POAM items from FAILED controls
-    const failedControls = controls.filter(c => c.status === 'FAILED_SCAN' || c.status === 'NON_COMPLIANT');
-
-    const realPOAM: POAMItem[] = failedControls.map((c, index) => ({
-      id: c.id,
-      control_id: c.control_id,
-      weakness: `Control ${c.control_id} failed validation`,
-      remediation: c.remediation_steps || "Remediation required - run auto-fix or update policy",
+    // 3. Generate POAM for FAILED controls
+    const failedFindings = findings.filter((f: any) => f.Status === 'Fail');
+    const realPOAM: POAMItem[] = failedFindings.map((f: any) => ({
+      id: f.ID,
+      control_id: f.ID.split('-').pop(), // Extract control ID
+      weakness: f.Title,
+      remediation: f.Remediation,
       status: 'OPEN',
-      due_date: new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0], // +30 days
-      priority: 'HIGH',
-      responsible_party: 'Security Team'
+      due_date: new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
+      priority: f.Severity === 'Critical' || f.Severity === 'high' ? 'HIGH' : 'MEDIUM',
+      responsible_party: 'System Administrator'
     }));
-
     setPOAMItems(realPOAM);
   };
 
@@ -176,7 +169,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
     }
   };
 
-  if (loading) {
+  if (cmmc.isLoading || offlineLoading) {
     return (
       <div className="space-y-6">
         <Card className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 border-blue-500/30">
