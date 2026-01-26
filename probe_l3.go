@@ -22,23 +22,32 @@ func main() {
 		
 		fmt.Printf("\n--- File: %s ---\n", path)
 		sheets := f.GetSheetList()
-		fmt.Printf("Sheets found: %v\n", sheets)
-		
 		for _, sheet := range sheets {
-			// Just check for L3 / 172 in sheet name or first 100 rows
-			if strings.Contains(sheet, "L3") || strings.Contains(sheet, "172") {
-				fmt.Printf("  [MATCH] Found sheet: %s\n", sheet)
+			fmt.Printf("Sheet: %s\n", sheet)
+			
+			rows, err := f.Rows(sheet)
+			if err != nil {
+				continue
 			}
 			
-			rows, _ := f.GetRows(sheet)
-			for i, row := range rows {
-				if i > 100 { break } // Only first 100 rows
+			count := 0
+			for rows.Next() {
+				row, _ := rows.Columns()
 				rowStr := strings.Join(row, " ")
-				if strings.Contains(rowStr, "800-172") || strings.Contains(rowStr, "Level 3") {
-					fmt.Printf("  [MATCH] Found L3/172 reference in %s at row %d\n", sheet, i)
-					break
+				// Check for "172", "Level 3", or "L3" in header or first 10 rows
+				if count == 0 {
+					fmt.Printf("  Header: %v\n", row)
 				}
+				
+				if strings.Contains(rowStr, "800-172") || strings.Contains(rowStr, "Level 3") || strings.Contains(rowStr, "L3") {
+					fmt.Printf("  [FOUND] L3/172 data at row %d: %s\n", count, rowStr)
+					if count > 5 { break } // Found enough to confirm coverage
+				}
+				
+				if count > 100 && !strings.Contains(sheet, "L3") { break } // Optimization
+				count++
 			}
+			rows.Close()
 		}
 		f.Close()
 	}
