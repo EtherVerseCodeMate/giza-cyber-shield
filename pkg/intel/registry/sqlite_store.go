@@ -54,6 +54,37 @@ func (s *Store) initSchema() error {
 	);
 	CREATE INDEX IF NOT EXISTS idx_source ON vulnerabilities(source);
 	CREATE INDEX IF NOT EXISTS idx_exploited ON vulnerabilities(exploited);
+
+	-- Compliance Mapping Tables
+	CREATE TABLE IF NOT EXISTS compliance_controls (
+		id TEXT PRIMARY KEY,
+		family TEXT,
+		title TEXT,
+		description TEXT,
+		cmmc_level INTEGER
+	);
+
+	CREATE TABLE IF NOT EXISTS stig_cci_map (
+		stig_id TEXT,
+		cci_id TEXT,
+		PRIMARY KEY(stig_id, cci_id)
+	);
+
+	CREATE TABLE IF NOT EXISTS cci_nist_map (
+		cci_id TEXT,
+		nist_53_ref TEXT,
+		PRIMARY KEY(cci_id, nist_53_ref)
+	);
+
+	CREATE TABLE IF NOT EXISTS nist_hierarchy (
+		nist_53_ref TEXT,
+		nist_171_ref TEXT,
+		PRIMARY KEY(nist_53_ref, nist_171_ref)
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_stigs ON stig_cci_map(stig_id);
+	CREATE INDEX IF NOT EXISTS idx_ccis ON stig_cci_map(cci_id);
+	CREATE INDEX IF NOT EXISTS idx_nist171 ON nist_hierarchy(nist_171_ref);
 	`
 	_, err := s.db.Exec(query)
 	return err
