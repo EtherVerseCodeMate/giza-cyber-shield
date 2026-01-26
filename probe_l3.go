@@ -3,55 +3,29 @@ package main
 import (
 	"fmt"
 	"log"
-	"strings"
+
 	"github.com/xuri/excelize/v2"
 )
 
 func main() {
-	files := []string{
-		"docs/STIG_to_NIST171_Mapping_Ultimate.xlsx",
-		"docs/STIG_to_CMMC_Complete_Mapping.xlsx",
+	f, err := excelize.OpenFile("docs/STIG_to_NIST171_Mapping_Ultimate.xlsx")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	sheet := "STIG_to_CMMC_Complete Mapping"
+	fmt.Printf("--- Sheet: %s ---\n", sheet)
+
+	rows, err := f.GetRows(sheet)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	for _, path := range files {
-		f, err := excelize.OpenFile(path)
-		if err != nil {
-			log.Printf("Error opening %s: %v", path, err)
-			continue
+	for i, row := range rows {
+		if i >= 30 {
+			break
 		}
-		
-		fmt.Printf("\n--- File: %s ---\n", path)
-		sheets := f.GetSheetList()
-		for _, sheet := range sheets {
-			fmt.Printf("Sheet: %s\n", sheet)
-			
-			rows, err := f.Rows(sheet)
-			if err != nil {
-				continue
-			}
-			
-			count := 0
-			found := false
-			for rows.Next() {
-				row, _ := rows.Columns()
-				rowStr := strings.Join(row, " ")
-				
-				// Search for specific L3 markers
-				if strings.Contains(rowStr, "800-172") || 
-				   strings.Contains(rowStr, "3.1.2e") || 
-				   strings.Contains(rowStr, "L3") || 
-				   strings.Contains(rowStr, "Level 3") {
-					fmt.Printf("  [MATCH] Row %d: %s\n", count, rowStr)
-					found = true
-					// Keep checking a few more to see density
-					if count > 500 { break } 
-				}
-				
-				if count > 1000 && !found { break } // Optimization
-				count++
-			}
-			rows.Close()
-		}
-		f.Close()
+		fmt.Printf("Row %d: %v\n", i, row)
 	}
 }
