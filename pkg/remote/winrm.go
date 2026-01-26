@@ -62,16 +62,14 @@ func (e *WinRMExecutor) Execute(ctx context.Context, command string) (*CommandRe
 
 	start := time.Now()
 
-	// Wrap command in PowerShell
-	psCommand := fmt.Sprintf("powershell.exe -NoProfile -NonInteractive -Command \"%s\"", command)
-
-	stdout, stderr, exitCode, err := e.client.RunWithContext(ctx, psCommand, nil, nil, nil)
+	// Use RunPSWithContext which wraps command in PowerShell
+	stdout, stderr, exitCode, err := e.client.RunPSWithContext(ctx, command)
 	duration := time.Since(start)
 
 	result := &CommandResult{
 		ExitCode:   exitCode,
-		Stdout:     string(stdout),
-		Stderr:     string(stderr),
+		Stdout:     stdout,
+		Stderr:     stderr,
 		Duration:   duration,
 		ExecutedAt: start,
 	}
