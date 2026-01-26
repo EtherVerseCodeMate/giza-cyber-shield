@@ -91,18 +91,31 @@ func ServiceAuthMiddleware() gin.HandlerFunc {
 // OWASP API8:2023 - Security Misconfiguration prevention
 func validateServiceToken(token string) (*ServiceAccount, error) {
 	// Token format: khepra-svc-{service_name}-{timestamp_hex}-{hmac_hex}
+	// where timestamp_hex is 16 chars, hmac_hex is 64 chars
 	if !strings.HasPrefix(token, "khepra-svc-") {
 		return nil, &AuthError{Message: "Invalid token format"}
 	}
 
-	parts := strings.Split(token[11:], "-") // Remove "khepra-svc-" prefix
-	if len(parts) < 3 {
+	// Parse from the end since service name can contain hyphens
+	// HMAC signature is 64 chars (32 bytes hex)
+	// Timestamp is 16 chars (8 bytes hex)
+	remainder := token[11:] // Remove "khepra-svc-" prefix
+
+	// Find the last hyphen (before signature)
+	lastHyphen := strings.LastIndex(remainder, "-")
+	if lastHyphen == -1 || lastHyphen <= 17 { // Need at least timestamp + hyphen
 		return nil, &AuthError{Message: "Invalid token structure"}
 	}
+	signatureHex := remainder[lastHyphen+1:]
 
-	serviceName := parts[0]
-	timestampHex := parts[1]
-	signatureHex := parts[len(parts)-1]
+	// Find the second-to-last hyphen (before timestamp)
+	beforeSig := remainder[:lastHyphen]
+	secondLastHyphen := strings.LastIndex(beforeSig, "-")
+	if secondLastHyphen == -1 {
+		return nil, &AuthError{Message: "Invalid token structure"}
+	}
+	timestampHex := beforeSig[secondLastHyphen+1:]
+	serviceName := beforeSig[:secondLastHyphen]
 
 	// Validate service account exists
 	account, exists := serviceAccounts[serviceName]
