@@ -118,6 +118,15 @@ func NewKnowledgeBase() *KnowledgeBase {
 				log.Printf("[INTEL] Failed to load MITRE CVEs: %v", err)
 			}
 		}
+
+		// Load ExploitDB if present
+		exploitDBPath := "data/exploitdb"
+		if _, err := os.Stat(exploitDBPath); err == nil {
+			log.Printf("[INTEL] Loading ExploitDB from %s...", exploitDBPath)
+			if err := kb.LoadExploitDB(exploitDBPath); err != nil {
+				log.Printf("[INTEL] Failed to load ExploitDB: %v", err)
+			}
+		}
 	}()
 
 	return kb
