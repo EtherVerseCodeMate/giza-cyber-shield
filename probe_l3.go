@@ -34,17 +34,14 @@ func main() {
 			for rows.Next() {
 				row, _ := rows.Columns()
 				rowStr := strings.Join(row, " ")
-				// Check for "172", "Level 3", or "L3" in header or first 10 rows
-				if count == 0 {
-					fmt.Printf("  Header: %v\n", row)
+				
+				// Look for Level 3 or 172 indicators
+				if strings.Contains(rowStr, "172") || strings.Contains(rowStr, "Level 3") || strings.Contains(rowStr, "L3") {
+					fmt.Printf("  [FOUND] Row %d: %s\n", count, rowStr)
 				}
 				
-				if strings.Contains(rowStr, "800-172") || strings.Contains(rowStr, "Level 3") || strings.Contains(rowStr, "L3") {
-					fmt.Printf("  [FOUND] L3/172 data at row %d: %s\n", count, rowStr)
-					if count > 5 { break } // Found enough to confirm coverage
-				}
-				
-				if count > 100 && !strings.Contains(sheet, "L3") { break } // Optimization
+				if count > 20 && !strings.Contains(sheet, "L3") { break }
+				if count > 500 { break } // Sanity limit for L3 sheets
 				count++
 			}
 			rows.Close()
