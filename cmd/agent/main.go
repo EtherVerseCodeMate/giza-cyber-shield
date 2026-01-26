@@ -8,9 +8,9 @@ import (
 	"log"
 	mrand "math/rand/v2"
 	"net/http"
-
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
@@ -72,6 +72,30 @@ func main() {
 	if err != nil {
 		log.Printf("[LICENSE] Failed to create manager: %v", err)
 	} else {
+		// Load Master Private Key for license authentication
+		// Priority: 1. KHEPRA_MASTER_KEY (hex-encoded) 2. KHEPRA_MASTER_KEY_PATH (file path)
+		masterKey := os.Getenv("KHEPRA_MASTER_KEY")
+		if masterKey == "" {
+			keyPath := os.Getenv("KHEPRA_MASTER_KEY_PATH")
+			if keyPath == "" {
+				// Default to offline root key location
+				keyPath = "keys/offline/OFFLINE_ROOT_KEY.secret"
+			}
+			if keyData, err := os.ReadFile(keyPath); err == nil {
+				masterKey = strings.TrimSpace(string(keyData))
+				log.Printf("[LICENSE] Master key loaded from: %s", keyPath)
+			}
+		} else {
+			log.Printf("[LICENSE] Master key loaded from environment")
+		}
+
+		if masterKey != "" {
+			licMgr.SetPrivateKey(masterKey)
+			log.Printf("[LICENSE] ✅ SOVEREIGN MODE: Master key configured")
+		} else {
+			log.Printf("[LICENSE] ⚠️  No master key found - license validation will fail")
+		}
+
 		// Set enrollment token if provided (enables auto-registration on first boot)
 		if *enrollmentToken != "" {
 			log.Printf("[LICENSE] Enrollment token provided - auto-registration enabled")
