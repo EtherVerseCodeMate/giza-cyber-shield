@@ -85,6 +85,18 @@ func (s *Store) initSchema() error {
 	CREATE INDEX IF NOT EXISTS idx_stigs ON stig_cci_map(stig_id);
 	CREATE INDEX IF NOT EXISTS idx_ccis ON stig_cci_map(cci_id);
 	CREATE INDEX IF NOT EXISTS idx_nist171 ON nist_hierarchy(nist_171_ref);
+
+	-- ExploitDB Table
+	CREATE TABLE IF NOT EXISTS exploits (
+		id TEXT PRIMARY KEY,
+		cve_id TEXT,
+		description TEXT,
+		file_path TEXT,
+		platform TEXT,
+		type TEXT,
+		published_at DATETIME
+	);
+	CREATE INDEX IF NOT EXISTS idx_exploit_cve ON exploits(cve_id);
 	`
 	_, err := s.db.Exec(query)
 	return err
@@ -123,4 +135,54 @@ func (s *Store) GetVulnerability(id string) (*Vulnerability, error) {
 // Close closes the database connection
 func (s *Store) Close() error {
 	return s.db.Close()
+}
+
+// --- ExploitDB Support ---
+
+// Exploit represents an entry from ExploitDB
+type Exploit struct {
+	ID          string    `json:"id"`     // EDB-ID
+	CVEID       string    `json:"cve_id"` // Linked CVE (if any)
+	Description string    `json:"description"`
+	FilePath    string    `json:"file_path"`
+	Platform    string    `json:"platform"`
+	Type        string    `json:"type"`
+	PublishedAt time.Time `json:"published_at"`
+}
+
+// SaveExploit saves an exploit definition to the registry
+func (s *Store) SaveExploit(e *Exploit) error {
+	query := `
+	INSERT INTO exploits (id, cve_id, description, file_path, platform, type, published_at)
+	VALUES (?, ?, ?, ?, ?, ?, ?)
+	ON CONFLICT(id) DO UPDATE SET
+		cve_id = excluded.cve_id,
+		description = excluded.description,
+		file_path = excluded.file_path,
+		platform = excluded.platform,
+		type = excluded.type,
+		published_at = excluded.published_at
+	`
+	_, err := s.db.Exec(query, e.ID, e.CVEID, e.Description, e.FilePath, e.Platform, e.Type, e.PublishedAt)
+	return err
+}
+
+// GetExploits returns all exploits linked to a CVE ID
+func (s *Store) GetExploits(cveID string) ([]Exploit, error) {
+	query := `SELECT id, cve_id, description, file_path, platform, type, published_at FROM exploits WHERE cve_id = ?`
+	rows, err := s.db.Query(query, cveID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var exploits []Exploit
+	for rows.Next() {
+		var e Exploit
+		if err := rows.Scan(&e.ID, &e.CVEID, &e.Description, &e.FilePath, &e.Platform, &e.Type, &e.PublishedAt); err != nil {
+			return nil, err
+		}
+		exploits = append(exploits, e)
+	}
+	return exploits, nil
 }

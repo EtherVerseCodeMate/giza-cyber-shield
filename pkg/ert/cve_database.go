@@ -6,13 +6,16 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/intel/registry"
 )
 
 // CVEDatabase loads and queries the local CVE database
 type CVEDatabase struct {
-	KEVs          []KEVEntry          // Known Exploited Vulnerabilities
-	NISTEntries   map[string]CVEEntry // CVE-ID -> NIST data
-	loaded        bool
+	KEVs        []KEVEntry          // Known Exploited Vulnerabilities
+	NISTEntries map[string]CVEEntry // CVE-ID -> NIST data (Legacy/Fallback)
+	Registry    *registry.Store     // SQLite Persistent Store
+	loaded      bool
 }
 
 // KEVEntry represents a Known Exploited Vulnerability from CISA
@@ -50,18 +53,29 @@ func NewCVEDatabase() *CVEDatabase {
 func LoadCVEDatabase(dataDir string) (*CVEDatabase, error) {
 	db := NewCVEDatabase()
 
-	// Load Known Exploited Vulnerabilities
+	// Load Known Exploited Vulnerabilities (Keep in memory for fast lookup)
 	kevPath := filepath.Join(dataDir, "known_exploited_vulnerabilities_indusface_nov_2025.json")
 	if err := db.loadKEVs(kevPath); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to load KEVs: %v\n", err)
 	}
 
-	// Check for CVE database subdirectory
-	cveDBPath := filepath.Join(dataDir, "cve-database")
-	if info, err := os.Stat(cveDBPath); err == nil && info.IsDir() {
-		// Load NIST CVE data from cve-database directory
-		if err := db.loadNISTDatabase(cveDBPath); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to load NIST database: %v\n", err)
+	// Connect to shared SQLite Registry
+	dbPath := filepath.Join(dataDir, "vulnerabilities.db")
+	if reg, err := registry.NewStore(dbPath); err == nil {
+		db.Registry = reg
+		fmt.Fprintf(os.Stderr, "[ERT] Connected to Vulnerability Registry at %s\n", dbPath)
+	} else {
+		fmt.Fprintf(os.Stderr, "[ERT] Warning: Failed to connect to registry (using memory mode): %v\n", err)
+	}
+
+	// Legacy Support: Check for CVE database subdirectory if Registry is empty/failed
+	// Only load if we really have to, to avoid memory exhaustion
+	if db.Registry == nil {
+		cveDBPath := filepath.Join(dataDir, "cve-database")
+		if info, err := os.Stat(cveDBPath); err == nil && info.IsDir() {
+			if err := db.loadNISTDatabase(cveDBPath); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: failed to load NIST database: %v\n", err)
+			}
 		}
 	}
 
@@ -130,8 +144,39 @@ func (db *CVEDatabase) loadNISTDatabase(dir string) error {
 
 // QueryCVE looks up a CVE by ID
 func (db *CVEDatabase) QueryCVE(cveID string) (CVEEntry, bool) {
-	entry, exists := db.NISTEntries[cveID]
-	return entry, exists
+	// 1. Check in-memory NIST entries (Legacy)
+	if entry, exists := db.NISTEntries[cveID]; exists {
+		return entry, true
+	}
+
+	// 2. Check Registry (Preferred)
+	if db.Registry != nil {
+		v, err := db.Registry.GetVulnerability(cveID)
+		if err == nil && v != nil {
+			return CVEEntry{
+				ID:          v.ID,
+				Description: v.Description,
+				CVSS:        v.CVSS,
+				Severity:    "UNKNOWN", // registry store doesn't store computed severity string
+				Published:   v.PublishedAt.Format("2006-01-02"),
+				Modified:    v.UpdatedAt.Format("2006-01-02"),
+			}, true
+		}
+	}
+
+	return CVEEntry{}, false
+}
+
+// GetExploits retrieves known exploits for a CVE
+func (db *CVEDatabase) GetExploits(cveID string) []registry.Exploit {
+	if db.Registry == nil {
+		return []registry.Exploit{}
+	}
+	exploits, err := db.Registry.GetExploits(cveID)
+	if err != nil {
+		return []registry.Exploit{}
+	}
+	return exploits
 }
 
 // IsKnownExploited checks if a CVE is in CISA's KEV catalog
@@ -202,9 +247,9 @@ func (db *CVEDatabase) GetCriticalCVEs() []CVEEntry {
 // Stats returns database statistics
 func (db *CVEDatabase) Stats() map[string]int {
 	return map[string]int{
-		"total_cves":       len(db.NISTEntries),
-		"known_exploited":  len(db.KEVs),
-		"critical":         len(db.GetCriticalCVEs()),
-		"high":             len(db.GetHighSeverityCVEs()),
+		"total_cves":      len(db.NISTEntries),
+		"known_exploited": len(db.KEVs),
+		"critical":        len(db.GetCriticalCVEs()),
+		"high":            len(db.GetHighSeverityCVEs()),
 	}
 }
