@@ -36,4 +36,17 @@ routes = [
 # STRIPE_WEBHOOK_SECRET - Stripe webhook signing secret (whsec_...)
 # ADMIN_API_KEY         - Emergency admin API key for authentication
 # JWT_SECRET            - Secret for signing admin JWT tokens
+# DEMARC_SERVICE_TOKEN  - Service account token for DEMARC gateway
+# SUPABASE_SERVICE_KEY  - Supabase service role key (fallback)
+
+[vars]
+# DEMARC Gateway URL
+DEMARC_GATEWAY_URL = "https://gateway.souhimbou.org"
+
+# Supabase Project URL (fallback if DEMARC is down)
+SUPABASE_URL = "https://your-project.supabase.co"
+
+# Scheduled triggers for telemetry aggregation
+[triggers]
+crons = ["0 * * * *"]  # Run every hour
 

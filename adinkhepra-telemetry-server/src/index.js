@@ -34,9 +34,18 @@ import {
 	verifyAdminAuth
 } from './admin-auth.js';
 
+import {
+	handleScheduled,
+	forwardSecurityEvent
+} from './forwarding.js';
+
 import { ml_dsa65 } from "@noble/post-quantum/ml-dsa";
 
 export default {
+	// Scheduled trigger for telemetry aggregation (hourly)
+	async scheduled(event, env, ctx) {
+		return handleScheduled(event, env, ctx);
+	},
 	async fetch(request, env, ctx) {
 		const url = new URL(request.url);
 
@@ -631,10 +640,11 @@ async function detectAnomalies(beacon, beaconId, isSignatureValid) {
 }
 
 /**
- * Log anomalies to database
+ * Log anomalies to database and forward to DEMARC
  */
 async function logAnomalies(env, anomalies) {
 	for (const anomaly of anomalies) {
+		// Store locally
 		await env.DB.prepare(`
 			INSERT INTO anomalies (beacon_id, anomaly_type, severity, details)
 			VALUES (?, ?, ?, ?)
@@ -644,5 +654,17 @@ async function logAnomalies(env, anomalies) {
 			anomaly.severity,
 			anomaly.details
 		).run();
+
+		// Forward high-severity anomalies to DEMARC in real-time
+		if (anomaly.severity === 'high' || anomaly.severity === 'critical') {
+			await forwardSecurityEvent(env, {
+				type: 'anomaly_detected',
+				severity: anomaly.severity,
+				device_id: anomaly.beacon_id,
+				title: `Anomaly: ${anomaly.anomaly_type}`,
+				description: `Detected ${anomaly.anomaly_type} anomaly`,
+				details: JSON.parse(anomaly.details)
+			});
+		}
 	}
 }
