@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // CVE 5.1 Format structures (MITRE database format)
@@ -88,8 +89,23 @@ func (kb *KnowledgeBase) LoadMITRECVEDatabase(rootPath string) error {
 			return nil
 		}
 
-		// Only store CVEs with CVSS scores (others are useless for risk calculation)
-		if vuln.CVSS > 0 {
+		// Save to Registry if available (persistence)
+		if kb.Registry != nil {
+			rv := &registry.Vulnerability{
+				ID:          vuln.ID,
+				Source:      vuln.Source,
+				CVSS:        vuln.CVSS,
+				Description: vuln.Description,
+				UpdatedAt:   time.Now(),
+			}
+			if err := kb.Registry.SaveVulnerability(rv); err != nil {
+				log.Printf("[INTEL] Failed to save %s to registry: %v", vuln.ID, err)
+			}
+		}
+
+		// Only store in-memory if Registry is NOT available (fallback to legacy behavior)
+		// Or if we want a smaller cache of high-priority items (TBD)
+		if kb.Registry == nil && vuln.CVSS > 0 {
 			kb.Vulnerabilities[vuln.ID] = *vuln
 			count++
 		}
