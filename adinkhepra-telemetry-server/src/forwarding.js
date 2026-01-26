@@ -9,17 +9,74 @@
  * CLIENT → CloudFlare Workers → DEMARC → Supabase → Master Operator Console
  */
 
-// Forward telemetry to DEMARC gateway
-export async function forwardToDemar(env, aggregatedData) {
-	const demarcUrl = env.DEMARC_GATEWAY_URL || 'https://gateway.souhimbou.org';
-	const serviceToken = env.DEMARC_SERVICE_TOKEN;
+/**
+ * Generate HMAC-SHA256 service token for DEMARC authentication
+ * Token format: khepra-svc-{service_name}-{timestamp_hex}-{hmac_signature}
+ *
+ * @param {string} serviceName - Service identifier (e.g., 'cloudflare-telemetry')
+ * @param {string} secret - KHEPRA_SERVICE_SECRET hex string
+ * @returns {Promise<string>} Generated service token
+ */
+async function generateServiceToken(serviceName, secret) {
+	// Current timestamp as 8-byte big-endian hex
+	const timestamp = Math.floor(Date.now() / 1000);
+	const timestampHex = timestamp.toString(16).padStart(16, '0');
 
-	if (!serviceToken) {
-		console.error('DEMARC_SERVICE_TOKEN not configured');
-		return { success: false, error: 'Missing service token' };
+	// Message to sign
+	const message = `khepra-svc-${serviceName}-${timestampHex}`;
+
+	// Import the secret key for HMAC
+	const secretBytes = hexToBytes(secret);
+	const key = await crypto.subtle.importKey(
+		'raw',
+		secretBytes,
+		{ name: 'HMAC', hash: 'SHA-256' },
+		false,
+		['sign']
+	);
+
+	// Compute HMAC-SHA256
+	const encoder = new TextEncoder();
+	const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(message));
+	const signatureHex = bytesToHex(new Uint8Array(signature));
+
+	return `${message}-${signatureHex}`;
+}
+
+/**
+ * Convert hex string to Uint8Array
+ */
+function hexToBytes(hex) {
+	const bytes = new Uint8Array(hex.length / 2);
+	for (let i = 0; i < hex.length; i += 2) {
+		bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+	}
+	return bytes;
+}
+
+/**
+ * Convert Uint8Array to hex string
+ */
+function bytesToHex(bytes) {
+	return Array.from(bytes)
+		.map(b => b.toString(16).padStart(2, '0'))
+		.join('');
+}
+
+// Forward telemetry to DEMARC gateway
+export async function forwardToDemarc(env, aggregatedData) {
+	const demarcUrl = env.DEMARC_GATEWAY_URL || 'https://gateway.souhimbou.org';
+	const serviceSecret = env.KHEPRA_SERVICE_SECRET;
+
+	if (!serviceSecret) {
+		console.error('KHEPRA_SERVICE_SECRET not configured');
+		return { success: false, error: 'Missing service secret' };
 	}
 
 	try {
+		// Generate fresh token for each request (anti-replay protection)
+		const serviceToken = await generateServiceToken('cloudflare-telemetry', serviceSecret);
+
 		const response = await fetch(`${demarcUrl}/api/v1/telemetry/ingest`, {
 			method: 'POST',
 			headers: {
@@ -143,7 +200,7 @@ export async function aggregateCryptoInventory(env) {
 		});
 
 		// Forward to DEMARC
-		const forwardResult = await forwardToDemar(env, {
+		const forwardResult = await forwardToDemarc(env, {
 			type: 'crypto_inventory',
 			timestamp: new Date().toISOString(),
 			source: 'cloudflare-telemetry',
@@ -242,7 +299,7 @@ export async function aggregateLicenseTelemetry(env) {
 		});
 
 		// Forward to DEMARC
-		await forwardToDemar(env, {
+		await forwardToDemarc(env, {
 			type: 'license_telemetry',
 			timestamp: new Date().toISOString(),
 			source: 'cloudflare-telemetry',
@@ -275,7 +332,7 @@ export async function forwardSecurityEvent(env, event) {
 	};
 
 	// Forward immediately (real-time)
-	return forwardToDemar(env, {
+	return forwardToDemarc(env, {
 		type: 'security_event',
 		timestamp: new Date().toISOString(),
 		source: 'cloudflare-telemetry',
