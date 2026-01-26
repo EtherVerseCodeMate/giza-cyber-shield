@@ -476,6 +476,28 @@ for _, manifest := range snapshot.Manifests {
 
 ---
 
+### Phase 4: DoD ESI & Enterprise Scalability (2026-2027)
+1. **Achieve GSA Schedule 70 Listing**
+   - Automated GSA Schedule readiness assessment module.
+   - Government pricing structure validation.
+
+2. **Full NIST 800-171 Implementation (110 Controls)**
+   - Complete CMMC Level 2 automation baseline.
+   - Continuous compliance monitoring for DFARS 7012.
+
+3. **Enterprise Licensing & ESA Support**
+   - Multi-tenant SaaS architecture for DoD components.
+   - Enterprise Software Agreement (ESA) license management.
+
+4. **RMF & FedRAMP+ Automation**
+   - Automated RMF Step 1-6 authorization accelerator.
+   - FedRAMP/IL4/IL5 compliance modules.
+
+> [!TIP]
+> See the detailed [DoD ESI Enhancement Strategy](file:///c:/Users/intel/blackbox/khepra%20protocol/docs/strategy/DOD_ESI_ENHANCEMENT_STRATEGY.md) for the complete 24-month submission roadmap and technical architecture requirements.
+
+---
+
 ## Performance Benchmarks
 
 ### Current Implementation (V1.5)
