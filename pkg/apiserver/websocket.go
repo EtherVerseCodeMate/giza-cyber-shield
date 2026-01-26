@@ -165,6 +165,39 @@ func (h *WebSocketHub) BroadcastLicenseUpdate(data map[string]interface{}) {
 	}
 }
 
+// BroadcastToChannel broadcasts a message to a specific channel
+// Supports: "scans", "dag", "license"
+func (h *WebSocketHub) BroadcastToChannel(channel string, data map[string]interface{}) {
+	message := &WebSocketMessage{
+		Type:      channel + "_update",
+		Timestamp: time.Now(),
+		Data:      data,
+	}
+
+	switch channel {
+	case "scans":
+		select {
+		case h.scanBroadcast <- message:
+		default:
+			log.Println("Scan broadcast channel full, dropping message")
+		}
+	case "dag":
+		select {
+		case h.dagBroadcast <- message:
+		default:
+			log.Println("DAG broadcast channel full, dropping message")
+		}
+	case "license":
+		select {
+		case h.licenseBroadcast <- message:
+		default:
+			log.Println("License broadcast channel full, dropping message")
+		}
+	default:
+		log.Printf("Unknown WebSocket channel: %s", channel)
+	}
+}
+
 // ClientCount returns the number of connected clients for a channel
 func (h *WebSocketHub) ClientCount(channel string) int {
 	h.mu.RLock()
