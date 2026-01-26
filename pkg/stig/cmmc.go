@@ -2,6 +2,7 @@ package stig
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/grpc/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
