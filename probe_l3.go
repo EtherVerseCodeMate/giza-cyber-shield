@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/xuri/excelize/v2"
 )
@@ -15,7 +16,7 @@ func main() {
 	defer f.Close()
 
 	sheet := "STIG_to_CMMC_Complete Mapping"
-	fmt.Printf("--- Sheet: %s ---\n", sheet)
+	fmt.Printf("--- Searching for 172/L3 in %s ---\n", sheet)
 
 	rows, err := f.GetRows(sheet)
 	if err != nil {
@@ -23,9 +24,12 @@ func main() {
 	}
 
 	for i, row := range rows {
-		if i >= 30 {
-			break
+		fullRow := strings.Join(row, " | ")
+		if strings.Contains(fullRow, "800-172") || strings.Contains(fullRow, "Level 3") || strings.Contains(fullRow, "L3-") {
+			fmt.Printf("Row %d: %s\n", i, fullRow)
+			if i > 40000 {
+				break
+			} // Just to avoid massive output
 		}
-		fmt.Printf("Row %d: %v\n", i, row)
 	}
 }
