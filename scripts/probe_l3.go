@@ -31,23 +31,17 @@ func main() {
 			}
 			
 			count := 0
-			found := false
 			for rows.Next() {
 				row, _ := rows.Columns()
 				rowStr := strings.Join(row, " ")
 				
-				// Search for specific L3 markers
-				if strings.Contains(rowStr, "800-172") || 
-				   strings.Contains(rowStr, "3.1.2e") || 
-				   strings.Contains(rowStr, "L3") || 
-				   strings.Contains(rowStr, "Level 3") {
-					fmt.Printf("  [MATCH] Row %d: %s\n", count, rowStr)
-					found = true
-					// Keep checking a few more to see density
-					if count > 500 { break } 
+				// Look for Level 3 or 172 indicators
+				if strings.Contains(rowStr, "172") || strings.Contains(rowStr, "Level 3") || strings.Contains(rowStr, "L3") {
+					fmt.Printf("  [FOUND] Row %d: %s\n", count, rowStr)
 				}
 				
-				if count > 1000 && !found { break } // Optimization
+				if count > 20 && !strings.Contains(sheet, "L3") { break }
+				if count > 500 { break } // Sanity limit for L3 sheets
 				count++
 			}
 			rows.Close()
