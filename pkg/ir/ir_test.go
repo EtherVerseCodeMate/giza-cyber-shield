@@ -30,10 +30,10 @@ func (m *MockStore) Close() error {
 func TestIncidentTypes(t *testing.T) {
 	// Test severity levels
 	severities := []Severity{
-		SeverityCritical,
-		SeverityHigh,
-		SeverityMedium,
-		SeverityLow,
+		SevCritical,
+		SevHigh,
+		SevMedium,
+		SevLow,
 	}
 
 	for _, s := range severities {
@@ -47,8 +47,6 @@ func TestIncidentTypes(t *testing.T) {
 		StatusOpen,
 		StatusInProgress,
 		StatusContained,
-		StatusEradicated,
-		StatusRecovered,
 		StatusClosed,
 	}
 
@@ -64,7 +62,7 @@ func TestIncidentStructure(t *testing.T) {
 		ID:          "inc-123",
 		Title:       "Test Incident",
 		Description: "A test security incident",
-		Severity:    SeverityHigh,
+		Severity:    SevHigh,
 		Status:      StatusOpen,
 		Type:        "malware",
 		DetectedAt:  time.Now(),
@@ -153,7 +151,7 @@ func TestManager_CreateIncident(t *testing.T) {
 	incident, err := mgr.CreateIncident(
 		"Test Incident",
 		"A test security incident",
-		SeverityHigh,
+		SevHigh,
 		"malware",
 		privKey,
 	)
@@ -174,7 +172,7 @@ func TestManager_CreateIncident(t *testing.T) {
 		t.Errorf("expected title 'Test Incident', got '%s'", incident.Title)
 	}
 
-	if incident.Severity != SeverityHigh {
+	if incident.Severity != SevHigh {
 		t.Errorf("expected severity HIGH, got %s", incident.Severity)
 	}
 
@@ -198,7 +196,7 @@ func TestManager_AddIOC(t *testing.T) {
 
 	privKey := make([]byte, 32)
 
-	incident, _ := mgr.CreateIncident("Test", "Desc", SeverityMedium, "phishing", privKey)
+	incident, _ := mgr.CreateIncident("Test", "Desc", SevMedium, "phishing", privKey)
 
 	err := mgr.AddIOC(incident, "url", "http://malicious.com", "Phishing URL", privKey)
 	if err != nil {
@@ -230,7 +228,7 @@ func TestManager_UpdateStatus(t *testing.T) {
 
 	privKey := make([]byte, 32)
 
-	incident, _ := mgr.CreateIncident("Test", "Desc", SeverityCritical, "ransomware", privKey)
+	incident, _ := mgr.CreateIncident("Test", "Desc", SevCritical, "ransomware", privKey)
 
 	err := mgr.UpdateStatus(incident, StatusContained, "Threat has been isolated", privKey)
 	if err != nil {
@@ -265,7 +263,7 @@ func TestIncidentLifecycle(t *testing.T) {
 	incident, _ := mgr.CreateIncident(
 		"Ransomware Attack",
 		"Detected ransomware encryption activity",
-		SeverityCritical,
+		SevCritical,
 		"ransomware",
 		privKey,
 	)
@@ -277,8 +275,6 @@ func TestIncidentLifecycle(t *testing.T) {
 	// 3. Update status through lifecycle
 	mgr.UpdateStatus(incident, StatusInProgress, "Investigation started", privKey)
 	mgr.UpdateStatus(incident, StatusContained, "Host isolated from network", privKey)
-	mgr.UpdateStatus(incident, StatusEradicated, "Malware removed", privKey)
-	mgr.UpdateStatus(incident, StatusRecovered, "Systems restored from backup", privKey)
 	mgr.UpdateStatus(incident, StatusClosed, "Incident resolved", privKey)
 
 	// Verify final state
@@ -290,25 +286,40 @@ func TestIncidentLifecycle(t *testing.T) {
 		t.Errorf("expected 2 IOCs, got %d", len(incident.IOCs))
 	}
 
-	// Should have multiple events (1 create + 2 IOC + 5 status)
-	expectedEvents := 8
+	// Should have multiple events (1 create + 2 IOC + 3 status)
+	expectedEvents := 6
 	if len(incident.Events) != expectedEvents {
 		t.Errorf("expected %d events, got %d", expectedEvents, len(incident.Events))
 	}
 }
 
-func TestSeverityOrdering(t *testing.T) {
+func TestSeverityConstants(t *testing.T) {
 	// Verify severity constants are defined correctly
-	if SeverityCritical != "CRITICAL" {
-		t.Errorf("expected SeverityCritical='CRITICAL', got '%s'", SeverityCritical)
+	if SevCritical != "CRITICAL" {
+		t.Errorf("expected SevCritical='CRITICAL', got '%s'", SevCritical)
 	}
-	if SeverityHigh != "HIGH" {
-		t.Errorf("expected SeverityHigh='HIGH', got '%s'", SeverityHigh)
+	if SevHigh != "HIGH" {
+		t.Errorf("expected SevHigh='HIGH', got '%s'", SevHigh)
 	}
-	if SeverityMedium != "MEDIUM" {
-		t.Errorf("expected SeverityMedium='MEDIUM', got '%s'", SeverityMedium)
+	if SevMedium != "MEDIUM" {
+		t.Errorf("expected SevMedium='MEDIUM', got '%s'", SevMedium)
 	}
-	if SeverityLow != "LOW" {
-		t.Errorf("expected SeverityLow='LOW', got '%s'", SeverityLow)
+	if SevLow != "LOW" {
+		t.Errorf("expected SevLow='LOW', got '%s'", SevLow)
+	}
+}
+
+func TestStatusConstants(t *testing.T) {
+	if StatusOpen != "OPEN" {
+		t.Errorf("expected StatusOpen='OPEN', got '%s'", StatusOpen)
+	}
+	if StatusInProgress != "IN_PROGRESS" {
+		t.Errorf("expected StatusInProgress='IN_PROGRESS', got '%s'", StatusInProgress)
+	}
+	if StatusContained != "CONTAINED" {
+		t.Errorf("expected StatusContained='CONTAINED', got '%s'", StatusContained)
+	}
+	if StatusClosed != "CLOSED" {
+		t.Errorf("expected StatusClosed='CLOSED', got '%s'", StatusClosed)
 	}
 }
