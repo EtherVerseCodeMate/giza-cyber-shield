@@ -123,6 +123,12 @@ func (s *Server) setupRoutes() {
 			stig.POST("/validate", s.handleSTIGValidation)
 		}
 
+		// CMMC endpoints
+		compliance := v1.Group("/compliance")
+		{
+			compliance.GET("/cmmc-audit", s.handleCMMCAudit)
+		}
+
 		// ERT (Evidence Recording Token) endpoints
 		ert := v1.Group("/ert")
 		{
