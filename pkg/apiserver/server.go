@@ -23,6 +23,12 @@ type Server struct {
 	startTime  time.Time
 	version    string
 	httpServer *http.Server
+	agentMgr   AgentManagerInterface
+}
+
+// AgentManagerInterface abstracts the connection to remote environments
+type AgentManagerInterface interface {
+	ExecuteOnAgent(machineID string, command string, args []string) (string, error)
 }
 
 // Config holds server configuration
@@ -66,6 +72,7 @@ func NewServer(config *Config, dagStore DAGStore, licMgr LicenseManager) *Server
 		config:    config,
 		startTime: time.Now(),
 		version:   "1.0.0",
+		agentMgr:  nil, // To be injected if Gateway is present
 	}
 
 	// Setup middleware
@@ -121,6 +128,7 @@ func (s *Server) setupRoutes() {
 		stig := v1.Group("/stig")
 		{
 			stig.POST("/validate", s.handleSTIGValidation)
+			stig.POST("/remediate", s.handleSTIGRemediation)
 		}
 
 		// CMMC endpoints

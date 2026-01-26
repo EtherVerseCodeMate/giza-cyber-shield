@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -17,9 +18,7 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/agent"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/attest"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/audit"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/compliance"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/config"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/drbc"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/intel"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/kms"
@@ -41,7 +40,7 @@ Usage:
   adinkhepra git-remote
   adinkhepra validate                             # Component smoke tests & health check
   adinkhepra serve        [-port 8080]            # Start DAG Viewer (Living Trust Constellation)
-  adinkhepra stig         <subcommand>            # STIG Compliance Validation
+  adinkhepra compliance   <subcommand>            # Unified CMMC/STIG/NIST Attestation Suite
 
   Executive Roundtable (ERT) Analysis:
   adinkhepra ert          <subcommand>            # Integrated ERT Intelligence Engine
@@ -51,6 +50,7 @@ Usage:
   adinkhepra ert-godfather [dir]                  # The Godfather Report (Executive Synthesis)
 
   Additional Commands:
+  adinkhepra compliance   <subcommand>            # CMMC/NIST 800-171/172 & GSA Readiness
   adinkhepra drbc         <subcommand>            # Disaster Recovery & Business Continuity (v0.0)
   adinkhepra fim          <subcommand>            # File Integrity Monitoring
   adinkhepra network      <subcommand>            # Network Topology & Attack Paths
@@ -96,14 +96,16 @@ func main() {
 	case "ert-godfather":
 		ertGodfatherCmd(os.Args[2:])
 	case "stig":
-		stigCmd(os.Args[2:])
+		fmt.Println("[DEPRECATED] Use 'adinkhepra compliance scan' instead.")
+		complianceCmd(os.Args[2:])
 	case "explain":
 		explainCmd(os.Args[2:])
 	case "audit":
 		// enforceLicense() // Optional: Enforce for ingest too? Yes, usually.
 		auditCmd(os.Args[2:])
 	case "stigs":
-		stigsCmd(os.Args[2:])
+		fmt.Println("[DEPRECATED] Use 'adinkhepra compliance ingest' instead.")
+		complianceIngestCmd(os.Args[2:])
 	case "hostid":
 		printHostID()
 	case "license-gen":
@@ -153,30 +155,136 @@ func main() {
 	}
 }
 
+// getExeDir returns the directory containing the executable
+func getExeDir() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return "."
+	}
+	// Resolve symlinks to get actual path
+	exe, err = filepath.EvalSymlinks(exe)
+	if err != nil {
+		return "."
+	}
+	return filepath.Dir(exe)
+}
+
+// getProjectRoot finds the project root by looking for key indicators
+func getProjectRoot() string {
+	// Priority: 1. ADINKHEPRA_ROOT env var, 2. Parent of exe dir (bin/../), 3. CWD
+	if root := os.Getenv("ADINKHEPRA_ROOT"); root != "" {
+		return root
+	}
+
+	exeDir := getExeDir()
+
+	// If exe is in 'bin/', parent is project root
+	if filepath.Base(exeDir) == "bin" {
+		return filepath.Dir(exeDir)
+	}
+
+	// Otherwise check if current directory has keys/
+	if _, err := os.Stat("keys"); err == nil {
+		cwd, _ := os.Getwd()
+		return cwd
+	}
+
+	return exeDir
+}
+
+// resolvePath resolves a relative path against project root
+func resolvePath(relPath string) string {
+	if filepath.IsAbs(relPath) {
+		return relPath
+	}
+	return filepath.Join(getProjectRoot(), relPath)
+}
+
 // EnforceLicense checks for valid license or panics
 func enforceLicense() {
 	// In production, embed this Public Key via -ldflags
 	// For now, we look for 'master_key.pub' or similar, or hardcoded dev key.
-	// Let's assume user must provide key path or we use a localized one.
-	// SIMPLIFICATION: We look for 'license.khepra' and 'khepra_master.pub' locally.
 
 	// Check if we are in dev mode (env var)
 	if os.Getenv("ADINKHEPRA_DEV") == "1" {
 		return
 	}
 
-	pubKey, err := os.ReadFile("adinkhepra_master.pub")
-	if err != nil {
-		fmt.Println("FATAL: AdinKhepra Master Key (adinkhepra_master.pub) not found. Integrity check failed.")
+	// Try multiple key paths in priority order:
+	// 1. ADINKHEPRA_MASTER_KEY_PUB environment variable (absolute)
+	// 2. keys/offline/OFFLINE_ROOT_KEY.pub (relative to project root)
+	// 3. adinkhepra_master.pub (in exe directory or cwd)
+	var pubKey []byte
+	var keyPath string
+
+	exeDir := getExeDir()
+
+	keyPaths := []string{
+		os.Getenv("ADINKHEPRA_MASTER_KEY_PUB"),
+		resolvePath("keys/offline/OFFLINE_ROOT_KEY.pub"),
+		filepath.Join(exeDir, "adinkhepra_master.pub"),
+		"adinkhepra_master.pub",
+	}
+
+	for _, path := range keyPaths {
+		if path == "" {
+			continue
+		}
+		keyData, readErr := os.ReadFile(path)
+		if readErr != nil {
+			continue
+		}
+		// Try hex-decoding first (for keys from regen-master-key.go)
+		decoded, decErr := hex.DecodeString(strings.TrimSpace(string(keyData)))
+		if decErr == nil {
+			pubKey = decoded
+		} else {
+			// Fall back to raw bytes (for pre-encoded keys)
+			pubKey = keyData
+		}
+		keyPath = path
+		break
+	}
+
+	if pubKey == nil {
+		fmt.Println("FATAL: AdinKhepra Master Key not found. Checked:")
+		fmt.Println("  - ADINKHEPRA_MASTER_KEY_PUB env var")
+		fmt.Printf("  - %s\n", resolvePath("keys/offline/OFFLINE_ROOT_KEY.pub"))
+		fmt.Printf("  - %s\n", filepath.Join(exeDir, "adinkhepra_master.pub"))
+		fmt.Println("  - adinkhepra_master.pub (cwd)")
+		fmt.Println("Integrity check failed.")
 		os.Exit(1)
 	}
 
-	claims, err := license.Verify("license.adinkhepra", pubKey)
+	// Also resolve license file path
+	licensePaths := []string{
+		resolvePath("license.adinkhepra"),
+		filepath.Join(exeDir, "license.adinkhepra"),
+		"license.adinkhepra",
+	}
+
+	var licensePath string
+	for _, lp := range licensePaths {
+		if _, err := os.Stat(lp); err == nil {
+			licensePath = lp
+			break
+		}
+	}
+
+	if licensePath == "" {
+		fmt.Println("FATAL: License file not found. Checked:")
+		fmt.Printf("  - %s\n", resolvePath("license.adinkhepra"))
+		fmt.Printf("  - %s\n", filepath.Join(exeDir, "license.adinkhepra"))
+		fmt.Println("  - license.adinkhepra (cwd)")
+		os.Exit(1)
+	}
+
+	claims, err := license.Verify(licensePath, pubKey)
 	if err != nil {
 		fmt.Printf("FATAL: LICENSE VIOLATION: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("[ADINKHEPRA] Licensed to: %s (Expires: %s)\n", claims.Tenant, claims.Expiry.Format("2006-01-02"))
+	fmt.Printf("[ADINKHEPRA] Licensed to: %s (Expires: %s) [Key: %s]\n", claims.Tenant, claims.Expiry.Format("2006-01-02"), keyPath)
 }
 
 func printHostID() {
@@ -206,9 +314,15 @@ func licenseGenCmd(args []string) {
 		fmt.Printf("[INFO] Using Local HostID: %s\n", hostID)
 	}
 
-	privKey, err := os.ReadFile(privKeyPath)
+	privKeyHex, err := os.ReadFile(privKeyPath)
 	if err != nil {
 		fatal("cannot read private key", err)
+	}
+
+	// Decode hex-encoded private key
+	privKey, err := hex.DecodeString(strings.TrimSpace(string(privKeyHex)))
+	if err != nil {
+		fatal("invalid private key format (expected hex)", err)
 	}
 
 	days := 365
@@ -238,27 +352,7 @@ func licenseGenCmd(args []string) {
 	fmt.Println("Generated license.adinkhepra")
 }
 
-func complianceCmd(_ []string) {
-	// Initialize DAG Store (Memory for ephemeral CLI checks, or Persistent if needed)
-	store, err := dag.NewPersistentMemory("./khepra.dag")
-	if err != nil {
-		fmt.Printf("Failed to init DAG: %v\n", err)
-		return
-	}
-
-	// Create Engine with no external scanner for basic checks
-	eng := compliance.NewEngine(store, nil)
-
-	// Evaluate Compliance (Simulated key for now)
-	privKey := []byte("ephemeral-key")
-	report, err := eng.EvaluateCompliance(privKey)
-	if err != nil {
-		fmt.Printf("\n[ADINKHEPRA COMPLIANCE] Error: %v\n", err)
-		return
-	}
-
-	fmt.Printf("\n[ADINKHEPRA COMPLIANCE] Audit Complete.\n%s\n", report)
-}
+// Redirection to cmd_compliance.go is handled by the Go compiler as they share the 'main' package.
 
 func stigsCmd(args []string) {
 	if len(args) < 2 || args[0] != "ingest" {

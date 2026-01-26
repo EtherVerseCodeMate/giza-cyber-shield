@@ -86,5 +86,9 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^6.0.7"
+  },
+  "overrides": {
+    "lodash": "4.17.23",
+    "lodash-es": "4.17.23"
   }
 }

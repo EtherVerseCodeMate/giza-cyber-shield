@@ -326,3 +326,78 @@ func (s *Server) handleCMMCAudit(c *gin.Context) {
 
 	c.JSON(http.StatusOK, cmmcResults)
 }
+
+// handleSTIGRemediation triggers automated fixes for non-compliant controls
+func (s *Server) handleSTIGRemediation(c *gin.Context) {
+	var req STIGRemediationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "invalid_request",
+			Message: err.Error(),
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// Initialize the remediation engine
+	checker := stig.NewSystemChecker()
+	remediator := stig.NewRemediator(checker)
+
+	// Link Selection: Decide if this is local or across the DEMARC
+	if req.TargetHost != "localhost" && req.TargetHost != "" && s.agentMgr != nil {
+		remediator.SetLink(&stig.DEMARCLink{
+			MachineID: req.TargetHost,
+			Manager:   s.agentMgr,
+		})
+	}
+
+	batchID := uuid.New().String()
+
+	results := []RemediationResult{}
+	successCount := 0
+
+	for _, controlID := range req.ControlIDs {
+		res, err := remediator.Remediate(controlID)
+
+		status := "failed"
+		command := ""
+		output := ""
+		if err == nil {
+			if res.Status == "Success" {
+				status = "success"
+				successCount++
+			} else if res.Status == "Requires Manual Intervention" {
+				status = "requires_manual"
+			}
+			command = res.Command
+			output = res.Output
+		} else {
+			output = err.Error()
+		}
+
+		results = append(results, RemediationResult{
+			ControlID: controlID,
+			Status:    status,
+			Command:   command,
+			Output:    output,
+			Timestamp: time.Now(),
+		})
+	}
+
+	status := "completed"
+	if successCount == 0 && len(req.ControlIDs) > 0 {
+		status = "failed"
+	} else if successCount < len(req.ControlIDs) {
+		status = "partial"
+	}
+
+	response := STIGRemediationResponse{
+		BatchID:   batchID,
+		Results:   results,
+		Summary:   fmt.Sprintf("Successfully remediated %d of %d requested controls.", successCount, len(req.ControlIDs)),
+		Status:    status,
+		Timestamp: time.Now(),
+	}
+
+	c.JSON(http.StatusOK, response)
+}
