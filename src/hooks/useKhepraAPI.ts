@@ -83,6 +83,33 @@ export interface STIGValidationResponse {
   timestamp: string;
 }
 
+export interface CMMCAuditFinding {
+  ID: string;
+  Title: string;
+  Description: string;
+  Severity: string;
+  Status: string;
+  Expected: string;
+  Actual: string;
+  Remediation: string;
+  References: string[];
+  CheckedAt: string;
+}
+
+export interface CMMCAuditResponse {
+  Framework: string;
+  Version: string;
+  StartTime: string;
+  EndTime: string;
+  Duration: number;
+  Passed: number;
+  Failed: number;
+  NotApplicable: number;
+  ManualReview: number;
+  TotalControls: number;
+  Findings: CMMCAuditFinding[];
+}
+
 export interface LicenseStatus {
   machine_id: string;
   organization: string;
@@ -187,6 +214,11 @@ class KhepraAPIClient {
   async getLicenseStatus(): Promise<LicenseStatus> {
     return this.request<LicenseStatus>('/api/v1/license/status');
   }
+
+  // CMMC
+  async getCMMCAudit(): Promise<CMMCAuditResponse> {
+    return this.request<CMMCAuditResponse>('/api/v1/compliance/cmmc-audit');
+  }
 }
 
 // Hook for Khepra API
@@ -213,6 +245,13 @@ export function useKhepraAPI(baseUrl: string, apiKey: string) {
     queryKey: ['khepra', 'dag', baseUrl],
     queryFn: () => client.getDAGNodes(),
     refetchInterval: 10000, // Refresh every 10 seconds
+  });
+
+  // CMMC Audit query
+  const cmmcQuery = useQuery({
+    queryKey: ['khepra', 'cmmc', baseUrl],
+    queryFn: () => client.getCMMCAudit(),
+    refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   // Trigger scan mutation
@@ -246,6 +285,7 @@ export function useKhepraAPI(baseUrl: string, apiKey: string) {
     health: healthQuery,
     license: licenseQuery,
     dag: dagQuery,
+    cmmc: cmmcQuery,
 
     // Mutations
     triggerScan: triggerScanMutation,
