@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/intel/registry"
 )
 
 // --- MITRE ATT&CK Structure ---
@@ -37,6 +39,7 @@ type Vulnerability struct {
 type KnowledgeBase struct {
 	Tactics         []Tactic                 `json:"tactics"`
 	Vulnerabilities map[string]Vulnerability `json:"vulnerabilities"`
+	Registry        *registry.Store          `json:"-"` // Persistence store
 }
 
 // NewKnowledgeBase initializes the Intel Core with static ATT&CK data
@@ -84,6 +87,15 @@ func NewKnowledgeBase() *KnowledgeBase {
 		},
 	}
 
+	// Initialize Registry if possible
+	reg, err := registry.NewStore("data/vulnerabilities.db")
+	if err == nil {
+		kb.Registry = reg
+		log.Printf("[INTEL] Vulnerability Registry initialized (SQLite).")
+	} else {
+		log.Printf("[INTEL] Warning: Registry initialization failed: %v. Using memory-only mode.", err)
+	}
+
 	// Attempt to load Enterprise CVE Database if present. Do this asynchronously
 	// so engine startup isn't blocked by potentially large on-disk databases.
 	go func() {
@@ -96,7 +108,12 @@ func NewKnowledgeBase() *KnowledgeBase {
 		// Load MITRE CVE database with CVSS scores if present
 		mitreDBPath := "data/cve-database/cve-data/mitre/cves"
 		if _, err := os.Stat(mitreDBPath); err == nil {
-			log.Printf("[INTEL] Loading MITRE CVE database (this may take 30-60 seconds)...")
+			if kb.Registry != nil {
+				log.Printf("[INTEL] Processing MITRE database into Registry (one-time or updates)...")
+			} else {
+				log.Printf("[INTEL] Loading MITRE CVE database (this may take 30-60 seconds)...")
+			}
+
 			if err := kb.LoadMITRECVEDatabase(mitreDBPath); err != nil {
 				log.Printf("[INTEL] Failed to load MITRE CVEs: %v", err)
 			}
@@ -122,8 +139,27 @@ func (kb *KnowledgeBase) LoadExternalData(path string) error {
 
 // SearchVuln allows the AGI to query the database by CVE ID
 func (kb *KnowledgeBase) SearchVuln(cveID string) *Vulnerability {
+	// 1. Check in-memory vulnerabilities (CISA KEV or cached)
 	if v, ok := kb.Vulnerabilities[cveID]; ok {
 		return &v
 	}
+
+	// 2. Fallback to SQLite Registry
+	if kb.Registry != nil {
+		rv, err := kb.Registry.GetVulnerability(cveID)
+		if err == nil && rv != nil {
+			// Convert registry.Vulnerability to intel.Vulnerability
+			v := Vulnerability{
+				ID:          rv.ID,
+				Source:      rv.Source,
+				CVSS:        rv.CVSS,
+				Description: rv.Description,
+				IsExploited: rv.Exploited,
+				Severity:    MapCVSSToSeverity(rv.CVSS),
+			}
+			return &v
+		}
+	}
+
 	return nil
 }
