@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/cloudflare/circl/kem/kyber/kyber1024"
-	"github.com/cloudflare/circl/sign/dilithium/mode3"
+	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 )
 
 // GenerateKyberKey generates a Kyber-1024 key pair.
@@ -22,38 +22,42 @@ func GenerateKyberKey() ([]byte, []byte, error) {
 	return pkBytes, skBytes, nil
 }
 
-// GenerateDilithiumKey generates a Dilithium3 key pair.
+// GenerateDilithiumKey generates a ML-DSA-65 (Dilithium3) key pair.
 func GenerateDilithiumKey() ([]byte, []byte, error) {
-	pk, sk, err := mode3.GenerateKey(rand.Reader)
+	pk, sk, err := mldsa65.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	pkBytes, _ := pk.MarshalBinary()
-	skBytes, _ := sk.MarshalBinary()
+	pkBytes := make([]byte, mldsa65.PublicKeySize)
+	skBytes := make([]byte, mldsa65.PrivateKeySize)
+	pk.Pack((*[mldsa65.PublicKeySize]byte)(pkBytes))
+	sk.Pack((*[mldsa65.PrivateKeySize]byte)(skBytes))
 
 	return pkBytes, skBytes, nil
 }
 
-// Sign signs a message using a Dilithium3 private key.
+// Sign signs a message using a ML-DSA-65 private key.
 func Sign(skBytes []byte, msg []byte) ([]byte, error) {
-	sk := mode3.PrivateKey{}
-	if err := sk.UnmarshalBinary(skBytes); err != nil {
-		return nil, fmt.Errorf("invalid private key: %v", err)
+	if len(skBytes) != mldsa65.PrivateKeySize {
+		return nil, fmt.Errorf("invalid private key size: expected %d, got %d", mldsa65.PrivateKeySize, len(skBytes))
 	}
-	// mode3.SignTo writes signature to buffer
-	var sig [mode3.SignatureSize]byte
-	mode3.SignTo(&sk, msg, sig[:])
-	return sig[:], nil
+	var sk mldsa65.PrivateKey
+	sk.Unpack((*[mldsa65.PrivateKeySize]byte)(skBytes))
+
+	sig := make([]byte, mldsa65.SignatureSize)
+	mldsa65.SignTo(&sk, msg, nil, false, sig)
+	return sig, nil
 }
 
-// Verify verifies a Dilithium3 signature.
+// Verify verifies a ML-DSA-65 signature.
 func Verify(pkBytes []byte, msg []byte, sig []byte) (bool, error) {
-	pk := mode3.PublicKey{}
-	if err := pk.UnmarshalBinary(pkBytes); err != nil {
-		return false, fmt.Errorf("invalid public key: %v", err)
+	if len(pkBytes) != mldsa65.PublicKeySize {
+		return false, fmt.Errorf("invalid public key size: expected %d, got %d", mldsa65.PublicKeySize, len(pkBytes))
 	}
-	return mode3.Verify(&pk, msg, sig), nil
+	var pk mldsa65.PublicKey
+	pk.Unpack((*[mldsa65.PublicKeySize]byte)(pkBytes))
+	return mldsa65.Verify(&pk, msg, nil, sig), nil
 }
 
 // Kuntinkantan (Do not be arrogant): Bends the reality of the detailed message

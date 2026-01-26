@@ -67,24 +67,6 @@ export const AuditLog = () => {
   };
 
   const getActionBadgeVariant = (action: string) => {
-          ip_address: null,
-          user_agent: null,
-          created_at: new Date().toISOString(),
-          profiles: {
-            username: profile?.display_name || 'System',
-            full_name: profile?.display_name || 'System'
-          }
-        }
-      ];
-      setLogs(placeholderLogs);
-    } catch (error) {
-      console.error('Error in fetchAuditLogs:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getActionBadgeVariant = (action: string) => {
     if (action.includes('login') || action.includes('signin')) return 'default';
     if (action.includes('logout') || action.includes('signout')) return 'secondary';
     if (action.includes('create') || action.includes('insert')) return 'default';

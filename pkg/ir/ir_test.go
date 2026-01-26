@@ -2,6 +2,7 @@ package ir
 
 import (
 	"crypto/rand"
+	"fmt"
 	"testing"
 	"time"
 
@@ -416,18 +417,23 @@ func TestConcurrentIncidentCreation(t *testing.T) {
 	_, privKey := generateTestKeys(t)
 
 	// Create multiple incidents concurrently to test thread safety
+	// Each incident has unique data to avoid duplicate node conflicts in the DAG
 	done := make(chan bool, 10)
+	errors := make(chan error, 10)
 	for i := 0; i < 10; i++ {
 		go func(idx int) {
+			// Unique title and description per goroutine to ensure unique DAG nodes
+			title := fmt.Sprintf("Concurrent Test Incident #%d - %d", idx, time.Now().UnixNano())
+			desc := fmt.Sprintf("Testing concurrent incident creation for thread safety - instance %d", idx)
 			_, err := mgr.CreateIncident(
-				"Concurrent Test Incident",
-				"Testing concurrent incident creation for thread safety",
+				title,
+				desc,
 				SevMedium,
 				"test",
 				privKey,
 			)
 			if err != nil {
-				t.Errorf("Concurrent CreateIncident %d failed: %v", idx, err)
+				errors <- fmt.Errorf("concurrent CreateIncident %d failed: %v", idx, err)
 			}
 			done <- true
 		}(i)
@@ -436,6 +442,12 @@ func TestConcurrentIncidentCreation(t *testing.T) {
 	// Wait for all goroutines to complete
 	for i := 0; i < 10; i++ {
 		<-done
+	}
+
+	// Check for any errors
+	close(errors)
+	for err := range errors {
+		t.Error(err)
 	}
 }
 

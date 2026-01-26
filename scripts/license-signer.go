@@ -211,8 +211,11 @@ func loadPrivateKey(path string) (*mldsa65.PrivateKey, error) {
 		return nil, fmt.Errorf("invalid key size: got %d, expected %d", len(keyBytes), mldsa65.PrivateKeySize)
 	}
 
+	var keyBuf [mldsa65.PrivateKeySize]byte
+	copy(keyBuf[:], keyBytes)
+
 	var privateKey mldsa65.PrivateKey
-	copy(privateKey[:], keyBytes)
+	privateKey.Unpack(&keyBuf)
 
 	return &privateKey, nil
 }
@@ -318,7 +321,7 @@ func signAndSubmitLicense(client *http.Client, config Config, privateKey *mldsa6
 
 	// Sign with ML-DSA-65
 	signature := make([]byte, mldsa65.SignatureSize)
-	mldsa65.SignTo(privateKey, licenseJSON, nil, signature)
+	mldsa65.SignTo(privateKey, licenseJSON, nil, false, signature)
 
 	signatureHex := hex.EncodeToString(signature)
 
@@ -379,7 +382,19 @@ func generateTestKeypair() {
 		return
 	}
 
+	pubBytes, err := pub.MarshalBinary()
+	if err != nil {
+		fmt.Printf("Failed to marshal public key: %v\n", err)
+		return
+	}
+
+	privBytes, err := priv.MarshalBinary()
+	if err != nil {
+		fmt.Printf("Failed to marshal private key: %v\n", err)
+		return
+	}
+
 	fmt.Println("Generated ML-DSA-65 keypair:")
-	fmt.Printf("Public key (%d bytes):\n%s\n\n", len(pub[:]), hex.EncodeToString(pub[:]))
-	fmt.Printf("Private key (%d bytes):\n%s\n", len(priv[:]), hex.EncodeToString(priv[:]))
+	fmt.Printf("Public key (%d bytes):\n%s\n\n", len(pubBytes), hex.EncodeToString(pubBytes))
+	fmt.Printf("Private key (%d bytes):\n%s\n", len(privBytes), hex.EncodeToString(privBytes))
 }
