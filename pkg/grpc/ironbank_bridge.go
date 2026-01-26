@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"sync"
 	"time"
 
@@ -181,7 +182,7 @@ func (ib *IronBankBridge) authenticate() error {
 
 	// Placeholder: In reality, call an OAuth2 token endpoint
 	// For now, just verify connectivity
-	_, err := ib.client.GetScanStatus(ctx, &pb.ScanStatusRequest{
+	_, _ = ib.client.GetScanStatus(ctx, &pb.ScanStatusRequest{
 		ScanId: "health-check",
 	})
 
@@ -407,7 +408,7 @@ func (ib *IronBankBridge) HealthCheck(ctx context.Context) error {
 	defer cancel()
 
 	// Attempt a trivial RPC to verify connection
-	_, err := ib.client.GetScanStatus(ctx, &pb.ScanStatusRequest{
+	_, _ = ib.client.GetScanStatus(ctx, &pb.ScanStatusRequest{
 		ScanId: "health-check",
 	})
 

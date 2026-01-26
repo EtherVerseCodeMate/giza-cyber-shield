@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useComplianceFrameworks } from "@/hooks/useComplianceFrameworks";
 import { supabase } from "@/integrations/supabase/client";
+import { useKhepraAPI } from "@/hooks/useKhepraAPI";
 
 interface CMMCLevel {
   level: number;
@@ -45,7 +46,8 @@ interface CMMCDashboardProps {
 }
 
 export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) => {
-  const { frameworks, controls, loading } = useComplianceFrameworks();
+  const { frameworks, controls: offlineControls, loading: offlineLoading } = useComplianceFrameworks();
+  const { cmmc } = useKhepraAPI("http://localhost:8080", ""); // In production use env vars
   const [cmmcLevels, setCmmcLevels] = useState<CMMCLevel[]>([]);
   const [poamItems, setPOAMItems] = useState<POAMItem[]>([]);
   const [overallScore, setOverallScore] = useState(0);
@@ -120,14 +122,14 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
 
   const fetchOrganizationData = async () => {
     try {
-      const { data: orgs } = await supabase
-        .from('organizations')
-        .select('name')
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('display_name')
         .limit(1)
         .single();
 
-      if (orgs?.name) {
-        setOrganizationName(orgs.name);
+      if (profile?.display_name) {
+        setOrganizationName(profile.display_name);
       }
     } catch (error) {
       console.error('Error fetching organization:', error);
