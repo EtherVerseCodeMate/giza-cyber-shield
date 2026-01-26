@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/intel/registry"
 )
 
 // CVE 5.1 Format structures (MITRE database format)
