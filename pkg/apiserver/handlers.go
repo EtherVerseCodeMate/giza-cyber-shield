@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -28,9 +29,9 @@ func (s *Server) handleHealth(c *gin.Context) {
 	}
 
 	components := map[string]string{
-		"dag_store":      "healthy",
+		"dag_store":       "healthy",
 		"license_manager": "healthy",
-		"websocket_hub":  "healthy",
+		"websocket_hub":   "healthy",
 	}
 
 	response := HealthResponse{
@@ -67,12 +68,12 @@ func (s *Server) handleTriggerScan(c *gin.Context) {
 	// For now, just return queued response
 
 	response := ScanResponse{
-		ScanID:      scanID,
-		Status:      "queued",
-		TargetURL:   req.TargetURL,
-		ScanType:    req.ScanType,
-		QueuedAt:    queuedAt,
-		EstimatedAt: estimatedCompletion,
+		ScanID:       scanID,
+		Status:       "queued",
+		TargetURL:    req.TargetURL,
+		ScanType:     req.ScanType,
+		QueuedAt:     queuedAt,
+		EstimatedAt:  estimatedCompletion,
 		WebSocketURL: fmt.Sprintf("wss://%s/ws/scans", c.Request.Host),
 	}
 
@@ -129,14 +130,14 @@ func (s *Server) handleGetDAGNodes(c *gin.Context) {
 	// For now, return mock response
 	nodes := []DAGNodeResponse{
 		{
-			NodeID:      uuid.New().String(),
-			Type:        "scan",
-			Timestamp:   time.Now(),
-			Data:        map[string]interface{}{"status": "completed"},
-			Parents:     []string{},
-			Children:    []string{},
+			NodeID:       uuid.New().String(),
+			Type:         "scan",
+			Timestamp:    time.Now(),
+			Data:         map[string]interface{}{"status": "completed"},
+			Parents:      []string{},
+			Children:     []string{},
 			PQCSignature: "mock_signature",
-			Verified:    true,
+			Verified:     true,
 		},
 	}
 
@@ -302,4 +303,26 @@ func (s *Server) handleListScans(c *gin.Context) {
 		"total": len(scans),
 		"page":  page,
 	})
+}
+
+// handleCMMCAudit performs a full CMMC Level 2 audit (110 controls)
+func (s *Server) handleCMMCAudit(c *gin.Context) {
+	// Initialize STIG/CMMC validator
+	validator := stig.NewValidator("/") // Target root for full system audit
+
+	// Perform validation
+	report, err := validator.Validate()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Extract CMMC results
+	cmmcResults, ok := report.Results["CMMC-3.0-L3"]
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{"error": "CMMC framework results not found in report"})
+		return
+	}
+
+	c.JSON(http.StatusOK, cmmcResults)
 }
