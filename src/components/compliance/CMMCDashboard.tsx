@@ -3,12 +3,12 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { 
-  Shield, 
-  AlertTriangle, 
-  CheckCircle, 
-  Clock, 
-  FileText, 
+import {
+  Shield,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  FileText,
   TrendingUp,
   Users,
   Database,
@@ -59,7 +59,12 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
 
   const initializeCMMCData = () => {
     const cmmcFramework = frameworks.find(f => f.name.toLowerCase().includes('cmmc'));
+    if (!cmmcFramework) return;
+
+    // Filter controls for each CMMC level based on their description or tags
+    // For MVP, we use the standard counts but calculate 'implemented' from real data
     const cmmcControls = controls.filter(c => c.framework_id === cmmcFramework?.id);
+    const implementedCount = cmmcControls.filter(c => c.status === 'IMPLEMENTED').length;
 
     const levels: CMMCLevel[] = [
       {
@@ -67,15 +72,15 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
         name: "Basic Cyber Hygiene",
         description: "Safeguard Federal Contract Information (FCI)",
         controls: 17,
-        implemented: 12,
+        implemented: cmmcControls.filter(c => c.status === 'IMPLEMENTED' && c.control_id.includes('L1')).length,
         color: "bg-blue-500"
       },
       {
         level: 2,
-        name: "Intermediate Cyber Hygiene", 
+        name: "Intermediate Cyber Hygiene",
         description: "Protect Controlled Unclassified Information (CUI)",
         controls: 110,
-        implemented: 78,
+        implemented: cmmcControls.filter(c => c.status === 'IMPLEMENTED' && c.control_id.includes('L2')).length,
         color: "bg-green-500"
       },
       {
@@ -83,54 +88,34 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
         name: "Good Cyber Hygiene",
         description: "Protect CUI and reduce risk of APTs",
         controls: 130,
-        implemented: 45,
+        implemented: cmmcControls.filter(c => c.status === 'IMPLEMENTED' && c.control_id.includes('L3')).length,
         color: "bg-yellow-500"
       }
     ];
 
     setCmmcLevels(levels);
-    
+
     const totalControls = levels.reduce((sum, level) => sum + level.controls, 0);
     const totalImplemented = levels.reduce((sum, level) => sum + level.implemented, 0);
-    setOverallScore(Math.round((totalImplemented / totalControls) * 100));
+    setOverallScore(totalControls > 0 ? Math.round((totalImplemented / totalControls) * 100) : 0);
   };
 
   const fetchPOAMItems = async () => {
-    // Mock POAM data - in production this would come from database
-    const mockPOAM: POAMItem[] = [
-      {
-        id: '1',
-        control_id: 'AC.1.001',
-        weakness: 'Inadequate access control policy documentation',
-        remediation: 'Update and implement comprehensive access control policy',
-        status: 'IN_PROGRESS',
-        due_date: '2024-02-15',
-        priority: 'HIGH',
-        responsible_party: 'IT Security Team'
-      },
-      {
-        id: '2', 
-        control_id: 'AU.2.041',
-        weakness: 'Audit logs not centrally managed',
-        remediation: 'Implement centralized logging solution (SIEM)',
-        status: 'OPEN',
-        due_date: '2024-03-01',
-        priority: 'MEDIUM',
-        responsible_party: 'Infrastructure Team'
-      },
-      {
-        id: '3',
-        control_id: 'IA.1.076',
-        weakness: 'Multi-factor authentication not enforced',
-        remediation: 'Deploy MFA across all systems and accounts',
-        status: 'COMPLETED',
-        due_date: '2024-01-30',
-        priority: 'HIGH',
-        responsible_party: 'Security Team'
-      }
-    ];
-    
-    setPOAMItems(mockPOAM);
+    // Dynamically generate POAM items from FAILED controls
+    const failedControls = controls.filter(c => c.status === 'FAILED_SCAN' || c.status === 'NON_COMPLIANT');
+
+    const realPOAM: POAMItem[] = failedControls.map((c, index) => ({
+      id: c.id,
+      control_id: c.control_id,
+      weakness: `Control ${c.control_id} failed validation`,
+      remediation: c.remediation_steps || "Remediation required - run auto-fix or update policy",
+      status: 'OPEN',
+      due_date: new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0], // +30 days
+      priority: 'HIGH',
+      responsible_party: 'Security Team'
+    }));
+
+    setPOAMItems(realPOAM);
   };
 
   const fetchOrganizationData = async () => {
@@ -140,7 +125,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
         .select('name')
         .limit(1)
         .single();
-      
+
       if (orgs?.name) {
         setOrganizationName(orgs.name);
       }
@@ -167,7 +152,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
       'SC': Wifi,       // System and Communications Protection
       'SI': Shield,     // System and Information Integrity
     };
-    
+
     return icons[domain] || Shield;
   };
 
@@ -234,7 +219,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
                 </div>
               </div>
             </div>
-            
+
             <div className="space-y-4">
               <div className="text-center p-4 bg-green-900/40 rounded-lg border border-green-500/30">
                 <CheckCircle className="h-8 w-8 text-green-400 mx-auto mb-2" />
@@ -242,7 +227,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
                 <div className="text-xs text-green-200">Controls Implemented</div>
               </div>
             </div>
-            
+
             <div className="space-y-4">
               <div className="text-center p-4 bg-red-900/40 rounded-lg border border-red-500/30">
                 <AlertTriangle className="h-8 w-8 text-red-400 mx-auto mb-2" />
@@ -316,8 +301,8 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
                       <Badge variant="outline" className="text-blue-400 border-blue-400">
                         {item.control_id}
                       </Badge>
-                      <Badge 
-                        variant="outline" 
+                      <Badge
+                        variant="outline"
                         className={`${getPriorityColor(item.priority)} border-current`}
                       >
                         {item.priority}
