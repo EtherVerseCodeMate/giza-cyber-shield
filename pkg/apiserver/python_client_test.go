@@ -2,13 +2,29 @@ package apiserver
 
 import (
 	"fmt"
+	"net"
+	"os"
 	"testing"
+	"time"
 )
 
 // TestPythonPing attempts to talk to the local python service
-// Run this only when the service is up!
+// Skips if the Python service isn't running (integration test)
 func TestPythonPing(t *testing.T) {
-	client := NewPythonServiceClient("http://localhost:8000")
+	// Skip if PYTHON_SERVICE_URL not set or service not available
+	serviceURL := os.Getenv("PYTHON_SERVICE_URL")
+	if serviceURL == "" {
+		serviceURL = "http://localhost:8000"
+	}
+
+	// Quick connectivity check - skip if service not available
+	conn, err := net.DialTimeout("tcp", "localhost:8000", 2*time.Second)
+	if err != nil {
+		t.Skipf("Skipping Python service test - service not available: %v", err)
+	}
+	conn.Close()
+
+	client := NewPythonServiceClient(serviceURL)
 
 	// 1. Check Soul
 	soul, err := client.GetSoulStatus()
