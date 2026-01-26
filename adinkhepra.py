@@ -61,9 +61,53 @@ import json
 import time
 import http.client
 import signal
+import socket
 
 def should_use_shell():
     return platform.system().lower() == "windows"
+
+def wait_for_port(port, host="127.0.0.1", timeout=30):
+    """Wait for a port to become available."""
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            sock.connect((host, port))
+            sock.close()
+            return True
+        except (socket.error, socket.timeout):
+            time.sleep(0.5)
+    return False
+
+def start_telemetry_server():
+    """Start the telemetry server for local license validation."""
+    telemetry_dir = "adinkhepra-telemetry-server"
+    if not os.path.exists(telemetry_dir):
+        print("      ⚠️  Telemetry server not found, skipping (license will use remote)")
+        return None
+
+    print("      > Starting Telemetry Server (wrangler dev) on port 8787...")
+
+    # Use npx wrangler dev for local development
+    telemetry_proc = subprocess.Popen(
+        ["npx", "wrangler", "dev", "--local", "--port", "8787"],
+        cwd=telemetry_dir,
+        shell=should_use_shell(),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+
+    # Wait for telemetry server to be ready
+    if wait_for_port(8787, timeout=15):
+        print("      ✅ Telemetry Server ready on http://localhost:8787")
+        # Set environment for license client to use local server
+        os.environ["KHEPRA_LICENSE_SERVER"] = "http://localhost:8787"
+        return telemetry_proc
+    else:
+        print("      ⚠️  Telemetry server failed to start, continuing without it")
+        telemetry_proc.terminate()
+        return None
 
 def validate():
     print("=" * 60)
@@ -110,12 +154,15 @@ def validate():
     print("\n[3/4] Testing Agent API (Integration)...")
     build("adinkhepra-agent")
     agent_bin = get_binary_name("adinkhepra-agent")
-    
+
+    # Start Telemetry Server first (for license validation)
+    telemetry_proc = start_telemetry_server()
+
     # Start Agent in background
     print("      Starting Agent on port 45444...")
     # Allow port reuse or wait a bit if previously running
     time.sleep(1)
-    
+
     agent_proc = subprocess.Popen([agent_bin], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
     try:
@@ -195,6 +242,10 @@ def validate():
         else:
             agent_proc.terminate()
             agent_proc.wait()
+
+        # Stop Telemetry Server
+        if telemetry_proc:
+            telemetry_proc.terminate()
         
     print("\n✨ ALL SYSTEMS GO. ADINKHEPRA IS READY ON THIS MACHINE.")
     print("=" * 60)
@@ -206,7 +257,7 @@ def validate():
 
 def launch(args=[]):
     print("\n[🚀] LAUNCHING ADINKHEPRA FULL STACK...")
-    
+
     # Handle Custom LLM Port
     llm_port = "11434" # Default
     if "--llm-port" in args:
@@ -219,11 +270,14 @@ def launch(args=[]):
             print("❌ Error: --llm-port requires a port number")
             sys.exit(1)
 
+    # 0. Start Telemetry Server (for local license validation)
+    telemetry_proc = start_telemetry_server()
+
     # 1. Start Agent
     agent_bin = get_binary_name("adinkhepra-agent")
     if not os.path.exists(agent_bin):
         build("adinkhepra-agent")
-        
+
     print(f"      > Starting Backend: {agent_bin} (Port 45444)")
     # Env update above is inherited by Popen
     agent_proc = subprocess.Popen([agent_bin], cwd=".")
@@ -243,15 +297,20 @@ def launch(args=[]):
                 break
     except KeyboardInterrupt:
         print("\n[🛑] Stopping Stack...")
-        
+
         # Kill Agent
         if platform.system().lower() == "windows":
             subprocess.call(["taskkill", "/F", "/IM", "adinkhepra-agent.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         else:
             agent_proc.terminate()
-            
+
         # Kill Frontend (Best Effort)
         frontend_proc.terminate()
+
+        # Kill Telemetry Server
+        if telemetry_proc:
+            telemetry_proc.terminate()
+
         sys.exit(0)
 
 def main():
