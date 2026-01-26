@@ -4,15 +4,14 @@
 -- This schema receives aggregated telemetry from:
 -- CloudFlare Workers → DEMARC Gateway → Supabase
 
--- Enable required extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pg_cron";
+-- Enable required extensions (uuid-ossp already exists in Supabase)
+-- Using gen_random_uuid() which is built into PostgreSQL 13+
 
 -- ============================================================================
 -- ORGANIZATIONS (Multi-tenant isolation)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS organizations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     slug TEXT UNIQUE NOT NULL,
     license_tier TEXT NOT NULL DEFAULT 'pilot' CHECK (license_tier IN ('pilot', 'pro', 'enterprise', 'government')),
@@ -41,7 +40,7 @@ CREATE INDEX idx_org_license_tier ON organizations(license_tier);
 -- CRYPTO INVENTORY (Dark Crypto Database Moat)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS crypto_inventory (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
     device_hash TEXT NOT NULL, -- Anonymized device ID (SHA-256)
 
@@ -104,7 +103,7 @@ CREATE INDEX idx_crypto_last_scan ON crypto_inventory(last_scan_at);
 -- LICENSE TELEMETRY (Aggregated from Cloudflare D1)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS license_telemetry (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
     machine_id TEXT NOT NULL,
 
@@ -155,7 +154,7 @@ CREATE INDEX idx_license_heartbeat ON license_telemetry(last_heartbeat_at);
 -- SECURITY EVENTS
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS security_events (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
 
     event_type TEXT NOT NULL CHECK (event_type IN (
@@ -200,7 +199,7 @@ CREATE INDEX idx_events_unresolved ON security_events(resolved_at) WHERE resolve
 -- DARK CRYPTO MOAT (Aggregate vulnerability analysis)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS dark_crypto_moat (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
     algorithm_name TEXT NOT NULL,
     algorithm_type TEXT NOT NULL CHECK (algorithm_type IN ('symmetric', 'asymmetric', 'hash', 'kex', 'signature', 'pqc')),
@@ -259,7 +258,7 @@ ON CONFLICT (algorithm_name, key_size) DO NOTHING;
 -- AUDIT LOG (Immutable)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS audit_log (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
     actor TEXT NOT NULL, -- 'system:cron', 'admin:username', 'service:demarc'
     actor_ip TEXT,
