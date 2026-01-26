@@ -15,11 +15,14 @@ import {
   Lock,
   Wifi,
   Eye,
-  Settings
+  Settings,
+  Zap,
+  Loader2
 } from "lucide-react";
 import { useComplianceFrameworks } from "@/hooks/useComplianceFrameworks";
 import { supabase } from "@/integrations/supabase/client";
 import { useKhepraAPI } from "@/hooks/useKhepraAPI";
+import { toast } from "sonner";
 
 interface CMMCLevel {
   level: number;
@@ -47,11 +50,12 @@ interface CMMCDashboardProps {
 
 export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) => {
   const { frameworks, controls: offlineControls, loading: offlineLoading } = useComplianceFrameworks();
-  const { cmmc } = useKhepraAPI("http://localhost:8080", ""); // In production use env vars
+  const { cmmc, remediateSTIG } = useKhepraAPI("http://localhost:8080", "");
   const [cmmcLevels, setCmmcLevels] = useState<CMMCLevel[]>([]);
   const [poamItems, setPOAMItems] = useState<POAMItem[]>([]);
   const [overallScore, setOverallScore] = useState(0);
   const [organizationName, setOrganizationName] = useState("Organization");
+  const [isRemediating, setIsRemediating] = useState<string | null>(null);
 
   useEffect(() => {
     if (cmmc.data) {
@@ -61,7 +65,6 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
   }, [cmmc.data]);
 
   const updateDashboardData = (data: any) => {
-    // 1. Calculate CMMC Levels from Findings
     const findings = data.Findings || [];
 
     const levels: CMMCLevel[] = [
@@ -85,24 +88,22 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
         level: 3,
         name: "Good Cyber Hygiene",
         description: "Protect CUI and reduce risk of APTs",
-        controls: 130, // 110 + 20 advanced
-        implemented: findings.filter((f: any) => f.Status === 'Pass' && f.ID.includes('L3')).length,
+        controls: 134,
+        implemented: findings.filter((f: any) => f.Status === 'Pass' && (f.ID.includes('L3') || f.ID.includes('L2'))).length,
         color: "bg-yellow-500"
       }
     ];
 
     setCmmcLevels(levels);
 
-    // 2. Update overall score
     const totalControls = levels.reduce((sum, level) => sum + level.controls, 0);
     const totalImplemented = levels.reduce((sum, level) => sum + level.implemented, 0);
     setOverallScore(totalControls > 0 ? Math.round((totalImplemented / totalControls) * 100) : 0);
 
-    // 3. Generate POAM for FAILED controls
     const failedFindings = findings.filter((f: any) => f.Status === 'Fail');
     const realPOAM: POAMItem[] = failedFindings.map((f: any) => ({
       id: f.ID,
-      control_id: f.ID.split('-').pop(), // Extract control ID
+      control_id: f.ID.replace('CMMC:', ''),
       weakness: f.Title,
       remediation: f.Remediation,
       status: 'OPEN',
@@ -129,26 +130,27 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
     }
   };
 
-  const getDomainIcon = (domain: string) => {
-    const icons: Record<string, any> = {
-      'AC': Users,      // Access Control
-      'AU': FileText,   // Audit and Accountability  
-      'AT': TrendingUp, // Awareness and Training
-      'CM': Settings,   // Configuration Management
-      'IA': Lock,       // Identification and Authentication
-      'IR': AlertTriangle, // Incident Response
-      'MA': Settings,   // Maintenance
-      'MP': Database,   // Media Protection
-      'PS': Users,      // Personnel Security
-      'PE': Shield,     // Physical Protection
-      'RE': TrendingUp, // Recovery
-      'RM': Eye,        // Risk Management
-      'CA': Shield,     // Security Assessment
-      'SC': Wifi,       // System and Communications Protection
-      'SI': Shield,     // System and Information Integrity
-    };
+  const handleRemediate = async (controlId: string) => {
+    setIsRemediating(controlId);
+    toast.info(`Triggering automated remediation for ${controlId}...`);
 
-    return icons[domain] || Shield;
+    try {
+      const result = await remediateSTIG.mutateAsync({
+        control_ids: [controlId],
+        target_host: "localhost"
+      });
+
+      if (result.status === 'completed' && result.results[0].status === 'success') {
+        toast.success(`Successfully remediated ${controlId}: ${result.results[0].command}`);
+      } else {
+        toast.error(`Remediation failed for ${controlId}: ${result.results[0].output}`);
+      }
+    } catch (error: any) {
+      console.error('Remediation error:', error);
+      toast.error(`Automated fix failed: ${error.message}`);
+    } finally {
+      setIsRemediating(null);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -183,7 +185,6 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <Card className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 border-blue-500/30">
         <CardHeader>
           <CardTitle className="flex items-center space-x-3 text-white">
@@ -196,55 +197,62 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
         </CardHeader>
       </Card>
 
-      {/* Overall Score */}
       <Card className="bg-black/40 border-blue-500/30 backdrop-blur-lg">
         <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="md:col-span-2">
-              <h3 className="text-lg font-semibold text-white mb-4">Overall CMMC Readiness</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-300">Compliance Score</span>
-                  <span className="text-2xl font-bold text-blue-400">{overallScore}%</span>
-                </div>
-                <Progress value={overallScore} className="h-3" />
-                <div className="flex justify-between text-sm text-gray-400">
-                  <span>Target: Level 2 (CMMC 2.0)</span>
-                  <span>Due: Q2 2024</span>
-                </div>
+          <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
+            <div className="relative w-48 h-48">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-4xl font-bold text-white">{overallScore}%</span>
               </div>
+              <svg className="w-full h-full -rotate-90">
+                <circle
+                  cx="96" cy="96" r="88"
+                  fill="transparent"
+                  stroke="currentColor"
+                  strokeWidth="12"
+                  className="text-blue-900/30"
+                />
+                <circle
+                  cx="96" cy="96" r="88"
+                  fill="transparent"
+                  stroke="currentColor"
+                  strokeWidth="12"
+                  strokeDasharray={552.92}
+                  strokeDashoffset={552.92 * (1 - overallScore / 100)}
+                  className="text-blue-500 transition-all duration-1000 ease-out"
+                />
+              </svg>
             </div>
-
-            <div className="space-y-4">
-              <div className="text-center p-4 bg-green-900/40 rounded-lg border border-green-500/30">
-                <CheckCircle className="h-8 w-8 text-green-400 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-green-400">135</div>
-                <div className="text-xs text-green-200">Controls Implemented</div>
+            <div className="flex-1 md:ml-12 grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+              <div className="space-y-1">
+                <p className="text-sm text-gray-400">Framework Status</p>
+                <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/30">
+                  CMMC 3.0 L3
+                </Badge>
               </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="text-center p-4 bg-red-900/40 rounded-lg border border-red-500/30">
-                <AlertTriangle className="h-8 w-8 text-red-400 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-red-400">122</div>
-                <div className="text-xs text-red-200">Gaps Identified</div>
+              <div className="space-y-1">
+                <p className="text-sm text-gray-400">Total Controls</p>
+                <p className="text-2xl font-bold text-white">134</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-gray-400">Last Audit</p>
+                <p className="text-white font-medium">{new Date().toLocaleDateString()}</p>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* CMMC Levels */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {cmmcLevels.map((level) => {
           const completionRate = Math.round((level.implemented / level.controls) * 100);
           return (
             <Card key={level.level} className="bg-black/40 border-blue-500/30 backdrop-blur-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between text-white">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-8 h-8 rounded-full ${level.color} flex items-center justify-center text-white font-bold`}>
-                      {level.level}
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg text-white">
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-10 h-10 rounded-lg ${level.color} flex items-center justify-center text-white font-bold`}>
+                      L{level.level}
                     </div>
                     <div>
                       <div className="text-sm font-medium">{level.name}</div>
@@ -273,7 +281,6 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
         })}
       </div>
 
-      {/* POA&M (Plan of Action & Milestones) */}
       <Card className="bg-black/40 border-blue-500/30 backdrop-blur-lg">
         <CardHeader>
           <CardTitle className="flex items-center justify-between text-white">
@@ -288,36 +295,62 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {poamItems.map((item) => (
-              <div key={item.id} className="p-4 bg-slate-800/40 rounded-lg border border-slate-600/30">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <Badge variant="outline" className="text-blue-400 border-blue-400">
-                        {item.control_id}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className={`${getPriorityColor(item.priority)} border-current`}
-                      >
-                        {item.priority}
-                      </Badge>
-                      <div className={`w-3 h-3 rounded-full ${getStatusColor(item.status)}`} />
+            {poamItems.length > 0 ? (
+              poamItems.map((item) => (
+                <div key={item.id} className="p-4 bg-slate-800/40 rounded-lg border border-slate-600/30">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <Badge variant="outline" className="text-blue-400 border-blue-400">
+                          {item.control_id}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className={`${getPriorityColor(item.priority)} border-current`}
+                        >
+                          {item.priority}
+                        </Badge>
+                        <div className={`w-3 h-3 rounded-full ${getStatusColor(item.status)}`} />
+                      </div>
+                      <h4 className="text-white font-medium mb-1">{item.weakness}</h4>
+                      <p className="text-gray-400 text-sm mb-2">{item.remediation}</p>
+                      <div className="text-xs text-gray-500">
+                        Responsible: {item.responsible_party} | Due: {new Date(item.due_date).toLocaleDateString()}
+                      </div>
                     </div>
-                    <h4 className="text-white font-medium mb-1">{item.weakness}</h4>
-                    <p className="text-gray-400 text-sm mb-2">{item.remediation}</p>
-                    <div className="text-xs text-gray-500">
-                      Responsible: {item.responsible_party} | Due: {new Date(item.due_date).toLocaleDateString()}
+                    <div className="flex space-x-2 shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-green-500/50 text-green-400 hover:bg-green-500/20"
+                        onClick={() => handleRemediate(item.id)}
+                        disabled={isRemediating === item.id}
+                      >
+                        {isRemediating === item.id ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Zap className="h-4 w-4 mr-2" />
+                        )}
+                        Automated Fix
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-gray-400">
+                        View Logs
+                      </Button>
                     </div>
                   </div>
                 </div>
+              ))
+            ) : (
+              <div className="text-center py-12 border-2 border-dashed border-gray-800 rounded-xl">
+                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                <p className="text-white font-medium">No open findings!</p>
+                <p className="text-gray-500 text-sm">System is fully compliant with CMMC Level 3 standards.</p>
               </div>
-            ))}
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Quick Actions */}
       <Card className="bg-black/40 border-blue-500/30 backdrop-blur-lg">
         <CardHeader>
           <CardTitle className="text-white">Quick Actions</CardTitle>

@@ -110,6 +110,27 @@ export interface CMMCAuditResponse {
   Findings: CMMCAuditFinding[];
 }
 
+export interface STIGRemediationRequest {
+  control_ids: string[];
+  target_host: string;
+}
+
+export interface RemediationResult {
+  control_id: string;
+  status: 'success' | 'failed' | 'requires_manual';
+  command: string;
+  output: string;
+  timestamp: string;
+}
+
+export interface STIGRemediationResponse {
+  batch_id: string;
+  results: RemediationResult[];
+  summary: string;
+  status: 'completed' | 'partial' | 'failed';
+  timestamp: string;
+}
+
 export interface LicenseStatus {
   machine_id: string;
   organization: string;
@@ -219,6 +240,14 @@ class KhepraAPIClient {
   async getCMMCAudit(): Promise<CMMCAuditResponse> {
     return this.request<CMMCAuditResponse>('/api/v1/compliance/cmmc-audit');
   }
+
+  // Remediation
+  async remediateSTIG(request: STIGRemediationRequest): Promise<STIGRemediationResponse> {
+    return this.request<STIGRemediationResponse>('/api/v1/stig/remediate', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
 }
 
 // Hook for Khepra API
@@ -267,6 +296,15 @@ export function useKhepraAPI(baseUrl: string, apiKey: string) {
     mutationFn: (request: STIGValidationRequest) => client.validateSTIG(request),
   });
 
+  // STIG remediation mutation
+  const remediateSTIGMutation = useMutation({
+    mutationFn: (request: STIGRemediationRequest) => client.remediateSTIG(request),
+    onSuccess: () => {
+      // Refresh CMMC status after remediation
+      queryClient.invalidateQueries({ queryKey: ['khepra', 'cmmc', baseUrl] });
+    },
+  });
+
   // Get scan status
   const getScanStatus = useCallback(
     (scanId: string) => client.getScanStatus(scanId),
@@ -290,6 +328,7 @@ export function useKhepraAPI(baseUrl: string, apiKey: string) {
     // Mutations
     triggerScan: triggerScanMutation,
     validateSTIG: validateSTIGMutation,
+    remediateSTIG: remediateSTIGMutation,
 
     // Methods
     getScanStatus,

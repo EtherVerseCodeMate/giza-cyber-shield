@@ -30,6 +30,10 @@ type ComplianceDatabase struct {
 	NIST53toCCI map[string][]string // Key: NIST_53_Ref, Value: CCI_IDs
 	NIST171to53 map[string][]string // Key: NIST_171_Ref, Value: NIST_53_Refs
 
+	// NIST 800-53 → NIST 800-172 mappings (24 rows)
+	NIST53to172 map[string][]NIST171Mapping // Key: NIST_53_Ref
+	NIST172to53 map[string][]string         // Key: NIST_172_Ref, Value: NIST_53_Refs
+
 	mu sync.RWMutex // Protect concurrent access
 }
 
@@ -73,6 +77,8 @@ func GetDatabase() (*ComplianceDatabase, error) {
 			CCItoSTIG:   make(map[string][]string),
 			NIST53toCCI: make(map[string][]string),
 			NIST171to53: make(map[string][]string),
+			NIST53to172: make(map[string][]NIST171Mapping),
+			NIST172to53: make(map[string][]string),
 		}
 		loadErr = db.Load()
 	})
@@ -100,6 +106,11 @@ func (d *ComplianceDatabase) Load() error {
 	// Load NIST 800-53→NIST 800-171 mappings (123 rows)
 	if err := d.loadNIST53to171(); err != nil {
 		return fmt.Errorf("failed to load NIST 800-53→NIST 800-171 mappings: %w", err)
+	}
+
+	// Load NIST 800-53→NIST 800-172 mappings (24 rows)
+	if err := d.loadNIST53to172(); err != nil {
+		return fmt.Errorf("failed to load NIST 800-53→NIST 800-172 mappings: %w", err)
 	}
 
 	return nil
@@ -251,6 +262,54 @@ func (d *ComplianceDatabase) loadNIST53to171() error {
 	return nil
 }
 
+// loadNIST53to172 loads NIST53_to_172.csv
+func (d *ComplianceDatabase) loadNIST53to172() error {
+	file, err := embeddedData.Open("data/NIST53_to_172.csv")
+	if err != nil {
+		return fmt.Errorf("failed to open NIST53_to_172.csv: %w", err)
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+
+	// Skip header
+	if _, err := reader.Read(); err != nil {
+		return fmt.Errorf("failed to read CSV header: %w", err)
+	}
+
+	rowCount := 0
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("failed to read CSV row %d: %w", rowCount+2, err)
+		}
+
+		if len(record) < 3 {
+			continue // Skip malformed rows
+		}
+
+		mapping := NIST171Mapping{
+			NIST171Ref:    strings.TrimSpace(record[0]),
+			NIST53Ref:     strings.TrimSpace(record[1]),
+			ControlFamily: strings.TrimSpace(record[2]),
+		}
+
+		// Forward mapping: NIST 800-53 → NIST 800-172
+		d.NIST53to172[mapping.NIST53Ref] = append(d.NIST53to172[mapping.NIST53Ref], mapping)
+
+		// Reverse mapping: NIST 800-172 → NIST 800-53
+		d.NIST172to53[mapping.NIST171Ref] = append(d.NIST172to53[mapping.NIST171Ref], mapping.NIST53Ref)
+
+		rowCount++
+	}
+
+	fmt.Printf("Loaded %d NIST 800-53→NIST 800-172 mappings\n", rowCount)
+	return nil
+}
+
 // GetCrossReferences returns all cross-referenced controls for a given STIG ID
 // Returns: CCI IDs, NIST 800-53 controls, NIST 800-171 controls, CMMC controls
 func (d *ComplianceDatabase) GetCrossReferences(stigID string) ([]string, error) {
@@ -307,6 +366,28 @@ func (d *ComplianceDatabase) GetCrossReferences(stigID string) ([]string, error)
 						if !seenRefs[keyCMMC] {
 							refs = append(refs, keyCMMC)
 							seenRefs[keyCMMC] = true
+						}
+					}
+				}
+
+				// Get NIST 800-172 controls for this NIST 800-53 control
+				nist172Mappings, ok := d.NIST53to172[nist53Ref]
+				if ok {
+					for _, nist172Mapping := range nist172Mappings {
+						nist17Ref := nist172Mapping.NIST171Ref
+
+						// Add NIST 800-172 control
+						key172 := "NIST-800-172:" + nist17Ref
+						if !seenRefs[key172] {
+							refs = append(refs, key172)
+							seenRefs[key172] = true
+						}
+
+						// Map to CMMC Level 3
+						keyCMMC3 := "CMMC:" + nist172Mapping.ControlFamily + ".L3-" + nist17Ref
+						if !seenRefs[keyCMMC3] {
+							refs = append(refs, keyCMMC3)
+							seenRefs[keyCMMC3] = true
 						}
 					}
 				}
