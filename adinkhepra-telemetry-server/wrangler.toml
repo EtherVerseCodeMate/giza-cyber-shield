@@ -15,6 +15,12 @@ MAX_BEACON_SIZE = "10240"
 # Rate limiting (100 beacons per device per hour)
 RATE_LIMIT_PER_HOUR = "100"
 
+# DEMARC Gateway URL for telemetry forwarding
+DEMARC_GATEWAY_URL = "https://gateway.souhimbou.org"
+
+# Supabase Project URL (fallback if DEMARC is down)
+SUPABASE_URL = "https://xjknkjbrjgljuovaazeu.supabase.co"
+
 # CRITICAL: Dilithium3 public key for signature verification
 # This is the PUBLIC key corresponding to telemetry-keys/khepra-telemetry-v1_dilithium.pub
 # Algorithm: Dilithium3 (ML-DSA-65), Size: 1,952 bytes (3,904 hex chars)
@@ -32,19 +38,15 @@ routes = [
 #   wrangler secret put STRIPE_WEBHOOK_SECRET
 #   wrangler secret put ADMIN_API_KEY
 #   wrangler secret put JWT_SECRET
+#   wrangler secret put KHEPRA_SERVICE_SECRET
 #
-# STRIPE_WEBHOOK_SECRET - Stripe webhook signing secret (whsec_...)
-# ADMIN_API_KEY         - Emergency admin API key for authentication
-# JWT_SECRET            - Secret for signing admin JWT tokens
-# DEMARC_SERVICE_TOKEN  - Service account token for DEMARC gateway
-# SUPABASE_SERVICE_KEY  - Supabase service role key (fallback)
-
-[vars]
-# DEMARC Gateway URL
-DEMARC_GATEWAY_URL = "https://gateway.souhimbou.org"
-
-# Supabase Project URL (fallback if DEMARC is down)
-SUPABASE_URL = "https://your-project.supabase.co"
+# STRIPE_WEBHOOK_SECRET  - Stripe webhook signing secret (whsec_...)
+# ADMIN_API_KEY          - Emergency admin API key for authentication
+# JWT_SECRET             - Secret for signing admin JWT tokens
+# KHEPRA_SERVICE_SECRET  - Shared HMAC secret for DEMARC service authentication (256-bit hex)
+#                          Generate with: go run cmd/service-token/main.go init-secret
+#                          Must match KHEPRA_SERVICE_SECRET on DEMARC apiserver
+# SUPABASE_SERVICE_KEY   - Supabase service role key (fallback)
 
 # Scheduled triggers for telemetry aggregation
 [triggers]
