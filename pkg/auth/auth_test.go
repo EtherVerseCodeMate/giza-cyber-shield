@@ -83,18 +83,48 @@ func TestPermissionEvaluator(t *testing.T) {
 func TestPermissionEvaluator_Wildcards(t *testing.T) {
 	pe := NewPermissionEvaluator()
 
-	// Admin role with wildcard
-	adminRole := &Role{
-		Name: "admin",
+	// Role with wildcard resource
+	superReaderRole := &Role{
+		Name: "super-reader",
 		Permissions: []Permission{
-			{Resource: "*", Action: "*"},
+			{Resource: "*", Action: "read"},
 		},
 	}
-	pe.DefineRole(adminRole)
+	pe.DefineRole(superReaderRole)
 
-	// Should match anything
-	if !pe.Evaluate([]string{"admin"}, "anything", "any-action") {
-		t.Error("expected wildcard permission to match")
+	// Should match any resource with read action
+	if !pe.Evaluate([]string{"super-reader"}, "dag", "read") {
+		t.Error("expected wildcard resource permission to match dag:read")
+	}
+	if !pe.Evaluate([]string{"super-reader"}, "scan", "read") {
+		t.Error("expected wildcard resource permission to match scan:read")
+	}
+
+	// Should NOT match write action
+	if pe.Evaluate([]string{"super-reader"}, "dag", "write") {
+		t.Error("expected wildcard resource permission to NOT match dag:write")
+	}
+
+	// Role with wildcard action
+	dagAdminRole := &Role{
+		Name: "dag-admin",
+		Permissions: []Permission{
+			{Resource: "dag", Action: "*"},
+		},
+	}
+	pe.DefineRole(dagAdminRole)
+
+	// Should match any action on dag resource
+	if !pe.Evaluate([]string{"dag-admin"}, "dag", "read") {
+		t.Error("expected wildcard action permission to match dag:read")
+	}
+	if !pe.Evaluate([]string{"dag-admin"}, "dag", "delete") {
+		t.Error("expected wildcard action permission to match dag:delete")
+	}
+
+	// Should NOT match other resources
+	if pe.Evaluate([]string{"dag-admin"}, "scan", "read") {
+		t.Error("expected wildcard action permission to NOT match scan:read")
 	}
 }
 
