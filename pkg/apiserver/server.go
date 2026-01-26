@@ -153,6 +153,19 @@ func (s *Server) setupRoutes() {
 				telemetry.GET("/status", s.handleTelemetryStatus)
 			}
 		}
+
+		// Telemetry analytics (read-only, requires user auth)
+		v1.GET("/telemetry/stats", s.handleTelemetryStats)
+		v1.GET("/telemetry/dark-crypto-moat", s.handleDarkCryptoMoat)
+	}
+
+	// Service-to-service API (authenticated with service tokens)
+	// OWASP API2:2023 - Strong service authentication
+	svc := s.router.Group("/api/v1/telemetry")
+	svc.Use(ServiceAuthMiddleware())
+	svc.Use(RequirePermission("telemetry:write"))
+	{
+		svc.POST("/ingest", s.handleTelemetryIngest)
 	}
 
 	// WebSocket endpoints (auth via query param or first message)
