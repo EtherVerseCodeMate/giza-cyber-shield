@@ -137,6 +137,31 @@ func (s *Server) setupRoutes() {
 			compliance.GET("/cmmc-audit", s.handleCMMCAudit)
 		}
 
+		// Command Center endpoints (4-Quadrant "Compliance in 4 Clicks")
+		cc := v1.Group("/cc")
+		{
+			// Dashboard
+			cc.GET("/dashboard", s.handleCCDashboard)
+
+			// Quadrant 1: Discover
+			cc.POST("/discover", s.handleCCDiscover)
+			cc.GET("/discover/endpoints", s.handleCCListEndpoints)
+
+			// Quadrant 2: Assess
+			cc.POST("/assess", s.handleCCAssess)
+			cc.GET("/assess/status", s.handleCCAssessStatus)
+
+			// Quadrant 3: Rollback
+			cc.POST("/rollback/snapshot", s.handleCCCreateSnapshot)
+			cc.GET("/rollback/snapshots", s.handleCCListSnapshots)
+			cc.POST("/rollback/restore", s.handleCCRollback)
+
+			// Quadrant 4: Prove
+			cc.POST("/prove/attest", s.handleCCCreateAttestation)
+			cc.GET("/prove/verify", s.handleCCVerifyAttestation)
+			cc.POST("/prove/export", s.handleCCExportEvidence)
+		}
+
 		// ERT (Evidence Recording Token) endpoints
 		ert := v1.Group("/ert")
 		{
