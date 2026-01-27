@@ -48,7 +48,7 @@ export class ContainerSTIGScanner {
   private baseUrl: string;
 
   constructor() {
-    this.baseUrl = 'https://bqxmmonqibpmnxgypevd.supabase.co/functions/v1';
+    this.baseUrl = 'https://xjknkjbrjgljuovaazeu.supabase.co/functions/v1';
   }
 
   /**
