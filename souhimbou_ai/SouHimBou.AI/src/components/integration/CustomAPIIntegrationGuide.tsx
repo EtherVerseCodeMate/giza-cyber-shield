@@ -55,7 +55,7 @@ const CustomAPIIntegrationGuide = () => {
     webhook: `// Static Website Integration - Webhook Endpoint
 // Add this to your static site's JavaScript
 
-const IMOHTEP_WEBHOOK_URL = 'https://bqxmmonqibpmnxgypevd.supabase.co/functions/v1/integration-manager';
+const IMOHTEP_WEBHOOK_URL = 'https://xjknkjbrjgljuovaazeu.supabase.co/functions/v1/integration-manager';
 
 // Function to send security events to IMOHTEP
 async function sendSecurityEvent(eventData) {
@@ -108,9 +108,9 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     }
   });
 });`,
-    
+
     monitoring: `// Client-Side Security Monitoring
-const IMOHTEP_WEBHOOK_URL = 'https://bqxmmonqibpmnxgypevd.supabase.co/functions/v1/integration-manager';
+const IMOHTEP_WEBHOOK_URL = 'https://xjknkjbrjgljuovaazeu.supabase.co/functions/v1/integration-manager';
 
 class IMOHTEPSecurityMonitor {
   constructor(apiKey, siteId) {
@@ -319,17 +319,17 @@ console.log('Connection status:', connectionTest);`
         subtitle="Learn how to integrate your static website or custom API with IMOHTEP's security platform"
         showAddTab={false}
       />
-      
+
       <div className="max-w-7xl mx-auto p-6 space-y-6">
         <div className="text-center space-y-6">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             Custom API Integration Guide
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Learn how to integrate your static website or custom API with IMOHTEP's security platform. 
+            Learn how to integrate your static website or custom API with IMOHTEP's security platform.
             This comprehensive guide covers everything from basic webhooks to advanced monitoring.
           </p>
-          
+
           {/* New Integration Hub Callout */}
           <Alert className="max-w-4xl mx-auto bg-gradient-to-r from-primary/10 to-accent/10 border-primary/20">
             <Zap className="h-4 w-4" />
@@ -339,8 +339,8 @@ console.log('Connection status:', connectionTest);`
                   <strong>New Integration Hub Available!</strong>
                   <p className="text-sm mt-1">Access our comprehensive Integration Hub with 150+ pre-built connectors, health monitoring, and analytics dashboard.</p>
                 </div>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="ml-4 border-primary/50 text-primary hover:bg-primary/10"
                   onClick={() => window.open('/integration-guide', '_blank')}
                 >
@@ -362,7 +362,7 @@ console.log('Connection status:', connectionTest);`
                 <p className="text-sm text-muted-foreground mt-1">Popular tools like Splunk, CrowdStrike, Microsoft Sentinel</p>
               </CardContent>
             </Card>
-            
+
             <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20">
               <CardContent className="p-4 text-center">
                 <div className="w-12 h-12 mx-auto mb-3 bg-green-500/20 rounded-lg flex items-center justify-center">
@@ -372,7 +372,7 @@ console.log('Connection status:', connectionTest);`
                 <p className="text-sm text-muted-foreground mt-1">Real-time status and performance tracking</p>
               </CardContent>
             </Card>
-            
+
             <Card className="bg-gradient-to-br from-purple-500/10 to-violet-500/10 border-purple-500/20">
               <CardContent className="p-4 text-center">
                 <div className="w-12 h-12 mx-auto mb-3 bg-purple-500/20 rounded-lg flex items-center justify-center">
@@ -399,26 +399,26 @@ console.log('Connection status:', connectionTest);`
               feature="Integration Overview Guide"
               description="Get started with API integration fundamentals"
               menuItems={[
-                { 
-                  label: "Static Website Integration", 
+                {
+                  label: "Static Website Integration",
                   description: "Learn about client-side JavaScript integration",
-                  action: () => console.log("Static Website guide"), 
-                  icon: <Globe className="w-3 h-3" />, 
-                  type: "guide" as const 
+                  action: () => console.log("Static Website guide"),
+                  icon: <Globe className="w-3 h-3" />,
+                  type: "guide" as const
                 },
-                { 
-                  label: "Security Events", 
+                {
+                  label: "Security Events",
                   description: "Understanding monitored security events",
-                  action: () => console.log("Security Events guide"), 
-                  icon: <Shield className="w-3 h-3" />, 
-                  type: "guide" as const 
+                  action: () => console.log("Security Events guide"),
+                  icon: <Shield className="w-3 h-3" />,
+                  type: "guide" as const
                 },
-                { 
-                  label: "Integration Flow", 
+                {
+                  label: "Integration Flow",
                   description: "Step-by-step implementation process",
-                  action: () => console.log("Integration Flow guide"), 
-                  icon: <Zap className="w-3 h-3" />, 
-                  type: "action" as const 
+                  action: () => console.log("Integration Flow guide"),
+                  icon: <Zap className="w-3 h-3" />,
+                  type: "action" as const
                 }
               ]}
             >
@@ -546,26 +546,26 @@ console.log('Connection status:', connectionTest);`
               feature="Webhook Integration Setup"
               description="Configure webhooks to send security events from your website"
               menuItems={[
-                { 
-                  label: "Copy Code", 
+                {
+                  label: "Copy Code",
                   description: "Copy the webhook integration code",
-                  action: () => copyToClipboard(codeExamples.webhook), 
-                  icon: <Copy className="w-3 h-3" />, 
-                  type: "action" as const 
+                  action: () => copyToClipboard(codeExamples.webhook),
+                  icon: <Copy className="w-3 h-3" />,
+                  type: "action" as const
                 },
-                { 
-                  label: "Configure Events", 
+                {
+                  label: "Configure Events",
                   description: "Set up authentication and form monitoring",
-                  action: () => console.log("Configure Events guide"), 
-                  icon: <Shield className="w-3 h-3" />, 
-                  type: "guide" as const 
+                  action: () => console.log("Configure Events guide"),
+                  icon: <Shield className="w-3 h-3" />,
+                  type: "guide" as const
                 },
-                { 
-                  label: "Test Webhook", 
+                {
+                  label: "Test Webhook",
                   description: "Test your webhook implementation",
-                  action: () => console.log("Test Webhook guide"), 
-                  icon: <Play className="w-3 h-3" />, 
-                  type: "action" as const 
+                  action: () => console.log("Test Webhook guide"),
+                  icon: <Play className="w-3 h-3" />,
+                  type: "action" as const
                 }
               ]}
             >
@@ -586,7 +586,7 @@ console.log('Connection status:', connectionTest);`
                       <strong>Step 1:</strong> Add this JavaScript code to your static website. Replace YOUR_API_KEY with your actual API key.
                     </AlertDescription>
                   </Alert>
-                  
+
                   <div className="relative">
                     <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto">
                       <code>{codeExamples.webhook}</code>
@@ -634,26 +634,26 @@ console.log('Connection status:', connectionTest);`
               feature="Advanced Security Monitoring"
               description="Implement comprehensive client-side security monitoring"
               menuItems={[
-                { 
-                  label: "Failed Login Detection", 
+                {
+                  label: "Failed Login Detection",
                   description: "Set up automatic failed login monitoring",
-                  action: () => console.log("Failed Login guide"), 
-                  icon: <AlertCircle className="w-3 h-3" />, 
-                  type: "guide" as const 
+                  action: () => console.log("Failed Login guide"),
+                  icon: <AlertCircle className="w-3 h-3" />,
+                  type: "guide" as const
                 },
-                { 
-                  label: "Behavior Analysis", 
+                {
+                  label: "Behavior Analysis",
                   description: "Monitor suspicious user behavior patterns",
-                  action: () => console.log("Behavior Analysis guide"), 
-                  icon: <Shield className="w-3 h-3" />, 
-                  type: "guide" as const 
+                  action: () => console.log("Behavior Analysis guide"),
+                  icon: <Shield className="w-3 h-3" />,
+                  type: "guide" as const
                 },
-                { 
-                  label: "Form Monitoring", 
+                {
+                  label: "Form Monitoring",
                   description: "Track and analyze form submissions",
-                  action: () => console.log("Form Monitoring guide"), 
-                  icon: <Code className="w-3 h-3" />, 
-                  type: "action" as const 
+                  action: () => console.log("Form Monitoring guide"),
+                  icon: <Code className="w-3 h-3" />,
+                  type: "action" as const
                 }
               ]}
             >
@@ -713,26 +713,26 @@ console.log('Connection status:', connectionTest);`
               feature="API Client Implementation"
               description="Full-featured API client for advanced integrations"
               menuItems={[
-                { 
-                  label: "Single Events", 
+                {
+                  label: "Single Events",
                   description: "Send individual security events",
-                  action: () => console.log("Single Events guide"), 
-                  icon: <Zap className="w-3 h-3" />, 
-                  type: "action" as const 
+                  action: () => console.log("Single Events guide"),
+                  icon: <Zap className="w-3 h-3" />,
+                  type: "action" as const
                 },
-                { 
-                  label: "Bulk Processing", 
+                {
+                  label: "Bulk Processing",
                   description: "Process multiple events efficiently",
-                  action: () => console.log("Bulk Processing guide"), 
-                  icon: <Code className="w-3 h-3" />, 
-                  type: "guide" as const 
+                  action: () => console.log("Bulk Processing guide"),
+                  icon: <Code className="w-3 h-3" />,
+                  type: "guide" as const
                 },
-                { 
-                  label: "Error Handling", 
+                {
+                  label: "Error Handling",
                   description: "Implement robust error handling",
-                  action: () => console.log("Error Handling guide"), 
-                  icon: <AlertCircle className="w-3 h-3" />, 
-                  type: "guide" as const 
+                  action: () => console.log("Error Handling guide"),
+                  icon: <AlertCircle className="w-3 h-3" />,
+                  type: "guide" as const
                 }
               ]}
             >
@@ -799,26 +799,26 @@ console.log('Connection status:', connectionTest);`
               feature="Test Your Integration"
               description="Verify your API connection and test data flow"
               menuItems={[
-                { 
-                  label: "Connection Test", 
+                {
+                  label: "Connection Test",
                   description: "Test your API connection and credentials",
-                  action: () => console.log("Connection Test guide"), 
-                  icon: <Play className="w-3 h-3" />, 
-                  type: "action" as const 
+                  action: () => console.log("Connection Test guide"),
+                  icon: <Play className="w-3 h-3" />,
+                  type: "action" as const
                 },
-                { 
-                  label: "Integration Steps", 
+                {
+                  label: "Integration Steps",
                   description: "Follow the next steps checklist",
-                  action: () => console.log("Integration Steps guide"), 
-                  icon: <CheckCircle className="w-3 h-3" />, 
-                  type: "guide" as const 
+                  action: () => console.log("Integration Steps guide"),
+                  icon: <CheckCircle className="w-3 h-3" />,
+                  type: "guide" as const
                 },
-                { 
-                  label: "Documentation", 
+                {
+                  label: "Documentation",
                   description: "Access detailed API documentation",
-                  action: () => window.open('#', '_blank'), 
-                  icon: <ExternalLink className="w-3 h-3" />, 
-                  type: "link" as const 
+                  action: () => window.open('#', '_blank'),
+                  icon: <ExternalLink className="w-3 h-3" />,
+                  type: "link" as const
                 }
               ]}
             >
@@ -855,8 +855,8 @@ console.log('Connection status:', connectionTest);`
                     </div>
                   </div>
 
-                  <Button 
-                    onClick={testCustomAPI} 
+                  <Button
+                    onClick={testCustomAPI}
                     disabled={!testEndpoint || !testApiKey || isLoading}
                     className="w-full hover:bg-primary/90 transition-colors"
                     variant="cyber"
@@ -922,7 +922,7 @@ console.log('Connection status:', connectionTest);`
           </TabsContent>
         </Tabs>
       </div>
-      
+
       {/* Floating AI Assistant */}
       <FloatingAIAssistant position="bottom-right" />
     </div>
