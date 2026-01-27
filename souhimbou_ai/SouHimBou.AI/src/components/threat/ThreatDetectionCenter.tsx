@@ -58,7 +58,7 @@ const ThreatDetectionCenter = () => {
               <h3 className="font-semibold flex items-center gap-2"><Satellite className="h-4 w-4" /> Falco/eBPF Feed</h3>
               <p className="text-sm text-muted-foreground">Point Falco Sidekick webhook to the falco-webhook function to ingest runtime detections.</p>
               <code className="text-xs bg-muted p-2 rounded block break-all">
-                {`https://bqxmmonqibpmnxgypevd.functions.supabase.co/falco-webhook`}
+                {`https://xjknkjbrjgljuovaazeu.functions.supabase.co/falco-webhook`}
               </code>
             </div>
 
@@ -88,12 +88,12 @@ const ThreatDetectionCenter = () => {
               <Separator className="my-2" />
               <div className="space-y-3">
                 <h4 className="font-semibold flex items-center gap-2"><Rocket className="h-4 w-4" /> Risk Weighting</h4>
-                {(['LOW','MEDIUM','HIGH','CRITICAL'] as const).map(level => (
+                {(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const).map(level => (
                   <div key={level} className="grid grid-cols-4 items-center gap-3">
                     <span className="text-sm col-span-1">{level}</span>
                     <div className="col-span-3">
                       <Slider value={[Math.round((weights.severity as any)[level] * 100)]}
-                        onValueChange={v => setWeights(w => ({...w, severity: { ...w.severity, [level]: v[0]/100 }}))}
+                        onValueChange={v => setWeights(w => ({ ...w, severity: { ...w.severity, [level]: v[0] / 100 } }))}
                       />
                     </div>
                   </div>
@@ -114,7 +114,7 @@ const ThreatDetectionCenter = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {events.filter(e => (e.source_system || '').toLowerCase().includes('falco')).slice(0,10).map(e => (
+            {events.filter(e => (e.source_system || '').toLowerCase().includes('falco')).slice(0, 10).map(e => (
               <div key={e.id} className="rounded-md border p-3">
                 <div className="flex items-center gap-2">
                   <Badge variant={e.severity === 'CRITICAL' ? 'destructive' : e.severity === 'WARNING' ? 'secondary' : 'outline'}>

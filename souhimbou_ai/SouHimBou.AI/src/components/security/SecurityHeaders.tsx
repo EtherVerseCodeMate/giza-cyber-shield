@@ -9,17 +9,17 @@ const SecurityHeaders = ({ children }: SecurityHeadersProps) => {
     // Generate nonce for CSP
     const nonce = Array.from(crypto.getRandomValues(new Uint8Array(16)))
       .map(b => b.toString(16).padStart(2, '0')).join('');
-    
+
     // Set Content Security Policy with enhanced security
     const meta = document.createElement('meta');
     meta.httpEquiv = 'Content-Security-Policy';
     meta.content = `
-      default-src 'self' https://bqxmmonqibpmnxgypevd.supabase.co https://api.x.ai;
-      script-src 'self' 'nonce-${nonce}' https://bqxmmonqibpmnxgypevd.supabase.co;
+      default-src 'self' https://xjknkjbrjgljuovaazeu.supabase.co https://api.x.ai;
+      script-src 'self' 'nonce-${nonce}' https://xjknkjbrjgljuovaazeu.supabase.co;
       style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com;
       font-src 'self' data: https://fonts.gstatic.com;
       img-src 'self' data: https: blob:;
-      connect-src 'self' https://bqxmmonqibpmnxgypevd.supabase.co https://api.x.ai wss://bqxmmonqibpmnxgypevd.supabase.co;
+      connect-src 'self' https://xjknkjbrjgljuovaazeu.supabase.co https://api.x.ai wss://xjknkjbrjgljuovaazeu.supabase.co;
       object-src 'none';
       base-uri 'self';
       form-action 'self';
@@ -27,7 +27,7 @@ const SecurityHeaders = ({ children }: SecurityHeadersProps) => {
       upgrade-insecure-requests;
       report-uri /csp-report;
     `.replace(/\s+/g, ' ').trim();
-    
+
     // Only add if not already present
     if (!document.querySelector('meta[http-equiv="Content-Security-Policy"]')) {
       document.head.appendChild(meta);
@@ -102,26 +102,26 @@ const SecurityHeaders = ({ children }: SecurityHeadersProps) => {
       const originalLog = console.log;
       const originalWarn = console.warn;
       const originalError = console.error;
-      
+
       console.log = (...args) => {
         // Filter out sensitive data
-        const filtered = args.map(arg => 
+        const filtered = args.map(arg =>
           typeof arg === 'string' && (arg.includes('password') || arg.includes('token') || arg.includes('key'))
             ? '[REDACTED]' : arg
         );
         originalLog(...filtered);
       };
-      
+
       console.warn = (...args) => {
-        const filtered = args.map(arg => 
+        const filtered = args.map(arg =>
           typeof arg === 'string' && (arg.includes('password') || arg.includes('token') || arg.includes('key'))
             ? '[REDACTED]' : arg
         );
         originalWarn(...filtered);
       };
-      
+
       console.error = (...args) => {
-        const filtered = args.map(arg => 
+        const filtered = args.map(arg =>
           typeof arg === 'string' && (arg.includes('password') || arg.includes('token') || arg.includes('key'))
             ? '[REDACTED]' : arg
         );
