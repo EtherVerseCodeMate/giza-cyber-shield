@@ -16,7 +16,7 @@ import { CMMCDashboard } from "@/components/compliance/CMMCDashboard";
 import { HostBreachIntegration } from "@/components/integration/HostBreachIntegration";
 import { POAMGenerator } from "@/components/automation/POAMGenerator";
 import { ThreatIntelligence } from "@/components/ThreatIntelligence";
-import { SecurityDashboard } from "@/pages/SecurityDashboard";
+import { SecurityDashboard } from "@/views/SecurityDashboard";
 import { useWhiteLabel } from "@/components/branding/WhiteLabelProvider";
 import { UsageTracker } from "@/components/UsageTracker";
 

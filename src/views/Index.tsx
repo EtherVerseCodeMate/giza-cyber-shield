@@ -42,7 +42,7 @@ import UserTierManager from "@/components/admin/UserTierManager";
 import { SplunkDataFeed } from '@/components/SplunkDataFeed';
 import { EmergencyResponseManager } from '@/components/EmergencyResponseManager';
 import { IntegrationStatusWidget, IntegrationQuickActions } from '@/components/IntegrationStatusWidget';
-import { STIGCodexCenter } from '@/pages/STIGCodexCenter';
+import { STIGCodexCenter } from '@/views/STIGCodexCenter';
 
 const Index = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
