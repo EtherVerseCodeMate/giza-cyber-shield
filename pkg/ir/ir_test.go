@@ -7,17 +7,17 @@ import (
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
-	"github.com/cloudflare/circl/sign/dilithium/mode3"
+	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 )
 
-// generateTestKeys generates real Dilithium3 keys for testing
+// generateTestKeys generates real ML-DSA-65 (FIPS 204) keys for testing
 // TRL 10: No mocks, no stubs - real PQC cryptography
 func generateTestKeys(t *testing.T) (pubKey []byte, privKey []byte) {
 	t.Helper()
 
-	pk, sk, err := mode3.GenerateKey(rand.Reader)
+	pk, sk, err := mldsa65.GenerateKey(rand.Reader)
 	if err != nil {
-		t.Fatalf("Failed to generate Dilithium3 key pair: %v", err)
+		t.Fatalf("Failed to generate ML-DSA-65 key pair: %v", err)
 	}
 
 	pubKey, err = pk.MarshalBinary()
