@@ -116,7 +116,7 @@ const ExperienceSelector: React.FC<ExperienceSelectorProps> = ({ onExperienceSel
           if (onExperienceSelected) {
             onExperienceSelected(pathId);
           } else {
-            navigate('/dashboard?tour=true&demo=true');
+            navigate('/demo-tour');
           }
           break;
 
