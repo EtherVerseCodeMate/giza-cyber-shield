@@ -32,6 +32,7 @@ import MasterAdmin from "./views/MasterAdmin";
 import ClientPortal from "./views/ClientPortal";
 import UltimateDashboard from "./views/UltimateDashboard";
 import NotFound from "./views/NotFound";
+import DemoTour from "./views/DemoTour";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -67,6 +68,7 @@ const App = () => {
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/onboarding" element={<Onboarding />} />
+                  <Route path="/demo-tour" element={<DemoTour />} />
 
                   {/* STIG-First MVP Routes */}
                   <Route path="/stig-dashboard" element={<ProtectedRoute><STIGDashboard /></ProtectedRoute>} />

@@ -19,7 +19,7 @@ const OnboardingOrchestrator: React.FC = () => {
           title: "Quick Tour Started",
           description: "Welcome to the interactive demo environment",
         });
-        navigate('/dashboard?tour=true');
+        navigate('/demo-tour');
         break;
       case 'executive-summary':
         toast({
