@@ -55,7 +55,7 @@ const CustomAPIIntegrationGuide = () => {
     webhook: `// Static Website Integration - Webhook Endpoint
 // Add this to your static site's JavaScript
 
-const IMOHTEP_WEBHOOK_URL = 'https://bqxmmonqibpmnxgypevd.supabase.co/functions/v1/integration-manager';
+const IMOHTEP_WEBHOOK_URL = 'https://xjknkjbrjgljuovaazeu.supabase.co/functions/v1/integration-manager';
 
 // Function to send security events to IMOHTEP
 async function sendSecurityEvent(eventData) {
@@ -110,7 +110,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 });`,
     
     monitoring: `// Client-Side Security Monitoring
-const IMOHTEP_WEBHOOK_URL = 'https://bqxmmonqibpmnxgypevd.supabase.co/functions/v1/integration-manager';
+const IMOHTEP_WEBHOOK_URL = 'https://xjknkjbrjgljuovaazeu.supabase.co/functions/v1/integration-manager';
 
 class IMOHTEPSecurityMonitor {
   constructor(apiKey, siteId) {
@@ -222,7 +222,7 @@ const monitor = new IMOHTEPSecurityMonitor('YOUR_API_KEY', 'your-site-id');`,
 
     api: `// REST API Integration for Static Sites
 class IMOHTEPAPIClient {
-  constructor(apiKey, baseUrl = 'https://bqxmmonqibpmnxgypevd.supabase.co') {
+  constructor(apiKey, baseUrl = 'https://xjknkjbrjgljuovaazeu.supabase.co') {
     this.apiKey = apiKey;
     this.baseUrl = baseUrl;
   }

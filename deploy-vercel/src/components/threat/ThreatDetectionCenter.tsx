@@ -58,7 +58,7 @@ const ThreatDetectionCenter = () => {
               <h3 className="font-semibold flex items-center gap-2"><Satellite className="h-4 w-4" /> Falco/eBPF Feed</h3>
               <p className="text-sm text-muted-foreground">Point Falco Sidekick webhook to the falco-webhook function to ingest runtime detections.</p>
               <code className="text-xs bg-muted p-2 rounded block break-all">
-                {`https://bqxmmonqibpmnxgypevd.functions.supabase.co/falco-webhook`}
+                {`https://xjknkjbrjgljuovaazeu.supabase.co/functions/v1/falco-webhook`}
               </code>
             </div>
 
