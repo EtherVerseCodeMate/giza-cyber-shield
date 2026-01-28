@@ -611,6 +611,34 @@ const Auth = () => {
                     )}
                   </Button>
                 </form>
+
+                {/* OAuth Divider */}
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-border" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">Or sign up with</span>
+                  </div>
+                </div>
+
+                {/* OAuth Providers */}
+                <div className="space-y-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleGitHubSignIn}
+                    disabled={oauthLoading === 'github'}
+                  >
+                    {oauthLoading === 'github' ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Github className="h-4 w-4 mr-2" />
+                    )}
+                    Sign up with GitHub
+                  </Button>
+                </div>
               </TabsContent>
 
             </Tabs>
