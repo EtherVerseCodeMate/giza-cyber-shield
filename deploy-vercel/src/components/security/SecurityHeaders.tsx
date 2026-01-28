@@ -14,12 +14,12 @@ const SecurityHeaders = ({ children }: SecurityHeadersProps) => {
     const meta = document.createElement('meta');
     meta.httpEquiv = 'Content-Security-Policy';
     meta.content = `
-      default-src 'self' https://bqxmmonqibpmnxgypevd.supabase.co https://api.x.ai;
-      script-src 'self' 'nonce-${nonce}' https://bqxmmonqibpmnxgypevd.supabase.co;
+      default-src 'self' https://xjknkjbrjgljuovaazeu.supabase.co https://api.x.ai;
+      script-src 'self' 'nonce-${nonce}' https://xjknkjbrjgljuovaazeu.supabase.co;
       style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com;
       font-src 'self' data: https://fonts.gstatic.com;
       img-src 'self' data: https: blob:;
-      connect-src 'self' https://bqxmmonqibpmnxgypevd.supabase.co https://api.x.ai wss://bqxmmonqibpmnxgypevd.supabase.co;
+      connect-src 'self' https://xjknkjbrjgljuovaazeu.supabase.co https://api.x.ai wss://xjknkjbrjgljuovaazeu.supabase.co;
       object-src 'none';
       base-uri 'self';
       form-action 'self';
