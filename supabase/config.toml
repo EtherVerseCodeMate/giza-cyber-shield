@@ -1,4 +1,4 @@
-project_id = "ctxgyadqmjooxzuzbzkr"
+project_id = "xjknkjbrjgljuovaazeu"
 
 [functions.stripe-webhook]
 verify_jwt = false
@@ -8,3 +8,9 @@ verify_jwt = true
 
 [functions.create-advisory-checkout-session]
 verify_jwt = true
+
+[functions.send-password-reset-otp]
+verify_jwt = false
+
+[functions.verify-password-reset-otp]
+verify_jwt = false
