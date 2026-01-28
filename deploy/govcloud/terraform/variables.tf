@@ -118,7 +118,7 @@ variable "compliance_tags" {
 variable "security_alert_email" {
   description = "Email address for security alerts"
   type        = string
-  default     = ""
+  default     = "hello@souhimbou.com"
 }
 
 variable "enable_pagerduty" {
