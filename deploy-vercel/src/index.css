@@ -1,0 +1,111 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 172 100% 70%;
+    --primary-foreground: 222 47% 11%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 75.1%;
+
+    --accent: 199 100% 45%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 22%;
+    --input: 217.2 32.6% 22%;
+    --ring: 172 100% 70%;
+    
+    --sidebar-background: 222 47% 16%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 172 100% 70%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 222 47% 20%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 222 47% 20%;
+    --sidebar-ring: 172 100% 70%;
+
+    --radius: 0.5rem;
+
+    /* Giza Custom Colors */
+    --void-black: 0 0% 2%;
+    --gunmetal: 210 14% 11%;
+    --quantum-cyan: 180 100% 50%;
+    --khepra-gold: 46 65% 52%;
+    --canary-red: 0 100% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-giza-dark text-foreground;
+  }
+}
+
+.gradient-text {
+  background: linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.status-indicator {
+  @apply relative h-3 w-3 rounded-full;
+}
+
+.status-indicator::before {
+  content: '';
+  @apply absolute inset-0 rounded-full animate-ping;
+  animation-duration: 2s;
+}
+
+.status-indicator.active {
+  @apply bg-green-500;
+}
+
+.status-indicator.active::before {
+  @apply bg-green-500/70;
+}
+
+.status-indicator.warning {
+  @apply bg-yellow-500;
+}
+
+.status-indicator.warning::before {
+  @apply bg-yellow-500/70;
+}
+
+.status-indicator.critical {
+  @apply bg-red-500;
+}
+
+.status-indicator.critical::before {
+  @apply bg-red-500/70;
+}
+
+.dashboard-card {
+  @apply border border-border bg-card rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow;
+  background: linear-gradient(to bottom, hsl(var(--card)) 0%, hsl(222, 47%, 9%) 100%);
+}
