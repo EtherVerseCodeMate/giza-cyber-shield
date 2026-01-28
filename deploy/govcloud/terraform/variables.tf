@@ -104,7 +104,7 @@ variable "compliance_tags" {
   description = "Compliance framework tags"
   type        = map(string)
   default = {
-    Compliance       = "NIST-800-171"
+    Compliance       = "NIST-800-172"
     DataClass        = "CUI"
     FedRAMPBaseline  = "High"
     CMMCLevel        = "3"
