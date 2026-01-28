@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, User, Lock, Building, Eye, EyeOff, AlertTriangle, CheckCircle, Fingerprint } from 'lucide-react';
+import { Shield, User, Lock, Building, Eye, EyeOff, AlertTriangle, CheckCircle, Fingerprint, Github, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import TermsAcceptance from '@/components/legal/TermsAcceptance';
 import PasswordResetOTP from '@/components/auth/PasswordResetOTP';
@@ -45,6 +45,35 @@ const Auth = () => {
   } = useSecurityHardening();
 
   const [passwordStrengthData, setPasswordStrengthData] = useState({ score: 0, feedback: [], isStrong: false });
+  const [oauthLoading, setOauthLoading] = useState<string | null>(null);
+
+  const handleGitHubSignIn = async () => {
+    setOauthLoading('github');
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+
+      if (error) {
+        toast({
+          title: "GitHub Sign In Failed",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to initiate GitHub sign in",
+        variant: "destructive"
+      });
+    } finally {
+      setOauthLoading(null);
+    }
+  };
 
   useEffect(() => {
     if (password) {
@@ -410,6 +439,34 @@ const Auth = () => {
                     </button>
                   </div>
                 </form>
+
+                {/* OAuth Divider */}
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-border" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+                  </div>
+                </div>
+
+                {/* OAuth Providers */}
+                <div className="space-y-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleGitHubSignIn}
+                    disabled={oauthLoading === 'github' || isAccountLocked()}
+                  >
+                    {oauthLoading === 'github' ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Github className="h-4 w-4 mr-2" />
+                    )}
+                    Sign in with GitHub
+                  </Button>
+                </div>
               </TabsContent>
 
               <TabsContent value="register" className="space-y-4 mt-6">
