@@ -62,3 +62,5 @@ demo-snapshot.json
 *.tmp
 ANONYMOUS_GIT_*.md
 pkg/llm/ollama/manifests/registry.ollama.ai/library/gemma3/4b
+.vercel
+.env*.local
