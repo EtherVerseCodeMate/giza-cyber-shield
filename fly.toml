@@ -1,51 +1,23 @@
-# Fly.io deployment configuration for SouHimBou AI
-app = "souhimbou-ai"
-primary_region = "iad" # US East (Ashburn, VA)
+# fly.toml app configuration file generated for app-delicate-butterfly-9377 on 2026-01-28T02:13:06Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'app-delicate-butterfly-9377'
+primary_region = 'iad'
 
 [build]
-  dockerfile = "Dockerfile"
-
-[env]
-  PORT = "8080"
-  PYTHONUNBUFFERED = "1"
-  FEATURE_DIM = "128"
-  HIDDEN_DIM = "64"
-  LATENT_DIM = "32"
-  MODEL_PATH = "/app/models/souhimbou_v1.pt"
-  SECRET_DOCS_PATH = "/app/top_secret_intel"
-  CYBER_BRAIN_PATH = "/app/data/cyber_brain"
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
-  min_machines_running = 1
-  processes = ["app"]
-
-  [http_service.concurrency]
-    type = "connections"
-    hard_limit = 250
-    soft_limit = 200
+  min_machines_running = 0
+  processes = ['app']
 
 [[vm]]
-  size = "shared-cpu-2x"
-  memory = "4gb"
-  cpus = 2
-
-[mounts]
-  source = "souhimbou_data"
-  destination = "/app/data"
-
-[checks]
-  [checks.health]
-    type = "http"
-    port = 8080
-    path = "/"
-    interval = "30s"
-    timeout = "5s"
-    grace_period = "10s"
-
-[metrics]
-  port = 9091
-  path = "/metrics"
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 256
