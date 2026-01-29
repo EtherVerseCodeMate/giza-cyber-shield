@@ -921,6 +921,93 @@ export type Database = {
         }
         Relationships: []
       }
+      organization_onboarding: {
+        Row: {
+          id: string
+          user_id: string
+          step: string
+          discovery_data: Json | null
+          assessment_data: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          step?: string
+          discovery_data?: Json | null
+          assessment_data?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          step?: string
+          discovery_data?: Json | null
+          assessment_data?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_organizations: {
+        Row: {
+          id: string
+          user_id: string
+          organization_id: string
+          role: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          organization_id: string
+          role?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          organization_id?: string
+          role?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      environment_discoveries: {
+        Row: {
+          id: string
+          organization_id: string
+          discovery_id: string
+          endpoints: Json
+          summary: Json | null
+          cloud_provider: string | null
+          profile: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          discovery_id: string
+          endpoints?: Json
+          summary?: Json | null
+          cloud_provider?: string | null
+          profile?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          discovery_id?: string
+          endpoints?: Json
+          summary?: Json | null
+          cloud_provider?: string | null
+          profile?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
