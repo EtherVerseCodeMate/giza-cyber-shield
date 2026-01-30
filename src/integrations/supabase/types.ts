@@ -175,6 +175,69 @@ export type Database = {
           },
         ]
       }
+      audit_log: {
+        Row: {
+          action: string
+          actor: string
+          actor_ip: string | null
+          created_at: string | null
+          id: string
+          new_value: Json | null
+          old_value: Json | null
+          resource_id: string | null
+          resource_type: string
+        }
+        Insert: {
+          action: string
+          actor: string
+          actor_ip?: string | null
+          created_at?: string | null
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          resource_id?: string | null
+          resource_type: string
+        }
+        Update: {
+          action?: string
+          actor?: string
+          actor_ip?: string | null
+          created_at?: string | null
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          resource_id?: string | null
+          resource_type?: string
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          resource_type: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          resource_type?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          resource_type?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       compliance_tasks: {
         Row: {
           assigned_to: string | null
@@ -298,6 +361,110 @@ export type Database = {
         }
         Relationships: []
       }
+      crypto_inventory: {
+        Row: {
+          agent_version: string | null
+          compliance_score: number | null
+          created_at: string | null
+          des_count: number | null
+          device_hash: string
+          dilithium3_count: number | null
+          dilithium5_count: number | null
+          ecc_p256_count: number | null
+          ecc_p384_count: number | null
+          ecc_p521_count: number | null
+          hostname: string | null
+          id: string
+          kyber1024_count: number | null
+          kyber512_count: number | null
+          kyber768_count: number | null
+          last_scan_at: string | null
+          md5_count: number | null
+          organization_id: string | null
+          platform: string | null
+          pqc_readiness_score: number | null
+          quantum_exposure_score: number | null
+          rsa_1024_count: number | null
+          rsa_2048_count: number | null
+          rsa_3072_count: number | null
+          rsa_4096_count: number | null
+          sha1_count: number | null
+          sphincs_count: number | null
+          tls_config: Json | null
+          triple_des_count: number | null
+        }
+        Insert: {
+          agent_version?: string | null
+          compliance_score?: number | null
+          created_at?: string | null
+          des_count?: number | null
+          device_hash: string
+          dilithium3_count?: number | null
+          dilithium5_count?: number | null
+          ecc_p256_count?: number | null
+          ecc_p384_count?: number | null
+          ecc_p521_count?: number | null
+          hostname?: string | null
+          id?: string
+          kyber1024_count?: number | null
+          kyber512_count?: number | null
+          kyber768_count?: number | null
+          last_scan_at?: string | null
+          md5_count?: number | null
+          organization_id?: string | null
+          platform?: string | null
+          pqc_readiness_score?: number | null
+          quantum_exposure_score?: number | null
+          rsa_1024_count?: number | null
+          rsa_2048_count?: number | null
+          rsa_3072_count?: number | null
+          rsa_4096_count?: number | null
+          sha1_count?: number | null
+          sphincs_count?: number | null
+          tls_config?: Json | null
+          triple_des_count?: number | null
+        }
+        Update: {
+          agent_version?: string | null
+          compliance_score?: number | null
+          created_at?: string | null
+          des_count?: number | null
+          device_hash?: string
+          dilithium3_count?: number | null
+          dilithium5_count?: number | null
+          ecc_p256_count?: number | null
+          ecc_p384_count?: number | null
+          ecc_p521_count?: number | null
+          hostname?: string | null
+          id?: string
+          kyber1024_count?: number | null
+          kyber512_count?: number | null
+          kyber768_count?: number | null
+          last_scan_at?: string | null
+          md5_count?: number | null
+          organization_id?: string | null
+          platform?: string | null
+          pqc_readiness_score?: number | null
+          quantum_exposure_score?: number | null
+          rsa_1024_count?: number | null
+          rsa_2048_count?: number | null
+          rsa_3072_count?: number | null
+          rsa_4096_count?: number | null
+          sha1_count?: number | null
+          sphincs_count?: number | null
+          tls_config?: Json | null
+          triple_des_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crypto_inventory_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cultural_policies: {
         Row: {
           applicable_environments: string[] | null
@@ -343,6 +510,96 @@ export type Database = {
           updated_at?: string | null
           version?: number
           violation_consequences?: Json
+        }
+        Relationships: []
+      }
+      dark_crypto_moat: {
+        Row: {
+          affected_device_count: number | null
+          affected_org_count: number | null
+          aggregate_exposure_value: number | null
+          algorithm_name: string
+          algorithm_type: string
+          cve_references: string[] | null
+          deprecation_status: string | null
+          id: string
+          key_size: number | null
+          migration_priority: string | null
+          nist_reference: string | null
+          quantum_threat_level: string
+          recommended_replacement: string | null
+          total_key_count: number | null
+          updated_at: string | null
+          vulnerability_score: number
+        }
+        Insert: {
+          affected_device_count?: number | null
+          affected_org_count?: number | null
+          aggregate_exposure_value?: number | null
+          algorithm_name: string
+          algorithm_type: string
+          cve_references?: string[] | null
+          deprecation_status?: string | null
+          id?: string
+          key_size?: number | null
+          migration_priority?: string | null
+          nist_reference?: string | null
+          quantum_threat_level: string
+          recommended_replacement?: string | null
+          total_key_count?: number | null
+          updated_at?: string | null
+          vulnerability_score: number
+        }
+        Update: {
+          affected_device_count?: number | null
+          affected_org_count?: number | null
+          aggregate_exposure_value?: number | null
+          algorithm_name?: string
+          algorithm_type?: string
+          cve_references?: string[] | null
+          deprecation_status?: string | null
+          id?: string
+          key_size?: number | null
+          migration_priority?: string | null
+          nist_reference?: string | null
+          quantum_threat_level?: string
+          recommended_replacement?: string | null
+          total_key_count?: number | null
+          updated_at?: string | null
+          vulnerability_score?: number
+        }
+        Relationships: []
+      }
+      environment_discoveries: {
+        Row: {
+          cloud_provider: string | null
+          created_at: string
+          discovery_id: string
+          endpoints: Json
+          id: string
+          organization_id: string
+          profile: string | null
+          summary: Json | null
+        }
+        Insert: {
+          cloud_provider?: string | null
+          created_at?: string
+          discovery_id: string
+          endpoints?: Json
+          id?: string
+          organization_id: string
+          profile?: string | null
+          summary?: Json | null
+        }
+        Update: {
+          cloud_provider?: string | null
+          created_at?: string
+          discovery_id?: string
+          endpoints?: Json
+          id?: string
+          organization_id?: string
+          profile?: string | null
+          summary?: Json | null
         }
         Relationships: []
       }
@@ -466,6 +723,80 @@ export type Database = {
         }
         Relationships: []
       }
+      license_telemetry: {
+        Row: {
+          compliance_status: string | null
+          created_at: string | null
+          enrollment_token: string | null
+          expires_at: string | null
+          features: Json | null
+          features_used: Json | null
+          heartbeat_count: number | null
+          id: string
+          issued_at: string
+          last_heartbeat_at: string | null
+          last_validation_at: string | null
+          license_tier: string
+          machine_id: string
+          organization_id: string | null
+          pilot_id: string | null
+          stripe_customer_id: string | null
+          updated_at: string | null
+          validation_count: number | null
+          violation_reason: string | null
+        }
+        Insert: {
+          compliance_status?: string | null
+          created_at?: string | null
+          enrollment_token?: string | null
+          expires_at?: string | null
+          features?: Json | null
+          features_used?: Json | null
+          heartbeat_count?: number | null
+          id?: string
+          issued_at: string
+          last_heartbeat_at?: string | null
+          last_validation_at?: string | null
+          license_tier: string
+          machine_id: string
+          organization_id?: string | null
+          pilot_id?: string | null
+          stripe_customer_id?: string | null
+          updated_at?: string | null
+          validation_count?: number | null
+          violation_reason?: string | null
+        }
+        Update: {
+          compliance_status?: string | null
+          created_at?: string | null
+          enrollment_token?: string | null
+          expires_at?: string | null
+          features?: Json | null
+          features_used?: Json | null
+          heartbeat_count?: number | null
+          id?: string
+          issued_at?: string
+          last_heartbeat_at?: string | null
+          last_validation_at?: string | null
+          license_tier?: string
+          machine_id?: string
+          organization_id?: string | null
+          pilot_id?: string | null
+          stripe_customer_id?: string | null
+          updated_at?: string | null
+          validation_count?: number | null
+          violation_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "license_telemetry_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       matrix_operations_log: {
         Row: {
           cultural_context: string | null
@@ -528,6 +859,93 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      organization_onboarding: {
+        Row: {
+          assessment_data: Json | null
+          created_at: string
+          discovery_data: Json | null
+          id: string
+          step: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assessment_data?: Json | null
+          created_at?: string
+          discovery_data?: Json | null
+          id?: string
+          step?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assessment_data?: Json | null
+          created_at?: string
+          discovery_data?: Json | null
+          id?: string
+          step?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      organizations: {
+        Row: {
+          cage_code: string | null
+          contract_number: string | null
+          created_at: string | null
+          current_device_count: number | null
+          duns_number: string | null
+          fedramp_authorized: boolean | null
+          id: string
+          license_expires_at: string | null
+          license_tier: string
+          max_devices: number | null
+          name: string
+          pqc_transition_complete: boolean | null
+          primary_contact_email: string
+          slug: string
+          stig_compliant: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          cage_code?: string | null
+          contract_number?: string | null
+          created_at?: string | null
+          current_device_count?: number | null
+          duns_number?: string | null
+          fedramp_authorized?: boolean | null
+          id?: string
+          license_expires_at?: string | null
+          license_tier?: string
+          max_devices?: number | null
+          name: string
+          pqc_transition_complete?: boolean | null
+          primary_contact_email: string
+          slug: string
+          stig_compliant?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          cage_code?: string | null
+          contract_number?: string | null
+          created_at?: string | null
+          current_device_count?: number | null
+          duns_number?: string | null
+          fedramp_authorized?: boolean | null
+          id?: string
+          license_expires_at?: string | null
+          license_tier?: string
+          max_devices?: number | null
+          name?: string
+          pqc_transition_complete?: boolean | null
+          primary_contact_email?: string
+          slug?: string
+          stig_compliant?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       osint_investigations: {
         Row: {
@@ -630,6 +1048,39 @@ export type Database = {
           stars?: number | null
           topics?: string[] | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      password_reset_otps: {
+        Row: {
+          created_at: string | null
+          email: string
+          expires_at: string
+          id: string
+          otp_code: string
+          used: boolean | null
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          expires_at: string
+          id?: string
+          otp_code: string
+          used?: boolean | null
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          otp_code?: string
+          used?: boolean | null
+          used_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -739,6 +1190,71 @@ export type Database = {
             columns: ["primary_symbol_id"]
             isOneToOne: false
             referencedRelation: "adinkra_symbols"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      security_events: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          created_at: string | null
+          description: string | null
+          details: Json | null
+          event_type: string
+          id: string
+          organization_id: string | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          source_country: string | null
+          source_device_id: string | null
+          source_ip: string | null
+          title: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          created_at?: string | null
+          description?: string | null
+          details?: Json | null
+          event_type: string
+          id?: string
+          organization_id?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity: string
+          source_country?: string | null
+          source_device_id?: string | null
+          source_ip?: string | null
+          title: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          created_at?: string | null
+          description?: string | null
+          details?: Json | null
+          event_type?: string
+          id?: string
+          organization_id?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          source_country?: string | null
+          source_device_id?: string | null
+          source_ip?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -876,6 +1392,30 @@ export type Database = {
           },
         ]
       }
+      user_organizations: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_profiles: {
         Row: {
           avatar_url: string | null
@@ -923,9 +1463,46 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_license_health: {
+        Row: {
+          compliance_status: string | null
+          health_status: string | null
+          last_activity: string | null
+          license_count: number | null
+          license_tier: string | null
+          organization_name: string | null
+          total_validations: number | null
+        }
+        Relationships: []
+      }
+      v_pqc_transition_dashboard: {
+        Row: {
+          avg_exposure: number | null
+          avg_pqc_readiness: number | null
+          device_count: number | null
+          license_tier: string | null
+          organization_name: string | null
+          total_classical_keys: number | null
+          total_pqc_keys: number | null
+        }
+        Relationships: []
+      }
+      v_security_summary: {
+        Row: {
+          event_count: number | null
+          event_date: string | null
+          event_type: string | null
+          resolved_count: number | null
+          severity: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      calculate_pqc_readiness: {
+        Args: { inv: Database["public"]["Tables"]["crypto_inventory"]["Row"] }
+        Returns: number
+      }
       check_auth_rate_limit: {
         Args: { user_identifier: string }
         Returns: boolean
@@ -934,6 +1511,7 @@ export type Database = {
         Args: { user_identifier: string }
         Returns: boolean
       }
+      cleanup_expired_otps: { Args: never; Returns: undefined }
       get_document_template_by_id: {
         Args: { template_id: string }
         Returns: {
@@ -969,6 +1547,7 @@ export type Database = {
       get_template_document_types: { Args: never; Returns: string[] }
       get_template_jurisdictions: { Args: never; Returns: string[] }
       sanitize_user_input: { Args: { input_text: string }; Returns: string }
+      update_crypto_moat_stats: { Args: never; Returns: undefined }
       validate_admin_permissions: {
         Args: { permissions_json: Json }
         Returns: boolean
