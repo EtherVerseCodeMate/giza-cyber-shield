@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Autosend email service
+// Autosend email service - https://docs.autosend.com/quickstart/email-using-api
 async function sendEmailWithAutosend(to: string, subject: string, html: string): Promise<{ success: boolean; error?: string }> {
   const apiKey = Deno.env.get('AUTOSEND_API_KEY');
   if (!apiKey) {
@@ -13,15 +13,21 @@ async function sendEmailWithAutosend(to: string, subject: string, html: string):
   }
 
   try {
-    const response = await fetch('https://api.autosend.io/v1/email/send', {
+    const response = await fetch('https://api.autosend.com/v1/mails/send', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'SouHimBou AI Security <support@souhimbou.ai>',
-        to: [to],
+        from: {
+          email: 'support@souhimbou.ai',
+          name: 'SouHimBou AI Security'
+        },
+        to: {
+          email: to,
+          name: to.split('@')[0]
+        },
         subject: subject,
         html: html,
       }),
@@ -30,7 +36,7 @@ async function sendEmailWithAutosend(to: string, subject: string, html: string):
     if (!response.ok) {
       const errorData = await response.text();
       console.error('Autosend error:', errorData);
-      return { success: false, error: `Autosend returned ${response.status}` };
+      return { success: false, error: `Autosend returned ${response.status}: ${errorData}` };
     }
 
     return { success: true };
