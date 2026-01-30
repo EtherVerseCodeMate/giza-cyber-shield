@@ -27,14 +27,16 @@ export const ThreatOverview = () => {
     if (!currentOrganization) return;
     
     try {
-      // Fetch actual alerts from the database
-      const { data: alerts, error: alertsError } = await supabase
-        .from('alerts')
+      // Using placeholder data - alerts table not in schema
+      // Fetch from security_events which exists
+      const { data: securityEvents, error } = await supabase
+        .from('security_events')
         .select('*')
         .eq('organization_id', currentOrganization.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(20);
 
-      if (alertsError) throw alertsError;
+      if (error) throw error;
 
       // Count threats by severity
       const threatCounts = {
@@ -44,8 +46,8 @@ export const ThreatOverview = () => {
         low: 0
       };
 
-      alerts?.forEach(alert => {
-        const severity = alert.severity.toLowerCase();
+      securityEvents?.forEach(event => {
+        const severity = event.severity?.toLowerCase() || 'low';
         if (severity in threatCounts) {
           threatCounts[severity as keyof typeof threatCounts]++;
         }
@@ -53,16 +55,22 @@ export const ThreatOverview = () => {
 
       setThreats(threatCounts);
 
-      // Get recent unresolved threats for the monitoring section
-      const recentUnresolved = alerts?.filter(alert => 
-        alert.status !== 'RESOLVED' && alert.status !== 'CLOSED'
-      ).slice(0, 5) || [];
+      // Get recent events for the monitoring section
+      const recentUnresolved = securityEvents?.filter(event => 
+        !event.resolved_at
+      ).slice(0, 5).map(event => ({
+        id: event.id,
+        title: event.title,
+        severity: event.severity?.toUpperCase() || 'LOW',
+        source_type: event.event_type,
+        created_at: event.created_at
+      })) || [];
 
       setRecentThreats(recentUnresolved);
 
-      // Calculate blocked threats (resolved alerts)
-      const resolvedCount = alerts?.filter(alert => 
-        alert.status === 'RESOLVED' || alert.status === 'CLOSED'
+      // Calculate resolved count
+      const resolvedCount = securityEvents?.filter(event => 
+        event.resolved_at
       ).length || 0;
 
       setBlockedThreats(resolvedCount);
