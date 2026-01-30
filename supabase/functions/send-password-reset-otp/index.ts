@@ -76,43 +76,39 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Check if user exists by looking up in profiles table (more efficient)
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('user_id')
-      .eq('email', email)
-      .maybeSingle();
+    // Look up user by email using auth admin API
+    console.log('Looking up user by email:', email);
+    const { data: userList, error: userError } = await supabase.auth.admin.listUsers();
 
-    let userData = null;
-    
-    if (!profileError && profileData) {
-      // User exists in profiles, get full user data
-      const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(profileData.user_id);
-      if (!authError && authUser.user) {
-        userData = authUser.user;
-      }
-    } else {
-      // Fallback: check auth.users directly
-      const { data: userList, error: userError } = await supabase.auth.admin.listUsers();
-      if (!userError) {
-        userData = userList.users.find(user => user.email === email);
-      }
-    }
-    
-    if (!userData) {
-      console.log('User not found for email:', email);
-      // Return success even if user doesn't exist to prevent email enumeration
+    if (userError) {
+      console.error('Error listing users:', userError);
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'If this email exists, an OTP has been sent' 
-        }),
-        { 
-          status: 200, 
+        JSON.stringify({ error: 'Failed to verify email' }),
+        {
+          status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
+
+    const userData = userList.users.find(user => user.email === email);
+
+    if (!userData) {
+      console.log('User not found for email:', email);
+      // Return success even if user doesn't exist to prevent email enumeration
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'If this email exists, an OTP has been sent'
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    console.log('User found:', userData.id);
 
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -200,8 +196,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Log security event
-    await supabase.from('audit_logs').insert({
+    // Log security event (non-blocking, don't fail if audit_logs doesn't exist)
+    supabase.from('audit_logs').insert({
       user_id: userData.id,
       action: 'password_reset_otp_sent',
       resource_type: 'authentication',
@@ -211,7 +207,8 @@ Deno.serve(async (req) => {
         ip_address: req.headers.get('x-forwarded-for') || 'unknown',
         user_agent: req.headers.get('user-agent') || 'unknown'
       }
-    });
+    }).then(() => console.log('Audit log created'))
+      .catch(err => console.warn('Audit log failed (non-critical):', err));
 
     console.log('Password reset OTP sent successfully to:', email);
 
