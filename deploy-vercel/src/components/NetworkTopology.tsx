@@ -22,43 +22,48 @@ export const NetworkTopology = () => {
     if (!currentOrganization) return;
     
     try {
-      // Fetch real infrastructure assets
-      const { data: assets, error } = await supabase
-        .from('infrastructure_assets')
-        .select('*')
-        .eq('organization_id', currentOrganization.id)
-        .order('discovered_at', { ascending: false });
+      // Using placeholder data - infrastructure_assets table not in schema
+      // In production, this would fetch from real network monitoring systems
+      
+      const networksWithStatus = [
+        {
+          id: '1',
+          name: 'Primary Network',
+          status: 'connected',
+          latency: '12ms',
+          encryption: 'TLS 1.3',
+          location: 'US-East',
+          last_seen: new Date().toISOString()
+        },
+        {
+          id: '2',
+          name: 'Backup Network',
+          status: 'connected',
+          latency: '25ms',
+          encryption: 'TLS 1.3',
+          location: 'US-West',
+          last_seen: new Date().toISOString()
+        }
+      ];
 
-      if (error) throw error;
-
-      // Categorize assets into networks and devices
-      const networkAssets = assets?.filter(asset => 
-        asset.asset_type === 'network' || asset.asset_type === 'cloud_service'
-      ) || [];
-
-      const deviceAssets = assets?.filter(asset => 
-        asset.asset_type === 'server' || asset.asset_type === 'application'
-      ) || [];
-
-      // Add basic connectivity info (in a real system this would come from network monitoring)
-      const networksWithStatus = networkAssets.map(asset => ({
-        id: asset.id,
-        name: asset.target,
-        status: asset.compliance_status === 'COMPLIANT' ? 'connected' : 'disconnected',
-        latency: Math.floor(Math.random() * 50) + 5 + 'ms', // Simulated for now
-        encryption: 'TLS 1.3',
-        location: (asset.discovery_results as any)?.location || 'Unknown',
-        last_seen: asset.last_updated
-      }));
-
-      const devicesWithStatus = deviceAssets.map(asset => ({
-        id: asset.id,
-        type: asset.asset_type,
-        name: asset.target,
-        status: asset.compliance_status === 'COMPLIANT' ? 'active' : 'offline',
-        location: (asset.discovery_results as any)?.location || 'Unknown',
-        last_seen: asset.last_updated
-      }));
+      const devicesWithStatus = [
+        {
+          id: '1',
+          type: 'server',
+          name: 'app-server-01',
+          status: 'active',
+          location: 'US-East',
+          last_seen: new Date().toISOString()
+        },
+        {
+          id: '2',
+          type: 'server',
+          name: 'db-server-01',
+          status: 'active',
+          location: 'US-East',
+          last_seen: new Date().toISOString()
+        }
+      ];
 
       setNetworks(networksWithStatus);
       setDevices(devicesWithStatus);
