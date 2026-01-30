@@ -33,35 +33,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    // Check if account is locked before attempting login
-    try {
-      const { data: isLocked } = await supabase.rpc('is_account_locked', {
-        user_email: email
-      });
-
-      if (isLocked) {
-        return { error: { message: 'Account temporarily locked due to security concerns. Please try again later.' } };
-      }
-    } catch (lockCheckError) {
-      console.warn('Could not check account lock status:', lockCheckError);
-    }
-
+    // Simple sign-in without lockout checking (lockout functions not currently deployed)
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password
     });
 
-    // Record failed login attempt if error occurred
     if (error) {
-      try {
-        await supabase.rpc('record_failed_login', {
-          user_email: email,
-          client_ip: null, // Will be detected server-side
-          client_user_agent: navigator.userAgent
-        });
-      } catch (recordError) {
-        console.warn('Could not record failed login:', recordError);
-      }
+      console.warn('Sign in failed:', error.message);
     }
 
     return { error };

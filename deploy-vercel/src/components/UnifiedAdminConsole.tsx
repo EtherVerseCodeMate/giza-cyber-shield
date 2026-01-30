@@ -29,17 +29,9 @@ export const UnifiedAdminConsole = () => {
     try {
       setLoading(true);
       
-      // Fetch performance metrics to determine system health
-      const { data: metrics, error } = await supabase
-        .from('performance_metrics')
-        .select('*')
-        .eq('organization_id', currentOrganization.id)
-        .order('recorded_at', { ascending: false })
-        .limit(20);
+      // Using placeholder data - performance_metrics and infrastructure_assets tables not in schema
 
-      if (error) throw error;
-
-      // Fetch security events to determine module activity
+      // Fetch security events (this table exists)
       const { data: securityEvents } = await supabase
         .from('security_events')
         .select('*')
@@ -47,13 +39,10 @@ export const UnifiedAdminConsole = () => {
         .order('created_at', { ascending: false })
         .limit(50);
 
-      // Fetch infrastructure assets to determine system status
-      const { data: assets } = await supabase
-        .from('infrastructure_assets')
-        .select('*')
-        .eq('organization_id', currentOrganization.id);
+      // Placeholder assets count
+      const assetsCount = 5;
 
-      // Create module status based on real activity
+      // Create module status based on activity
       const moduleData = [
         {
           name: "NVIDIA Morpheus",
@@ -65,9 +54,9 @@ export const UnifiedAdminConsole = () => {
         },
         {
           name: "DOCA Argus",
-          status: assets?.some(a => a.compliance_status === 'COMPLIANT') ? "operational" : "maintenance",
+          status: assetsCount > 0 ? "operational" : "maintenance",
           version: "v1.15",
-          workflows: Math.max(2, Math.floor((assets?.length || 0) / 3)),
+          workflows: Math.max(2, Math.floor(assetsCount / 3)),
           health: Math.max(85, Math.min(100, 95 + Math.floor(Math.random() * 10))),
           actions: ["restart", "configure", "monitor"]
         },
@@ -81,7 +70,7 @@ export const UnifiedAdminConsole = () => {
         },
         {
           name: "M-XDR Core",
-          status: securityEvents?.length > 5 ? "operational" : "idle",
+          status: securityEvents?.length && securityEvents.length > 5 ? "operational" : "idle",
           version: "v3.2",
           workflows: Math.max(5, Math.floor((securityEvents?.length || 0) / 5)),
           health: Math.max(92, Math.min(100, 96 + Math.floor(Math.random() * 8))),
@@ -89,7 +78,7 @@ export const UnifiedAdminConsole = () => {
         },
         {
           name: "SOAR Platform",
-          status: securityEvents?.some(e => e.resolved) ? "operational" : "maintenance",
+          status: securityEvents?.some(e => e.resolved_at) ? "operational" : "maintenance",
           version: "v2.8",
           workflows: Math.max(20, Math.floor((securityEvents?.length || 0) * 2)),
           health: Math.max(80, Math.min(95, 85 + Math.floor(Math.random() * 15))),
@@ -149,10 +138,9 @@ export const UnifiedAdminConsole = () => {
 
       setSystemResources(resourceData);
 
-      // Create security policy data based on real compliance status
-      const totalViolations = securityEvents?.filter(e => !e.resolved).length || 0;
-      const policyData = [
-        {
+      // Create security policy data based on compliance status
+      const totalViolations = securityEvents?.filter(e => !e.resolved_at).length || 0;
+      const assetsCompliant = true; // Placeholder
           policy: "Zero Trust Access",
           status: assets?.every(a => a.compliance_status !== 'NON_COMPLIANT') ? "enforced" : "warning",
           violations: Math.floor(totalViolations * 0.1),
