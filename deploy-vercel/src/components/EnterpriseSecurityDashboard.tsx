@@ -40,60 +40,45 @@ export const EnterpriseSecurityDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Fetch real threat detections
+  // Fetch threat detections - using placeholder data until threat_investigations table is created
   const fetchThreatDetections = async () => {
     try {
-      const { data, error } = await supabase
-        .from('threat_investigations')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      
-      const formattedDetections: ThreatDetection[] = (data || []).map(item => ({
-        id: item.id,
-        detection_type: item.indicator_type.toUpperCase(),
-        threat_level: item.threat_level?.toUpperCase() as any || 'UNKNOWN',
-        indicator: item.threat_indicator,
-        source: 'THREAT_INTELLIGENCE',
-        details: item.external_references || {},
-        detected_at: item.created_at,
-        status: item.investigation_status?.toUpperCase() as any || 'ACTIVE'
-      }));
-
-      setThreatDetections(formattedDetections);
+      // Placeholder data - table 'threat_investigations' not yet in schema
+      const placeholderDetections: ThreatDetection[] = [
+        {
+          id: '1',
+          detection_type: 'MALWARE',
+          threat_level: 'HIGH',
+          indicator: 'suspicious-domain.example.com',
+          source: 'THREAT_INTELLIGENCE',
+          details: {},
+          detected_at: new Date().toISOString(),
+          status: 'ACTIVE'
+        }
+      ];
+      setThreatDetections(placeholderDetections);
     } catch (error) {
       console.error('Error fetching threat detections:', error);
     }
   };
 
-  // Fetch network assets
+  // Fetch network assets - using placeholder data until infrastructure_assets table is created
   const fetchNetworkAssets = async () => {
     try {
-      const { data, error } = await supabase
-        .from('infrastructure_assets')
-        .select('*')
-        .eq('asset_type', 'network')
-        .order('last_updated', { ascending: false });
-
-      if (error) throw error;
-
-      const formattedAssets: NetworkAsset[] = (data || []).map(asset => {
-        const results = asset.discovery_results as any || {};
-        return {
-          id: asset.id,
-          ip_address: asset.target,
-          hostname: results.hostname,
-          ports: results.open_ports || [],
-          services: results.services || [],
-          os_fingerprint: results.os_fingerprint,
-          risk_score: results.risk_score || 0,
-          last_scanned: asset.last_updated
-        };
-      });
-
-      setNetworkAssets(formattedAssets);
+      // Placeholder data - table 'infrastructure_assets' not yet in schema
+      const placeholderAssets: NetworkAsset[] = [
+        {
+          id: '1',
+          ip_address: '192.168.1.100',
+          hostname: 'server-01',
+          ports: [22, 80, 443],
+          services: ['SSH', 'HTTP', 'HTTPS'],
+          os_fingerprint: 'Linux',
+          risk_score: 25,
+          last_scanned: new Date().toISOString()
+        }
+      ];
+      setNetworkAssets(placeholderAssets);
     } catch (error) {
       console.error('Error fetching network assets:', error);
     }
