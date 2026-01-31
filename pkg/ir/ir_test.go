@@ -132,8 +132,9 @@ func TestEventStructure(t *testing.T) {
 }
 
 func TestNewManager(t *testing.T) {
-	// Use real DAG store for enterprise-grade testing
-	store := dag.GlobalDAG()
+	// Use in-memory DAG for testing (NOT production GlobalDAG)
+	// This ensures test data never pollutes the forensic-grade production DAG
+	store := dag.NewMemory()
 	mgr := NewManager(store)
 
 	if mgr == nil {
@@ -146,8 +147,9 @@ func TestNewManager(t *testing.T) {
 }
 
 func TestManager_CreateIncident(t *testing.T) {
-	// Use real DAG store and real PQC keys - TRL 10 enterprise-grade
-	store := dag.GlobalDAG()
+	// Use in-memory DAG for testing (NOT production GlobalDAG)
+	// This ensures test data never pollutes the forensic-grade production DAG
+	store := dag.NewMemory()
 	mgr := NewManager(store)
 
 	_, privKey := generateTestKeys(t)
@@ -195,7 +197,8 @@ func TestManager_CreateIncident(t *testing.T) {
 }
 
 func TestManager_AddIOC(t *testing.T) {
-	store := dag.GlobalDAG()
+	// Use in-memory DAG for testing (NOT production GlobalDAG)
+	store := dag.NewMemory()
 	mgr := NewManager(store)
 
 	_, privKey := generateTestKeys(t)
@@ -237,6 +240,7 @@ func TestManager_AddIOC(t *testing.T) {
 	}
 
 	// Add another IOC
+	time.Sleep(1 * time.Millisecond) // Ensure DAG node uniqueness
 	err = mgr.AddIOC(incident, "email", "attacker@suspicious-domain.com", "Sender address", privKey)
 	if err != nil {
 		t.Fatalf("Second AddIOC failed: %v", err)
@@ -248,7 +252,8 @@ func TestManager_AddIOC(t *testing.T) {
 }
 
 func TestManager_UpdateStatus(t *testing.T) {
-	store := dag.GlobalDAG()
+	// Use in-memory DAG for testing (NOT production GlobalDAG)
+	store := dag.NewMemory()
 	mgr := NewManager(store)
 
 	_, privKey := generateTestKeys(t)
@@ -299,7 +304,9 @@ func TestManager_UpdateStatus(t *testing.T) {
 }
 
 func TestIncidentLifecycle(t *testing.T) {
-	store := dag.GlobalDAG()
+	// Use in-memory DAG for testing (NOT production GlobalDAG)
+	// This ensures test data never pollutes the forensic-grade production DAG
+	store := dag.NewMemory()
 	mgr := NewManager(store)
 
 	_, privKey := generateTestKeys(t)
@@ -333,6 +340,8 @@ func TestIncidentLifecycle(t *testing.T) {
 		if err != nil {
 			t.Fatalf("AddIOC failed for %s: %v", ioc.value, err)
 		}
+		// Small delay to ensure DAG node uniqueness (timestamp_ns)
+		time.Sleep(1 * time.Millisecond)
 	}
 
 	if len(incident.IOCs) != 4 {
@@ -410,7 +419,8 @@ func TestStatusConstants(t *testing.T) {
 }
 
 func TestConcurrentIncidentCreation(t *testing.T) {
-	store := dag.GlobalDAG()
+	// Use in-memory DAG for testing (NOT production GlobalDAG)
+	store := dag.NewMemory()
 	mgr := NewManager(store)
 
 	// Generate keys once for all goroutines
