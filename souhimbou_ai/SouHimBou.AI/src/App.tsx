@@ -21,6 +21,7 @@ import VDP from "./pages/VDP";
 import HallOfFame from "./pages/HallOfFame";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
+import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
 import STIGDashboard from "./pages/STIGDashboard";
 import AssetScanning from "./pages/AssetScanning";
@@ -67,6 +68,7 @@ const App = () => {
                   <Route path="/hall-of-fame" element={<HallOfFame />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/auth/callback" element={<AuthCallback />} />
+                  <Route path="/auth/reset-password" element={<ResetPassword />} />
                   <Route path="/onboarding" element={<Onboarding />} />
 
                   {/* STIG-First MVP Routes */}
