@@ -23,18 +23,42 @@ export const useUserAgreements = () => {
   const [hasAcceptedAll, setHasAcceptedAll] = useState(false);
   const { toast } = useToast();
 
+  // Required agreement types based on Khepra LICENSE
+  const REQUIRED_AGREEMENTS = [
+    'tos',
+    'privacy',
+    'saas',
+    'beta',
+    'dod_compliance',
+    'liability_waiver',
+    'export_control'
+  ];
+
   // Check if user has accepted all required agreements
   const checkAgreementStatus = async (userId: string) => {
     try {
-      const { data, error } = await supabase.rpc('has_accepted_all_agreements', {
-        user_uuid: userId
-      });
+      // Fetch user's accepted agreements
+      const { data, error } = await supabase
+        .from('user_agreements')
+        .select('agreement_type')
+        .eq('user_id', userId)
+        .is('revoked_at', null);
 
       if (error) throw error;
-      setHasAcceptedAll(data || false);
-      return data || false;
+
+      // Check if all required agreements are accepted
+      const acceptedTypes = new Set(data?.map(a => a.agreement_type) || []);
+      const allAccepted = REQUIRED_AGREEMENTS.every(type => acceptedTypes.has(type));
+
+      setHasAcceptedAll(allAccepted);
+      return allAccepted;
     } catch (error: any) {
       console.error('Error checking agreement status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to check agreement status",
+        variant: "destructive"
+      });
       return false;
     }
   };
@@ -43,7 +67,10 @@ export const useUserAgreements = () => {
   const fetchAgreements = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
       const { data, error } = await supabase
         .from('user_agreements')
@@ -53,16 +80,19 @@ export const useUserAgreements = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
+
       setAgreements(data || []);
       await checkAgreementStatus(user.id);
     } catch (error: any) {
       console.error('Error fetching agreements:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch agreement status",
-        variant: "destructive"
-      });
+      // Don't show toast on initial load if table doesn't exist yet
+      if (!error.message?.includes('relation') && !error.message?.includes('does not exist')) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch agreement status",
+          variant: "destructive"
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -100,7 +130,7 @@ export const useUserAgreements = () => {
             .insert({
               user_id: user.id,
               agreement_type: type,
-              agreement_version: '1.0',
+              agreement_version: '3.0', // Updated to match Khepra LICENSE v3.0
               user_agent: userAgent,
               metadata
             });
@@ -109,10 +139,10 @@ export const useUserAgreements = () => {
       });
 
       await Promise.all(insertPromises);
-      
+
       // Refresh agreement status
       await fetchAgreements();
-      
+
       toast({
         title: "Agreements Accepted",
         description: "All legal agreements have been accepted successfully",
@@ -140,9 +170,9 @@ export const useUserAgreements = () => {
         .eq('id', agreementId);
 
       if (error) throw error;
-      
+
       await fetchAgreements();
-      
+
       toast({
         title: "Agreement Revoked",
         description: "The agreement has been revoked successfully",
