@@ -40,3 +40,6 @@ type PQCSignature = types.PQCSignature
 type RiskIntelligence = types.RiskIntelligence
 type ShodanSummary = types.ShodanSummary
 type CensysSummary = types.CensysSummary
+
+// Risk is a type alias for RiskItem for backward compatibility with test files
+type Risk = RiskItem
