@@ -20,18 +20,20 @@ func NewManager(store dag.Store) *Manager {
 
 // CreateIncident initializes a new incident and logs it to the DAG
 func (m *Manager) CreateIncident(title, desc string, severity Severity, iType string, privKey []byte) (*Incident, error) {
+	// Generate unique incident ID with nanosecond precision to avoid duplicates
+	now := time.Now()
 	incident := &Incident{
-		ID:          fmt.Sprintf("inc-%d", time.Now().Unix()),
+		ID:          fmt.Sprintf("inc-%d-%d", now.Unix(), now.Nanosecond()),
 		Title:       title,
 		Description: desc,
 		Severity:    severity,
 		Status:      StatusOpen,
 		Type:        iType,
-		DetectedAt:  time.Now(),
-		UpdatedAt:   time.Now(),
+		DetectedAt:  now,
+		UpdatedAt:   now,
 		Events: []Event{
 			{
-				Timestamp: time.Now(),
+				Timestamp: now,
 				Message:   fmt.Sprintf("Incident Created: %s", title),
 				Actor:     "System",
 			},
@@ -84,12 +86,13 @@ func (m *Manager) logToDAG(inc *Incident, action string, privKey []byte) error {
 		Symbol: "Sankofa", // "Go back and get it" - Learn from the past
 		Time:   lorentz.StampNow(),
 		PQC: map[string]string{
-			"incident_id": inc.ID,
-			"severity":    string(inc.Severity),
-			"type":        inc.Type,
-			"status":      string(inc.Status),
-			"version":     "1.0",
-			"title":       inc.Title,
+			"incident_id":  inc.ID,
+			"severity":     string(inc.Severity),
+			"type":         inc.Type,
+			"status":       string(inc.Status),
+			"version":      "1.0",
+			"title":        inc.Title,
+			"timestamp_ns": fmt.Sprintf("%d", time.Now().UnixNano()), // Ensure uniqueness for each update
 		},
 	}
 
