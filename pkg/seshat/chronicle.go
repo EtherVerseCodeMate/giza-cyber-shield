@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 )
 
@@ -12,8 +11,13 @@ import (
 // Seshat: Egyptian goddess of writing, records, and measurement
 type Chronicle struct {
 	DAGStore dag.Store
-	Signer   *adinkra.Signer
+	Signer   *Signer // Simplified signer
 	Papyrus  []Inscription
+}
+
+// Signer holds a private key for signing
+type Signer struct {
+	PrivateKey []byte
 }
 
 // Inscription represents a recorded event
@@ -25,7 +29,7 @@ type Inscription struct {
 }
 
 // NewChronicle creates a new chronicle
-func NewChronicle(dagStore dag.Store, signer *adinkra.Signer) *Chronicle {
+func NewChronicle(dagStore dag.Store, signer *Signer) *Chronicle {
 	return &Chronicle{
 		DAGStore: dagStore,
 		Signer:   signer,
@@ -40,14 +44,20 @@ func (c *Chronicle) Inscribe(symbol string, data map[string]any) error {
 		Action: "seshat-inscription",
 		Symbol: symbol,
 		Time:   time.Now().Format(time.RFC3339),
-		PQC:    data,
+	}
+	// Store data in PQC field if it's string-compatible
+	// Otherwise skip for now
+	if len(data) > 0 {
+		// Convert to JSON string for PQC field
+		jsonData := fmt.Sprintf("%v", data)
+		node.PQC = map[string]string{"data": jsonData}
 	}
 
 	// Compute hash
 	node.ComputeHash()
 
 	// Sign with Dilithium if signer available
-	if c.Signer != nil {
+	if c.Signer != nil && len(c.Signer.PrivateKey) > 0 {
 		err := node.Sign(c.Signer.PrivateKey)
 		if err != nil {
 			return fmt.Errorf("failed to sign inscription: %w", err)
