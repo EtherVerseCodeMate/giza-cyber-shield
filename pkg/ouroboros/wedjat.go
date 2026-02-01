@@ -1,0 +1,129 @@
+package ouroboros
+
+import (
+	"fmt"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/intel"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/maat"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stigs"
+)
+
+// WedjatEye represents an all-seeing detector
+// Wedjat: Eye of Horus, symbol of protection and royal power
+type WedjatEye interface {
+	Gaze() []maat.Isfet
+	Name() string
+}
+
+// STIGEye detects STIG non-compliance
+type STIGEye struct {
+	name string
+}
+
+func NewSTIGEye() *STIGEye {
+	return &STIGEye{
+		name: "wedjat-stig",
+	}
+}
+
+func (se *STIGEye) Gaze() []maat.Isfet {
+	// TODO: Implement actual STIG scanning
+	// For now, return empty to avoid blocking
+	return []maat.Isfet{}
+}
+
+func (se *STIGEye) Name() string {
+	return se.name
+}
+
+// VulnEye detects vulnerabilities
+type VulnEye struct {
+	name    string
+	scanner *scanner.VulnScanner
+}
+
+func NewVulnEye() *VulnEye {
+	return &VulnEye{
+		name:    "wedjat-vuln",
+		scanner: scanner.NewVulnScanner(),
+	}
+}
+
+func (ve *VulnEye) Gaze() []maat.Isfet {
+	// TODO: Implement actual vulnerability scanning
+	return []maat.Isfet{}
+}
+
+func (ve *VulnEye) Name() string {
+	return ve.name
+}
+
+// DriftEye detects system drift
+type DriftEye struct {
+	name     string
+	detector *intel.DriftEngine
+}
+
+func NewDriftEye() *DriftEye {
+	return &DriftEye{
+		name:     "wedjat-drift",
+		detector: intel.NewDriftEngine(),
+	}
+}
+
+func (de *DriftEye) Gaze() []maat.Isfet {
+	// TODO: Implement drift detection
+	return []maat.Isfet{}
+}
+
+func (de *DriftEye) Name() string {
+	return de.name
+}
+
+// FIMEye monitors file integrity
+type FIMEye struct {
+	name string
+}
+
+func NewFIMEye() *FIMEye {
+	return &FIMEye{
+		name: "wedjat-fim",
+	}
+}
+
+func (fe *FIMEye) Gaze() []maat.Isfet {
+	// TODO: Implement FIM
+	return []maat.Isfet{}
+}
+
+func (fe *FIMEye) Name() string {
+	return fe.name
+}
+
+// mapSeverity converts CAT levels to Isfet severity
+func mapSeverity(cat string) maat.Severity {
+	switch cat {
+	case "CAT I":
+		return maat.SeverityCatastrophic
+	case "CAT II":
+		return maat.SeveritySevere
+	case "CAT III":
+		return maat.SeverityModerate
+	default:
+		return maat.SeverityMinor
+	}
+}
+
+// Helper to convert STIG findings to Isfet
+func stigToIsfet(finding stigs.Finding) maat.Isfet {
+	return maat.Isfet{
+		ID:       fmt.Sprintf("STIG-%s", finding.VulnID),
+		Severity: mapSeverity(finding.Severity),
+		Source:   "wedjat-stig",
+		Omens: []maat.Omen{
+			{Name: "rule", Value: finding.RuleTitle, Malevolence: 0.8},
+		},
+		Certainty: 1.0,
+	}
+}
