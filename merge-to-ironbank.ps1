@@ -55,7 +55,7 @@ BREAKING CHANGE: Adds Sekhem Triad autonomous framework with four deployment mod
 
 ## Files Added
 - pkg/sekhem/aaru.go - Aaru Realm
-- pkg/sekhem/aten.go - Aten Realm
+- pkg/sekhem/anouchix.comten.go - Aten Realm
 - docs/IMPLEMENTATION_COMPLETE.md
 - docs/MERGE_STATUS.md
 - PULL_REQUEST.md
