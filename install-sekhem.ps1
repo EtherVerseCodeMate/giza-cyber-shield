@@ -77,7 +77,7 @@ if ($existingService) {
 
 Write-Host "[6/6] Installing Windows service..." -ForegroundColor Green
 # Create the service using sc.exe (more reliable than New-Service for custom executables)
-$createResult = sc.exe create $SERVICE_NAME binPath= "`"$BIN_PATH`"" start= auto DisplayName= "$SERVICE_DISPLAY_NAME"
+sc.exe create $SERVICE_NAME binPath= "`"$BIN_PATH`"" start= auto DisplayName= "$SERVICE_DISPLAY_NAME" | Out-Null
 
 if ($LASTEXITCODE -eq 0) {
     # Set service description
