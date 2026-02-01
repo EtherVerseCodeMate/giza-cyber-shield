@@ -193,7 +193,7 @@ func (ar *AaruRealm) applyPolicies(isfet []maat.Isfet) {
 }
 
 // applyPolicyRule applies a single policy rule
-func (ar *AaruRealm) applyPolicyRule(rule PolicyRule, isfet []maat.Isfet) {
+func (ar *AaruRealm) applyPolicyRule(rule PolicyRule, _ []maat.Isfet) {
 	// TODO: Implement policy rule evaluation
 	log.Printf("[Aaru] Applying policy rule: %s -> %s", rule.Condition, rule.Action)
 }

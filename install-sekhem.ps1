@@ -96,6 +96,9 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "  Binary: $BIN_PATH" -ForegroundColor White
     Write-Host "  Service: $SERVICE_NAME" -ForegroundColor White
     Write-Host "  Port: 45444" -ForegroundColor White
+    # Create database directory
+    New-Item -ItemType Directory -Force -Path "data" | Out-Null
+    Write-Host "      ✅ Database directory created" -ForegroundColor GreenWhite
     Write-Host ""
     Write-Host "Next Steps:" -ForegroundColor Cyan
     Write-Host "  1. Start the service:" -ForegroundColor White
