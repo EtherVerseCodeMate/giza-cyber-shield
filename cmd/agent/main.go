@@ -22,12 +22,14 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/lorentz"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/net/tailnet"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/nkyinkyim"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/sekhem"
 )
 
 type server struct {
-	cfg   config.Config
-	store dag.Store
-	agi   *agi.Engine
+	cfg    config.Config
+	store  dag.Store
+	agi    *agi.Engine
+	sekhem *sekhem.SekhemTriad
 }
 
 func main() {
@@ -113,7 +115,17 @@ func main() {
 
 	// [AGI]: Initialize the Autonomous Architect
 	arch := agi.NewEngine(store)
-	s := &server{cfg: cfg, store: store, agi: arch}
+
+	// [SEKHEM]: Initialize the Three-Fold Power Structure (TRL10)
+	log.Println("[SEKHEM] Awakening the Triad...")
+	triad := sekhem.NewSekhemTriad(arch, store)
+	if err := triad.Harmonize(); err != nil {
+		log.Printf("[SEKHEM] Warning: Failed to harmonize triad: %v", err)
+	} else {
+		log.Println("[SEKHEM] ✨ Triad harmonized - Duat Realm spinning")
+	}
+
+	s := &server{cfg: cfg, store: store, agi: arch, sekhem: triad}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", s.health)
@@ -157,6 +169,9 @@ func main() {
 
 	log.Println("\n[Main] Shutting down...")
 	arch.Stop()
+	if s.sekhem != nil {
+		s.sekhem.Stop()
+	}
 	log.Println("[Main] Goodbye.")
 }
 
