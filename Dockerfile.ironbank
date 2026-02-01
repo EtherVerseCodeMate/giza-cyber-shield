@@ -68,9 +68,6 @@ COPY --chown=1001:0 . .
 # Switch to build user (non-root)
 USER 1001
 
-# Allow Go to use newer toolchain for dependencies that require it
-ENV GOTOOLCHAIN=auto
-
 # Verify vendored dependencies match go.sum
 RUN go mod verify
 
@@ -119,12 +116,38 @@ RUN go build \
     -o khepra-daemon \
     ./cmd/khepra-daemon/main.go
 
+# Build gateway (API server with SouHimBou AGI bridge)
+RUN go build \
+    -mod=vendor \
+    -trimpath \
+    -ldflags="-s -w \
+    -X main.version=${VERSION} \
+    -X main.buildDate=${BUILD_DATE} \
+    -extldflags '-static'" \
+    -tags=netgo \
+    -o gateway \
+    ./cmd/gateway/*.go
+
+# Build agent (KASA autonomous security agent)
+RUN go build \
+    -mod=vendor \
+    -trimpath \
+    -ldflags="-s -w \
+    -X main.version=${VERSION} \
+    -X main.buildDate=${BUILD_DATE} \
+    -extldflags '-static'" \
+    -tags=netgo \
+    -o agent \
+    ./cmd/agent/*.go
+
 # Verify binaries were built successfully
-RUN ls -lh /build/sonar /build/adinkhepra /build/khepra-daemon && \
-    file /build/sonar /build/adinkhepra /build/khepra-daemon && \
+RUN ls -lh /build/sonar /build/adinkhepra /build/khepra-daemon /build/gateway /build/agent && \
+    file /build/sonar /build/adinkhepra /build/khepra-daemon /build/gateway /build/agent && \
     /build/sonar --help || echo "Sonar binary built" && \
     /build/adinkhepra --help || echo "AdinKhepra binary built" && \
-    /build/khepra-daemon --version || echo "Daemon binary built"
+    /build/khepra-daemon --version || echo "Daemon binary built" && \
+    /build/gateway --version || echo "Gateway binary built" && \
+    /build/agent --version || echo "Agent binary built"
 
 # ============================================================================
 # STAGE 2: Runtime (Minimal Attack Surface)
@@ -150,7 +173,7 @@ LABEL name="adinkhepra" \
     io.openshift.non-scalable="false"
 
 # Build arguments
-ARG VERSION=1.0.0
+ARG VERSION=1.1.0
 
 # Switch to root for runtime setup
 USER root
@@ -191,11 +214,14 @@ RUN useradd -r -u 1001 -g 0 -s /sbin/nologin -c "KHEPRA Runtime User" khepra && 
 COPY --from=builder --chown=1001:0 /build/sonar /usr/local/bin/sonar
 COPY --from=builder --chown=1001:0 /build/adinkhepra /usr/local/bin/adinkhepra
 COPY --from=builder --chown=1001:0 /build/khepra-daemon /usr/local/bin/khepra-daemon
+COPY --from=builder --chown=1001:0 /build/gateway /usr/local/bin/gateway
+COPY --from=builder --chown=1001:0 /build/agent /usr/local/bin/agent
 
 # Copy public compliance data (Option C)
 # These are public DISA/NIST mappings allowed in the Open-Source Scanner
 COPY --chown=1001:0 docs/CCI_to_NIST53.csv /app/docs/CCI_to_NIST53.csv
 COPY --chown=1001:0 docs/NIST53_to_171.csv /app/docs/NIST53_to_171.csv
+COPY --chown=1001:0 docs/NIST53_to_172.csv /app/docs/NIST53_to_172.csv
 
 
 # Copy functional test scripts
@@ -207,13 +233,17 @@ RUN chmod +x \
     /usr/local/bin/sonar \
     /usr/local/bin/adinkhepra \
     /usr/local/bin/khepra-daemon \
+    /usr/local/bin/gateway \
+    /usr/local/bin/agent \
     /usr/local/bin/functional-test \
     /usr/local/bin/fips-test
 
 # Verify binaries can execute
 RUN /usr/local/bin/sonar --help || echo "Sonar ready" && \
     /usr/local/bin/adinkhepra --help || echo "AdinKhepra ready" && \
-    /usr/local/bin/khepra-daemon --version || echo "Daemon ready"
+    /usr/local/bin/khepra-daemon --version || echo "Daemon ready" && \
+    /usr/local/bin/gateway --version || echo "Gateway ready" && \
+    /usr/local/bin/agent --version || echo "Agent ready"
 
 # Security hardening: Remove setuid/setgid bits from entire filesystem
 # This is a DISA STIG requirement (RHEL-09-STIG-V1R3)
@@ -227,9 +257,6 @@ RUN find /usr/bin /usr/sbin /bin /sbin -type f \( -perm -4000 -o -perm -2000 \) 
 
 # Switch to non-root user for runtime (OpenShift requirement)
 USER 1001
-
-# Allow Go to use newer toolchain for dependencies that require it
-ENV GOTOOLCHAIN=auto
 
 # Set working directory
 WORKDIR /var/lib/khepra

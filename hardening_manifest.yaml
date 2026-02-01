@@ -1,9 +1,10 @@
 # Iron Bank Hardening Manifest for KHEPRA Protocol
 # https://docs-ironbank.dso.mil
 # Module: github.com/EtherVerseCodeMate/giza-cyber-shield
+# Updated: 2026-01-19
 
 name: adinkhepra
-version: 1.0.0
+version: 1.2.0
 
 maintainers:
   - name: Souhimbou D. Kone
@@ -20,8 +21,26 @@ resources:
       value: REPLACE_WITH_ACTUAL_SHA256
 
   # Core Go dependencies from go.mod
-  - url: https://proxy.golang.org/github.com/cloudflare/circl/@v/v1.6.1.zip
-    filename: circl-v1.6.1.zip
+  - url: https://proxy.golang.org/github.com/cloudflare/circl/@v/v1.6.2.zip
+    filename: circl-v1.6.2.zip
+    validation:
+      type: sha256
+      value: REPLACE_WITH_ACTUAL_SHA256
+
+  - url: https://proxy.golang.org/github.com/gin-gonic/gin/@v/v1.10.0.zip
+    filename: gin-v1.10.0.zip
+    validation:
+      type: sha256
+      value: REPLACE_WITH_ACTUAL_SHA256
+
+  - url: https://proxy.golang.org/github.com/google/uuid/@v/v1.6.0.zip
+    filename: uuid-v1.6.0.zip
+    validation:
+      type: sha256
+      value: REPLACE_WITH_ACTUAL_SHA256
+
+  - url: https://proxy.golang.org/github.com/gorilla/websocket/@v/v1.5.3.zip
+    filename: websocket-v1.5.3.zip
     validation:
       type: sha256
       value: REPLACE_WITH_ACTUAL_SHA256
@@ -80,6 +99,8 @@ tags:
   - nist-800-171
   - nist-800-53
   - fedramp
+  - vulnerability-scanner
+  - stig-compliance
 
 # Base image from Iron Bank
 base_image: registry1.dso.mil/ironbank/redhat/ubi/ubi9-minimal
@@ -88,6 +109,8 @@ base_image_tag: 9.3
 # DISA STIG compliance
 stigs_applied:
   - RHEL-09-STIG-V1R3
+  - CMMC-3.0-Level-3-Enhanced
+  - NIST-800-172-Enhanced
 
 # Enable compliance scanning in pipeline
 enable_compliance_scans:
@@ -98,99 +121,26 @@ enable_compliance_scans:
 # Security contact
 security_contact: security@nouchix.com
 
-# License and Intellectual Property Protection
+# License
 license: "Proprietary - NouchiX SecRed Knowledge Inc."
-
-legal:
-  classification: "Trade Secret + Proprietary Algorithms"
-
-  federal_protection:
-    - statute: "18 U.S.C. § 1831-1839 (Economic Espionage Act)"
-      protection: "Trade secret protection for proprietary lattice reduction algorithms"
-      penalties: "Up to $5M fine (orgs), $250K (individuals), 10 years imprisonment"
-
-    - statute: "17 U.S.C. § 1201 (DMCA Anti-Circumvention)"
-      protection: "Prohibition on circumvention of license validation mechanisms"
-      penalties: "Up to $500K fine, 5 years imprisonment"
-
-    - statute: "DFARS 252.227-7013 (Rights in Technical Data)"
-      protection: "Restricted rights in technical data and computer software"
-      scope: "Government-purpose rights with specified limitations"
-
-    - statute: "DFARS 252.227-7015 (Technical Data - Commercial Items)"
-      protection: "Commercial computer software license protections"
-      scope: "Limited government rights per standard license"
-
-  intellectual_property:
-    investment: "$45,000,000 USD in R&D"
-    components:
-      - "Proprietary post-quantum lattice reduction algorithms"
-      - "White-box cryptography implementations"
-      - "36,195+ row compliance mapping database"
-      - "Automated STIG↔CCI↔NIST translation engine"
-
-    protection_mechanisms:
-      - "Online license validation (telemetry.souhimbou.org)"
-      - "Dilithium3 cryptographic authentication"
-      - "Machine ID fingerprinting (TPM, CPU, MAC, BIOS)"
-      - "Runtime obfuscation and anti-debugging"
-      - "Hourly heartbeat with remote revocation capability"
-      - "Automatic fallback to community edition on license failure"
-
-  prohibited_activities:
-    - activity: "Reverse Engineering"
-      description: "Decompilation, disassembly, or reverse engineering of binaries"
-      consequences: "Federal felony prosecution under 18 U.S.C. § 1832"
-
-    - activity: "Algorithm Extraction"
-      description: "Analysis or extraction of proprietary cryptographic algorithms"
-      consequences: "Civil damages up to 3x actual damages + injunctive relief"
-
-    - activity: "License Circumvention"
-      description: "Bypass or modification of license validation mechanisms"
-      consequences: "DMCA violations, contract termination, debarment"
-
-    - activity: "Unauthorized Redistribution"
-      description: "Distribution outside authorized DoD networks"
-      consequences: "Contract fraud investigation, clearance revocation"
-
-  authorized_use:
-    - "DoD networks with active license validation"
-    - "Government-owned contractor-operated (GOCO) facilities"
-    - "Installations with valid DoD contract authorization"
-    - "Systems registered with cryptographic machine IDs"
-
-  license_enforcement:
-    validation_server: "https://telemetry.souhimbou.org"
-    validation_frequency: "Startup + hourly heartbeat"
-    revocation_method: "Remote, immediate via API"
-    fallback_behavior: "Automatic downgrade to open-source cryptography (Cloudflare CIRCL)"
-    community_edition: "Available with Dilithium3 (cloudflare/circl) when license invalid"
-
-  contact:
-    vendor: "NouchiX SecRed Knowledge Inc."
-    security: "security@souhimbou.ai"
-    legal: "legal@souhimbou.ai"
-    licensing: "support@souhimbou.ai"
-    dod_poc: "souhimbou.d.kone.mil@army.mil"
-    clearance_level: "Secret"
-
-  compliance:
-    - "DFARS 252.227-7013 (Rights in Technical Data)"
-    - "DFARS 252.227-7015 (Technical Data - Commercial Items)"
-    - "Economic Espionage Act (18 U.S.C. § 1831-1839)"
-    - "DMCA Anti-Circumvention (17 U.S.C. § 1201)"
-    - "NIST SP 800-53 Rev. 5 (License Management: CM-10)"
-    - "CMMC Level 3 (Access Control: AC.3.018)"
 
 # Application overview
 description: |
-  ADINKHEPRA Protocol (Agentic Security Attestation Framework) is a post-quantum cryptographic security
-  platform designed for DoD, IC, and CMMC-compliant environments. It provides:
+  ADINKHEPRA Protocol (Agentic Security Attestation Framework) with Sekhem Triad (TRL10)
+  
+  A post-quantum cryptographic security platform designed for DoD, IC, and CMMC-compliant environments
+  with autonomous security operations powered by the Sekhem Triad framework.
 
+  Core Capabilities:
   - Post-quantum cryptography (CRYSTALS-Dilithium3, CRYSTALS-Kyber1024, Khepra-PQC)
+  - Sekhem Triad: TRL10 autonomous framework (Hierarchical Multi-Agent Dynamic System)
+  - Maat Guardian: AI-powered autonomous decision-making with tradeoff analysis
+  - Ouroboros Cycle: Eternal feedback loop (10-second iterations)
+  - Seshat Chronicle: Immutable DAG attestation with PQC signatures
+  - KASA Engine: Autonomous security operations and threat hunting
   - Air-gapped deployment with zero external dependencies
   - Automated compliance attestation and evidence generation
+  - Automated remediation with Augean Failsafe protection
   - Zero-trust architecture with hardware-bound licensing
   - Supply chain security verification (SBOM, signatures)
   - Device fingerprinting for anti-spoofing and license enforcement
@@ -199,22 +149,33 @@ description: |
   - Threat detection (rootkits, malware, anomalies)
   - DAG-based attack path visualization
 
+  Sekhem Triad Framework (TRL10):
+  - Duat Realm: Distributed defense layer (Edge Mode)
+  - Aaru Realm: Intermediate coordination layer (Hybrid Mode)
+  - Aten Realm: Centralized orchestration layer (Sovereign/Iron Bank Mode)
+  - Wedjat Eyes: 4 sensors (STIG, Vulnerability, Drift, FIM)
+  - Khopesh Blades: 5 actuators (Remediation, Firewall, Isolation, Monitor, Config)
+  - Anubis Weighing: Tradeoff analysis (operational burden vs security benefit)
+  - Autonomous Execution: Auto-execute safe actions (certainty >= 80%, burden <= 30%)
+
   Components:
   - sonar: Security scanner with device fingerprinting and CVE detection
   - adinkhepra: Main CLI for encryption, signing, integrity monitoring
-  - khepra-daemon: Continuous monitoring agent
+  - khepra-daemon: Continuous monitoring agent with Ouroboros Cycle
+  - gateway: API server for remote management
+  - agent: Autonomous security monitoring agent with Sekhem Triad
 
 # Build configuration
 build_args:
   VERSION: "1.0.0"
-  BUILD_DATE: "2026-01-05"
+  BUILD_DATE: "2026-01-20"
   MAINTAINER: "NouchiX SecRed Knowledge Inc."
-  GO_VERSION: "1.25.5"
+  GO_VERSION: "1.23"
 
 # Runtime dependencies
 dependencies:
   golang:
-    version: "1.25"
+    version: "1.23"
     package_manager: "go mod"
   system:
     - ca-certificates
@@ -230,7 +191,7 @@ healthcheck:
 
 # Port exposure (documentation only - not opened by default)
 exposed_ports:
-  - 8443/tcp  # HTTPS API (optional)
+  - 8443/tcp  # HTTPS API (gateway)
 
 # Security hardening notes
 hardening_notes: |
@@ -257,6 +218,7 @@ hardening_notes: |
   - CVE scanning for SI.3.216 (threat monitoring)
   - SBOM generation for SR.3.227 (supply chain)
   - Compliance checking for CA.3.161 (security assessments)
+  - Automated operational remediation for IR.3.012 (incident response)
 
 # Notes for reviewers
 reviewer_notes: |
@@ -293,7 +255,7 @@ reviewer_notes: |
   Compliance Mapping Library (Strategic Asset):
   - 36,195+ rows of proprietary cross-framework compliance mappings
   - Complete STIG→CCI→NIST 800-53→NIST 800-171→CMMC translation (automatic)
-  - Data files: CCI_to_NIST53.csv (7,433 rows), STIG_CCI_Map.csv (28,639 rows), NIST53_to_171.csv (123 rows)
+  - Data files: CCI_to_NIST53.csv (7,433 rows), STIG_CCI_Map.csv (28,639 rows), NIST53_to_171.csv (123 rows), NIST53_to_172.csv (CMMC 3.0 L3)
   - Competitive moat: 24-36 month lead (no competitor has automated multi-framework translation)
   - Value proposition: Single scan generates evidence for RMF, FedRAMP, CMMC, and STIG simultaneously
   - Labor savings: Replaces 40-hour manual mapping process with 15-minute automated translation
