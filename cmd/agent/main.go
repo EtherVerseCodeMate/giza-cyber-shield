@@ -118,11 +118,41 @@ func main() {
 
 	// [SEKHEM]: Initialize the Three-Fold Power Structure (TRL10)
 	log.Println("[SEKHEM] Awakening the Triad...")
-	triad := sekhem.NewSekhemTriad(arch, store)
+
+	// Determine deployment mode from environment variable
+	modeStr := os.Getenv("KHEPRA_MODE")
+	if modeStr == "" {
+		modeStr = "edge" // Default to Edge Mode
+	}
+
+	var mode sekhem.DeploymentMode
+	switch strings.ToLower(modeStr) {
+	case "edge":
+		mode = sekhem.ModeEdge
+		log.Println("[SEKHEM] Mode: EDGE (Duat Realm only)")
+	case "hybrid":
+		mode = sekhem.ModeHybrid
+		log.Println("[SEKHEM] Mode: HYBRID (Duat + Aaru Realms)")
+	case "sovereign":
+		mode = sekhem.ModeSovereign
+		log.Println("[SEKHEM] Mode: SOVEREIGN (All realms, air-gapped)")
+	case "ironbank":
+		mode = sekhem.ModeIronBank
+		log.Println("[SEKHEM] Mode: IRON BANK (All realms, DoD compliance)")
+	default:
+		mode = sekhem.ModeEdge
+		log.Printf("[SEKHEM] Unknown mode '%s', defaulting to EDGE", modeStr)
+	}
+
+	triad, err := sekhem.NewSekhemTriad(arch, store, mode)
+	if err != nil {
+		log.Fatalf("[SEKHEM] Failed to create triad: %v", err)
+	}
+
 	if err := triad.Harmonize(); err != nil {
 		log.Printf("[SEKHEM] Warning: Failed to harmonize triad: %v", err)
 	} else {
-		log.Println("[SEKHEM] ✨ Triad harmonized - Duat Realm spinning")
+		log.Printf("[SEKHEM] ✨ Triad harmonized - %d realms active", triad.GetActiveRealmCount())
 	}
 
 	s := &server{cfg: cfg, store: store, agi: arch, sekhem: triad}
