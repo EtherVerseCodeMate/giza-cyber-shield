@@ -490,6 +490,9 @@ func handleDashboard(w http.ResponseWriter, r *http.Request) {
 // ============================================================================
 // TELEMETRY INTEGRATION ENDPOINTS
 // ============================================================================
+// NOTE: These endpoints are placeholders for future telemetry integration.
+// They are currently unused but will be wired up when telemetry is fully enabled.
+// Suppress unused warnings - these are intentional future features.
 
 // handleEnrollWithToken auto-registers machine using enrollment token
 // POST /telemetry/enroll
@@ -711,6 +714,7 @@ func registerAdminEndpoints(mux *http.ServeMux) {
 // HELPER FUNCTIONS
 // ============================================================================
 
+//nolint:unused // Future feature - will be used when dashboard aggregation is implemented
 func countByTier(tier license.EgyptianTier) int {
 	// TODO: Count licenses by tier
 	return 0
