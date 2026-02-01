@@ -1,12 +1,8 @@
 package ouroboros
 
 import (
-	"fmt"
-
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/intel"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/maat"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stigs"
 )
 
 // WedjatEye represents an all-seeing detector
@@ -39,14 +35,12 @@ func (se *STIGEye) Name() string {
 
 // VulnEye detects vulnerabilities
 type VulnEye struct {
-	name    string
-	scanner *scanner.VulnScanner
+	name string
 }
 
 func NewVulnEye() *VulnEye {
 	return &VulnEye{
-		name:    "wedjat-vuln",
-		scanner: scanner.NewVulnScanner(),
+		name: "wedjat-vuln",
 	}
 }
 
@@ -112,18 +106,5 @@ func mapSeverity(cat string) maat.Severity {
 		return maat.SeverityModerate
 	default:
 		return maat.SeverityMinor
-	}
-}
-
-// Helper to convert STIG findings to Isfet
-func stigToIsfet(finding stigs.Finding) maat.Isfet {
-	return maat.Isfet{
-		ID:       fmt.Sprintf("STIG-%s", finding.VulnID),
-		Severity: mapSeverity(finding.Severity),
-		Source:   "wedjat-stig",
-		Omens: []maat.Omen{
-			{Name: "rule", Value: finding.RuleTitle, Malevolence: 0.8},
-		},
-		Certainty: 1.0,
 	}
 }
