@@ -83,6 +83,7 @@ func InitializeLicensing(storageBackend dag.Store, isAirGapped bool) error {
 	registerNodeEndpoints(httpMux)
 	registerBillingEndpoints(httpMux)
 	registerAdminEndpoints(httpMux)
+	registerTelemetryEndpoints(httpMux)
 
 	return err
 }
@@ -708,6 +709,13 @@ func registerAdminEndpoints(mux *http.ServeMux) {
 	mux.HandleFunc("GET /admin/verify-air-gap", handleVerifyAirGap)
 	mux.HandleFunc("POST /admin/{license_id}/renew-offline-license", handleRenewOfflineLicense)
 	mux.HandleFunc("GET /admin/dashboard", handleDashboard)
+}
+
+func registerTelemetryEndpoints(mux *http.ServeMux) {
+	mux.HandleFunc("POST /telemetry/enroll", handleEnrollWithToken)
+	mux.HandleFunc("POST /telemetry/validate", handleValidateLicense)
+	mux.HandleFunc("POST /telemetry/heartbeat", handleHeartbeat)
+	mux.HandleFunc("GET /telemetry/status", handleTelemetryStatus)
 }
 
 // ============================================================================
