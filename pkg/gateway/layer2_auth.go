@@ -3,7 +3,6 @@
 package gateway
 
 import (
-	"crypto/subtle"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
@@ -369,7 +368,7 @@ func (auth *AuthLayer) verifyPQCSignature(r *http.Request, identityID, signature
 }
 
 // checkCertRevocation checks if certificate is revoked
-func (auth *AuthLayer) checkCertRevocation(cert *x509.Certificate) (bool, error) {
+func (auth *AuthLayer) checkCertRevocation(_ *x509.Certificate) (bool, error) {
 	// TODO: Implement CRL checking
 	// TODO: Implement OCSP checking
 	// For now, return not revoked
@@ -484,11 +483,6 @@ func hashAPIKey(key string) string {
 		h[i] = keyBytes[i]
 	}
 	return hex.EncodeToString(h)
-}
-
-// Constant-time comparison for API keys
-func secureCompare(a, b string) bool {
-	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
 }
 
 func min(a, b float64) float64 {

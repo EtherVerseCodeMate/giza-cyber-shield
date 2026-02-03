@@ -18,10 +18,10 @@ type FirewallLayer struct {
 	config *FirewallConfig
 
 	// IP Blocklists (loaded from files or threat intel feeds)
-	blockedIPs    map[string]bool
-	blockedCIDRs  []*net.IPNet
-	allowedCIDRs  []*net.IPNet
-	torExitNodes  map[string]bool
+	blockedIPs   map[string]bool
+	blockedCIDRs []*net.IPNet
+	allowedCIDRs []*net.IPNet
+	torExitNodes map[string]bool
 
 	// WAF Patterns
 	sqliPatterns []*regexp.Regexp
@@ -153,7 +153,7 @@ func (fw *FirewallLayer) checkIP(ip string) (bool, string) {
 }
 
 // checkGeo performs geo-blocking (placeholder for GeoIP integration)
-func (fw *FirewallLayer) checkGeo(ip string) (bool, string) {
+func (fw *FirewallLayer) checkGeo(_ string) (bool, string) {
 	// TODO: Integrate with MaxMind GeoIP2 or similar service
 	// For now, this is a placeholder
 

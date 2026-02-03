@@ -36,15 +36,15 @@ type Gateway struct {
 
 // GatewayMetrics tracks gateway performance and security metrics
 type GatewayMetrics struct {
-	RequestsTotal       int64
-	RequestsBlocked     int64
-	RequestsAllowed     int64
-	AuthFailures        int64
-	AnomaliesDetected   int64
-	RateLimitHits       int64
-	AverageLatencyMs    float64
-	LastUpdated         time.Time
-	mu                  sync.RWMutex
+	RequestsTotal     int64
+	RequestsBlocked   int64
+	RequestsAllowed   int64
+	AuthFailures      int64
+	AnomaliesDetected int64
+	RateLimitHits     int64
+	AverageLatencyMs  float64
+	LastUpdated       time.Time
+	mu                sync.RWMutex
 }
 
 // New creates a new Khepra Secure Gateway with the given configuration
@@ -216,7 +216,7 @@ func (g *Gateway) Handler(upstream http.Handler) http.Handler {
 }
 
 // handleBlocked handles blocked requests
-func (g *Gateway) handleBlocked(w http.ResponseWriter, r *http.Request, ctx *RequestContext, layer, reason string) {
+func (g *Gateway) handleBlocked(w http.ResponseWriter, _ *http.Request, ctx *RequestContext, layer, reason string) {
 	ctx.Blocked = true
 	ctx.BlockReason = fmt.Sprintf("%s: %s", layer, reason)
 	ctx.StatusCode = http.StatusForbidden
@@ -235,7 +235,7 @@ func (g *Gateway) handleBlocked(w http.ResponseWriter, r *http.Request, ctx *Req
 }
 
 // handleAuthFailure handles authentication failures
-func (g *Gateway) handleAuthFailure(w http.ResponseWriter, r *http.Request, ctx *RequestContext, err error) {
+func (g *Gateway) handleAuthFailure(w http.ResponseWriter, _ *http.Request, ctx *RequestContext, err error) {
 	ctx.Blocked = true
 	ctx.BlockReason = fmt.Sprintf("auth: %v", err)
 	ctx.StatusCode = http.StatusUnauthorized
@@ -254,7 +254,7 @@ func (g *Gateway) handleAuthFailure(w http.ResponseWriter, r *http.Request, ctx 
 }
 
 // handleRateLimited handles rate limited requests
-func (g *Gateway) handleRateLimited(w http.ResponseWriter, r *http.Request, ctx *RequestContext, retryAfter time.Duration) {
+func (g *Gateway) handleRateLimited(w http.ResponseWriter, _ *http.Request, ctx *RequestContext, retryAfter time.Duration) {
 	ctx.Blocked = true
 	ctx.BlockReason = "rate_limit_exceeded"
 	ctx.StatusCode = http.StatusTooManyRequests
