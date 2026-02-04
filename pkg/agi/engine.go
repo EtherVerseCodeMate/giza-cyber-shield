@@ -514,25 +514,104 @@ func (e *Engine) executeForensics() (string, error) {
 	return summary, nil
 }
 
+// discoverPorts handles MITRE T1046 Network Service Discovery
+func (e *Engine) discoverPorts(target string, parentID string) (int, error) {
+	e.Status = "PENTEST Phase 2: T1046 Network Service Discovery..."
+	log.Printf(kasaPrefix, "PENTEST T1046: Scanning %s for open ports...", target)
+
+	scanResults, scanErr := e.scanner.Run(target)
+	if scanErr != nil {
+		return 0, scanErr
+	}
+
+	for _, r := range scanResults {
+		portNode := dag.Node{
+			Action: fmt.Sprintf("pentest-discovery:%s:%d", target, r.Port),
+			Symbol: "OwoForoAdobe",
+			Time:   lorentz.StampNow(),
+			PQC: map[string]string{
+				"target":    target,
+				"port":      fmt.Sprintf("%d", r.Port),
+				"service":   r.Service,
+				"banner":    r.Banner,
+				"mitre_ttp": "T1046",
+				"phase":     "DISCOVERY",
+				"agent":     kasaPentestV1,
+			},
+		}
+		if err := portNode.Sign(e.privKey); err == nil {
+			e.store.Add(&portNode, []string{parentID})
+		}
+	}
+	return len(scanResults), nil
+}
+
+// scanVulnerabilities handles MITRE T1595.002 Vulnerability Scanning
+func (e *Engine) scanVulnerabilities(parentID string) (int, int, error) {
+	e.Status = "PENTEST Phase 3: T1595.002 Vulnerability Scanning..."
+	log.Println("[KASA] PENTEST T1595.002: Scanning for vulnerabilities...")
+
+	vulnReport, vulnErr := e.hunter.Scan(e.ctx)
+	if vulnErr != nil {
+		return 0, 0, vulnErr
+	}
+
+	for _, v := range vulnReport.Vulnerabilities {
+		vulnNode := dag.Node{
+			Action: fmt.Sprintf("pentest-vuln:%s", v.ID),
+			Symbol: "Dwennimmen",
+			Time:   lorentz.StampNow(),
+			PQC: map[string]string{
+				"vuln_id":       v.ID,
+				"package":       v.Package,
+				"severity":      string(v.Severity),
+				"ecosystem":     v.Ecosystem,
+				"fixed_version": v.FixedVersion,
+				"mitre_ttp":     "T1595.002",
+				"phase":         "VULNERABILITY_SCAN",
+				"agent":         kasaPentestV1,
+			},
+		}
+		if err := vulnNode.Sign(e.privKey); err == nil {
+			e.store.Add(&vulnNode, []string{parentID})
+		}
+	}
+	return vulnReport.TotalVulns, vulnReport.BySeverity[vuln.SeverityCritical], nil
+}
+
+// generateAttackGraph creates a Mermaid representation of the pentest findings
+func generateAttackGraph(target string, openPorts int, totalVulns int, criticalVulns int) string {
+	graph := "graph TD;\n"
+	graph += fmt.Sprintf("    Attacker[KASA Pentest Agent] -->|T1595| Target(%s);\n", target)
+	graph += fmt.Sprintf("    Target -->|T1046| Ports[%d Open Ports];\n", openPorts)
+	if totalVulns > 0 {
+		graph += fmt.Sprintf("    Target -->|T1595.002| Vulns[%d Vulnerabilities];\n", totalVulns)
+		if criticalVulns > 0 {
+			graph += fmt.Sprintf("    Vulns -->|CRITICAL| Impact[%d Critical Findings];\n", criticalVulns)
+		}
+	} else {
+		graph += "    Target --> Secure[No Vulnerabilities Found];\n"
+	}
+	graph += "    style Attacker fill:#9f6,stroke:#333,stroke-width:2px"
+	return graph
+}
+
 // executePentest runs an internal penetration test with MITRE ATT&CK TTPs
 func (e *Engine) executePentest(t Task) (string, error) {
 	log.Println("[KASA] IMHOTEP PENTEST ACTIVATED - Executing internal penetration test...")
 	e.Status = "Executing Internal Penetration Test..."
 
-	// Extract target from task description
 	target := "127.0.0.1"
 	if strings.Contains(t.Description, "Target: ") {
 		parts := strings.Split(t.Description, "Target: ")
 		if len(parts) > 1 {
 			candidate := strings.Fields(parts[1])[0]
-			// Validate it looks like an IP or hostname (not a word like "test")
 			if strings.Contains(candidate, ".") || candidate == "localhost" {
 				target = candidate
 			}
 		}
 	}
 
-	// Record pentest initiation
 	startNode := dag.Node{
 		Action: fmt.Sprintf("pentest-start:%s", target),
 		Symbol: "Eban",
@@ -549,90 +628,13 @@ func (e *Engine) executePentest(t Task) (string, error) {
 		e.store.Add(&startNode, []string{})
 	}
 
-	// Phase 1: Arsenal Check
-	e.Status = "PENTEST Phase 1: Arsenal Verification..."
 	gapReport := e.arsenal.ReportGaps()
 	log.Printf(kasaPrefix, "PENTEST ARSENAL: %s", gapReport)
 
-	// Phase 2: Network Service Discovery (T1046)
-	e.Status = "PENTEST Phase 2: T1046 Network Service Discovery..."
-	log.Printf(kasaPrefix, "PENTEST T1046: Scanning %s for open ports...", target)
+	openPorts, _ := e.discoverPorts(target, startNode.ID)
+	totalVulns, criticalVulns, _ := e.scanVulnerabilities(startNode.ID)
+	attackGraph := generateAttackGraph(target, openPorts, totalVulns, criticalVulns)
 
-	scanResults, scanErr := e.scanner.Run(target)
-	openPorts := 0
-	if scanErr == nil {
-		openPorts = len(scanResults)
-		// Log each port discovery to DAG
-		for _, r := range scanResults {
-			portNode := dag.Node{
-				Action: fmt.Sprintf("pentest-discovery:%s:%d", target, r.Port),
-				Symbol: "OwoForoAdobe",
-				Time:   lorentz.StampNow(),
-				PQC: map[string]string{
-					"target":    target,
-					"port":      fmt.Sprintf("%d", r.Port),
-					"service":   r.Service,
-					"banner":    r.Banner,
-					"mitre_ttp": "T1046",
-					"phase":     "DISCOVERY",
-					"agent":     kasaPentestV1,
-				},
-			}
-			if err := portNode.Sign(e.privKey); err == nil {
-				e.store.Add(&portNode, []string{startNode.ID})
-			}
-		}
-	}
-
-	// Phase 3: Vulnerability Scanning (T1595.002)
-	e.Status = "PENTEST Phase 3: T1595.002 Vulnerability Scanning..."
-	log.Println("[KASA] PENTEST T1595.002: Scanning for vulnerabilities...")
-
-	vulnReport, vulnErr := e.hunter.Scan(e.ctx)
-	totalVulns := 0
-	criticalVulns := 0
-	if vulnErr == nil {
-		totalVulns = vulnReport.TotalVulns
-		criticalVulns = vulnReport.BySeverity[vuln.SeverityCritical]
-
-		// Log vulnerability findings
-		for _, v := range vulnReport.Vulnerabilities {
-			vulnNode := dag.Node{
-				Action: fmt.Sprintf("pentest-vuln:%s", v.ID),
-				Symbol: "Dwennimmen",
-				Time:   lorentz.StampNow(),
-				PQC: map[string]string{
-					"vuln_id":       v.ID,
-					"package":       v.Package,
-					"severity":      string(v.Severity),
-					"ecosystem":     v.Ecosystem,
-					"fixed_version": v.FixedVersion,
-					"mitre_ttp":     "T1595.002",
-					"phase":         "VULNERABILITY_SCAN",
-					"agent":         "KASA-Pentest-v1",
-				},
-			}
-			if err := vulnNode.Sign(e.privKey); err == nil {
-				e.store.Add(&vulnNode, []string{startNode.ID})
-			}
-		}
-	}
-
-	// Phase 4: Generate Attack Graph (Mermaid)
-	attackGraph := "graph TD;\n"
-	attackGraph += fmt.Sprintf("    Attacker[KASA Pentest Agent] -->|T1595| Target(%s);\n", target)
-	attackGraph += fmt.Sprintf("    Target -->|T1046| Ports[%d Open Ports];\n", openPorts)
-	if totalVulns > 0 {
-		attackGraph += fmt.Sprintf("    Target -->|T1595.002| Vulns[%d Vulnerabilities];\n", totalVulns)
-		if criticalVulns > 0 {
-			attackGraph += fmt.Sprintf("    Vulns -->|CRITICAL| Impact[%d Critical Findings];\n", criticalVulns)
-		}
-	} else {
-		attackGraph += "    Target --> Secure[No Vulnerabilities Found];\n"
-	}
-	attackGraph += "    style Attacker fill:#9f6,stroke:#333,stroke-width:2px"
-
-	// Record pentest completion
 	completionNode := dag.Node{
 		Action: fmt.Sprintf("pentest-complete:%s", target),
 		Symbol: "Eban",
@@ -644,7 +646,7 @@ func (e *Engine) executePentest(t Task) (string, error) {
 			"total_vulns":    fmt.Sprintf("%d", totalVulns),
 			"critical_vulns": fmt.Sprintf("%d", criticalVulns),
 			"attack_graph":   attackGraph,
-			"agent":          "KASA-Pentest-v1",
+			"agent":          kasaPentestV1,
 			"compliance":     "NIST-800-53-CA-8,PCI-DSS-11.3",
 		},
 	}
@@ -657,7 +659,6 @@ func (e *Engine) executePentest(t Task) (string, error) {
 
 	log.Printf(kasaPrefix, summary)
 	e.Status = summary
-
 	return summary, nil
 }
 
