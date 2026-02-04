@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Rocket, 
-  Shield, 
-  Target, 
-  Users, 
+import {
+  Rocket,
+  Shield,
+  Target,
+  Users,
   CheckCircle2,
   ArrowRight,
   Sparkles,
@@ -23,7 +23,6 @@ interface WelcomeModalProps {
 
 export const WelcomeModal = ({ open, onClose, userEmail }: WelcomeModalProps) => {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const { trialStatus } = useTrialStatus();
   const { trackFeatureAccess } = useUsageTracker();
 
   const slides = [
@@ -59,8 +58,8 @@ export const WelcomeModal = ({ open, onClose, userEmail }: WelcomeModalProps) =>
               { icon: Target, title: "CMMC Compliance Tools", desc: "Automated compliance tracking" },
               { icon: Users, title: "Unlimited Team Members", desc: "Collaborate with your entire team" },
               { icon: Rocket, title: "Infrastructure Discovery", desc: "Auto-catalog your IT assets" }
-            ].map((feature, idx) => (
-              <div key={idx} className="flex items-start space-x-3 p-3 bg-muted/30 rounded-lg">
+            ].map((feature) => (
+              <div key={`feature-${feature.title}`} className="flex items-start space-x-3 p-3 bg-muted/30 rounded-lg">
                 <div className="p-2 bg-primary/10 rounded-lg">
                   <feature.icon className="h-5 w-5 text-primary" />
                 </div>
@@ -87,7 +86,7 @@ export const WelcomeModal = ({ open, onClose, userEmail }: WelcomeModalProps) =>
               "✅ Review your CMMC compliance status",
               "👥 Invite your team to collaborate"
             ].map((step, idx) => (
-              <div key={idx} className="flex items-center space-x-3 p-3 bg-blue-500/5 border border-blue-500/20 rounded-lg">
+              <div key={`step-${idx}`} className="flex items-center space-x-3 p-3 bg-blue-500/5 border border-blue-500/20 rounded-lg">
                 <Badge variant="outline" className="w-6 h-6 rounded-full p-0 flex items-center justify-center text-xs">
                   {idx + 1}
                 </Badge>
@@ -128,7 +127,7 @@ export const WelcomeModal = ({ open, onClose, userEmail }: WelcomeModalProps) =>
             {slides[currentSlide].title}
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="py-4">
           {slides[currentSlide].content}
         </div>
@@ -137,10 +136,9 @@ export const WelcomeModal = ({ open, onClose, userEmail }: WelcomeModalProps) =>
         <div className="flex justify-center space-x-2 mb-4">
           {slides.map((_, idx) => (
             <div
-              key={idx}
-              className={`w-2 h-2 rounded-full transition-colors ${
-                idx === currentSlide ? 'bg-primary' : 'bg-muted'
-              }`}
+              key={`indicator-${idx}`}
+              className={`w-2 h-2 rounded-full transition-colors ${idx === currentSlide ? 'bg-primary' : 'bg-muted'
+                }`}
             />
           ))}
         </div>

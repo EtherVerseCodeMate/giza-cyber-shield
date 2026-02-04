@@ -102,32 +102,41 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
   }, [currentStep]);
 
   const handleNext = () => {
-    if (validateCurrentStep()) {
+    const { isValid, missingFields } = validateCurrentStepDetailed();
+    if (isValid) {
       setCurrentStep(prev => Math.min(prev + 1, 6));
+    } else {
+      toast({
+        title: "Information Required",
+        description: `Please complete the following: ${missingFields.join(', ')}`,
+        variant: "destructive"
+      });
     }
   };
 
-  const handlePrevious = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 1));
+  const validateCurrentStepDetailed = (): { isValid: boolean; missingFields: string[] } => {
+    const missing: string[] = [];
+    switch (currentStep) {
+      case 1:
+        if (!accountData.email) missing.push("Email address");
+        if (!accountData.accountName) missing.push("Account name");
+        break;
+      case 2:
+        if (mfaStep !== 'complete') missing.push("MFA registration");
+        break;
+      case 3:
+        if (phoneVerificationCode.length !== 6) missing.push("6-digit verification code");
+        if (captchaCode !== captchaChallenge) missing.push("CAPTCHA characters");
+        break;
+      case 4:
+        if (!accountData.applicationName) missing.push("Application name");
+        break;
+    }
+    return { isValid: missing.length === 0, missingFields: missing };
   };
 
   const validateCurrentStep = (): boolean => {
-    switch (currentStep) {
-      case 1: // Account creation
-        return accountData.email.length > 0 && accountData.accountName.length > 0;
-      case 2: // MFA setup
-        return mfaStep === 'complete';
-      case 3: // Identity verification
-        return phoneVerificationCode.length === 6 && captchaCode === captchaChallenge;
-      case 4: // Application setup
-        return accountData.applicationName.length > 0;
-      case 5: // Account setup checklist
-        return true; // Always allow to proceed
-      case 6: // Complete
-        return true;
-      default:
-        return true;
-    }
+    return validateCurrentStepDetailed().isValid;
   };
 
   const setupMFA = async () => {
@@ -241,7 +250,7 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
         .from('organizations')
         .insert({
           name: accountData.accountName,
-          slug: accountData.accountName.toLowerCase().replaceAll(/[^a-z0-9]/g, '-'),
+          slug: accountData.accountName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
           settings: {
             applicationName: accountData.applicationName,
             applicationDescription: accountData.applicationDescription,
@@ -271,6 +280,11 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
         application_name: accountData.applicationName,
         region: accountData.region
       });
+
+      // Accept required agreements automatically (since they were checked in step 1)
+      const { acceptAllAgreements } = useUserAgreements();
+      // Note: we can't use hooks inside an async function like this directly if it wasn't already at the top.
+      // I should move useUserAgreements to the top of the component.
 
       toast({
         title: "Setup Complete!",

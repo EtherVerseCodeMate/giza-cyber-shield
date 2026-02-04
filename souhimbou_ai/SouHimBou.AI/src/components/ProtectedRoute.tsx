@@ -13,10 +13,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !user) {
-      navigate('/auth');
-    } else if (!loading && !agreementsLoading && user && !hasAcceptedAll) {
-      // User is authenticated but hasn't accepted required legal terms
+    if (!loading && !agreementsLoading && (!user || !hasAcceptedAll)) {
       navigate('/auth');
     }
   }, [user, loading, navigate, hasAcceptedAll, agreementsLoading]);
