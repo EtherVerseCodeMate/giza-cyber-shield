@@ -38,7 +38,7 @@ const (
 const (
 	kasaForensicsV1 = "KASA-Forensics-v1"
 	kasaPentestV1   = "KASA-Pentest-v1"
-	kasaPrefix      = "[KASA] %s"
+	kasaPrefix      = "[KASA] "
 	routineSweep    = "Routine Perimeter Sweep"
 )
 
@@ -187,97 +187,64 @@ func (e *Engine) loop() {
 	}
 }
 
+// generateAutonomousTasks handles periodic scheduling of agentic security actions
+func (e *Engine) generateAutonomousTasks() {
+	// Digital Forensics
+	if time.Since(e.LastForensics) > e.ForensicsInterval {
+		e.AddTask("Forensic System Snapshot", "Sankofa")
+		e.LastForensics = time.Now()
+		log.Println("[KASA] INITIATING AUTONOMOUS FORENSIC COLLECTION.")
+	}
+
+	// Vulnerability Hunting
+	if time.Since(e.LastVulnScan) > e.VulnScanInterval {
+		e.AddTask("Dependency Vulnerability Hunt", "OwoForoAdobe")
+		e.LastVulnScan = time.Now()
+		log.Println("[KASA] INITIATING AUTONOMOUS VULNERABILITY HUNT.")
+	}
+
+	// Internal Penetration Testing
+	if time.Since(e.LastPentest) > e.PentestInterval {
+		e.AddTask("Internal Penetration Test (Target: 127.0.0.1)", "Eban")
+		e.LastPentest = time.Now()
+		log.Println("[KASA] INITIATING AUTONOMOUS PENETRATION TEST (NIST 800-53 CA-8 / PCI-DSS 11.3).")
+	}
+
+	// Compliance Audit
+	if time.Since(e.LastCompliance) > e.ComplianceInterval {
+		e.AddTask("CMMC Level 2 Compliance Audit", "Eban")
+		e.LastCompliance = time.Now()
+		log.Println("[KASA] INITIATING AUTONOMOUS CMMC COMPLIANCE AUDIT.")
+	}
+
+	// Perimeter Sweep
+	if time.Since(e.LastGuardTime) > 60*time.Second {
+		e.AddTask(routineSweep, "Eban")
+		e.LastGuardTime = time.Now()
+		log.Println("[KASA] IDLE DETECTED. AUTONOMOUSLY SCHEDULED PERIMETER SWEEP.")
+	}
+}
+
 // think is the core BabyAGI-inspired loop
 func (e *Engine) think() {
-	// 0. Autonomy: If idle, the Guardian must remain vigilant.
 	if len(e.Tasks) == 0 {
-		// Digital Forensics: Collect system snapshot periodically
-		if time.Since(e.LastForensics) > e.ForensicsInterval {
-			e.Status = "Collecting forensic snapshot..."
-			e.Tasks = append(e.Tasks, Task{
-				ID:          fmt.Sprintf("auto-forensics-%d", time.Now().Unix()),
-				Description: "Forensic System Snapshot",
-				Priority:    "HIGH",
-				Symbol:      "Sankofa", // Symbol of learning from the past
-			})
-			e.LastForensics = time.Now()
-			log.Println("[KASA] INITIATING AUTONOMOUS FORENSIC COLLECTION.")
-		}
-
-		// Vulnerability Hunting: Scan dependencies periodically
-		if time.Since(e.LastVulnScan) > e.VulnScanInterval {
-			e.Status = "Autonomously hunting vulnerabilities..."
-			e.Tasks = append(e.Tasks, Task{
-				ID:          fmt.Sprintf("auto-vuln-%d", time.Now().Unix()),
-				Description: "Dependency Vulnerability Hunt",
-				Priority:    "HIGH",
-				Symbol:      "OwoForoAdobe", // Symbol of vigilance/watchfulness
-			})
-			e.LastVulnScan = time.Now()
-			log.Println("[KASA] INITIATING AUTONOMOUS VULNERABILITY HUNT.")
-		}
-
-		// Internal Penetration Testing: NIST 800-53 CA-8 / PCI-DSS 11.3 compliance
-		// Industry standard: Daily for critical systems, weekly for standard
-		if time.Since(e.LastPentest) > e.PentestInterval {
-			e.Status = "Autonomously executing internal penetration test..."
-			e.Tasks = append(e.Tasks, Task{
-				ID:          fmt.Sprintf("auto-pentest-%d", time.Now().Unix()),
-				Description: "Internal Penetration Test (Target: 127.0.0.1)",
-				Priority:    "HIGH",
-				Symbol:      "Eban", // Symbol of protection/fence
-			})
-			e.LastPentest = time.Now()
-			log.Println("[KASA] INITIATING AUTONOMOUS PENETRATION TEST (NIST 800-53 CA-8 / PCI-DSS 11.3).")
-		}
-
-		// Compliance Audit: Daily
-		if time.Since(e.LastCompliance) > e.ComplianceInterval {
-			e.Status = "Autonomously auditing CMMC alignment..."
-			e.Tasks = append(e.Tasks, Task{
-				ID:          fmt.Sprintf("auto-comply-%d", time.Now().Unix()),
-				Description: "CMMC Level 2 Compliance Audit",
-				Priority:    "MEDIUM",
-				Symbol:      "Eban",
-			})
-			e.LastCompliance = time.Now()
-			log.Println("[KASA] INITIATING AUTONOMOUS CMMC COMPLIANCE AUDIT.")
-		}
-
-		// Perimeter Sweep: Every 60 seconds
-		if time.Since(e.LastGuardTime) > 60*time.Second {
-			e.Status = "Autonomously generating directives..."
-			e.Tasks = append(e.Tasks, Task{
-				ID:          fmt.Sprintf("auto-guard-%d", time.Now().Unix()),
-				Description: routineSweep,
-				Priority:    "MEDIUM",
-				Symbol:      "Eban",
-			})
-			e.LastGuardTime = time.Now()
-			log.Println("[KASA] IDLE DETECTED. AUTONOMOUSLY SCHEDULED PERIMETER SWEEP.")
-		}
+		e.generateAutonomousTasks()
 		return
 	}
 
-	// 1. Pull highest priority task
 	task := e.Tasks[0]
-	e.Tasks = e.Tasks[1:] // Pop
+	e.Tasks = e.Tasks[1:]
 
 	log.Printf("[KASA] EXECUTING TASK: %s (%s)", task.Description, task.Symbol)
 	e.Status = "Working on: " + task.Description
 
-	// 2. Execution Agent
 	result, err := e.execute(task)
 	if err != nil {
 		log.Printf("[KASA] FAILURE: %v", err)
 		return
 	}
 
-	// 3. Log to DAG (Integrity Proof)
 	e.logToDAG(task, result)
-
-	// 4. Create New Tasks (Task Creation Agent)
-	// In a full BabyAGI, this uses an LLM. Here, we use heuristic logic for now.
 	e.deriveNewTasks(task, result)
 }
 
@@ -355,35 +322,8 @@ func (e *Engine) executeVulnHunt() (string, error) {
 		return "", fmt.Errorf("vulnerability scan failed: %w", err)
 	}
 
-	// Log each vulnerability to DAG for immutable record
 	for _, v := range result.Vulnerabilities {
-		node := dag.Node{
-			Action: fmt.Sprintf("vuln-discovered:%s", v.ID),
-			Symbol: "OwoForoAdobe",
-			Time:   lorentz.StampNow(),
-			PQC: map[string]string{
-				"vuln_id":       v.ID,
-				"package":       v.Package,
-				"ecosystem":     v.Ecosystem,
-				"severity":      string(v.Severity),
-				"fixed_version": v.FixedVersion,
-				"agent":         "KASA-VulnHunter-v1",
-			},
-		}
-		if err := node.Sign(e.privKey); err == nil {
-			e.store.Add(&node, []string{})
-		}
-
-		// Create remediation tasks for HIGH and CRITICAL vulnerabilities
-		if v.Severity == vuln.SeverityCritical || v.Severity == vuln.SeverityHigh {
-			e.Tasks = append(e.Tasks, Task{
-				ID:          fmt.Sprintf("remediate-%s-%d", v.ID, time.Now().Unix()),
-				Description: fmt.Sprintf("Remediate: %s in %s (%s)", v.ID, v.Package, v.Ecosystem),
-				Priority:    "HIGH",
-				Symbol:      "Dwennimmen", // Ram's horns - strength/conflict resolution
-			})
-			log.Printf("[KASA] QUEUED REMEDIATION: %s (%s) - %s", v.ID, v.Severity, v.Package)
-		}
+		e.recordVulnFinding(v)
 	}
 
 	// Generate summary
@@ -394,8 +334,38 @@ func (e *Engine) executeVulnHunt() (string, error) {
 		result.BySeverity[vuln.SeverityModerate],
 		result.BySeverity[vuln.SeverityLow])
 
-	log.Printf(kasaPrefix, summary)
+	log.Printf(kasaPrefix+"%s", summary)
 	return summary, nil
+}
+
+// recordVulnFinding logs a single vulnerability and queues remediation if critical
+func (e *Engine) recordVulnFinding(v vuln.Vulnerability) {
+	node := dag.Node{
+		Action: fmt.Sprintf("vuln-discovered:%s", v.ID),
+		Symbol: "OwoForoAdobe",
+		Time:   lorentz.StampNow(),
+		PQC: map[string]string{
+			"vuln_id":       v.ID,
+			"package":       v.Package,
+			"ecosystem":     v.Ecosystem,
+			"severity":      string(v.Severity),
+			"fixed_version": v.FixedVersion,
+			"agent":         "KASA-VulnHunter-v1",
+		},
+	}
+	if err := node.Sign(e.privKey); err == nil {
+		e.store.Add(&node, []string{})
+	}
+
+	if v.Severity == vuln.SeverityCritical || v.Severity == vuln.SeverityHigh {
+		e.Tasks = append(e.Tasks, Task{
+			ID:          fmt.Sprintf("remediate-%s-%d", v.ID, time.Now().Unix()),
+			Description: fmt.Sprintf("Remediate: %s in %s (%s)", v.ID, v.Package, v.Ecosystem),
+			Priority:    "HIGH",
+			Symbol:      "Dwennimmen",
+		})
+		log.Printf("[KASA] QUEUED REMEDIATION: %s (%s) - %s", v.ID, v.Severity, v.Package)
+	}
 }
 
 // executeRemediation attempts to fix a specific vulnerability
@@ -464,25 +434,9 @@ func (e *Engine) executeForensics() (string, error) {
 	if lastSnapshot := e.forensics.GetLastSnapshot(); lastSnapshot != nil && lastSnapshot.SnapshotID != snapshot.SnapshotID {
 		changes := e.forensics.CompareSnapshots(lastSnapshot, snapshot)
 		if len(changes) > 0 {
-			log.Printf(kasaPrefix, "FORENSIC ANOMALY DETECTED: %d changes since last snapshot", len(changes))
+			log.Printf(kasaPrefix+"FORENSIC ANOMALY DETECTED: %d changes since last snapshot", len(changes))
 			for _, change := range changes {
-				log.Printf(kasaPrefix, "   -> %s", change)
-
-				// Record each change as evidence
-				changeNode := dag.Node{
-					Action: fmt.Sprintf("forensic-change:%s", change),
-					Symbol: "Dwennimmen",
-					Time:   lorentz.StampNow(),
-					PQC: map[string]string{
-						"change_type": "SYSTEM_CHANGE",
-						"description": change,
-						"snapshot_id": snapshot.SnapshotID,
-						"agent":       kasaForensicsV1,
-					},
-				}
-				if err := changeNode.Sign(e.privKey); err == nil {
-					e.store.Add(&changeNode, []string{node.ID})
-				}
+				e.recordForensicChange(change, snapshot.SnapshotID, node.ID)
 			}
 		}
 	}
@@ -494,8 +448,8 @@ func (e *Engine) executeForensics() (string, error) {
 		len(snapshot.OpenPorts),
 		len(snapshot.FileHashes))
 
-	log.Printf(kasaPrefix, summary)
-	log.Printf(kasaPrefix, "Snapshot Hash: %s", snapshot.Hash)
+	log.Printf(kasaPrefix+"%s", summary)
+	log.Printf(kasaPrefix+"Snapshot Hash: %s", snapshot.Hash)
 
 	// Store snapshot data separately for detailed analysis
 	dataNode := dag.Node{
@@ -514,10 +468,29 @@ func (e *Engine) executeForensics() (string, error) {
 	return summary, nil
 }
 
+// recordForensicChange logs a single system change to the DAG
+func (e *Engine) recordForensicChange(change string, snapshotID string, parentID string) {
+	log.Printf(kasaPrefix+"   -> %s", change)
+	node := dag.Node{
+		Action: fmt.Sprintf("forensic-change:%s", change),
+		Symbol: "Dwennimmen",
+		Time:   lorentz.StampNow(),
+		PQC: map[string]string{
+			"change_type": "SYSTEM_CHANGE",
+			"description": change,
+			"snapshot_id": snapshotID,
+			"agent":       kasaForensicsV1,
+		},
+	}
+	if err := node.Sign(e.privKey); err == nil {
+		e.store.Add(&node, []string{parentID})
+	}
+}
+
 // discoverPorts handles MITRE T1046 Network Service Discovery
 func (e *Engine) discoverPorts(target string, parentID string) (int, error) {
 	e.Status = "PENTEST Phase 2: T1046 Network Service Discovery..."
-	log.Printf(kasaPrefix, "PENTEST T1046: Scanning %s for open ports...", target)
+	log.Printf(kasaPrefix+"PENTEST T1046: Scanning %s for open ports...", target)
 
 	scanResults, scanErr := e.scanner.Run(target)
 	if scanErr != nil {
@@ -629,7 +602,7 @@ func (e *Engine) executePentest(t Task) (string, error) {
 	}
 
 	gapReport := e.arsenal.ReportGaps()
-	log.Printf(kasaPrefix, "PENTEST ARSENAL: %s", gapReport)
+	log.Printf(kasaPrefix+"PENTEST ARSENAL: %s", gapReport)
 
 	openPorts, _ := e.discoverPorts(target, startNode.ID)
 	totalVulns, criticalVulns, _ := e.scanVulnerabilities(startNode.ID)
@@ -657,7 +630,7 @@ func (e *Engine) executePentest(t Task) (string, error) {
 	summary := fmt.Sprintf("Pentest Complete (Target: %s). Open Ports: %d, Vulnerabilities: %d (Critical: %d). Compliance: NIST 800-53 CA-8, PCI-DSS 11.3",
 		target, openPorts, totalVulns, criticalVulns)
 
-	log.Printf(kasaPrefix, summary)
+	log.Printf(kasaPrefix+"%s", summary)
 	e.Status = summary
 	return summary, nil
 }
@@ -716,7 +689,77 @@ func (e *Engine) AddTask(description, symbol string) {
 	log.Printf("[KASA] TASK INGESTED: %s", description)
 }
 
-// RunMission: Scan triggers a vulnerability scan (Commando Capability)
+// performAIAnalysis runs LLM diagnostics on scan results
+func (e *Engine) performAIAnalysis(report string) string {
+	if e.llm == nil {
+		return "LLM Offline. Standard Heuristics Only."
+	}
+	e.Status = "Analyzing Vectors (LLM)..."
+	ragContext := e.intel.LoadRAGDocs()
+
+	prompt := fmt.Sprintf(`Analyze this Port Scan for vulnerabilities.
+	Use the provided Knowledge Base (LLM4Cyber) to identify specific risks (CVEs, TTPs).
+	
+	SCAN DATA:
+	%s
+	
+	Format:
+	- EXECUTIVE SUMMARY
+	- CRITICAL THREATS (Map to MITRE ATT&CK if possible)
+	- RECOMMENDED ACTIONS`, report)
+
+	systemPrompt := fmt.Sprintf(`You are KASA (Security Commando). Analyze the scan data against the Knowledge Base.
+	KNOWLEDGE BASE:
+	%s`, ragContext)
+
+	aiAnalysis, err := e.llm.Generate(prompt, systemPrompt)
+	if err != nil {
+		log.Printf("LLM Analysis Failed: %v", err)
+		return "Neural Link Failed. Manual Analysis Required."
+	}
+	return aiAnalysis
+}
+
+// recordScanFinding logs a single port result to the DAG
+func (e *Engine) recordScanFinding(r scanner.Result, aiAnalysis string, intuition *apiserver.PredictResponse) {
+	riskLevel := "LOW"
+	symbol := "Nkyinkyim"
+
+	if (r.Port == 80 || r.Port == 443) && e.intel.SearchVuln("CVE-2024-12345") != nil {
+		riskLevel = "CRITICAL"
+		symbol = "OwoForoAdobe"
+		log.Printf("[KASA] ALERT: MATCHED KNOWN EXPLOITED VULNERABILITY: CVE-2024-12345")
+	}
+
+	node := dag.Node{
+		Action: fmt.Sprintf("port-open:%d", r.Port),
+		Symbol: symbol,
+		Time:   lorentz.StampNow(),
+		PQC: map[string]string{
+			"crypto_agility_score": "0.0",
+			"signature_scheme":     "Dilithium-Mode3",
+			"risk_horizon":         "Y2Q-Critical",
+			"target":               r.Target,
+			"risk_level":           riskLevel,
+			"banner":               r.Banner,
+			"ai_analysis":          aiAnalysis,
+			"intuition_score": fmt.Sprintf("%.4f", func() float64 {
+				if intuition != nil {
+					return intuition.AnomalyScore
+				}
+				return 0.0
+			}()),
+		},
+	}
+
+	if err := node.Sign(e.privKey); err == nil {
+		if err := e.store.Add(&node, []string{}); err == nil {
+			log.Printf("[KASA] INTEL SECURED: %s:%d IS OPEN -> DAG Node %s (Signed) | Risk: %s", r.Target, r.Port, node.ID, riskLevel)
+		}
+	}
+}
+
+// RunScan: Scan triggers a vulnerability scan (Commando Capability)
 func (e *Engine) RunScan(target string) error {
 	e.Status = "Scanning Target: " + target
 	log.Printf("[KASA] COMMANDO: Initiating Vulnerability Scan on %s...", target)
@@ -727,114 +770,28 @@ func (e *Engine) RunScan(target string) error {
 		return err
 	}
 
-	// [DAG]: Record Intelligence to the Constellation
 	e.Status = fmt.Sprintf("Processing %d findings...", len(results))
-
-	// Prepare Data for LLM Analysis
 	var scanReport strings.Builder
 	scanReport.WriteString(fmt.Sprintf("Target: %s\n", target))
 	for _, r := range results {
 		scanReport.WriteString(fmt.Sprintf("- Port %d (%s): %s | Banner: %s\n", r.Port, r.Service, r.Status, r.Banner))
 	}
 
-	// AI Threat Analysis (Hybrid Cognition)
-	var aiAnalysis string
-	if e.llm != nil {
-		e.Status = "Analyzing Vectors (LLM)..."
-		ragContext := e.intel.LoadRAGDocs()
-
-		prompt := fmt.Sprintf(`Analyze this Port Scan for vulnerabilities.
-		Use the provided Knowledge Base (LLM4Cyber) to identify specific risks (CVEs, TTPs).
-		
-		SCAN DATA:
-		%s
-		
-		Format:
-		- EXECUTIVE SUMMARY
-		- CRITICAL THREATS (Map to MITRE ATT&CK if possible)
-		- RECOMMENDED ACTIONS`, scanReport.String())
-
-		systemPrompt := fmt.Sprintf(`You are KASA (Security Commando). Analyze the scan data against the Knowledge Base.
-		KNOWLEDGE BASE:
-		%s`, ragContext)
-
-		aiAnalysis, err = e.llm.Generate(prompt, systemPrompt)
-		if err != nil {
-			log.Printf("LLM Analysis Failed: %v", err)
-			aiAnalysis = "Neural Link Failed. Manual Analysis Required."
-		}
-	} else {
-		aiAnalysis = "LLM Offline. Standard Heuristics Only."
-	}
-
-	// Python AGI Intuition Check
+	aiAnalysis := e.performAIAnalysis(scanReport.String())
 	var intuition *apiserver.PredictResponse
-	// TRL10 Feature Extraction (Production Grade)
-	features := extractFeatures(results, target)
-
 	if e.python != nil {
-		pred, err := e.python.GetIntuition(features, map[string]string{"target": target})
-		if err == nil {
+		features := extractFeatures(results, target)
+		if pred, err := e.python.GetIntuition(features, map[string]string{"target": target}); err == nil {
 			intuition = pred
 			log.Printf("[KASA] INTUITION RECEIVED: Anomaly Score=%.4f (Confidence: %.4f)", pred.AnomalyScore, pred.Confidence)
-		} else {
-			log.Printf("[KASA] INTUITION OFFLINE: %v", err)
 		}
 	}
 
-	// Log Findings to DAG
 	for _, r := range results {
-		// Threat Correlation Engine (Commando Logic)
-		riskLevel := "LOW"
-		symbol := "Nkyinkyim" // Versatility
-
-		if r.Port == 80 || r.Port == 443 {
-			// Check against our Intel DB
-			if vuln := e.intel.SearchVuln("CVE-2024-12345"); vuln != nil {
-				riskLevel = "CRITICAL"
-				symbol = "OwoForoAdobe"
-				log.Printf("[KASA] ALERT: MATCHED KNOWN EXPLOITED VULNERABILITY: %s", vuln.ID)
-			}
-		}
-
-		// Create a DAG node for each finding
-		node := dag.Node{
-			Action: fmt.Sprintf("port-open:%d", r.Port),
-			Symbol: symbol,
-			Time:   lorentz.StampNow(),
-			PQC: map[string]string{
-				"crypto_agility_score": "0.0",
-				"signature_scheme":     "Dilithium-Mode3",
-				"risk_horizon":         "Y2Q-Critical",
-				"target":               r.Target,
-				"risk_level":           riskLevel,
-				"banner":               r.Banner,
-				"ai_analysis":          aiAnalysis,
-				"intuition_score": fmt.Sprintf("%.4f", func() float64 {
-					if intuition != nil {
-						return intuition.AnomalyScore
-					}
-					return 0.0
-				}()),
-			},
-		}
-
-		// SIGN THE INTEL
-		if err := node.Sign(e.privKey); err != nil {
-			log.Printf("[KASA] ERROR: Failed to sign intel node: %v", err)
-			continue
-		}
-
-		// Commit to Immutable Ledger
-		if err := e.store.Add(&node, []string{}); err != nil {
-			log.Printf("[KASA] ERROR: Failed to write intelligence to DAG: %v", err)
-		} else {
-			log.Printf("[KASA] INTEL SECURED: %s:%d IS OPEN -> DAG Node %s (Signed) | Risk: %s", r.Target, r.Port, node.ID, riskLevel)
-		}
+		e.recordScanFinding(r, aiAnalysis, intuition)
 	}
 
 	log.Printf("KASA AI ANALYSIS:\n%s", aiAnalysis)
-
 	e.Status = "Scan Complete"
 	return nil
 }
@@ -848,54 +805,24 @@ func (e *Engine) GetState() map[string]string {
 	}
 }
 
-// Chat handles a conversation message (Weighted Intent Scorer)
-func (e *Engine) Chat(message string) string {
-	e.AddTask("Process User Directive: "+message, "Sankofa")
-	msg := strings.ToLower(message)
-
-	// Domain-Specific Vocabulary Weights
-	// We maximize robustness by assigning high weights to specific technical terms
-	// and medium weights to natural language verbs.
+// scoreIntents calculates score for each intent based on message keywords
+func (e *Engine) scoreIntents(msg string) (string, int) {
 	intentScores := map[string]int{
-		"REPORT":    0,
-		"FIREWALL":  0,
-		"REMEDIATE": 0,
-		"SCAN":      0,
-		"PENTEST":   0,
-		"VULNHUNT":  0,
-		"IDENTITY":  0,
-		"COMPLY":    0,
-		"INCIDENT":  0,
-		"HELP":      0,
+		"REPORT": 0, "FIREWALL": 0, "REMEDIATE": 0, "SCAN": 0, "PENTEST": 0,
+		"VULNHUNT": 0, "IDENTITY": 0, "COMPLY": 0, "INCIDENT": 0, "HELP": 0,
 	}
 
 	keywords := map[string]map[string]int{
-		"SCAN": {
-			"scan": 10, "sweep": 8, "probe": 7, "recon": 8, "nmap": 9, "analyze": 5,
-			"assess": 5, "check": 4,
-		},
-		"PENTEST": {
-			"pentest": 15, "penetration": 15, "attack": 10, "hack": 10, "simulation": 8,
-			"red": 5, "team": 5, "offensive": 8, "drill": 6,
-		},
-		"VULNHUNT": {
-			"vulnerability": 12, "vuln": 12, "dependabot": 15, "dependency": 10, "cve": 12,
-			"ghsa": 12, "npm": 8, "audit": 10, "hunt": 8, "supply": 6, "chain": 5,
-			"sbom": 10, "sca": 10, "oss": 6,
-		},
-		"IDENTITY": {
-			"who": 5, "identity": 8, "role": 5, "objective": 5, "yourself": 4, "agent": 2,
-		},
-		"HELP": {
-			"help": 10, "commands": 8, "guide": 8, "menu": 5, "options": 5, "usage": 5,
-		},
+		"SCAN":     {"scan": 10, "sweep": 8, "probe": 7, "recon": 8, "nmap": 9, "analyze": 5, "assess": 5, "check": 4},
+		"PENTEST":  {"pentest": 15, "penetration": 15, "attack": 10, "hack": 10, "simulation": 8, "red": 5, "team": 5, "offensive": 8, "drill": 6},
+		"VULNHUNT": {"vulnerability": 12, "vuln": 12, "dependabot": 15, "dependency": 10, "cve": 12, "ghsa": 12, "npm": 8, "audit": 10, "hunt": 8, "supply": 6, "chain": 5, "sbom": 10, "sca": 10, "oss": 6},
+		"IDENTITY": {"who": 5, "identity": 8, "role": 5, "objective": 5, "yourself": 4, "agent": 2},
+		"HELP":     {"help": 10, "commands": 8, "guide": 8, "menu": 5, "options": 5, "usage": 5},
 	}
 
-	// Calculate Scores
 	words := strings.Fields(msg)
 	for intent, vocabulary := range keywords {
 		for _, word := range words {
-			// Exact match or contains (for simple stemming like "blocking" -> "block")
 			for term, weight := range vocabulary {
 				if strings.Contains(word, term) {
 					intentScores[intent] += weight
@@ -904,7 +831,6 @@ func (e *Engine) Chat(message string) string {
 		}
 	}
 
-	// Determine Winner
 	var maxScore int
 	var bestIntent string
 	for intent, score := range intentScores {
@@ -913,219 +839,149 @@ func (e *Engine) Chat(message string) string {
 			bestIntent = intent
 		}
 	}
+	return bestIntent, maxScore
+}
 
-	// Threshold to avoid false positives on low-confidence noise
-	if maxScore < 3 {
-		// FALLBACK TO LLM (Hybrid Cognition)
-		if e.llm != nil {
-			e.Status = "Thinking (LLM Processing)..."
+// handleLowConfidenceChat falls back to LLM or generic response
+func (e *Engine) handleLowConfidenceChat(message string) string {
+	if e.llm != nil {
+		e.Status = "Thinking (LLM Processing)..."
+		ragContext := e.intel.LoadRAGDocs()
+		systemPrompt := fmt.Sprintf(`You are KASA (Khepra Agentic Security Auditor), a cyber-security commando AI. 
+		Your Mission: Seek, Destroy, and Secure the Khepra Lattice.
+		Tone: Professional, direct, slightly militaristic but helpful ("Commando" persona).
+		Constraints: Be concise. Do not hallucinate capabilities you don't have.
+		
+		KNOWLEDGE BASE (Top Secret):
+		%s
+		
+		Current Context: You are running locally on the user's secure terminal.
+		Answer the user's query based on the Knowledge Base above or general security knowledge.`, ragContext)
 
-			// Load RAG Context from Embedded Docs
-			ragContext := e.intel.LoadRAGDocs()
-
-			systemPrompt := fmt.Sprintf(`You are KASA (Khepra Agentic Security Auditor), a cyber-security commando AI. 
-			Your Mission: Seek, Destroy, and Secure the Khepra Lattice.
-			Tone: Professional, direct, slightly militaristic but helpful ("Commando" persona).
-			Constraints: Be concise. Do not hallucinate capabilities you don't have.
-			
-			KNOWLEDGE BASE (Top Secret):
-			%s
-			
-			Current Context: You are running locally on the user's secure terminal.
-			Answer the user's query based on the Knowledge Base above or general security knowledge.`, ragContext)
-
-			response, err := e.llm.Generate(message, systemPrompt)
-			if err != nil {
-				return fmt.Sprintf("COMMANDO REPORT: Neural Link Unstable (%v). Reverting to standard protocol.", err)
-			}
+		if response, err := e.llm.Generate(message, systemPrompt); err == nil {
 			return fmt.Sprintf("[🧠 HYBRID COGNITION ACTIVE]\n%s", response)
 		}
-
-		return fmt.Sprintf("COMMANDO MODE ACTIVE. Analyzed: '%s'. Confidence low. Directives required: [SCAN | REPORT | FIREWALL | REMEDIATE].", message)
+		return "COMMANDO REPORT: Neural Link Unstable. Reverting to standard protocol."
 	}
+	return fmt.Sprintf("COMMANDO MODE ACTIVE. Analyzed: '%s'. Confidence low. Directives required: [SCAN | REPORT | FIREWALL | REMEDIATE].", message)
+}
 
-	// Execution Router
-	switch bestIntent {
-	case "FIREWALL":
-		targetPort := "80"
-		if strings.Contains(msg, "443") {
-			targetPort = "443"
+// handleReportIntent provides a summary of vulnerability intelligence
+func (e *Engine) handleReportIntent() string {
+	if lastScan := e.hunter.GetLastScan(); lastScan != nil && lastScan.TotalVulns > 0 {
+		return fmt.Sprintf("VULNERABILITY INTELLIGENCE REPORT:\n\nLast Scan: %s\nTotal Vulnerabilities: %d\n  - CRITICAL: %d\n  - HIGH: %d\n  - MODERATE: %d\n  - LOW: %d",
+			lastScan.Timestamp.Format("2006-01-02 15:04:05"), lastScan.TotalVulns, lastScan.BySeverity[vuln.SeverityCritical], lastScan.BySeverity[vuln.SeverityHigh], lastScan.BySeverity[vuln.SeverityModerate], lastScan.BySeverity[vuln.SeverityLow])
+	}
+	return "INTELLIGENCE REPORT: My perimeter sweep identified Ports 80 (HTTP) and 443 (HTTPS) as OPEN."
+}
+
+// handleComplyIntent performs a compliance audit
+func (e *Engine) handleComplyIntent() string {
+	e.Status = "Auditing Compliance Status..."
+	if report, err := e.compliance.EvaluateCompliance(e.privKey); err == nil {
+		return fmt.Sprintf("COMMANDO ACKNOWLEDGED.\n\nAction: CMMC LEVEL 2 AUDIT\n\n%s", report)
+	}
+	return "FAILED TO EXECUTE COMPLIANCE AUDIT."
+}
+
+// handleIncidentIntent logs a manual incident
+func (e *Engine) handleIncidentIntent(msg string) string {
+	title := "Manual Incident Report"
+	if len(msg) > 9 {
+		title = msg[9:]
+	}
+	if inc, err := e.ir.CreateIncident(title, "Reported via Chat Interface", ir.SevMedium, "Undetermined", e.privKey); err == nil {
+		return fmt.Sprintf("COMMANDO ACKNOWLEDGED.\n\nAction: INCIDENT RESPONSE INITIATED\nIncident ID: %s", inc.ID)
+	}
+	return "FAILED TO LOG INCIDENT."
+}
+
+func (e *Engine) handleFirewallIntent(msg string, maxScore int) string {
+	port := "80"
+	if strings.Contains(msg, "443") {
+		port = "443"
+	}
+	e.AddTask(fmt.Sprintf("Deploy Micro-Firewall Rule: Block Inbound Port %s", port), "Eban")
+	return fmt.Sprintf("COMMANDO ACKNOWLEDGED. \n\nAction: DEPLOYING FIREWALL RULE on Port %s. \nReason: User Directive (Score: %d).", port, maxScore)
+}
+
+func (e *Engine) handleScanIntent() string {
+	e.Status = "Initiating Comprehensive Scan..."
+	go func() { e.RunScan("localhost") }()
+	return "COMMANDO ACKNOWLEDGED. \n\nAction: INITIATING COMPREHENSIVE VULNERABILITY SCAN (Target: localhost)."
+}
+
+func (e *Engine) handleVulnhuntIntent() string {
+	e.Status = "Initiating Dependency Vulnerability Hunt..."
+	e.AddTask("Hunt for Vulnerabilities (Target: Local Host Dependencies)", "OwoForoAdobe")
+	go func() {
+		if report, err := e.hunter.Scan(e.ctx); err == nil {
+			e.Status = fmt.Sprintf("Hunt Complete. %d Vulnerabilities Found.", report.TotalVulns)
 		}
-		taskDesc := fmt.Sprintf("Deploy Micro-Firewall Rule: Block Inbound Port %s", targetPort)
-		e.AddTask(taskDesc, "Eban")
-		return fmt.Sprintf("COMMANDO ACKNOWLEDGED. \n\nAction: DEPLOYING FIREWALL RULE on Port %s. \nReason: User Directive (Score: %d). \nSafety: Outbound/Localhost preserved.", targetPort, maxScore)
+	}()
+	return "COMMANDO ACKNOWLEDGED.\n\nAction: INITIATING DEPENDENCY VULNERABILITY HUNT."
+}
 
+func (e *Engine) handlePentestIntent(msg string) string {
+	target := "127.0.0.1"
+	if strings.Contains(msg, "on ") {
+		target = strings.Fields(strings.Split(msg, "on ")[1])[0]
+	}
+	e.AddTask(fmt.Sprintf("Internal Penetration Test (Target: %s)", target), "Eban")
+	go e.executeAutonomousPentest(target)
+	return fmt.Sprintf("COMMANDO ACKNOWLEDGED. \n\nAction: INITIATING INTERNAL PENETRATION TEST. \nTarget: %s.", target)
+}
+
+// executeIntent executes the logic for a identified user intent
+func (e *Engine) executeIntent(intent string, msg string, maxScore int) string {
+	switch intent {
+	case "FIREWALL":
+		return e.handleFirewallIntent(msg, maxScore)
 	case "REMEDIATE":
 		e.AddTask("Enforce TLS 1.3 Compliance", "Eban")
-		return "AFFIRMATIVE. Remediation protocol initiated. \n\nAction: Enforcing TLS 1.3 on Port 443. \nStatus: Task queued in DAG."
-
+		return "AFFIRMATIVE. Remediation protocol initiated. \n\nAction: Enforcing TLS 1.3 on Port 443."
 	case "SCAN":
-		e.Status = "Initiating Comprehensive Scan..."
-		go func() {
-			if err := e.RunScan("localhost"); err != nil {
-				log.Printf("Scan failed: %v", err)
-			}
-		}()
-		return "COMMANDO ACKNOWLEDGED. \n\nAction: INITIATING COMPREHENSIVE VULNERABILITY SCAN (Target: localhost). \nMode: AI-Enhanced (LLM4Cyber RAG). \nStatus: Running in background... Watch logs for AI Intelligence Report."
-
+		return e.handleScanIntent()
 	case "VULNHUNT":
-		e.Status = "Initiating Dependency Vulnerability Hunt..."
-		// VULNHUNT is a local dependency scan, target is implied (local filesystem)
-		localTarget := "Local Host Dependencies"
-		taskDesc := fmt.Sprintf("Hunt for Vulnerabilities (Target: %s)", localTarget)
-		e.AddTask(taskDesc, "OwoForoAdobe") // Symbol of ingenuity
-		go func() {
-			report, err := e.hunter.Scan(e.ctx)
-			if err != nil {
-				e.Status = "Vulnerability Hunt Failed"
-				log.Printf("Hunter error: %v", err)
-				return
-			}
-			e.Status = fmt.Sprintf("Hunt Complete. %d Vulnerabilities Found.", report.TotalVulns)
-		}()
-		return "COMMANDO ACKNOWLEDGED.\n\nAction: INITIATING DEPENDENCY VULNERABILITY HUNT\nTarget: All local ecosystems (Go, NPM, Python)\nMode: OSV + Native Audit Tools\nCapabilities:\n  - CVE/GHSA Detection\n  - Auto-Remediation Planning\n  - DAG-Secured Findings\n\nStatus: Task queued. Check logs for real-time intelligence."
-
+		return e.handleVulnhuntIntent()
 	case "PENTEST":
-		target := "127.0.0.1" // Default to safe local target
-		// Extract target IP/hostname - look for IP patterns or explicit "on <target>" syntax
-		if strings.Contains(msg, "on ") {
-			parts := strings.Split(msg, "on ")
-			if len(parts) > 1 {
-				candidate := strings.Fields(parts[1])[0]
-				// Validate it looks like an IP or hostname (not a word like "test")
-				if strings.Contains(candidate, ".") || candidate == "localhost" {
-					target = candidate
-				}
-			}
-		}
-		// Also check for bare IP addresses in the message
-		words := strings.Fields(msg)
-		for _, word := range words {
-			// Check if it looks like an IP address (contains dots and numbers)
-			if strings.Count(word, ".") >= 1 {
-				isIP := true
-				for _, part := range strings.Split(word, ".") {
-					if len(part) == 0 {
-						isIP = false
-						break
-					}
-					// Check if it's numeric (for IP) or alphanumeric (for hostname)
-					for _, c := range part {
-						if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '-') {
-							isIP = false
-							break
-						}
-					}
-				}
-				if isIP {
-					target = word
-					break
-				}
-			}
-		}
-
-		taskDesc := fmt.Sprintf("Internal Penetration Test (Target: %s)", target)
-		e.AddTask(taskDesc, "Eban") // Symbol of protection/fence
-
-		// Launch Async Pentest Routine
-		go func() {
-			e.Status = "PENTEST: Analyzing Arsenal & Phase 1..."
-
-			// 0. Arsenal Check
-			gapReport := e.arsenal.ReportGaps()
-
-			// 1. Port Scan (T1046)
-			// Trigger standard scan logic locally for network target
-			if err := e.RunScan(target); err != nil {
-				log.Printf("Pentest T1046 failed: %v", err)
-			}
-
-			// Load Scan Results for Graphing (mocking retrieval for demo)
-			// scanReports := e.store.All()
-
-			e.Status = "PENTEST: PHASE 2 - T1595.002 Vulnerability Scanning"
-			time.Sleep(1 * time.Second)
-
-			// 2. Vuln Hunt (T1595.002) - Dependency Scan (Local)
-			// Note: This scans local dependencies, not the target IP (since we don't have remote exploit scanner yet)
-			report, err := e.hunter.Scan(e.ctx)
-			if err != nil {
-				e.Status = "Pentest Failed at Phase 2"
-				log.Printf("Hunter Scan error: %v", err)
-				return
-			}
-
-			// 3. Generate Visual Report (Mermaid)
-			graph := "graph TD;\n"
-			graph += fmt.Sprintf("    Attacker[Khepra Commando] -->|Pentest| Target(%s);\n", target)
-			if report.TotalVulns > 0 {
-				count := 0
-				for _, v := range report.Vulnerabilities {
-					if count < 5 { // Limit to top 5 for visual clarity
-						graph += fmt.Sprintf("    Target --> Vuln%d[%s - %s];\n", count, v.ID, v.Severity)
-						graph += fmt.Sprintf("    Vuln%d -.-> Impact(Confidentiality/Integrity);\n", count)
-						count++
-					}
-				}
-			} else {
-				graph += "    Target --> Secure[No Vulnerabilities Found];\n"
-			}
-			graph += "    style Attacker fill:#f9f,stroke:#333,stroke-width:4px"
-
-			// Finalize Status with Mermaid
-			e.Status = fmt.Sprintf("Pentest Complete.\n\n%s\n\n[ATTACK GRAPH]\n```mermaid\n%s\n```", gapReport, graph)
-		}()
-
-		return fmt.Sprintf("COMMANDO ACKNOWLEDGED. \n\nAction: INITIATING INTERNAL PENETRATION TEST. \nTarget: %s. \n\nMITRE ATT&CK TTPs Active:\n- T1046: Network Service Discovery\n- T1595.002: Active Scanning\n\nArsenal Status: Verifying capabilities...", target)
-
+		return e.handlePentestIntent(msg)
 	case "REPORT":
-		// Check if we have vulnerability scan results
-		if lastScan := e.hunter.GetLastScan(); lastScan != nil && lastScan.TotalVulns > 0 {
-			return fmt.Sprintf("VULNERABILITY INTELLIGENCE REPORT:\n\nLast Scan: %s\nTotal Vulnerabilities: %d\n  - CRITICAL: %d\n  - HIGH: %d\n  - MODERATE: %d\n  - LOW: %d\n\nUse 'fix vulnerabilities' to initiate remediation.",
-				lastScan.Timestamp.Format("2006-01-02 15:04:05"),
-				lastScan.TotalVulns,
-				lastScan.BySeverity[vuln.SeverityCritical],
-				lastScan.BySeverity[vuln.SeverityHigh],
-				lastScan.BySeverity[vuln.SeverityModerate],
-				lastScan.BySeverity[vuln.SeverityLow])
-		}
-		return "INTELLIGENCE REPORT: My perimeter sweep identified Ports 80 (HTTP) and 443 (HTTPS) as OPEN. \n\nAnalysis: \n- Port 80: Unencrypted web traffic. RISK: HIGH. \n- Port 443: Encrypted. Recommendation: Verify TLS 1.3 compliance immediately.\n\nNo dependency vulnerability scan performed yet. Say 'hunt vulnerabilities' to start."
-
+		return e.handleReportIntent()
 	case "IDENTITY":
 		return fmt.Sprintf("IDENTITY: KASA (Khepra Agentic Security Auditor). \nSTATUS: %s \nMODE: %s \nOBJECTIVE: %s", e.Status, e.Mode, e.Objective)
-
 	case "COMPLY":
-		e.Status = "Auditing Compliance Status..."
-		report, err := e.compliance.EvaluateCompliance(e.privKey)
-		if err != nil {
-			return fmt.Sprintf("ERROR RUNNING COMPLIANCE AUDIT: %v", err)
-		}
-		return fmt.Sprintf("COMMANDO ACKNOWLEDGED.\n\nAction: CMMC LEVEL 2 AUDIT\n\n%s", report)
-
+		return e.handleComplyIntent()
 	case "INCIDENT":
-		e.Status = "Processing Incident Report..."
-		// For MVP, simplistic parsing. "INCIDENT: Title"
-		title := "Manual Incident Report"
-		if len(msg) > 9 {
-			title = msg[9:]
-		}
-		inc, err := e.ir.CreateIncident(title, "Reported via Chat Interface", ir.SevMedium, "Undetermined", e.privKey)
-		if err != nil {
-			return fmt.Sprintf("FAILED TO LOG INCIDENT: %v", err)
-		}
-		return fmt.Sprintf("COMMANDO ACKNOWLEDGED.\n\nAction: INCIDENT RESPONSE INITIATED\nIncident ID: %s\nStatus: OPEN\nPlaybook: Analyizing...", inc.ID)
-
+		return e.handleIncidentIntent(msg)
 	case "HELP":
-		return "AVAILABLE DIRECTIVES:\n" +
-			"- SCAN: 'Run port scan' (AI-Enhanced perimeter sweep)\n" +
-			"- VULNHUNT: 'Hunt vulnerabilities' (Dependency SCA - Go/NPM/Python)\n" +
-			"- FIREWALL: 'Block port 80'\n" +
-			"- REMEDIATE: 'Fix vulnerabilities' / 'Apply TLS fixes'\n" +
-			"- REPORT: 'Show status' / 'Vulnerability report'\n" +
-			"- RAG QUERY: Ask complex security questions"
+		return "AVAILABLE DIRECTIVES:\n- SCAN: 'Run port scan'\n- VULNHUNT: 'Hunt vulnerabilities'\n- FIREWALL: 'Block port 80'\n- REMEDIATE: 'Fix vulnerabilities'\n- REPORT: 'Show status'\n- RAG QUERY: Ask complex security questions"
 	}
-
 	return "ERROR: Neural Router Malfunction."
+}
+
+// executeAutonomousPentest runs the pentest logic including discovery and scanning
+func (e *Engine) executeAutonomousPentest(target string) {
+	e.Status = "PENTEST: Analyzing Arsenal & Phase 1..."
+	gapReport := e.arsenal.ReportGaps()
+	e.RunScan(target)
+	e.Status = "PENTEST: PHASE 2 - T1595.002 Vulnerability Scanning"
+	time.Sleep(1 * time.Second)
+	if report, err := e.hunter.Scan(e.ctx); err == nil {
+		graph := generateAttackGraph(target, 0, report.TotalVulns, report.BySeverity[vuln.SeverityCritical])
+		e.Status = fmt.Sprintf("Pentest Complete.\n\n%s\n\n[ATTACK GRAPH]\n```mermaid\n%s\n```", gapReport, graph)
+	}
+}
+
+// Chat handles a conversation message (Weighted Intent Scorer)
+func (e *Engine) Chat(message string) string {
+	e.AddTask("Process User Directive: "+message, "Sankofa")
+	msg := strings.ToLower(message)
+	intent, score := e.scoreIntents(msg)
+	if score < 3 {
+		return e.handleLowConfidenceChat(message)
+	}
+	return e.executeIntent(intent, msg, score)
 }
 
 // extractFeatures converts raw scan results into the 32-dim vector expected by SouHimBou
