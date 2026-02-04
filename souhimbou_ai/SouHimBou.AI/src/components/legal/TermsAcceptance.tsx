@@ -1,11 +1,18 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Shield, FileText, Scale, Users, Globe } from 'lucide-react';
+import {
+  AlertTriangle,
+  Shield,
+  FileText,
+  Scale,
+  Users,
+  Globe,
+  ArrowRight
+} from 'lucide-react';
 import { useUserAgreements } from '@/hooks/useUserAgreements';
 import { useToast } from '@/hooks/use-toast';
 
@@ -32,6 +39,65 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
     exportControl: false
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const termsData = [
+    {
+      key: 'tosAgree' as keyof typeof acceptedTerms,
+      title: 'Khepra Master License Agreement (v3.0)',
+      icon: FileText,
+      description: 'Commercial license grant, restrictions, and reservation of rights. Software is licensed, not sold.',
+      classification: 'Required',
+      type: 'Standard'
+    },
+    {
+      key: 'privacyAgree' as keyof typeof acceptedTerms,
+      title: 'Privacy Policy',
+      icon: Shield,
+      description: 'Data collection, processing, and protection practices. Telemetry beacon and license validation.',
+      classification: 'Required',
+      type: 'Privacy'
+    },
+    {
+      key: 'saasAgree' as keyof typeof acceptedTerms,
+      title: 'SaaS Terms & Authorized Use',
+      icon: Globe,
+      description: 'Cloud service delivery for Khepra-Edge, Khepra-Hybrid, and Khepra-Sovereign deployments.',
+      classification: 'Required',
+      type: 'Service'
+    },
+    {
+      key: 'betaAgree' as keyof typeof acceptedTerms,
+      title: 'Beta Testing Agreement',
+      icon: Users,
+      description: 'Pre-release software testing terms. Software provided "AS IS" with no warranty of quantum-proof perpetuity.',
+      classification: 'Required',
+      type: 'Beta'
+    },
+    {
+      key: 'dodCompliance' as keyof typeof acceptedTerms,
+      title: 'U.S. Government Rights (DFARS Compliance)',
+      icon: Shield,
+      description: 'Commercial Computer Software with RESTRICTED RIGHTS per DFARS 252.227-7014. No Unlimited Rights granted.',
+      classification: 'Critical',
+      type: 'Security'
+    },
+    {
+      key: 'liabilityWaiver' as keyof typeof acceptedTerms,
+      title: 'Confidentiality & Trade Secrets',
+      icon: Scale,
+      description: 'Acknowledgment of proprietary AdinKhepra-PQC Lattice structures and Symbolic Attestation Logic as Trade Secrets.',
+      classification: 'Required',
+      type: 'Legal'
+    },
+    {
+      key: 'exportControl' as keyof typeof acceptedTerms,
+      title: 'Export Control Compliance (ECCN 5D992)',
+      icon: AlertTriangle,
+      description: 'Subject to EAR. No export to nuclear/chemical/biological weapons countries or SDN List entities.',
+      classification: 'Critical',
+      type: 'Regulatory'
+    }
+  ];
 
   const acceptedCount = Object.values(acceptedTerms).filter(Boolean).length;
   const allTermsAccepted = acceptedCount === termsData.length;
@@ -104,7 +170,6 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
 
         <ScrollArea className="max-h-[65vh] pr-4 mt-4">
           <div className="space-y-6">
-            {/* Header Warning */}
             <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-2xl flex items-start space-x-3">
               <AlertTriangle className="h-5 w-5 text-purple-400 mt-0.5" />
               <div>
@@ -115,7 +180,6 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
               </div>
             </div>
 
-            {/* Terms Grid */}
             <div className="grid gap-4">
               {termsData.map((term) => {
                 const Icon = term.icon;
@@ -156,7 +220,6 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
               })}
             </div>
 
-            {/* Summary Area */}
             <div className="p-6 bg-gradient-to-br from-purple-900/20 to-slate-900 border border-purple-500/20 rounded-3xl text-center space-y-4">
               <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-slate-950/50 border border-purple-500/30 text-purple-400 text-xs font-bold uppercase tracking-widest">
                 Compliance Status: {acceptedCount}/{termsData.length} Accepted
@@ -168,7 +231,6 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
           </div>
         </ScrollArea>
 
-        {/* Improved Actions Layout */}
         <div className="flex items-center justify-between mt-6 pt-4 border-t border-purple-500/10">
           <Button
             variant="ghost"
@@ -215,7 +277,6 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
         </div>
       </DialogContent>
     </Dialog>
-
   );
 };
 
