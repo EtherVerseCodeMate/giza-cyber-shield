@@ -241,7 +241,7 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
         .from('organizations')
         .insert({
           name: accountData.accountName,
-          slug: accountData.accountName.toLowerCase().replaceAll(/[^a-z0-9]/g, '-'),
+          slug: accountData.accountName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
           settings: {
             applicationName: accountData.applicationName,
             applicationDescription: accountData.applicationDescription,
