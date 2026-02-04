@@ -33,7 +33,8 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const allTermsAccepted = Object.values(acceptedTerms).every(Boolean);
+  const acceptedCount = Object.values(acceptedTerms).filter(Boolean).length;
+  const allTermsAccepted = acceptedCount === termsData.length;
 
   const handleTermChange = (term: keyof typeof acceptedTerms, checked: boolean) => {
     setAcceptedTerms(prev => ({ ...prev, [term]: checked }));
@@ -41,7 +42,9 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
 
   const handleSubmit = useCallback(async (terms?: typeof acceptedTerms) => {
     const termsToSubmit = terms || acceptedTerms;
-    if (!Object.values(termsToSubmit).every(Boolean)) {
+    const count = Object.values(termsToSubmit).filter(Boolean).length;
+
+    if (count < termsData.length) {
       toast({
         title: "Incomplete Acceptance",
         description: "Please accept all terms and conditions to continue.",
@@ -62,7 +65,7 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
     } finally {
       setIsSubmitting(false);
     }
-  }, [acceptedTerms, acceptAllAgreements, onAccepted, onOpenChange, toast]);
+  }, [acceptedTerms, acceptAllAgreements, onAccepted, onOpenChange, toast, termsData.length]);
 
   const handleAcceptAll = () => {
     const allChecked = {
@@ -75,14 +78,12 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
       exportControl: true
     };
     setAcceptedTerms(allChecked);
-    handleSubmit(allChecked);
   };
 
   // Enter key submits when all terms are accepted
   useEffect(() => {
-    if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter' && allTermsAccepted && !isSubmitting) {
+      if (e.key === 'Enter' && open && allTermsAccepted && !isSubmitting) {
         e.preventDefault();
         handleSubmit();
       }
@@ -91,94 +92,28 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open, allTermsAccepted, isSubmitting, handleSubmit]);
 
-  const termsData = [
-    {
-      key: 'tosAgree' as keyof typeof acceptedTerms,
-      title: 'Khepra Master License Agreement (v3.0)',
-      icon: FileText,
-      description: 'Commercial license grant, restrictions, and reservation of rights. Software is licensed, not sold.',
-      classification: 'Required',
-      type: 'Standard'
-    },
-    {
-      key: 'privacyAgree' as keyof typeof acceptedTerms,
-      title: 'Privacy Policy',
-      icon: Shield,
-      description: 'Data collection, processing, and protection practices. Telemetry beacon and license validation.',
-      classification: 'Required',
-      type: 'Privacy'
-    },
-    {
-      key: 'saasAgree' as keyof typeof acceptedTerms,
-      title: 'SaaS Terms & Authorized Use',
-      icon: Globe,
-      description: 'Cloud service delivery for Khepra-Edge, Khepra-Hybrid, and Khepra-Sovereign deployments.',
-      classification: 'Required',
-      type: 'Service'
-    },
-    {
-      key: 'betaAgree' as keyof typeof acceptedTerms,
-      title: 'Beta Testing Agreement',
-      icon: Users,
-      description: 'Pre-release software testing terms. Software provided "AS IS" with no warranty of quantum-proof perpetuity.',
-      classification: 'Required',
-      type: 'Beta'
-    },
-    {
-      key: 'dodCompliance' as keyof typeof acceptedTerms,
-      title: 'U.S. Government Rights (DFARS Compliance)',
-      icon: Shield,
-      description: 'Commercial Computer Software with RESTRICTED RIGHTS per DFARS 252.227-7014. No Unlimited Rights granted.',
-      classification: 'Critical',
-      type: 'Security'
-    },
-    {
-      key: 'liabilityWaiver' as keyof typeof acceptedTerms,
-      title: 'Confidentiality & Trade Secrets',
-      icon: Scale,
-      description: 'Acknowledgment of proprietary AdinKhepra-PQC Lattice structures and Symbolic Attestation Logic as Trade Secrets.',
-      classification: 'Required',
-      type: 'Legal'
-    },
-    {
-      key: 'exportControl' as keyof typeof acceptedTerms,
-      title: 'Export Control Compliance (ECCN 5D992)',
-      icon: AlertTriangle,
-      description: 'Subject to EAR. No export to nuclear/chemical/biological weapons countries or SDN List entities.',
-      classification: 'Critical',
-      type: 'Regulatory'
-    }
-  ];
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] bg-background">
+      <DialogContent className="max-w-4xl max-h-[90vh] bg-slate-950 border-purple-500/30 text-slate-100">
         <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <Scale className="h-5 w-5 text-primary" />
+          <DialogTitle className="flex items-center space-x-2 text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <Scale className="h-6 w-6 text-purple-500" />
             <span>Legal Agreement Acceptance</span>
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[70vh] pr-4">
+        <ScrollArea className="max-h-[65vh] pr-4 mt-4">
           <div className="space-y-6">
             {/* Header Warning */}
-            <Card className="border-orange-500/30 bg-orange-500/10">
-              <CardContent className="pt-6">
-                <div className="flex items-start space-x-3">
-                  <AlertTriangle className="h-5 w-5 text-orange-500 mt-0.5" />
-                  <div>
-                    <h3 className="font-semibold text-orange-400 mb-1">
-                      Required Legal Compliance
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Access to this platform requires acceptance of all legal agreements.
-                      Please review each document carefully before proceeding.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-2xl flex items-start space-x-3">
+              <AlertTriangle className="h-5 w-5 text-purple-400 mt-0.5" />
+              <div>
+                <h3 className="font-bold text-purple-300">Required Legal Compliance</h3>
+                <p className="text-sm text-slate-400">
+                  Access to the Sovereign Platform requires explicit acceptance of all data protection and security mandates.
+                </p>
+              </div>
+            </div>
 
             {/* Terms Grid */}
             <div className="grid gap-4">
@@ -187,101 +122,100 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
                 const isAccepted = acceptedTerms[term.key];
 
                 return (
-                  <Card
+                  <div
                     key={term.key}
-                    className={`transition-all duration-200 ${isAccepted
-                      ? 'border-green-500/50 bg-green-500/10'
-                      : 'border-border hover:border-primary/50'
+                    onClick={() => handleTermChange(term.key, !isAccepted)}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer group ${isAccepted
+                        ? 'bg-purple-500/10 border-purple-500/50'
+                        : 'bg-slate-900/50 border-slate-800 hover:border-purple-500/30'
                       }`}
                   >
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-3">
-                          <Icon className={`h-5 w-5 mt-0.5 ${isAccepted ? 'text-green-500' : 'text-muted-foreground'
-                            }`} />
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <CardTitle className="text-sm font-medium">
-                                {term.title}
-                              </CardTitle>
-                              <Badge
-                                variant={term.classification === 'Critical' ? 'destructive' : 'secondary'}
-                                className="text-xs"
-                              >
-                                {term.classification}
-                              </Badge>
-                              <Badge variant="outline" className="text-xs">
-                                {term.type}
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              {term.description}
-                            </p>
-                          </div>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start space-x-4">
+                        <div className={`p-2 rounded-xl ${isAccepted ? 'bg-purple-500 text-white' : 'bg-slate-800 text-slate-400 group-hover:bg-purple-500/20 group-hover:text-purple-400'}`}>
+                          <Icon className="h-5 w-5" />
                         </div>
-                        <Checkbox
-                          checked={isAccepted}
-                          onCheckedChange={(checked) =>
-                            handleTermChange(term.key, checked as boolean)
-                          }
-                          className="ml-4"
-                        />
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <h4 className="font-bold text-sm">{term.title}</h4>
+                            <Badge variant="outline" className="text-[10px] uppercase tracking-tighter border-purple-500/30 text-purple-400">
+                              {term.type}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-slate-400 leading-relaxed italic">"{term.description}"</p>
+                        </div>
                       </div>
-                    </CardHeader>
-                  </Card>
+                      <Checkbox
+                        checked={isAccepted}
+                        onCheckedChange={(checked) => handleTermChange(term.key, checked as boolean)}
+                        className="mt-1 border-purple-500/50 data-[state=checked]:bg-purple-500"
+                      />
+                    </div>
+                  </div>
                 );
               })}
             </div>
 
-            {/* Summary */}
-            <Card className="border-primary/30 bg-primary/5">
-              <CardContent className="pt-6">
-                <div className="text-center space-y-3">
-                  <h3 className="font-semibold text-primary">Agreement Summary</h3>
-                  <p className="text-sm text-muted-foreground">
-                    By accepting these terms, you acknowledge that you have read and agree to be bound by all applicable agreements.
-                  </p>
-                  <div className="flex justify-center space-x-2 text-xs text-muted-foreground">
-                    <span>Status: {Object.values(acceptedTerms).filter(Boolean).length} of {termsData.length} accepted</span>
-                  </div>
-                  <p>By accepting, you acknowledge reading and understanding all legal documents.</p>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Summary Area */}
+            <div className="p-6 bg-gradient-to-br from-purple-900/20 to-slate-900 border border-purple-500/20 rounded-3xl text-center space-y-4">
+              <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-slate-950/50 border border-purple-500/30 text-purple-400 text-xs font-bold uppercase tracking-widest">
+                Compliance Status: {acceptedCount}/{termsData.length} Accepted
+              </div>
+              <p className="text-sm text-slate-300">
+                By proceeding, you verify that you have read, understood, and now weave your professional signature into these defense protocols.
+              </p>
+            </div>
           </div>
         </ScrollArea>
 
-        {/* Actions */}
-        <div className="flex justify-between pt-4 border-t">
+        {/* Improved Actions Layout */}
+        <div className="flex items-center justify-between mt-6 pt-4 border-t border-purple-500/10">
           <Button
-            variant="outline"
+            variant="ghost"
             onClick={() => onOpenChange(false)}
             disabled={isSubmitting}
+            className="text-slate-400 hover:text-white hover:bg-slate-800"
           >
             Cancel
           </Button>
 
-          <div className="space-x-2">
+          <div className="flex items-center space-x-3">
             {!allTermsAccepted && (
               <Button
                 variant="outline"
                 onClick={handleAcceptAll}
                 disabled={isSubmitting}
+                className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
               >
                 Accept All Terms
               </Button>
             )}
+
             <Button
               onClick={() => handleSubmit()}
               disabled={!allTermsAccepted || isSubmitting}
-              className="min-w-[120px]"
+              className={`min-w-[160px] rounded-xl font-bold transition-all shadow-lg ${allTermsAccepted
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:scale-105 hover:shadow-purple-500/25'
+                  : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                }`}
             >
-              {isSubmitting ? 'Processing...' : 'Accept & Continue'}
+              {isSubmitting ? (
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Processing...</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <span>Accept & Continue</span>
+                  <ArrowRight className="h-4 w-4" />
+                </div>
+              )}
             </Button>
           </div>
         </div>
       </DialogContent>
     </Dialog>
+
   );
 };
 
