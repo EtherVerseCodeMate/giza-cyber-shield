@@ -1,6 +1,8 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+
+declare const Deno: any;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -130,10 +132,10 @@ function processSourceData(sourceName: string, data: any, results: any) {
   if (sourceName === 'AbuseIPDB' && data.data?.abuseConfidencePercentage > 0) {
     results.is_real = true;
     results.threat_level = data.data.abuseConfidencePercentage > 75 ? 'high' : 'medium';
-  } else if (sourceName === 'VirusTotal' && data.detected_urls?.length > 0) {
-    results.is_real = true;
-    results.threat_level = 'high';
-  } else if (sourceName === 'AlienVault OTX' && data.pulse_info?.count > 0) {
+  } else if (
+    (sourceName === 'VirusTotal' && data.detected_urls?.length > 0) ||
+    (sourceName === 'AlienVault OTX' && data.pulse_info?.count > 0)
+  ) {
     results.is_real = true;
     results.threat_level = 'high';
   }
