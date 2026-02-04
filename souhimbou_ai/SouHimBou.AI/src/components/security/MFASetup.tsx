@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+
 import { Badge } from '@/components/ui/badge';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Shield, 
-  Smartphone, 
-  Key, 
-  CheckCircle, 
-  AlertTriangle, 
+import {
+  Shield,
+  Smartphone,
+  Key,
+  CheckCircle,
+  AlertTriangle,
   RefreshCw,
   Copy,
   Download
@@ -32,7 +32,7 @@ export const MFASetup = ({ onComplete }: MFASetupProps) => {
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
-  
+
   const {
     isEnabled,
     isLoading,
@@ -63,19 +63,19 @@ export const MFASetup = ({ onComplete }: MFASetupProps) => {
 
   const handleVerifyCode = async () => {
     if (verificationCode.length !== 6) return;
-    
+
     const success = await verifyCode(verificationCode);
     if (success) {
       // Generate backup codes
       const codes = generateBackupCodes();
       setBackupCodes(codes);
-      
+
       // Save backup codes to profile
       if (user) {
         const hashedCodes = codes.map(code => {
           let hash = 0;
           for (let i = 0; i < code.length; i++) {
-            const char = code.charCodeAt(i);
+            const char = code.codePointAt(i) || 0;
             hash = ((hash << 5) - hash) + char;
             hash = hash & hash;
           }
@@ -90,7 +90,7 @@ export const MFASetup = ({ onComplete }: MFASetupProps) => {
           })
           .eq('user_id', user.id);
       }
-      
+
       setStep('backup');
     }
   };
@@ -134,9 +134,9 @@ export const MFASetup = ({ onComplete }: MFASetupProps) => {
     a.download = 'mfa-backup-codes.txt';
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
+    a.remove();
     URL.revokeObjectURL(url);
-    
+
     toast({
       title: "Download Started",
       description: "Backup codes file has been downloaded.",
@@ -218,7 +218,7 @@ export const MFASetup = ({ onComplete }: MFASetupProps) => {
                 Add an extra layer of security to your account
               </p>
             </div>
-            
+
             <div className="space-y-2">
               <h4 className="font-semibold">Before you start:</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
@@ -227,7 +227,7 @@ export const MFASetup = ({ onComplete }: MFASetupProps) => {
                 <li>• Have a secure place to store backup codes</li>
               </ul>
             </div>
-            
+
             <Button
               onClick={handleStartSetup}
               disabled={isLoading}
@@ -250,9 +250,9 @@ export const MFASetup = ({ onComplete }: MFASetupProps) => {
             <div className="text-center">
               <h4 className="font-semibold mb-4">Step 1: Scan QR Code</h4>
               <div className="bg-white p-4 rounded-lg inline-block mb-4">
-                <img 
-                  src={enrollmentData.qrCode} 
-                  alt="MFA QR Code" 
+                <img
+                  src={enrollmentData.qrCode}
+                  alt="MFA QR Code"
                   className="w-48 h-48"
                 />
               </div>
@@ -274,7 +274,7 @@ export const MFASetup = ({ onComplete }: MFASetupProps) => {
             >
               I've Added the Account
             </Button>
-            
+
             <Button
               variant="outline"
               onClick={handleRestart}
@@ -316,8 +316,18 @@ export const MFASetup = ({ onComplete }: MFASetupProps) => {
 
               <div className="flex space-x-2">
                 <Button
-                  onClick={handleVerifyCode}
-                  disabled={isLoading || verificationCode.length !== 6}
+                  onClick={() => {
+                    if (verificationCode.length !== 6) {
+                      toast({
+                        title: "Incomplete Code",
+                        description: "Please enter the full 6-digit verification code.",
+                        variant: "destructive"
+                      });
+                      return;
+                    }
+                    handleVerifyCode();
+                  }}
+                  disabled={isLoading}
                   className="flex-1"
                 >
                   {isLoading ? 'Verifying...' : 'Verify & Enable MFA'}
@@ -349,24 +359,24 @@ export const MFASetup = ({ onComplete }: MFASetupProps) => {
                 <Key className="h-4 w-4 text-warning" />
                 <h5 className="font-semibold">Backup Codes</h5>
               </div>
-              
+
               <Alert>
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                  <strong>Important:</strong> Save these backup codes in a secure location. 
+                  <strong>Important:</strong> Save these backup codes in a secure location.
                   Each code can only be used once and will help you regain access if you lose your authenticator app.
                 </AlertDescription>
               </Alert>
 
               <div className="bg-muted p-4 rounded-lg">
                 <div className="grid grid-cols-2 gap-2 mb-4">
-                  {backupCodes.map((code, index) => (
-                    <Badge key={index} variant="secondary" className="font-mono text-sm justify-center">
+                  {backupCodes.map((code) => (
+                    <Badge key={code} variant="secondary" className="font-mono text-sm justify-center">
                       {code}
                     </Badge>
                   ))}
                 </div>
-                
+
                 <div className="flex space-x-2">
                   <Button
                     variant="outline"

@@ -1,24 +1,26 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import {
   Play,
   ArrowRight,
-  CheckCircle2,
   Users,
   Building,
   Shield,
   Settings,
   Eye,
-  Zap
+  Zap,
+  Sparkles,
+  MessageSquare,
+  Activity,
+  Brain
 } from 'lucide-react';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { RoleBasedTour } from './RoleBasedTour';
-import { ExecutiveDashboardMode } from './ExecutiveDashboardMode';
 import { NativeOnboarding } from './NativeOnboarding';
+import { PapyrusOnboarding } from './PapyrusOnboarding';
 
 interface EnhancedOnboardingProps {
   open: boolean;
@@ -31,7 +33,7 @@ export const EnhancedOnboarding = ({ open, onClose, onComplete }: EnhancedOnboar
   const { profile } = useUserProfile();
   const [showRoleBasedTour, setShowRoleBasedTour] = useState(false);
   const [showNativeOnboarding, setShowNativeOnboarding] = useState(false);
-  const [isExecutiveMode, setIsExecutiveMode] = useState(false);
+  const [showPapyrusOnboarding, setShowPapyrusOnboarding] = useState(false);
 
   const getUserRole = () => {
     const role = profile?.role || 'viewer';
@@ -52,13 +54,16 @@ export const EnhancedOnboarding = ({ open, onClose, onComplete }: EnhancedOnboar
     setShowNativeOnboarding(true);
   };
 
+  const startPapyrusOnboarding = () => {
+    setShowPapyrusOnboarding(true);
+  };
+
   const handleTourComplete = () => {
     setShowRoleBasedTour(false);
     onComplete();
   };
 
   const userRole = getUserRole();
-  const RoleIcon = userRole.icon;
 
   if (showRoleBasedTour) {
     return (
@@ -80,164 +85,147 @@ export const EnhancedOnboarding = ({ open, onClose, onComplete }: EnhancedOnboar
     );
   }
 
+  if (showPapyrusOnboarding) {
+    return (
+      <PapyrusOnboarding
+        open={showPapyrusOnboarding}
+        onClose={() => setShowPapyrusOnboarding(false)}
+        onComplete={onComplete}
+      />
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-2xl">Welcome to SouHimBou AI Platform</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-3xl overflow-hidden p-0 rounded-3xl border-purple-500/20 shadow-2xl">
+        <div className="flex flex-col md:flex-row h-full max-h-[90vh]">
+          {/* Left Hero Panel */}
+          <div className="w-full md:w-80 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 p-8 text-white flex flex-col justify-between relative overflow-hidden">
+            {/* Decorative Background */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 blur-[100px] rounded-full -mr-32 -mt-32" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 blur-[100px] rounded-full -ml-32 -mb-32" />
 
-        <div className="space-y-6">
-          {/* User Role Card */}
-          <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-secondary/5">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className={`p-3 rounded-lg ${userRole.color} text-white`}>
-                  <RoleIcon className="h-6 w-6" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold">
-                    Welcome, {profile?.full_name || 'User'}
-                  </h3>
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="outline" className="text-primary border-primary/50">
-                      {userRole.title}
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">
-                      • {profile?.department || 'Security Team'}
-                    </span>
-                  </div>
-                </div>
+            <div className="relative z-10 space-y-6">
+              <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl w-fit">
+                <Sparkles className="h-8 w-8 text-purple-300" />
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <h2 className="text-3xl font-bold leading-tight">Begin Your Sovereign Journey</h2>
+                <p className="text-purple-200/70 mt-2 text-sm leading-relaxed">
+                  You are entering the Trust Constellation. Every path is secured by the KHEPRA Protocol.
+                </p>
+              </div>
+            </div>
 
-          {/* Onboarding Options */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Choose Your Experience</h3>
+            <div className="relative z-10 p-4 bg-black/20 backdrop-blur-sm rounded-2xl border border-white/5 space-y-2">
+              <div className="flex items-center space-x-2 text-xs font-semibold text-purple-300 uppercase tracking-widest">
+                <Activity className="h-3 w-3" />
+                <span>Attestation Active</span>
+              </div>
+              <div className="text-[10px] text-white/60 leading-tight">
+                Your role as <span className="text-white font-bold">{userRole.title}</span> has been verified across the lattice.
+              </div>
+            </div>
+          </div>
 
-            {/* AWS-Style Professional Setup */}
-            <Card className="cursor-pointer hover:shadow-md transition-shadow border-orange-200 bg-gradient-to-r from-orange-50 to-yellow-50">
-              <CardContent className="p-6">
-                <div className="flex items-start space-x-4">
-                  <div className="p-3 bg-orange-100 rounded-lg">
-                    <Zap className="h-6 w-6 text-orange-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-lg font-semibold mb-2">
-                      Advanced Infrastructure Setup
-                    </h4>
-                    <p className="text-muted-foreground mb-4">
-                      Deploy enterprise-grade security controls, hardware-bound MFA, and automated STIG baselines using the native KHEPRA flow.
-                    </p>
-                    <div className="flex items-center space-x-2 text-sm text-orange-600">
-                      <CheckCircle2 className="h-4 w-4" />
-                      <span>Enterprise security standards</span>
-                    </div>
-                    <div className="flex items-center space-x-2 text-sm text-orange-600 mt-1">
-                      <CheckCircle2 className="h-4 w-4" />
-                      <span>KHEPRA Protocol integration</span>
-                    </div>
-                    <div className="flex items-center space-x-2 text-sm text-orange-600 mt-1">
-                      <CheckCircle2 className="h-4 w-4" />
-                      <span>Complete compliance setup</span>
-                    </div>
-                  </div>
-                  <Button onClick={startNativeOnboarding} className="mt-4 bg-primary hover:bg-primary-glow">
-                    Start Setup
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Right Content Panel */}
+          <div className="flex-1 p-8 bg-background overflow-y-auto">
+            <h3 className="text-xl font-bold mb-6 flex items-center space-x-2">
+              <span>Select Activation Path</span>
+              <div className="h-1 flex-1 bg-gradient-to-r from-purple-500/20 to-transparent ml-4 rounded-full" />
+            </h3>
 
-            {/* Guided Tour Option */}
-            <Card className="cursor-pointer hover:shadow-md transition-shadow border-primary/20">
-              <CardContent className="p-6">
-                <div className="flex items-start space-x-4">
-                  <div className="p-3 bg-primary/10 rounded-lg">
-                    <Play className="h-6 w-6 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-lg font-semibold mb-2">
-                      Quick Tour
-                    </h4>
-                    <p className="text-muted-foreground mb-4">
-                      Take a personalized tour based on your role. We'll show you the most relevant features and help you get started quickly.
-                    </p>
-                    <div className="flex items-center space-x-2 text-sm text-primary">
-                      <CheckCircle2 className="h-4 w-4" />
-                      <span>Personalized for {userRole.title.toLowerCase()}s</span>
-                    </div>
-                    <div className="flex items-center space-x-2 text-sm text-primary mt-1">
-                      <CheckCircle2 className="h-4 w-4" />
-                      <span>5-10 minutes to complete</span>
-                    </div>
-                  </div>
-                  <Button onClick={() => {
-                    startGuidedTour();
-                    navigate('/dashboard?tour=quick');
-                  }} className="mt-4" variant="outline">
-                    Start Tour
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Executive Mode Option - Only for Admins/Executives */}
-            {['admin', 'executive'].includes(profile?.role || '') && (
-              <Card className="border-secondary/20">
+            <div className="grid gap-4">
+              {/* FEATURED: Papyrus AI Guided Setup */}
+              <Card
+                onClick={startPapyrusOnboarding}
+                className="group relative cursor-pointer overflow-hidden border-2 border-purple-500/30 bg-purple-500/5 hover:border-purple-500/60 transition-all duration-300 shadow-[0_0_20px_rgba(168,85,247,0.1)]"
+              >
+                <div className="absolute top-0 left-0 w-1 h-full bg-purple-500" />
                 <CardContent className="p-6">
                   <div className="flex items-start space-x-4">
-                    <div className="p-3 bg-secondary/10 rounded-lg">
-                      <Eye className="h-6 w-6 text-secondary" />
+                    <div className="p-4 bg-purple-500 rounded-2xl text-white shadow-lg shadow-purple-500/30 group-hover:scale-110 transition-transform duration-300">
+                      <Brain className="h-6 w-6" />
                     </div>
                     <div className="flex-1">
-                      <h4 className="text-lg font-semibold mb-2">
-                        Executive Summary Mode
-                      </h4>
-                      <p className="text-muted-foreground mb-4">
-                        Simplified dashboard view focusing on high-level KPIs, security posture, and key decision points.
+                      <div className="flex items-center space-x-2 mb-1">
+                        <h4 className="text-lg font-bold text-foreground">AI Guided Activation</h4>
+                        <Badge variant="secondary" className="bg-purple-500/10 text-purple-600 border-purple-500/20 text-[10px] uppercase tracking-tighter">Recommended</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        Let <span className="text-purple-600 font-semibold">Papyrus</span>, your cyber-guide, walk you through a seamless, conversational setup of your security perimeter.
                       </p>
-                      <ExecutiveDashboardMode
-                        isExecutiveMode={isExecutiveMode}
-                        onToggle={setIsExecutiveMode}
-                      />
+                      <div className="flex items-center space-x-4 mt-4 text-[10px] text-purple-600 font-bold uppercase tracking-widest">
+                        <div className="flex items-center space-x-1">
+                          <MessageSquare className="h-3 w-3" />
+                          <span>Conversational</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Zap className="h-3 w-3" />
+                          <span>Fast</span>
+                        </div>
+                      </div>
                     </div>
+                    <ArrowRight className="h-5 w-5 text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:translate-x-1" />
                   </div>
                 </CardContent>
               </Card>
-            )}
 
-            {/* Skip Option */}
-            <Card className="border-muted/50">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-semibold">Skip and Explore</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Jump straight into the platform and explore on your own
-                    </p>
+              {/* Standard Setup */}
+              <Card
+                onClick={startNativeOnboarding}
+                className="group cursor-pointer border border-border hover:border-blue-500/50 hover:bg-blue-500/5 transition-all duration-200"
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-start space-x-4">
+                    <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-2xl text-slate-600 dark:text-slate-400 group-hover:bg-blue-100 dark:group-hover:bg-blue-900 group-hover:text-blue-600 transition-colors">
+                      <Shield className="h-6 w-6" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-lg font-bold">Standard Configuration</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Traditional multi-step configuration for advanced users who want granular control over every parameter.
+                      </p>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  <Button variant="outline" onClick={onComplete}>
-                    Skip Setup
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                </CardContent>
+              </Card>
 
-          {/* Quick Access Information */}
-          <Card className="bg-muted/30">
-            <CardContent className="p-4">
-              <h4 className="font-medium mb-2">Need Help Later?</h4>
-              <p className="text-sm text-muted-foreground">
-                You can always restart this tour from the help menu or access our documentation
-                and support resources from any page.
-              </p>
-            </CardContent>
-          </Card>
+              {/* Guided Tour */}
+              <Card
+                onClick={() => {
+                  startGuidedTour();
+                  navigate('/dashboard?tour=quick');
+                }}
+                className="group cursor-pointer border border-border hover:border-slate-500/50 hover:bg-slate-500/5 transition-all duration-200"
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-start space-x-4">
+                    <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-2xl text-slate-600 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition-colors">
+                      <Play className="h-6 w-6" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-lg font-bold">Platform Tour</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Just show me around. Take a personalized, non-destructive tour of the dashboard based on your role.
+                      </p>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="flex items-center justify-between pt-4 border-t border-border mt-2">
+                <button onClick={onComplete} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  Skip onboarding and explore manually
+                </button>
+                <div className="text-[10px] text-slate-400 font-mono">
+                  SID: {profile?.id?.slice(0, 8)} | LAT: 0.0.0
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
