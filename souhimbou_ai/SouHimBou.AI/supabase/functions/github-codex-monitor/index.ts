@@ -29,7 +29,7 @@ interface CodexEvent {
   pr_number?: number;
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -51,13 +51,14 @@ serve(async (req) => {
       default:
         throw new Error(`Unknown action: ${action}`);
     }
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('GitHub Codex Monitor Error:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      JSON.stringify({ error: errorMessage }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }
@@ -65,7 +66,7 @@ serve(async (req) => {
 
 async function verifySecurityControls(): Promise<Response> {
   const checks: SecurityCheck[] = [];
-  
+
   try {
     // Check 1: Repository Access Permissions
     const repoCheck = await checkRepositoryAccess();
@@ -97,7 +98,7 @@ async function verifySecurityControls(): Promise<Response> {
     });
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         status: 'completed',
         checks,
         summary: {
@@ -109,10 +110,11 @@ async function verifySecurityControls(): Promise<Response> {
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('Error verifying security controls:', error);
     return new Response(
-      JSON.stringify({ error: 'Failed to verify security controls' }),
+      JSON.stringify({ error: `Failed to verify security controls: ${errorMessage}` }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
@@ -152,11 +154,12 @@ async function checkRepositoryAccess(): Promise<SecurityCheck> {
         admin_access_repos: repos.filter((repo: any) => repo.permissions?.admin).length
       }
     };
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       type: 'repository_access',
       status: 'fail',
-      message: `Failed to check repository access: ${error.message}`
+      message: `Failed to check repository access: ${errorMessage}`
     };
   }
 }
@@ -209,11 +212,12 @@ async function checkRateLimit(): Promise<SecurityCheck> {
         percentage_remaining: percentage
       }
     };
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       type: 'rate_limit',
       status: 'fail',
-      message: `Failed to check rate limit: ${error.message}`
+      message: `Failed to check rate limit: ${errorMessage}`
     };
   }
 }
@@ -275,10 +279,10 @@ async function monitorCodexActivity(event: CodexEvent): Promise<Response> {
   try {
     // Validate the code submission
     const validation = await validateCodeSubmission(event);
-    
+
     // Check for sensitive data
     const sensitiveDataFound = await detectSensitiveData(event.content || '');
-    
+
     // Log the activity
     await logSecurityEvent('codex_activity_monitored', 'low', {
       repository: event.repository,
@@ -296,7 +300,7 @@ async function monitorCodexActivity(event: CodexEvent): Promise<Response> {
         type: sensitiveDataFound ? 'sensitive_data' : 'validation_failed',
         severity: sensitiveDataFound ? 'high' : 'medium',
         repository: event.repository,
-        description: sensitiveDataFound 
+        description: sensitiveDataFound
           ? 'Sensitive data detected in Codex-generated code'
           : 'Code validation failed for Codex submission',
         auto_blocked: sensitiveDataFound
@@ -313,10 +317,11 @@ async function monitorCodexActivity(event: CodexEvent): Promise<Response> {
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('Error monitoring Codex activity:', error);
     return new Response(
-      JSON.stringify({ error: 'Failed to monitor Codex activity' }),
+      JSON.stringify({ error: `Failed to monitor Codex activity: ${errorMessage}` }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
@@ -326,13 +331,13 @@ async function validateCodeSubmission(event: CodexEvent): Promise<{ valid: boole
   const issues: string[] = [];
 
   // Check file types
-  const suspiciousFiles = event.files.filter(file => 
-    file.includes('.env') || 
+  const suspiciousFiles = event.files.filter(file =>
+    file.includes('.env') ||
     file.includes('config') && file.includes('secret') ||
     file.includes('key') ||
     file.includes('password')
   );
-  
+
   if (suspiciousFiles.length > 0) {
     issues.push(`Suspicious configuration files detected: ${suspiciousFiles.join(', ')}`);
   }
@@ -360,11 +365,11 @@ async function detectSensitiveData(content: string): Promise<boolean> {
     /sk-[a-zA-Z0-9]{48}/g,  // OpenAI API keys
     /ghp_[a-zA-Z0-9]{36}/g, // GitHub tokens
     /AKIA[0-9A-Z]{16}/g,    // AWS access keys
-    /AIza[0-9A-Za-z\\-_]{35}/g, // Google API keys
+    /AIza[0-9A-Za-z\-_]{35}/g, // Google API keys
     /pk_live_[0-9a-zA-Z]{24}/g, // Stripe keys
     /-----BEGIN [A-Z ]+-----/g,  // Private keys
-    /password\s*[:=]\s*['"'][^'"]+['"]/gi, // Password assignments
-    /token\s*[:=]\s*['"'][^'"]+['"]/gi,    // Token assignments
+    /password\s*[:=]\s*['"][^'"]+['"]/gi, // Password assignments
+    /token\s*[:=]\s*['"][^'"]+['"]/gi,    // Token assignments
   ];
 
   for (const pattern of sensitivePatterns) {
@@ -394,7 +399,7 @@ async function checkRepositoryPermissions(repository: string): Promise<Response>
     }
 
     const repo = await response.json();
-    
+
     return new Response(
       JSON.stringify({
         repository: repo.full_name,
@@ -411,9 +416,10 @@ async function checkRepositoryPermissions(repository: string): Promise<Response>
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
@@ -442,9 +448,10 @@ async function enforceBranchProtection(repository: string): Promise<Response> {
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
@@ -459,8 +466,9 @@ async function logSecurityEvent(eventType: string, severity: string, details: an
       details,
       created_at: new Date().toISOString()
     });
-  } catch (error) {
-    console.error('Failed to log security event:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Failed to log security event:', errorMessage);
   }
 }
 
@@ -485,8 +493,9 @@ async function createSecurityAlert(alert: {
       },
       created_at: new Date().toISOString()
     });
-  } catch (error) {
-    console.error('Failed to create security alert:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Failed to create security alert:', errorMessage);
   }
 }
 
@@ -494,14 +503,18 @@ function generateRecommendations(validation: { valid: boolean; issues: string[] 
   const recommendations: string[] = [];
 
   if (!validation.valid) {
-    recommendations.push('Review code changes before approval');
-    recommendations.push('Consider splitting large changes into smaller commits');
+    recommendations.push(
+      'Review code changes before approval',
+      'Consider splitting large changes into smaller commits'
+    );
   }
 
   if (sensitiveDataFound) {
-    recommendations.push('Remove sensitive data before committing');
-    recommendations.push('Use environment variables for secrets');
-    recommendations.push('Enable secret scanning on repository');
+    recommendations.push(
+      'Remove sensitive data before committing',
+      'Use environment variables for secrets',
+      'Enable secret scanning on repository'
+    );
   }
 
   if (recommendations.length === 0) {
