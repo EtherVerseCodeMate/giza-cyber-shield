@@ -9,12 +9,14 @@
 | **System Name** | Khepra Protected Enclave |
 | **Assessment Date** | 2026-02-03 |
 | **Assessment Type** | CMMC Level 1 Self-Assessment (FAR 52.204-21, 32 CFR Part 170) |
-| **Assessment Score** | **100%** (14 MET / 3 N/A - Inherited from AWS GovCloud FedRAMP) |
+| **Assessment Score** | **Code Controls: 100%** (14 MET / 3 N/A) -- **Infrastructure: PENDING GovCloud Migration** |
 | **Assessor** | Internal Security Team |
 | **Classification** | CUI // SP-CMMC |
 | **System Description** | Post-Quantum Cryptographic security platform providing compliance scanning, attestation, vulnerability detection, and secure communications for DoD and enterprise environments |
 | **Deployment Models** | Edge (standalone), Hybrid (cloud+local), Sovereign (air-gapped) |
-| **Cloud Infrastructure** | AWS GovCloud (us-gov-west-1) - FedRAMP High P-ATO |
+| **Current Deployment** | **Fly.io (backend) + Vercel (frontend)** - No FedRAMP authorization |
+| **Target Deployment** | **AWS GovCloud (us-gov-west-1)** - FedRAMP High P-ATO |
+| **Migration Status** | **PRE-DEPLOYMENT** - GovCloud IaC written, not yet applied (see `docs/GOVCLOUD_DEPLOYMENT_RUNBOOK.md`) |
 
 ---
 
@@ -39,10 +41,29 @@
 
 ## Executive Summary
 
-The Khepra Protocol (Giza Cyber Shield) system has been assessed against all 17 CMMC Level 1 practices spanning 6 domains as defined in NIST SP 800-171 Rev 2 and 32 CFR Part 170. The assessment result is **100% compliance** with all applicable practices:
+The AdinKhepra Protocol (Giza Cyber Shield) system has been assessed against all 17 CMMC Level 1 practices spanning 6 domains as defined in NIST SP 800-171 Rev 2 and 32 CFR Part 170.
 
-- **14 practices** are fully **MET** with documented technical evidence
-- **3 practices** are **NOT APPLICABLE** (PE domain physical controls inherited from AWS GovCloud FedRAMP High P-ATO)
+### Dual-Track Assessment Status
+
+This assessment follows a **dual-track approach** reflecting the system's migration from Fly.io/Vercel to AWS GovCloud:
+
+**Track 1 - Code-Level Controls (ACTIVE):**
+- **14 practices** have **code-level evidence fully implemented** in the AdinKhepra Protocol codebase
+- These controls (auth, RBAC, WAF, PQC crypto, device fingerprinting, memory sanitization, dual-pipeline logging) are **platform-independent** and operational on any deployment target
+- All 58 sub-questions have documented technical evidence with file:line references
+
+**Track 2 - Infrastructure Controls (PLANNED):**
+- **14 Terraform IaC artifacts** reference AWS GovCloud services (CloudTrail, GuardDuty, Security Hub, VPC Flow Logs, KMS, Config) that are **written but not yet deployed**
+- **3 PE domain practices** claim N/A status based on AWS GovCloud FedRAMP inheritance — **not yet active** (current CSPs: Fly.io/Vercel, no FedRAMP authorization)
+- The GovCloud migration runbook is documented at `docs/GOVCLOUD_DEPLOYMENT_RUNBOOK.md` (58 steps, 13 phases)
+
+**Current Honest Assessment:**
+- Code-level security controls: **Fully implemented and verified**
+- Infrastructure monitoring/logging: **IaC defined, deployment pending**
+- FedRAMP inherited controls (PE domain): **Not yet available** — requires GovCloud migration
+- Overall CMMC L1 readiness: **Code architecture ready; infrastructure migration required before SPRS submission**
+
+### System Security Architecture
 
 The system implements defense-in-depth security through a zero-trust gateway architecture with four sequential security layers, post-quantum cryptographic protection (ML-DSA-65/ML-KEM-1024), role-based access control with five predefined roles, hardware-bound device fingerprinting, continuous 2-minute monitoring with drift detection, and DoD dual-pipeline logging with three redaction levels.
 
@@ -668,13 +689,99 @@ find pkg/ deploy/ -name "*.go" -o -name "*.tf" | sort | xargs sha256sum > eviden
 
 ## Plan of Action and Milestones (POA&M)
 
-| # | Practice | Gap Description | Planned Action | Priority | Target Date | Status |
-|---|----------|----------------|----------------|----------|-------------|--------|
-| 1 | MP.L1-B.1.VII | Physical media destruction policy not formalized | Create Media Sanitization Policy per NIST SP 800-88 Rev 1 | Medium | TBD | Open |
-| 2 | PE.L1-B.1.VIII | CSP shared responsibility documentation | Document AWS GovCloud Shared Responsibility Matrix for PE controls | Low | TBD | Open |
-| 3 | PE.L1-B.1.IX | Visitor policy for organizational facilities | Document visitor escort procedures (applicable only if on-premise assets exist) | Low | TBD | Open |
-| 4 | SI.L1-B.1.XIV | WAF update cadence not formally documented | Formalize WAF rule and IP blocklist update schedule in SOPs | Low | TBD | Open |
-| 5 | General | Evidence artifact SHA-256 baseline | Generate and archive SHA-256 hashes of all evidence files | Medium | TBD | Open |
+> **IMPORTANT:** This POA&M reflects the dual-track assessment. Items are categorized by:
+> - **CRITICAL** - Blocks CMMC L1 SPRS submission
+> - **HIGH** - Required before C3PAO assessment
+> - **MEDIUM** - Required for full compliance posture
+> - **LOW** - Documentation/process improvements
+
+### Category 1: AWS GovCloud Migration (CRITICAL - Blocks SPRS Submission)
+
+*Reference: `docs/GOVCLOUD_DEPLOYMENT_RUNBOOK.md` for detailed implementation steps*
+
+| # | POA&M ID | Practice(s) Affected | Gap Description | Planned Action | Priority | Target Date | Status | Runbook Phase |
+|---|----------|---------------------|----------------|----------------|----------|-------------|--------|---------------|
+| 1 | POAM-001 | ALL | Current deployment (Fly.io/Vercel) has no FedRAMP authorization | Complete AWS GovCloud account pairing and OU setup | **CRITICAL** | TBD | Open | Phase 0-1 |
+| 2 | POAM-002 | AC, IA | No centralized identity management on current CSP | Deploy IAM Identity Center + Cognito in GovCloud | **CRITICAL** | TBD | Open | Phase 2, 7 |
+| 3 | POAM-003 | SC, SI | No VPC/network segmentation on Fly.io | Deploy GovCloud VPC with private/isolated subnets, FIPS endpoints | **CRITICAL** | TBD | Open | Phase 4 |
+| 4 | POAM-004 | SC, SI | No GuardDuty/CloudTrail/Config/Security Hub on current deployment | Apply `deploy/govcloud/terraform/audit.tf` to enable all monitoring | **CRITICAL** | TBD | Open | Phase 3 |
+| 5 | POAM-005 | SC, MP | No KMS-managed encryption at rest on Fly.io | Deploy Aurora PostgreSQL with KMS CMK encryption + pgAudit | **CRITICAL** | TBD | Open | Phase 5 |
+| 6 | POAM-006 | AC, SI | No private compute environment on Fly.io | Deploy EKS/Fargate with private endpoint, Bottlerocket AMIs, IRSA | **CRITICAL** | TBD | Open | Phase 6 |
+| 7 | POAM-007 | SC | No WAF on current deployment edge | Deploy ALB + AWS WAF in GovCloud; map to gateway WAF rules | **CRITICAL** | TBD | Open | Phase 4, 9 |
+| 8 | POAM-008 | ALL | Infrastructure evidence artifacts not yet generated | Complete smoke test (Phase 11) and capture all infrastructure evidence | **CRITICAL** | TBD | Open | Phase 11 |
+
+### Category 2: FedRAMP Inherited Controls (HIGH - Required Before C3PAO)
+
+| # | POA&M ID | Practice(s) Affected | Gap Description | Planned Action | Priority | Target Date | Status |
+|---|----------|---------------------|----------------|----------------|----------|-------------|--------|
+| 9 | POAM-009 | PE.L1-B.1.VIII | PE N/A claim requires FedRAMP CSP; Fly.io is not FedRAMP authorized | GovCloud deployment enables FedRAMP High inherited PE controls | **HIGH** | TBD | Open |
+| 10 | POAM-010 | PE.L1-B.1.IX | Visitor management inherited control not available on current CSP | GovCloud deployment provides FedRAMP PE-2/PE-3/PE-6/PE-8 inheritance | **HIGH** | TBD | Open |
+| 11 | POAM-011 | PE (all) | No AWS Shared Responsibility Matrix documented for PE controls | Document GovCloud Shared Responsibility Matrix after deployment | **HIGH** | TBD | Open |
+| 12 | POAM-012 | ALL | US-persons-only access not formalized | Create US-persons attestation document; restrict GovCloud access | **HIGH** | TBD | Open |
+
+### Category 3: Policy & Documentation (MEDIUM)
+
+| # | POA&M ID | Practice(s) Affected | Gap Description | Planned Action | Priority | Target Date | Status |
+|---|----------|---------------------|----------------|----------------|----------|-------------|--------|
+| 13 | POAM-013 | MP.L1-B.1.VII | Physical media destruction policy not formalized | Create Media Sanitization Policy per NIST SP 800-88 Rev 1 | **MEDIUM** | TBD | Open |
+| 14 | POAM-014 | SI.L1-B.1.XIV | WAF update cadence not formally documented | Formalize WAF rule and IP blocklist update schedule in SOPs | **MEDIUM** | TBD | Open |
+| 15 | POAM-015 | General | Evidence artifact SHA-256 baseline not generated | Generate and archive SHA-256 hashes of all evidence files | **MEDIUM** | TBD | Open |
+| 16 | POAM-016 | SI.L1-B.1.XII | Flaw remediation SLA not formally documented | Create Vulnerability Management Policy with remediation timelines | **MEDIUM** | TBD | Open |
+| 17 | POAM-017 | AC.L1-B.1.I | Access control policy not standalone document | Create formal Access Control Policy document | **MEDIUM** | TBD | Open |
+| 18 | POAM-018 | ALL | Incident Response Plan not formalized | Create Incident Response Plan with contact chain and procedures | **MEDIUM** | TBD | Open |
+| 19 | POAM-019 | ALL | Configuration Management Plan not formalized | Create CM Plan documenting baseline configs and change procedures | **MEDIUM** | TBD | Open |
+
+### Category 4: SDLC & Evidence Pipeline (MEDIUM)
+
+| # | POA&M ID | Practice(s) Affected | Gap Description | Planned Action | Priority | Target Date | Status |
+|---|----------|---------------------|----------------|----------------|----------|-------------|--------|
+| 20 | POAM-020 | SI.L1-B.1.XIII, XV | No immutable evidence storage for scan artifacts | Deploy S3 bucket with Object Lock for SAST/DAST/SCA evidence | **MEDIUM** | TBD | Open |
+| 21 | POAM-021 | SI.L1-B.1.XIII | Container image signing not yet implemented | Implement cosign image signing in CI/CD pipeline | **MEDIUM** | TBD | Open |
+| 22 | POAM-022 | SI.L1-B.1.XV | SCAP/OpenSCAP STIG scanning not yet integrated | Integrate SCAP scanning into build pipeline for AMI hardening | **MEDIUM** | TBD | Open |
+| 23 | POAM-023 | AC.L1-B.1.III | CI/CD runners not in private VPC | Deploy self-hosted GitHub Actions runners in GovCloud VPC | **MEDIUM** | TBD | Open |
+
+### Category 5: Process Improvements (LOW)
+
+| # | POA&M ID | Practice(s) Affected | Gap Description | Planned Action | Priority | Target Date | Status |
+|---|----------|---------------------|----------------|----------------|----------|-------------|--------|
+| 24 | POAM-024 | PE.L1-B.1.IX | No visitor policy for organizational offices (if applicable) | Document visitor escort procedures for any physical locations | **LOW** | TBD | Open |
+| 25 | POAM-025 | General | Fly.io/Vercel decommission plan | Execute decommission checklist after GovCloud validation | **LOW** | TBD | Open |
+| 26 | POAM-026 | ALL | C3PAO evidence binder not assembled | Compile evidence binder per Phase 12 of deployment runbook | **LOW** | TBD | Open |
+
+### POA&M Summary
+
+| Category | Items | Priority | Blocker? |
+|----------|-------|----------|----------|
+| GovCloud Migration | 8 | CRITICAL | Yes - blocks SPRS submission |
+| FedRAMP Inherited Controls | 4 | HIGH | Yes - blocks C3PAO assessment |
+| Policy & Documentation | 7 | MEDIUM | No - parallel work |
+| SDLC & Evidence Pipeline | 4 | MEDIUM | No - parallel work |
+| Process Improvements | 3 | LOW | No - post-migration |
+| **Total** | **26** | | |
+
+### Critical Path
+
+```
+POAM-001 (GovCloud Account)
+    |
+    +-> POAM-003 (VPC/Networking)
+    |       |
+    |       +-> POAM-005 (Aurora PG)
+    |       |       |
+    |       +-> POAM-006 (EKS/Fargate)
+    |       |       |
+    |       +-> POAM-007 (ALB + WAF)
+    |               |
+    +-> POAM-002 (Identity Center + Cognito)
+    |       |
+    +-> POAM-004 (CloudTrail/GuardDuty/Config)
+            |
+            +-> POAM-008 (Smoke Test + Evidence)
+                    |
+                    +-> POAM-009/010/011 (FedRAMP Inheritance Documented)
+                            |
+                            +-> SPRS SUBMISSION READY
+```
 
 ---
 
@@ -738,7 +845,26 @@ find pkg/ deploy/ -name "*.go" -o -name "*.tf" | sort | xargs sha256sum > eviden
 
 ## Appendix C: Shared Responsibility Matrix
 
-### AWS GovCloud FedRAMP High Inherited Controls
+### Current State: Fly.io (Backend) + Vercel (Frontend)
+
+> **WARNING:** Neither Fly.io nor Vercel holds FedRAMP authorization. This deployment configuration does not support FedRAMP-inherited controls and is insufficient for CMMC SPRS submission.
+
+| Capability | Fly.io | Vercel | Gap for CMMC |
+|-----------|--------|--------|-------------|
+| FedRAMP Authorization | **None** | **None** | **CRITICAL** - No inherited PE controls |
+| SOC 2 Type II | Yes | Yes | Partial - not equivalent to FedRAMP |
+| Encryption at Rest | Yes (volume encryption) | N/A (static hosting) | No KMS CMK, no key rotation control |
+| Encryption in Transit | TLS (auto) | TLS (auto) | No FIPS endpoint support |
+| Network Isolation | Private networking (WireGuard) | N/A | No VPC, no subnet isolation |
+| Audit Logging | Basic app logs | Basic deploy logs | No CloudTrail equivalent, no immutability |
+| Threat Detection | None | None | **CRITICAL** - No GuardDuty equivalent |
+| WAF | None (built into app code) | Vercel Firewall (basic) | App-level WAF only, no managed rules |
+| Compliance Monitoring | None | None | **CRITICAL** - No Config/Security Hub equivalent |
+| Physical Security | Not documented publicly | Not documented publicly | Cannot claim FedRAMP PE inheritance |
+
+### Target State: AWS GovCloud FedRAMP High Inherited Controls
+
+*Becomes active after completing `docs/GOVCLOUD_DEPLOYMENT_RUNBOOK.md`*
 
 | CMMC Practice | AWS Responsibility | Organization Responsibility |
 |--------------|-------------------|---------------------------|
@@ -762,8 +888,21 @@ find pkg/ deploy/ -name "*.go" -o -name "*.tf" | sort | xargs sha256sum > eviden
 
 ---
 
+## Appendix D: Document Revision History
+
+| Rev | Date | Author | Changes |
+|-----|------|--------|---------|
+| 1.0 | 2026-02-03 | Internal Security Team | Initial assessment based on AWS GovCloud target deployment |
+| 1.1 | 2026-02-03 | Internal Security Team | Amended to dual-track: honest Fly.io/Vercel current state + GovCloud planned state; expanded POA&M from 5 to 26 items; added GovCloud Deployment Runbook reference; added Fly.io/Vercel gap analysis |
+
+---
+
 *Document generated: 2026-02-03*
-*System: Khepra Protocol - Giza Cyber Shield*
-*Assessment Score: 100% (14 MET / 3 N/A)*
+*Document revised: 2026-02-03 (Rev 1.1 - Dual-Track Amendment)*
+*System: AdinKhepra Protocol - Giza Cyber Shield*
+*Current Deployment: Fly.io (backend) + Vercel (frontend)*
+*Target Deployment: AWS GovCloud (us-gov-west-1)*
+*Code Controls: 100% implemented | Infrastructure: Pending GovCloud migration*
+*POA&M Items: 26 (8 CRITICAL, 4 HIGH, 11 MEDIUM, 3 LOW)*
 *Classification: CUI // SP-CMMC*
-*Revision: 1.0*
+*Revision: 1.1*
