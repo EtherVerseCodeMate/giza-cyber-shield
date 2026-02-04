@@ -1,8 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
+import nodemailer from "npm:nodemailer@6.9.16";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -47,9 +45,19 @@ const handler = async (req: Request): Promise<Response> => {
     const userRole = profile?.role || 'viewer';
     const securityClearance = profile?.security_clearance || 'UNCLASSIFIED';
 
-    const emailResponse = await resend.emails.send({
-      from: "SouHimBou AI <noreply@resend.dev>",
-      to: [email],
+    const transporter = nodemailer.createTransport({
+      host: Deno.env.get('SMTP_HOST') || 'smtp.autosend.com',
+      port: Number.parseInt(Deno.env.get('SMTP_PORT') || '587'),
+      secure: false,
+      auth: {
+        user: Deno.env.get('SMTP_USER') || 'autosend',
+        pass: Deno.env.get('SMTP_PASS'),
+      },
+    });
+
+    const emailResponse = await transporter.sendMail({
+      from: `SouHimBou AI <${Deno.env.get('SMTP_FROM') || 'support@souhimbou.ai'}>`,
+      to: email,
       subject: "Welcome to SouHimBou AI - Your Defense Intelligence Platform",
       html: `
         <!DOCTYPE html>
@@ -192,11 +200,11 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }]);
 
-    console.log("Welcome email sent successfully:", emailResponse);
+    console.log("Welcome email sent successfully:", emailResponse.messageId);
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      messageId: emailResponse.data?.id 
+    return new Response(JSON.stringify({
+      success: true,
+      messageId: emailResponse.messageId
     }), {
       status: 200,
       headers: {
