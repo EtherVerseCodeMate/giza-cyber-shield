@@ -19,8 +19,7 @@ max_client_conn = 100
 
 [realtime]
 enabled = true
-ip_version = "ipv4"
-port = 54323
+ip_version = "IPv4"
 max_header_length = 4096
 
 [studio]
@@ -37,7 +36,6 @@ pop3_port = 54327
 
 [storage]
 enabled = true
-port = 54328
 file_size_limit = "50MiB"
 
 [functions.polymorphic-schema-engine]
