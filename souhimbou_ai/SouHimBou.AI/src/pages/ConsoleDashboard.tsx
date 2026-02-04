@@ -5,7 +5,7 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { DashboardToggle } from '@/components/DashboardToggle';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { EnhancedOnboarding } from '@/components/onboarding/EnhancedOnboarding';
-import { AWSDeploymentStatus } from '@/components/AWSDeploymentStatus';
+import { PapyrusGenie } from '@/components/papyrus';
 
 const ConsoleDashboard = () => {
   const { profile } = useUserProfile();
@@ -15,7 +15,7 @@ const ConsoleDashboard = () => {
   useEffect(() => {
     // Show onboarding for users who haven't seen it yet (based on localStorage)
     const hasSeenOnboarding = localStorage.getItem('has_seen_onboarding');
-    
+
     if (profile && !hasSeenOnboarding) {
       setIsNewUser(true);
       setShowOnboarding(true);
@@ -55,7 +55,7 @@ const ConsoleDashboard = () => {
 
   return (
     <>
-      <ConsoleLayout 
+      <ConsoleLayout
         currentSection="home"
         browserNav={{
           title: 'Secure Platform Operations',
@@ -74,6 +74,9 @@ const ConsoleDashboard = () => {
         onClose={() => setShowOnboarding(false)}
         onComplete={handleOnboardingComplete}
       />
+
+      {/* AI Genie for Proactive Assistance */}
+      {!showOnboarding && <PapyrusGenie />}
     </>
   );
 };
