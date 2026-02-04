@@ -116,7 +116,8 @@ func NewEngine(store dag.Store) *Engine {
 
 	// Initialize Vulnerability Hunter
 	hunter := vuln.NewHunter(".")
-	hunter.SetDryRun(true) // Safety first - dry run by default
+	hunter.SetDryRun(false) // AUTONOMOUS MODE: Will actually run npm update, go get, etc.
+	hunter.SetAutoFix(true) // Enable autonomous remediation
 
 	// Initialize Forensics Collector
 	forensicsCollector := forensics.NewCollector()
