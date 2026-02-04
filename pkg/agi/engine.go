@@ -34,6 +34,14 @@ const (
 	ObjectiveAuditor  Objective = "Enterprise Risk Elimination (KASA)"
 )
 
+// KASA (Khepra Agentic Security Auditor) Internal Constants
+const (
+	kasaForensicsV1 = "KASA-Forensics-v1"
+	kasaPentestV1   = "KASA-Pentest-v1"
+	kasaPrefix      = "[KASA] %s"
+	routineSweep    = "Routine Perimeter Sweep"
+)
+
 // KASA (Khepra Agentic Security Auditor)
 // Based on BabyAGI:
 // 1. Task List (Khepra DAG)
