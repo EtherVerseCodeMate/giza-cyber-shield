@@ -85,60 +85,57 @@ USING (
   )
 );
 
--- 2b. khepra_secret_keys - restrict to owner + admins (if table exists)
+-- 2b. khepra_secret_keys - restrict to creator + admins (table uses created_by, not user_id)
 DO $$
 BEGIN
   IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'khepra_secret_keys') THEN
-    -- Drop any overly permissive policy
     EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated access" ON public.khepra_secret_keys';
     EXECUTE 'DROP POLICY IF EXISTS "Authenticated users can view keys" ON public.khepra_secret_keys';
     EXECUTE 'DROP POLICY IF EXISTS "Public read access" ON public.khepra_secret_keys';
+    EXECUTE 'DROP POLICY IF EXISTS "Owner or admin access to secret keys" ON public.khepra_secret_keys';
 
-    -- Create restrictive policy: only owner or admin
     EXECUTE $pol$
-      CREATE POLICY "Owner or admin access to secret keys" ON public.khepra_secret_keys
+      CREATE POLICY "Admin access to secret keys" ON public.khepra_secret_keys
       FOR SELECT TO authenticated
       USING (
-        auth.uid() = user_id
-        OR EXISTS (
+        EXISTS (
           SELECT 1 FROM public.profiles
           WHERE profiles.user_id = auth.uid() AND profiles.master_admin = true
         )
+        OR auth.uid()::text = created_by
       )
     $pol$;
   END IF;
 END $$;
 
--- 2c. matrix_operations_log - restrict SELECT and INSERT (if table exists)
+-- 2c. matrix_operations_log - restrict to admins (table has no user_id column)
 DO $$
 BEGIN
   IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'matrix_operations_log') THEN
-    -- Drop overly permissive policies
     EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated read" ON public.matrix_operations_log';
     EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated insert" ON public.matrix_operations_log';
     EXECUTE 'DROP POLICY IF EXISTS "Anyone can read" ON public.matrix_operations_log';
     EXECUTE 'DROP POLICY IF EXISTS "Anyone can insert" ON public.matrix_operations_log';
     EXECUTE 'DROP POLICY IF EXISTS "Authenticated users can view operations" ON public.matrix_operations_log';
     EXECUTE 'DROP POLICY IF EXISTS "Authenticated users can insert operations" ON public.matrix_operations_log';
+    EXECUTE 'DROP POLICY IF EXISTS "Owner or admin can view operations log" ON public.matrix_operations_log';
+    EXECUTE 'DROP POLICY IF EXISTS "Users can insert own operations log" ON public.matrix_operations_log';
 
-    -- SELECT: only own records or admin
     EXECUTE $pol$
-      CREATE POLICY "Owner or admin can view operations log" ON public.matrix_operations_log
+      CREATE POLICY "Admin can view operations log" ON public.matrix_operations_log
       FOR SELECT TO authenticated
       USING (
-        auth.uid() = user_id
-        OR EXISTS (
+        EXISTS (
           SELECT 1 FROM public.profiles
           WHERE profiles.user_id = auth.uid() AND profiles.master_admin = true
         )
       )
     $pol$;
 
-    -- INSERT: only own records
     EXECUTE $pol$
-      CREATE POLICY "Users can insert own operations log" ON public.matrix_operations_log
+      CREATE POLICY "Authenticated users can insert operations log" ON public.matrix_operations_log
       FOR INSERT TO authenticated
-      WITH CHECK (auth.uid() = user_id)
+      WITH CHECK (auth.uid() IS NOT NULL)
     $pol$;
   END IF;
 END $$;
