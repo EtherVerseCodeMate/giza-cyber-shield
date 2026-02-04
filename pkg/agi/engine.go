@@ -249,7 +249,7 @@ func (e *Engine) think() {
 			e.Status = "Autonomously generating directives..."
 			e.Tasks = append(e.Tasks, Task{
 				ID:          fmt.Sprintf("auto-guard-%d", time.Now().Unix()),
-				Description: "Routine Perimeter Sweep",
+				Description: routineSweep,
 				Priority:    "MEDIUM",
 				Symbol:      "Eban",
 			})
@@ -283,7 +283,7 @@ func (e *Engine) think() {
 
 func (e *Engine) execute(t Task) (string, error) {
 	// Execution Logic
-	if t.Description == "Routine Perimeter Sweep" {
+	if t.Description == routineSweep {
 		// Run a lightweight scan (Top 10 ports only)
 		// We use a custom smaller list for speed/stealth
 		results, err := e.scanner.Run("localhost") // Default scan is fast enough now
@@ -394,7 +394,7 @@ func (e *Engine) executeVulnHunt() (string, error) {
 		result.BySeverity[vuln.SeverityModerate],
 		result.BySeverity[vuln.SeverityLow])
 
-	log.Printf("[KASA] %s", summary)
+	log.Printf(kasaPrefix, summary)
 	return summary, nil
 }
 
@@ -451,7 +451,7 @@ func (e *Engine) executeForensics() (string, error) {
 			"port_count":    fmt.Sprintf("%d", len(snapshot.OpenPorts)),
 			"file_count":    fmt.Sprintf("%d", len(snapshot.FileHashes)),
 			"snapshot_hash": snapshot.Hash,
-			"agent":         "KASA-Forensics-v1",
+			"agent":         kasaForensicsV1,
 		},
 	}
 
@@ -464,9 +464,9 @@ func (e *Engine) executeForensics() (string, error) {
 	if lastSnapshot := e.forensics.GetLastSnapshot(); lastSnapshot != nil && lastSnapshot.SnapshotID != snapshot.SnapshotID {
 		changes := e.forensics.CompareSnapshots(lastSnapshot, snapshot)
 		if len(changes) > 0 {
-			log.Printf("[KASA] FORENSIC ANOMALY DETECTED: %d changes since last snapshot", len(changes))
+			log.Printf(kasaPrefix, "FORENSIC ANOMALY DETECTED: %d changes since last snapshot", len(changes))
 			for _, change := range changes {
-				log.Printf("[KASA]   -> %s", change)
+				log.Printf(kasaPrefix, "   -> %s", change)
 
 				// Record each change as evidence
 				changeNode := dag.Node{
@@ -477,7 +477,7 @@ func (e *Engine) executeForensics() (string, error) {
 						"change_type": "SYSTEM_CHANGE",
 						"description": change,
 						"snapshot_id": snapshot.SnapshotID,
-						"agent":       "KASA-Forensics-v1",
+						"agent":       kasaForensicsV1,
 					},
 				}
 				if err := changeNode.Sign(e.privKey); err == nil {
@@ -494,8 +494,8 @@ func (e *Engine) executeForensics() (string, error) {
 		len(snapshot.OpenPorts),
 		len(snapshot.FileHashes))
 
-	log.Printf("[KASA] %s", summary)
-	log.Printf("[KASA] Snapshot Hash: %s", snapshot.Hash)
+	log.Printf(kasaPrefix, summary)
+	log.Printf(kasaPrefix, "Snapshot Hash: %s", snapshot.Hash)
 
 	// Store snapshot data separately for detailed analysis
 	dataNode := dag.Node{
@@ -504,7 +504,7 @@ func (e *Engine) executeForensics() (string, error) {
 		Time:   lorentz.StampNow(),
 		PQC: map[string]string{
 			"data":  string(snapshotJSON),
-			"agent": "KASA-Forensics-v1",
+			"agent": kasaForensicsV1,
 		},
 	}
 	if err := dataNode.Sign(e.privKey); err == nil {
@@ -541,7 +541,7 @@ func (e *Engine) executePentest(t Task) (string, error) {
 			"target":     target,
 			"phase":      "INITIATION",
 			"mitre_ttp":  "T1595",
-			"agent":      "KASA-Pentest-v1",
+			"agent":      kasaPentestV1,
 			"compliance": "NIST-800-53-CA-8,PCI-DSS-11.3",
 		},
 	}
@@ -552,11 +552,11 @@ func (e *Engine) executePentest(t Task) (string, error) {
 	// Phase 1: Arsenal Check
 	e.Status = "PENTEST Phase 1: Arsenal Verification..."
 	gapReport := e.arsenal.ReportGaps()
-	log.Printf("[KASA] PENTEST ARSENAL: %s", gapReport)
+	log.Printf(kasaPrefix, "PENTEST ARSENAL: %s", gapReport)
 
 	// Phase 2: Network Service Discovery (T1046)
 	e.Status = "PENTEST Phase 2: T1046 Network Service Discovery..."
-	log.Printf("[KASA] PENTEST T1046: Scanning %s for open ports...", target)
+	log.Printf(kasaPrefix, "PENTEST T1046: Scanning %s for open ports...", target)
 
 	scanResults, scanErr := e.scanner.Run(target)
 	openPorts := 0
@@ -575,7 +575,7 @@ func (e *Engine) executePentest(t Task) (string, error) {
 					"banner":    r.Banner,
 					"mitre_ttp": "T1046",
 					"phase":     "DISCOVERY",
-					"agent":     "KASA-Pentest-v1",
+					"agent":     kasaPentestV1,
 				},
 			}
 			if err := portNode.Sign(e.privKey); err == nil {
@@ -655,7 +655,7 @@ func (e *Engine) executePentest(t Task) (string, error) {
 	summary := fmt.Sprintf("Pentest Complete (Target: %s). Open Ports: %d, Vulnerabilities: %d (Critical: %d). Compliance: NIST 800-53 CA-8, PCI-DSS 11.3",
 		target, openPorts, totalVulns, criticalVulns)
 
-	log.Printf("[KASA] %s", summary)
+	log.Printf(kasaPrefix, summary)
 	e.Status = summary
 
 	return summary, nil
@@ -687,7 +687,7 @@ func (e *Engine) logToDAG(t Task, result string) {
 func (e *Engine) deriveNewTasks(t Task, _ string) {
 	// Heuristic Logic
 	switch t.Description {
-	case "Routine Perimeter Sweep":
+	case routineSweep:
 		// Analyzed result string? In V2 use structured objects.
 		// For now, we trust the report.
 	case "Scan Perimeter":
