@@ -19,43 +19,54 @@ END;
 $$;
 
 -- 1b. cleanup_expired_otps / cleanup_expired_password_reset_otps
--- May exist under either name; fix both
+-- May exist under either name; fix both using dynamic OID lookup
 DO $$
+DECLARE
+  func_oid oid;
 BEGIN
-  -- Fix cleanup_expired_otps if it exists
-  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'cleanup_expired_otps') THEN
-    EXECUTE $func$
-      CREATE OR REPLACE FUNCTION public.cleanup_expired_otps()
-      RETURNS void
-      LANGUAGE plpgsql
-      SECURITY DEFINER
-      SET search_path TO 'public'
-      AS $body$
-      BEGIN
-        DELETE FROM public.password_reset_otps
-        WHERE expires_at < now() OR (used = true AND used_at < now() - INTERVAL '24 hours');
-      END;
-      $body$;
-    $func$;
-  END IF;
+  FOR func_oid IN
+    SELECT p.oid FROM pg_proc p
+    JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE p.proname = 'cleanup_expired_otps' AND n.nspname = 'public'
+  LOOP
+    EXECUTE format('ALTER FUNCTION %s SET search_path TO ''public''', func_oid::regprocedure);
+  END LOOP;
+
+  FOR func_oid IN
+    SELECT p.oid FROM pg_proc p
+    JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE p.proname = 'cleanup_expired_password_reset_otps' AND n.nspname = 'public'
+  LOOP
+    EXECUTE format('ALTER FUNCTION %s SET search_path TO ''public''', func_oid::regprocedure);
+  END LOOP;
 END $$;
 
--- 1c. calculate_pqc_readiness - add SET search_path if it exists
+-- 1c. calculate_pqc_readiness - add SET search_path for all overloads
 DO $$
+DECLARE
+  func_oid oid;
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'calculate_pqc_readiness') THEN
-    -- Get current function body and recreate with search_path
-    -- Since we don't know the exact body, use ALTER to set the config
-    ALTER FUNCTION public.calculate_pqc_readiness() SET search_path TO 'public';
-  END IF;
+  FOR func_oid IN
+    SELECT p.oid FROM pg_proc p
+    JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE p.proname = 'calculate_pqc_readiness' AND n.nspname = 'public'
+  LOOP
+    EXECUTE format('ALTER FUNCTION %s SET search_path TO ''public''', func_oid::regprocedure);
+  END LOOP;
 END $$;
 
--- 1d. update_crypto_moat_stats - add SET search_path if it exists
+-- 1d. update_crypto_moat_stats - add SET search_path for all overloads
 DO $$
+DECLARE
+  func_oid oid;
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'update_crypto_moat_stats') THEN
-    ALTER FUNCTION public.update_crypto_moat_stats() SET search_path TO 'public';
-  END IF;
+  FOR func_oid IN
+    SELECT p.oid FROM pg_proc p
+    JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE p.proname = 'update_crypto_moat_stats' AND n.nspname = 'public'
+  LOOP
+    EXECUTE format('ALTER FUNCTION %s SET search_path TO ''public''', func_oid::regprocedure);
+  END LOOP;
 END $$;
 
 -- =============================================================================
