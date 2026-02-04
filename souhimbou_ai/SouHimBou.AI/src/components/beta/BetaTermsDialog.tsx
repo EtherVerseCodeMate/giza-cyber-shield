@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -19,7 +19,9 @@ export const BetaTermsDialog = ({ open, enrollmentId, onAccept }: BetaTermsDialo
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
-  const handleAccept = async () => {
+  const allChecked = betaTermsChecked && cuiAcknowledgmentChecked && govCloudChecked;
+
+  const handleAccept = useCallback(async () => {
     if (!betaTermsChecked || !cuiAcknowledgmentChecked || !govCloudChecked) {
       toast({
         title: "All acknowledgments required",
@@ -58,7 +60,20 @@ export const BetaTermsDialog = ({ open, enrollmentId, onAccept }: BetaTermsDialo
     } finally {
       setLoading(false);
     }
-  };
+  }, [betaTermsChecked, cuiAcknowledgmentChecked, govCloudChecked, enrollmentId, onAccept, toast]);
+
+  // Enter key submits when all boxes are checked
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && allChecked && !loading) {
+        e.preventDefault();
+        handleAccept();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, allChecked, loading, handleAccept]);
 
   return (
     <Dialog open={open}>
@@ -151,7 +166,7 @@ export const BetaTermsDialog = ({ open, enrollmentId, onAccept }: BetaTermsDialo
 
           <Button
             onClick={handleAccept}
-            disabled={!betaTermsChecked || !cuiAcknowledgmentChecked || !govCloudChecked || loading}
+            disabled={!allChecked || loading}
             className="w-full"
           >
             {loading ? 'Activating...' : 'Accept & Activate Beta Access'}

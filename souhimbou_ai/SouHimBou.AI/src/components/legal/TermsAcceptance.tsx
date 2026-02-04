@@ -39,20 +39,9 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
     setAcceptedTerms(prev => ({ ...prev, [term]: checked }));
   };
 
-  const handleAcceptAll = () => {
-    setAcceptedTerms({
-      tosAgree: true,
-      privacyAgree: true,
-      saasAgree: true,
-      betaAgree: true,
-      dodCompliance: true,
-      liabilityWaiver: true,
-      exportControl: true
-    });
-  };
-
-  const handleSubmit = async () => {
-    if (!allTermsAccepted) {
+  const handleSubmit = useCallback(async (terms?: typeof acceptedTerms) => {
+    const termsToSubmit = terms || acceptedTerms;
+    if (!Object.values(termsToSubmit).every(Boolean)) {
       toast({
         title: "Incomplete Acceptance",
         description: "Please accept all terms and conditions to continue.",
@@ -63,7 +52,7 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
 
     setIsSubmitting(true);
     try {
-      const success = await acceptAllAgreements(acceptedTerms);
+      const success = await acceptAllAgreements(termsToSubmit);
       if (success) {
         onAccepted();
         onOpenChange(false);
@@ -73,7 +62,34 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
     } finally {
       setIsSubmitting(false);
     }
+  }, [acceptedTerms, acceptAllAgreements, onAccepted, onOpenChange, toast]);
+
+  const handleAcceptAll = () => {
+    const allChecked = {
+      tosAgree: true,
+      privacyAgree: true,
+      saasAgree: true,
+      betaAgree: true,
+      dodCompliance: true,
+      liabilityWaiver: true,
+      exportControl: true
+    };
+    setAcceptedTerms(allChecked);
+    handleSubmit(allChecked);
   };
+
+  // Enter key submits when all terms are accepted
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && allTermsAccepted && !isSubmitting) {
+        e.preventDefault();
+        handleSubmit();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, allTermsAccepted, isSubmitting, handleSubmit]);
 
   const termsData = [
     {
@@ -174,8 +190,8 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
                   <Card
                     key={term.key}
                     className={`transition-all duration-200 ${isAccepted
-                        ? 'border-green-500/50 bg-green-500/10'
-                        : 'border-border hover:border-primary/50'
+                      ? 'border-green-500/50 bg-green-500/10'
+                      : 'border-border hover:border-primary/50'
                       }`}
                   >
                     <CardHeader className="pb-3">
@@ -239,22 +255,24 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
         <div className="flex justify-between pt-4 border-t">
           <Button
             variant="outline"
-            onClick={handleAcceptAll}
-            disabled={allTermsAccepted}
+            onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
           >
-            Accept All Terms
+            Cancel
           </Button>
 
           <div className="space-x-2">
+            {!allTermsAccepted && (
+              <Button
+                variant="outline"
+                onClick={handleAcceptAll}
+                disabled={isSubmitting}
+              >
+                Accept All Terms
+              </Button>
+            )}
             <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmit}
+              onClick={() => handleSubmit()}
               disabled={!allTermsAccepted || isSubmitting}
               className="min-w-[120px]"
             >

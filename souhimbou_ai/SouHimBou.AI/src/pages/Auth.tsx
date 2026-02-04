@@ -31,7 +31,7 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const { signIn, signUp, user } = useAuth();
-  const { acceptAllAgreements, checkAgreementStatus } = useUserAgreements();
+  const { checkAgreementStatus } = useUserAgreements();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -64,11 +64,9 @@ const Auth = () => {
     }
   }, [user, navigate, checkAgreementStatus]);
 
-  const handleTermsAcceptance = async (acceptedTerms: Record<string, boolean>) => {
-    const success = await acceptAllAgreements(acceptedTerms);
-    if (success) {
-      navigate('/dashboard');
-    }
+  const handleTermsAccepted = () => {
+    // Terms already saved by TermsAcceptance component - just navigate
+    navigate('/dashboard');
   };
 
   const handlePasswordResetSuccess = () => {
@@ -256,7 +254,7 @@ const Auth = () => {
         <TermsAcceptance
           open={true}
           onOpenChange={() => { }}
-          onAccepted={() => handleTermsAcceptance({})}
+          onAccepted={handleTermsAccepted}
         />
       </div>
     );

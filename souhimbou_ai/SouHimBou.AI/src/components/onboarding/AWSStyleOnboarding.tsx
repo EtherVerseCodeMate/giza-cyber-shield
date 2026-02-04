@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useResourceTracker } from '@/hooks/useResourceTracker';
+import { useUserAgreements } from '@/hooks/useUserAgreements';
 
 interface AWSStyleOnboardingProps {
   open: boolean;
@@ -54,6 +55,7 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
   const { user } = useAuth();
   const { toast } = useToast();
   const { trackResource } = useResourceTracker();
+  const { acceptAllAgreements } = useUserAgreements();
   const navigate = useNavigate();
 
   // Account creation data
@@ -112,6 +114,10 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
         variant: "destructive"
       });
     }
+  };
+
+  const handlePrevious = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
   const validateCurrentStepDetailed = (): { isValid: boolean; missingFields: string[] } => {
@@ -250,7 +256,7 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
         .from('organizations')
         .insert({
           name: accountData.accountName,
-          slug: accountData.accountName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+          slug: accountData.accountName.toLowerCase().replaceAll(/[^a-z0-9]/g, '-'),
           settings: {
             applicationName: accountData.applicationName,
             applicationDescription: accountData.applicationDescription,
@@ -282,9 +288,15 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
       });
 
       // Accept required agreements automatically (since they were checked in step 1)
-      const { acceptAllAgreements } = useUserAgreements();
-      // Note: we can't use hooks inside an async function like this directly if it wasn't already at the top.
-      // I should move useUserAgreements to the top of the component.
+      await acceptAllAgreements({
+        tosAgree: true,
+        privacyAgree: true,
+        saasAgree: true,
+        betaAgree: true,
+        dodCompliance: true,
+        liabilityWaiver: true,
+        exportControl: true
+      });
 
       toast({
         title: "Setup Complete!",

@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { 
-  UserCheck, 
-  Play, 
-  ArrowRight, 
+import {
+  Play,
+  ArrowRight,
   CheckCircle2,
   Users,
   Building,
@@ -19,7 +18,7 @@ import {
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { RoleBasedTour } from './RoleBasedTour';
 import { ExecutiveDashboardMode } from './ExecutiveDashboardMode';
-import { AWSStyleOnboarding } from './AWSStyleOnboarding';
+import { NativeOnboarding } from './NativeOnboarding';
 
 interface EnhancedOnboardingProps {
   open: boolean;
@@ -31,7 +30,7 @@ export const EnhancedOnboarding = ({ open, onClose, onComplete }: EnhancedOnboar
   const navigate = useNavigate();
   const { profile } = useUserProfile();
   const [showRoleBasedTour, setShowRoleBasedTour] = useState(false);
-  const [showAWSStyleOnboarding, setShowAWSStyleOnboarding] = useState(false);
+  const [showNativeOnboarding, setShowNativeOnboarding] = useState(false);
   const [isExecutiveMode, setIsExecutiveMode] = useState(false);
 
   const getUserRole = () => {
@@ -49,8 +48,8 @@ export const EnhancedOnboarding = ({ open, onClose, onComplete }: EnhancedOnboar
     setShowRoleBasedTour(true);
   };
 
-  const startAWSStyleOnboarding = () => {
-    setShowAWSStyleOnboarding(true);
+  const startNativeOnboarding = () => {
+    setShowNativeOnboarding(true);
   };
 
   const handleTourComplete = () => {
@@ -71,11 +70,11 @@ export const EnhancedOnboarding = ({ open, onClose, onComplete }: EnhancedOnboar
     );
   }
 
-  if (showAWSStyleOnboarding) {
+  if (showNativeOnboarding) {
     return (
-      <AWSStyleOnboarding
-        open={showAWSStyleOnboarding}
-        onClose={() => setShowAWSStyleOnboarding(false)}
+      <NativeOnboarding
+        open={showNativeOnboarding}
+        onClose={() => setShowNativeOnboarding(false)}
         onComplete={onComplete}
       />
     );
@@ -116,7 +115,7 @@ export const EnhancedOnboarding = ({ open, onClose, onComplete }: EnhancedOnboar
           {/* Onboarding Options */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Choose Your Experience</h3>
-            
+
             {/* AWS-Style Professional Setup */}
             <Card className="cursor-pointer hover:shadow-md transition-shadow border-orange-200 bg-gradient-to-r from-orange-50 to-yellow-50">
               <CardContent className="p-6">
@@ -126,11 +125,10 @@ export const EnhancedOnboarding = ({ open, onClose, onComplete }: EnhancedOnboar
                   </div>
                   <div className="flex-1">
                     <h4 className="text-lg font-semibold mb-2">
-                      Professional Setup (AWS-Style)
+                      Advanced Infrastructure Setup
                     </h4>
                     <p className="text-muted-foreground mb-4">
-                      Complete enterprise-grade account setup with MFA, identity verification, and application configuration. 
-                      Follows AWS security best practices.
+                      Deploy enterprise-grade security controls, hardware-bound MFA, and automated STIG baselines using the native KHEPRA flow.
                     </p>
                     <div className="flex items-center space-x-2 text-sm text-orange-600">
                       <CheckCircle2 className="h-4 w-4" />
@@ -145,7 +143,7 @@ export const EnhancedOnboarding = ({ open, onClose, onComplete }: EnhancedOnboar
                       <span>Complete compliance setup</span>
                     </div>
                   </div>
-                  <Button onClick={startAWSStyleOnboarding} className="mt-4 bg-orange-500 hover:bg-orange-600">
+                  <Button onClick={startNativeOnboarding} className="mt-4 bg-primary hover:bg-primary-glow">
                     Start Setup
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
@@ -235,7 +233,7 @@ export const EnhancedOnboarding = ({ open, onClose, onComplete }: EnhancedOnboar
             <CardContent className="p-4">
               <h4 className="font-medium mb-2">Need Help Later?</h4>
               <p className="text-sm text-muted-foreground">
-                You can always restart this tour from the help menu or access our documentation 
+                You can always restart this tour from the help menu or access our documentation
                 and support resources from any page.
               </p>
             </CardContent>
