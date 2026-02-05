@@ -41,7 +41,7 @@ docker-compose*
 souhimbou_ai/
 adinkhepra-telemetry-server/
 tools/
-supabase/
+/supabase/
 
 # Documentation
 docs/
