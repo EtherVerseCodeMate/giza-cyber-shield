@@ -14,6 +14,7 @@ import (
 // Constants for shared literals
 const (
 	ErrTelemetryNotInitialized = "telemetry client not initialized"
+	ErrInvalidRequest          = "invalid request"
 )
 
 // LicensingAPI handles HTTP requests for license management
