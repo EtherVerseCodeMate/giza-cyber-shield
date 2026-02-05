@@ -19,7 +19,7 @@ import {
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { RoleBasedTour } from './RoleBasedTour';
 import { ExecutiveDashboardMode } from './ExecutiveDashboardMode';
-import { AWSStyleOnboarding } from './AWSStyleOnboarding';
+import { PapyrusOnboarding } from './PapyrusOnboarding';
 
 interface EnhancedOnboardingProps {
   open: boolean;
