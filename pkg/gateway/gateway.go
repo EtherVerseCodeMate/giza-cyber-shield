@@ -10,8 +10,18 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
+)
+
+const (
+	HeaderContentType     = "Content-Type"
+	HeaderXForwardedFor   = "X-Forwarded-For"
+	HeaderXRealIP         = "X-Real-IP"
+	HeaderWWWAuthenticate = "WWW-Authenticate"
+	HeaderRetryAfter      = "Retry-After"
+	MIMEApplicationJSON   = "application/json"
 )
 
 // Gateway is the main secure gateway server implementing zero-trust architecture
@@ -36,15 +46,15 @@ type Gateway struct {
 
 // GatewayMetrics tracks gateway performance and security metrics
 type GatewayMetrics struct {
-	RequestsTotal       int64
-	RequestsBlocked     int64
-	RequestsAllowed     int64
-	AuthFailures        int64
-	AnomaliesDetected   int64
-	RateLimitHits       int64
-	AverageLatencyMs    float64
-	LastUpdated         time.Time
-	mu                  sync.RWMutex
+	RequestsTotal     int64
+	RequestsBlocked   int64
+	RequestsAllowed   int64
+	AuthFailures      int64
+	AnomaliesDetected int64
+	RateLimitHits     int64
+	AverageLatencyMs  float64
+	LastUpdated       time.Time
+	mu                sync.RWMutex
 }
 
 // New creates a new Khepra Secure Gateway with the given configuration
@@ -134,85 +144,88 @@ func (g *Gateway) configureTLS() error {
 func (g *Gateway) Handler(upstream http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
-		ctx := r.Context()
+		reqCtx := g.initRequestContext(r, startTime)
+		r = r.WithContext(context.WithValue(r.Context(), requestContextKey, reqCtx))
 
-		// Create request context with tracking
-		reqCtx := &RequestContext{
-			RequestID:   generateRequestID(),
-			StartTime:   startTime,
-			ClientIP:    getClientIP(r),
-			Method:      r.Method,
-			Path:        r.URL.Path,
-			UserAgent:   r.UserAgent(),
-			ContentType: r.Header.Get("Content-Type"),
-		}
-		ctx = context.WithValue(ctx, requestContextKey, reqCtx)
-		r = r.WithContext(ctx)
-
-		// Update metrics
-		g.metrics.mu.Lock()
-		g.metrics.RequestsTotal++
-		g.metrics.mu.Unlock()
-
-		// === LAYER 1: FIREWALL ===
-		if blocked, reason := g.firewall.Check(r); blocked {
-			g.handleBlocked(w, r, reqCtx, "firewall", reason)
+		if g.runSecurityChecks(w, r, reqCtx) {
 			return
 		}
 
-		// === LAYER 2: AUTHENTICATION ===
-		identity, err := g.auth.Authenticate(r)
-		if err != nil {
-			g.handleAuthFailure(w, r, reqCtx, err)
-			return
-		}
-		reqCtx.Identity = identity
-
-		// === LAYER 3: ANOMALY DETECTION ===
-		if g.config.Anomaly.Enabled {
-			score, err := g.anomaly.Analyze(r, identity)
-			if err != nil {
-				log.Printf("[GATEWAY] Anomaly analysis error: %v", err)
-				// Fail-secure: if ML service fails, check fallback policy
-				if g.config.FailSecure.MLServiceFallback == "deny" {
-					g.handleBlocked(w, r, reqCtx, "anomaly", "ML service unavailable")
-					return
-				}
-			} else {
-				reqCtx.AnomalyScore = score
-				if score >= g.config.Anomaly.BlockThreshold {
-					g.handleBlocked(w, r, reqCtx, "anomaly", fmt.Sprintf("anomaly score %.2f exceeds threshold", score))
-					return
-				}
-				if score >= g.config.Anomaly.ChallengeThreshold {
-					// TODO: Implement challenge (CAPTCHA, re-auth, etc.)
-					reqCtx.Flags = append(reqCtx.Flags, "challenged")
-				}
-			}
-		}
-
-		// === LAYER 4: RATE LIMITING ===
-		if allowed, retryAfter := g.control.CheckRateLimit(identity.ID); !allowed {
-			g.handleRateLimited(w, r, reqCtx, retryAfter)
-			return
-		}
-
-		// === PASS TO UPSTREAM ===
-		// Wrap response writer to capture status
 		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
 		upstream.ServeHTTP(wrapped, r)
 
-		// Record success
-		reqCtx.StatusCode = wrapped.statusCode
-		reqCtx.Duration = time.Since(startTime)
-
-		g.metrics.mu.Lock()
-		g.metrics.RequestsAllowed++
-		g.metrics.mu.Unlock()
-
-		// Log the request
-		g.control.LogRequest(reqCtx)
+		g.finalizeRequest(reqCtx, wrapped.statusCode, startTime)
 	})
+}
+
+func (g *Gateway) initRequestContext(r *http.Request, start time.Time) *RequestContext {
+	g.metrics.mu.Lock()
+	g.metrics.RequestsTotal++
+	g.metrics.mu.Unlock()
+
+	return &RequestContext{
+		RequestID:   generateRequestID(),
+		StartTime:   start,
+		ClientIP:    getClientIP(r),
+		Method:      r.Method,
+		Path:        r.URL.Path,
+		UserAgent:   r.UserAgent(),
+		ContentType: r.Header.Get(HeaderContentType),
+	}
+}
+
+func (g *Gateway) runSecurityChecks(w http.ResponseWriter, r *http.Request, reqCtx *RequestContext) bool {
+	if blocked, reason := g.firewall.Check(r); blocked {
+		g.handleBlocked(w, r, reqCtx, "firewall", reason)
+		return true
+	}
+
+	identity, err := g.auth.Authenticate(r)
+	if err != nil {
+		g.handleAuthFailure(w, r, reqCtx, err)
+		return true
+	}
+	reqCtx.Identity = identity
+
+	if g.config.Anomaly.Enabled && g.checkAnomaly(w, r, reqCtx, identity) {
+		return true
+	}
+
+	if allowed, retryAfter := g.control.CheckRateLimit(identity.ID); !allowed {
+		g.handleRateLimited(w, r, reqCtx, retryAfter)
+		return true
+	}
+
+	return false
+}
+
+func (g *Gateway) checkAnomaly(w http.ResponseWriter, r *http.Request, reqCtx *RequestContext, id *Identity) bool {
+	score, err := g.anomaly.Analyze(r, id)
+	if err != nil {
+		if g.config.FailSecure.MLServiceFallback == "deny" {
+			g.handleBlocked(w, r, reqCtx, "anomaly", "ML service unavailable")
+			return true
+		}
+		return false
+	}
+
+	reqCtx.AnomalyScore = score
+	if score >= g.config.Anomaly.BlockThreshold {
+		g.handleBlocked(w, r, reqCtx, "anomaly", fmt.Sprintf("anomaly score %.2f", score))
+		return true
+	}
+	return false
+}
+
+func (g *Gateway) finalizeRequest(reqCtx *RequestContext, status int, start time.Time) {
+	reqCtx.StatusCode = status
+	reqCtx.Duration = time.Since(start)
+
+	g.metrics.mu.Lock()
+	g.metrics.RequestsAllowed++
+	g.metrics.mu.Unlock()
+
+	g.control.LogRequest(reqCtx)
 }
 
 // handleBlocked handles blocked requests
@@ -229,7 +242,7 @@ func (g *Gateway) handleBlocked(w http.ResponseWriter, r *http.Request, ctx *Req
 	g.control.LogRequest(ctx)
 
 	// Return minimal error response (don't leak info)
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(HeaderContentType, MIMEApplicationJSON)
 	w.WriteHeader(http.StatusForbidden)
 	w.Write([]byte(`{"error":"request_denied","code":"KHEPRA_BLOCK"}`))
 }
@@ -247,8 +260,8 @@ func (g *Gateway) handleAuthFailure(w http.ResponseWriter, r *http.Request, ctx 
 
 	g.control.LogRequest(ctx)
 
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("WWW-Authenticate", `Khepra realm="secure-gateway"`)
+	w.Header().Set(HeaderContentType, MIMEApplicationJSON)
+	w.Header().Set(HeaderWWWAuthenticate, `Khepra realm="secure-gateway"`)
 	w.WriteHeader(http.StatusUnauthorized)
 	w.Write([]byte(`{"error":"authentication_required","code":"KHEPRA_AUTH"}`))
 }
@@ -266,8 +279,8 @@ func (g *Gateway) handleRateLimited(w http.ResponseWriter, r *http.Request, ctx 
 
 	g.control.LogRequest(ctx)
 
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Retry-After", fmt.Sprintf("%d", int(retryAfter.Seconds())))
+	w.Header().Set(HeaderContentType, MIMEApplicationJSON)
+	w.Header().Set(HeaderRetryAfter, fmt.Sprintf("%d", int(retryAfter.Seconds())))
 	w.WriteHeader(http.StatusTooManyRequests)
 	w.Write([]byte(`{"error":"rate_limit_exceeded","code":"KHEPRA_RATE"}`))
 }
@@ -388,18 +401,15 @@ func generateRequestID() string {
 
 func getClientIP(r *http.Request) string {
 	// Check X-Forwarded-For header (if behind proxy)
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		// Take first IP in chain
-		for i := 0; i < len(xff); i++ {
-			if xff[i] == ',' {
-				return xff[:i]
-			}
+	if xff := r.Header.Get(HeaderXForwardedFor); xff != "" {
+		if idx := strings.Index(xff, ","); idx != -1 {
+			return strings.TrimSpace(xff[:idx])
 		}
 		return xff
 	}
 
 	// Check X-Real-IP header
-	if xri := r.Header.Get("X-Real-IP"); xri != "" {
+	if xri := r.Header.Get(HeaderXRealIP); xri != "" {
 		return xri
 	}
 
