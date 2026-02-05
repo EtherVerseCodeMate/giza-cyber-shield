@@ -14,12 +14,45 @@ import (
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 )
 
+const (
+	MIMEApplicationJSON = "application/json"
+	AgentVersion        = "v1.5.0-NUCLEAR"
+)
+
 // LicenseClient handles license validation with telemetry server
 type LicenseClient struct {
 	ServerURL  string
 	MachineID  string
 	PrivateKey string // Hex-encoded Dilithium3 private key
 	HTTPClient *http.Client
+}
+
+// SendRequest is a helper for JSON POST requests
+func (lc *LicenseClient) SendRequest(method, url string, payload interface{}) ([]byte, *http.Response, error) {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	client := lc.HTTPClient
+	if client == nil {
+		client = http.DefaultClient
+	}
+
+	req, err := http.NewRequest(method, url, bytes.NewBuffer(data))
+	if err != nil {
+		return nil, nil, err
+	}
+	req.Header.Set("Content-Type", MIMEApplicationJSON)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	return body, resp, err
 }
 
 // ValidateRequest sent to /license/validate
@@ -83,41 +116,19 @@ type RegisterResponse struct {
 }
 
 // Register attempts to auto-register the agent using an enrollment token
-// This is called on first boot when no license exists
 func (lc *LicenseClient) Register(enrollmentToken string) (*RegisterResponse, error) {
 	hostname, _ := os.Hostname()
-
 	req := RegisterRequest{
 		MachineID:       lc.MachineID,
 		EnrollmentToken: enrollmentToken,
 		Hostname:        hostname,
 		Platform:        fmt.Sprintf("%s-%s", runtime.GOOS, runtime.GOARCH),
-		AgentVersion:    "v1.0.0", // TODO: Get from build info
+		AgentVersion:    AgentVersion,
 	}
 
-	payload, err := json.Marshal(req)
+	body, resp, err := lc.SendRequest(http.MethodPost, lc.ServerURL+"/license/register", req)
 	if err != nil {
-		return nil, err
-	}
-
-	client := lc.HTTPClient
-	if client == nil {
-		client = http.DefaultClient
-	}
-
-	resp, err := client.Post(
-		lc.ServerURL+"/license/register",
-		"application/json",
-		bytes.NewBuffer(payload),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("registration server unreachable: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("registration failed: %w", err)
 	}
 
 	var registerResp RegisterResponse
@@ -125,12 +136,8 @@ func (lc *LicenseClient) Register(enrollmentToken string) (*RegisterResponse, er
 		return nil, err
 	}
 
-	// Check for error responses (non-2xx status codes)
 	if resp.StatusCode >= 400 {
-		if registerResp.Error != "" {
-			return &registerResp, fmt.Errorf("registration failed: %s", registerResp.Error)
-		}
-		return nil, fmt.Errorf("registration failed with status: %d", resp.StatusCode)
+		return &registerResp, fmt.Errorf("registration failed: %s", registerResp.Error)
 	}
 
 	return &registerResp, nil
@@ -138,7 +145,6 @@ func (lc *LicenseClient) Register(enrollmentToken string) (*RegisterResponse, er
 
 // Validate sends license validation request to telemetry server
 func (lc *LicenseClient) Validate() (*ValidateResponse, error) {
-	// Sign machine_id with Dilithium3
 	signature, err := lc.signData([]byte(lc.MachineID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign license request: %w", err)
@@ -147,38 +153,17 @@ func (lc *LicenseClient) Validate() (*ValidateResponse, error) {
 	req := ValidateRequest{
 		MachineID:      lc.MachineID,
 		Signature:      signature,
-		Version:        "v1.0.0", // TODO: Get from build info
+		Version:        AgentVersion,
 		InstallationID: lc.MachineID,
 	}
 
-	payload, err := json.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-
-	// Use DefaultClient if HTTPClient is nil
-	client := lc.HTTPClient
-	if client == nil {
-		client = http.DefaultClient
-	}
-
-	resp, err := client.Post(
-		lc.ServerURL+"/license/validate",
-		"application/json",
-		bytes.NewBuffer(payload),
-	)
+	body, resp, err := lc.SendRequest(http.MethodPost, lc.ServerURL+"/license/validate", req)
 	if err != nil {
 		return nil, fmt.Errorf("license server unreachable: %w", err)
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("license server returned status: %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
 	}
 
 	var validateResp ValidateResponse
@@ -202,29 +187,9 @@ func (lc *LicenseClient) SendHeartbeat(statusData map[string]interface{}) (*Hear
 		StatusData: statusData,
 	}
 
-	payload, err := json.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-
-	client := lc.HTTPClient
-	if client == nil {
-		client = http.DefaultClient
-	}
-
-	resp, err := client.Post(
-		lc.ServerURL+"/license/heartbeat",
-		"application/json",
-		bytes.NewBuffer(payload),
-	)
+	body, _, err := lc.SendRequest(http.MethodPost, lc.ServerURL+"/license/heartbeat", req)
 	if err != nil {
 		return nil, fmt.Errorf("heartbeat failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
 	}
 
 	var heartbeatResp HeartbeatResponse
@@ -235,8 +200,7 @@ func (lc *LicenseClient) SendHeartbeat(statusData map[string]interface{}) (*Hear
 	return &heartbeatResp, nil
 }
 
-// startTime is captured at package initialization
-var startTime = time.Now()
+var packageStartTime = time.Now()
 
 // StartHeartbeatDaemon starts background heartbeat (every hour)
 func (lc *LicenseClient) StartHeartbeatDaemon(stopCh chan struct{}) {
@@ -248,20 +212,10 @@ func (lc *LicenseClient) StartHeartbeatDaemon(stopCh chan struct{}) {
 			select {
 			case <-ticker.C:
 				statusData := map[string]interface{}{
-					"uptime_hours": time.Since(startTime).Hours(),
+					"uptime_hours": time.Since(packageStartTime).Hours(),
 					"go_version":   runtime.Version(),
 				}
-
-				_, err := lc.SendHeartbeat(statusData)
-				if err != nil {
-					// Simply log error or retry, but don't crash
-					// In a real app we might want to pass a logger or callback
-					// fmt.Printf("[LICENSE] Heartbeat failed: %v\n", err)
-					continue
-				}
-
-				// Handle response logic if needed (e.g. revocation) within the Manager,
-				// but this client is lower level. The Manager normally wraps this.
+				_, _ = lc.SendHeartbeat(statusData)
 			case <-stopCh:
 				return
 			}
@@ -272,30 +226,26 @@ func (lc *LicenseClient) StartHeartbeatDaemon(stopCh chan struct{}) {
 // signData signs data with ML-DSA-65 private key
 func (lc *LicenseClient) signData(data []byte) (string, error) {
 	if lc.PrivateKey == "" {
-		return "", fmt.Errorf("no private key provided")
+		return "", fmt.Errorf("no private key")
 	}
 
-	// Decode private key from hex
 	keyBytes, err := hex.DecodeString(lc.PrivateKey)
 	if err != nil {
-		return "", fmt.Errorf("invalid private key hex: %w", err)
+		return "", err
 	}
 
 	if len(keyBytes) != mldsa65.PrivateKeySize {
-		return "", fmt.Errorf("invalid private key size: expected %d, got %d",
-			mldsa65.PrivateKeySize, len(keyBytes))
+		return "", fmt.Errorf("invalid key size")
 	}
 
 	var keyBuf [mldsa65.PrivateKeySize]byte
 	copy(keyBuf[:], keyBytes)
 
-	var privateKey mldsa65.PrivateKey
-	privateKey.Unpack(&keyBuf)
+	var sk mldsa65.PrivateKey
+	sk.Unpack(&keyBuf)
 
-	// ML-DSA-65 SignTo
-	// func SignTo(sk *PrivateKey, msg, ctx []byte, randomized bool, sig []byte) error
 	signature := make([]byte, mldsa65.SignatureSize)
-	mldsa65.SignTo(&privateKey, data, nil, false, signature)
+	mldsa65.SignTo(&sk, data, nil, false, signature)
 
 	return hex.EncodeToString(signature), nil
 }

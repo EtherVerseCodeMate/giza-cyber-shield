@@ -47,28 +47,28 @@ type RequestFeatures struct {
 	RequestRateHz float64   `json:"request_rate_hz"`
 
 	// Request characteristics
-	Method          string  `json:"method"`
-	PathDepth       int     `json:"path_depth"`
-	QueryParamCount int     `json:"query_param_count"`
-	BodySizeBytes   int64   `json:"body_size_bytes"`
-	HeaderCount     int     `json:"header_count"`
-	ContentType     string  `json:"content_type"`
-	UserAgentHash   string  `json:"user_agent_hash"`
+	Method          string `json:"method"`
+	PathDepth       int    `json:"path_depth"`
+	QueryParamCount int    `json:"query_param_count"`
+	BodySizeBytes   int64  `json:"body_size_bytes"`
+	HeaderCount     int    `json:"header_count"`
+	ContentType     string `json:"content_type"`
+	UserAgentHash   string `json:"user_agent_hash"`
 
 	// Identity features
-	IdentityID    string  `json:"identity_id"`
-	IdentityType  string  `json:"identity_type"`
-	TrustScore    float64 `json:"trust_score"`
-	Organization  string  `json:"organization"`
+	IdentityID   string  `json:"identity_id"`
+	IdentityType string  `json:"identity_type"`
+	TrustScore   float64 `json:"trust_score"`
+	Organization string  `json:"organization"`
 
 	// Network features
-	ClientIP      string  `json:"client_ip"`
-	GeoCountry    string  `json:"geo_country"`
-	GeoCity       string  `json:"geo_city"`
-	ASN           int     `json:"asn"`
-	IsProxy       bool    `json:"is_proxy"`
-	IsTor         bool    `json:"is_tor"`
-	IsDatacenter  bool    `json:"is_datacenter"`
+	ClientIP     string `json:"client_ip"`
+	GeoCountry   string `json:"geo_country"`
+	GeoCity      string `json:"geo_city"`
+	ASN          int    `json:"asn"`
+	IsProxy      bool   `json:"is_proxy"`
+	IsTor        bool   `json:"is_tor"`
+	IsDatacenter bool   `json:"is_datacenter"`
 
 	// Behavioral features
 	SessionDuration     float64 `json:"session_duration_sec"`
@@ -96,9 +96,9 @@ type RequestBaseline struct {
 	DailyDistribution  [7]float64
 
 	// Common patterns
-	CommonMethods     map[string]float64
-	CommonPaths       map[string]float64
-	CommonUserAgents  map[string]float64
+	CommonMethods      map[string]float64
+	CommonPaths        map[string]float64
+	CommonUserAgents   map[string]float64
 	CommonContentTypes map[string]float64
 
 	// Last updated
@@ -188,53 +188,45 @@ func NewAnomalyLayer(cfg *AnomalyConfig) (*AnomalyLayer, error) {
 
 // Analyze performs ML-powered anomaly analysis on a request
 func (a *AnomalyLayer) Analyze(r *http.Request, identity *Identity) (float64, error) {
-	// Extract features from request
 	features := a.extractFeatures(r, identity)
+	a.handleLearning(features)
 
-	// Update learning data if in learning mode
-	if a.config.LearningMode {
-		a.baselineMu.Lock()
-		if len(a.learningData) < 10000 {
-			a.learningData = append(a.learningData, features)
-		}
-		a.baselineMu.Unlock()
-	}
-
-	var score float64
-	var err error
-
-	// Try ML service first
 	if a.config.MLServiceEndpoint != "" {
-		score, err = a.analyzeWithMLService(features)
-		if err != nil {
-			log.Printf("[ANOMALY] ML service error, falling back to local: %v", err)
-			// Fall through to local analysis
-		} else {
-			// ML service successful
+		if score, err := a.analyzeWithMLService(features); err == nil {
 			a.updateBehaviorProfile(identity.ID, features, score)
 			return score, nil
 		}
+		log.Printf("[ANOMALY] ML service error, falling back to local")
 	}
 
-	// Local fallback analysis
-	score = a.localAnomalyAnalysis(features)
-
-	// Geo-velocity check
-	if a.config.EnableGeoVelocity {
-		geoScore := a.checkGeoVelocity(identity.ID, features)
-		score = math.Max(score, geoScore)
-	}
-
-	// Behavioral analysis
-	if a.config.EnableBehavioralAnalysis {
-		behaviorScore := a.analyzeBehavior(identity.ID, features)
-		score = (score + behaviorScore) / 2 // Average the scores
-	}
-
-	// Update profile
+	score := a.runLocalChecks(features, identity.ID)
 	a.updateBehaviorProfile(identity.ID, features, score)
-
 	return score, nil
+}
+
+func (a *AnomalyLayer) handleLearning(f RequestFeatures) {
+	if !a.config.LearningMode {
+		return
+	}
+	a.baselineMu.Lock()
+	defer a.baselineMu.Unlock()
+	if len(a.learningData) < 10000 {
+		a.learningData = append(a.learningData, f)
+	}
+}
+
+func (a *AnomalyLayer) runLocalChecks(f RequestFeatures, identityID string) float64 {
+	score := a.localAnomalyAnalysis(f)
+
+	if a.config.EnableGeoVelocity {
+		score = math.Max(score, a.checkGeoVelocity(identityID, f))
+	}
+
+	if a.config.EnableBehavioralAnalysis {
+		score = (score + a.analyzeBehavior(identityID, f)) / 2
+	}
+
+	return score
 }
 
 // extractFeatures extracts ML features from the request
@@ -313,54 +305,58 @@ func (a *AnomalyLayer) analyzeWithMLService(features RequestFeatures) (float64, 
 }
 
 // localAnomalyAnalysis performs local statistical anomaly detection
-func (a *AnomalyLayer) localAnomalyAnalysis(features RequestFeatures) float64 {
+func (a *AnomalyLayer) localAnomalyAnalysis(f RequestFeatures) float64 {
 	a.baselineMu.RLock()
 	defer a.baselineMu.RUnlock()
 
 	if a.baseline.SampleCount < 100 {
-		// Not enough data for baseline, be permissive
 		return 0.1
 	}
 
-	var anomalyIndicators []float64
-
-	// Check request rate deviation
-	if a.baseline.StdRequestsPerMinute > 0 {
-		rateZ := math.Abs(features.RequestRateHz*60-a.baseline.AvgRequestsPerMinute) / a.baseline.StdRequestsPerMinute
-		anomalyIndicators = append(anomalyIndicators, sigmoid(rateZ-2))
-	}
-
-	// Check body size deviation
-	if a.baseline.StdBodySize > 0 && features.BodySizeBytes > 0 {
-		sizeZ := math.Abs(float64(features.BodySizeBytes)-a.baseline.AvgBodySize) / a.baseline.StdBodySize
-		anomalyIndicators = append(anomalyIndicators, sigmoid(sizeZ-3))
-	}
-
-	// Check time pattern deviation
-	hourWeight := a.baseline.HourlyDistribution[features.HourOfDay]
-	if hourWeight < 0.01 {
-		anomalyIndicators = append(anomalyIndicators, 0.7) // Unusual hour
-	}
-
-	// Check method frequency
-	if methodFreq, ok := a.baseline.CommonMethods[features.Method]; ok {
-		if methodFreq < 0.01 {
-			anomalyIndicators = append(anomalyIndicators, 0.5) // Rare method
-		}
-	} else {
-		anomalyIndicators = append(anomalyIndicators, 0.6) // Unknown method
-	}
-
-	// Aggregate scores
-	if len(anomalyIndicators) == 0 {
-		return 0.1
-	}
+	var indicators []float64
+	indicators = append(indicators, a.checkRateAnomaly(f))
+	indicators = append(indicators, a.checkSizeAnomaly(f))
+	indicators = append(indicators, a.checkTimeAnomaly(f))
+	indicators = append(indicators, a.checkMethodAnomaly(f))
 
 	sum := 0.0
-	for _, score := range anomalyIndicators {
-		sum += score
+	for _, s := range indicators {
+		sum += s
 	}
-	return sum / float64(len(anomalyIndicators))
+	return sum / float64(len(indicators))
+}
+
+func (a *AnomalyLayer) checkRateAnomaly(f RequestFeatures) float64 {
+	if a.baseline.StdRequestsPerMinute <= 0 {
+		return 0
+	}
+	z := math.Abs(f.RequestRateHz*60-a.baseline.AvgRequestsPerMinute) / a.baseline.StdRequestsPerMinute
+	return sigmoid(z - 2)
+}
+
+func (a *AnomalyLayer) checkSizeAnomaly(f RequestFeatures) float64 {
+	if a.baseline.StdBodySize <= 0 || f.BodySizeBytes <= 0 {
+		return 0
+	}
+	z := math.Abs(float64(f.BodySizeBytes)-a.baseline.AvgBodySize) / a.baseline.StdBodySize
+	return sigmoid(z - 3)
+}
+
+func (a *AnomalyLayer) checkTimeAnomaly(f RequestFeatures) float64 {
+	if a.baseline.HourlyDistribution[f.HourOfDay] < 0.01 {
+		return 0.7
+	}
+	return 0
+}
+
+func (a *AnomalyLayer) checkMethodAnomaly(f RequestFeatures) float64 {
+	if freq, ok := a.baseline.CommonMethods[f.Method]; ok {
+		if freq < 0.01 {
+			return 0.5
+		}
+		return 0
+	}
+	return 0.6
 }
 
 // checkGeoVelocity detects impossible travel patterns

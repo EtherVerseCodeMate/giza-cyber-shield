@@ -82,6 +82,12 @@ const CommandCenter = () => {
         }
     };
 
+    const getStatusColor = (status: string) => {
+        if (status === "online") return "bg-green-500";
+        if (status === "scanning") return "bg-blue-500 animate-pulse";
+        return "bg-red-500";
+    };
+
     const statusIcon = (status: string) => {
         switch (status) {
             case "pass": return <CheckCircle2 className="w-4 h-4 text-green-500" />;
@@ -125,7 +131,15 @@ const CommandCenter = () => {
                             {mockEndpoints.map((ep) => (
                                 <div
                                     key={ep.id}
+                                    role="button"
+                                    tabIndex={0}
                                     onClick={() => setSelectedEndpoint(ep)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            setSelectedEndpoint(ep);
+                                        }
+                                    }}
                                     className={`p-3 rounded-lg border cursor-pointer transition-all ${selectedEndpoint?.id === ep.id
                                         ? "bg-cyan-500/20 border-cyan-500"
                                         : "bg-slate-800/50 border-slate-700 hover:border-cyan-500/50"
@@ -141,9 +155,7 @@ const CommandCenter = () => {
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <Badge variant="outline" className="text-xs">{ep.profile}</Badge>
-                                            <div className={`w-2 h-2 rounded-full ${ep.status === "online" ? "bg-green-500" :
-                                                ep.status === "scanning" ? "bg-blue-500 animate-pulse" : "bg-red-500"
-                                                }`} />
+                                            <div className={`w-2 h-2 rounded-full ${getStatusColor(ep.status)}`} />
                                         </div>
                                     </div>
                                 </div>

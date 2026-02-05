@@ -335,6 +335,26 @@ func isValidUpgrade(currentTier, newTier EgyptianTier) bool {
 	return tierOrder[newTier] >= tierOrder[currentTier]
 }
 
+// GetLicenseCount returns the total number of licenses.
+func (lm *LicenseManager) GetLicenseCount() int {
+	lm.mu.RLock()
+	defer lm.mu.RUnlock()
+	return len(lm.licenses)
+}
+
+// CountByTier returns the number of licenses for a given tier.
+func (lm *LicenseManager) CountByTier(tier EgyptianTier) int {
+	lm.mu.RLock()
+	defer lm.mu.RUnlock()
+	count := 0
+	for _, l := range lm.licenses {
+		if l.Tier == tier {
+			count++
+		}
+	}
+	return count
+}
+
 // GetLicense retrieves a license by ID.
 func (lm *LicenseManager) GetLicense(licenseID string) (*License, error) {
 	lm.mu.RLock()

@@ -58,68 +58,58 @@ func (m *Manager) GetMachineID() string {
 
 // Initialize validates license and starts heartbeat daemon
 func (m *Manager) Initialize() error {
-	// Initial validation
 	resp, err := m.client.Validate()
 	if err != nil {
 		log.Printf("[LICENSE] Initial validation failed: %v", err)
-
-		// If we have an enrollment token, attempt auto-registration
-		if m.enrollmentToken != "" {
-			log.Printf("[LICENSE] Attempting auto-registration with enrollment token...")
-			regResp, regErr := m.client.Register(m.enrollmentToken)
-			if regErr != nil {
-				log.Printf("[LICENSE] Auto-registration failed: %v", regErr)
-			} else if regResp.Status == "registered" || regResp.Status == "already_registered" {
-				log.Printf("[LICENSE] ✅ Auto-registration successful: %s", regResp.Organization)
-				log.Printf("[LICENSE] License tier: %s, Expires: %s", regResp.LicenseTier, regResp.ExpiresAt)
-				log.Printf("[LICENSE] %s", regResp.Message)
-
-				// Re-attempt validation after registration
-				resp, err = m.client.Validate()
-				if err != nil {
-					log.Printf("[LICENSE] Post-registration validation failed: %v", err)
-					return fmt.Errorf("license validation failed after registration: %w", err)
-				}
-			} else {
-				log.Printf("[LICENSE] Registration response: %s - %s", regResp.Status, regResp.Error)
-			}
-		}
-
-		// If still failing, check grace period
+		resp, err = m.handleInitialFailure()
 		if err != nil {
-			log.Printf("[LICENSE] Checking for cached grace period...")
-			// Logic for Grace Period Check (Mocked for now as we don't have disk persistence yet)
-			// If persisted validation exists and is < 30 days old, return nil (success)
-			// For now, we fallback to community edition if online validation fails.
-			return fmt.Errorf("license validation failed: %w", err)
+			return err
 		}
 	}
 
-	m.validationMu.Lock()
-	m.cachedValidation = resp
-	m.lastValidated = time.Now()
-	m.validationMu.Unlock()
+	m.updateCachedValidation(resp)
 
 	if !resp.Valid {
-		log.Printf("[LICENSE] License invalid: %s", resp.Error)
-		if resp.FallbackAvailable {
-			log.Printf("[LICENSE] Falling back to community edition")
-			// We don't error here, we just run in community mode
-			return nil
-		}
-		return fmt.Errorf("license invalid: %s", resp.Error)
+		return m.handleInvalidLicense(resp)
 	}
 
-	log.Printf("[LICENSE] ✅ License validated: %s (%s)",
-		resp.Organization, resp.LicenseTier)
-	// log.Printf("[LICENSE] Features: %v", resp.Features)
+	log.Printf("[LICENSE] ✅ License validated: %s (%s)", resp.Organization, resp.LicenseTier)
 	log.Printf("[LICENSE] Expires: %s", resp.ExpiresAt)
 
-	// Start heartbeat daemon
 	m.heartbeatStopCh = make(chan struct{})
 	m.client.StartHeartbeatDaemon(m.heartbeatStopCh)
-
 	return nil
+}
+
+func (m *Manager) handleInitialFailure() (*ValidateResponse, error) {
+	if m.enrollmentToken != "" {
+		log.Printf("[LICENSE] Attempting auto-registration...")
+		regResp, regErr := m.client.Register(m.enrollmentToken)
+		if regErr == nil && (regResp.Status == "registered" || regResp.Status == "already_registered") {
+			log.Printf("[LICENSE] ✅ Auto-registration successful: %s", regResp.Organization)
+			return m.client.Validate()
+		}
+		log.Printf("[LICENSE] Registration failed or incomplete: %v", regErr)
+	}
+
+	// Fallback/Grace period check logic would go here
+	return nil, fmt.Errorf("license validation failed and registration unavailable")
+}
+
+func (m *Manager) handleInvalidLicense(resp *ValidateResponse) error {
+	log.Printf("[LICENSE] License invalid: %s", resp.Error)
+	if resp.FallbackAvailable {
+		log.Printf("[LICENSE] Falling back to community edition")
+		return nil
+	}
+	return fmt.Errorf("license invalid: %s", resp.Error)
+}
+
+func (m *Manager) updateCachedValidation(resp *ValidateResponse) {
+	m.validationMu.Lock()
+	defer m.validationMu.Unlock()
+	m.cachedValidation = resp
+	m.lastValidated = time.Now()
 }
 
 // HasFeature checks if license includes specific feature
