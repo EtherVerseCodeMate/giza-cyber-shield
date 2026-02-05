@@ -57,7 +57,7 @@ func printMachineID() {
 	fmt.Println(BannerSeparator)
 	fmt.Printf("  Machine ID: %s\n", machineID)
 	fmt.Println(BannerSeparator)
-	fmt.Println("\nSend this Machine ID to your administrator\nto receive your license activation.\n")
+	fmt.Println("\nSend this Machine ID to your administrator\nto receive your license activation.")
 	os.Exit(0)
 }
 
@@ -92,7 +92,7 @@ func initializeAgent(token string) {
 	runServer(s, cfg)
 }
 
-func setupLicensing(token string, store dag.Store) (*license.Manager, *license.LicenseManager, *license.DAGLicenseEnforcer) {
+func setupLicensing(token string, _ dag.Store) (*license.Manager, *license.LicenseManager, *license.DAGLicenseEnforcer) {
 	licenseServer := os.Getenv("KHEPRA_LICENSE_SERVER")
 	if licenseServer == "" {
 		licenseServer = "https://telemetry.souhimbou.org"
@@ -222,7 +222,7 @@ func (s *server) agiScan(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "scan_started"})
 }
 
-func startTailscale(mux *http.ServeMux, cfg config.Config) {
+func startTailscale(mux *http.ServeMux, _ config.Config) {
 	ts, _ := tailnet.NewServer("adinkhepra-node-" + randID())
 	ln, _ := ts.Listen(context.TODO(), ":45444")
 	log.Fatal(http.Serve(ln, sWithJSON(mux)))
