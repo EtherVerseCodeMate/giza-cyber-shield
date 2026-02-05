@@ -35,7 +35,7 @@ const Auth = () => {
   const { hasAcceptedAll, acceptAllAgreements, checkAgreementStatus } = useUserAgreements();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const {
     validateInput,
     trackAuthAttempt,
@@ -86,13 +86,13 @@ const Auth = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Check if account is locked
     if (isAccountLocked()) {
       const timeRemaining = getLockoutTimeRemaining();
       const minutes = Math.floor(timeRemaining / 60000);
       const seconds = Math.floor((timeRemaining % 60000) / 1000);
-      
+
       toast({
         title: "Account Temporarily Locked",
         description: `Too many failed attempts. Try again in ${minutes}:${seconds.toString().padStart(2, '0')}.`,
@@ -134,7 +134,7 @@ const Auth = () => {
         });
         return;
       }
-      
+
       // Check password strength for registration
       if (!passwordStrengthData.isStrong) {
         toast({
@@ -151,13 +151,13 @@ const Auth = () => {
     try {
       if (isLogin) {
         const { error } = await signIn(email, password);
-        
+
         if (error) {
-          await trackAuthAttempt(false, email, { 
+          await trackAuthAttempt(false, email, {
             userAgent: navigator.userAgent,
             timestamp: new Date().toISOString()
           });
-          
+
           toast({
             title: "Authentication Failed",
             description: error.message,
@@ -168,23 +168,15 @@ const Auth = () => {
             userAgent: navigator.userAgent,
             timestamp: new Date().toISOString()
           });
-          
+
           toast({
             title: "Access Granted",
             description: "Checking legal compliance...",
             variant: "default"
           });
-          
-          // Check if user has accepted all required agreements
-          const { data: { user: authUser } } = await supabase.auth.getUser();
-          if (authUser) {
-            const hasAccepted = await checkAgreementStatus(authUser.id);
-            if (hasAccepted) {
-              navigate('/dashboard');
-            } else {
-              setShowTerms(true);
-            }
-          }
+
+          // Navigate directly to dashboard as requested
+          navigate('/dashboard');
         }
       } else {
         // Validate additional registration fields
@@ -208,7 +200,7 @@ const Auth = () => {
           security_clearance: securityClearance,
           role: 'viewer'
         });
-        
+
         if (error) {
           toast({
             title: "Registration Failed",
@@ -255,10 +247,10 @@ const Auth = () => {
       <div className="min-h-screen bg-gradient-dark flex items-center justify-center p-6 relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--primary-glow)_0%,_transparent_50%)] opacity-10"></div>
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/5 via-transparent to-accent/5"></div>
-        
-        <TermsAcceptance 
+
+        <TermsAcceptance
           open={true}
-          onOpenChange={() => {}}
+          onOpenChange={() => { }}
           onAccepted={() => handleTermsAcceptance({})}
         />
       </div>
@@ -270,7 +262,7 @@ const Auth = () => {
       {/* Background Effects */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--primary-glow)_0%,_transparent_50%)] opacity-10"></div>
       <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/5 via-transparent to-accent/5"></div>
-      
+
       {/* Floating Security Icons */}
       <div className="absolute top-20 left-20 animate-float">
         <Shield className="h-8 w-8 text-primary/20" />
@@ -285,9 +277,9 @@ const Auth = () => {
       <Card className="w-full max-w-4xl card-cyber backdrop-blur-lg relative z-10">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <img 
-              src="/lovable-uploads/94f06ba5-2c93-4be0-a03f-e3fff4157ca6.png" 
-              alt="SouHimBou AI Logo" 
+            <img
+              src="/lovable-uploads/94f06ba5-2c93-4be0-a03f-e3fff4157ca6.png"
+              alt="SouHimBou AI Logo"
               className="h-10 w-auto"
             />
             <h1 className="text-3xl font-bold bg-gradient-cyber bg-clip-text text-transparent">
@@ -304,7 +296,7 @@ const Auth = () => {
             <AlertTriangle className="h-3 w-3" />
             <span>DoD CLASSIFIED</span>
           </Badge>
-          
+
           {isAccountLocked() && (
             <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
               <div className="flex items-center space-x-2 text-destructive">
@@ -317,7 +309,7 @@ const Auth = () => {
             </div>
           )}
         </CardHeader>
-        
+
         <CardContent>
           {showPasswordReset ? (
             <PasswordResetOTP
@@ -354,7 +346,7 @@ const Auth = () => {
                       placeholder="Enter your email"
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="password" className="text-foreground flex items-center space-x-2">
                       <Lock className="h-4 w-4" />
@@ -413,9 +405,9 @@ const Auth = () => {
               </TabsContent>
 
               <TabsContent value="register" className="space-y-4 mt-6">
-                <form onSubmit={(e) => { 
-                  setIsLogin(false); 
-                  handleSubmit(e); 
+                <form onSubmit={(e) => {
+                  setIsLogin(false);
+                  handleSubmit(e);
                 }} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="reg-email" className="text-foreground flex items-center space-x-2">
@@ -432,7 +424,7 @@ const Auth = () => {
                       placeholder="Enter your email"
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="reg-password" className="text-foreground flex items-center space-x-2">
                       <Lock className="h-4 w-4" />
@@ -456,7 +448,7 @@ const Auth = () => {
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
-                    
+
                     {password && (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-xs">
