@@ -149,6 +149,13 @@ func (dle *DAGLicenseEnforcer) GetNodeLicense(nodeID string) (*NodeLicenseBindin
 	return binding, nil
 }
 
+// GetNodeCount returns the total number of licensed nodes.
+func (dle *DAGLicenseEnforcer) GetNodeCount() int {
+	dle.mu.RLock()
+	defer dle.mu.RUnlock()
+	return len(dle.nodeBindings)
+}
+
 // ListNodesByLicense returns all nodes authorized by a license
 func (dle *DAGLicenseEnforcer) ListNodesByLicense(licenseID string) []*NodeLicenseBinding {
 	dle.mu.RLock()
