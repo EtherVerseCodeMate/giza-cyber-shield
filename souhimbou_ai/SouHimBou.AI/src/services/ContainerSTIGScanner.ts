@@ -45,11 +45,9 @@ export interface RuntimeSecurityCheck {
 }
 
 export class ContainerSTIGScanner {
-  private baseUrl: string;
+  private readonly baseUrl: string = 'https://xjknkjbrjgljuovaazeu.supabase.co/functions/v1';
 
-  constructor() {
-    this.baseUrl = 'https://xjknkjbrjgljuovaazeu.supabase.co/functions/v1';
-  }
+  constructor() { }
 
   /**
    * Scan a container image for STIG compliance
