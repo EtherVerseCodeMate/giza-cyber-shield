@@ -133,6 +133,7 @@ const CommandCenter = () => {
                                     key={ep.id}
                                     role="button"
                                     tabIndex={0}
+                                    aria-label={`Select endpoint: ${ep.hostname}`}
                                     onClick={() => setSelectedEndpoint(ep)}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' || e.key === ' ') {
