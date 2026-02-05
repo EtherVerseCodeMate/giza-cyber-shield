@@ -174,6 +174,7 @@ aws cloudformation deploy \
 - **Security Groups**: Least-privilege network access
 - **IAM Roles**: Task-specific roles with minimal permissions
 - **Container Insights**: Full observability with CloudWatch
+- **SSDLC Aligned**: Developed following the [Secure Software Development Lifecycle](../docs/SECURE_DEVELOPMENT_LIFECYCLE.md) (AS02-AS06)
 
 ### IL4/IL5 Considerations
 
