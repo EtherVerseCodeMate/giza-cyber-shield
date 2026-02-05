@@ -13,7 +13,8 @@ func DeployFirewall(port string, direction string) error {
 		return fmt.Errorf("only inbound blocking supported for safety")
 	}
 
-	if runtime.GOOS == "windows" {
+	switch runtime.GOOS {
+	case "windows":
 		ruleName := fmt.Sprintf("KhepraBlockPort%s", port)
 		// netsh advfirewall firewall add rule name="KhepraBlockPort80" dir=in action=block protocol=TCP localport=80
 		cmd := exec.Command("netsh", "advfirewall", "firewall", "add", "rule",
@@ -27,13 +28,15 @@ func DeployFirewall(port string, direction string) error {
 			return fmt.Errorf("windows firewall failed: %v | output: %s", err, out)
 		}
 		return nil
-	} else if runtime.GOOS == "linux" {
+	case "linux":
 		// iptables -A INPUT -p tcp --dport 80 -j DROP
 		cmd := exec.Command("iptables", "-A", "INPUT", "-p", "tcp", "--dport", port, "-j", "DROP")
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("iptables failed: %v | output: %s", err, out)
 		}
 		return nil
+	default:
+		return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}
 
 	return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
