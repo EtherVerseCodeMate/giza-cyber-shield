@@ -13,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Shield, User, Lock, Building, Eye, EyeOff, AlertTriangle, CheckCircle, Fingerprint, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import TermsAcceptance from '@/components/legal/TermsAcceptance';
 import PasswordResetOTP from '@/components/auth/PasswordResetOTP';
 
 const Auth = () => {
