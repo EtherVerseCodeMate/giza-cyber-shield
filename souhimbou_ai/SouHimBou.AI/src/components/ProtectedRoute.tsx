@@ -26,7 +26,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
 
-  if (!user || !hasAcceptedAll) {
+  if (!user) {
     return null;
   }
 
