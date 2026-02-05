@@ -145,7 +145,7 @@ We target **Level 2 (Advanced)** and **Level 3 (Expert)** practices for defense 
 
 ### ISO/IEC 27001:2022
 - **A.8.8 Management of Technical Vulnerabilities**: This policy and our patching cadence address the management of technical vulnerabilities.
-- **A.8.25 Secure Development Lifecycle**: We adhere to secure coding practices, static analysis (SAST), and dependency scanning to minimize vulnerabilities in the development phase.
+- **A.8.25 Secure Development Lifecycle**: We adhere to secure coding practices, static analysis (SAST), and dependency scanning. For detailed information on our AS-series security controls (AS02-AS06), see our [Secure Software Development Lifecycle (SSDLC)](docs/SECURE_DEVELOPMENT_LIFECYCLE.md).
 
 ## Dependencies & Supply Chain Security
 - **Dependabot**: We utilize automated dependency scanning (Dependabot) to detect and remediate vulnerabilities in upstream libraries (e.g., npm, Go modules).
