@@ -35,7 +35,7 @@ const PasswordResetOTP = ({ onBack, onSuccess }: PasswordResetOTPProps) => {
     try {
       // Use Supabase's built-in password reset (works immediately, no domain verification needed)
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
+        redirectTo: `${globalThis.location.origin}/auth/reset-password`,
       });
 
       if (error) {

@@ -1,4 +1,4 @@
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode, useMemo } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { AuthContext } from './AuthContext';
@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const signUp = async (email: string, password: string, metadata?: any) => {
-    const redirectUrl = `${window.location.origin}/auth/callback`;
+    const redirectUrl = `${globalThis.location.origin}/auth/callback`;
 
     const { error } = await supabase.auth.signUp({
       email,
@@ -99,7 +99,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const resetPassword = async (email: string) => {
-    const redirectUrl = `${window.location.origin}/auth/callback`;
+    const redirectUrl = `${globalThis.location.origin}/auth/callback`;
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl
@@ -107,16 +107,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return { error };
   };
 
+  const contextValue = useMemo(() => ({
+    user,
+    session,
+    loading,
+    signIn,
+    signUp,
+    signOut,
+    resetPassword
+  }), [user, session, loading]);
+
   return (
-    <AuthContext.Provider value={{
-      user,
-      session,
-      loading,
-      signIn,
-      signUp,
-      signOut,
-      resetPassword
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

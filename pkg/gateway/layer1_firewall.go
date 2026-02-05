@@ -18,10 +18,10 @@ type FirewallLayer struct {
 	config *FirewallConfig
 
 	// IP Blocklists (loaded from files or threat intel feeds)
-	blockedIPs    map[string]bool
-	blockedCIDRs  []*net.IPNet
-	allowedCIDRs  []*net.IPNet
-	torExitNodes  map[string]bool
+	blockedIPs   map[string]bool
+	blockedCIDRs []*net.IPNet
+	allowedCIDRs []*net.IPNet
+	torExitNodes map[string]bool
 
 	// WAF Patterns
 	sqliPatterns []*regexp.Regexp
@@ -60,35 +60,33 @@ func NewFirewallLayer(cfg *FirewallConfig) (*FirewallLayer, error) {
 // Check performs all firewall checks on the request
 // Returns (blocked bool, reason string)
 func (fw *FirewallLayer) Check(r *http.Request) (bool, string) {
-	// 1. Protocol Enforcement
-	if fw.config.RequireHTTPS && r.TLS == nil {
-		return true, "HTTPS required"
+	if blocked, reason := fw.runPreChecks(r); blocked {
+		return true, reason
 	}
 
-	// 2. Method Whitelist
-	if !fw.isMethodAllowed(r.Method) {
-		return true, "method not allowed"
-	}
-
-	// 3. Request Size Limits
-	if r.ContentLength > fw.config.MaxRequestSizeBytes {
-		return true, "request too large"
-	}
-
-	// 4. IP Reputation
 	clientIP := getClientIP(r)
 	if blocked, reason := fw.checkIP(clientIP); blocked {
 		return true, reason
 	}
 
-	// 5. Geo Blocking (if configured)
 	if blocked, reason := fw.checkGeo(clientIP); blocked {
 		return true, reason
 	}
 
-	// 6. WAF Rules
-	if blocked, reason := fw.checkWAF(r); blocked {
-		return true, reason
+	return fw.checkWAF(r)
+}
+
+func (fw *FirewallLayer) runPreChecks(r *http.Request) (bool, string) {
+	if fw.config.RequireHTTPS && r.TLS == nil {
+		return true, "HTTPS required"
+	}
+
+	if !fw.isMethodAllowed(r.Method) {
+		return true, "method not allowed"
+	}
+
+	if r.ContentLength > fw.config.MaxRequestSizeBytes {
+		return true, "request too large"
 	}
 
 	return false, ""
@@ -177,54 +175,33 @@ func (fw *FirewallLayer) checkGeo(ip string) (bool, string) {
 
 // checkWAF runs Web Application Firewall rules
 func (fw *FirewallLayer) checkWAF(r *http.Request) (bool, string) {
-	// Collect all input vectors
 	inputs := fw.collectInputs(r)
 
-	// Check SQL Injection
-	if fw.config.EnableSQLiProtection {
-		for _, input := range inputs {
-			for _, pattern := range fw.sqliPatterns {
-				if pattern.MatchString(input) {
-					return true, "SQL injection detected"
-				}
-			}
-		}
+	if fw.config.EnableSQLiProtection && fw.matchesPatterns(inputs, fw.sqliPatterns) {
+		return true, "SQL injection detected"
 	}
-
-	// Check XSS
-	if fw.config.EnableXSSProtection {
-		for _, input := range inputs {
-			for _, pattern := range fw.xssPatterns {
-				if pattern.MatchString(input) {
-					return true, "XSS detected"
-				}
-			}
-		}
+	if fw.config.EnableXSSProtection && fw.matchesPatterns(inputs, fw.xssPatterns) {
+		return true, "XSS detected"
 	}
-
-	// Check Local File Inclusion
-	if fw.config.EnableLFIProtection {
-		for _, input := range inputs {
-			for _, pattern := range fw.lfiPatterns {
-				if pattern.MatchString(input) {
-					return true, "LFI detected"
-				}
-			}
-		}
+	if fw.config.EnableLFIProtection && fw.matchesPatterns(inputs, fw.lfiPatterns) {
+		return true, "LFI detected"
 	}
-
-	// Check Remote Code Execution
-	if fw.config.EnableRCEProtection {
-		for _, input := range inputs {
-			for _, pattern := range fw.rcePatterns {
-				if pattern.MatchString(input) {
-					return true, "RCE attempt detected"
-				}
-			}
-		}
+	if fw.config.EnableRCEProtection && fw.matchesPatterns(inputs, fw.rcePatterns) {
+		return true, "RCE attempt detected"
 	}
 
 	return false, ""
+}
+
+func (fw *FirewallLayer) matchesPatterns(inputs []string, patterns []*regexp.Regexp) bool {
+	for _, input := range inputs {
+		for _, pattern := range patterns {
+			if pattern.MatchString(input) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // collectInputs gathers all user input for WAF scanning
