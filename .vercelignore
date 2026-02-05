@@ -42,6 +42,7 @@ souhimbou_ai/
 adinkhepra-telemetry-server/
 tools/
 /supabase/
+!src/integrations/supabase/
 
 # Documentation
 docs/
