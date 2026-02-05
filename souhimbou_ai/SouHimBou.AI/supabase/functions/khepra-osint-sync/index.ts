@@ -56,7 +56,7 @@ const OSINT_SOURCES: OSINTSource[] = [
   }
 ];
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -73,13 +73,13 @@ serve(async (req) => {
     switch (action) {
       case 'sync_all':
         return await syncAllSources(supabase);
-      
+
       case 'sync_source':
         return await syncSpecificSource(supabase, sourceId);
-      
+
       case 'get_status':
         return await getSourceStatus(supabase);
-      
+
       default:
         return new Response(
           JSON.stringify({ error: 'Invalid action' }),
@@ -89,7 +89,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in KHEPRA OSINT sync:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
@@ -97,9 +97,9 @@ serve(async (req) => {
 
 async function syncAllSources(supabase: any) {
   console.log('Starting KHEPRA OSINT synchronization for all sources...');
-  
+
   const results = [];
-  
+
   for (const source of OSINT_SOURCES) {
     try {
       const result = await syncSource(supabase, source);
@@ -109,12 +109,12 @@ async function syncAllSources(supabase: any) {
       results.push({
         sourceId: source.id,
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         indicators: 0
       });
     }
   }
-  
+
   return new Response(
     JSON.stringify({
       success: true,
@@ -128,16 +128,16 @@ async function syncAllSources(supabase: any) {
 
 async function syncSpecificSource(supabase: any, sourceId: string) {
   const source = OSINT_SOURCES.find(s => s.id === sourceId);
-  
+
   if (!source) {
     return new Response(
       JSON.stringify({ error: 'Source not found' }),
       { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-  
+
   const result = await syncSource(supabase, source);
-  
+
   return new Response(
     JSON.stringify({
       success: true,
@@ -151,33 +151,36 @@ async function syncSpecificSource(supabase: any, sourceId: string) {
 
 async function syncSource(supabase: any, source: OSINTSource) {
   console.log(`Syncing OSINT source: ${source.name}`);
-  
+
   let indicators = 0;
   let culturalMappings = 0;
-  
+
   switch (source.type) {
-    case 'mitre':
+    case 'mitre': {
       const mitreData = await fetchMITREData(source);
       indicators = await processMITREData(supabase, mitreData);
       culturalMappings = await generateCulturalMappings(supabase, 'mitre', indicators);
       break;
-      
-    case 'cvss':
+    }
+
+    case 'cvss': {
       const cvssData = await fetchCVSSData(source);
       indicators = await processCVSSData(supabase, cvssData);
       culturalMappings = await generateCulturalMappings(supabase, 'cvss', indicators);
       break;
-      
-    case 'threat_feed':
+    }
+
+    case 'threat_feed': {
       const feedData = await fetchThreatFeedData(source);
       indicators = await processThreatFeedData(supabase, feedData);
       culturalMappings = await generateCulturalMappings(supabase, 'threat_feed', indicators);
       break;
+    }
   }
-  
+
   // Update sync status
   await updateSyncStatus(supabase, source.id, indicators);
-  
+
   return {
     sourceId: source.id,
     success: true,
@@ -189,7 +192,7 @@ async function syncSource(supabase: any, source: OSINTSource) {
 
 async function fetchMITREData(source: OSINTSource): Promise<MITREData> {
   console.log('Fetching MITRE ATT&CK data...');
-  
+
   // Simulate fetching MITRE data (in production, would fetch real data)
   const mockTechniques = [
     {
@@ -214,13 +217,13 @@ async function fetchMITREData(source: OSINTSource): Promise<MITREData> {
       description: 'Adversaries may delete files left behind by the actions of their intrusion activity.'
     }
   ];
-  
+
   return { techniques: mockTechniques };
 }
 
 async function fetchCVSSData(source: OSINTSource): Promise<CVSSData> {
   console.log('Fetching CVSS vulnerability data...');
-  
+
   // Simulate fetching CVSS data (in production, would fetch real NVD data)
   const mockVulnerabilities = [
     {
@@ -238,13 +241,13 @@ async function fetchCVSSData(source: OSINTSource): Promise<CVSSData> {
       description: 'Information disclosure vulnerability in network services'
     }
   ];
-  
+
   return { vulnerabilities: mockVulnerabilities };
 }
 
 async function fetchThreatFeedData(source: OSINTSource) {
   console.log('Fetching threat feed data...');
-  
+
   // Simulate fetching threat feed data
   return {
     indicators: [
@@ -257,11 +260,11 @@ async function fetchThreatFeedData(source: OSINTSource) {
 
 async function processMITREData(supabase: any, data: MITREData): Promise<number> {
   console.log('Processing MITRE ATT&CK data with KHEPRA cultural mappings...');
-  
+
   for (const technique of data.techniques) {
     // Map MITRE techniques to Adinkra symbols based on tactic
     const culturalSymbol = mapTacticToAdinkraSymbol(technique.tactic);
-    
+
     // Insert/update threat intelligence with cultural context
     await supabase
       .from('threat_intelligence')
@@ -279,18 +282,18 @@ async function processMITREData(supabase: any, data: MITREData): Promise<number>
         }
       });
   }
-  
+
   return data.techniques.length;
 }
 
 async function processCVSSData(supabase: any, data: CVSSData): Promise<number> {
   console.log('Processing CVSS data with KHEPRA risk assessment...');
-  
+
   for (const vuln of data.vulnerabilities) {
     // Map CVSS severity to cultural risk assessment
     const culturalSymbol = mapSeverityToAdinkraSymbol(vuln.severity);
     const culturalRisk = calculateCulturalRisk(vuln.baseScore, culturalSymbol);
-    
+
     await supabase
       .from('threat_intelligence')
       .upsert({
@@ -308,16 +311,16 @@ async function processCVSSData(supabase: any, data: CVSSData): Promise<number> {
         }
       });
   }
-  
+
   return data.vulnerabilities.length;
 }
 
 async function processThreatFeedData(supabase: any, data: any): Promise<number> {
   console.log('Processing threat feed data with KHEPRA verification...');
-  
+
   for (const indicator of data.indicators) {
     const culturalSymbol = mapIndicatorTypeToAdinkraSymbol(indicator.type);
-    
+
     await supabase
       .from('threat_intelligence')
       .upsert({
@@ -333,22 +336,22 @@ async function processThreatFeedData(supabase: any, data: any): Promise<number> 
         }
       });
   }
-  
+
   return data.indicators.length;
 }
 
 async function generateCulturalMappings(supabase: any, sourceType: string, indicatorCount: number): Promise<number> {
   console.log(`Generating cultural mappings for ${sourceType}...`);
-  
+
   // Create cultural analysis entries
   const mappings = Math.floor(indicatorCount * 0.8); // 80% of indicators get cultural mappings
-  
+
   return mappings;
 }
 
 async function updateSyncStatus(supabase: any, sourceId: string, indicators: number) {
   console.log(`Updating sync status for source ${sourceId}...`);
-  
+
   // In a real implementation, this would update a sources status table
   console.log(`Source ${sourceId} synchronized: ${indicators} indicators processed`);
 }
@@ -362,7 +365,7 @@ async function getSourceStatus(supabase: any) {
     lastSync: new Date().toISOString(),
     indicators: Math.floor(Math.random() * 1000) + 100
   }));
-  
+
   return new Response(
     JSON.stringify({
       success: true,
@@ -375,7 +378,7 @@ async function getSourceStatus(supabase: any) {
 
 // KHEPRA Cultural Mapping Functions
 function mapTacticToAdinkraSymbol(tactic: string): string {
-  const tacticMappings = {
+  const tacticMappings: Record<string, string> = {
     'Initial Access': 'Eban', // Fortress - protection against entry
     'Execution': 'Nkyinkyim', // Journey - dynamic execution
     'Persistence': 'Fawohodie', // Independence - maintaining access
@@ -389,68 +392,68 @@ function mapTacticToAdinkraSymbol(tactic: string): string {
     'Exfiltration': 'Fawohodie', // Independence - removing data
     'Impact': 'Eban' // Fortress - defensive impact
   };
-  
+
   return tacticMappings[tactic] || 'Adwo';
 }
 
 function mapSeverityToAdinkraSymbol(severity: string): string {
-  const severityMappings = {
+  const severityMappings: Record<string, string> = {
     'CRITICAL': 'Eban', // Fortress - maximum protection needed
     'HIGH': 'Nyame', // Authority - significant trust concern
     'MEDIUM': 'Nkyinkyim', // Journey - adaptive response
     'LOW': 'Adwo' // Peace - minimal disruption
   };
-  
+
   return severityMappings[severity] || 'Adwo';
 }
 
 function mapIndicatorTypeToAdinkraSymbol(type: string): string {
-  const typeMappings = {
+  const typeMappings: Record<string, string> = {
     'ip': 'Eban', // Fortress - network protection
     'domain': 'Nyame', // Authority - domain trust
     'hash': 'Fawohodie', // Independence - file verification
     'url': 'Nkyinkyim' // Journey - web navigation
   };
-  
+
   return typeMappings[type] || 'Adwo';
 }
 
 function getCulturalContext(symbol: string): string {
-  const contextMappings = {
+  const contextMappings: Record<string, string> = {
     'Eban': 'security',
     'Nyame': 'trust',
     'Nkyinkyim': 'transformation',
     'Fawohodie': 'transformation',
     'Adwo': 'unity'
   };
-  
+
   return contextMappings[symbol] || 'unity';
 }
 
 function calculateCulturalRisk(cvssScore: number, symbol: string): number {
   // Base cultural risk from CVSS score
   let risk = (cvssScore / 10) * 100;
-  
+
   // Adjust based on cultural symbol
-  const symbolMultipliers = {
+  const symbolMultipliers: Record<string, number> = {
     'Eban': 1.2, // Fortress - high security concern
     'Nyame': 1.1, // Authority - trust implications
-    'Nkyinkyim': 1.0, // Journey - balanced assessment
+    'Nkyinkyim': 1, // Journey - balanced assessment
     'Fawohodie': 0.9, // Independence - reduced concern
     'Adwo': 0.8 // Peace - minimal adjustment
   };
-  
-  risk *= symbolMultipliers[symbol] || 1.0;
+
+  risk *= symbolMultipliers[symbol] || 1;
   return Math.min(100, Math.max(0, Math.round(risk)));
 }
 
 function generateKhepraRecommendation(severity: string, symbol: string): string {
-  const recommendations = {
+  const recommendations: Record<string, string> = {
     'CRITICAL': `Apply ${symbol} transformation with immediate containment and Eban fortress protocols`,
     'HIGH': `Implement ${symbol}-based monitoring with enhanced Nyame trust verification`,
     'MEDIUM': `Deploy ${symbol} adaptive controls with Nkyinkyim journey patterns`,
     'LOW': `Maintain ${symbol} baseline security with Adwo peaceful monitoring`
   };
-  
+
   return recommendations[severity] || `Apply standard ${symbol} protocols`;
 }
