@@ -12,6 +12,8 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/types"
 )
 
+const Localhost = "127.0.0.1"
+
 // NewSnapshot captures the current system state for baseline or audit purposes.
 func NewSnapshot() (*types.AuditSnapshot, error) {
 	// 1. Host Info
@@ -29,7 +31,7 @@ func NewSnapshot() (*types.AuditSnapshot, error) {
 	// Use the native scanner we built in Phase 2
 	s := scanner.New()
 	s.Concurrency = 500 // Be gentle on localhost
-	results, err := s.Run("127.0.0.1")
+	results, err := s.Run(Localhost)
 
 	var netPorts []types.NetworkPort
 	if err == nil {
@@ -88,13 +90,13 @@ func fetchPublicIP() string {
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Get("https://api.ipify.org")
 	if err != nil {
-		return "127.0.0.1"
+		return Localhost
 	}
 	defer resp.Body.Close()
 
 	ip, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "127.0.0.1"
+		return Localhost
 	}
 	return string(ip)
 }
