@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
-  const { hasAcceptedAll, loading: agreementsLoading } = useUserAgreements();
+  const { loading: agreementsLoading } = useUserAgreements();
   const navigate = useNavigate();
 
   useEffect(() => {
