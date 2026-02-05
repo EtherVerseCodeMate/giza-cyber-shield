@@ -26,7 +26,7 @@ const SecurityHeaders = ({ children }: SecurityHeadersProps) => {
       frame-ancestors ${process.env.NODE_ENV === 'development' ? "'self'" : "'none'"};
       upgrade-insecure-requests;
       report-uri /csp-report;
-    `.replace(/\s+/g, ' ').trim();
+    `.replaceAll(/\s+/g, ' ').trim();
 
     // Only add if not already present
     if (!document.querySelector('meta[http-equiv="Content-Security-Policy"]')) {
