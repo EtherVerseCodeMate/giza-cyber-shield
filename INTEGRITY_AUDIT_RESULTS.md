@@ -276,6 +276,10 @@ fmt.Printf("   - Estimated Loss: $%s\n", formatMoney(estimatedImpact))
 | Financial Risk Calculation | 🚩 FALSE | Hardcoded values, not computed |
 | PDF Generation | ⚠️ OVERSTATED | Requires external tool |
 | Khepra Lattice "Cypher" | ⚠️ TERMINOLOGY | It's an encoding, not cipher |
+| [AS02] Configuration Audit | ✅ VERIFIED | pkg/stig, pkg/sonar |
+| [AS03] Supply Chain Security | ✅ VERIFIED | pkg/sbom, Go vendor mode, Iron Bank scan |
+| [AS04] Cryptographic Integrity| ✅ VERIFIED | pkg/adinkra (Kyber, Dilithium) |
+| [AS06] Insecure Design Review| ✅ VERIFIED | pkg/dag (Immutable Ledger), RBAC |
 
 ---
 
