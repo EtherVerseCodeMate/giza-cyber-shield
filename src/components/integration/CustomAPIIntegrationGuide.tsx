@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -33,20 +32,20 @@ const CustomAPIIntegrationGuide = () => {
     setIsLoading(true);
     try {
       // Simulate API test
-      setTimeout(() => {
-        setTestResult({
-          status: 'success',
-          data: {
-            endpoint: testEndpoint,
-            response_time: '234ms',
-            data_types: ['security_events', 'user_logs', 'system_metrics'],
-            last_updated: new Date().toISOString()
-          }
-        });
-        setIsLoading(false);
-      }, 2000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      setTestResult({
+        status: 'success',
+        data: {
+          endpoint: testEndpoint,
+          response_time: '234ms',
+          data_types: ['security_events', 'user_logs', 'system_metrics'],
+          last_updated: new Date().toISOString()
+        }
+      });
     } catch (error) {
+      console.error('API test error:', error);
       setTestResult({ status: 'error', message: 'Connection failed' });
+    } finally {
       setIsLoading(false);
     }
   };
