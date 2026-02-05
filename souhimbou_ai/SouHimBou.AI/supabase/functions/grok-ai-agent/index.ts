@@ -332,6 +332,14 @@ function buildSecuritySystemPrompt(context: SecurityContext): string {
   const orgName = context.organizationProfile?.name || 'Organization';
   const industryInfo = context.organizationProfile?.settings?.industry || 'General';
 
+  const activeAlertsSummary = context.recentAlerts.length > 0
+    ? '- ACTIVE ALERTS: ' + context.recentAlerts.map((a: any) => '[' + a.severity + '] ' + a.title).join(', ')
+    : '- No active alerts';
+
+  const threatIntelSummary = context.threatIntelligence.length > 0
+    ? '- THREAT INTEL: Recent indicators include ' + context.threatIntelligence.slice(0, 3).map((t: any) => t.indicator_type).join(', ')
+    : '- No recent threat indicators';
+
   return `You are ARGUS, an advanced AI Security Operations Center (ASOC) agent for ${orgName}, specializing in cybersecurity analysis and AUTONOMOUS incident response.
 
 ORGANIZATION CONTEXT:
@@ -341,8 +349,8 @@ ORGANIZATION CONTEXT:
 - Recent Security Events: ${context.securityEvents.length}
 
 CURRENT SECURITY STATUS:
-${context.recentAlerts.length > 0 ? `- ACTIVE ALERTS: ${context.recentAlerts.map(a => `[${a.severity}] ${a.title}`).join(', ')}` : '- No active alerts'}
-${context.threatIntelligence.length > 0 ? `- THREAT INTEL: Recent indicators include ${context.threatIntelligence.slice(0, 3).map(t => t.indicator_type).join(', ')}` : '- No recent threat indicators'}
+${activeAlertsSummary}
+${threatIntelSummary}
 
 AUTONOMOUS EXECUTION CAPABILITIES:
 You can now directly implement security actions in live production environments. Your recommendations will be automatically converted to executable scripts when you:
@@ -640,90 +648,11 @@ async function executeAutonomousActions(actionableItems: any[], organizationId: 
         (action.priority === 'high' || action.priority === 'critical');
 
       if (shouldExecuteImmediately) {
-        console.log(`AUTONOMOUS EXECUTION: ${action.text}`);
-
-        // Generate rollback script before execution
-        const rollbackScript = generateRollbackScript(action);
-
-        // Call automated remediation function
-        const { data: remediationResult, error } = await supabase.functions.invoke('automated-remediation', {
-          body: {
-            action: action.remediationType,
-            targets: action.targets,
-            remediation_type: action.category,
-            organizationId,
-            dry_run: false,
-            script: action.remediationScript,
-            emergency_mode: action.priority === 'high' || action.priority === 'critical'
-          }
-        });
-
-        if (error) {
-          console.error('Emergency remediation failed:', error);
-          executionResults.push({
-            actionId: action.text.substring(0, 50),
-            status: 'failed',
-            error: error.message,
-            type: action.remediationType,
-            emergency: true
-          });
-        } else {
-          console.log('EMERGENCY ACTION EXECUTED:', remediationResult);
-
-          // Store execution record with rollback capability
-          const { data: activityRecord } = await supabase.from('remediation_activities').insert([{
-            organization_id: organizationId,
-            action_type: action.remediationType,
-            targets: action.targets,
-            execution_status: 'COMPLETED',
-            results: {
-              ...remediationResult,
-              rollback_script: rollbackScript,
-              emergency_execution: true,
-              executed_at: new Date().toISOString()
-            },
-            successful_actions: remediationResult?.summary?.successful_actions || 1,
-            total_actions: remediationResult?.summary?.total_actions || 1,
-            success_rate: remediationResult?.summary?.success_rate || 100
-          }]).select().single();
-
-          // Send immediate alert notification
-          await sendEmergencyAlert(action, remediationResult, organizationId);
-
-          executionResults.push({
-            actionId: action.text.substring(0, 50),
-            status: 'executed_emergency',
-            result: remediationResult,
-            type: action.remediationType,
-            targets: action.targets,
-            successRate: remediationResult?.summary?.success_rate || 100,
-            rollbackId: activityRecord?.id,
-            emergency: true
-          });
-        }
+        const result = await executeEmergencyRemediation(action, organizationId);
+        executionResults.push(result);
       } else {
-        // Action requires approval - store for manual review
-        await supabase.from('remediation_activities').insert([{
-          organization_id: organizationId,
-          action_type: action.remediationType,
-          targets: action.targets,
-          execution_status: 'PENDING',
-          results: {
-            reason: action.requiresApproval ? 'Requires approval' : 'High risk action',
-            script: action.remediationScript,
-            estimatedDuration: action.estimatedDuration,
-            riskLevel: action.riskLevel
-          },
-          dry_run: true
-        }]);
-
-        executionResults.push({
-          actionId: action.text.substring(0, 50),
-          status: 'pending_approval',
-          reason: action.requiresApproval ? 'Requires manual approval' : 'High risk - needs review',
-          type: action.remediationType,
-          targets: action.targets
-        });
+        const result = await queuePendingAction(action, organizationId);
+        executionResults.push(result);
       }
     } catch (error) {
       console.error('Error executing autonomous action:', error);
@@ -737,6 +666,95 @@ async function executeAutonomousActions(actionableItems: any[], organizationId: 
   }
 
   return executionResults;
+}
+
+async function executeEmergencyRemediation(action: any, organizationId: string): Promise<any> {
+  console.log(`AUTONOMOUS EXECUTION: ${action.text}`);
+
+  // Generate rollback script before execution
+  const rollbackScript = generateRollbackScript(action);
+
+  // Call automated remediation function
+  const { data: remediationResult, error } = await supabase.functions.invoke('automated-remediation', {
+    body: {
+      action: action.remediationType,
+      targets: action.targets,
+      remediation_type: action.category,
+      organizationId,
+      dry_run: false,
+      script: action.remediationScript,
+      emergency_mode: action.priority === 'high' || action.priority === 'critical'
+    }
+  });
+
+  if (error) {
+    console.error('Emergency remediation failed:', error);
+    return {
+      actionId: action.text.substring(0, 50),
+      status: 'failed',
+      error: error.message,
+      type: action.remediationType,
+      emergency: true
+    };
+  }
+
+  console.log('EMERGENCY ACTION EXECUTED:', remediationResult);
+
+  // Store execution record with rollback capability
+  const { data: activityRecord } = await supabase.from('remediation_activities').insert([{
+    organization_id: organizationId,
+    action_type: action.remediationType,
+    targets: action.targets,
+    execution_status: 'COMPLETED',
+    results: {
+      ...remediationResult,
+      rollback_script: rollbackScript,
+      emergency_execution: true,
+      executed_at: new Date().toISOString()
+    },
+    successful_actions: remediationResult?.summary?.successful_actions || 1,
+    total_actions: remediationResult?.summary?.total_actions || 1,
+    success_rate: remediationResult?.summary?.success_rate || 100
+  }]).select().single();
+
+  // Send immediate alert notification
+  await sendEmergencyAlert(action, remediationResult, organizationId);
+
+  return {
+    actionId: action.text.substring(0, 50),
+    status: 'executed_emergency',
+    result: remediationResult,
+    type: action.remediationType,
+    targets: action.targets,
+    successRate: remediationResult?.summary?.success_rate || 100,
+    rollbackId: activityRecord?.id,
+    emergency: true
+  };
+}
+
+async function queuePendingAction(action: any, organizationId: string): Promise<any> {
+  // Action requires approval - store for manual review
+  await supabase.from('remediation_activities').insert([{
+    organization_id: organizationId,
+    action_type: action.remediationType,
+    targets: action.targets,
+    execution_status: 'PENDING',
+    results: {
+      reason: action.requiresApproval ? 'Requires approval' : 'High risk action',
+      script: action.remediationScript,
+      estimatedDuration: action.estimatedDuration,
+      riskLevel: action.riskLevel
+    },
+    dry_run: true
+  }]);
+
+  return {
+    actionId: action.text.substring(0, 50),
+    status: 'pending_approval',
+    reason: action.requiresApproval ? 'Requires manual approval' : 'High risk - needs review',
+    type: action.remediationType,
+    targets: action.targets
+  };
 }
 
 // Rollback script generation

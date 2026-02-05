@@ -218,7 +218,6 @@ func (auth *AuthLayer) validateJWT(tokenString string) (*jwt.RegisteredClaims, e
 	}
 
 	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
-		// Validate signing method
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
@@ -234,12 +233,14 @@ func (auth *AuthLayer) validateJWT(tokenString string) (*jwt.RegisteredClaims, e
 		return nil, errors.New("invalid token claims")
 	}
 
-	// Verify issuer
+	return claims, auth.verifyJWTClaims(claims)
+}
+
+func (auth *AuthLayer) verifyJWTClaims(claims *jwt.RegisteredClaims) error {
 	if auth.config.JWTIssuer != "" && claims.Issuer != auth.config.JWTIssuer {
-		return nil, errors.New("invalid token issuer")
+		return errors.New("invalid token issuer")
 	}
 
-	// Verify audience
 	if auth.config.JWTAudience != "" {
 		validAudience := false
 		for _, aud := range claims.Audience {
@@ -249,40 +250,35 @@ func (auth *AuthLayer) validateJWT(tokenString string) (*jwt.RegisteredClaims, e
 			}
 		}
 		if !validAudience {
-			return nil, errors.New("invalid token audience")
+			return errors.New("invalid token audience")
 		}
 	}
-
-	return claims, nil
+	return nil
 }
 
-// verifyPQCSignature verifies ML-DSA-65 signature
 func (auth *AuthLayer) verifyPQCSignature(r *http.Request, identityID, signatureHex string) error {
-	// Get public key for this identity
 	auth.publicKeysMu.RLock()
 	pubKeyBytes, exists := auth.publicKeys[identityID]
 	auth.publicKeysMu.RUnlock()
 
 	if !exists {
-		// TODO: Fetch from public key registry if configured
 		return errors.New("public key not found for identity")
 	}
 
-	// Decode signature
 	signature, err := hex.DecodeString(signatureHex)
 	if err != nil {
 		return errors.New("invalid signature encoding")
 	}
 
+	timestamp := r.Header.Get("X-Khepra-Timestamp")
+	message := fmt.Sprintf("%s|%s|%s", r.Method, r.URL.Path, timestamp)
+	return auth.runMLDSAVerify(pubKeyBytes, message, signature)
+}
+
+func (auth *AuthLayer) runMLDSAVerify(pubKeyBytes []byte, message string, signature []byte) error {
 	if len(signature) != mldsa65.SignatureSize {
 		return errors.New("invalid signature size")
 	}
-
-	// Reconstruct the signed message (method + path + timestamp)
-	timestamp := r.Header.Get("X-Khepra-Timestamp")
-	message := fmt.Sprintf("%s|%s|%s", r.Method, r.URL.Path, timestamp)
-
-	// Verify with ML-DSA-65
 	if len(pubKeyBytes) != mldsa65.PublicKeySize {
 		return errors.New("invalid public key size")
 	}
@@ -293,20 +289,10 @@ func (auth *AuthLayer) verifyPQCSignature(r *http.Request, identityID, signature
 	var publicKey mldsa65.PublicKey
 	publicKey.Unpack(&pubKeyBuf)
 
-	valid := mldsa65.Verify(&publicKey, []byte(message), nil, signature)
-	if !valid {
+	if !mldsa65.Verify(&publicKey, []byte(message), nil, signature) {
 		return errors.New("signature verification failed")
 	}
-
 	return nil
-}
-
-// checkCertRevocation checks if certificate is revoked
-func (auth *AuthLayer) checkCertRevocation(cert *x509.Certificate) (bool, error) {
-	// TODO: Implement CRL checking
-	// TODO: Implement OCSP checking
-	// For now, return not revoked
-	return false, nil
 }
 
 // RegisterAPIKey adds a new API key to the store
