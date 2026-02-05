@@ -1,3 +1,4 @@
+/// <reference lib="deno.ns" />
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
@@ -87,106 +88,48 @@ async function investigateSpecificIP(ip: string) {
     investigation_summary: ''
   };
 
-  // Check multiple threat intelligence sources
   const investigations = [];
 
-  // 1. Check AbuseIPDB if API key available
-  if (abuseIpDbApiKey) {
-    try {
-      const abuseResponse = await fetch(`https://api.abuseipdb.com/api/v2/check?ipAddress=${ip}`, {
-        headers: {
-          'Key': abuseIpDbApiKey,
-          'Accept': 'application/json'
-        }
-      });
-
-      if (abuseResponse.ok) {
-        const abuseData = await abuseResponse.json();
-        investigations.push({
-          source: 'AbuseIPDB',
-          data: abuseData
-        });
-
-        if (abuseData.data?.abuseConfidencePercentage > 0) {
-          results.is_real = true;
-          results.threat_level = abuseData.data.abuseConfidencePercentage > 75 ? 'high' : 'medium';
-        }
-      }
-    } catch (error) {
-      console.log('AbuseIPDB check failed:', error instanceof Error ? error.message : String(error));
+  const abuseResult = await checkAbuseIPDB(ip);
+  if (abuseResult) {
+    investigations.push(abuseResult);
+    if (abuseResult.is_real) {
+      results.is_real = true;
+      results.threat_level = abuseResult.threat_level;
     }
   }
 
-  // 2. Check VirusTotal if API key available
-  if (virusTotalApiKey) {
-    try {
-      const vtResponse = await fetch(`https://www.virustotal.com/vtapi/v2/ip-address/report?apikey=${virusTotalApiKey}&ip=${ip}`);
-
-      if (vtResponse.ok) {
-        const vtData = await vtResponse.json();
-        investigations.push({
-          source: 'VirusTotal',
-          data: vtData
-        });
-
-        if (vtData.detected_urls && vtData.detected_urls.length > 0) {
-          results.is_real = true;
-          results.threat_level = 'high';
-        }
-      }
-    } catch (error) {
-      console.log('VirusTotal check failed:', error instanceof Error ? error.message : String(error));
+  const vtResult = await checkVirusTotal(ip);
+  if (vtResult) {
+    investigations.push(vtResult);
+    if (vtResult.is_real) {
+      results.is_real = true;
+      results.threat_level = 'high';
     }
   }
 
-  // 3. Check OTX (AlienVault) if API key available
-  if (otxApiKey) {
-    try {
-      const otxResponse = await fetch(`https://otx.alienvault.com/api/v1/indicators/IPv4/${ip}/general`, {
-        headers: {
-          'X-OTX-API-KEY': otxApiKey
-        }
-      });
-
-      if (otxResponse.ok) {
-        const otxData = await otxResponse.json();
-        investigations.push({
-          source: 'AlienVault OTX',
-          data: otxData
-        });
-
-        if (otxData.pulse_info && otxData.pulse_info.count > 0) {
-          results.is_real = true;
-          results.threat_level = 'high';
-        }
-      }
-    } catch (error) {
-      console.log('OTX check failed:', error instanceof Error ? error.message : String(error));
+  const otxResult = await checkOTX(ip);
+  if (otxResult) {
+    investigations.push(otxResult);
+    if (otxResult.is_real) {
+      results.is_real = true;
+      results.threat_level = 'high';
     }
   }
 
-  // 4. Known Tor exit node check (this IP is known to be a Tor exit node)
-  const torExitNodes = await checkTorExitNode(ip);
-  if (torExitNodes.isTorExit) {
-    investigations.push({
-      source: 'Tor Project',
-      data: torExitNodes
-    });
+  const torResult = await checkTorExitNodeResult(ip);
+  if (torResult) {
+    investigations.push(torResult);
     results.is_real = true;
-    results.threat_level = 'medium'; // Tor exits are legitimate but used by threat actors
+    results.threat_level = 'medium';
   }
 
-  // 5. Check our internal threat intelligence
-  const internalThreat = await checkInternalThreatDB(ip);
-  if (internalThreat.found) {
-    investigations.push({
-      source: 'Internal Threat DB',
-      data: internalThreat
-    });
+  const internalResult = await checkInternalThreatDBResult(ip);
+  if (internalResult) {
+    investigations.push(internalResult);
     results.is_real = true;
   }
 
-  // Compile results
   results.sources = investigations.map(inv => inv.source);
   results.analysis = investigations;
   results.references = [
@@ -195,19 +138,100 @@ async function investigateSpecificIP(ip: string) {
     'https://otx.alienvault.com/indicator/ip/' + ip
   ];
 
-  // Generate investigation summary
-  if (results.is_real) {
-    results.investigation_summary = `CONFIRMED THREAT: IP ${ip} has been flagged by ${results.sources.length} threat intelligence source(s). ` +
-      `This IP appears to be associated with ${results.sources.includes('Tor Project') ? 'Tor exit node activity and ' : ''}` +
-      `malicious activities. Threat level: ${results.threat_level.toUpperCase()}. ` +
-      `RECOMMENDATION: Block this IP immediately and investigate any connections to your infrastructure.`;
-  } else {
-    results.investigation_summary = `ASSESSMENT: No current threat indicators found for IP ${ip} in available threat intelligence sources. ` +
-      `However, this could be a newly emerged threat or the IP may not be widely reported yet. ` +
-      `RECOMMENDATION: Continue monitoring and consider implementing additional security measures.`;
-  }
+  results.investigation_summary = generateSummary(ip, results);
 
   return results;
+}
+
+async function checkAbuseIPDB(ip: string) {
+  if (!abuseIpDbApiKey) return null;
+  try {
+    const response = await fetch(`https://api.abuseipdb.com/api/v2/check?ipAddress=${ip}`, {
+      headers: { 'Key': abuseIpDbApiKey, 'Accept': 'application/json' }
+    });
+    if (response.ok) {
+      const data = await response.json();
+      return {
+        source: 'AbuseIPDB',
+        data: data,
+        is_real: data.data?.abuseConfidencePercentage > 0,
+        threat_level: data.data?.abuseConfidencePercentage > 75 ? 'high' : 'medium'
+      };
+    }
+  } catch (e) {
+    console.log('AbuseIPDB check failed:', e);
+  }
+  return null;
+}
+
+async function checkVirusTotal(ip: string) {
+  if (!virusTotalApiKey) return null;
+  try {
+    const response = await fetch(`https://www.virustotal.com/vtapi/v2/ip-address/report?apikey=${virusTotalApiKey}&ip=${ip}`);
+    if (response.ok) {
+      const data = await response.json();
+      return {
+        source: 'VirusTotal',
+        data: data,
+        is_real: data.detected_urls && data.detected_urls.length > 0
+      };
+    }
+  } catch (e) {
+    console.log('VirusTotal check failed:', e);
+  }
+  return null;
+}
+
+async function checkOTX(ip: string) {
+  if (!otxApiKey) return null;
+  try {
+    const response = await fetch(`https://otx.alienvault.com/api/v1/indicators/IPv4/${ip}/general`, {
+      headers: { 'X-OTX-API-KEY': otxApiKey }
+    });
+    if (response.ok) {
+      const data = await response.json();
+      return {
+        source: 'AlienVault OTX',
+        data: data,
+        is_real: data.pulse_info && data.pulse_info.count > 0
+      };
+    }
+  } catch (e) {
+    console.log('OTX check failed:', e);
+  }
+  return null;
+}
+
+async function checkTorExitNodeResult(ip: string) {
+  const torNodes = await checkTorExitNode(ip);
+  if (torNodes.isTorExit) {
+    return {
+      source: 'Tor Project',
+      data: torNodes
+    };
+  }
+  return null;
+}
+
+async function checkInternalThreatDBResult(ip: string) {
+  const internal = await checkInternalThreatDB(ip);
+  if (internal.found) {
+    return {
+      source: 'Internal Threat DB',
+      data: internal
+    };
+  }
+  return null;
+}
+
+function generateSummary(ip: string, results: any) {
+  if (results.is_real) {
+    return `CONFIRMED THREAT: IP ${ip} flagged by ${results.sources.length} source(s). ` +
+      `Associated with ${results.sources.includes('Tor Project') ? 'Tor exit node activity and ' : ''}` +
+      `malicious actions. Threat level: ${results.threat_level.toUpperCase()}. ` +
+      `RECOMMENDATION: Block IP immediately.`;
+  }
+  return `ASSESSMENT: No threat indicators found for IP ${ip}. Continue monitoring.`;
 }
 
 async function performGeneralLookup(indicator: string, type: string) {
