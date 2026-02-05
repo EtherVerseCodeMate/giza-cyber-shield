@@ -94,17 +94,3 @@ func (fe *FIMEye) Gaze() []maat.Isfet {
 func (fe *FIMEye) Name() string {
 	return fe.name
 }
-
-// mapSeverity converts CAT levels to Isfet severity
-func mapSeverity(cat string) maat.Severity {
-	switch cat {
-	case "CAT I":
-		return maat.SeverityCatastrophic
-	case "CAT II":
-		return maat.SeveritySevere
-	case "CAT III":
-		return maat.SeverityModerate
-	default:
-		return maat.SeverityMinor
-	}
-}
