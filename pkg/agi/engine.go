@@ -32,6 +32,12 @@ const (
 	ObjectiveGuardian Objective = "Protect the integrity of the Khepra Lattice."
 	ObjectiveCommando Objective = "Delta Force Mode: Seek and Destroy Threats."
 	ObjectiveAuditor  Objective = "Enterprise Risk Elimination (KASA)"
+
+	// KASA labels
+	RoutinePerimeterSweep = "Routine Perimeter Sweep"
+	KASAFormat            = "[KASA] %s"
+	KASAForensicsV1       = "KASA-Forensics-v1"
+	KASAPentestV1         = "KASA-Pentest-v1"
 )
 
 // KASA (Khepra Agentic Security Auditor)
@@ -240,7 +246,7 @@ func (e *Engine) think() {
 			e.Status = "Autonomously generating directives..."
 			e.Tasks = append(e.Tasks, Task{
 				ID:          fmt.Sprintf("auto-guard-%d", time.Now().Unix()),
-				Description: "Routine Perimeter Sweep",
+				Description: RoutinePerimeterSweep,
 				Priority:    "MEDIUM",
 				Symbol:      "Eban",
 			})
@@ -274,7 +280,7 @@ func (e *Engine) think() {
 
 func (e *Engine) execute(t Task) (string, error) {
 	// Execution Logic
-	if t.Description == "Routine Perimeter Sweep" {
+	if t.Description == RoutinePerimeterSweep {
 		// Run a lightweight scan (Top 10 ports only)
 		// We use a custom smaller list for speed/stealth
 		results, err := e.scanner.Run("localhost") // Default scan is fast enough now
@@ -385,7 +391,7 @@ func (e *Engine) executeVulnHunt() (string, error) {
 		result.BySeverity[vuln.SeverityModerate],
 		result.BySeverity[vuln.SeverityLow])
 
-	log.Printf("[KASA] %s", summary)
+	log.Printf(KASAFormat, summary)
 	return summary, nil
 }
 
@@ -442,7 +448,7 @@ func (e *Engine) executeForensics() (string, error) {
 			"port_count":    fmt.Sprintf("%d", len(snapshot.OpenPorts)),
 			"file_count":    fmt.Sprintf("%d", len(snapshot.FileHashes)),
 			"snapshot_hash": snapshot.Hash,
-			"agent":         "KASA-Forensics-v1",
+			"agent":         KASAForensicsV1,
 		},
 	}
 
@@ -468,7 +474,7 @@ func (e *Engine) executeForensics() (string, error) {
 						"change_type": "SYSTEM_CHANGE",
 						"description": change,
 						"snapshot_id": snapshot.SnapshotID,
-						"agent":       "KASA-Forensics-v1",
+						"agent":       KASAForensicsV1,
 					},
 				}
 				if err := changeNode.Sign(e.privKey); err == nil {
@@ -485,7 +491,7 @@ func (e *Engine) executeForensics() (string, error) {
 		len(snapshot.OpenPorts),
 		len(snapshot.FileHashes))
 
-	log.Printf("[KASA] %s", summary)
+	log.Printf(KASAFormat, summary)
 	log.Printf("[KASA] Snapshot Hash: %s", snapshot.Hash)
 
 	// Store snapshot data separately for detailed analysis
@@ -495,7 +501,7 @@ func (e *Engine) executeForensics() (string, error) {
 		Time:   lorentz.StampNow(),
 		PQC: map[string]string{
 			"data":  string(snapshotJSON),
-			"agent": "KASA-Forensics-v1",
+			"agent": KASAForensicsV1,
 		},
 	}
 	if err := dataNode.Sign(e.privKey); err == nil {
@@ -532,7 +538,7 @@ func (e *Engine) executePentest(t Task) (string, error) {
 			"target":     target,
 			"phase":      "INITIATION",
 			"mitre_ttp":  "T1595",
-			"agent":      "KASA-Pentest-v1",
+			"agent":      KASAPentestV1,
 			"compliance": "NIST-800-53-CA-8,PCI-DSS-11.3",
 		},
 	}
@@ -566,7 +572,7 @@ func (e *Engine) executePentest(t Task) (string, error) {
 					"banner":    r.Banner,
 					"mitre_ttp": "T1046",
 					"phase":     "DISCOVERY",
-					"agent":     "KASA-Pentest-v1",
+					"agent":     KASAPentestV1,
 				},
 			}
 			if err := portNode.Sign(e.privKey); err == nil {
@@ -600,7 +606,7 @@ func (e *Engine) executePentest(t Task) (string, error) {
 					"fixed_version": v.FixedVersion,
 					"mitre_ttp":     "T1595.002",
 					"phase":         "VULNERABILITY_SCAN",
-					"agent":         "KASA-Pentest-v1",
+					"agent":         KASAPentestV1,
 				},
 			}
 			if err := vulnNode.Sign(e.privKey); err == nil {
@@ -635,7 +641,7 @@ func (e *Engine) executePentest(t Task) (string, error) {
 			"total_vulns":    fmt.Sprintf("%d", totalVulns),
 			"critical_vulns": fmt.Sprintf("%d", criticalVulns),
 			"attack_graph":   attackGraph,
-			"agent":          "KASA-Pentest-v1",
+			"agent":          KASAPentestV1,
 			"compliance":     "NIST-800-53-CA-8,PCI-DSS-11.3",
 		},
 	}
@@ -646,7 +652,7 @@ func (e *Engine) executePentest(t Task) (string, error) {
 	summary := fmt.Sprintf("Pentest Complete (Target: %s). Open Ports: %d, Vulnerabilities: %d (Critical: %d). Compliance: NIST 800-53 CA-8, PCI-DSS 11.3",
 		target, openPorts, totalVulns, criticalVulns)
 
-	log.Printf("[KASA] %s", summary)
+	log.Printf(KASAFormat, summary)
 	e.Status = summary
 
 	return summary, nil
