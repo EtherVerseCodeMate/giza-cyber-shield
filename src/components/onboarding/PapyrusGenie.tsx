@@ -24,10 +24,6 @@ export const PapyrusGenie = ({ delay = 2500 }: PapyrusGenieProps) => {
         return () => clearTimeout(timer);
     }, [delay]);
 
-    const handleMinimize = () => {
-        setIsExpanded(false);
-        setShowBubble(false);
-    };
 
     return (
         <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4 pointer-events-none">
@@ -141,11 +137,11 @@ export const PapyrusGenie = ({ delay = 2500 }: PapyrusGenieProps) => {
                             layoutId="genie-avatar"
                             className="pointer-events-auto"
                             onClick={() => {
-                                if (!isExpanded) {
+                                if (isExpanded) {
+                                    setIsExpanded(false);
+                                } else {
                                     setIsExpanded(true);
                                     setShowBubble(false);
-                                } else {
-                                    setIsExpanded(false);
                                 }
                             }}
                         >
