@@ -38,16 +38,21 @@ func (e *DriftEngine) Compare(baseline, current *audit.AuditSnapshot) *DriftRepo
 		}
 	}
 
-	// 2. Network Drift
+	e.checkNetworkDrift(baseline, current, report)
+	e.checkProcessDrift(baseline, current, report)
+	e.checkFileManifestDrift(baseline, current, report)
+
+	return report
+}
+
+func (e *DriftEngine) checkNetworkDrift(baseline, current *audit.AuditSnapshot, report *DriftReport) {
 	basePorts := make(map[string]bool)
 	for _, p := range baseline.Network.Ports {
-		key := fmt.Sprintf("%d/%s", p.Port, p.Protocol)
-		basePorts[key] = true
+		basePorts[fmt.Sprintf("%d/%s", p.Port, p.Protocol)] = true
 	}
 	currPorts := make(map[string]bool)
 	for _, p := range current.Network.Ports {
-		key := fmt.Sprintf("%d/%s", p.Port, p.Protocol)
-		currPorts[key] = true
+		currPorts[fmt.Sprintf("%d/%s", p.Port, p.Protocol)] = true
 	}
 
 	for k := range currPorts {
@@ -59,12 +64,12 @@ func (e *DriftEngine) Compare(baseline, current *audit.AuditSnapshot) *DriftRepo
 	for k := range basePorts {
 		if !currPorts[k] {
 			report.RemovedPorts = append(report.RemovedPorts, k)
-			// Removal might not always be "drift" in a bad sense, but it is a change.
 			report.HasDrift = true
 		}
 	}
+}
 
-	// 3. Process Drift (Simple Name Check)
+func (e *DriftEngine) checkProcessDrift(baseline, current *audit.AuditSnapshot, report *DriftReport) {
 	baseProcs := make(map[string]bool)
 	for _, p := range baseline.System.Processes {
 		baseProcs[p.Name] = true
@@ -86,26 +91,21 @@ func (e *DriftEngine) Compare(baseline, current *audit.AuditSnapshot) *DriftRepo
 			report.HasDrift = true
 		}
 	}
+}
 
-	// 4. File Manifest Drift (Modifications)
-	baseFiles := make(map[string]string) // Path -> Checksum
+func (e *DriftEngine) checkFileManifestDrift(baseline, current *audit.AuditSnapshot, report *DriftReport) {
+	baseFiles := make(map[string]string)
 	for _, f := range baseline.Manifests {
 		baseFiles[f.Path] = f.Checksum
 	}
 
 	for _, f := range current.Manifests {
 		baseHash, exists := baseFiles[f.Path]
-		if !exists {
-			// New file tracked? Or just ignored. For now, we only check modifications of tracked files.
-			continue
-		}
-		if baseHash != f.Checksum {
+		if exists && baseHash != f.Checksum {
 			report.ChangedFiles = append(report.ChangedFiles, fmt.Sprintf("%s (Modified)", f.Path))
 			report.HasDrift = true
 		}
 	}
-
-	return report
 }
 
 // String returns a human-readable summary
