@@ -28,26 +28,29 @@ type LicensingAPI struct {
 	machineID          string
 }
 
+// LicensingDeps holds dependencies for the Licensing API
+type LicensingDeps struct {
+	ClientManager      *license.Manager
+	RegistryManager    *license.LicenseManager
+	DagLicenseEnforcer *license.DAGLicenseEnforcer
+	BillingCalculator  *billing.HybridBillingCalculator
+	TelemetryClient    *license.TelemetryClient
+	DagStore           dag.Store
+	IsAirGapped        bool
+	MachineID          string
+}
+
 // NewLicensingAPI creates a new API handler
-func NewLicensingAPI(
-	cm *license.Manager,
-	rm *license.LicenseManager,
-	dle *license.DAGLicenseEnforcer,
-	bc *billing.HybridBillingCalculator,
-	tc *license.TelemetryClient,
-	ds dag.Store,
-	isAirGapped bool,
-	mid string,
-) *LicensingAPI {
+func NewLicensingAPI(deps LicensingDeps) *LicensingAPI {
 	return &LicensingAPI{
-		clientManager:      cm,
-		registryManager:    rm,
-		dagLicenseEnforcer: dle,
-		billingCalculator:  bc,
-		telemetryClient:    tc,
-		dagStore:           ds,
-		systemIsAirGapped:  isAirGapped,
-		machineID:          mid,
+		clientManager:      deps.ClientManager,
+		registryManager:    deps.RegistryManager,
+		dagLicenseEnforcer: deps.DagLicenseEnforcer,
+		billingCalculator:  deps.BillingCalculator,
+		telemetryClient:    deps.TelemetryClient,
+		dagStore:           deps.DagStore,
+		systemIsAirGapped:  deps.IsAirGapped,
+		machineID:          deps.MachineID,
 	}
 }
 
