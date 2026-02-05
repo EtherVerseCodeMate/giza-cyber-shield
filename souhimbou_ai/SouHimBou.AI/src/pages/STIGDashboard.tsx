@@ -3,6 +3,7 @@ import { ConsoleLayout } from '@/components/console/ConsoleLayout';
 import { MVP1Dashboard } from '@/components/compliance/MVP1Dashboard';
 import { DashboardToggle } from '@/components/DashboardToggle';
 import { TermsAcceptance } from '@/components/legal/TermsAcceptance';
+import { PapyrusGenie } from '@/components/onboarding/PapyrusGenie';
 import { useUserAgreements } from '@/hooks/useUserAgreements';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -51,6 +52,9 @@ const STIGDashboard = () => {
           setShowTerms(false);
         }}
       />
+
+      {/* Proactive AI Assistant */}
+      <PapyrusGenie />
     </ConsoleLayout>
   );
 };
