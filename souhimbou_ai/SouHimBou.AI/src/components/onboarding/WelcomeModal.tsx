@@ -12,7 +12,6 @@ import {
   Sparkles,
   Clock
 } from 'lucide-react';
-import { useTrialStatus } from '@/hooks/useTrialStatus';
 import { useUsageTracker } from '@/components/UsageTracker';
 
 interface WelcomeModalProps {

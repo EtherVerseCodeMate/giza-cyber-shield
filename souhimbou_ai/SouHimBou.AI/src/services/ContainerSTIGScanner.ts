@@ -47,7 +47,6 @@ export interface RuntimeSecurityCheck {
 export class ContainerSTIGScanner {
   private readonly baseUrl: string = 'https://xjknkjbrjgljuovaazeu.supabase.co/functions/v1';
 
-  constructor() { }
 
   /**
    * Scan a container image for STIG compliance
