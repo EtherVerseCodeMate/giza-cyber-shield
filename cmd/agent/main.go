@@ -77,14 +77,16 @@ func initializeAgent(token string) {
 	triad := setupSekhem(arch, store)
 
 	// 3. Setup API
-	licAPI := NewLicensingAPI(
-		clientMgr, regMgr, enforcer,
-		billing.NewHybridBillingCalculator(500.0), // Default Ra tier base cost
-		nil, // Telemetry client (optional)
-		store,
-		false, // Air-gap
-		license.GenerateMachineID(),
-	)
+	licAPI := NewLicensingAPI(LicensingDeps{
+		ClientManager:      clientMgr,
+		RegistryManager:    regMgr,
+		DagLicenseEnforcer: enforcer,
+		BillingCalculator:  billing.NewHybridBillingCalculator(500.0),
+		TelemetryClient:    nil,
+		DagStore:           store,
+		IsAirGapped:        false,
+		MachineID:          license.GenerateMachineID(),
+	})
 
 	s := &server{cfg: cfg, store: store, agi: arch, sekhem: triad, licAPI: licAPI}
 	runServer(s, cfg)
