@@ -38,6 +38,7 @@ const (
 	KASAFormat            = "[KASA] %s"
 	KASAForensicsV1       = "KASA-Forensics-v1"
 	KASAPentestV1         = "KASA-Pentest-v1"
+	DefaultTarget         = "127.0.0.1"
 )
 
 // KASA (Khepra Agentic Security Auditor)
@@ -1007,7 +1008,6 @@ func (e *Engine) handlePentestIntent(msg string) string {
 }
 
 func (e *Engine) extractTargetFromMsg(msg string) string {
-	target := "127.0.0.1"
 	if strings.Contains(msg, "on ") {
 		parts := strings.Split(msg, "on ")
 		if len(parts) > 1 {
@@ -1028,7 +1028,7 @@ func (e *Engine) detectBareIP(msg string) string {
 			}
 		}
 	}
-	return "127.0.0.1"
+	return DefaultTarget
 }
 
 func (e *Engine) isValidIPFormat(word string) bool {
