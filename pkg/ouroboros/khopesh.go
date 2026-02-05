@@ -8,6 +8,8 @@ import (
 
 // KhopeshBlade represents an instrument of action
 // Khopesh: Ancient Egyptian sword, symbol of authority
+const ManualApprovalFormat = "[%s] Heka requires manual approval: %s"
+
 type KhopeshBlade interface {
 	CanStrike(heka maat.Heka) bool
 	Strike(heka maat.Heka) error
@@ -31,7 +33,7 @@ func (rb *RemediationBlade) CanStrike(heka maat.Heka) bool {
 
 func (rb *RemediationBlade) Strike(heka maat.Heka) error {
 	if !heka.Autonomous {
-		log.Printf("[%s] Heka requires manual approval: %s", rb.name, heka.Isfet.ID)
+		log.Printf(ManualApprovalFormat, rb.name, heka.Isfet.ID)
 		return nil
 	}
 
@@ -61,7 +63,7 @@ func (fb *FirewallBlade) CanStrike(heka maat.Heka) bool {
 
 func (fb *FirewallBlade) Strike(heka maat.Heka) error {
 	if !heka.Autonomous {
-		log.Printf("[%s] Heka requires manual approval: %s", fb.name, heka.Isfet.ID)
+		log.Printf(ManualApprovalFormat, fb.name, heka.Isfet.ID)
 		return nil
 	}
 
@@ -91,7 +93,7 @@ func (ib *IsolationBlade) CanStrike(heka maat.Heka) bool {
 
 func (ib *IsolationBlade) Strike(heka maat.Heka) error {
 	// Isolation always requires manual approval (too disruptive)
-	log.Printf("[%s] Heka requires manual approval: %s (Action: %s)", ib.name, heka.Isfet.ID, heka.Action)
+	log.Printf(ManualApprovalFormat+" (Action: %s)", ib.name, heka.Isfet.ID, heka.Action)
 	return nil
 }
 
@@ -140,7 +142,7 @@ func (cb *ConfigBlade) CanStrike(heka maat.Heka) bool {
 
 func (cb *ConfigBlade) Strike(heka maat.Heka) error {
 	if !heka.Autonomous {
-		log.Printf("[%s] Heka requires manual approval: %s", cb.name, heka.Isfet.ID)
+		log.Printf(ManualApprovalFormat, cb.name, heka.Isfet.ID)
 		return nil
 	}
 
