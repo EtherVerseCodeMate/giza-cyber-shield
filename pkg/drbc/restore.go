@@ -12,7 +12,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/kms"
 )
@@ -104,35 +103,31 @@ func decompressProject(r io.Reader, targetDir string) error {
 		}
 
 		target := filepath.Join(targetDir, header.Name)
+		if err := extractEntry(tr, header, target); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-		// Sanity check for "Zip Slip"
-		if !strings.HasPrefix(target, filepath.Clean(targetDir)+string(os.PathSeparator)) {
-			// Actually allow top level if targetDir is clean, but let's be safe
-			// If targetDir satisfies prefix of target...
-			// Just ensure we don't go OUTSIDE targetDir
+func extractEntry(tr *tar.Reader, header *tar.Header, target string) error {
+	switch header.Typeflag {
+	case tar.TypeDir:
+		return os.MkdirAll(target, 0755)
+	case tar.TypeReg:
+		dir := filepath.Dir(target)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return err
 		}
 
-		switch header.Typeflag {
-		case tar.TypeDir:
-			if err := os.MkdirAll(target, 0755); err != nil {
-				return err
-			}
-		case tar.TypeReg:
-			dir := filepath.Dir(target)
-			if err := os.MkdirAll(dir, 0755); err != nil {
-				return err
-			}
+		f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
+		if err != nil {
+			return err
+		}
+		defer f.Close()
 
-			f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
-			if err != nil {
-				return err
-			}
-
-			if _, err := io.Copy(f, tr); err != nil {
-				f.Close()
-				return err
-			}
-			f.Close()
+		if _, err := io.Copy(f, tr); err != nil {
+			return err
 		}
 	}
 	return nil
