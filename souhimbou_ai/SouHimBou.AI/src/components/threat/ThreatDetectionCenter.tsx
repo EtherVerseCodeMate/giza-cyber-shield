@@ -12,7 +12,7 @@ import { AlertTriangle, ActivitySquare, Rocket, Satellite, RefreshCw } from 'luc
 
 const ThreatDetectionCenter = () => {
   const { toast } = useToast();
-  const { events, refetch, loading } = useSecurityEvents();
+  const { events, refetch } = useSecurityEvents();
   const { weights, setWeights, applyScores } = useRiskScoring();
   const [syncing, setSyncing] = useState(false);
 
@@ -23,7 +23,7 @@ const ThreatDetectionCenter = () => {
   const handleTaxiiSync = async () => {
     setSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('stix-taxii-sync', {
+      const { error } = await supabase.functions.invoke('stix-taxii-sync', {
         body: { action: 'sync_all' }
       });
       if (error) throw error;
@@ -31,7 +31,15 @@ const ThreatDetectionCenter = () => {
       refetch();
     } catch (e: any) {
       toast({ title: 'Sync Error', description: e.message, variant: 'destructive' });
-    } finally { setSyncing(false); }
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const getSeverityVariant = (severity: string) => {
+    if (severity === 'CRITICAL') return 'destructive';
+    if (severity === 'WARNING') return 'secondary';
+    return 'outline';
   };
 
   const highRisk = applyScores(events).slice(0, 8);
@@ -70,7 +78,7 @@ const ThreatDetectionCenter = () => {
                   <div key={ev.id} className="flex items-center justify-between rounded-md border p-3">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <Badge variant={ev.severity === 'CRITICAL' ? 'destructive' : ev.severity === 'WARNING' ? 'secondary' : 'outline'}>
+                        <Badge variant={getSeverityVariant(ev.severity)}>
                           {ev.severity}
                         </Badge>
                         <span className="font-medium">{ev.event_type}</span>
@@ -117,7 +125,7 @@ const ThreatDetectionCenter = () => {
             {events.filter(e => (e.source_system || '').toLowerCase().includes('falco')).slice(0, 10).map(e => (
               <div key={e.id} className="rounded-md border p-3">
                 <div className="flex items-center gap-2">
-                  <Badge variant={e.severity === 'CRITICAL' ? 'destructive' : e.severity === 'WARNING' ? 'secondary' : 'outline'}>
+                  <Badge variant={getSeverityVariant(e.severity)}>
                     {e.severity}
                   </Badge>
                   <span className="font-medium">{e.event_type}</span>
