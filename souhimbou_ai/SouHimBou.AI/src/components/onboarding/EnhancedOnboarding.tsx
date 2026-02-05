@@ -31,7 +31,7 @@ export const EnhancedOnboarding = ({ open, onClose, onComplete }: EnhancedOnboar
   const navigate = useNavigate();
   const { profile } = useUserProfile();
   const [showRoleBasedTour, setShowRoleBasedTour] = useState(false);
-  const [showAWSStyleOnboarding, setShowAWSStyleOnboarding] = useState(false);
+  const [showPapyrusOnboarding, setShowPapyrusOnboarding] = useState(false);
   const [isExecutiveMode, setIsExecutiveMode] = useState(false);
 
   const getUserRole = () => {
@@ -49,8 +49,8 @@ export const EnhancedOnboarding = ({ open, onClose, onComplete }: EnhancedOnboar
     setShowRoleBasedTour(true);
   };
 
-  const startAWSStyleOnboarding = () => {
-    setShowAWSStyleOnboarding(true);
+  const startPapyrusOnboarding = () => {
+    setShowPapyrusOnboarding(true);
   };
 
   const handleTourComplete = () => {
@@ -71,11 +71,11 @@ export const EnhancedOnboarding = ({ open, onClose, onComplete }: EnhancedOnboar
     );
   }
 
-  if (showAWSStyleOnboarding) {
+  if (showPapyrusOnboarding) {
     return (
-      <AWSStyleOnboarding
-        open={showAWSStyleOnboarding}
-        onClose={() => setShowAWSStyleOnboarding(false)}
+      <PapyrusOnboarding
+        open={showPapyrusOnboarding}
+        onClose={() => setShowPapyrusOnboarding(false)}
         onComplete={onComplete}
       />
     );
@@ -117,36 +117,36 @@ export const EnhancedOnboarding = ({ open, onClose, onComplete }: EnhancedOnboar
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Choose Your Experience</h3>
             
-            {/* AWS-Style Professional Setup */}
-            <Card className="cursor-pointer hover:shadow-md transition-shadow border-orange-200 bg-gradient-to-r from-orange-50 to-yellow-50">
+            {/* Papyrus AI-Guided Setup */}
+            <Card className="cursor-pointer hover:shadow-md transition-shadow border-primary/30 bg-gradient-to-r from-primary/5 to-purple-500/5">
               <CardContent className="p-6">
                 <div className="flex items-start space-x-4">
-                  <div className="p-3 bg-orange-100 rounded-lg">
-                    <Zap className="h-6 w-6 text-orange-600" />
+                  <div className="p-3 bg-primary/10 rounded-lg">
+                    <Zap className="h-6 w-6 text-primary" />
                   </div>
                   <div className="flex-1">
                     <h4 className="text-lg font-semibold mb-2">
-                      Professional Setup (AWS-Style)
+                      AI-Guided Setup with Papyrus
                     </h4>
                     <p className="text-muted-foreground mb-4">
-                      Complete enterprise-grade account setup with MFA, identity verification, and application configuration. 
-                      Follows AWS security best practices.
+                      Let Papyrus, your AI guide, walk you through a personalized setup experience.
+                      Conversational, enjoyable, and tailored to your needs.
                     </p>
-                    <div className="flex items-center space-x-2 text-sm text-orange-600">
+                    <div className="flex items-center space-x-2 text-sm text-primary">
                       <CheckCircle2 className="h-4 w-4" />
-                      <span>Enterprise security standards</span>
+                      <span>Personalized AI guidance</span>
                     </div>
-                    <div className="flex items-center space-x-2 text-sm text-orange-600 mt-1">
+                    <div className="flex items-center space-x-2 text-sm text-primary mt-1">
                       <CheckCircle2 className="h-4 w-4" />
-                      <span>KHEPRA Protocol integration</span>
+                      <span>Cultural wisdom integration</span>
                     </div>
-                    <div className="flex items-center space-x-2 text-sm text-orange-600 mt-1">
+                    <div className="flex items-center space-x-2 text-sm text-primary mt-1">
                       <CheckCircle2 className="h-4 w-4" />
-                      <span>Complete compliance setup</span>
+                      <span>Quick profile setup</span>
                     </div>
                   </div>
-                  <Button onClick={startAWSStyleOnboarding} className="mt-4 bg-orange-500 hover:bg-orange-600">
-                    Start Setup
+                  <Button onClick={startPapyrusOnboarding} className="mt-4 bg-primary hover:bg-primary/90">
+                    Meet Papyrus
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
                 </div>
