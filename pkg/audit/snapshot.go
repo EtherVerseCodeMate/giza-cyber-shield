@@ -2,6 +2,8 @@ package audit
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"runtime"
 	"time"
@@ -20,7 +22,7 @@ func NewSnapshot() (*types.AuditSnapshot, error) {
 		Hostname: hostname,
 		OS:       runtime.GOOS,
 		Arch:     runtime.GOARCH,
-		PublicIP: "127.0.0.1", // TODO: Implement external echo
+		PublicIP: fetchPublicIP(),
 	}
 
 	// 2. Network Ports
@@ -80,4 +82,19 @@ func NewSnapshot() (*types.AuditSnapshot, error) {
 	snap.PublicKey = ""
 
 	return snap, nil
+}
+
+func fetchPublicIP() string {
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get("https://api.ipify.org")
+	if err != nil {
+		return "127.0.0.1"
+	}
+	defer resp.Body.Close()
+
+	ip, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "127.0.0.1"
+	}
+	return string(ip)
 }
