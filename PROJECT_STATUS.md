@@ -315,7 +315,8 @@ Demo Checklist:                         ✅ 100%
 ### For Operations
 - [Deployment Playbook](docs/consulting/DEPLOYMENT_PLAYBOOK.md)
 - [Consulting README](docs/consulting/README.md)
-- [Implementation Complete Summary](IMPLEMENTATION_COMPLETE.md)
+- [STIG Implementation Status](STIG_IMPLEMENTATION_STATUS.md)
+- [Secure Software Development Lifecycle](docs/SECURE_DEVELOPMENT_LIFECYCLE.md)
 
 ---
 
