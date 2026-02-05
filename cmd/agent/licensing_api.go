@@ -92,7 +92,7 @@ func (api *LicensingAPI) HandleCreateLicense(w http.ResponseWriter, r *http.Requ
 		Duration  int                  `json:"duration_days"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
+		http.Error(w, ErrInvalidRequest, http.StatusBadRequest)
 		return
 	}
 
@@ -122,7 +122,7 @@ func (api *LicensingAPI) HandleUpgradeLicense(w http.ResponseWriter, r *http.Req
 		Tier license.EgyptianTier `json:"tier"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
+		http.Error(w, ErrInvalidRequest, http.StatusBadRequest)
 		return
 	}
 
@@ -150,7 +150,7 @@ func (api *LicensingAPI) HandleCreateNode(w http.ResponseWriter, r *http.Request
 		Level     int    `json:"level"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
+		http.Error(w, ErrInvalidRequest, http.StatusBadRequest)
 		return
 	}
 
@@ -266,7 +266,7 @@ func (api *LicensingAPI) HandleEnrollWithToken(w http.ResponseWriter, r *http.Re
 		Token string `json:"token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
+		http.Error(w, ErrInvalidRequest, http.StatusBadRequest)
 		return
 	}
 

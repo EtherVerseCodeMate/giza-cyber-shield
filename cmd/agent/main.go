@@ -225,13 +225,13 @@ func (s *server) agiScan(w http.ResponseWriter, r *http.Request) {
 func startTailscale(mux *http.ServeMux, cfg config.Config) {
 	ts, _ := tailnet.NewServer("adinkhepra-node-" + randID())
 	ln, _ := ts.Listen(context.TODO(), ":45444")
-	log.Fatal(http.Serve(ln, s_withJSON(mux)))
+	log.Fatal(http.Serve(ln, sWithJSON(mux)))
 }
 
 func startLocal(mux *http.ServeMux, cfg config.Config) {
 	addr := "127.0.0.1:" + itoa(cfg.AgentListenPort)
 	log.Printf("ADINKHEPRA agent alive @ %s", addr)
-	log.Fatal(http.ListenAndServe(addr, s_withJSON(mux)))
+	log.Fatal(http.ListenAndServe(addr, sWithJSON(mux)))
 }
 
 func waitForInterrupt() {
@@ -240,7 +240,7 @@ func waitForInterrupt() {
 	<-stop
 }
 
-func s_withJSON(h http.Handler) http.Handler {
+func sWithJSON(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set(HeaderContentType, MIMEApplicationJSON)
