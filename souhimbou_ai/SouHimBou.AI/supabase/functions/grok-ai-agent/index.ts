@@ -5,7 +5,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 class SecurityValidator {
   private static readonly SQL_INJECTION_PATTERNS = [
     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE|UNION|SCRIPT)\b)/gi,
-    /(;|\-\-|\*|\/\*|\*\/)/g,
+    /(;|--|\*|\/\*|\*\/)/g,
     /(\b(OR|AND)\s+\d+\s*=\s*\d+)/gi,
     /(WAITFOR|DELAY|BENCHMARK|SLEEP)/gi,
     /(\bUNION\b.*\bSELECT\b)/gi
@@ -21,7 +21,7 @@ class SecurityValidator {
 
   static validate(input: any): { isValid: boolean; errors: string[]; sanitized?: any } {
     const errors: string[] = [];
-    
+
     if (!input || typeof input !== 'object') {
       return { isValid: false, errors: ['Invalid input format'] };
     }
@@ -62,7 +62,7 @@ class SecurityValidator {
 
   private static containsMaliciousContent(value: string): boolean {
     return this.SQL_INJECTION_PATTERNS.some(pattern => pattern.test(value)) ||
-           this.XSS_PATTERNS.some(pattern => pattern.test(value));
+      this.XSS_PATTERNS.some(pattern => pattern.test(value));
   }
 
   private static isValidUUID(value: string): boolean {
@@ -71,19 +71,19 @@ class SecurityValidator {
 
   private static sanitizeString(value: string): string {
     return value
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#x27;')
-      .replace(/\0/g, '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#x27;')
+      .replaceAll('\0', '')
       .trim()
       .normalize('NFKC');
   }
 
   private static sanitizeObject(obj: any): any {
     if (typeof obj !== 'object' || obj === null) return obj;
-    
+
     const sanitized: any = {};
     for (const [key, value] of Object.entries(obj)) {
       if (typeof value === 'string') {
@@ -104,11 +104,11 @@ function checkRateLimit(identifier: string, maxRequests: number = 20, windowMs: 
   const now = Date.now();
   const requests = rateLimiter.get(identifier) || [];
   const recentRequests = requests.filter(time => time > now - windowMs);
-  
+
   if (recentRequests.length >= maxRequests) {
     return false;
   }
-  
+
   recentRequests.push(now);
   rateLimiter.set(identifier, recentRequests);
   return true;
@@ -141,7 +141,7 @@ interface SecurityContext {
   organizationProfile: any;
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -149,7 +149,7 @@ serve(async (req) => {
   try {
     // Get client IP for rate limiting
     const clientIP = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-    
+
     // Check rate limit
     if (!checkRateLimit(clientIP)) {
       return new Response(
@@ -161,13 +161,13 @@ serve(async (req) => {
     // Parse and validate input
     const rawInput = await req.json();
     const validation = SecurityValidator.validate(rawInput);
-    
+
     if (!validation.isValid) {
       console.warn('Input validation failed:', validation.errors);
       return new Response(
-        JSON.stringify({ 
-          error: 'Invalid input', 
-          details: validation.errors 
+        JSON.stringify({
+          error: 'Invalid input',
+          details: validation.errors
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -253,15 +253,16 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in GrokAI agent:', error);
-    
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: 'AI agent temporarily unavailable',
-        details: error.message 
+        details: errorMessage
       }),
-      { 
+      {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }
@@ -329,7 +330,7 @@ async function getSecurityContext(organizationId: string): Promise<SecurityConte
 function buildSecuritySystemPrompt(context: SecurityContext): string {
   const orgName = context.organizationProfile?.name || 'Organization';
   const industryInfo = context.organizationProfile?.settings?.industry || 'General';
-  
+
   return `You are ARGUS, an advanced AI Security Operations Center (ASOC) agent for ${orgName}, specializing in cybersecurity analysis and AUTONOMOUS incident response.
 
 ORGANIZATION CONTEXT:
@@ -384,16 +385,16 @@ Remember: You now have AUTONOMOUS EXECUTION CAPABILITIES. Your recommendations w
 
 async function analyzeForActions(response: string, context: SecurityContext): Promise<any[]> {
   const actionableItems = [];
-  
+
   // Parse response for actionable recommendations with execution capabilities
   const actionKeywords = [
-    'recommend', 'suggest', 'should', 'implement', 'configure', 
+    'recommend', 'suggest', 'should', 'implement', 'configure',
     'update', 'patch', 'investigate', 'monitor', 'block', 'allow',
     'scan', 'firewall', 'isolate', 'quarantine', 'remediate'
   ];
-  
+
   const sentences = response.split(/[.!?]/);
-  
+
   for (const sentence of sentences) {
     const lowerSentence = sentence.toLowerCase();
     if (actionKeywords.some(keyword => lowerSentence.includes(keyword))) {
@@ -403,7 +404,7 @@ async function analyzeForActions(response: string, context: SecurityContext): Pr
       }
     }
   }
-  
+
   return actionableItems.slice(0, 5); // Limit to top 5 actions
 }
 
@@ -411,17 +412,17 @@ async function createExecutableAction(sentence: string, context: SecurityContext
   const lowerSentence = sentence.toLowerCase();
   const priority = determinePriority(sentence);
   const category = categorizeAction(sentence);
-  
+
   // Determine if action can be auto-executed based on priority and type
   const canAutoExecute = shouldAutoExecute(sentence, priority, category);
-  
+
   // Extract target information (IPs, domains, etc.)
   const targets = extractTargets(sentence);
-  
+
   // Map to specific remediation actions
   let remediationType = null;
   let remediationScript = null;
-  
+
   if (lowerSentence.includes('block') || lowerSentence.includes('firewall')) {
     remediationType = 'network_isolation';
     remediationScript = generateFirewallScript(targets);
@@ -438,9 +439,9 @@ async function createExecutableAction(sentence: string, context: SecurityContext
     remediationType = 'configuration_hardening';
     remediationScript = generateConfigScript(sentence);
   }
-  
+
   if (!remediationType) return null;
-  
+
   return {
     type: 'executable_action',
     text: sentence,
@@ -456,13 +457,16 @@ async function createExecutableAction(sentence: string, context: SecurityContext
   };
 }
 
-function determinePriority(sentence: string): 'high' | 'medium' | 'low' {
-  const highPriorityWords = ['critical', 'urgent', 'immediate', 'emergency', 'breach'];
+function determinePriority(sentence: string): 'critical' | 'high' | 'medium' | 'low' {
+  const criticalWords = ['critical', 'urgent', 'immediate', 'emergency', 'breach'];
+  const highPriorityWords = ['high', 'severe', 'dangerous'];
   const mediumPriorityWords = ['important', 'significant', 'recommend'];
-  
+
   const lowerSentence = sentence.toLowerCase();
-  
-  if (highPriorityWords.some(word => lowerSentence.includes(word))) {
+
+  if (criticalWords.some(word => lowerSentence.includes(word))) {
+    return 'critical';
+  } else if (highPriorityWords.some(word => lowerSentence.includes(word))) {
     return 'high';
   } else if (mediumPriorityWords.some(word => lowerSentence.includes(word))) {
     return 'medium';
@@ -478,51 +482,51 @@ function categorizeAction(sentence: string): string {
     'patching': ['update', 'patch', 'upgrade', 'fix'],
     'policy': ['policy', 'procedure', 'rule', 'guideline']
   };
-  
+
   const lowerSentence = sentence.toLowerCase();
-  
+
   for (const [category, keywords] of Object.entries(categories)) {
     if (keywords.some(keyword => lowerSentence.includes(keyword))) {
       return category;
     }
   }
-  
+
   return 'general';
 }
 
 function calculateComplianceScore(complianceData: any[]): number {
   if (complianceData.length === 0) return 0;
-  
+
   const scores = complianceData
     .filter(assessment => assessment.overall_score !== null)
     .map(assessment => assessment.overall_score);
-  
+
   if (scores.length === 0) return 0;
-  
+
   return Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
 }
 
 // Helper functions for autonomous action execution
 function shouldAutoExecute(sentence: string, priority: string, category: string): boolean {
   const lowerSentence = sentence.toLowerCase();
-  
+
   // EMERGENCY AUTO-EXECUTION: "Shoot first, ask questions later"
   // High-priority threats with active indicators should be auto-executed
   const emergencyKeywords = [
-    'breach', 'attack', 'malware', 'ransomware', 'compromise', 
+    'breach', 'attack', 'malware', 'ransomware', 'compromise',
     'backdoor', 'exploit', 'intrusion', 'suspicious', 'threat'
   ];
-  
-  const hasEmergencyKeyword = emergencyKeywords.some(keyword => 
+
+  const hasEmergencyKeyword = emergencyKeywords.some(keyword =>
     lowerSentence.includes(keyword)
   );
-  
+
   // Auto-execute HIGH RISK actions if it's an emergency situation
   if (hasEmergencyKeyword && (priority === 'high' || priority === 'critical')) {
     console.log(`EMERGENCY AUTO-EXECUTION triggered for: ${sentence}`);
     return true;
   }
-  
+
   // Continue with existing logic for lower-risk actions
   const safeActions = ['scan', 'investigate', 'monitor', 'log', 'alert'];
   return safeActions.some(action => lowerSentence.includes(action));
@@ -530,32 +534,32 @@ function shouldAutoExecute(sentence: string, priority: string, category: string)
 
 function extractTargets(sentence: string): string[] {
   const targets: string[] = [];
-  
+
   // Extract IP addresses
   const ipRegex = /\b(?:\d{1,3}\.){3}\d{1,3}\b/g;
   const ips = sentence.match(ipRegex) || [];
   targets.push(...ips);
-  
+
   // Extract domain names
   const domainRegex = /\b[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\b/g;
   const domains = sentence.match(domainRegex)?.filter(d => d.includes('.')) || [];
   targets.push(...domains);
-  
+
   return [...new Set(targets)]; // Remove duplicates
 }
 
 function generateFirewallScript(targets: string[]): string {
   if (targets.length === 0) return 'echo "No targets specified for firewall rule"';
-  
-  return targets.map(target => 
+
+  return targets.map(target =>
     `iptables -A INPUT -s ${target} -j DROP && echo "Blocked ${target}"`
   ).join('\n');
 }
 
 function generateScanScript(targets: string[]): string {
   if (targets.length === 0) return 'nmap -sn 192.168.1.0/24';
-  
-  return targets.map(target => 
+
+  return targets.map(target =>
     `nmap -sV -sC ${target} && echo "Scan completed for ${target}"`
   ).join('\n');
 }
@@ -570,15 +574,15 @@ echo "Security patches applied on $(date)"
 
 function generateIsolationScript(targets: string[]): string {
   if (targets.length === 0) return 'echo "No targets specified for isolation"';
-  
-  return targets.map(target => 
+
+  return targets.map(target =>
     `# Isolate ${target}\niptables -A INPUT -s ${target} -j DROP\niptables -A OUTPUT -d ${target} -j DROP`
   ).join('\n');
 }
 
 function generateConfigScript(sentence: string): string {
   const lowerSentence = sentence.toLowerCase();
-  
+
   if (lowerSentence.includes('ssh')) {
     return `
 # SSH hardening
@@ -595,7 +599,7 @@ ufw default allow outgoing
 ufw allow ssh
     `.trim();
   }
-  
+
   return 'echo "Configuration script needs manual review"';
 }
 
@@ -607,39 +611,39 @@ function estimateDuration(remediationType: string): number {
     'endpoint_isolation': 5,
     'configuration_hardening': 10
   };
-  
-  return durations[remediationType] || 10;
+
+  return (durations as Record<string, number>)[remediationType] || 10;
 }
 
 function assessRiskLevel(remediationType: string, targets: string[]): string {
   if (remediationType === 'endpoint_isolation' || remediationType === 'network_isolation') {
     return targets.length > 5 ? 'high' : 'medium';
   }
-  
+
   if (remediationType === 'patch_management') {
     return 'medium';
   }
-  
+
   return 'low';
 }
 
 async function executeAutonomousActions(actionableItems: any[], organizationId: string): Promise<any[]> {
   const executionResults = [];
-  
+
   for (const action of actionableItems) {
     if (action.type !== 'executable_action') continue;
-    
+
     try {
       // EMERGENCY EXECUTION: Execute immediately for high-risk threats
-      const shouldExecuteImmediately = action.canAutoExecute || 
+      const shouldExecuteImmediately = action.canAutoExecute ||
         (action.priority === 'high' || action.priority === 'critical');
-        
+
       if (shouldExecuteImmediately) {
         console.log(`AUTONOMOUS EXECUTION: ${action.text}`);
-        
+
         // Generate rollback script before execution
         const rollbackScript = generateRollbackScript(action);
-        
+
         // Call automated remediation function
         const { data: remediationResult, error } = await supabase.functions.invoke('automated-remediation', {
           body: {
@@ -652,7 +656,7 @@ async function executeAutonomousActions(actionableItems: any[], organizationId: 
             emergency_mode: action.priority === 'high' || action.priority === 'critical'
           }
         });
-        
+
         if (error) {
           console.error('Emergency remediation failed:', error);
           executionResults.push({
@@ -664,7 +668,7 @@ async function executeAutonomousActions(actionableItems: any[], organizationId: 
           });
         } else {
           console.log('EMERGENCY ACTION EXECUTED:', remediationResult);
-          
+
           // Store execution record with rollback capability
           const { data: activityRecord } = await supabase.from('remediation_activities').insert([{
             organization_id: organizationId,
@@ -681,10 +685,10 @@ async function executeAutonomousActions(actionableItems: any[], organizationId: 
             total_actions: remediationResult?.summary?.total_actions || 1,
             success_rate: remediationResult?.summary?.success_rate || 100
           }]).select().single();
-          
+
           // Send immediate alert notification
           await sendEmergencyAlert(action, remediationResult, organizationId);
-          
+
           executionResults.push({
             actionId: action.text.substring(0, 50),
             status: 'executed_emergency',
@@ -703,7 +707,7 @@ async function executeAutonomousActions(actionableItems: any[], organizationId: 
           action_type: action.remediationType,
           targets: action.targets,
           execution_status: 'PENDING',
-          results: { 
+          results: {
             reason: action.requiresApproval ? 'Requires approval' : 'High risk action',
             script: action.remediationScript,
             estimatedDuration: action.estimatedDuration,
@@ -711,7 +715,7 @@ async function executeAutonomousActions(actionableItems: any[], organizationId: 
           },
           dry_run: true
         }]);
-        
+
         executionResults.push({
           actionId: action.text.substring(0, 50),
           status: 'pending_approval',
@@ -725,12 +729,12 @@ async function executeAutonomousActions(actionableItems: any[], organizationId: 
       executionResults.push({
         actionId: action.text.substring(0, 50),
         status: 'error',
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         type: action.remediationType
       });
     }
   }
-  
+
   return executionResults;
 }
 
@@ -738,19 +742,19 @@ async function executeAutonomousActions(actionableItems: any[], organizationId: 
 function generateRollbackScript(action: any): string {
   const remediationType = action.remediationType;
   const targets = action.targets || [];
-  
+
   switch (remediationType) {
     case 'network_isolation':
       // Generate undo iptables rules
-      return targets.map(target => 
+      return targets.map((target: string) =>
         `iptables -D INPUT -s ${target} -j DROP && echo "Unblocked ${target}"`
       ).join('\n');
-      
+
     case 'endpoint_isolation':
-      return targets.map(target => 
+      return targets.map((target: string) =>
         `# Restore network access for ${target}\niptables -D INPUT -s ${target} -j DROP\niptables -D OUTPUT -d ${target} -j DROP`
       ).join('\n');
-      
+
     case 'configuration_hardening':
       if (action.text.toLowerCase().includes('ssh')) {
         return `
@@ -761,14 +765,14 @@ echo "SSH configuration rolled back"
         `.trim();
       }
       return 'echo "Manual rollback required for configuration changes"';
-      
+
     case 'patch_management':
       return `
 # Rollback patches (use with extreme caution)
 echo "Patch rollback requires manual intervention"
 echo "Check /var/log/apt/history.log for package history"
       `.trim();
-      
+
     default:
       return `echo "No automated rollback available for ${remediationType}"`;
   }
@@ -780,7 +784,7 @@ async function sendEmergencyAlert(action: any, result: any, organizationId: stri
     // Create emergency alert record
     const alertTitle = `🚨 EMERGENCY: Autonomous Security Action Executed`;
     const alertDescription = `ARGUS AI automatically executed ${action.remediationType} to address ${action.priority} priority threat: ${action.text}`;
-    
+
     // Insert alert into alerts table
     await supabase.from('alerts').insert([{
       organization_id: organizationId,
@@ -801,7 +805,7 @@ async function sendEmergencyAlert(action: any, result: any, organizationId: stri
       source_type: 'AI_AGENT',
       source_id: 'ARGUS'
     }]);
-    
+
     // Log security event
     await supabase.from('security_events').insert([{
       organization_id: organizationId,
@@ -816,9 +820,9 @@ async function sendEmergencyAlert(action: any, result: any, organizationId: stri
       },
       source_system: 'ARGUS_AI'
     }]);
-    
+
     console.log(`Emergency alert sent for autonomous action: ${action.remediationType}`);
-    
+
   } catch (error) {
     console.error('Failed to send emergency alert:', error);
   }
