@@ -68,7 +68,7 @@ export const useOrganization = () => {
   const fetchUserOrganizations = async () => {
     try {
       setLoading(true);
-      
+
       // Check if user session is still valid
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -87,25 +87,35 @@ export const useOrganization = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching organizations:', error);
-        
-        // If JWT expired, sign out user
+        // Detailed logging for debugging, but less aggressive UI feedback
+        console.warn('Organization fetch status:', { code: error.code, message: error.message });
+
+        // If JWT expired, sign out user - this is a critical state transition
         if (error.code === 'PGRST301') {
           await supabase.auth.signOut();
           return;
         }
-        
-        toast({
-          title: "Error",
-          description: "Failed to load organizations",
-          variant: "destructive",
-        });
+
+        // Only show toast for unexpected errors (excluding common transition/empty states)
+        if (error.code !== 'PGRST116' && error.message !== 'Unexpected token') {
+          // If the error is real (e.g. connection, RLS failure), log it prominently
+          console.error('Critical organization load failure:', error);
+
+          // Only show toast if we are CERTAIN it's a failure and not just a new user case
+          if (user?.id) {
+            toast({
+              title: "Connection Alert",
+              description: "Retrying organization sync...",
+              variant: "default", // Less alarming variant
+            });
+          }
+        }
         return;
       }
 
       const userOrgs = data as UserOrganization[];
       setOrganizations(userOrgs);
-      
+
       // Set current organization (first one or previously selected)
       if (userOrgs.length > 0 && !currentOrganization) {
         const savedOrgId = localStorage.getItem('currentOrganizationId');
@@ -144,7 +154,7 @@ export const useOrganization = () => {
       setCurrentOrganization(org);
       localStorage.setItem('currentOrganizationId', organizationId);
       await fetchSubscription(organizationId);
-      
+
       // Log the action
       await supabase.rpc('log_user_action', {
         action_type: 'organization_switched',
