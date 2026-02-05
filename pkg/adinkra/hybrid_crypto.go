@@ -23,6 +23,8 @@ import (
 // ============================================================================
 
 const (
+	ErrDilithiumKeygen = "dilithium keygen failed: %w"
+
 	// Khepra-PQC Parameters (Your proprietary lattice scheme)
 	KhepraPQCSecurityLevel = 256 // bits
 	KhepraPQCModulus       = 8380417
@@ -146,7 +148,7 @@ func GenerateHybridKeyPair(purpose string, expirationMonths int) (*HybridKeyPair
 	// Layer 2: CRYSTALS-Dilithium3 (Signing)
 	dPub, dPriv, err := generateDilithiumKeys(entropy[32:])
 	if err != nil {
-		return nil, fmt.Errorf("dilithium keygen failed: %w", err)
+		return nil, fmt.Errorf(ErrDilithiumKeygen, err)
 	}
 	keyPair.DilithiumPublic = dPub
 	keyPair.DilithiumPrivate = dPriv
@@ -202,7 +204,7 @@ func GenerateHybridKeyPairFromSeed(seed []byte, purpose string) (*HybridKeyPair,
 	// Note: Actual impl might need randomness, use rng
 	dPub, dPriv, err := generateDilithiumKeys(seed[32:])
 	if err != nil {
-		return nil, fmt.Errorf("dilithium keygen failed: %w", err)
+		return nil, fmt.Errorf(ErrDilithiumKeygen, err)
 	}
 	keyPair.DilithiumPublic = dPub
 	keyPair.DilithiumPrivate = dPriv
