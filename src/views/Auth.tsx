@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useSecurityHardening } from '@/hooks/useSecurityHardening';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, User, Lock, Building, Eye, EyeOff, AlertTriangle, CheckCircle, Fingerprint, Mail } from 'lucide-react';
+import { Shield, User, Lock, Building, Eye, EyeOff, CheckCircle, Fingerprint, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import PasswordResetOTP from '@/components/auth/PasswordResetOTP';
 
@@ -28,8 +27,6 @@ const Auth = () => {
   const [department, setDepartment] = useState('');
   const [securityClearance, setSecurityClearance] = useState('UNCLASSIFIED');
   const [loading, setLoading] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
-  const [termsLoading, setTermsLoading] = useState(false);
   const [showEmailVerification, setShowEmailVerification] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
@@ -38,8 +35,7 @@ const Auth = () => {
   const loginEmailRef = useRef<HTMLInputElement>(null);
   const regEmailRef = useRef<HTMLInputElement>(null);
 
-  const { signIn, signUp, user, resetPassword } = useAuth();
-  const { hasAcceptedAll, acceptAllAgreements, checkAgreementStatus } = useUserAgreements();
+  const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -61,15 +57,9 @@ const Auth = () => {
 
   useEffect(() => {
     if (user) {
-      checkAgreementStatus(user.id).then((hasAccepted) => {
-        if (hasAccepted) {
-          navigate('/dashboard');
-        } else {
-          setShowTerms(true);
-        }
-      });
+      navigate('/dashboard');
     }
-  }, [user, navigate, checkAgreementStatus]);
+  }, [user, navigate]);
 
   // Dynamic lockout countdown
   useEffect(() => {
@@ -123,15 +113,6 @@ const Auth = () => {
     clearFieldError(field);
     return true;
   }, [validateInput, clearFieldError]);
-
-  const handleTermsAcceptance = async (acceptedTerms: Record<string, boolean>) => {
-    setTermsLoading(true);
-    const success = await acceptAllAgreements(acceptedTerms);
-    if (success) {
-      navigate('/dashboard');
-    }
-    setTermsLoading(false);
-  };
 
   const handlePasswordResetSuccess = () => {
     setShowPasswordReset(false);
@@ -219,19 +200,11 @@ const Auth = () => {
 
           toast({
             title: "Access Granted",
-            description: "Checking legal compliance...",
+            description: "Welcome back!",
             variant: "default"
           });
 
-          const { data: { user: authUser } } = await supabase.auth.getUser();
-          if (authUser) {
-            const hasAccepted = await checkAgreementStatus(authUser.id);
-            if (hasAccepted) {
-              navigate('/dashboard');
-            } else {
-              setShowTerms(true);
-            }
-          }
+          navigate('/dashboard');
         }
       } else {
         const { error } = await signUp(email, password, {
@@ -284,21 +257,6 @@ const Auth = () => {
     const seconds = lockoutSeconds % 60;
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
-
-  // Terms acceptance screen
-  if (showTerms && user) {
-    return (
-      <div className="min-h-screen bg-gradient-dark flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--primary-glow)_0%,_transparent_50%)] opacity-10"></div>
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/5 via-transparent to-accent/5"></div>
-        <TermsAcceptance
-          open={true}
-          onOpenChange={() => {}}
-          onAccepted={() => handleTermsAcceptance({})}
-        />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-dark flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
