@@ -1,52 +1,52 @@
 # =============================================================================
 # KHEPRA PROTOCOL - Vercel Ignore File
 # Exclude large directories for Next.js frontend deployment
+# IMPORTANT: All directory patterns MUST be root-anchored with / prefix
+# to prevent accidentally matching directories inside src/
 # =============================================================================
 
 # Go backend (2GB+ vendored deps)
-pkg/
-cmd/
-vendor/
-bin/
+/pkg/
+/cmd/
+/vendor/
+/bin/
 *.go
 go.mod
 go.sum
 
 # Python services and ML models
-services/
+/services/
 *.py
 *.pt
 *.pth
 *.onnx
-models/
-.venv/
-venv/
-__pycache__/
+/models/
+/.venv/
+/venv/
+/__pycache__/
 
 # Large data directories
-data/
-top_secret_intel/
-telemetry-keys/
-keys/
+/data/
+/top_secret_intel/
+/telemetry-keys/
+/keys/
 
 # Infrastructure/DevOps
-deploy/
-aws-govcloud/
+/deploy/
+/aws-govcloud/
 *.tf
 *.tfstate*
 Dockerfile*
 docker-compose*
 
 # Other large directories
-souhimbou_ai/
-adinkhepra-telemetry-server/
-tools/
+/souhimbou_ai/
+/adinkhepra-telemetry-server/
+/tools/
 /supabase/
-!src/integrations/supabase/
 
 # Documentation
-docs/
-*.md
+/docs/
 
 # Binaries and artifacts
 *.exe
@@ -59,6 +59,7 @@ docs/
 # Dev/IDE files
 .env.local
 *.log
-.git/
-.idea/
-.vscode/
+/.git/
+/.idea/
+/.vscode/
+/.agent/
