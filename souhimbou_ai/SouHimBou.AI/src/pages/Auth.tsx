@@ -164,19 +164,228 @@ const Auth = () => {
     }
   };
 
-  const getPasswordStrengthColor = () => {
-    if (passwordStrengthData.score <= 2) return 'bg-destructive';
-    if (passwordStrengthData.score <= 4) return 'bg-warning';
-    if (passwordStrengthData.score <= 6) return 'bg-info';
-    return 'bg-success';
-  };
+  const renderLoginTab = () => (
+    <TabsContent value="login" className="space-y-4 mt-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-foreground flex items-center space-x-2">
+            <User className="h-4 w-4" />
+            <span>Email Address</span>
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="bg-input/50 border-border text-foreground placeholder:text-muted-foreground"
+            placeholder="Enter your email"
+          />
+        </div>
 
-  const getPasswordStrengthText = () => {
-    if (passwordStrengthData.score <= 2) return 'Weak';
-    if (passwordStrengthData.score <= 4) return 'Fair';
-    if (passwordStrengthData.score <= 6) return 'Good';
-    return 'Strong';
-  };
+        <div className="space-y-2">
+          <Label htmlFor="password" className="text-foreground flex items-center space-x-2">
+            <Lock className="h-4 w-4" />
+            <span>Password</span>
+          </Label>
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="bg-input/50 border-border text-foreground placeholder:text-muted-foreground pr-10"
+              placeholder="Enter your password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+        </div>
+
+        <Button
+          type="submit"
+          variant="cyber"
+          className="w-full"
+          disabled={loading || isAccountLocked()}
+        >
+          {loading ? (
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+              <span>Authenticating...</span>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-2">
+              <Lock className="h-4 w-4" />
+              <span>Authenticate</span>
+            </div>
+          )}
+        </Button>
+
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={() => setShowPasswordReset(true)}
+            className="text-sm text-primary hover:text-primary-glow transition-colors"
+            disabled={loading || isAccountLocked()}
+          >
+            Forgot your password?
+          </button>
+        </div>
+      </form>
+    </TabsContent>
+  );
+
+  const renderRegisterTab = () => (
+    <TabsContent value="register" className="space-y-4 mt-6">
+      <form onSubmit={(e) => {
+        setIsLogin(false);
+        handleSubmit(e);
+      }} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="reg-email" className="text-foreground flex items-center space-x-2">
+            <User className="h-4 w-4" />
+            <span>Email Address</span>
+          </Label>
+          <Input
+            id="reg-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="bg-input/50 border-border text-foreground placeholder:text-muted-foreground"
+            placeholder="Enter your email"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="reg-password" className="text-foreground flex items-center space-x-2">
+            <Lock className="h-4 w-4" />
+            <span>Password</span>
+          </Label>
+          <div className="relative">
+            <Input
+              id="reg-password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="bg-input/50 border-border text-foreground placeholder:text-muted-foreground pr-10"
+              placeholder="Enter your password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+
+          {password && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Password Strength:</span>
+                <span className={`font-medium ${passwordStrengthData.isStrong ? 'text-success' : 'text-warning'}`}>
+                  {getPasswordStrengthText()}
+                </span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full transition-all duration-300 ${getPasswordStrengthColor()}`}
+                  style={{ width: `${(passwordStrengthData.score / 8) * 100}%` }}
+                ></div>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {passwordStrengthData.feedback.length > 0 ? (
+                  <div>Missing: {passwordStrengthData.feedback.join(', ')}</div>
+                ) : (
+                  <div>All security requirements met ✓</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="reg-username" className="text-foreground">Username</Label>
+          <Input
+            id="reg-username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+            className="bg-input/50 border-border text-foreground"
+            placeholder="Choose a username"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="reg-fullName" className="text-foreground">Full Name</Label>
+          <Input
+            id="reg-fullName"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            required
+            className="bg-input/50 border-border text-foreground"
+            placeholder="Enter your full name"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="reg-department" className="text-foreground flex items-center space-x-2">
+            <Building className="h-4 w-4" />
+            <span>Department</span>
+          </Label>
+          <Input
+            id="reg-department"
+            value={department}
+            onChange={(e) => setDepartment(e.target.value)}
+            className="bg-input/50 border-border text-foreground"
+            placeholder="Enter your department"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="reg-clearance" className="text-foreground">Security Clearance</Label>
+          <select
+            id="reg-clearance"
+            value={securityClearance}
+            onChange={(e) => setSecurityClearance(e.target.value)}
+            className="w-full h-10 rounded-lg border border-border bg-input/50 px-3 py-2 text-foreground"
+          >
+            <option value="UNCLASSIFIED">UNCLASSIFIED</option>
+            <option value="CONFIDENTIAL">CONFIDENTIAL</option>
+            <option value="SECRET">SECRET</option>
+            <option value="TOP_SECRET">TOP SECRET</option>
+          </select>
+        </div>
+
+        <Button
+          type="submit"
+          variant="cyber"
+          className="w-full"
+          disabled={loading}
+        >
+          {loading ? (
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+              <span>Registering...</span>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-2">
+              <CheckCircle className="h-4 w-4" />
+              <span>Register</span>
+            </div>
+          )}
+        </Button>
+      </form>
+    </TabsContent>
+  );
 
 
   return (
@@ -251,224 +460,8 @@ const Auth = () => {
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="login" className="space-y-4 mt-6">
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-foreground flex items-center space-x-2">
-                      <User className="h-4 w-4" />
-                      <span>Email Address</span>
-                    </Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="bg-input/50 border-border text-foreground placeholder:text-muted-foreground"
-                      placeholder="Enter your email"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="password" className="text-foreground flex items-center space-x-2">
-                      <Lock className="h-4 w-4" />
-                      <span>Password</span>
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        className="bg-input/50 border-border text-foreground placeholder:text-muted-foreground pr-10"
-                        placeholder="Enter your password"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground"
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    variant="cyber"
-                    className="w-full"
-                    disabled={loading || isAccountLocked()}
-                  >
-                    {loading ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                        <span>Authenticating...</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center space-x-2">
-                        <Lock className="h-4 w-4" />
-                        <span>Authenticate</span>
-                      </div>
-                    )}
-                  </Button>
-
-                  <div className="text-center">
-                    <button
-                      type="button"
-                      onClick={() => setShowPasswordReset(true)}
-                      className="text-sm text-primary hover:text-primary-glow transition-colors"
-                      disabled={loading || isAccountLocked()}
-                    >
-                      Forgot your password?
-                    </button>
-                  </div>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="register" className="space-y-4 mt-6">
-                <form onSubmit={(e) => {
-                  setIsLogin(false);
-                  handleSubmit(e);
-                }} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-email" className="text-foreground flex items-center space-x-2">
-                      <User className="h-4 w-4" />
-                      <span>Email Address</span>
-                    </Label>
-                    <Input
-                      id="reg-email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="bg-input/50 border-border text-foreground placeholder:text-muted-foreground"
-                      placeholder="Enter your email"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-password" className="text-foreground flex items-center space-x-2">
-                      <Lock className="h-4 w-4" />
-                      <span>Password</span>
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="reg-password"
-                        type={showPassword ? "text" : "password"}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        className="bg-input/50 border-border text-foreground placeholder:text-muted-foreground pr-10"
-                        placeholder="Enter your password"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground"
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-
-                    {password && (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">Password Strength:</span>
-                          <span className={`font-medium ${passwordStrengthData.isStrong ? 'text-success' : 'text-warning'}`}>
-                            {getPasswordStrengthText()}
-                          </span>
-                        </div>
-                        <div className="w-full bg-muted rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full transition-all duration-300 ${getPasswordStrengthColor()}`}
-                            style={{ width: `${(passwordStrengthData.score / 8) * 100}%` }}
-                          ></div>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {passwordStrengthData.feedback.length > 0 ? (
-                            <div>Missing: {passwordStrengthData.feedback.join(', ')}</div>
-                          ) : (
-                            <div>All security requirements met ✓</div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-username" className="text-foreground">Username</Label>
-                    <Input
-                      id="reg-username"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      required
-                      className="bg-input/50 border-border text-foreground"
-                      placeholder="Choose a username"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-fullName" className="text-foreground">Full Name</Label>
-                    <Input
-                      id="reg-fullName"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      required
-                      className="bg-input/50 border-border text-foreground"
-                      placeholder="Enter your full name"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-department" className="text-foreground flex items-center space-x-2">
-                      <Building className="h-4 w-4" />
-                      <span>Department</span>
-                    </Label>
-                    <Input
-                      id="reg-department"
-                      value={department}
-                      onChange={(e) => setDepartment(e.target.value)}
-                      className="bg-input/50 border-border text-foreground"
-                      placeholder="Enter your department"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-clearance" className="text-foreground">Security Clearance</Label>
-                    <select
-                      id="reg-clearance"
-                      value={securityClearance}
-                      onChange={(e) => setSecurityClearance(e.target.value)}
-                      className="w-full h-10 rounded-lg border border-border bg-input/50 px-3 py-2 text-foreground"
-                    >
-                      <option value="UNCLASSIFIED">UNCLASSIFIED</option>
-                      <option value="CONFIDENTIAL">CONFIDENTIAL</option>
-                      <option value="SECRET">SECRET</option>
-                      <option value="TOP_SECRET">TOP SECRET</option>
-                    </select>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    variant="cyber"
-                    className="w-full"
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                        <span>Registering...</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center space-x-2">
-                        <CheckCircle className="h-4 w-4" />
-                        <span>Register</span>
-                      </div>
-                    )}
-                  </Button>
-                </form>
-              </TabsContent>
+              {renderLoginTab()}
+              {renderRegisterTab()}
 
             </Tabs>
           )}
