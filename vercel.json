@@ -6,6 +6,5 @@
   "outputDirectory": ".next",
   "git": {
     "submodules": false
-  },
-  "ignoreCommand": "exit 0"
+  }
 }
