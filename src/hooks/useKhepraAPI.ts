@@ -83,54 +83,6 @@ export interface STIGValidationResponse {
   timestamp: string;
 }
 
-export interface CMMCAuditFinding {
-  ID: string;
-  Title: string;
-  Description: string;
-  Severity: string;
-  Status: string;
-  Expected: string;
-  Actual: string;
-  Remediation: string;
-  References: string[];
-  CheckedAt: string;
-}
-
-export interface CMMCAuditResponse {
-  Framework: string;
-  Version: string;
-  StartTime: string;
-  EndTime: string;
-  Duration: number;
-  Passed: number;
-  Failed: number;
-  NotApplicable: number;
-  ManualReview: number;
-  TotalControls: number;
-  Findings: CMMCAuditFinding[];
-}
-
-export interface STIGRemediationRequest {
-  control_ids: string[];
-  target_host: string;
-}
-
-export interface RemediationResult {
-  control_id: string;
-  status: 'success' | 'failed' | 'requires_manual';
-  command: string;
-  output: string;
-  timestamp: string;
-}
-
-export interface STIGRemediationResponse {
-  batch_id: string;
-  results: RemediationResult[];
-  summary: string;
-  status: 'completed' | 'partial' | 'failed';
-  timestamp: string;
-}
-
 export interface LicenseStatus {
   machine_id: string;
   organization: string;
@@ -235,19 +187,6 @@ class KhepraAPIClient {
   async getLicenseStatus(): Promise<LicenseStatus> {
     return this.request<LicenseStatus>('/api/v1/license/status');
   }
-
-  // CMMC
-  async getCMMCAudit(): Promise<CMMCAuditResponse> {
-    return this.request<CMMCAuditResponse>('/api/v1/compliance/cmmc-audit');
-  }
-
-  // Remediation
-  async remediateSTIG(request: STIGRemediationRequest): Promise<STIGRemediationResponse> {
-    return this.request<STIGRemediationResponse>('/api/v1/stig/remediate', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    });
-  }
 }
 
 // Hook for Khepra API
@@ -276,13 +215,6 @@ export function useKhepraAPI(baseUrl: string, apiKey: string) {
     refetchInterval: 10000, // Refresh every 10 seconds
   });
 
-  // CMMC Audit query
-  const cmmcQuery = useQuery({
-    queryKey: ['khepra', 'cmmc', baseUrl],
-    queryFn: () => client.getCMMCAudit(),
-    refetchInterval: 30000, // Refresh every 30 seconds
-  });
-
   // Trigger scan mutation
   const triggerScanMutation = useMutation({
     mutationFn: (request: ScanRequest) => client.triggerScan(request),
@@ -294,15 +226,6 @@ export function useKhepraAPI(baseUrl: string, apiKey: string) {
   // STIG validation mutation
   const validateSTIGMutation = useMutation({
     mutationFn: (request: STIGValidationRequest) => client.validateSTIG(request),
-  });
-
-  // STIG remediation mutation
-  const remediateSTIGMutation = useMutation({
-    mutationFn: (request: STIGRemediationRequest) => client.remediateSTIG(request),
-    onSuccess: () => {
-      // Refresh CMMC status after remediation
-      queryClient.invalidateQueries({ queryKey: ['khepra', 'cmmc', baseUrl] });
-    },
   });
 
   // Get scan status
@@ -323,12 +246,10 @@ export function useKhepraAPI(baseUrl: string, apiKey: string) {
     health: healthQuery,
     license: licenseQuery,
     dag: dagQuery,
-    cmmc: cmmcQuery,
 
     // Mutations
     triggerScan: triggerScanMutation,
     validateSTIG: validateSTIGMutation,
-    remediateSTIG: remediateSTIGMutation,
 
     // Methods
     getScanStatus,
