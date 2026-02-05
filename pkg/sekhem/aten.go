@@ -14,6 +14,10 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/seshat"
 )
 
+const (
+	FrameworkNIST80053 = "NIST-800-53"
+)
+
 // AtenRealm represents the Sovereign/Iron Bank Mode (strategic orchestration)
 // Aten (Egyptian): The sun disk, supreme deity, centralized power
 type AtenRealm struct {
@@ -40,7 +44,7 @@ type GlobalPolicy struct {
 	ID          string
 	Name        string
 	Description string
-	Framework   string // "STIG", "NIST-800-53", "CMMC", etc.
+	Framework   string // "STIG", FrameworkNIST80053, "CMMC", etc.
 	Controls    []ControlMapping
 	Enforcement string // "mandatory", "recommended", "audit-only"
 	CreatedAt   time.Time
@@ -250,11 +254,11 @@ func (ar *AtenRealm) initializeComplianceFrameworks() {
 		ID:          "nist-800-53",
 		Name:        "NIST 800-53 Rev 5 Compliance",
 		Description: "NIST security controls for federal systems",
-		Framework:   "NIST-800-53",
+		Framework:   FrameworkNIST80053,
 		Controls: []ControlMapping{
-			{ControlID: "AC-2", Framework: "NIST-800-53", Description: "Account Management", Automated: true},
-			{ControlID: "AU-2", Framework: "NIST-800-53", Description: "Audit Events", Automated: true},
-			{ControlID: "SC-13", Framework: "NIST-800-53", Description: "Cryptographic Protection", Automated: true},
+			{ControlID: "AC-2", Framework: FrameworkNIST80053, Description: "Account Management", Automated: true},
+			{ControlID: "AU-2", Framework: FrameworkNIST80053, Description: "Audit Events", Automated: true},
+			{ControlID: "SC-13", Framework: FrameworkNIST80053, Description: "Cryptographic Protection", Automated: true},
 		},
 		Enforcement: "mandatory",
 		CreatedAt:   time.Now(),
@@ -287,7 +291,7 @@ func (ar *AtenRealm) initializeComplianceFrameworks() {
 
 	ar.ComplianceRules["nist-audit"] = &ComplianceRule{
 		ID:          "nist-audit",
-		Framework:   "NIST-800-53",
+		Framework:   FrameworkNIST80053,
 		Control:     "AU-2",
 		Requirement: "System must generate audit records",
 		Severity:    maat.SeveritySevere,
