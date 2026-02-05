@@ -1,26 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
-import { 
-  Shield, 
-  Smartphone, 
-  Key, 
-  CheckCircle, 
-  ArrowRight, 
+import {
+  Shield,
+  Smartphone,
+  Key,
+  CheckCircle,
+  ArrowRight,
   Building,
-  Mail,
-  Phone,
-  CreditCard,
   AlertTriangle,
   QrCode,
   RefreshCw,
@@ -76,9 +71,9 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
   // MFA setup state
   const [mfaStep, setMfaStep] = useState<'setup' | 'verify' | 'complete'>('setup');
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
-  const [secret, setSecret] = useState<string>('');
+  const [, setSecret] = useState<string>('');
   const [verificationCode, setVerificationCode] = useState<string>('');
-  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [, setBackupCodes] = useState<string[]>([]);
   const [mfaMethod, setMfaMethod] = useState<'authenticator' | 'sms' | 'hardware'>('authenticator');
 
   // Phone verification
@@ -186,7 +181,7 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
       if (error) throw error;
 
       // Generate backup codes
-      const codes = Array.from({ length: 8 }, () => 
+      const codes = Array.from({ length: 8 }, () =>
         Math.random().toString(36).substring(2, 8).toUpperCase()
       );
       setBackupCodes(codes);
@@ -201,7 +196,7 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
         .eq('user_id', user.id);
 
       setMfaStep('complete');
-      
+
       toast({
         title: "MFA Enabled Successfully",
         description: "Your account is now secured with multi-factor authentication.",
@@ -253,7 +248,7 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
         .from('organizations')
         .insert({
           name: accountData.accountName,
-          slug: accountData.accountName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+          slug: accountData.accountName.toLowerCase().replaceAll(/[^a-z0-9]/g, '-'),
           settings: {
             applicationName: accountData.applicationName,
             applicationDescription: accountData.applicationDescription,
@@ -272,7 +267,7 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
       await supabase
         .from('user_organizations')
         .insert({
-          user_id: user!.id,
+          user_id: user?.id,
           organization_id: organization.id,
           role: 'owner'
         });
@@ -308,9 +303,9 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
         return (
           <div className="space-y-6">
             <div className="text-center mb-6">
-              <img 
-                src="/lovable-uploads/94f06ba5-2c93-4be0-a03f-e3fff4157ca6.png" 
-                alt="SouHimBou AI Logo" 
+              <img
+                src="/lovable-uploads/94f06ba5-2c93-4be0-a03f-e3fff4157ca6.png"
+                alt="SouHimBou AI Logo"
                 className="h-12 w-auto mx-auto mb-4"
               />
               <h2 className="text-2xl font-bold">Sign up for SouHimBou AI</h2>
@@ -322,7 +317,7 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
             <Card className="bg-blue-50 border-blue-200">
               <CardContent className="p-4">
                 <p className="text-sm text-blue-700">
-                  Start with advanced threat intelligence powered by cultural AI insights, 
+                  Start with advanced threat intelligence powered by cultural AI insights,
                   plus earn credits by completing various security assessments.
                 </p>
               </CardContent>
@@ -341,7 +336,7 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
                 />
                 <p className="text-xs text-muted-foreground">
                   Used for account recovery and as described in the{' '}
-                  <a href="#" className="text-blue-600 hover:underline">KHEPRA Privacy Notice</a>
+                  <a href="javascript:void(0)" className="text-blue-600 hover:underline">KHEPRA Privacy Notice</a>
                 </p>
               </div>
 
@@ -373,8 +368,8 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
                 <span className="text-sm text-muted-foreground">OR</span>
               </div>
 
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full"
                 onClick={() => {
                   onClose();
@@ -394,10 +389,10 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
               <Shield className="h-16 w-16 text-blue-600 mx-auto mb-4" />
               <h2 className="text-2xl font-bold">Keep your account secure</h2>
               <p className="text-muted-foreground">
-                In order to provide a more secure experience for our customers, we now are requiring 
-                registering <strong>multi-factor authentication (MFA)</strong>. This provides a second means of 
+                In order to provide a more secure experience for our customers, we now are requiring
+                registering <strong>multi-factor authentication (MFA)</strong>. This provides a second means of
                 verifying your identity in addition to your password.{' '}
-                <a href="#" className="text-blue-600 hover:underline">Learn more</a>
+                <a href="javascript:void(0)" className="text-blue-600 hover:underline">Learn more</a>
               </p>
             </div>
 
@@ -425,7 +420,7 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
                           <div className="flex-1">
                             <h4 className="font-semibold">Security key</h4>
                             <p className="text-sm text-muted-foreground">
-                              Authenticate by touching a hardware security key such as YubiKey 
+                              Authenticate by touching a hardware security key such as YubiKey
                               or another supported FIDO2 device.
                             </p>
                           </div>
@@ -441,7 +436,7 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
                           <div className="flex-1">
                             <h4 className="font-semibold">Authenticator app</h4>
                             <p className="text-sm text-muted-foreground">
-                              Authenticate using a code generated by an app installed on your 
+                              Authenticate using a code generated by an app installed on your
                               mobile device or computer.
                             </p>
                           </div>
@@ -457,7 +452,7 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
                           <div className="flex-1">
                             <h4 className="font-semibold">Hardware TOTP Token</h4>
                             <p className="text-sm text-muted-foreground">
-                              Authenticate using a code generated by hardware TOTP token or 
+                              Authenticate using a code generated by hardware TOTP token or
                               other hardware devices.
                             </p>
                           </div>
@@ -493,10 +488,10 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
                     </div>
                     <div>
                       <p className="text-sm">
-                        Install a compatible application such as Google Authenticator, Duo Mobile, or 
+                        Install a compatible application such as Google Authenticator, Duo Mobile, or
                         Authy app on your mobile device or computer.
                       </p>
-                      <a href="#" className="text-blue-600 hover:underline text-sm">
+                      <a href="javascript:void(0)" className="text-blue-600 hover:underline text-sm">
                         See a list of compatible applications
                       </a>
                     </div>
@@ -508,16 +503,16 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
                     </div>
                     <div className="flex-1">
                       <p className="text-sm mb-3">
-                        Open your authenticator app, choose Show QR code on 
+                        Open your authenticator app, choose Show QR code on
                         this page, then use the app to scan the code.
                       </p>
                       <p className="text-sm mb-3">
                         Alternatively, you can type a secret key.
                       </p>
-                      <a href="#" className="text-blue-600 hover:underline text-sm">
+                      <a href="javascript:void(0)" className="text-blue-600 hover:underline text-sm">
                         (Show secret key)
                       </a>
-                      
+
                       <div className="bg-blue-50 border border-blue-200 p-4 mt-3 inline-block">
                         {qrCodeUrl && (
                           <img src={qrCodeUrl} alt="QR Code" className="w-32 h-32" />
@@ -532,10 +527,10 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
                     </div>
                     <div className="flex-1">
                       <p className="text-sm mb-3">
-                        Enter two consecutive codes from your authenticator app. Enter the first code, 
+                        Enter two consecutive codes from your authenticator app. Enter the first code,
                         wait a few seconds and then enter the second.
                       </p>
-                      
+
                       <div className="space-y-3">
                         <div>
                           <Label>First code</Label>
@@ -602,7 +597,7 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
               </div>
               <h2 className="text-2xl font-bold">Confirm your identity</h2>
               <p className="text-muted-foreground">
-                Before you can use your SouHimBou AI account, you must verify your phone number. 
+                Before you can use your SouHimBou AI account, you must verify your phone number.
                 When you continue, the SouHimBou AI automated system will contact you with a verification code.
               </p>
             </div>
@@ -610,8 +605,8 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
             <div className="space-y-4">
               <div>
                 <Label className="text-base font-medium">How should we send you the verification code?</Label>
-                <RadioGroup 
-                  value={accountData.verificationMethod} 
+                <RadioGroup
+                  value={accountData.verificationMethod}
                   onValueChange={(value: any) => setAccountData(prev => ({ ...prev, verificationMethod: value }))}
                   className="mt-2"
                 >
@@ -628,8 +623,8 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
 
               <div className="space-y-2">
                 <Label>Country or region code</Label>
-                <Select 
-                  value={accountData.countryCode} 
+                <Select
+                  value={accountData.countryCode}
                   onValueChange={(value) => setAccountData(prev => ({ ...prev, countryCode: value }))}
                 >
                   <SelectTrigger>
@@ -736,7 +731,7 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
                     <Building className="h-5 w-5 text-blue-600" />
                     <p className="text-sm text-blue-700">
                       <strong>Commencez à utiliser KHEPRA Protocol</strong><br />
-                      Créez une application pour connaître le coût de votre application, les résultats en 
+                      Créez une application pour connaître le coût de votre application, les résultats en
                       matière de sécurité et les métriques, le tout en un seul et même endroit.
                     </p>
                   </div>
@@ -749,11 +744,11 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
 
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Détails de l'application</h3>
-              
+
               <div className="space-y-2">
                 <Label>Région</Label>
-                <Select 
-                  value={accountData.region} 
+                <Select
+                  value={accountData.region}
                   onValueChange={(value) => setAccountData(prev => ({ ...prev, region: value }))}
                 >
                   <SelectTrigger>
@@ -777,7 +772,7 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
                   placeholder="Saisissez le nom de l'application"
                 />
                 <p className="text-xs text-muted-foreground">
-                  150 caractères alphanumériques maximum, y compris les tirets, les points et les traits de soulignement. 
+                  150 caractères alphanumériques maximum, y compris les tirets, les points et les traits de soulignement.
                   Le nom ne peut pas être modifié après la création.
                 </p>
               </div>
@@ -832,14 +827,14 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
 
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Account setup checklist</h3>
-              
+
               <div className="space-y-3">
                 <div className="flex items-start space-x-3">
                   <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">
                     1
                   </span>
                   <p className="text-sm flex-1">
-                    Provided all required information during sign-up. This includes adding a payment method, 
+                    Provided all required information during sign-up. This includes adding a payment method,
                     completing identity verification, and selecting a support plan.
                   </p>
                 </div>
@@ -849,7 +844,7 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
                     2
                   </span>
                   <p className="text-sm flex-1">
-                    Responded to any additional information we have requested by email. Check your spam and junk 
+                    Responded to any additional information we have requested by email. Check your spam and junk
                     email folders to make sure you have not missed any such requests.
                   </p>
                 </div>
@@ -861,9 +856,9 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
                   <div className="flex-1">
                     <p className="text-sm mb-2">
                       Verified your{' '}
-                      <a href="#" className="text-blue-600 hover:underline">credit card information</a>. 
-                      We might temporarily hold up to $1 USD (or an equivalent amount in local currency) as a pending 
-                      transaction for 3-5 days to verify your identity. This is an authorization, and you might need 
+                      <a href="javascript:void(0)" className="text-blue-600 hover:underline">credit card information</a>.
+                      We might temporarily hold up to $1 USD (or an equivalent amount in local currency) as a pending
+                      transaction for 3-5 days to verify your identity. This is an authorization, and you might need
                       to contact your card issuer to approve it.
                     </p>
                   </div>
@@ -872,7 +867,7 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
 
               <p className="text-sm text-muted-foreground">
                 It might take up to 24 hours to fully activate your SouHimBou AI services. If you can't access your services after that time,{' '}
-                <a href="#" className="text-blue-600 hover:underline">contact support</a>.
+                <a href="javascript:void(0)" className="text-blue-600 hover:underline">contact support</a>.
               </p>
 
               <Button className="bg-blue-600 hover:bg-blue-700 text-white">
@@ -884,9 +879,9 @@ export const AWSStyleOnboarding = ({ open, onClose, onComplete }: AWSStyleOnboar
               <h3 className="text-lg font-semibold">Free account plan access limitations</h3>
               <p className="text-sm text-muted-foreground">
                 Free account plans have limited access to certain services and features. Upgrade your account plan to remove limitations.{' '}
-                <a href="#" className="text-blue-600 hover:underline">Learn more</a>.
+                <a href="javascript:void(0)" className="text-blue-600 hover:underline">Learn more</a>.
               </p>
-              
+
               <Button variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50">
                 Upgrade plan
               </Button>

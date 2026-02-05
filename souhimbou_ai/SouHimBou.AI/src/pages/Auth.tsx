@@ -11,7 +11,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Shield, User, Lock, Building, Eye, EyeOff, AlertTriangle, CheckCircle, Fingerprint } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import TermsAcceptance from '@/components/legal/TermsAcceptance';
 import PasswordResetOTP from '@/components/auth/PasswordResetOTP';
 
 
@@ -28,10 +27,8 @@ const Auth = () => {
   const [department, setDepartment] = useState('');
   const [securityClearance, setSecurityClearance] = useState('UNCLASSIFIED');
   const [loading, setLoading] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
-  const [termsLoading, setTermsLoading] = useState(false);
   const { signIn, signUp, user } = useAuth();
-  const { acceptAllAgreements, checkAgreementStatus } = useUserAgreements();
+  useUserAgreements(); // Just call it if needed for side effects, or remove if truly unnecessary
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -52,26 +49,11 @@ const Auth = () => {
   }, [password]); // Remove checkPasswordStrength from dependencies to prevent infinite loop
 
   useEffect(() => {
-    // Check if user is already authenticated and has accepted terms
     if (user) {
-      checkAgreementStatus(user.id).then((hasAccepted) => {
-        if (hasAccepted) {
-          navigate('/dashboard');
-        } else {
-          setShowTerms(true);
-        }
-      });
-    }
-  }, [user, navigate, checkAgreementStatus]);
-
-  const handleTermsAcceptance = async (acceptedTerms: Record<string, boolean>) => {
-    setTermsLoading(true);
-    const success = await acceptAllAgreements(acceptedTerms);
-    if (success) {
       navigate('/dashboard');
     }
-    setTermsLoading(false);
-  };
+  }, [user, navigate]);
+
 
   const handlePasswordResetSuccess = () => {
     setShowPasswordReset(false);
@@ -83,15 +65,81 @@ const Auth = () => {
     });
   };
 
+  const validateAuthInputs = () => {
+    const emailValidation = validateInput(email, 'email');
+    if (!emailValidation.isValid) {
+      toast({ title: "Invalid Email", description: emailValidation.error, variant: "destructive" });
+      return false;
+    }
+
+    if (isLogin) {
+      if (!password || password.length < 1) {
+        toast({ title: "Invalid Password", description: "Password is required", variant: "destructive" });
+        return false;
+      }
+    } else {
+      const passwordValidation = validateInput(password, 'password');
+      if (!passwordValidation.isValid) {
+        toast({ title: "Invalid Password", description: passwordValidation.error, variant: "destructive" });
+        return false;
+      }
+
+      if (!passwordStrengthData.isStrong) {
+        toast({ title: "Password Too Weak", description: "Password must meet all security requirements.", variant: "destructive" });
+        return false;
+      }
+
+      if (username) {
+        const usernameValidation = validateInput(username, 'username');
+        if (!usernameValidation.isValid) {
+          toast({ title: "Invalid Username", description: usernameValidation.error, variant: "destructive" });
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
+  const handleLoginSubmit = async () => {
+    const { error } = await signIn(email, password);
+    if (error) {
+      await trackAuthAttempt(false, email, { userAgent: navigator.userAgent, timestamp: new Date().toISOString() });
+      toast({ title: "Authentication Failed", description: error.message, variant: "destructive" });
+    } else {
+      await trackAuthAttempt(true, email, { userAgent: navigator.userAgent, timestamp: new Date().toISOString() });
+      toast({ title: "Access Granted", description: "Checking legal compliance...", variant: "default" });
+      navigate('/dashboard');
+    }
+  };
+
+  const handleRegistrationSubmit = async () => {
+    const { error } = await signUp(email, password, {
+      username,
+      full_name: fullName,
+      department,
+      security_clearance: securityClearance,
+      role: 'viewer'
+    });
+
+    if (error) {
+      toast({ title: "Registration Failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({
+        title: "Registration Successful",
+        description: "Check your email to verify your account, then sign in to accept legal terms.",
+        variant: "default"
+      });
+      setIsLogin(true);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Check if account is locked
     if (isAccountLocked()) {
       const timeRemaining = getLockoutTimeRemaining();
       const minutes = Math.floor(timeRemaining / 60000);
       const seconds = Math.floor((timeRemaining % 60000) / 1000);
-
       toast({
         title: "Account Temporarily Locked",
         description: `Too many failed attempts. Try again in ${minutes}:${seconds.toString().padStart(2, '0')}.`,
@@ -100,127 +148,17 @@ const Auth = () => {
       return;
     }
 
-    // Validate inputs
-    const emailValidation = validateInput(email, 'email');
-    if (!emailValidation.isValid) {
-      toast({
-        title: "Invalid Email",
-        description: emailValidation.error,
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // For login, only do basic password validation
-    if (isLogin) {
-      // Basic validation for login - just check length and non-empty
-      if (!password || password.length < 1) {
-        toast({
-          title: "Invalid Password",
-          description: "Password is required",
-          variant: "destructive"
-        });
-        return;
-      }
-    } else {
-      // Strict validation only for registration
-      const passwordValidation = validateInput(password, 'password');
-      if (!passwordValidation.isValid) {
-        toast({
-          title: "Invalid Password",
-          description: passwordValidation.error,
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Check password strength for registration
-      if (!passwordStrengthData.isStrong) {
-        toast({
-          title: "Password Too Weak",
-          description: "Password must meet all security requirements.",
-          variant: "destructive"
-        });
-        return;
-      }
-    }
+    if (!validateAuthInputs()) return;
 
     setLoading(true);
-
     try {
       if (isLogin) {
-        const { error } = await signIn(email, password);
-
-        if (error) {
-          await trackAuthAttempt(false, email, {
-            userAgent: navigator.userAgent,
-            timestamp: new Date().toISOString()
-          });
-
-          toast({
-            title: "Authentication Failed",
-            description: error.message,
-            variant: "destructive"
-          });
-        } else {
-          await trackAuthAttempt(true, email, {
-            userAgent: navigator.userAgent,
-            timestamp: new Date().toISOString()
-          });
-
-          toast({
-            title: "Access Granted",
-            description: "Checking legal compliance...",
-            variant: "default"
-          });
-
-          // Navigate directly to dashboard as requested
-          navigate('/dashboard');
-        }
+        await handleLoginSubmit();
       } else {
-        // Validate additional registration fields
-        if (username) {
-          const usernameValidation = validateInput(username, 'username');
-          if (!usernameValidation.isValid) {
-            toast({
-              title: "Invalid Username",
-              description: usernameValidation.error,
-              variant: "destructive"
-            });
-            setLoading(false);
-            return;
-          }
-        }
-
-        const { error } = await signUp(email, password, {
-          username,
-          full_name: fullName,
-          department,
-          security_clearance: securityClearance,
-          role: 'viewer'
-        });
-
-        if (error) {
-          toast({
-            title: "Registration Failed",
-            description: error.message,
-            variant: "destructive"
-          });
-        } else {
-          toast({
-            title: "Registration Successful",
-            description: "Check your email to verify your account, then sign in to accept legal terms.",
-            variant: "default"
-          });
-          setIsLogin(true);
-        }
+        await handleRegistrationSubmit();
       }
     } catch (error: any) {
-      toast({
-        title: "System Error",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast({ title: "System Error", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -240,21 +178,6 @@ const Auth = () => {
     return 'Strong';
   };
 
-  // Show terms acceptance if user is authenticated but hasn't accepted terms
-  if (showTerms && user) {
-    return (
-      <div className="min-h-screen bg-gradient-dark flex items-center justify-center p-6 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--primary-glow)_0%,_transparent_50%)] opacity-10"></div>
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/5 via-transparent to-accent/5"></div>
-
-        <TermsAcceptance
-          open={true}
-          onOpenChange={() => { }}
-          onAccepted={() => handleTermsAcceptance({})}
-        />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-dark flex items-center justify-center p-6 relative overflow-hidden">
