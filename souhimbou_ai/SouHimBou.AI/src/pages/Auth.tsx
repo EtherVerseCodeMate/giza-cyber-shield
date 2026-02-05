@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useSecurityHardening } from '@/hooks/useSecurityHardening';
 import { useUserAgreements } from '@/hooks/useUserAgreements';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,8 +30,8 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [termsLoading, setTermsLoading] = useState(false);
-  const { signIn, signUp, user, resetPassword } = useAuth();
-  const { hasAcceptedAll, acceptAllAgreements, checkAgreementStatus } = useUserAgreements();
+  const { signIn, signUp, user } = useAuth();
+  const { acceptAllAgreements, checkAgreementStatus } = useUserAgreements();
   const navigate = useNavigate();
   const { toast } = useToast();
 
