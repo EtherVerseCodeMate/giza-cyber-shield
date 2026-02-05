@@ -5,11 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Smartphone, 
-  Monitor, 
-  Shield, 
-  AlertTriangle, 
+import {
+  Smartphone,
+  Monitor,
+  Shield,
+  AlertTriangle,
   CheckCircle,
   MapPin,
   Clock
@@ -25,11 +25,11 @@ interface DeviceInfo {
 }
 
 interface DeviceVerificationDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  device: DeviceInfo;
-  onVerify: (deviceName: string, trustDevice: boolean) => void;
-  onDeny: () => void;
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly device: DeviceInfo;
+  readonly onVerify: (deviceName: string, trustDevice: boolean) => void;
+  readonly onDeny: () => void;
 }
 
 export function DeviceVerificationDialog({
@@ -91,7 +91,7 @@ export function DeviceVerificationDialog({
                   {device.trusted ? "Known Device" : "New Device"}
                 </Badge>
               </div>
-              
+
               <div className="space-y-1 text-sm text-muted-foreground">
                 <div className="flex items-center space-x-2">
                   <MapPin className="h-3 w-3" />
@@ -173,23 +173,23 @@ export function DeviceVerificationDialog({
               <span className="font-medium text-sm">Is this you?</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Only approve if you recognize this device and location. 
+              Only approve if you recognize this device and location.
               When in doubt, deny access and change your password.
             </p>
           </div>
         </div>
 
         <DialogFooter className="flex justify-between">
-          <Button 
-            onClick={handleDeny} 
+          <Button
+            onClick={handleDeny}
             variant="destructive"
             className="flex items-center space-x-2"
           >
             <AlertTriangle className="h-4 w-4" />
             <span>Deny Access</span>
           </Button>
-          
-          <Button 
+
+          <Button
             onClick={handleVerify}
             className="flex items-center space-x-2"
           >
