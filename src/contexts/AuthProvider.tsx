@@ -33,14 +33,47 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    // Simple sign-in without lockout checking (lockout functions not currently deployed)
-    const { error } = await supabase.auth.signInWithPassword({
+    console.log('[AUTH] Attempting sign in for:', email);
+
+    // Check if account is locked before attempting login
+    try {
+      const { data: isLocked, error: lockError } = await supabase.rpc('is_account_locked', {
+        user_email: email
+      });
+
+      if (lockError) {
+        console.warn('[AUTH] Lock check failed (non-critical):', lockError.message);
+        // Continue with login even if lock check fails
+      } else if (isLocked) {
+        console.error('[AUTH] Account is locked');
+        return { error: { message: 'Account temporarily locked due to security concerns. Please try again later.' } };
+      }
+    } catch (lockCheckError) {
+      console.warn('[AUTH] Could not check account lock status:', lockCheckError);
+      // Continue with login even if lock check fails
+    }
+
+    console.log('[AUTH] Calling signInWithPassword...');
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
     });
 
     if (error) {
-      console.warn('Sign in failed:', error.message);
+      console.error('[AUTH] Sign in failed:', error.message, error);
+
+      // Record failed login attempt
+      try {
+        await supabase.rpc('record_failed_login', {
+          user_email: email,
+          client_ip: null,
+          client_user_agent: navigator.userAgent
+        });
+      } catch (recordError) {
+        console.warn('[AUTH] Could not record failed login:', recordError);
+      }
+    } else {
+      console.log('[AUTH] Sign in successful, user:', data.user?.email);
     }
 
     return { error };
@@ -48,7 +81,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signUp = async (email: string, password: string, metadata?: any) => {
     const redirectUrl = `${window.location.origin}/auth/callback`;
-    
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -67,7 +100,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const resetPassword = async (email: string) => {
     const redirectUrl = `${window.location.origin}/auth/callback`;
-    
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl
     });
