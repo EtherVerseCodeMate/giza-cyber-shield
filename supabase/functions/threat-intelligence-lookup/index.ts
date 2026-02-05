@@ -17,7 +17,7 @@ const otxApiKey = Deno.env.get('OTX_API_KEY');
 const virusTotalApiKey = Deno.env.get('VIRUSTOTAL_API_KEY');
 const abuseIpDbApiKey = Deno.env.get('ABUSEIPDB_API_KEY');
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -25,17 +25,17 @@ serve(async (req) => {
 
   try {
     const { indicator, type } = await req.json();
-    
+
     console.log(`Investigating ${type}: ${indicator}`);
-    
+
     let results: any = {
       indicator,
       type,
       is_real: false,
       threat_level: 'unknown',
-      sources: [],
-      references: [],
-      analysis: {},
+      sources: [] as string[],
+      references: [] as string[],
+      analysis: {} as any,
       investigation_summary: ''
     };
 
@@ -69,11 +69,12 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in threat intelligence lookup:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message,
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return new Response(JSON.stringify({
+      error: errorMessage,
       indicator: 'unknown',
       type: 'unknown',
-      is_real: false 
+      is_real: false
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -83,15 +84,15 @@ serve(async (req) => {
 
 async function investigateSpecificIP(ip: string) {
   console.log(`Performing detailed investigation of ${ip}`);
-  
+
   let results = {
     indicator: ip,
     type: 'ip',
     is_real: false,
     threat_level: 'unknown',
-    sources: [],
-    references: [],
-    analysis: {},
+    sources: [] as string[],
+    references: [] as string[],
+    analysis: {} as any,
     investigation_summary: ''
   };
 
@@ -107,21 +108,21 @@ async function investigateSpecificIP(ip: string) {
           'Accept': 'application/json'
         }
       });
-      
+
       if (abuseResponse.ok) {
         const abuseData = await abuseResponse.json();
         investigations.push({
           source: 'AbuseIPDB',
           data: abuseData
         });
-        
+
         if (abuseData.data?.abuseConfidencePercentage > 0) {
           results.is_real = true;
           results.threat_level = abuseData.data.abuseConfidencePercentage > 75 ? 'high' : 'medium';
         }
       }
     } catch (error) {
-      console.log('AbuseIPDB check failed:', error.message);
+      console.log('AbuseIPDB check failed:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -129,21 +130,21 @@ async function investigateSpecificIP(ip: string) {
   if (virusTotalApiKey) {
     try {
       const vtResponse = await fetch(`https://www.virustotal.com/vtapi/v2/ip-address/report?apikey=${virusTotalApiKey}&ip=${ip}`);
-      
+
       if (vtResponse.ok) {
         const vtData = await vtResponse.json();
         investigations.push({
           source: 'VirusTotal',
           data: vtData
         });
-        
+
         if (vtData.detected_urls && vtData.detected_urls.length > 0) {
           results.is_real = true;
           results.threat_level = 'high';
         }
       }
     } catch (error) {
-      console.log('VirusTotal check failed:', error.message);
+      console.log('VirusTotal check failed:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -155,21 +156,21 @@ async function investigateSpecificIP(ip: string) {
           'X-OTX-API-KEY': otxApiKey
         }
       });
-      
+
       if (otxResponse.ok) {
         const otxData = await otxResponse.json();
         investigations.push({
           source: 'AlienVault OTX',
           data: otxData
         });
-        
+
         if (otxData.pulse_info && otxData.pulse_info.count > 0) {
           results.is_real = true;
           results.threat_level = 'high';
         }
       }
     } catch (error) {
-      console.log('OTX check failed:', error.message);
+      console.log('OTX check failed:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -240,7 +241,7 @@ async function checkTorExitNode(ip: string) {
       '185.220.101.42', // This specific IP
       // Add more known Tor exit nodes as needed
     ];
-    
+
     if (torExitNodes.includes(ip)) {
       return {
         isTorExit: true,
@@ -248,10 +249,10 @@ async function checkTorExitNode(ip: string) {
         details: 'This IP is a known Tor exit node, commonly used for anonymous traffic including potential malicious activities.'
       };
     }
-    
+
     return { isTorExit: false };
   } catch (error) {
-    console.log('Tor exit node check failed:', error.message);
+    console.log('Tor exit node check failed:', error instanceof Error ? error.message : String(error));
     return { isTorExit: false };
   }
 }
@@ -277,7 +278,7 @@ async function checkInternalThreatDB(ip: string) {
 
     return { found: false };
   } catch (error) {
-    console.log('Internal threat DB check failed:', error.message);
+    console.log('Internal threat DB check failed:', error instanceof Error ? error.message : String(error));
     return { found: false };
   }
 }
