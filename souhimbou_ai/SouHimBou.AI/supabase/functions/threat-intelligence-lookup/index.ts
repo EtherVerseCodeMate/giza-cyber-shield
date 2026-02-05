@@ -28,16 +28,7 @@ serve(async (req: Request) => {
 
     console.log(`Investigating ${type}: ${indicator}`);
 
-    let results: any = {
-      indicator,
-      type,
-      is_real: false,
-      threat_level: 'unknown',
-      sources: [] as string[],
-      references: [] as string[],
-      analysis: {} as any,
-      investigation_summary: ''
-    };
+    let results: any;
 
     // Check if this is the specific IP from the alert
     if (indicator === '185.220.101.42' && type === 'ip') {
