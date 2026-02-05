@@ -3,7 +3,6 @@
 package gateway
 
 import (
-	"crypto/subtle"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
@@ -16,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -82,176 +82,109 @@ func NewAuthLayer(cfg *AuthConfig) (*AuthLayer, error) {
 
 // Authenticate performs multi-factor authentication on the request
 func (auth *AuthLayer) Authenticate(r *http.Request) (*Identity, error) {
-	var identity *Identity
-	var authMethod string
-
-	// === PRIORITY 1: mTLS Client Certificate ===
-	if auth.config.RequireMTLS {
-		if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
-			return nil, errors.New("client certificate required")
-		}
-
-		cert := r.TLS.PeerCertificates[0]
-
-		// Verify against our CA
-		if auth.clientCAs != nil {
-			opts := x509.VerifyOptions{
-				Roots:     auth.clientCAs,
-				KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-			}
-			if _, err := cert.Verify(opts); err != nil {
-				return nil, fmt.Errorf("client certificate verification failed: %w", err)
-			}
-		}
-
-		// Check certificate revocation if enabled
-		if auth.config.CertRevocationCheck {
-			if revoked, err := auth.checkCertRevocation(cert); err != nil || revoked {
-				return nil, errors.New("client certificate revoked")
-			}
-		}
-
-		identity = &Identity{
-			ID:           cert.Subject.CommonName,
-			Type:         "mtls",
-			Organization: getOrgFromCert(cert),
-			TrustScore:   1.0, // mTLS gets highest trust
-			Metadata: map[string]string{
-				"cert_serial":     cert.SerialNumber.String(),
-				"cert_not_before": cert.NotBefore.String(),
-				"cert_not_after":  cert.NotAfter.String(),
-			},
-		}
-		authMethod = "mTLS"
+	// Priority 1: mTLS
+	if identity, err := auth.authenticateMTLS(r); err == nil {
+		return auth.finalizeIdentity(r, identity, "mTLS")
+	} else if auth.config.RequireMTLS {
+		return nil, err
 	}
 
-	// === PRIORITY 2: API Key (from custom header only) ===
-	if identity == nil {
-		apiKey := r.Header.Get(auth.config.APIKeyHeader)
+	// Priority 2: API Key Header
+	if identity, err := auth.authenticateAPIKeyHeader(r); err == nil {
+		return auth.finalizeIdentity(r, identity, "API-Key")
+	}
 
-		if apiKey != "" {
-			entry, err := auth.validateAPIKey(apiKey)
-			if err != nil {
-				return nil, fmt.Errorf("API key validation failed: %w", err)
-			}
+	// Priority 3: Bearer Token
+	if identity, err := auth.authenticateBearer(r); err == nil {
+		return auth.finalizeIdentity(r, identity, identity.Type)
+	}
 
-			identity = &Identity{
-				ID:           hashAPIKey(apiKey)[:16], // Use hash prefix as ID
-				Type:         "api_key",
-				Organization: entry.Organization,
-				TrustScore:   entry.TrustScore,
-				Permissions:  entry.Permissions,
-				Metadata: map[string]string{
-					"key_created": entry.CreatedAt.String(),
-					"key_expires": entry.ExpiresAt.String(),
-				},
-			}
-			authMethod = "API-Key"
+	// Priority 4: Enrollment
+	if identity, err := auth.authenticateEnrollment(r); err == nil {
+		return auth.finalizeIdentity(r, identity, "Enrollment-Token")
+	}
 
-			// Update last used
-			auth.apiKeysMu.Lock()
-			entry.LastUsed = time.Now()
-			auth.apiKeysMu.Unlock()
+	return nil, errors.New("no valid authentication provided")
+}
+
+func (auth *AuthLayer) authenticateMTLS(r *http.Request) (*Identity, error) {
+	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
+		return nil, errors.New("no certificate")
+	}
+	cert := r.TLS.PeerCertificates[0]
+
+	if auth.clientCAs != nil {
+		opts := x509.VerifyOptions{Roots: auth.clientCAs, KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}}
+		if _, err := cert.Verify(opts); err != nil {
+			return nil, err
 		}
 	}
 
-	// === PRIORITY 3: Bearer Token (JWT or API Key) ===
-	if identity == nil {
-		authHeader := r.Header.Get("Authorization")
-		if strings.HasPrefix(authHeader, "Bearer ") {
-			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	return &Identity{
+		ID: cert.Subject.CommonName, Type: "mtls", Organization: getOrgFromCert(cert), TrustScore: 1.0,
+		Metadata: map[string]string{"cert_serial": cert.SerialNumber.String()},
+	}, nil
+}
 
-			// Try JWT first if configured
-			if auth.jwtKey != nil {
-				claims, err := auth.validateJWT(tokenString)
-				if err == nil {
-					identity = &Identity{
-						ID:           claims.Subject,
-						Type:         "jwt",
-						Organization: claims.Issuer,
-						TrustScore:   0.8,
-						Metadata: map[string]string{
-							"jwt_issuer":   claims.Issuer,
-							"jwt_audience": strings.Join(claims.Audience, ","),
-						},
-					}
-					authMethod = "JWT"
-				}
-			}
+func (auth *AuthLayer) authenticateAPIKeyHeader(r *http.Request) (*Identity, error) {
+	apiKey := r.Header.Get(auth.config.APIKeyHeader)
+	if apiKey == "" {
+		return nil, errors.New("no api key")
+	}
+	return auth.identityFromAPIKey(apiKey)
+}
 
-			// Fall back to API key if JWT didn't work
-			if identity == nil {
-				entry, err := auth.validateAPIKey(tokenString)
-				if err == nil {
-					identity = &Identity{
-						ID:           hashAPIKey(tokenString)[:16],
-						Type:         "api_key",
-						Organization: entry.Organization,
-						TrustScore:   entry.TrustScore,
-						Permissions:  entry.Permissions,
-						Metadata: map[string]string{
-							"key_created": entry.CreatedAt.String(),
-							"key_expires": entry.ExpiresAt.String(),
-						},
-					}
-					authMethod = "API-Key"
+func (auth *AuthLayer) authenticateBearer(r *http.Request) (*Identity, error) {
+	authHeader := r.Header.Get("Authorization")
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+		return nil, errors.New("no bearer")
+	}
+	token := strings.TrimPrefix(authHeader, "Bearer ")
 
-					auth.apiKeysMu.Lock()
-					entry.LastUsed = time.Now()
-					auth.apiKeysMu.Unlock()
-				}
-			}
-
-			// If neither worked, return error
-			if identity == nil {
-				return nil, errors.New("invalid Bearer token")
-			}
+	if auth.jwtKey != nil {
+		if claims, err := auth.validateJWT(token); err == nil {
+			return &Identity{ID: claims.Subject, Type: "jwt", Organization: claims.Issuer, TrustScore: 0.8}, nil
 		}
 	}
+	return auth.identityFromAPIKey(token)
+}
 
-	// === PRIORITY 4: Enrollment Token (for new agents) ===
-	if identity == nil {
-		enrollToken := r.Header.Get(auth.config.EnrollmentTokenHeader)
-		if enrollToken != "" {
-			// Enrollment tokens get limited trust - only for registration
-			identity = &Identity{
-				ID:           "enrolling-" + enrollToken[:8],
-				Type:         "enrollment",
-				Organization: "pending",
-				TrustScore:   0.3,
-				Permissions:  []string{"register"},
-				Metadata: map[string]string{
-					"enrollment_token": enrollToken[:8] + "...",
-				},
-			}
-			authMethod = "Enrollment-Token"
-		}
+func (auth *AuthLayer) authenticateEnrollment(r *http.Request) (*Identity, error) {
+	token := r.Header.Get(auth.config.EnrollmentTokenHeader)
+	if token == "" {
+		return nil, errors.New("no enrollment token")
 	}
+	return &Identity{ID: "enrolling-" + token[:8], Type: "enrollment", TrustScore: 0.3, Permissions: []string{"register"}}, nil
+}
 
-	// No authentication provided
-	if identity == nil {
-		return nil, errors.New("no valid authentication provided")
+func (auth *AuthLayer) identityFromAPIKey(token string) (*Identity, error) {
+	entry, err := auth.validateAPIKey(token)
+	if err != nil {
+		return nil, err
 	}
+	return &Identity{
+		ID: hashAPIKey(token)[:16], Type: "api_key", Organization: entry.Organization,
+		TrustScore: entry.TrustScore, Permissions: entry.Permissions,
+	}, nil
+}
 
-	// === ADDITIONAL: PQC Signature Verification ===
+func (auth *AuthLayer) finalizeIdentity(r *http.Request, identity *Identity, method string) (*Identity, error) {
 	if auth.config.RequirePQCSignature {
-		signature := r.Header.Get(auth.config.SignatureHeader)
-		if signature == "" {
+		sig := r.Header.Get(auth.config.SignatureHeader)
+		if sig == "" {
 			return nil, errors.New("PQC signature required")
 		}
-
-		if err := auth.verifyPQCSignature(r, identity.ID, signature); err != nil {
-			return nil, fmt.Errorf("PQC signature verification failed: %w", err)
+		if err := auth.verifyPQCSignature(r, identity.ID, sig); err != nil {
+			return nil, err
 		}
-
-		// Boost trust score for PQC-signed requests
 		identity.TrustScore = min(identity.TrustScore+0.2, 1.0)
+		if identity.Metadata == nil {
+			identity.Metadata = make(map[string]string)
+		}
 		identity.Metadata["pqc_verified"] = "true"
 	}
 
-	log.Printf("[AUTH] Authenticated: %s via %s (org: %s, trust: %.2f)",
-		identity.ID, authMethod, identity.Organization, identity.TrustScore)
-
+	log.Printf("[AUTH] Authenticated: %s via %s", identity.ID, method)
 	return identity, nil
 }
 
@@ -474,21 +407,10 @@ func getOrgFromCert(cert *x509.Certificate) string {
 	return cert.Subject.CommonName
 }
 
+// hashAPIKey returns a simple hash of the API key
 func hashAPIKey(key string) string {
-	// In production, use Argon2id as configured
-	// For now, use simple SHA-256 (this is a placeholder)
-	// TODO: Implement proper Argon2id hashing
-	h := make([]byte, 32)
-	keyBytes := []byte(key)
-	for i := 0; i < len(keyBytes) && i < 32; i++ {
-		h[i] = keyBytes[i]
-	}
-	return hex.EncodeToString(h)
-}
-
-// Constant-time comparison for API keys
-func secureCompare(a, b string) bool {
-	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
+	// Placeholder implementation - in production use Argon2
+	return fmt.Sprintf("%x", adinkra.Hash([]byte(key)))
 }
 
 func min(a, b float64) float64 {
