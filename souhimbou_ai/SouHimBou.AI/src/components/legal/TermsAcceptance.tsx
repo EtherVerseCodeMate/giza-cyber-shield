@@ -174,8 +174,8 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
                   <Card
                     key={term.key}
                     className={`transition-all duration-200 ${isAccepted
-                        ? 'border-green-500/50 bg-green-500/10'
-                        : 'border-border hover:border-primary/50'
+                      ? 'border-green-500/50 bg-green-500/10'
+                      : 'border-border hover:border-primary/50'
                       }`}
                   >
                     <CardHeader className="pb-3">
@@ -235,30 +235,40 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
           </div>
         </ScrollArea>
 
-        {/* Actions */}
-        <div className="flex justify-between pt-4 border-t">
+        {/* Actions - Explicitly ensuring "Accept & Continue" visibility */}
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t mt-4">
           <Button
             variant="outline"
             onClick={handleAcceptAll}
-            disabled={allTermsAccepted}
+            disabled={allTermsAccepted || isSubmitting}
+            className="w-full sm:w-auto"
           >
             Accept All Terms
           </Button>
 
-          <div className="space-x-2">
+          <div className="flex gap-2 w-full sm:w-auto">
             <Button
-              variant="outline"
+              variant="ghost"
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
+              className="flex-1 sm:flex-none"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSubmit}
               disabled={!allTermsAccepted || isSubmitting}
-              className="min-w-[120px]"
+              variant="cyber"
+              className="flex-1 sm:min-w-[160px]"
             >
-              {isSubmitting ? 'Processing...' : 'Accept & Continue'}
+              {isSubmitting ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  <span>Processing...</span>
+                </div>
+              ) : (
+                'Accept & Continue'
+              )}
             </Button>
           </div>
         </div>
