@@ -1,11 +1,18 @@
 package license
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 )
 
 // Manager handles license validation lifecycle
@@ -23,22 +30,61 @@ func NewManager(serverURL string) (*Manager, error) {
 	// Generate or retrieve the hardware-bound Machine ID
 	machineID := GenerateMachineID()
 
-	// TODO: Retrieve persisted private key or generate one if strictly transient.
-	// For production, this PrivateKey should be loaded from secure storage (e.g., encoded file on disk)
-	// associated with this Machine ID, or generated once and saved.
-	// For this implementation, we will assume it's passed via ENV or config,
-	// OR we generate a temporary one if signing is part of the handshake (but we need it for subsequent reqs).
-	// Since the user spec says "privateKeyHex", we'll leave it empty here to be set by the caller or loaded.
+	// Load or generate the persistent ML-DSA-65 private key for signing requests.
+	// This ensures the machine has a stable cryptographic identity.
+	privKey, err := loadOrGenerateKey()
+	if err != nil {
+		log.Printf("[LICENSE] Warning: Failed to load/generate PQC key: %v. Requests will be unsigned.", err)
+	}
 
 	client := &LicenseClient{
 		ServerURL:  serverURL,
 		MachineID:  machineID,
+		PrivateKey: privKey,
 		HTTPClient: &http.Client{Timeout: 10 * time.Second},
 	}
 
 	return &Manager{
 		client: client,
 	}, nil
+}
+
+func loadOrGenerateKey() (string, error) {
+	// 1. Check environment variable first
+	if key := os.Getenv("KHEPRA_LICENSE_KEY"); key != "" {
+		return key, nil
+	}
+
+	// 2. Check persistent storage (DoD/Enterprise Standard: Save to .khepra/license.key)
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = "."
+	}
+	keyPath := filepath.Join(home, ".khepra", "license.key")
+
+	if data, err := os.ReadFile(keyPath); err == nil {
+		return strings.TrimSpace(string(data)), nil
+	}
+
+	// 3. Generate new ML-DSA-65 key if none found
+	log.Println("[LICENSE] No PQC key found. Generating new identity...")
+	_, priv, err := mldsa65.GenerateKey(rand.Reader)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate ML-DSA-65 key: %w", err)
+	}
+
+	privBytes, _ := priv.MarshalBinary()
+	keyHex := hex.EncodeToString(privBytes)
+
+	// Persist the key
+	os.MkdirAll(filepath.Dir(keyPath), 0700)
+	if err := os.WriteFile(keyPath, []byte(keyHex), 0600); err != nil {
+		log.Printf("[LICENSE] Warning: Could not persist key to %s: %v", keyPath, err)
+	} else {
+		log.Printf("[LICENSE] Persistent identity saved to %s", keyPath)
+	}
+
+	return keyHex, nil
 }
 
 // SetPrivateKey allows setting the Dilithium key for signing requests
