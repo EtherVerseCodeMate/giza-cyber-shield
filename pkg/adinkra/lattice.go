@@ -171,14 +171,25 @@ func (m *Merkaba) Seal(data []byte) (string, error) {
 // Unseal reverses the Merkaba geometry to retrieve the data.
 func (m *Merkaba) Unseal(sacred string) ([]byte, error) {
 	runes := []rune(sacred)
-	if len(runes)%4 != 0 && len(runes)%2 != 0 {
-		// Basic length check, real geometry is more complex
-		// return nil, errors.New("sacred geometry broken")
+
+	// 1. Decode Sacred Runes to Bytes
+	sunBytes, earthBytes, err := m.decodeSacredRunes(runes)
+	if err != nil {
+		return nil, err
 	}
 
-	// 1. Decode Sacred Runes to Bikes
-	// We need to reconstruct the interleaved streams.
-	// Structure: [SunHigh, SunLow, EarthHigh, EarthLow, ...]
+	// 2. Walk Tree of Life (Must match encryption path)
+	path := m.walkTreeOfLife()
+
+	// 3. Reverse Adinkra Traverse
+	sunDecrypted := m.adinkraReverse(sunBytes, path, true)
+	earthDecrypted := m.adinkraReverse(earthBytes, path, false)
+
+	// 4. Reconstruct Data (Interleave: Sun, Earth, Sun, Earth...)
+	return m.reconstructDataInterleaved(sunDecrypted, earthDecrypted), nil
+}
+
+func (m *Merkaba) decodeSacredRunes(runes []rune) ([]byte, []byte, error) {
 	var sunBytes []byte
 	var earthBytes []byte
 
@@ -188,7 +199,7 @@ func (m *Merkaba) Unseal(sacred string) ([]byte, error) {
 			highIdx, ok1 := SacredReverseMap[runes[i]]
 			lowIdx, ok2 := SacredReverseMap[runes[i+1]]
 			if !ok1 || !ok2 {
-				return nil, errors.New("profane symbol detected")
+				return nil, nil, errors.New("profane symbol detected")
 			}
 			sunBytes = append(sunBytes, byte((highIdx<<4)|lowIdx))
 		}
@@ -198,42 +209,30 @@ func (m *Merkaba) Unseal(sacred string) ([]byte, error) {
 			highIdx, ok3 := SacredReverseMap[runes[i+2]]
 			lowIdx, ok4 := SacredReverseMap[runes[i+3]]
 			if !ok3 || !ok4 {
-				return nil, errors.New("profane symbol detected")
+				return nil, nil, errors.New("profane symbol detected")
 			}
 			earthBytes = append(earthBytes, byte((highIdx<<4)|lowIdx))
 		}
 	}
+	return sunBytes, earthBytes, nil
+}
 
-	// 2. Walk Tree of Life (Must match encryption path)
-	path := m.walkTreeOfLife()
-
-	// 3. Reverse Adinkra Traverse
-	// If Observer Effect triggers (debugger present), 'path' will differ
-	// inside the unseal logic if we add internal checks,
-	// leading to total corruption.
-	sunDecrypted := m.adinkraReverse(sunBytes, path, true)
-	earthDecrypted := m.adinkraReverse(earthBytes, path, false)
-
-	// 4. Reconstruct Data (Interleave: Sun, Earth, Sun, Earth...)
-	var data []byte
-	maxLen := len(sunDecrypted) + len(earthDecrypted)
-	data = make([]byte, 0, maxLen)
+func (m *Merkaba) reconstructDataInterleaved(sun, earth []byte) []byte {
+	maxLen := len(sun) + len(earth)
+	data := make([]byte, 0, maxLen)
 
 	sIdx, eIdx := 0, 0
-	// We assumed original was Even -> Sun, Odd -> Earth
-	// So we alternate taking one from Sun, one from Earth
-	for sIdx < len(sunDecrypted) || eIdx < len(earthDecrypted) {
-		if sIdx < len(sunDecrypted) {
-			data = append(data, sunDecrypted[sIdx])
+	for sIdx < len(sun) || eIdx < len(earth) {
+		if sIdx < len(sun) {
+			data = append(data, sun[sIdx])
 			sIdx++
 		}
-		if eIdx < len(earthDecrypted) {
-			data = append(data, earthDecrypted[eIdx])
+		if eIdx < len(earth) {
+			data = append(data, earth[eIdx])
 			eIdx++
 		}
 	}
-
-	return data, nil
+	return data
 }
 
 // =============================================================================
