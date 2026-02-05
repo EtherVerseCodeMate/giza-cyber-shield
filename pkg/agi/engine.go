@@ -280,67 +280,61 @@ func (e *Engine) think() {
 }
 
 func (e *Engine) execute(t Task) (string, error) {
-	// Execution Logic
 	if t.Description == RoutinePerimeterSweep {
-		// Run a lightweight scan (Top 10 ports only)
-		// We use a custom smaller list for speed/stealth
-		results, err := e.scanner.Run("localhost") // Default scan is fast enough now
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("Sweep Complete. Found %d open ports.", len(results)), nil
+		return e.executePerimeterSweep()
 	}
-
-	// Vulnerability Hunt Execution
 	if t.Description == "Dependency Vulnerability Hunt" {
 		return e.executeVulnHunt()
 	}
-
-	// Forensic Snapshot Execution
 	if t.Description == "Forensic System Snapshot" {
 		return e.executeForensics()
 	}
-
-	// Internal Penetration Test Execution
 	if strings.HasPrefix(t.Description, "Internal Penetration Test") {
 		return e.executePentest(t)
 	}
-
-	// Auto-Remediation Execution
 	if strings.HasPrefix(t.Description, "Remediate:") {
 		return e.executeRemediation(t)
 	}
-
-	// Compliance Audit Execution
 	if strings.Contains(t.Description, "Compliance Audit") {
-		report, err := e.compliance.EvaluateCompliance(e.privKey)
-		if err != nil {
-			return fmt.Sprintf("Audit Failed: %v", err), nil
-		}
-		e.Status = "Compliance Audit Complete"
-		return report, nil
+		return e.executeComplianceAudit()
 	}
-
-	// Real Firewall Execution
 	if strings.Contains(t.Description, "Micro-Firewall Rule") {
-		// Extract port from description "Deploy Micro-Firewall Rule: Block Inbound Port 80"
-		parts := strings.Split(t.Description, "Port ")
-		if len(parts) < 2 {
-			return "", fmt.Errorf("failed to parse port from task")
-		}
-		port := parts[1]
-
-		// Execute Arsenal
-		// We import arsenal dynamically or assume package imports are handled (I will add import next)
-		if err := arsenal.DeployFirewall(port, "inbound"); err != nil {
-			return fmt.Sprintf("Firewall Deployment Failed: %v", err), nil
-		}
-		return fmt.Sprintf("SUCCESS. Firewall Rule Active: Block Inbound TCP %s.", port), nil
+		return e.executeFirewallRule(t)
 	}
 
 	// Mock Execution Logic for Generic Tasks
 	time.Sleep(1 * time.Second)
 	return fmt.Sprintf("Completed %s. Verified incidents: 0.", t.Description), nil
+}
+
+func (e *Engine) executePerimeterSweep() (string, error) {
+	results, err := e.scanner.Run("localhost")
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("Sweep Complete. Found %d open ports.", len(results)), nil
+}
+
+func (e *Engine) executeComplianceAudit() (string, error) {
+	report, err := e.compliance.EvaluateCompliance(e.privKey)
+	if err != nil {
+		return fmt.Sprintf("Audit Failed: %v", err), nil
+	}
+	e.Status = "Compliance Audit Complete"
+	return report, nil
+}
+
+func (e *Engine) executeFirewallRule(t Task) (string, error) {
+	parts := strings.Split(t.Description, "Port ")
+	if len(parts) < 2 {
+		return "", fmt.Errorf("failed to parse port from task")
+	}
+	port := parts[1]
+
+	if err := arsenal.DeployFirewall(port, "inbound"); err != nil {
+		return fmt.Sprintf("Firewall Deployment Failed: %v", err), nil
+	}
+	return fmt.Sprintf("SUCCESS. Firewall Rule Active: Block Inbound TCP %s.", port), nil
 }
 
 // executeVulnHunt runs the vulnerability scanner and generates remediation tasks
