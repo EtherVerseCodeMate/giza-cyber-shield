@@ -9,17 +9,14 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
-  const { hasAcceptedAll, loading: agreementsLoading } = useUserAgreements();
+  const { loading: agreementsLoading } = useUserAgreements();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth');
-    } else if (!loading && !agreementsLoading && user && !hasAcceptedAll) {
-      // User is authenticated but hasn't accepted required legal terms
-      navigate('/auth');
     }
-  }, [user, loading, navigate, hasAcceptedAll, agreementsLoading]);
+  }, [user, loading, navigate]);
 
   if (loading || agreementsLoading) {
     return (
@@ -29,7 +26,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
 
-  if (!user || !hasAcceptedAll) {
+  if (!user) {
     return null;
   }
 

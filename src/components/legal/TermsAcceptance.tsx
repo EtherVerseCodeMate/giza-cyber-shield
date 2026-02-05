@@ -78,9 +78,9 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
   const termsData = [
     {
       key: 'tosAgree' as keyof typeof acceptedTerms,
-      title: 'Terms of Service',
+      title: 'Khepra Master License Agreement (v3.0)',
       icon: FileText,
-      description: 'Standard platform usage terms and user responsibilities',
+      description: 'Commercial license grant, restrictions, and reservation of rights. Software is licensed, not sold.',
       classification: 'Required',
       type: 'Standard'
     },
@@ -88,15 +88,15 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
       key: 'privacyAgree' as keyof typeof acceptedTerms,
       title: 'Privacy Policy',
       icon: Shield,
-      description: 'Data collection, processing, and protection practices',
+      description: 'Data collection, processing, and protection practices. Telemetry beacon and license validation.',
       classification: 'Required',
       type: 'Privacy'
     },
     {
       key: 'saasAgree' as keyof typeof acceptedTerms,
-      title: 'SaaS Terms',
+      title: 'SaaS Terms & Authorized Use',
       icon: Globe,
-      description: 'Cloud service delivery and availability commitments',
+      description: 'Cloud service delivery for Khepra-Edge, Khepra-Hybrid, and Khepra-Sovereign deployments.',
       classification: 'Required',
       type: 'Service'
     },
@@ -104,31 +104,31 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
       key: 'betaAgree' as keyof typeof acceptedTerms,
       title: 'Beta Testing Agreement',
       icon: Users,
-      description: 'Pre-release software testing terms and limitations',
+      description: 'Pre-release software testing terms. Software provided "AS IS" with no warranty of quantum-proof perpetuity.',
       classification: 'Required',
       type: 'Beta'
     },
     {
       key: 'dodCompliance' as keyof typeof acceptedTerms,
-      title: 'DoD Compliance Framework',
+      title: 'U.S. Government Rights (DFARS Compliance)',
       icon: Shield,
-      description: 'Department of Defense security and compliance requirements',
+      description: 'Commercial Computer Software with RESTRICTED RIGHTS per DFARS 252.227-7014. No Unlimited Rights granted.',
       classification: 'Critical',
       type: 'Security'
     },
     {
       key: 'liabilityWaiver' as keyof typeof acceptedTerms,
-      title: 'Liability Waiver',
+      title: 'Confidentiality & Trade Secrets',
       icon: Scale,
-      description: 'Limitation of liability and risk acknowledgment',
+      description: 'Acknowledgment of proprietary AdinKhepra-PQC Lattice structures and Symbolic Attestation Logic as Trade Secrets.',
       classification: 'Required',
       type: 'Legal'
     },
     {
       key: 'exportControl' as keyof typeof acceptedTerms,
-      title: 'Export Control Compliance',
+      title: 'Export Control Compliance (ECCN 5D992)',
       icon: AlertTriangle,
-      description: 'U.S. export control and international trade regulations',
+      description: 'Subject to EAR. No export to nuclear/chemical/biological weapons countries or SDN List entities.',
       classification: 'Critical',
       type: 'Regulatory'
     }
@@ -143,7 +143,7 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
             <span>Legal Agreement Acceptance</span>
           </DialogTitle>
         </DialogHeader>
-        
+
         <ScrollArea className="max-h-[70vh] pr-4">
           <div className="space-y-6">
             {/* Header Warning */}
@@ -156,7 +156,7 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
                       Required Legal Compliance
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      Access to this platform requires acceptance of all legal agreements. 
+                      Access to this platform requires acceptance of all legal agreements.
                       Please review each document carefully before proceeding.
                     </p>
                   </div>
@@ -169,28 +169,26 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
               {termsData.map((term) => {
                 const Icon = term.icon;
                 const isAccepted = acceptedTerms[term.key];
-                
+
                 return (
-                  <Card 
+                  <Card
                     key={term.key}
-                    className={`transition-all duration-200 ${
-                      isAccepted 
-                        ? 'border-green-500/50 bg-green-500/10' 
-                        : 'border-border hover:border-primary/50'
-                    }`}
+                    className={`transition-all duration-200 ${isAccepted
+                      ? 'border-green-500/50 bg-green-500/10'
+                      : 'border-border hover:border-primary/50'
+                      }`}
                   >
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div className="flex items-start space-x-3">
-                          <Icon className={`h-5 w-5 mt-0.5 ${
-                            isAccepted ? 'text-green-500' : 'text-muted-foreground'
-                          }`} />
+                          <Icon className={`h-5 w-5 mt-0.5 ${isAccepted ? 'text-green-500' : 'text-muted-foreground'
+                            }`} />
                           <div className="flex-1">
                             <div className="flex items-center space-x-2 mb-1">
                               <CardTitle className="text-sm font-medium">
                                 {term.title}
                               </CardTitle>
-                              <Badge 
+                              <Badge
                                 variant={term.classification === 'Critical' ? 'destructive' : 'secondary'}
                                 className="text-xs"
                               >
@@ -207,7 +205,7 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
                         </div>
                         <Checkbox
                           checked={isAccepted}
-                          onCheckedChange={(checked) => 
+                          onCheckedChange={(checked) =>
                             handleTermChange(term.key, checked as boolean)
                           }
                           className="ml-4"
@@ -237,30 +235,40 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
           </div>
         </ScrollArea>
 
-        {/* Actions */}
-        <div className="flex justify-between pt-4 border-t">
-          <Button 
-            variant="outline" 
+        {/* Actions - Explicitly ensuring "Accept & Continue" visibility */}
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t mt-4">
+          <Button
+            variant="outline"
             onClick={handleAcceptAll}
-            disabled={allTermsAccepted}
+            disabled={allTermsAccepted || isSubmitting}
+            className="w-full sm:w-auto"
           >
             Accept All Terms
           </Button>
-          
-          <div className="space-x-2">
-            <Button 
-              variant="outline" 
+
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button
+              variant="ghost"
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
+              className="flex-1 sm:flex-none"
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleSubmit}
               disabled={!allTermsAccepted || isSubmitting}
-              className="min-w-[120px]"
+              variant="cyber"
+              className="flex-1 sm:min-w-[160px]"
             >
-              {isSubmitting ? 'Processing...' : 'Accept & Continue'}
+              {isSubmitting ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  <span>Processing...</span>
+                </div>
+              ) : (
+                'Accept & Continue'
+              )}
             </Button>
           </div>
         </div>

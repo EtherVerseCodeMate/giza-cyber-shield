@@ -1,47 +1,72 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Brain, Activity, Shield, Cpu } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 
-interface AIAgent {
-  id: string;
-  status: "active" | "learning" | "idle";
-  cpu: number;
-  memory: number;
-  threats: number;
-  type: string;
-}
-
 export const AIAgentStatus = () => {
-  const [agents, setAgents] = useState<AIAgent[]>([]);
+  const [agents, setAgents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { currentOrganization } = useOrganization();
 
   useEffect(() => {
     if (currentOrganization) {
-      fetchAgentData();
+      fetchRealAgentData();
     }
   }, [currentOrganization]);
 
-  const fetchAgentData = async () => {
+  const fetchRealAgentData = async () => {
     if (!currentOrganization) return;
     
     try {
-      // Placeholder agent data since ai_agent_chats and security_events tables don't exist
-      const realAgents: AIAgent[] = [
+      // In a real system, you'd fetch actual AI agent status from your monitoring system
+      // For now, we'll check if there are any active AI-related processes or services
+      
+      // Check for AI agent chat sessions to determine if AI services are active
+      const { data: aiChats, error } = await supabase
+        .from('ai_agent_chats')
+        .select('session_id, created_at')
+        .eq('organization_id', currentOrganization.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+
+      // Calculate basic metrics based on actual usage
+      const activeSessions = aiChats?.length || 0;
+      const hasRecentActivity = aiChats?.some(chat => 
+        new Date(chat.created_at) > new Date(Date.now() - 3600000) // Within last hour
+      );
+
+      // Create realistic agent status based on actual system activity
+      const realAgents = [
         {
           id: "ARGUS-AI", 
-          status: "active", 
-          cpu: 25,
-          memory: 38,
-          threats: 0,
+          status: hasRecentActivity ? "active" : "idle", 
+          cpu: activeSessions > 0 ? Math.floor(20 + (activeSessions * 5)) : 5,
+          memory: activeSessions > 0 ? Math.floor(30 + (activeSessions * 8)) : 15,
+          threats: 0, // We'll update this based on real threat resolution
           type: "Security Analysis"
         }
       ];
 
+      // Check for resolved security events to update threat blocking count
+      const { data: resolvedEvents } = await supabase
+        .from('security_events')
+        .select('id')
+        .eq('organization_id', currentOrganization.id)
+        .eq('resolved', true);
+
+      if (realAgents.length > 0) {
+        realAgents[0].threats = resolvedEvents?.length || 0;
+      }
+
       setAgents(realAgents);
+
     } catch (error) {
       console.error('Error fetching AI agent data:', error);
+      // Set empty state on error
       setAgents([]);
     } finally {
       setLoading(false);

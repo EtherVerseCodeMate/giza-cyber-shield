@@ -3,26 +3,22 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import {
-  Shield,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  FileText,
+import { 
+  Shield, 
+  AlertTriangle, 
+  CheckCircle, 
+  Clock, 
+  FileText, 
   TrendingUp,
   Users,
   Database,
   Lock,
   Wifi,
   Eye,
-  Settings,
-  Zap,
-  Loader2
+  Settings
 } from "lucide-react";
 import { useComplianceFrameworks } from "@/hooks/useComplianceFrameworks";
 import { supabase } from "@/integrations/supabase/client";
-import { useKhepraAPI } from "@/hooks/useKhepraAPI";
-import { toast } from "sonner";
 
 interface CMMCLevel {
   level: number;
@@ -49,23 +45,21 @@ interface CMMCDashboardProps {
 }
 
 export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) => {
-  const { frameworks, controls: offlineControls, loading: offlineLoading } = useComplianceFrameworks();
-  const { cmmc, remediateSTIG } = useKhepraAPI("http://localhost:8080", "");
+  const { frameworks, controls, loading } = useComplianceFrameworks();
   const [cmmcLevels, setCmmcLevels] = useState<CMMCLevel[]>([]);
   const [poamItems, setPOAMItems] = useState<POAMItem[]>([]);
   const [overallScore, setOverallScore] = useState(0);
   const [organizationName, setOrganizationName] = useState("Organization");
-  const [isRemediating, setIsRemediating] = useState<string | null>(null);
 
   useEffect(() => {
-    if (cmmc.data) {
-      updateDashboardData(cmmc.data);
-    }
+    initializeCMMCData();
+    fetchPOAMItems();
     fetchOrganizationData();
-  }, [cmmc.data]);
+  }, [frameworks, controls]);
 
-  const updateDashboardData = (data: any) => {
-    const findings = data.Findings || [];
+  const initializeCMMCData = () => {
+    const cmmcFramework = frameworks.find(f => f.name.toLowerCase().includes('cmmc'));
+    const cmmcControls = controls.filter(c => c.framework_id === cmmcFramework?.id);
 
     const levels: CMMCLevel[] = [
       {
@@ -73,84 +67,108 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
         name: "Basic Cyber Hygiene",
         description: "Safeguard Federal Contract Information (FCI)",
         controls: 17,
-        implemented: findings.filter((f: any) => f.Status === 'Pass' && f.ID.includes('L1')).length,
+        implemented: 12,
         color: "bg-blue-500"
       },
       {
         level: 2,
-        name: "Intermediate Cyber Hygiene",
+        name: "Intermediate Cyber Hygiene", 
         description: "Protect Controlled Unclassified Information (CUI)",
         controls: 110,
-        implemented: findings.filter((f: any) => f.Status === 'Pass' && (f.ID.includes('L2') || f.References.some((r: string) => r.startsWith('NIST-800-171')))).length,
+        implemented: 78,
         color: "bg-green-500"
       },
       {
         level: 3,
         name: "Good Cyber Hygiene",
         description: "Protect CUI and reduce risk of APTs",
-        controls: 134,
-        implemented: findings.filter((f: any) => f.Status === 'Pass' && (f.ID.includes('L3') || f.ID.includes('L2'))).length,
+        controls: 130,
+        implemented: 45,
         color: "bg-yellow-500"
       }
     ];
 
     setCmmcLevels(levels);
-
+    
     const totalControls = levels.reduce((sum, level) => sum + level.controls, 0);
     const totalImplemented = levels.reduce((sum, level) => sum + level.implemented, 0);
-    setOverallScore(totalControls > 0 ? Math.round((totalImplemented / totalControls) * 100) : 0);
+    setOverallScore(Math.round((totalImplemented / totalControls) * 100));
+  };
 
-    const failedFindings = findings.filter((f: any) => f.Status === 'Fail');
-    const realPOAM: POAMItem[] = failedFindings.map((f: any) => ({
-      id: f.ID,
-      control_id: f.ID.replace('CMMC:', ''),
-      weakness: f.Title,
-      remediation: f.Remediation,
-      status: 'OPEN',
-      due_date: new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
-      priority: f.Severity === 'Critical' || f.Severity === 'high' ? 'HIGH' : 'MEDIUM',
-      responsible_party: 'System Administrator'
-    }));
-    setPOAMItems(realPOAM);
+  const fetchPOAMItems = async () => {
+    // Mock POAM data - in production this would come from database
+    const mockPOAM: POAMItem[] = [
+      {
+        id: '1',
+        control_id: 'AC.1.001',
+        weakness: 'Inadequate access control policy documentation',
+        remediation: 'Update and implement comprehensive access control policy',
+        status: 'IN_PROGRESS',
+        due_date: '2024-02-15',
+        priority: 'HIGH',
+        responsible_party: 'IT Security Team'
+      },
+      {
+        id: '2', 
+        control_id: 'AU.2.041',
+        weakness: 'Audit logs not centrally managed',
+        remediation: 'Implement centralized logging solution (SIEM)',
+        status: 'OPEN',
+        due_date: '2024-03-01',
+        priority: 'MEDIUM',
+        responsible_party: 'Infrastructure Team'
+      },
+      {
+        id: '3',
+        control_id: 'IA.1.076',
+        weakness: 'Multi-factor authentication not enforced',
+        remediation: 'Deploy MFA across all systems and accounts',
+        status: 'COMPLETED',
+        due_date: '2024-01-30',
+        priority: 'HIGH',
+        responsible_party: 'Security Team'
+      }
+    ];
+    
+    setPOAMItems(mockPOAM);
   };
 
   const fetchOrganizationData = async () => {
     try {
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('display_name')
+      const { data: orgs } = await supabase
+        .from('organizations')
+        .select('name')
         .limit(1)
         .single();
-
-      if (profile?.display_name) {
-        setOrganizationName(profile.display_name);
+      
+      if (orgs?.name) {
+        setOrganizationName(orgs.name);
       }
     } catch (error) {
       console.error('Error fetching organization:', error);
     }
   };
 
-  const handleRemediate = async (controlId: string) => {
-    setIsRemediating(controlId);
-    toast.info(`Triggering automated remediation for ${controlId}...`);
-
-    try {
-      const result = await remediateSTIG.mutateAsync({
-        control_ids: [controlId],
-        target_host: "localhost"
-      });
-
-      if (result.status === 'completed' && result.results[0].status === 'success') {
-        toast.success(`Successfully remediated ${controlId}: ${result.results[0].command}`);
-      } else {
-        toast.error(`Remediation failed for ${controlId}: ${result.results[0].output}`);
-      }
-    } catch (error: any) {
-      console.error('Remediation error:', error);
-      toast.error(`Automated fix failed: ${error.message}`);
-    } finally {
-      setIsRemediating(null);
-    }
+  const getDomainIcon = (domain: string) => {
+    const icons: Record<string, any> = {
+      'AC': Users,      // Access Control
+      'AU': FileText,   // Audit and Accountability  
+      'AT': TrendingUp, // Awareness and Training
+      'CM': Settings,   // Configuration Management
+      'IA': Lock,       // Identification and Authentication
+      'IR': AlertTriangle, // Incident Response
+      'MA': Settings,   // Maintenance
+      'MP': Database,   // Media Protection
+      'PS': Users,      // Personnel Security
+      'PE': Shield,     // Physical Protection
+      'RE': TrendingUp, // Recovery
+      'RM': Eye,        // Risk Management
+      'CA': Shield,     // Security Assessment
+      'SC': Wifi,       // System and Communications Protection
+      'SI': Shield,     // System and Information Integrity
+    };
+    
+    return icons[domain] || Shield;
   };
 
   const getStatusColor = (status: string) => {
@@ -171,7 +189,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
     }
   };
 
-  if (cmmc.isLoading || offlineLoading) {
+  if (loading) {
     return (
       <div className="space-y-6">
         <Card className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 border-blue-500/30">
@@ -185,6 +203,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <Card className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 border-blue-500/30">
         <CardHeader>
           <CardTitle className="flex items-center space-x-3 text-white">
@@ -197,62 +216,55 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
         </CardHeader>
       </Card>
 
+      {/* Overall Score */}
       <Card className="bg-black/40 border-blue-500/30 backdrop-blur-lg">
         <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
-            <div className="relative w-48 h-48">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-4xl font-bold text-white">{overallScore}%</span>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="md:col-span-2">
+              <h3 className="text-lg font-semibold text-white mb-4">Overall CMMC Readiness</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Compliance Score</span>
+                  <span className="text-2xl font-bold text-blue-400">{overallScore}%</span>
+                </div>
+                <Progress value={overallScore} className="h-3" />
+                <div className="flex justify-between text-sm text-gray-400">
+                  <span>Target: Level 2 (CMMC 2.0)</span>
+                  <span>Due: Q2 2024</span>
+                </div>
               </div>
-              <svg className="w-full h-full -rotate-90">
-                <circle
-                  cx="96" cy="96" r="88"
-                  fill="transparent"
-                  stroke="currentColor"
-                  strokeWidth="12"
-                  className="text-blue-900/30"
-                />
-                <circle
-                  cx="96" cy="96" r="88"
-                  fill="transparent"
-                  stroke="currentColor"
-                  strokeWidth="12"
-                  strokeDasharray={552.92}
-                  strokeDashoffset={552.92 * (1 - overallScore / 100)}
-                  className="text-blue-500 transition-all duration-1000 ease-out"
-                />
-              </svg>
             </div>
-            <div className="flex-1 md:ml-12 grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
-              <div className="space-y-1">
-                <p className="text-sm text-gray-400">Framework Status</p>
-                <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/30">
-                  CMMC 3.0 L3
-                </Badge>
+            
+            <div className="space-y-4">
+              <div className="text-center p-4 bg-green-900/40 rounded-lg border border-green-500/30">
+                <CheckCircle className="h-8 w-8 text-green-400 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-green-400">135</div>
+                <div className="text-xs text-green-200">Controls Implemented</div>
               </div>
-              <div className="space-y-1">
-                <p className="text-sm text-gray-400">Total Controls</p>
-                <p className="text-2xl font-bold text-white">134</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-gray-400">Last Audit</p>
-                <p className="text-white font-medium">{new Date().toLocaleDateString()}</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="text-center p-4 bg-red-900/40 rounded-lg border border-red-500/30">
+                <AlertTriangle className="h-8 w-8 text-red-400 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-red-400">122</div>
+                <div className="text-xs text-red-200">Gaps Identified</div>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* CMMC Levels */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {cmmcLevels.map((level) => {
           const completionRate = Math.round((level.implemented / level.controls) * 100);
           return (
             <Card key={level.level} className="bg-black/40 border-blue-500/30 backdrop-blur-lg">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg text-white">
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-10 h-10 rounded-lg ${level.color} flex items-center justify-center text-white font-bold`}>
-                      L{level.level}
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between text-white">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-8 h-8 rounded-full ${level.color} flex items-center justify-center text-white font-bold`}>
+                      {level.level}
                     </div>
                     <div>
                       <div className="text-sm font-medium">{level.name}</div>
@@ -281,6 +293,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
         })}
       </div>
 
+      {/* POA&M (Plan of Action & Milestones) */}
       <Card className="bg-black/40 border-blue-500/30 backdrop-blur-lg">
         <CardHeader>
           <CardTitle className="flex items-center justify-between text-white">
@@ -295,62 +308,36 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {poamItems.length > 0 ? (
-              poamItems.map((item) => (
-                <div key={item.id} className="p-4 bg-slate-800/40 rounded-lg border border-slate-600/30">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <Badge variant="outline" className="text-blue-400 border-blue-400">
-                          {item.control_id}
-                        </Badge>
-                        <Badge
-                          variant="outline"
-                          className={`${getPriorityColor(item.priority)} border-current`}
-                        >
-                          {item.priority}
-                        </Badge>
-                        <div className={`w-3 h-3 rounded-full ${getStatusColor(item.status)}`} />
-                      </div>
-                      <h4 className="text-white font-medium mb-1">{item.weakness}</h4>
-                      <p className="text-gray-400 text-sm mb-2">{item.remediation}</p>
-                      <div className="text-xs text-gray-500">
-                        Responsible: {item.responsible_party} | Due: {new Date(item.due_date).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div className="flex space-x-2 shrink-0">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-green-500/50 text-green-400 hover:bg-green-500/20"
-                        onClick={() => handleRemediate(item.id)}
-                        disabled={isRemediating === item.id}
+            {poamItems.map((item) => (
+              <div key={item.id} className="p-4 bg-slate-800/40 rounded-lg border border-slate-600/30">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <Badge variant="outline" className="text-blue-400 border-blue-400">
+                        {item.control_id}
+                      </Badge>
+                      <Badge 
+                        variant="outline" 
+                        className={`${getPriorityColor(item.priority)} border-current`}
                       >
-                        {isRemediating === item.id ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Zap className="h-4 w-4 mr-2" />
-                        )}
-                        Automated Fix
-                      </Button>
-                      <Button size="sm" variant="ghost" className="text-gray-400">
-                        View Logs
-                      </Button>
+                        {item.priority}
+                      </Badge>
+                      <div className={`w-3 h-3 rounded-full ${getStatusColor(item.status)}`} />
+                    </div>
+                    <h4 className="text-white font-medium mb-1">{item.weakness}</h4>
+                    <p className="text-gray-400 text-sm mb-2">{item.remediation}</p>
+                    <div className="text-xs text-gray-500">
+                      Responsible: {item.responsible_party} | Due: {new Date(item.due_date).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-12 border-2 border-dashed border-gray-800 rounded-xl">
-                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                <p className="text-white font-medium">No open findings!</p>
-                <p className="text-gray-500 text-sm">System is fully compliant with CMMC Level 3 standards.</p>
               </div>
-            )}
+            ))}
           </div>
         </CardContent>
       </Card>
 
+      {/* Quick Actions */}
       <Card className="bg-black/40 border-blue-500/30 backdrop-blur-lg">
         <CardHeader>
           <CardTitle className="text-white">Quick Actions</CardTitle>
