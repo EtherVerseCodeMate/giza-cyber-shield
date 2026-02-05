@@ -48,6 +48,18 @@ const Auth = () => {
     }
   }, [password]); // Remove checkPasswordStrength from dependencies to prevent infinite loop
 
+  const [timerTick, setTimerTick] = useState(0);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isAccountLocked()) {
+      interval = setInterval(() => {
+        setTimerTick(prev => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isAccountLocked()]);
+
   useEffect(() => {
     if (user) {
       navigate('/dashboard');
@@ -104,7 +116,11 @@ const Auth = () => {
     const { error } = await signIn(email, password);
     if (error) {
       await trackAuthAttempt(false, email, { userAgent: navigator.userAgent, timestamp: new Date().toISOString() });
-      toast({ title: "Authentication Failed", description: error.message, variant: "destructive" });
+      let description = error.message;
+      if (description.toLowerCase().includes("email not confirmed")) {
+        description = "Account found, but your email hasn't been verified. Please check your inbox (and spam folder) for the verification link.";
+      }
+      toast({ title: "Authentication Failed", description, variant: "destructive" });
     } else {
       await trackAuthAttempt(true, email, { userAgent: navigator.userAgent, timestamp: new Date().toISOString() });
       toast({ title: "Access Granted", description: "Checking legal compliance...", variant: "default" });
@@ -122,7 +138,13 @@ const Auth = () => {
     });
 
     if (error) {
-      toast({ title: "Registration Failed", description: error.message, variant: "destructive" });
+      let description = error.message;
+      if (description.toLowerCase().includes("email not confirmed")) {
+        description = "This email is already registered but unverified. Please check your inbox for the confirmation link or contact support.";
+      } else if (error.status === 422 && description.toLowerCase().includes("already registered")) {
+        description = "An account with this email already exists. Try logging in instead.";
+      }
+      toast({ title: "Registration Failed", description, variant: "destructive" });
     } else {
       toast({
         title: "Registration Successful",
@@ -162,6 +184,20 @@ const Auth = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getPasswordStrengthColor = () => {
+    if (passwordStrengthData.score <= 2) return 'bg-destructive';
+    if (passwordStrengthData.score <= 4) return 'bg-warning';
+    if (passwordStrengthData.score <= 6) return 'bg-info';
+    return 'bg-success';
+  };
+
+  const getPasswordStrengthText = () => {
+    if (passwordStrengthData.score <= 2) return 'Weak';
+    if (passwordStrengthData.score <= 4) return 'Fair';
+    if (passwordStrengthData.score <= 6) return 'Good';
+    return 'Strong';
   };
 
   const renderLoginTab = () => (
@@ -211,18 +247,18 @@ const Auth = () => {
         <Button
           type="submit"
           variant="cyber"
-          className="w-full"
+          className="w-full h-12 text-lg font-bold shadow-lg"
           disabled={loading || isAccountLocked()}
         >
           {loading ? (
             <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
               <span>Authenticating...</span>
             </div>
           ) : (
             <div className="flex items-center space-x-2">
-              <Lock className="h-4 w-4" />
-              <span>Authenticate</span>
+              <Shield className="h-5 w-5" />
+              <span>Authenticate Access</span>
             </div>
           )}
         </Button>
@@ -368,21 +404,25 @@ const Auth = () => {
         <Button
           type="submit"
           variant="cyber"
-          className="w-full"
-          disabled={loading}
+          className="w-full h-12 text-lg font-bold shadow-lg"
+          disabled={loading || isAccountLocked()}
         >
           {loading ? (
             <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-              <span>Registering...</span>
+              <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+              <span>Registering Account...</span>
             </div>
           ) : (
             <div className="flex items-center space-x-2">
-              <CheckCircle className="h-4 w-4" />
-              <span>Register</span>
+              <CheckCircle className="h-5 w-5" />
+              <span>Complete Registration</span>
             </div>
           )}
         </Button>
+
+        <p className="text-center text-xs text-muted-foreground pt-2">
+          Already have an account? Switch to the login tab to authenticate.
+        </p>
       </form>
     </TabsContent>
   );
@@ -434,8 +474,8 @@ const Auth = () => {
                 <Lock className="h-4 w-4" />
                 <span className="text-sm font-medium">Account Locked</span>
               </div>
-              <p className="text-xs text-destructive/80 mt-1">
-                Security lockout active - try again later
+              <p key={`lock-timer-${timerTick}`} className="text-xs text-destructive/80 mt-1">
+                Security lockout active - Try again in {Math.ceil(getLockoutTimeRemaining() / 1000)}s
               </p>
             </div>
           )}
