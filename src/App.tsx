@@ -8,30 +8,32 @@ import { OrganizationProvider } from "@/components/OrganizationProvider";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import SecurityHeaders from "@/components/security/SecurityHeaders";
 
-// Core MVP Pages (React Router views, not Next.js pages)
-import NewHomepage from "./views/NewHomepage";
-import BlogList from "./views/Blog";
-import Episode1 from "./views/blog/Episode1";
-import Episode2 from "./views/blog/Episode2";
-import Episode3 from "./views/blog/Episode3";
-import Episode4 from "./views/blog/Episode4";
-import BuildingCyberImmunity from "./views/blog/BuildingCyberImmunity";
-import LaunchingVDP from "./views/blog/LaunchingVDP";
-import VDP from "./views/VDP";
-import HallOfFame from "./views/HallOfFame";
-import Auth from "./views/Auth";
-import AuthCallback from "./views/AuthCallback";
-import Onboarding from "./views/Onboarding";
-import STIGDashboard from "./views/STIGDashboard";
-import AssetScanning from "./views/AssetScanning";
-import ComplianceReports from "./views/ComplianceReports";
-import EvidenceCollectionMVP from "./views/EvidenceCollectionMVP";
-import SimpleBilling from "./views/SimpleBilling";
-import DoD from "./views/DoD";
-import MasterAdmin from "./views/MasterAdmin";
-import ClientPortal from "./views/ClientPortal";
-import UltimateDashboard from "./views/UltimateDashboard";
-import NotFound from "./views/NotFound";
+// Core MVP Pages
+import NewHomepage from "./pages/NewHomepage";
+import BlogList from "./pages/Blog";
+import Episode1 from "./pages/blog/Episode1";
+import Episode2 from "./pages/blog/Episode2";
+import Episode3 from "./pages/blog/Episode3";
+import Episode4 from "./pages/blog/Episode4";
+import BuildingCyberImmunity from "./pages/blog/BuildingCyberImmunity";
+import LaunchingVDP from "./pages/blog/LaunchingVDP";
+import VDP from "./pages/VDP";
+import HallOfFame from "./pages/HallOfFame";
+import Auth from "./pages/Auth";
+import AuthCallback from "./pages/AuthCallback";
+import ResetPassword from "./pages/ResetPassword";
+import Onboarding from "./pages/Onboarding";
+import STIGDashboard from "./pages/STIGDashboard";
+import AssetScanning from "./pages/AssetScanning";
+import ComplianceReports from "./pages/ComplianceReports";
+import EvidenceCollectionMVP from "./pages/EvidenceCollectionMVP";
+import SimpleBilling from "./pages/SimpleBilling";
+import DoD from "./pages/DoD";
+import MasterAdmin from "./pages/MasterAdmin";
+import ClientPortal from "./pages/ClientPortal";
+import UltimateDashboard from "./pages/UltimateDashboard";
+import CommandCenter from "./pages/CommandCenter";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,6 +68,7 @@ const App = () => {
                   <Route path="/hall-of-fame" element={<HallOfFame />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/auth/callback" element={<AuthCallback />} />
+                  <Route path="/auth/reset-password" element={<ResetPassword />} />
                   <Route path="/onboarding" element={<Onboarding />} />
 
                   {/* STIG-First MVP Routes */}
@@ -76,6 +79,7 @@ const App = () => {
                   <Route path="/evidence-collection" element={<ProtectedRoute><EvidenceCollectionMVP /></ProtectedRoute>} />
                   <Route path="/billing" element={<ProtectedRoute><SimpleBilling /></ProtectedRoute>} />
                   <Route path="/ultimate" element={<ProtectedRoute><UltimateDashboard /></ProtectedRoute>} />
+                  <Route path="/command-center" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
 
                   {/* DoD STIG-Codex Center */}
                   <Route path="/dod" element={<ProtectedRoute><DoD /></ProtectedRoute>} />
