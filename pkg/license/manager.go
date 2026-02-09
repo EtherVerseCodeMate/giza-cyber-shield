@@ -249,3 +249,24 @@ func (m *Manager) GetAllLicenses() []*License {
 func (m *Manager) UpgradeLicense(id string, newTier EgyptianTier) error {
 	return m.egyptianMgr.UpgradeLicense(id, newTier)
 }
+
+// Register registers the machine with a token
+func (m *Manager) Register(token string) (*RegisterResponse, error) {
+	return m.client.Register(token)
+}
+
+// Heartbeat sends a heartbeat to the telemetry server
+func (m *Manager) Heartbeat() (*HeartbeatResponse, error) {
+	statusData := map[string]interface{}{
+		"manual_trigger": true,
+		"timestamp":      time.Now().Unix(),
+	}
+	resp, err := m.client.SendHeartbeat(statusData)
+	if err == nil && resp.Status == "active" {
+		// If heartbeat is active, we can assume validation is still good
+		// or wait for the next full Validate() call.
+		// For now, let's just log success.
+		log.Printf("[LICENSE] Manual heartbeat successful: %s", resp.Message)
+	}
+	return resp, err
+}
