@@ -149,3 +149,13 @@ func (a *LicenseManagerAdapter) GetAllLicenses() []*license.License {
 func (a *LicenseManagerAdapter) UpgradeLicense(id string, newTier license.EgyptianTier) error {
 	return a.mgr.UpgradeLicense(id, newTier)
 }
+
+// Register registers the machine with a token
+func (a *LicenseManagerAdapter) Register(token string) (*license.RegisterResponse, error) {
+	return a.mgr.Register(token)
+}
+
+// Heartbeat sends a heartbeat to the telemetry server
+func (a *LicenseManagerAdapter) Heartbeat() (*license.HeartbeatResponse, error) {
+	return a.mgr.Heartbeat()
+}
