@@ -3,11 +3,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Shield, 
-  Search, 
-  Brain, 
-  Activity, 
+import {
+  Shield,
+  Search,
+  Brain,
+  Activity,
   AlertTriangle,
   CheckCircle,
   Database,
@@ -17,6 +17,8 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useOrganizationContext } from '@/components/OrganizationProvider';
+import { useSTIGCompliance } from '@/hooks/useSTIGCompliance';
 
 export const MVP1Dashboard = () => {
   const navigate = useNavigate();
@@ -105,11 +107,34 @@ export const MVP1Dashboard = () => {
     }
   ];
 
+  const { currentOrganization } = useOrganizationContext();
+  const { metrics, loading } = useSTIGCompliance(currentOrganization?.id || '');
+
   const stats = [
-    { label: 'Trusted Registry', value: 'Active', icon: Database, color: 'text-green-600' },
-    { label: 'AI Verification', value: 'Online', icon: Brain, color: 'text-blue-600' },
-    { label: 'Drift Detection', value: 'Monitoring', icon: Activity, color: 'text-orange-600' },
-    { label: 'Compliance Score', value: 'Ready', icon: CheckCircle, color: 'text-purple-600' }
+    {
+      label: 'Compliance Score',
+      value: loading ? '...' : `${metrics?.overall_score || 0}%`,
+      icon: Shield,
+      color: 'text-green-600'
+    },
+    {
+      label: 'Open Findings',
+      value: loading ? '...' : (metrics?.failed_rules || 0).toString(),
+      icon: AlertTriangle,
+      color: 'text-red-600'
+    },
+    {
+      label: 'Drift Detection',
+      value: 'Active',
+      icon: Activity,
+      color: 'text-orange-600'
+    },
+    {
+      label: 'AI Verification',
+      value: 'Online',
+      icon: Brain,
+      color: 'text-blue-600'
+    }
   ];
 
   return (
@@ -244,7 +269,7 @@ export const MVP1Dashboard = () => {
                   )}
                 </div>
               ))}
-              
+
               <div className="mt-6 p-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <div className="flex items-start gap-4">
                   <AlertTriangle className="h-6 w-6 text-blue-600 flex-shrink-0 mt-1" />
@@ -253,18 +278,18 @@ export const MVP1Dashboard = () => {
                       🎯 Seeking MVP 2.0 Pilot Partners
                     </h4>
                     <p className="text-sm text-blue-800 dark:text-blue-200 mb-4">
-                      Join DoD subcontractors and MSPs piloting automated remediation, multi-tenant 
+                      Join DoD subcontractors and MSPs piloting automated remediation, multi-tenant
                       dashboards, and immutable evidence bundles. Early access with pilot pricing.
                     </p>
                     <div className="flex gap-3">
-                      <Button 
-                        variant="default" 
+                      <Button
+                        variant="default"
                         className="bg-blue-600 hover:bg-blue-700"
                         onClick={() => navigate('/billing')}
                       >
                         Apply for Pilot Program
                       </Button>
-                      <Button 
+                      <Button
                         variant="outline"
                         onClick={() => window.open('mailto:pilot@stigfirst.com', '_blank')}
                       >
@@ -286,8 +311,8 @@ export const MVP1Dashboard = () => {
           <CardDescription>Jump into key MVP 1.0 capabilities</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="justify-start h-auto py-4 flex-col items-start gap-2"
             onClick={() => navigate('/dod')}
           >
@@ -300,8 +325,8 @@ export const MVP1Dashboard = () => {
             </div>
           </Button>
 
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="justify-start h-auto py-4 flex-col items-start gap-2"
             onClick={() => navigate('/asset-scanning')}
           >
@@ -314,8 +339,8 @@ export const MVP1Dashboard = () => {
             </div>
           </Button>
 
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="justify-start h-auto py-4 flex-col items-start gap-2"
             onClick={() => navigate('/compliance-reports')}
           >
@@ -328,8 +353,8 @@ export const MVP1Dashboard = () => {
             </div>
           </Button>
 
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="justify-start h-auto py-4 flex-col items-start gap-2"
             onClick={() => navigate('/evidence-collection')}
           >
