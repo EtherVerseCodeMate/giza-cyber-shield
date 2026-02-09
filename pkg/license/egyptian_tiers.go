@@ -213,7 +213,7 @@ func (lm *LicenseManager) CanCreateNode(licenseID string, nodeType string, sephi
 
 	license, exists := lm.licenses[licenseID]
 	if !exists {
-		return errors.New("license not found")
+		return ErrLicenseNotFound
 	}
 
 	// Check expiration
@@ -253,7 +253,7 @@ func (lm *LicenseManager) RegisterNodeCreation(licenseID string, nodeID string, 
 
 	license, exists := lm.licenses[licenseID]
 	if !exists {
-		return errors.New("license not found")
+		return ErrLicenseNotFound
 	}
 
 	license.NodeCount++
@@ -303,7 +303,7 @@ func (lm *LicenseManager) UpgradeLicense(licenseID string, newTier EgyptianTier)
 
 	license, exists := lm.licenses[licenseID]
 	if !exists {
-		return errors.New("license not found")
+		return ErrLicenseNotFound
 	}
 
 	tierInfo, exists := TierConfigurations[newTier]
@@ -396,7 +396,7 @@ func (lm *LicenseManager) GenerateOfflineLicense(licenseID string, durationDays 
 
 	license, exists := lm.licenses[licenseID]
 	if !exists {
-		return "", errors.New("license not found")
+		return "", ErrLicenseNotFound
 	}
 
 	if license.Tier != TierOsiris {
