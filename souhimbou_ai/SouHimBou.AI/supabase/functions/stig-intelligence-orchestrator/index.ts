@@ -29,31 +29,34 @@ serve(async (req) => {
     switch (action) {
       case 'get_trusted_configurations':
         return await handleGetTrustedConfigurations(supabase, payload);
-      
+
       case 'verify_configuration_ai':
         return await handleAIVerification(supabase, payload);
-      
+
       case 'generate_cmmc_mapping':
         return await handleCMMCMapping(supabase, payload);
-      
+
       case 'correlate_threat_intelligence':
         return await handleThreatCorrelation(supabase, payload);
-      
+
       case 'analyze_stig_optimization':
         return await handleSTIGOptimization(supabase, payload);
-      
+
       case 'search_configurations':
         return await handleConfigurationSearch(supabase, payload);
-      
+
       case 'sync_intelligence_feeds':
         return await handleIntelligenceSync(supabase, payload);
-      
+
+      case 'execute_remediation_workflow':
+        return await handleExecuteWorkflow(supabase, payload);
+
       default:
         return new Response(
           JSON.stringify({ error: 'Invalid action' }),
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
         );
     }
@@ -61,9 +64,9 @@ serve(async (req) => {
     console.error('STIG Intelligence Orchestrator error:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }
@@ -146,10 +149,10 @@ async function handleCMMCMapping(supabase: any, payload: any) {
   });
 
   // Calculate implementation plan
-  const totalSTIGRules = mappings.reduce((total: number, mapping: any) => 
+  const totalSTIGRules = mappings.reduce((total: number, mapping: any) =>
     total + mapping.stig_implementations.length, 0);
-  
-  const automatedImplementations = mappings.reduce((total: number, mapping: any) => 
+
+  const automatedImplementations = mappings.reduce((total: number, mapping: any) =>
     total + mapping.stig_implementations.filter((impl: any) => impl.automation_possible).length, 0);
 
   const implementationPlan = {
@@ -340,4 +343,76 @@ function generateSTIGImplementations(cmmcControl: string, platforms: string[]) {
   ]);
 
   return stigImplementations;
+}
+
+async function handleExecuteWorkflow(supabase: any, payload: any) {
+  const { workflow_id, organization_id } = payload;
+
+  console.log(`Executing remediation workflow ${workflow_id} for org ${organization_id}`);
+
+  // Fetch workflow details
+  const { data: workflow, error: workflowError } = await supabase
+    .from('stig_remediation_workflows')
+    .select('*')
+    .eq('id', workflow_id)
+    .single();
+
+  if (workflowError) throw workflowError;
+
+  // Create execution record
+  const { data: execution, error: execError } = await supabase
+    .from('stig_remediation_executions')
+    .insert({
+      organization_id,
+      workflow_id,
+      execution_status: 'running',
+      started_at: new Date().toISOString(),
+      metadata: { workflow_name: workflow.workflow_name }
+    })
+    .select()
+    .single();
+
+  if (execError) throw execError;
+
+  // Simulate workflow steps execution
+  try {
+    // In production, this would coordinate multiple remediation actions
+    const success = Math.random() > 0.1; // 90% success rate
+
+    await supabase
+      .from('stig_remediation_executions')
+      .update({
+        execution_status: success ? 'completed' : 'failed',
+        completed_at: new Date().toISOString(),
+        execution_duration_seconds: Math.floor(Math.random() * 60) + 10,
+        error_message: success ? null : 'Simulated workflow step failure'
+      })
+      .eq('id', execution.id);
+
+    // Update workflow stats
+    await supabase
+      .from('stig_remediation_workflows')
+      .update({
+        execution_count: (workflow.execution_count || 0) + 1,
+        last_execution: new Date().toISOString()
+      })
+      .eq('id', workflow_id);
+
+    return new Response(
+      JSON.stringify({ success, execution_id: execution.id }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error) {
+    console.error('Workflow execution error:', error);
+    await supabase
+      .from('stig_remediation_executions')
+      .update({
+        execution_status: 'failed',
+        completed_at: new Date().toISOString(),
+        error_message: error.message
+      })
+      .eq('id', execution.id);
+
+    throw error;
+  }
 }
