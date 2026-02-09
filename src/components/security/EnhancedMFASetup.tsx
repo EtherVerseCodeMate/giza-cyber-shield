@@ -16,6 +16,7 @@ import {
 import { useMFA } from '@/hooks/useMFA';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { sanitizeAndValidateQRCode } from '@/lib/svgSanitizer';
 
 export const EnhancedMFASetup = () => {
   const { user } = useAuth();
@@ -35,12 +36,22 @@ export const EnhancedMFASetup = () => {
   const [verificationCode, setVerificationCode] = useState('');
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [showBackupCodes, setShowBackupCodes] = useState(false);
+  const [sanitizedQRCode, setSanitizedQRCode] = useState<string>('');
 
   const handleStartEnrollment = async () => {
     try {
       await startEnrollment();
       if (enrollmentData?.qrCode) {
-        toast.success('Scan the QR code with your authenticator app');
+        // Sanitize QR code SVG to prevent XSS
+        try {
+          const sanitized = sanitizeAndValidateQRCode(enrollmentData.qrCode);
+          setSanitizedQRCode(sanitized);
+          toast.success('Scan the QR code with your authenticator app');
+        } catch (sanitizeError) {
+          console.error('QR code sanitization failed:', sanitizeError);
+          toast.error('Invalid QR code received. Please try again.');
+          setSanitizedQRCode('');
+        }
       }
     } catch (error) {
       toast.error('Failed to start MFA enrollment');
@@ -106,6 +117,22 @@ export const EnhancedMFASetup = () => {
       checkMFAStatus();
     }
   }, [user]);
+
+  // Sanitize QR code when enrollment data changes
+  useEffect(() => {
+    if (enrollmentData?.qrCode) {
+      try {
+        const sanitized = sanitizeAndValidateQRCode(enrollmentData.qrCode);
+        setSanitizedQRCode(sanitized);
+      } catch (error) {
+        console.error('QR code sanitization failed:', error);
+        setSanitizedQRCode('');
+        toast.error('Invalid QR code received');
+      }
+    } else {
+      setSanitizedQRCode('');
+    }
+  }, [enrollmentData?.qrCode]);
 
   const securityScore = getSecurityScore();
   const securityLevel = getSecurityLevel(securityScore);
@@ -188,11 +215,11 @@ export const EnhancedMFASetup = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {enrollmentData.qrCode && (
+                  {sanitizedQRCode && (
                     <div className="text-center">
                       <div 
                         className="inline-block p-4 bg-white rounded-lg border"
-                        dangerouslySetInnerHTML={{ __html: enrollmentData.qrCode }}
+                        dangerouslySetInnerHTML={{ __html: sanitizedQRCode }}
                       />
                       <p className="text-sm text-muted-foreground mt-2">
                         Scan this QR code with your authenticator app
