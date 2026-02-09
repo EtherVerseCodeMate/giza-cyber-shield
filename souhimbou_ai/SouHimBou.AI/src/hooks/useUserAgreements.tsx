@@ -36,6 +36,18 @@ export const useUserAgreements = () => {
   // Check if user has accepted all required agreements
   const checkAgreementStatus = useCallback(async (userId: string) => {
     try {
+      // First try using the RPC function which is more reliable and bypasses RLS
+      const { data: rpcData, error: rpcError } = await supabase
+        .rpc('has_accepted_all_agreements', { user_uuid: userId });
+
+      if (!rpcError && typeof rpcData === 'boolean') {
+        setHasAcceptedAll(rpcData);
+        return rpcData;
+      }
+
+      // Fallback to direct query if RPC fails (e.g. function not deployed yet)
+      console.warn('RPC check failed, falling back to direct query:', rpcError);
+
       // Fetch user's accepted agreements
       const { data, error } = await supabase
         .from('user_agreements')
@@ -53,11 +65,10 @@ export const useUserAgreements = () => {
       return allAccepted;
     } catch (error: any) {
       console.error('Error checking agreement status:', error);
-      toast({
-        title: "Error",
-        description: "Failed to check agreement status",
-        variant: "destructive"
-      });
+      // Suppress toast for initial checks to avoid spamming users if backend is still initializing
+      if (error.code !== 'PGRST116' && !error.message?.includes('network')) {
+        console.warn("Table access error - this may be expected during first-time setup");
+      }
       return false;
     }
   }, [toast]);
@@ -122,9 +133,9 @@ export const useUserAgreements = () => {
         { key: 'exportControl', type: 'export_control' }
       ];
 
-      const insertPromises = agreementTypes.map(({ key, type }) => {
+      const insertPromises = agreementTypes.map(async ({ key, type }) => {
         if (acceptedTerms[key]) {
-          return supabase
+          const { error } = await supabase
             .from('user_agreements')
             .insert({
               user_id: user.id,
@@ -133,8 +144,12 @@ export const useUserAgreements = () => {
               user_agent: userAgent,
               metadata
             });
+
+          if (error) {
+            console.error(`Failed to insert agreement ${type}:`, error);
+            throw error;
+          }
         }
-        return Promise.resolve();
       });
 
       await Promise.all(insertPromises);
