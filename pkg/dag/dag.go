@@ -160,3 +160,8 @@ func (m *Memory) All() []*Node {
 	}
 	return out
 }
+
+// GetData returns the internal data map of the node
+func (n *Node) GetData() map[string]interface{} {
+	return n.items
+}

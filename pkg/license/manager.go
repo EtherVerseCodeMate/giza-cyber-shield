@@ -198,6 +198,22 @@ func (m *Manager) GetTier() string {
 	return m.cachedValidation.LicenseTier
 }
 
+// GetFullStatus returns the full license status response
+func (m *Manager) GetFullStatus() *ValidateResponse {
+	m.validationMu.RLock()
+	defer m.validationMu.RUnlock()
+
+	if m.cachedValidation == nil {
+		return &ValidateResponse{
+			Valid:       false,
+			LicenseTier: "community",
+			Error:       "no_cached_validation",
+		}
+	}
+
+	return m.cachedValidation
+}
+
 // Stop stops heartbeat daemon
 func (m *Manager) Stop() {
 	if m.heartbeatStopCh != nil {
