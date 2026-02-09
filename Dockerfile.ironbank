@@ -140,6 +140,17 @@ RUN go build \
     -o agent \
     ./cmd/agent/*.go
 
+# Build apiserver (The Motherboard)
+RUN go build \
+    -mod=vendor \
+    -trimpath \
+    -ldflags="-s -w \
+    -X main.version=${VERSION} \
+    -extldflags '-static'" \
+    -tags=netgo \
+    -o apiserver \
+    ./cmd/apiserver/*.go
+
 # Verify binaries were built successfully
 RUN ls -lh /build/sonar /build/adinkhepra /build/khepra-daemon /build/gateway /build/agent && \
     file /build/sonar /build/adinkhepra /build/khepra-daemon /build/gateway /build/agent && \
