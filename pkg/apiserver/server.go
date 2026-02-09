@@ -52,6 +52,7 @@ type Config struct {
 type DAGStore interface {
 	NodeCount() int
 	All() []DAGNodeResponse
+	Add(nodeID string, action string, parents []string, pqc map[string]string) error
 }
 
 // LicenseManager interface for license operations
@@ -69,6 +70,8 @@ type LicenseManager interface {
 	// Telemetry & Enrollment
 	Register(token string) (*license.RegisterResponse, error)
 	Heartbeat() (*license.HeartbeatResponse, error)
+	GetFullStatus() *license.ValidateResponse
+	GetMachineID() string
 }
 
 // NewServer creates a new API server instance
