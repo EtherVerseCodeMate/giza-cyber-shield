@@ -44,7 +44,15 @@ export const useUserAgreements = () => {
         .eq('user_id', userId)
         .is('revoked_at', null);
 
-      if (error) throw error;
+      if (error) {
+        // Check if table doesn't exist yet (migration pending)
+        if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
+          console.warn('user_agreements table not found - skipping agreement check');
+          setHasAcceptedAll(false);
+          return false;
+        }
+        throw error;
+      }
 
       // Check if all required agreements are accepted
       const acceptedTypes = new Set(data?.map(a => a.agreement_type) || []);
@@ -54,11 +62,14 @@ export const useUserAgreements = () => {
       return allAccepted;
     } catch (error: any) {
       console.error('Error checking agreement status:', error);
-      toast({
-        title: "Error",
-        description: "Failed to check agreement status",
-        variant: "destructive"
-      });
+      // Only show toast for actual errors, not missing table
+      if (!error.message?.includes('relation') && !error.message?.includes('does not exist')) {
+        toast({
+          title: "Error",
+          description: "Failed to check agreement status. Please try again.",
+          variant: "destructive"
+        });
+      }
       return false;
     }
   };
@@ -138,7 +149,14 @@ export const useUserAgreements = () => {
         return Promise.resolve();
       });
 
-      await Promise.all(insertPromises);
+      const results = await Promise.allSettled(insertPromises);
+      
+      // Check if any inserts failed
+      const failures = results.filter(r => r.status === 'rejected');
+      if (failures.length > 0) {
+        console.error('Some agreement inserts failed:', failures);
+        throw new Error(`Failed to save ${failures.length} agreement(s)`);
+      }
 
       // Refresh agreement status
       await fetchAgreements();
@@ -152,9 +170,18 @@ export const useUserAgreements = () => {
       return true;
     } catch (error: any) {
       console.error('Error accepting agreements:', error);
+      
+      // Provide more specific error message
+      let errorMsg = "Failed to accept agreements. Please try again.";
+      if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
+        errorMsg = "Database not ready. Please contact support.";
+      } else if (error.message?.includes('Not authenticated')) {
+        errorMsg = "You must be logged in to accept agreements.";
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to accept agreements. Please try again.",
+        description: errorMsg,
         variant: "destructive"
       });
       return false;
