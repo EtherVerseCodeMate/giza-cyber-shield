@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { useParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,22 +36,37 @@ interface DeploymentConfig {
   organizationName: string;
 }
 
-// Mock function to get deployment config from Supabase
-// In production, this would fetch from your Supabase database
+// Real function to get deployment config from Supabase
 async function getDeploymentConfig(orgId: string): Promise<DeploymentConfig | null> {
-  // TODO: Replace with actual Supabase query
-  // const { data } = await supabase
-  //   .from('deployments')
-  //   .select('vps_url, api_key, organization_name')
-  //   .eq('organization_id', orgId)
-  //   .single();
+  try {
+    const { data, error } = await supabase
+      .from('enhanced_open_controls_integrations')
+      .select('api_endpoint, performance_metrics, integration_name')
+      .eq('organization_id', orgId)
+      .eq('integration_name', 'Khepra VPS Deployment')
+      .maybeSingle();
 
-  // Mock data for development
-  return {
-    deploymentUrl: localStorage.getItem(`khepra_url_${orgId}`) || 'http://localhost:8080',
-    apiKey: localStorage.getItem(`khepra_key_${orgId}`) || 'test-api-key',
-    organizationName: 'Development Organization',
-  };
+    if (error) throw error;
+
+    if (data) {
+      const metrics = data.performance_metrics as any;
+      return {
+        deploymentUrl: data.api_endpoint || 'http://localhost:8080',
+        apiKey: metrics?.api_key || 'test-api-key',
+        organizationName: data.integration_name,
+      };
+    }
+
+    // Fallback to local storage for dev transition or return default
+    return {
+      deploymentUrl: localStorage.getItem(`khepra_url_${orgId}`) || 'http://localhost:8080',
+      apiKey: localStorage.getItem(`khepra_key_${orgId}`) || 'test-api-key',
+      organizationName: 'Development Organization',
+    };
+  } catch (error) {
+    console.error('Error fetching deployment config:', error);
+    return null;
+  }
 }
 
 export default function ClientPortal() {
@@ -90,25 +106,48 @@ export default function ClientPortal() {
     loadConfig();
   }, [org_id, toast]);
 
-  const handleSaveConfig = () => {
+  const handleSaveConfig = async () => {
     if (!org_id) return;
 
-    // Save to localStorage for development
-    localStorage.setItem(`khepra_url_${org_id}`, tempUrl);
-    localStorage.setItem(`khepra_key_${org_id}`, tempKey);
+    try {
+      // Save to Supabase
+      const { error } = await supabase
+        .from('enhanced_open_controls_integrations')
+        .upsert({
+          organization_id: org_id,
+          integration_name: 'Khepra VPS Deployment',
+          api_endpoint: tempUrl,
+          performance_metrics: {
+            api_key: tempKey,
+            updated_at: new Date().toISOString()
+          } as any,
+          is_active: true,
+          authentication_method: 'api_key'
+        }, { onConflict: 'organization_id,integration_name' });
 
-    setConfig({
-      ...config!,
-      deploymentUrl: tempUrl,
-      apiKey: tempKey,
-    });
+      if (error) throw error;
 
-    setIsConfigOpen(false);
+      // Update local state
+      setConfig({
+        deploymentUrl: tempUrl,
+        apiKey: tempKey,
+        organizationName: 'Khepra VPS Deployment',
+      });
 
-    toast({
-      title: 'Configuration Saved',
-      description: 'Your Khepra deployment settings have been updated.',
-    });
+      setIsConfigOpen(false);
+
+      toast({
+        title: 'Configuration Saved',
+        description: 'Your Khepra deployment settings have been updated in the cloud.',
+      });
+    } catch (error) {
+      console.error('Error saving config:', error);
+      toast({
+        title: 'Save Failed',
+        description: 'Could not save configuration to the database.',
+        variant: 'destructive'
+      });
+    }
   };
 
   if (isLoading) {
