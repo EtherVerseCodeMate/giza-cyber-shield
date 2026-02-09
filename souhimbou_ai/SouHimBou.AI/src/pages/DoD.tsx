@@ -50,7 +50,7 @@ import { DashboardToggle } from '@/components/DashboardToggle';
 export default function DoD() {
   const { toast } = useToast();
   const { currentOrganization } = useOrganization();
-  const organizationId = currentOrganization?.id || '';
+  const organizationId = currentOrganization?.organization_id || '';
   const { currentClearance, hasAccess } = useSecurityClearance('CONFIDENTIAL');
 
   const [activeTab, setActiveTab] = useState('overview');

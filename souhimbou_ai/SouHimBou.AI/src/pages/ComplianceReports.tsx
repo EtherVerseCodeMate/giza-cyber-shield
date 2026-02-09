@@ -16,7 +16,7 @@ const ComplianceReports = () => {
   ];
 
   return (
-    <ConsoleLayout 
+    <ConsoleLayout
       currentSection="compliance-reports"
       browserNav={{
         title: 'STIG Compliance Reports',
@@ -27,7 +27,7 @@ const ComplianceReports = () => {
       }}
     >
       {currentOrganization && (
-        <STIGComplianceReports organizationId={currentOrganization.id} />
+        <STIGComplianceReports organizationId={currentOrganization.organization_id} />
       )}
     </ConsoleLayout>
   );
