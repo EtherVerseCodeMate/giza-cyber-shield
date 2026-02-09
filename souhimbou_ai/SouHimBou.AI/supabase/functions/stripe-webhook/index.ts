@@ -43,7 +43,7 @@ serve(async (req) => {
     } catch (err) {
       logStep("Webhook signature verification failed", { error: err.message });
       // Return generic error to client, log specific error server-side
-      return new Response(JSON.stringify({ error: "Signature verification failed" }), { 
+      return new Response(JSON.stringify({ error: "Signature verification failed" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
@@ -128,14 +128,12 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, supa
     const price = subscription.items.data[0].price;
     const amount = price.unit_amount || 0;
 
-    if (amount <= 999) {
-      subscriptionTier = "Basic";
-    } else if (amount <= 9999) {
-      subscriptionTier = "Standard";
-    } else if (amount <= 19999) {
-      subscriptionTier = "Premium";
-    } else {
+    if (amount > 19999) {
       subscriptionTier = "Enterprise";
+    } else if (amount > 9999) {
+      subscriptionTier = "Premium";
+    } else if (amount > 999) {
+      subscriptionTier = "Standard";
     }
   }
 
