@@ -449,6 +449,18 @@ func (lm *LicenseManager) GetLicense(licenseID string) (*License, error) {
 	return license, nil
 }
 
+// GetAllLicenses returns all managed licenses.
+func (lm *LicenseManager) GetAllLicenses() []*License {
+	lm.mu.RLock()
+	defer lm.mu.RUnlock()
+
+	all := make([]*License, 0, len(lm.licenses))
+	for _, l := range lm.licenses {
+		all = append(all, l)
+	}
+	return all
+}
+
 // GetLicenseByNodeID retrieves the license associated with a node.
 func (lm *LicenseManager) GetLicenseByNodeID(nodeID string) (*License, error) {
 	lm.mu.RLock()
