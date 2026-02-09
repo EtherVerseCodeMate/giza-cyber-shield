@@ -5,12 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  Bot, 
-  Shield, 
-  Scan, 
-  Wrench, 
-  CheckCircle, 
+import {
+  Bot,
+  Shield,
+  Scan,
+  Wrench,
+  CheckCircle,
   AlertTriangle,
   Clock,
   FileText,
@@ -75,7 +75,7 @@ export const AIAgentDeployment = () => {
   useEffect(() => {
     initializeAgentSystem();
     discoverDeploymentTargets();
-  }, [currentOrganization?.id]);
+  }, [currentOrganization?.organization_id]);
 
   const initializeAgentSystem = async () => {
     // Initialize with sample deployed agents
@@ -158,7 +158,7 @@ export const AIAgentDeployment = () => {
   };
 
   const deployAIAgent = async (targetId: string, agentType: string) => {
-    if (!currentOrganization?.id) return;
+    if (!currentOrganization?.organization_id) return;
 
     setIsDeploying(true);
     setDeploymentProgress(0);
@@ -197,11 +197,11 @@ export const AIAgentDeployment = () => {
     };
 
     setAgents(prev => [...prev, newAgent]);
-    
+
     // Update target status
-    setDeploymentTargets(prev => 
-      prev.map(target => 
-        target.id === targetId 
+    setDeploymentTargets(prev =>
+      prev.map(target =>
+        target.id === targetId
           ? { ...target, status: 'deployed', agents: target.agents + 1 }
           : target
       )
@@ -218,7 +218,7 @@ export const AIAgentDeployment = () => {
       await supabase.functions.invoke('grok-ai-agent', {
         body: {
           message: `New AI agent deployed: ${agentType} to ${targetId}. Begin autonomous CMMC compliance operations.`,
-          organizationId: currentOrganization.id,
+          organizationId: currentOrganization.organization_id,
           context: {
             source: 'agent_deployment',
             action: 'new_deployment',
@@ -344,13 +344,12 @@ export const AIAgentDeployment = () => {
           <CardContent>
             <div className="space-y-3">
               {deploymentTargets.map((target) => (
-                <div 
+                <div
                   key={target.id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                    selectedTarget === target.id 
-                      ? 'border-primary bg-primary/5' 
+                  className={`p-4 border rounded-lg cursor-pointer transition-all ${selectedTarget === target.id
+                      ? 'border-primary bg-primary/5'
                       : 'border-border hover:border-primary/50'
-                  }`}
+                    }`}
                   onClick={() => setSelectedTarget(target.id)}
                 >
                   <div className="flex items-center justify-between">
@@ -380,8 +379,8 @@ export const AIAgentDeployment = () => {
             <div className="space-y-2">
               <p className="font-medium">Quick Deploy AI Agents:</p>
               <div className="grid grid-cols-2 gap-2">
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   variant="outline"
                   onClick={() => selectedTarget && deployAIAgent(selectedTarget, 'compliance')}
                   disabled={!selectedTarget || isDeploying}
@@ -390,8 +389,8 @@ export const AIAgentDeployment = () => {
                   <FileText className="h-4 w-4 mr-2" />
                   CMMC Agent
                 </Button>
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   variant="outline"
                   onClick={() => selectedTarget && deployAIAgent(selectedTarget, 'security')}
                   disabled={!selectedTarget || isDeploying}
@@ -400,8 +399,8 @@ export const AIAgentDeployment = () => {
                   <Shield className="h-4 w-4 mr-2" />
                   Security Agent
                 </Button>
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   variant="outline"
                   onClick={() => selectedTarget && deployAIAgent(selectedTarget, 'monitoring')}
                   disabled={!selectedTarget || isDeploying}
@@ -410,8 +409,8 @@ export const AIAgentDeployment = () => {
                   <Eye className="h-4 w-4 mr-2" />
                   Monitor Agent
                 </Button>
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   variant="outline"
                   onClick={() => selectedTarget && deployAIAgent(selectedTarget, 'remediation')}
                   disabled={!selectedTarget || isDeploying}
@@ -453,19 +452,19 @@ export const AIAgentDeployment = () => {
                         {agent.status}
                       </Badge>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs">
                         <span>Coverage</span>
                         <span>{agent.coverage}%</span>
                       </div>
                       <Progress value={agent.coverage} className="h-1" />
-                      
+
                       <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                         <div>✓ {agent.tasksCompleted} completed</div>
                         <div>⚡ {agent.tasksActive} active</div>
                       </div>
-                      
+
                       <div className="flex flex-wrap gap-1 mt-2">
                         {agent.capabilities.slice(0, 2).map((cap) => (
                           <Badge key={cap} variant="outline" className="text-xs">
@@ -524,8 +523,8 @@ export const AIAgentDeployment = () => {
       <Alert>
         <Sparkles className="h-4 w-4" />
         <AlertDescription>
-          <strong>Deploy AI Agents in Your Environment:</strong> Our autonomous agents scan infrastructure, 
-          implement CMMC controls, and maintain 24/7 security monitoring. Deploy in minutes, not months. 
+          <strong>Deploy AI Agents in Your Environment:</strong> Our autonomous agents scan infrastructure,
+          implement CMMC controls, and maintain 24/7 security monitoring. Deploy in minutes, not months.
           80% automation reduces certification time to 90 days with 75% cost savings.
         </AlertDescription>
       </Alert>

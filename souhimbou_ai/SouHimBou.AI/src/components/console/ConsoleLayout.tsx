@@ -280,7 +280,7 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
                     Refresh
                   </Button>
                   <Button
-                    onClick={() => navigate('/asset-scanning')}
+                    onClick={() => navigate('/asset-scanning?runScan=true')}
                     className="bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80 text-white font-semibold"
                   >
                     <Shield className="h-4 w-4 mr-2" />
