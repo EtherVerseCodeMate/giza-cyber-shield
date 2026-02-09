@@ -155,7 +155,7 @@ async function handleCMMCMapping(supabase: any, payload: any) {
   const automatedImplementations = mappings.reduce((total: number, mapping: any) =>
     total + mapping.stig_implementations.filter((impl: any) => impl.automation_possible).length, 0);
 
-  const implementationPlan = {
+  const implementation_plan = {
     total_stig_rules: totalSTIGRules,
     automated_implementations: automatedImplementations,
     manual_implementations: totalSTIGRules - automatedImplementations,
@@ -281,7 +281,7 @@ async function handleSTIGOptimization(supabase: any, payload: any) {
 
 async function handleConfigurationSearch(supabase: any, payload: any) {
   const { search_criteria } = payload;
-  const { platform, stig_category, implementation_status, organization_id } = search_criteria;
+  const { platform, implementation_status, organization_id } = search_criteria;
 
   let query = supabase
     .from('stig_trusted_configurations')
@@ -316,7 +316,7 @@ async function handleIntelligenceSync(supabase: any, payload: any) {
   const { feed_types = ['disa_vulnerability', 'cve_nvd'] } = payload;
 
   // Simulate intelligence feed synchronization
-  const syncResults = feed_types.map((feedType: string) => ({
+  const sync_results = feed_types.map((feedType: string) => ({
     feed_type: feedType,
     sync_status: 'completed',
     records_updated: Math.floor(Math.random() * 500) + 100,
