@@ -152,15 +152,28 @@ export const useUserAgreements = () => {
         // Fallback: Direct individual inserts
         const insertPromises = AGREEMENT_MAPPING.map(async ({ key, type }) => {
           if (acceptedTerms[key]) {
-            const { error } = await supabase
+            const payload = {
+              user_id: user.id,
+              agreement_type: type,
+              agreement_version: '3.0',
+              user_agent: userAgent,
+              metadata
+            };
+
+            // Try default schema first
+            let { error } = await supabase
               .from('user_agreements')
-              .insert({
-                user_id: user.id,
-                agreement_type: type,
-                agreement_version: '3.0', // Updated to match Khepra LICENSE v3.0
-                user_agent: userAgent,
-                metadata
-              });
+              .insert(payload);
+
+            // Handle specific schema error by trying 'api' schema
+            if (error && error.message?.includes('The schema must be one of the following: api')) {
+              console.warn(`Schema error for ${type}, retrying with 'api' schema`);
+              const { error: apiError } = await supabase
+                .schema('api')
+                .from('user_agreements')
+                .insert(payload);
+              error = apiError;
+            }
 
             if (error) {
               console.error(`Failed to insert agreement ${type}:`, error);
