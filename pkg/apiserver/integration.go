@@ -39,7 +39,7 @@ func (a *DAGStoreAdapter) All() []DAGNodeResponse {
 			NodeID:       node.ID,
 			Type:         node.Action,
 			Timestamp:    ts,
-			Data:         node.items,
+			Data:         node.GetData(),
 			Parents:      node.Parents,
 			PQCSignature: node.Signature,
 			Verified:     node.Signature != "",
