@@ -45,14 +45,14 @@ type Config struct {
 // DAGStore interface for DAG operations
 type DAGStore interface {
 	NodeCount() int
-	// Add more DAG methods as needed
+	All() []DAGNodeResponse
 }
 
 // LicenseManager interface for license operations
 type LicenseManager interface {
 	IsValid() (bool, error)
 	ValidateAPIKey(apiKey string) (bool, error)
-	// Add more license methods as needed
+	GetStatus() LicenseStatus
 }
 
 // NewServer creates a new API server instance
