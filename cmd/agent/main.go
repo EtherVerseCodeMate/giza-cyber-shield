@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -117,7 +118,13 @@ func setupLicensing(token string, _ dag.Store) (*license.Manager, *license.Licen
 		}
 	}
 
-	regMgr := license.NewLicenseManager()
+	home, _ := os.UserHomeDir()
+	if home == "" {
+		home = "."
+	}
+	tierStorePath := filepath.Join(home, ".khepra", "tiers.json")
+
+	regMgr := license.NewLicenseManager(tierStorePath)
 	enforcer := license.NewDAGLicenseEnforcer(regMgr)
 
 	return m, regMgr, enforcer
