@@ -49,6 +49,19 @@ func (a *DAGStoreAdapter) All() []DAGNodeResponse {
 	return response
 }
 
+// Add adds a new node to the DAG
+func (a *DAGStoreAdapter) Add(nodeID string, action string, parents []string, pqc map[string]string) error {
+	node := &dag.Node{
+		ID:      nodeID,
+		Action:  action,
+		Time:    time.Now().Format(time.RFC3339),
+		Parents: parents,
+		PQC:     pqc,
+	}
+
+	return a.pm.Add(node, parents)
+}
+
 // GetPersistentMemory returns the underlying PersistentMemory
 func (a *DAGStoreAdapter) GetPersistentMemory() *dag.PersistentMemory {
 	return a.pm
@@ -158,4 +171,14 @@ func (a *LicenseManagerAdapter) Register(token string) (*license.RegisterRespons
 // Heartbeat sends a heartbeat to the telemetry server
 func (a *LicenseManagerAdapter) Heartbeat() (*license.HeartbeatResponse, error) {
 	return a.mgr.Heartbeat()
+}
+
+// GetFullStatus returns the full validation response from the manager
+func (a *LicenseManagerAdapter) GetFullStatus() *license.ValidateResponse {
+	return a.mgr.GetFullStatus()
+}
+
+// GetMachineID returns the machine identity string
+func (a *LicenseManagerAdapter) GetMachineID() string {
+	return a.mgr.GetMachineID()
 }
