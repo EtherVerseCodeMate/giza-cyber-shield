@@ -38,6 +38,4 @@ func DeployFirewall(port string, direction string) error {
 	default:
 		return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}
-
-	return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 }
