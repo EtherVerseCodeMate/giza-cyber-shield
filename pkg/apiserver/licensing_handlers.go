@@ -216,6 +216,7 @@ func (s *Server) handleListLicenses(c *gin.Context) {
 func (s *Server) handleTelemetryEnroll(c *gin.Context) {
 	var req struct {
 		EnrollmentToken string `json:"enrollment_token" binding:"required"`
+		StripeSessionID string `json:"stripe_session_id,omitempty"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
