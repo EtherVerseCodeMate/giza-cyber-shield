@@ -43,17 +43,26 @@ func (a *LicenseManagerAdapter) IsValid() (bool, error) {
 	return a.mgr != nil, nil
 }
 
-// ValidateAPIKey validates an API key (uses machine ID for authentication)
+// ValidateAPIKey validates an API key (uses machine ID for local authentication)
 func (a *LicenseManagerAdapter) ValidateAPIKey(apiKey string) (bool, error) {
-	// For Merkaba system, validate against the machine ID generated at startup
-	// In production, this would validate against the license server
 	if apiKey == "" {
 		return false, nil
 	}
 
-	// Accept any non-empty API key for now (permissive for MVP)
-	// TODO: Implement proper license key validation
-	return true, nil
+	// For local authentication, the API key is the Machine ID
+	// This ensures that only requests from this specific installation are accepted
+	// In production, the gateway would proxy and validate with a central server
+	machineID := a.mgr.GetMachineID()
+	if apiKey == machineID {
+		return true, nil
+	}
+
+	// For development/MVP: allow "khepra-dev-key"
+	if apiKey == "khepra-dev-key" {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // GetManager returns the underlying license.Manager
