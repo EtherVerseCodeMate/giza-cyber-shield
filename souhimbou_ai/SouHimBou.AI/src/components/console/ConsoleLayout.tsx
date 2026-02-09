@@ -5,12 +5,12 @@ import { useOrganizationContext } from '@/components/OrganizationProvider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Home, 
-  Shield, 
-  Activity, 
-  Settings, 
-  LogOut, 
+import {
+  Home,
+  Shield,
+  Activity,
+  Settings,
+  LogOut,
   Search,
   Bell,
   User,
@@ -39,8 +39,8 @@ interface ConsoleLayoutProps {
   };
 }
 
-export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({ 
-  children, 
+export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
+  children,
   currentSection = 'home',
   browserNav
 }) => {
@@ -79,7 +79,7 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
           >
             {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
-          
+
           {/* Logo with Adinkra Animation */}
           <div className="flex items-center space-x-3">
             <div className="relative">
@@ -132,12 +132,12 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
               <div className="text-xs">UTC {currentTime.toISOString().slice(0, 10)}</div>
             </div>
           </div>
-          
+
           <Button variant="ghost" size="sm" className="relative">
             <Bell className="h-5 w-5" />
             <div className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full"></div>
           </Button>
-          
+
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
               <User className="h-4 w-4 text-primary-foreground" />
@@ -147,7 +147,7 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
               <div className="text-xs text-muted-foreground">{profile?.role || 'user'}</div>
             </div>
           </div>
-          
+
           <Button variant="ghost" size="sm" onClick={() => signOut()}>
             <LogOut className="h-4 w-4" />
           </Button>
@@ -156,7 +156,7 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
 
       <div className="flex h-[calc(100vh-4rem)]">
         {/* Sidebar */}
-        <aside 
+        <aside
           className={`
             ${isSidebarOpen ? 'w-64' : 'w-16'} 
             bg-card border-r border-border transition-all duration-300 overflow-hidden
@@ -167,7 +167,7 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
             {navigationItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentSection === item.id;
-              
+
               return (
                 <div key={item.id} className="relative group">
                   <Button
@@ -186,14 +186,14 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
                         {item.label}
                       </span>
                     )}
-                    
+
                     {/* Adinkra Symbol Overlay */}
                     {isActive && (
                       <div className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-30">
                         <div className="w-4 h-4 text-primary animate-float">
-                          <AdinkraSymbolDisplay 
-                            symbolName={item.symbol} 
-                            showMatrix={false} 
+                          <AdinkraSymbolDisplay
+                            symbolName={item.symbol}
+                            showMatrix={false}
                             showMeaning={false}
                             className="w-4 h-4"
                           />
@@ -201,7 +201,7 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
                       </div>
                     )}
                   </Button>
-                  
+
                   {/* Tooltip for collapsed state */}
                   {!isSidebarOpen && (
                     <div className="absolute left-full ml-2 top-1/2 transform -translate-y-1/2 bg-popover border border-border rounded-md px-2 py-1 text-sm opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
@@ -220,9 +220,9 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
                 <CardContent className="p-4">
                   <div className="text-center">
                     <div className="w-12 h-12 mx-auto mb-2 bg-gradient-primary rounded-lg flex items-center justify-center animate-pulse-glow">
-                      <AdinkraSymbolDisplay 
-                        symbolName="Gye Nyame" 
-                        showMatrix={false} 
+                      <AdinkraSymbolDisplay
+                        symbolName="Gye Nyame"
+                        showMatrix={false}
                         showMeaning={false}
                         className="w-8 h-8 text-primary-foreground"
                       />
@@ -243,7 +243,7 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
         {/* Main Content */}
         <main className="flex-1 overflow-auto bg-gradient-to-br from-background to-muted/20">
           {browserNav && (
-            <BrowserNavigation 
+            <BrowserNavigation
               tabs={browserNav.tabs}
               title={browserNav.title}
               subtitle={browserNav.subtitle}
@@ -251,7 +251,7 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
               rightContent={browserNav.rightContent}
             />
           )}
-          
+
           {/* STIG Implementation Banner */}
           <div className="bg-gradient-to-r from-primary/20 to-accent/20 border-b border-primary/30 backdrop-blur-sm">
             <div className="px-6 py-4">
@@ -271,7 +271,11 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
                   </Badge>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <Button variant="outline" size="sm">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.location.reload()}
+                  >
                     <Activity className="h-4 w-4 mr-2" />
                     Refresh
                   </Button>
@@ -286,11 +290,11 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
               </div>
             </div>
           </div>
-          
+
           {children}
         </main>
       </div>
-      
+
       {/* Floating AI Assistant */}
       <FloatingAIAssistant position="bottom-right" />
     </div>
