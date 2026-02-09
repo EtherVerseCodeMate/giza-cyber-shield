@@ -49,6 +49,9 @@ func (dle *DAGLicenseEnforcer) CanCreateNode(licenseID string, nodeID string, no
 	return dle.manager.CanCreateNode(licenseID, nodeType, sephirotLevel)
 }
 
+// ErrLicenseNotFoundFmt is the format string for license not found errors
+const ErrLicenseNotFoundFmt = "license %s not found"
+
 // RegisterNodeCreation binds node to license and updates quota
 // Called by: pkg/dag/dag.go Store.Add() after successful node creation
 func (dle *DAGLicenseEnforcer) RegisterNodeCreation(licenseID string, nodeID string, sephirotLevel int) error {
@@ -58,7 +61,7 @@ func (dle *DAGLicenseEnforcer) RegisterNodeCreation(licenseID string, nodeID str
 	// Validate license exists
 	lic, exists := dle.manager.licenses[licenseID]
 	if !exists {
-		return fmt.Errorf("license %s not found", licenseID)
+		return fmt.Errorf(ErrLicenseNotFoundFmt, licenseID)
 	}
 
 	// Check node quota
@@ -258,7 +261,7 @@ func (dle *DAGLicenseEnforcer) EnforceAirGapIfNeeded(licenseID string, systemIsA
 
 	lic, exists := dle.manager.licenses[licenseID]
 	if !exists {
-		return fmt.Errorf("license %s not found", licenseID)
+		return fmt.Errorf(ErrLicenseNotFoundFmt, licenseID)
 	}
 
 	// Only Pharaoh tier can use air-gap
@@ -288,7 +291,7 @@ func (dle *DAGLicenseEnforcer) RekeyOfflineLicense(licenseID string) (string, er
 
 	lic, exists := dle.manager.licenses[licenseID]
 	if !exists {
-		return "", fmt.Errorf("license %s not found", licenseID)
+		return "", fmt.Errorf(ErrLicenseNotFoundFmt, licenseID)
 	}
 
 	if lic.Tier != TierOsiris {
