@@ -20,6 +20,7 @@ import {
   RefreshCw,
   Wifi,
   WifiOff,
+  AlertCircle,
 } from 'lucide-react';
 
 interface KhepraScansWidgetProps {
@@ -29,9 +30,9 @@ interface KhepraScansWidgetProps {
 
 export function KhepraScansWidget({ deploymentUrl, apiKey }: KhepraScansWidgetProps) {
   const [targetUrl, setTargetUrl] = useState('');
-  const [scanType, setScanType] = useState<'crypto' | 'stig' | 'full'>('full');
+  const [scanType, setScanType] = useState<string>('basic');
 
-  const { triggerScan, health } = useKhepraAPI(deploymentUrl, apiKey);
+  const { triggerScan, health, license } = useKhepraAPI(deploymentUrl, apiKey);
   const { isConnected, scanUpdates, connectionError } = useKhepraScanUpdates(deploymentUrl);
 
   const handleTriggerScan = () => {
@@ -39,7 +40,7 @@ export function KhepraScansWidget({ deploymentUrl, apiKey }: KhepraScansWidgetPr
 
     triggerScan.mutate({
       target_url: targetUrl,
-      scan_type: scanType,
+      scan_type: scanType as any,
       priority: 5,
     });
 
@@ -75,6 +76,9 @@ export function KhepraScansWidget({ deploymentUrl, apiKey }: KhepraScansWidgetPr
     );
   };
 
+  const currentTier = license.data?.license_tier || 'community';
+  const isKhepri = currentTier === 'community' || currentTier === 'khepri';
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -105,34 +109,51 @@ export function KhepraScansWidget({ deploymentUrl, apiKey }: KhepraScansWidgetPr
       </CardHeader>
       <CardContent className="space-y-4">
         {/* New Scan Form */}
-        <div className="flex gap-2">
-          <Input
-            placeholder="https://example.com"
-            value={targetUrl}
-            onChange={(e) => setTargetUrl(e.target.value)}
-            className="flex-1"
-          />
-          <Select value={scanType} onValueChange={(v) => setScanType(v as typeof scanType)}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="full">Full Scan</SelectItem>
-              <SelectItem value="crypto">Crypto</SelectItem>
-              <SelectItem value="stig">STIG</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            onClick={handleTriggerScan}
-            disabled={!targetUrl || triggerScan.isPending}
-          >
-            {triggerScan.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Play className="h-4 w-4" />
-            )}
-            <span className="ml-2">Scan</span>
-          </Button>
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <Input
+              placeholder="https://example.com"
+              value={targetUrl}
+              onChange={(e) => setTargetUrl(e.target.value)}
+              className="flex-1"
+            />
+            <Select value={scanType} onValueChange={setScanType}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="basic">Basic Check</SelectItem>
+                <SelectItem value="eval">Trial Evaluation</SelectItem>
+                <SelectItem value="full" disabled={isKhepri}>
+                  Full Audit {isKhepri && '🔒'}
+                </SelectItem>
+                <SelectItem value="crypto" disabled={isKhepri}>
+                  Crypto Scan {isKhepri && '🔒'}
+                </SelectItem>
+                <SelectItem value="stig" disabled={isKhepri}>
+                  STIG Config {isKhepri && '🔒'}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              onClick={handleTriggerScan}
+              disabled={!targetUrl || triggerScan.isPending}
+            >
+              {triggerScan.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
+              <span className="ml-2">Scan</span>
+            </Button>
+          </div>
+
+          {triggerScan.isError && (
+            <div className="bg-red-50 border border-red-100 rounded-lg p-2 text-xs text-red-600 flex items-center gap-1">
+              <AlertCircle className="h-3 w-3" />
+              <span>{triggerScan.error.message}</span>
+            </div>
+          )}
         </div>
 
         {/* Connection Error */}
