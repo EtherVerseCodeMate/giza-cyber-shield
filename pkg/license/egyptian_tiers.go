@@ -365,7 +365,7 @@ func (lm *LicenseManager) GetLicense(licenseID string) (*License, error) {
 
 	license, exists := lm.licenses[licenseID]
 	if !exists {
-		return nil, errors.New("license not found")
+		return nil, ErrLicenseNotFound
 	}
 
 	return license, nil
@@ -383,7 +383,7 @@ func (lm *LicenseManager) GetLicenseByNodeID(nodeID string) (*License, error) {
 
 	license, exists := lm.licenses[licenseID]
 	if !exists {
-		return nil, errors.New("license not found")
+		return nil, ErrLicenseNotFound
 	}
 
 	return license, nil
