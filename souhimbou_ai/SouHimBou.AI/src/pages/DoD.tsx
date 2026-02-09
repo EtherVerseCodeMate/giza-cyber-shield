@@ -12,14 +12,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { 
-  Shield, 
-  Activity, 
-  Zap, 
-  Brain, 
-  AlertTriangle, 
-  CheckCircle, 
-  Clock, 
+import {
+  Shield,
+  Activity,
+  Zap,
+  Brain,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
   TrendingUp,
   Eye,
   Settings,
@@ -52,7 +52,7 @@ export default function DoD() {
   const { currentOrganization } = useOrganization();
   const organizationId = currentOrganization?.id || '';
   const { currentClearance, hasAccess } = useSecurityClearance('CONFIDENTIAL');
-  
+
   const [activeTab, setActiveTab] = useState('overview');
   const [isInitializing, setIsInitializing] = useState(false);
   const [stigCodexStatus, setStigCodexStatus] = useState<'inactive' | 'initializing' | 'active'>('inactive');
@@ -60,6 +60,8 @@ export default function DoD() {
   const [totalAssets, setTotalAssets] = useState(0);
 
   // STIG-Codex hook
+  const stigCodexData = useSTIGCodex(organizationId);
+
   const {
     complianceScore,
     complianceBreakdown,
@@ -71,7 +73,7 @@ export default function DoD() {
     error: codexError,
     initializeMonitoring,
     refreshAllData
-  } = useSTIGCodex(organizationId);
+  } = stigCodexData;
 
   useEffect(() => {
     if (organizationId) {
@@ -93,7 +95,7 @@ export default function DoD() {
     try {
       setIsInitializing(true);
       setStigCodexStatus('initializing');
-      
+
       // Initialize with discovered assets - using real DISA STIG rules (no mock data)
       const assetIds = discoveredAssets.map((asset: any) => asset.id);
       const realSTIGRules = [
@@ -103,9 +105,9 @@ export default function DoD() {
         'WN22-DC-000040', // Audit policy configuration
         'WN22-DC-000050'  // Access control configuration
       ];
-      
+
       await initializeMonitoring(assetIds, realSTIGRules);
-      
+
       setStigCodexStatus('active');
       toast({
         title: "STIG-Codex TRL10 Initialized",
@@ -140,7 +142,7 @@ export default function DoD() {
   };
 
   return (
-    <AccessControlWrapper 
+    <AccessControlWrapper
       requiredClearance="CONFIDENTIAL"
       resourceType="dod_stig_system"
       resourceId="main_dashboard"
@@ -154,7 +156,7 @@ export default function DoD() {
               DoD STIG-Codex Center
             </h1>
             <p className="text-muted-foreground">
-              Comprehensive STIG-First compliance automation platform - Unified asset discovery, 
+              Comprehensive STIG-First compliance automation platform - Unified asset discovery,
               continuous monitoring, and automated remediation for DoD environments
             </p>
             <div className="flex items-center gap-2 mt-2">
@@ -169,20 +171,20 @@ export default function DoD() {
               </Badge>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <DashboardToggle />
-            <Button 
-              onClick={refreshAllData} 
+            <Button
+              onClick={refreshAllData}
               disabled={codexLoading}
               variant="outline"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${codexLoading ? 'animate-spin' : ''}`} />
               Refresh Data
             </Button>
-            
+
             {stigCodexStatus === 'inactive' && (
-              <Button 
+              <Button
                 onClick={handleInitializeSTIGCodex}
                 disabled={isInitializing || !totalAssets}
                 className="bg-blue-600 hover:bg-blue-700"
@@ -365,35 +367,35 @@ export default function DoD() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="h-20 flex flex-col items-center gap-2"
                     onClick={() => setActiveTab('discovery')}
                   >
                     <Search className="h-6 w-6" />
                     <span className="text-sm">Start Discovery</span>
                   </Button>
-                  
-                  <Button 
-                    variant="outline" 
+
+                  <Button
+                    variant="outline"
                     className="h-20 flex flex-col items-center gap-2"
                     onClick={() => setActiveTab('codex')}
                   >
                     <Command className="h-6 w-6" />
                     <span className="text-sm">STIG Analysis</span>
                   </Button>
-                  
-                  <Button 
-                    variant="outline" 
+
+                  <Button
+                    variant="outline"
                     className="h-20 flex flex-col items-center gap-2"
                     onClick={() => setActiveTab('monitoring')}
                   >
                     <Activity className="h-6 w-6" />
                     <span className="text-sm">View Monitoring</span>
                   </Button>
-                  
-                  <Button 
-                    variant="outline" 
+
+                  <Button
+                    variant="outline"
                     className="h-20 flex flex-col items-center gap-2"
                     onClick={() => setActiveTab('remediation')}
                   >
