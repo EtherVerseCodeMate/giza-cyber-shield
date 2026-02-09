@@ -4,14 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Shield, 
-  Smartphone, 
-  Key, 
-  AlertTriangle, 
-  CheckCircle, 
+import {
+  Shield,
+  Smartphone,
+  Key,
+  AlertTriangle,
+  CheckCircle,
   Copy,
-  RefreshCw 
+  RefreshCw
 } from 'lucide-react';
 import { useMFA } from '@/hooks/useMFA';
 import { useAuth } from '@/hooks/useAuth';
@@ -19,19 +19,19 @@ import { toast } from 'sonner';
 
 export const EnhancedMFASetup = () => {
   const { user } = useAuth();
-  const { 
+  const {
     isEnabled,
     isLoading,
     factors,
     enrollmentData,
     error,
-    checkMFAStatus, 
-    startEnrollment, 
-    verifyCode, 
+    checkMFAStatus,
+    startEnrollment,
+    verifyCode,
     disableMFA,
-    generateBackupCodes 
+    generateBackupCodes
   } = useMFA();
-  
+
   const [verificationCode, setVerificationCode] = useState('');
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [showBackupCodes, setShowBackupCodes] = useState(false);
@@ -57,7 +57,7 @@ export const EnhancedMFASetup = () => {
       await verifyCode(verificationCode);
       toast.success('MFA enabled successfully!');
       setVerificationCode('');
-      
+
       // Generate backup codes after successful enrollment
       const codes = await generateBackupCodes();
       if (codes) {
@@ -165,15 +165,15 @@ export const EnhancedMFASetup = () => {
               <Alert>
                 <AlertTriangle className="w-4 h-4" />
                 <AlertDescription>
-                  <strong>Security Recommendation:</strong> Enable MFA to add an extra layer 
-                  of security to your account. This helps protect against unauthorized access 
+                  <strong>Security Recommendation:</strong> Enable MFA to add an extra layer
+                  of security to your account. This helps protect against unauthorized access
                   even if your password is compromised.
                 </AlertDescription>
               </Alert>
 
               {!enrollmentData ? (
                 <div className="text-center py-4">
-                  <Button 
+                  <Button
                     onClick={handleStartEnrollment}
                     disabled={isLoading}
                     className="w-full"
@@ -190,9 +190,16 @@ export const EnhancedMFASetup = () => {
                 <div className="space-y-4">
                   {enrollmentData.qrCode && (
                     <div className="text-center">
-                      <div 
+                      <div
                         className="inline-block p-4 bg-white rounded-lg border"
-                        dangerouslySetInnerHTML={{ __html: enrollmentData.qrCode }}
+                        dangerouslySetInnerHTML={{
+                          // Basic sanitization to prevent XSS from compromised QR code generation
+                          __html: enrollmentData.qrCode
+                            .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
+                            .replace(/javascript:/gim, "")
+                            .replace(/ on\w+="[^"]*"/gim, "")
+                            .replace(/ on\w+='[^']*'/gim, "")
+                        }}
                       />
                       <p className="text-sm text-muted-foreground mt-2">
                         Scan this QR code with your authenticator app
@@ -223,7 +230,7 @@ export const EnhancedMFASetup = () => {
                         className="flex-1 px-3 py-2 border rounded-md text-center font-mono"
                         maxLength={6}
                       />
-                      <Button 
+                      <Button
                         onClick={handleVerifyAndEnable}
                         disabled={verificationCode.length !== 6 || isLoading}
                       >
@@ -239,7 +246,7 @@ export const EnhancedMFASetup = () => {
               <Alert>
                 <CheckCircle className="w-4 h-4" />
                 <AlertDescription>
-                  <strong>MFA is enabled.</strong> Your account has an additional layer of 
+                  <strong>MFA is enabled.</strong> Your account has an additional layer of
                   security. You'll need to enter a code from your authenticator app when signing in.
                 </AlertDescription>
               </Alert>
@@ -251,8 +258,8 @@ export const EnhancedMFASetup = () => {
                     {factors.length} factor(s) configured
                   </p>
                 </div>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={handleDisableMFA}
                   disabled={isLoading}
@@ -285,8 +292,8 @@ export const EnhancedMFASetup = () => {
             <Alert>
               <AlertTriangle className="w-4 h-4" />
               <AlertDescription>
-                <strong>Important:</strong> Save these backup codes in a secure location. 
-                You can use them to access your account if you lose your authenticator device. 
+                <strong>Important:</strong> Save these backup codes in a secure location.
+                You can use them to access your account if you lose your authenticator device.
                 Each code can only be used once.
               </AlertDescription>
             </Alert>
@@ -299,9 +306,9 @@ export const EnhancedMFASetup = () => {
                   </div>
                 ))}
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={copyBackupCodes}
                 className="mt-3 w-full"
               >
