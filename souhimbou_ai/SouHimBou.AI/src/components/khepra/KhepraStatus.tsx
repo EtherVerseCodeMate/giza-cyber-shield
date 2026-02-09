@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Shield, Users, Activity, Zap, Server } from 'lucide-react';
+import { Shield, Activity, Zap, Server } from 'lucide-react';
 import { useKhepraAuth } from '@/khepra/hooks/useKhepraAuth';
 import { useKhepraDeployment } from '@/hooks/useKhepraDeployment';
 import { useKhepraAPI } from '@/hooks/useKhepraAPI';
@@ -12,6 +11,7 @@ export const KhepraStatus = () => {
   const { authState, securityEvents, isMonitoring } = useKhepraAuth();
   const { config } = useKhepraDeployment();
   const { health, license } = useKhepraAPI(config?.deploymentUrl || '', config?.apiKey || '');
+
   const getTrustScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-400';
     if (score >= 60) return 'text-yellow-400';
@@ -26,6 +26,15 @@ export const KhepraStatus = () => {
 
   const isRemoteHealthy = health.data?.status === 'healthy';
   const recentEvents = securityEvents.slice(0, 3);
+  const assetCriticality = license.data?.asset_criticality || 2;
+  const arsScore = authState.trustScore * assetCriticality;
+
+  let arsColor = 'text-red-400';
+  if (arsScore >= 800) {
+    arsColor = 'text-green-400';
+  } else if (arsScore >= 500) {
+    arsColor = 'text-yellow-400';
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -86,17 +95,15 @@ export const KhepraStatus = () => {
         </CardHeader>
         <CardContent>
           <div className="flex items-center space-x-2">
-            <div className={`text-2xl font-bold ${(authState.trustScore * (license.data?.asset_criticality || 2)) >= 800 ? 'text-green-400' :
-                (authState.trustScore * (license.data?.asset_criticality || 2)) >= 500 ? 'text-yellow-400' : 'text-red-400'
-              }`}>
+            <div className={`text-2xl font-bold ${arsColor}`}>
               {/* Calculate ARS: Trust (0-100) * ACR (1-10) = 0-1000 */}
-              {authState.trustScore * (license.data?.asset_criticality || 2)}
+              {arsScore}
             </div>
             <Badge variant="outline" className="text-xs">
               ARS-1000
             </Badge>
           </div>
-          <Progress value={(authState.trustScore * (license.data?.asset_criticality || 2)) / 10} className="mt-2" />
+          <Progress value={arsScore / 10} className="mt-2" />
           <div className="flex justify-between items-center mt-1">
             <p className="text-[10px] text-muted-foreground">
               Risk-Adjusted Exposure
@@ -104,7 +111,7 @@ export const KhepraStatus = () => {
             <Tooltip>
               <TooltipTrigger>
                 <Badge variant="secondary" className="text-[10px] h-4 px-1">
-                  ACR: {license.data?.asset_criticality || 2}
+                  ACR: {assetCriticality}
                 </Badge>
               </TooltipTrigger>
               <TooltipContent>
