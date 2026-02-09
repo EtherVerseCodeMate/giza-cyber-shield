@@ -122,8 +122,7 @@ export const useUserAgreements = () => {
         accepted_terms: acceptedTerms
       };
 
-      // Create agreement records for each accepted term
-      const agreementTypes = [
+      const AGREEMENT_MAPPING = [
         { key: 'tosAgree', type: 'tos' },
         { key: 'privacyAgree', type: 'privacy' },
         { key: 'saasAgree', type: 'saas' },
@@ -133,26 +132,46 @@ export const useUserAgreements = () => {
         { key: 'exportControl', type: 'export_control' }
       ];
 
-      const insertPromises = agreementTypes.map(async ({ key, type }) => {
-        if (acceptedTerms[key]) {
-          const { error } = await supabase
-            .from('user_agreements')
-            .insert({
-              user_id: user.id,
-              agreement_type: type,
-              agreement_version: '3.0', // Updated to match Khepra LICENSE v3.0
-              user_agent: userAgent,
-              metadata
-            });
+      // Prepare types array
+      const agreementTypesArray = AGREEMENT_MAPPING
+        .filter(m => acceptedTerms[m.key])
+        .map(m => m.type);
 
-          if (error) {
-            console.error(`Failed to insert agreement ${type}:`, error);
-            throw error;
-          }
-        }
+      // Try using the secure RPC function first (bypasses potential RLS issues)
+      const { error: rpcError } = await supabase.rpc('accept_legal_agreements' as any, {
+        user_uuid: user.id,
+        user_agent_text: userAgent,
+        meta_data: metadata,
+        agreement_version_text: '3.0',
+        agreement_types: agreementTypesArray
       });
 
-      await Promise.all(insertPromises);
+      if (rpcError) {
+        console.warn('RPC accept_legal_agreements failed, falling back to direct insert:', rpcError);
+
+        // Fallback: Direct individual inserts
+        const insertPromises = AGREEMENT_MAPPING.map(async ({ key, type }) => {
+          if (acceptedTerms[key]) {
+            const { error } = await supabase
+              .from('user_agreements')
+              .insert({
+                user_id: user.id,
+                agreement_type: type,
+                agreement_version: '3.0', // Updated to match Khepra LICENSE v3.0
+                user_agent: userAgent,
+                metadata
+              });
+
+            if (error) {
+              console.error(`Failed to insert agreement ${type}:`, error);
+              // Throw explicitly so Promise.all fails and we catch it below
+              throw new Error(`Failed to save ${type}: ${error.message}`);
+            }
+          }
+        });
+
+        await Promise.all(insertPromises);
+      }
 
       // Refresh agreement status
       await fetchAgreements();
@@ -167,8 +186,8 @@ export const useUserAgreements = () => {
     } catch (error: any) {
       console.error('Error accepting agreements:', error);
       toast({
-        title: "Error",
-        description: "Failed to accept agreements. Please try again.",
+        title: "Agreement Error",
+        description: error.message || "Failed to accept agreements. Please try again.",
         variant: "destructive"
       });
       return false;
