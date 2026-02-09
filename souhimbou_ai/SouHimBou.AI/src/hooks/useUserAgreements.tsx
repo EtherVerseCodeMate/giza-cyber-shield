@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -35,7 +35,7 @@ export const useUserAgreements = () => {
   ];
 
   // Check if user has accepted all required agreements
-  const checkAgreementStatus = async (userId: string) => {
+  const checkAgreementStatus = useCallback(async (userId: string) => {
     try {
       // Fetch user's accepted agreements
       const { data, error } = await supabase
@@ -61,10 +61,10 @@ export const useUserAgreements = () => {
       });
       return false;
     }
-  };
+  }, [toast]);
 
   // Fetch user's agreements
-  const fetchAgreements = async () => {
+  const fetchAgreements = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -96,10 +96,10 @@ export const useUserAgreements = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [checkAgreementStatus, toast]);
 
   // Accept all required agreements
-  const acceptAllAgreements = async (acceptedTerms: Record<string, boolean>) => {
+  const acceptAllAgreements = useCallback(async (acceptedTerms: Record<string, boolean>) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
@@ -159,10 +159,10 @@ export const useUserAgreements = () => {
       });
       return false;
     }
-  };
+  }, [fetchAgreements, toast]);
 
   // Revoke a specific agreement (for admin use)
-  const revokeAgreement = async (agreementId: string) => {
+  const revokeAgreement = useCallback(async (agreementId: string) => {
     try {
       const { error } = await supabase
         .from('user_agreements')
@@ -186,11 +186,11 @@ export const useUserAgreements = () => {
         variant: "destructive"
       });
     }
-  };
+  }, [fetchAgreements, toast]);
 
   useEffect(() => {
     fetchAgreements();
-  }, []);
+  }, [fetchAgreements]);
 
   return {
     agreements,

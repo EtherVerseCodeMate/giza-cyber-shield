@@ -22,7 +22,7 @@ serve(async (req) => {
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
-    
+
     if (!stripeKey || !webhookSecret) {
       throw new Error("Missing Stripe configuration");
     }
@@ -42,7 +42,11 @@ serve(async (req) => {
       logStep("Webhook signature verified", { eventType: event.type });
     } catch (err) {
       logStep("Webhook signature verification failed", { error: err.message });
-      return new Response(`Webhook signature verification failed: ${err.message}`, { status: 400 });
+      // Return generic error to client, log specific error server-side
+      return new Response(JSON.stringify({ error: "Signature verification failed" }), { 
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
     }
 
     const supabaseClient = createClient(
@@ -56,16 +60,16 @@ serve(async (req) => {
       case "invoice.payment_succeeded":
         await handlePaymentSucceeded(event.data.object as Stripe.Invoice, supabaseClient);
         break;
-      
+
       case "customer.subscription.created":
       case "customer.subscription.updated":
         await handleSubscriptionUpdated(event.data.object as Stripe.Subscription, supabaseClient, stripe);
         break;
-      
+
       case "customer.subscription.deleted":
         await handleSubscriptionDeleted(event.data.object as Stripe.Subscription, supabaseClient, stripe);
         break;
-      
+
       case "invoice.payment_failed":
         await handlePaymentFailed(event.data.object as Stripe.Invoice, supabaseClient);
         break;
@@ -84,7 +88,9 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR in webhook", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
+
+    // Return generic error to client
+    return new Response(JSON.stringify({ error: "Internal Server Error" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
@@ -93,9 +99,9 @@ serve(async (req) => {
 
 async function handlePaymentSucceeded(invoice: Stripe.Invoice, supabase: any) {
   logStep("Processing payment succeeded", { invoiceId: invoice.id, customerId: invoice.customer });
-  
+
   if (!invoice.customer || !invoice.subscription) return;
-  
+
   const customer = await getCustomerEmail(invoice.customer as string, supabase);
   if (!customer) return;
 
@@ -112,7 +118,7 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice, supabase: any) {
 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription, supabase: any, stripe: Stripe) {
   logStep("Processing subscription updated", { subscriptionId: subscription.id, customerId: subscription.customer });
-  
+
   const customer = await getCustomerEmail(subscription.customer as string, supabase);
   if (!customer) return;
 
@@ -121,7 +127,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, supa
   if (subscription.items.data.length > 0) {
     const price = subscription.items.data[0].price;
     const amount = price.unit_amount || 0;
-    
+
     if (amount <= 999) {
       subscriptionTier = "Basic";
     } else if (amount <= 9999) {
@@ -146,16 +152,16 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, supa
     updated_at: new Date().toISOString(),
   }, { onConflict: 'email' });
 
-  logStep("Subscription updated", { 
-    email: customer.email, 
-    tier: subscriptionTier, 
-    active: isActive 
+  logStep("Subscription updated", {
+    email: customer.email,
+    tier: subscriptionTier,
+    active: isActive
   });
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription, supabase: any, stripe: Stripe) {
   logStep("Processing subscription deleted", { subscriptionId: subscription.id, customerId: subscription.customer });
-  
+
   const customer = await getCustomerEmail(subscription.customer as string, supabase);
   if (!customer) return;
 
@@ -174,7 +180,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription, supa
 
 async function handlePaymentFailed(invoice: Stripe.Invoice, supabase: any) {
   logStep("Processing payment failed", { invoiceId: invoice.id, customerId: invoice.customer });
-  
+
   // Could implement logic here to mark accounts as past due
   // For now, just log the event
 }
@@ -186,7 +192,7 @@ async function getCustomerEmail(customerId: string, supabase: any) {
     .select("email, user_id")
     .eq("stripe_customer_id", customerId)
     .single();
-  
+
   if (subscriber) {
     return subscriber;
   }

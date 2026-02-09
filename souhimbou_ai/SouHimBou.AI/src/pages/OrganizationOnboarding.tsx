@@ -1,38 +1,11 @@
 import { PageLayout } from '@/components/PageLayout';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
+import { useOrganization } from '@/hooks/useOrganization';
 
 const OrganizationOnboardingPage = () => {
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchUserOrganization();
-  }, []);
-
-  const fetchUserOrganization = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: userOrg } = await supabase
-        .from('user_organizations')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (userOrg) {
-        setOrganizationId(userOrg.organization_id);
-      }
-    } catch (error) {
-      console.error('Error fetching organization:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { currentOrganization, loading } = useOrganization();
 
   return (
     <PageLayout>
@@ -50,17 +23,22 @@ const OrganizationOnboardingPage = () => {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </CardContent>
           </Card>
-        ) : !organizationId ? (
+        ) : !currentOrganization ? (
           <Card>
             <CardHeader>
               <CardTitle>Organization Required</CardTitle>
               <CardDescription>
-                You need to be part of an organization to access onboarding
+                You need to be part of an organization to access onboarding.
               </CardDescription>
             </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Please create or join an organization to continue.
+              </p>
+            </CardContent>
           </Card>
         ) : (
-          <OnboardingWizard organizationId={organizationId} />
+          <OnboardingWizard organizationId={currentOrganization.organization_id} />
         )}
       </div>
     </PageLayout>
