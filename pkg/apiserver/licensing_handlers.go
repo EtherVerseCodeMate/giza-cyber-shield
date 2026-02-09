@@ -10,6 +10,10 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	msgLicenseIDRequired = "license_id parameter is required"
+)
+
 // Merkaba Egyptian Licensing System Handlers (Version 2)
 // Integrates with Scarab/Motherboard API server (apiserver)
 //
@@ -84,7 +88,7 @@ func (s *Server) handleGetLicense(c *gin.Context) {
 	if licenseID == "" {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
 			Error:   "missing_license_id",
-			Message: "license_id parameter is required",
+			Message: msgLicenseIDRequired,
 			Code:    http.StatusBadRequest,
 		})
 		return
@@ -111,7 +115,7 @@ func (s *Server) handleUpgradeLicense(c *gin.Context) {
 	if licenseID == "" {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
 			Error:   "missing_license_id",
-			Message: "license_id parameter is required",
+			Message: msgLicenseIDRequired,
 			Code:    http.StatusBadRequest,
 		})
 		return
@@ -171,7 +175,7 @@ func (s *Server) handleGetLicenseUsage(c *gin.Context) {
 	if licenseID == "" {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
 			Error:   "missing_license_id",
-			Message: "license_id parameter is required",
+			Message: msgLicenseIDRequired,
 			Code:    http.StatusBadRequest,
 		})
 		return
