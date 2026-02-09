@@ -16,101 +16,106 @@ const AuthCallback = () => {
     const handleAuthCallback = async () => {
       try {
         console.log('Processing auth callback...');
-        
+
         // Extract hash parameters (tokens from Supabase)
         const hashParams = new URLSearchParams(location.hash.substring(1));
-        
+
         // Check if we have auth tokens in the hash
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
         const type = hashParams.get('type');
-        
+        const errorDescription = hashParams.get('error_description');
+
+        if (errorDescription) {
+          console.error('Auth error from hash:', errorDescription);
+          setError(errorDescription);
+          toast({
+            title: "Authentication Error",
+            description: errorDescription,
+            variant: "destructive"
+          });
+          navigate('/auth');
+          return;
+        }
+
         if (accessToken && refreshToken) {
-          console.log('Tokens found in URL, processing securely...');
-          
-          // Call our secure edge function to handle tokens
-          const callbackUrl = new URL(window.location.href);
-          
-          // Convert hash parameters to search parameters for the edge function
-          const params = new URLSearchParams();
-          hashParams.forEach((value, key) => {
-            params.append(key, value);
+          console.log('Tokens found in URL, setting session...');
+
+          // Set the session directly in the client
+          const { data, error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
           });
-          
-          const { data, error: callbackError } = await supabase.functions.invoke('auth-callback', {
-            body: {},
-            method: 'GET'
-          });
-          
-          if (callbackError) {
-            console.error('Callback processing error:', callbackError);
-            setError('Failed to process authentication securely');
-            
+
+          if (sessionError) {
+            console.error('Session creation error:', sessionError);
+            setError('Failed to establish session');
+
             toast({
-              title: "Authentication Error",
-              description: "Failed to process authentication callback securely",
+              title: "Session Error",
+              description: "Failed to establish user session",
               variant: "destructive"
             });
-            
+
             // Clear the URL immediately for security
             window.history.replaceState({}, document.title, window.location.pathname);
-            navigate('/auth?error=callback_failed');
+            navigate('/auth?error=session_failed');
             return;
           }
-          
+
           // Clear the URL hash immediately for security
           window.history.replaceState({}, document.title, window.location.pathname);
-          
-          console.log('Auth callback processed successfully');
-          
+
+          console.log('Auth session established successfully');
+
           toast({
             title: "Authentication Successful",
-            description: "Your authentication has been processed securely",
+            description: "Welcome back!",
             variant: "default"
           });
-          
-          // Redirect based on the response
-          const redirectUrl = data?.redirect_url || '/dashboard';
+
+          // Determine redirect based on type or default to dashboard
+          let redirectUrl = '/dashboard';
+          if (type === 'recovery') {
+            redirectUrl = '/auth/reset-password';
+          }
+
           navigate(redirectUrl);
-          
+
         } else {
-          // No tokens found, this might be a direct access or error
+          // No tokens found, check for error in search params
           const urlParams = new URLSearchParams(location.search);
           const errorParam = urlParams.get('error');
-          
-          if (errorParam) {
-            setError(`Authentication error: ${errorParam}`);
+          const errorDesc = urlParams.get('error_description');
+
+          if (errorParam || errorDesc) {
+            const msg = errorDesc || errorParam || 'Unknown error';
+            setError(`Authentication error: ${msg}`);
             toast({
               title: "Authentication Error",
-              description: `Authentication failed: ${errorParam}`,
+              description: msg,
               variant: "destructive"
             });
           } else {
-            setError('No authentication data found');
-            toast({
-              title: "Invalid Access",
-              description: "No authentication data found in callback",
-              variant: "destructive"
-            });
+            // Sometimes Supabase redirects to the callback URL with the tokens in the hash,
+            // but if we are here and no hash params, maybe it's a direct visit?
+            // Just redirect to auth page.
+            console.log("No tokens found, redirecting to login");
+            navigate('/auth');
           }
-          
-          navigate('/auth');
         }
-        
+
       } catch (error) {
         console.error('Auth callback error:', error);
         setError('Authentication processing failed');
-        
+
         toast({
           title: "Authentication Error",
           description: "Failed to process authentication callback",
           variant: "destructive"
         });
-        
-        // Clear URL for security
-        window.history.replaceState({}, document.title, window.location.pathname);
+
         navigate('/auth?error=callback_exception');
-        
       } finally {
         setLoading(false);
       }
