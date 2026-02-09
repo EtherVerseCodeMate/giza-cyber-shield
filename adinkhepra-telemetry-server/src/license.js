@@ -183,6 +183,7 @@ export async function handleLicenseValidate(request, env, corsHeaders) {
 /**
  * License heartbeat endpoint
  * Clients call this every hour to maintain license validity
+ * NOW REQUIRES HMAC AUTHENTICATION to prevent fake heartbeats
  *
  * @param {Request} request
  * @param {Env} env
@@ -191,11 +192,30 @@ export async function handleLicenseValidate(request, env, corsHeaders) {
  */
 export async function handleLicenseHeartbeat(request, env, corsHeaders) {
 	try {
-		const { machine_id, signature, status_data } = await request.json();
-
-		if (!machine_id || !signature) {
+		const body = await request.text();
+		
+		// Import HMAC verification
+		const { verifyLicenseHMAC } = await import('./hmac-auth.js');
+		
+		// Verify HMAC signature
+		const authResult = await verifyLicenseHMAC(request, body, env);
+		if (!authResult.valid) {
+			console.error('Heartbeat authentication failed:', authResult.error);
 			return new Response(JSON.stringify({
-				error: 'Missing required fields'
+				error: 'Authentication required',
+				message: 'Heartbeats require HMAC authentication',
+				help: 'Include X-Khepra-Signature and X-Khepra-Timestamp headers. See documentation for details.'
+			}), {
+				status: 401,
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+			});
+		}
+		
+		const { machine_id, signature, status_data } = JSON.parse(body);
+
+		if (!machine_id) {
+			return new Response(JSON.stringify({
+				error: 'Missing machine_id'
 			}), {
 				status: 400,
 				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -342,11 +362,13 @@ export async function handleLicenseRevoke(request, env, corsHeaders, machineId, 
 /**
  * Auto-register endpoint for new agent installations
  * This allows agents to self-register using a pre-shared enrollment token
+ * NOW REQUIRES HMAC AUTHENTICATION using enrollment token as shared secret
  *
  * Flow:
  * 1. Customer receives enrollment_token from SouHimBou.ai dashboard
- * 2. Agent calls /license/register with machine_id + enrollment_token
- * 3. Server validates token, creates trial license, returns activation
+ * 2. Agent generates HMAC using enrollment_token
+ * 3. Agent calls /license/register with machine_id + enrollment_token + HMAC headers
+ * 4. Server validates HMAC and token, creates trial license, returns activation + API key
  *
  * @param {Request} request
  * @param {Env} env
@@ -355,13 +377,32 @@ export async function handleLicenseRevoke(request, env, corsHeaders, machineId, 
  */
 export async function handleLicenseRegister(request, env, corsHeaders) {
 	try {
+		const body = await request.text();
+		
+		// Import HMAC verification
+		const { verifyLicenseHMAC, generateAPIKey } = await import('./hmac-auth.js');
+		
+		// Verify HMAC signature (will use enrollment token for auth)
+		const authResult = await verifyLicenseHMAC(request, body, env);
+		if (!authResult.valid) {
+			console.error('Registration authentication failed:', authResult.error);
+			return new Response(JSON.stringify({
+				error: 'Authentication required',
+				message: 'Registration requires HMAC authentication',
+				help: 'Include X-Khepra-Signature (HMAC using enrollment token) and X-Khepra-Timestamp headers.'
+			}), {
+				status: 401,
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+			});
+		}
+		
 		const {
 			machine_id,
 			enrollment_token,
 			hostname,
 			platform,
 			agent_version
-		} = await request.json();
+		} = JSON.parse(body);
 
 		// Validate required fields
 		if (!machine_id || !enrollment_token) {
@@ -463,13 +504,17 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 		const trialDays = 30;
 		const expiresAt = now + (trialDays * 86400);
 
+		// Generate API key for HMAC authentication
+		const { apiKey, apiKeyHash } = await generateAPIKey();
+
 		// Create new license
 		await env.DB.prepare(`
+			INSERT INTO licenses (
 				machine_id, organization, features, license_tier,
 				issued_at, expires_at, max_devices, revoked, validation_count,
 				enrollment_token_id, hostname, platform, agent_version,
-				max_concurrent_scans, retention_days, ai_credits_monthly
-			) VALUES (?, ?, ?, ?, ?, ?, 1, 0, 0, ?, ?, ?, ?, ?, ?, ?)
+				max_concurrent_scans, retention_days, ai_credits_monthly, api_key_hash
+			) VALUES (?, ?, ?, ?, ?, ?, 1, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT(machine_id) DO UPDATE SET
 				organization = excluded.organization,
 				features = excluded.features,
@@ -479,7 +524,8 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 				enrollment_token_id = excluded.enrollment_token_id,
 				hostname = excluded.hostname,
 				platform = excluded.platform,
-				agent_version = excluded.agent_version
+				agent_version = excluded.agent_version,
+				api_key_hash = excluded.api_key_hash
 		`).bind(
 			machine_id,
 			enrollment.organization,
@@ -490,12 +536,12 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 			enrollment.id,
 			hostname || 'unknown',
 			platform || 'unknown',
-			platform || 'unknown',
 			agent_version || 'unknown',
 			// Set limits based on tier (hardcoded mapping for now)
 			(enrollment.license_tier === 'business') ? 50 : (enrollment.license_tier === 'pro') ? 20 : 5,
 			(enrollment.license_tier === 'business') ? 30 : (enrollment.license_tier === 'pro') ? 7 : 1,
-			(enrollment.license_tier === 'business') ? 500 : (enrollment.license_tier === 'pro') ? 150 : 50
+			(enrollment.license_tier === 'business') ? 500 : (enrollment.license_tier === 'pro') ? 150 : 50,
+			apiKeyHash
 		).run();
 
 		// Increment registration count
@@ -536,6 +582,7 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 			issued_at: new Date(now * 1000).toISOString(),
 			expires_at: new Date(expiresAt * 1000).toISOString(),
 			days_remaining: trialDays,
+			api_key: apiKey, // IMPORTANT: Client must securely store this for HMAC authentication
 			validation_url: 'https://telemetry.souhimbou.org/license/validate',
 			heartbeat_url: 'https://telemetry.souhimbou.org/license/heartbeat',
 			client_country: country,
