@@ -290,7 +290,9 @@ ENV KHEPRA_VERSION=${VERSION} \
     KHEPRA_LOG_DIR=/var/log/khepra \
     KHEPRA_CONFIG_DIR=/etc/khepra \
     KHEPRA_DATA_DIR=/var/lib/khepra/data \
-    # Community mode by default (license key required for enterprise features)
+    # KHEPRA_MODE: Deployment mode selection
+    #   - community: Free evaluation mode (default)
+    #   - premium: Enterprise/DoD features enabled (requires license)
     KHEPRA_MODE=community
 
 # Default entrypoint and command
