@@ -213,37 +213,15 @@ func (s *Server) handleListLicenses(c *gin.Context) {
 }
 
 // handleTelemetryEnroll enrolls machine with telemetry server using enrollment token
-// POST /api/v1/license/telemetry/enroll
-// Body: {"enrollment_token": "...", "customer_name": "...", "tier": "khepri|ra|atum|osiris"}
 func (s *Server) handleTelemetryEnroll(c *gin.Context) {
 	var req struct {
 		EnrollmentToken string `json:"enrollment_token" binding:"required"`
-		CustomerName    string `json:"customer_name" binding:"required"`
-		Tier            string `json:"tier" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
 			Error:   "invalid_request",
 			Message: err.Error(),
-			Code:    http.StatusBadRequest,
-		})
-		return
-	}
-
-	// Map tier
-	tierMap := map[string]license.EgyptianTier{
-		"khepri": license.TierKhepri,
-		"ra":     license.TierRa,
-		"atum":   license.TierAtum,
-		"osiris": license.TierOsiris,
-	}
-
-	_, ok := tierMap[req.Tier]
-	if !ok {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "invalid_tier",
-			Message: fmt.Sprintf("Invalid tier: %s", req.Tier),
 			Code:    http.StatusBadRequest,
 		})
 		return
