@@ -50,6 +50,7 @@
 4-5. File Encryption and Decryption
 4-6. Disaster Recovery Operations
 4-7. Executive Roundtable (ERT) Risk Assessment
+4-8. PQC Obfuscation and Security Scans
 
 ### CHAPTER 5 - ADMINISTRATIVE PROCEDURES
 5-1. User Management
@@ -1827,6 +1828,47 @@ adinkhepra serve -port 8080
 # Check for ERT nodes in graph
 # Expected: Nodes labeled "ERT_ANALYSIS_*"
 ```
+
+---
+
+## 4-8. PQC OBFUSCATION AND SECURITY SCANS
+
+This section provides instructions for performing post-quantum cryptographic (PQC) obfuscation verification and automated security scans using the integrated AdinKhepra security suite.
+
+### 4-8-1. Overview of PQC Obfuscation
+AdinKhepra utilizes the **Nkyinkyim** algorithm—a twisting, adaptive obfuscation layer—to protect critical cryptographic primitives. This ensures that even if an attacker gains local access to a binary, reversed-engineered logic is mathematically non-deterministic without the proper Adinkra cultural seed.
+
+### 4-8-2. Running the Security Scan Workflow
+Operators must perform weekly security scans to verify the integrity of the PQC layer and identify newly disclosed vulnerabilities.
+
+**STEP 1**: Run PQC Obfuscation Verification
+```bash
+go test -v ./pkg/nkyinkyim
+```
+*System will verify the Nkyinkyim twisting logic and ensure that Adinkra symbols are correctly mapped to cryptographic operations.*
+
+**STEP 2**: Execute Vulnerability Check
+```bash
+govulncheck ./...
+```
+*Checks the current binary and dependencies against the built-in 212,000+ row CVE database (Package B).*
+
+**STEP 3**: Perform Static Code Analysis
+```bash
+gosec -exclude-dir=vendor ./...
+```
+*Scans for insecure coding patterns and identifies potential security weaknesses.*
+
+### 4-8-3. Hybrid Pulse (Heartbeat) Verification
+For **KHEPRA-HYBRID** deployments, operators must verify that the PQC-encrypted telemetry channel is active.
+
+**CRITICAL**: Every heartbeat is signed with the machine's **Osiris** or **Ra** identity key, providing non-repudiable proof of system life.
+
+**Verification procedure:**
+1. Navigate to the **Integrations Hub** in the SouHimBou.AI dashboard.
+2. Ensure the **Deployment URL** points to the authorized VPS node.
+3. Click **"Test Connection"** to trigger a PQC-signed heartbeat.
+4. Verify the **"Status"** returns **"Healthy"**.
 
 ---
 
