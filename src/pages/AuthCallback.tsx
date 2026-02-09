@@ -42,7 +42,7 @@ const AuthCallback = () => {
           console.log('Tokens found in URL, setting session...');
 
           // Set the session directly in the client
-          const { data, error: sessionError } = await supabase.auth.setSession({
+          const { error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
@@ -58,13 +58,13 @@ const AuthCallback = () => {
             });
 
             // Clear the URL immediately for security
-            window.history.replaceState({}, document.title, window.location.pathname);
+            globalThis.history.replaceState({}, document.title, window.location.pathname);
             navigate('/auth?error=session_failed');
             return;
           }
 
           // Clear the URL hash immediately for security
-          window.history.replaceState({}, document.title, window.location.pathname);
+          globalThis.history.replaceState({}, document.title, window.location.pathname);
 
           console.log('Auth session established successfully');
 

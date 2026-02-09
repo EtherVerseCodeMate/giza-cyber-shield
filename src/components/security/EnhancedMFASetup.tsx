@@ -43,6 +43,7 @@ export const EnhancedMFASetup = () => {
         toast.success('Scan the QR code with your authenticator app');
       }
     } catch (error) {
+      console.error(error);
       toast.error('Failed to start MFA enrollment');
     }
   };
@@ -59,12 +60,13 @@ export const EnhancedMFASetup = () => {
       setVerificationCode('');
 
       // Generate backup codes after successful enrollment
-      const codes = await generateBackupCodes();
+      const codes = generateBackupCodes();
       if (codes) {
         setBackupCodes(codes);
         setShowBackupCodes(true);
       }
     } catch (error) {
+      console.error(error);
       toast.error('Invalid verification code');
     }
   };
@@ -76,6 +78,7 @@ export const EnhancedMFASetup = () => {
       setBackupCodes([]);
       setShowBackupCodes(false);
     } catch (error) {
+      console.error(error);
       toast.error('Failed to disable MFA');
     }
   };
@@ -218,7 +221,7 @@ export const EnhancedMFASetup = () => {
                   )}
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">
+                    <label className="text-sm font-medium" htmlFor="verification-code">
                       Enter verification code from your app:
                     </label>
                     <div className="flex gap-2">
@@ -300,8 +303,8 @@ export const EnhancedMFASetup = () => {
 
             <div className="bg-muted p-4 rounded-lg">
               <div className="grid grid-cols-2 gap-2 font-mono text-sm">
-                {backupCodes.map((code, index) => (
-                  <div key={index} className="bg-white p-2 rounded border text-center">
+                {backupCodes.map((code) => (
+                  <div key={code} className="bg-white p-2 rounded border text-center">
                     {code}
                   </div>
                 ))}
