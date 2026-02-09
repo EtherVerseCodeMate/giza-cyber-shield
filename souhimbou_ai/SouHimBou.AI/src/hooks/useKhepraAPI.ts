@@ -94,6 +94,7 @@ export interface LicenseStatus {
   days_remaining: number;
   revoked: boolean;
   last_heartbeat?: string;
+  asset_criticality?: number; // Added for Tenable integration
 }
 
 export interface EnrollmentRequest {

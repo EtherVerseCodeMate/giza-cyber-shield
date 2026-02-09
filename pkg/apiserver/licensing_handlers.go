@@ -192,13 +192,14 @@ func (s *Server) handleGetLicenseUsage(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, map[string]interface{}{
-		"license_id":      lic.ID,
-		"tier":            lic.Tier,
-		"node_quota":      lic.NodeQuota,
-		"nodes_created":   lic.NodeCount,
-		"nodes_remaining": lic.NodeQuota - lic.NodeCount,
-		"percent_used":    fmt.Sprintf("%.1f%%", float64(lic.NodeCount)/float64(lic.NodeQuota)*100),
-		"expires_at":      lic.ExpiresAt,
+		"license_id":        lic.ID,
+		"tier":              lic.Tier,
+		"node_quota":        lic.NodeQuota,
+		"nodes_created":     lic.NodeCount,
+		"nodes_remaining":   lic.NodeQuota - lic.NodeCount,
+		"percent_used":      fmt.Sprintf("%.1f%%", float64(lic.NodeCount)/float64(lic.NodeQuota)*100),
+		"expires_at":        lic.ExpiresAt,
+		"asset_criticality": license.TierConfigurations[lic.Tier].AssetCriticality, // Exposed for Risk Scoring
 	})
 }
 

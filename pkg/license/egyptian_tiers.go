@@ -82,6 +82,7 @@ type TierInfo struct {
 	MonthlyRetention  int   // Days to retain DAG
 	ConcurrentScans   int
 	AIQueriesPerMonth int
+	AssetCriticality  int // Tenable-inspired ACR (1-10)
 }
 
 var TierConfigurations = map[EgyptianTier]TierInfo{
@@ -91,6 +92,7 @@ var TierConfigurations = map[EgyptianTier]TierInfo{
 		Price:            50,
 		NodeQuota:        1,
 		MonthlyRetention: 1,
+		AssetCriticality: 2, // Low impact
 		Features: []string{
 			"basic-scan",
 			"community-pqc",
@@ -107,6 +109,7 @@ var TierConfigurations = map[EgyptianTier]TierInfo{
 		MonthlyRetention:  7,
 		ConcurrentScans:   3,
 		AIQueriesPerMonth: 100,
+		AssetCriticality:  5, // Medium impact
 		Features: []string{
 			"advanced-scan",
 			"premium-pqc",
@@ -128,6 +131,7 @@ var TierConfigurations = map[EgyptianTier]TierInfo{
 		MonthlyRetention:  30,
 		ConcurrentScans:   10,
 		AIQueriesPerMonth: 1000,
+		AssetCriticality:  8, // High impact
 		Features: []string{
 			"all-hunter-features",
 			"auto-remediation",
@@ -149,6 +153,7 @@ var TierConfigurations = map[EgyptianTier]TierInfo{
 		MonthlyRetention:  365,
 		ConcurrentScans:   -1, // Unlimited
 		AIQueriesPerMonth: -1, // Unlimited
+		AssetCriticality:  10, // Critical Infrastructure
 		Features: []string{
 			"all-hive-features",
 			"red-team-mode",
