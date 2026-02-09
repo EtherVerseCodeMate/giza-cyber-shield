@@ -3,11 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Shield, Users, Activity, Zap } from 'lucide-react';
+import { Shield, Users, Activity, Zap, Server } from 'lucide-react';
 import { useKhepraAuth } from '@/khepra/hooks/useKhepraAuth';
+import { useKhepraDeployment } from '@/hooks/useKhepraDeployment';
+import { useKhepraAPI } from '@/hooks/useKhepraAPI';
 
 export const KhepraStatus = () => {
   const { authState, securityEvents, isMonitoring } = useKhepraAuth();
+  const { config } = useKhepraDeployment();
+  const { health } = useKhepraAPI(config?.deploymentUrl || '', config?.apiKey || '');
 
   const getTrustScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-400';
@@ -21,6 +25,7 @@ export const KhepraStatus = () => {
     return 'destructive';
   };
 
+  const isRemoteHealthy = health.data?.status === 'healthy';
   const recentEvents = securityEvents.slice(0, 3);
 
   return (
@@ -47,33 +52,30 @@ export const KhepraStatus = () => {
         </CardContent>
       </Card>
 
-      {/* Agent Status */}
+      {/* Environment Health */}
       <Card className="border-primary/20 bg-card/50 backdrop-blur-sm">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Agent Status</CardTitle>
-          <Users className="h-4 w-4 text-primary" />
+          <CardTitle className="text-sm font-medium">Environment Health</CardTitle>
+          <Server className="h-4 w-4 text-primary" />
         </CardHeader>
         <CardContent>
           <div className="flex items-center space-x-2">
-            <div className="text-2xl font-bold">
-              {authState.isAuthenticated ? 'Active' : 'Inactive'}
+            <div className={`text-2xl font-bold ${isRemoteHealthy ? 'text-green-400' : 'text-red-400'}`}>
+              {isRemoteHealthy ? 'Healthy' : 'Offline'}
             </div>
-            <Badge variant={authState.isAuthenticated ? 'default' : 'secondary'}>
-              {authState.isAuthenticated ? 'Verified' : 'Unverified'}
+            <Badge variant={isRemoteHealthy ? 'default' : 'destructive'}>
+              {isRemoteHealthy ? 'Stable' : 'Error'}
             </Badge>
           </div>
-          {authState.agentId && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <p className="text-xs text-muted-foreground mt-1 truncate cursor-help">
-                  ID: {authState.agentId}
-                </p>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Agent ID: {authState.agentId}</p>
-              </TooltipContent>
-            </Tooltip>
-          )}
+          <div className="flex items-center gap-2 mt-2">
+            <div className={`w-2 h-2 rounded-full ${isRemoteHealthy ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
+            <span className="text-xs text-muted-foreground">
+              {health.data?.license_status || 'Connection Pending'}
+            </span>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1 truncate">
+            {config?.deploymentUrl || 'No VPS configured'}
+          </p>
         </CardContent>
       </Card>
 
@@ -119,8 +121,8 @@ export const KhepraStatus = () => {
           {recentEvents.length > 0 && (
             <div className="mt-2 space-y-1">
               {recentEvents.map((event, index) => (
-                <Badge 
-                  key={index} 
+                <Badge
+                  key={index}
                   variant={event.severity === 'high' ? 'destructive' : 'secondary'}
                   className="text-xs mr-1"
                 >
