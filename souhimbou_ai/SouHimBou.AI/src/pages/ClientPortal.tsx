@@ -31,7 +31,6 @@ import {
 
 export default function ClientPortal() {
   const { config, isLoading, isUpdating, updateConfig } = useKhepraDeployment();
-  const { toast } = useToast();
 
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [tempUrl, setTempUrl] = useState('');
