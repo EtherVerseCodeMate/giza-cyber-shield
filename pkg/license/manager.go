@@ -22,7 +22,8 @@ type Manager struct {
 	lastValidated    time.Time
 	validationMu     sync.RWMutex
 	heartbeatStopCh  chan struct{}
-	enrollmentToken  string // Optional enrollment token for auto-registration
+	enrollmentToken  string          // Optional enrollment token for auto-registration
+	egyptianMgr      *LicenseManager // Internal Egyptian Tier license manager
 }
 
 // NewManager creates license manager
@@ -44,8 +45,16 @@ func NewManager(serverURL string) (*Manager, error) {
 		HTTPClient: &http.Client{Timeout: 10 * time.Second},
 	}
 
+	// Initialize Egyptian Tier license manager with persistence
+	home, _ := os.UserHomeDir()
+	if home == "" {
+		home = "."
+	}
+	tierStorePath := filepath.Join(home, ".khepra", "tiers.json")
+
 	return &Manager{
-		client: client,
+		client:      client,
+		egyptianMgr: NewLicenseManager(tierStorePath),
 	}, nil
 }
 
@@ -219,4 +228,24 @@ func (m *Manager) Stop() {
 	if m.heartbeatStopCh != nil {
 		close(m.heartbeatStopCh)
 	}
+}
+
+// CreateLicense creates a new Egyptian tier license
+func (m *Manager) CreateLicense(id string, tier EgyptianTier, days int) (*License, error) {
+	return m.egyptianMgr.CreateLicense(id, tier, days)
+}
+
+// GetLicense retrieves a license by ID
+func (m *Manager) GetLicense(id string) (*License, error) {
+	return m.egyptianMgr.GetLicense(id)
+}
+
+// GetAllLicenses returns all managed licenses
+func (m *Manager) GetAllLicenses() []*License {
+	return m.egyptianMgr.GetAllLicenses()
+}
+
+// UpgradeLicense upgrades a license to a higher tier
+func (m *Manager) UpgradeLicense(id string, newTier EgyptianTier) error {
+	return m.egyptianMgr.UpgradeLicense(id, newTier)
 }

@@ -11,20 +11,17 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/acme/autocert"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 )
 
-// Server represents the Khepra API server
-type Server struct {
-	router     *gin.Engine
-	wsHub      *WebSocketHub
-	dagStore   DAGStore
-	licMgr     LicenseManager
-	config     *Config
-	startTime  time.Time
-	version    string
 	httpServer *http.Server
 	agentMgr   AgentManagerInterface
 }
+
+const (
+	errWsupgrade = "WebSocket upgrade error: %v"
+)
 
 // AgentManagerInterface abstracts the connection to remote environments
 type AgentManagerInterface interface {
@@ -53,6 +50,12 @@ type LicenseManager interface {
 	IsValid() (bool, error)
 	ValidateAPIKey(apiKey string) (bool, error)
 	GetStatus() LicenseStatus
+
+	// Egyptian Tier management
+	CreateLicense(id string, tier license.EgyptianTier, days int) (*license.License, error)
+	GetLicense(id string) (*license.License, error)
+	GetAllLicenses() []*license.License
+	UpgradeLicense(id string, newTier license.EgyptianTier) error
 }
 
 // NewServer creates a new API server instance
@@ -212,15 +215,23 @@ func (s *Server) setupRoutes() {
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 		CheckOrigin: func(r *http.Request) bool {
-			// TODO: Implement proper origin checking
-			return true
+			origin := r.Header.Get("Origin")
+			if origin == "" {
+				return true // Allow requests with no origin (e.g. CLI)
+			}
+			for _, allowed := range s.config.AllowedOrigins {
+				if origin == allowed {
+					return true
+				}
+			}
+			return false
 		},
 	}
 
 	s.router.GET("/ws/scans", func(c *gin.Context) {
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
-			log.Printf("WebSocket upgrade error: %v", err)
+			log.Printf(errWsupgrade, err)
 			return
 		}
 		s.wsHub.ServeWebSocket(conn, "scans")
@@ -229,7 +240,7 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/ws/dag", func(c *gin.Context) {
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
-			log.Printf("WebSocket upgrade error: %v", err)
+			log.Printf(errWsupgrade, err)
 			return
 		}
 		s.wsHub.ServeWebSocket(conn, "dag")
@@ -238,7 +249,7 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/ws/license", func(c *gin.Context) {
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
-			log.Printf("WebSocket upgrade error: %v", err)
+			log.Printf(errWsupgrade, err)
 			return
 		}
 		s.wsHub.ServeWebSocket(conn, "license")
