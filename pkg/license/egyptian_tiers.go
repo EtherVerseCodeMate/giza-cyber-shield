@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -169,15 +171,88 @@ type LicenseManager struct {
 	licenses          map[string]*License
 	nodeToLicense     map[string]string  // nodeID -> licenseID mapping
 	complianceWeights map[string]float64 // nodeID -> compliance debt
+	storePath         string             // Path for persistence
 }
 
-// NewLicenseManager creates a new license manager.
-func NewLicenseManager() *LicenseManager {
-	return &LicenseManager{
+// NewLicenseManager creates a new license manager with optional persistence.
+func NewLicenseManager(storePath string) *LicenseManager {
+	lm := &LicenseManager{
 		licenses:          make(map[string]*License),
 		nodeToLicense:     make(map[string]string),
 		complianceWeights: make(map[string]float64),
+		storePath:         storePath,
 	}
+
+	if storePath != "" {
+		_ = lm.LoadFromDisk()
+	}
+
+	return lm
+}
+
+// SaveToDisk persists the current state to disk.
+func (lm *LicenseManager) SaveToDisk() error {
+	if lm.storePath == "" {
+		return nil
+	}
+
+	lm.mu.RLock()
+	defer lm.mu.RUnlock()
+
+	// Ensure directory exists
+	if err := os.MkdirAll(filepath.Dir(lm.storePath), 0755); err != nil {
+		return err
+	}
+
+	data := struct {
+		Licenses          map[string]*License `json:"licenses"`
+		NodeToLicense     map[string]string   `json:"node_to_license"`
+		ComplianceWeights map[string]float64  `json:"compliance_weights"`
+	}{
+		Licenses:          lm.licenses,
+		NodeToLicense:     lm.nodeToLicense,
+		ComplianceWeights: lm.complianceWeights,
+	}
+
+	jsonData, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(lm.storePath, jsonData, 0644)
+}
+
+// LoadFromDisk restores the state from disk.
+func (lm *LicenseManager) LoadFromDisk() error {
+	if lm.storePath == "" {
+		return nil
+	}
+
+	data, err := os.ReadFile(lm.storePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	var state struct {
+		Licenses          map[string]*License `json:"licenses"`
+		NodeToLicense     map[string]string   `json:"node_to_license"`
+		ComplianceWeights map[string]float64  `json:"compliance_weights"`
+	}
+
+	if err := json.Unmarshal(data, &state); err != nil {
+		return err
+	}
+
+	lm.mu.Lock()
+	lm.licenses = state.Licenses
+	lm.nodeToLicense = state.NodeToLicense
+	lm.complianceWeights = state.ComplianceWeights
+	lm.mu.Unlock()
+
+	return nil
 }
 
 // CreateLicense creates a new license for an organization/account.
@@ -203,6 +278,7 @@ func (lm *LicenseManager) CreateLicense(licenseID string, tier EgyptianTier, dur
 	}
 
 	lm.licenses[licenseID] = license
+	_ = lm.SaveToDisk()
 	return license, nil
 }
 
@@ -258,6 +334,7 @@ func (lm *LicenseManager) RegisterNodeCreation(licenseID string, nodeID string, 
 
 	license.NodeCount++
 	lm.nodeToLicense[nodeID] = licenseID
+	_ = lm.SaveToDisk()
 
 	return nil
 }
@@ -322,6 +399,7 @@ func (lm *LicenseManager) UpgradeLicense(licenseID string, newTier EgyptianTier)
 	license.Features = tierInfo.Features
 	license.DeityAuthorities = tierInfo.DeityAuthorities
 	license.SephirotAccess = tierInfo.SephirotAccess
+	_ = lm.SaveToDisk()
 
 	return nil
 }
