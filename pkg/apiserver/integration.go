@@ -1,6 +1,8 @@
 package apiserver
 
 import (
+	"time"
+
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 )
@@ -19,6 +21,32 @@ func NewDAGStoreAdapter(pm *dag.PersistentMemory) *DAGStoreAdapter {
 func (a *DAGStoreAdapter) NodeCount() int {
 	nodes := a.pm.All()
 	return len(nodes)
+}
+
+// All returns all nodes in the DAG mapped to Response objects
+func (a *DAGStoreAdapter) All() []DAGNodeResponse {
+	nodes := a.pm.All()
+	response := make([]DAGNodeResponse, len(nodes))
+
+	for i, node := range nodes {
+		// Parse timestamp
+		ts, err := time.Parse(time.RFC3339, node.Time)
+		if err != nil {
+			ts = time.Now()
+		}
+
+		response[i] = DAGNodeResponse{
+			NodeID:       node.ID,
+			Type:         node.Action,
+			Timestamp:    ts,
+			Data:         node.items,
+			Parents:      node.Parents,
+			PQCSignature: node.Signature,
+			Verified:     node.Signature != "",
+		}
+	}
+
+	return response
 }
 
 // GetPersistentMemory returns the underlying PersistentMemory
@@ -63,6 +91,38 @@ func (a *LicenseManagerAdapter) ValidateAPIKey(apiKey string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+// GetStatus returns the current license status
+func (a *LicenseManagerAdapter) GetStatus() LicenseStatus {
+	full := a.mgr.GetFullStatus()
+
+	// Parse dates
+	issued, _ := time.Parse(time.RFC3339, full.IssuedAt)
+	expires, _ := time.Parse(time.RFC3339, full.ExpiresAt)
+
+	return LicenseStatus{
+		MachineID:     a.mgr.GetMachineID(),
+		Organization:  full.Organization,
+		LicenseTier:   full.LicenseTier,
+		Features:      full.Features,
+		IssuedAt:      issued,
+		ExpiresAt:     expires,
+		IsValid:       full.Valid,
+		DaysRemaining: calculateDaysRemaining(expires),
+		Revoked:       full.Error == "revoked",
+	}
+}
+
+func calculateDaysRemaining(expires time.Time) int {
+	if expires.IsZero() {
+		return 0
+	}
+	days := int(time.Until(expires).Hours() / 24)
+	if days < 0 {
+		return 0
+	}
+	return days
 }
 
 // GetManager returns the underlying license.Manager

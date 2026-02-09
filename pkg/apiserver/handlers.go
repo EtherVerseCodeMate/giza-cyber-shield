@@ -122,35 +122,19 @@ func (s *Server) handleGetDAGNodes(c *gin.Context) {
 		return
 	}
 
-	// Get filter parameters
-	nodeType := c.Query("type")
-	limit := c.DefaultQuery("limit", "100")
-
-	// TODO: Implement actual DAG node retrieval with filters
-	// For now, return mock response
-	nodes := []DAGNodeResponse{
-		{
-			NodeID:       uuid.New().String(),
-			Type:         "scan",
-			Timestamp:    time.Now(),
-			Data:         map[string]interface{}{"status": "completed"},
-			Parents:      []string{},
-			Children:     []string{},
-			PQCSignature: "mock_signature",
-			Verified:     true,
-		},
-	}
+	nodes := s.dagStore.All()
 
 	response := DAGGraphResponse{
 		Nodes:       nodes,
 		TotalNodes:  len(nodes),
-		RootNodes:   []string{nodes[0].NodeID},
-		LatestNode:  nodes[0].NodeID,
 		LastUpdated: time.Now(),
 	}
 
-	_ = nodeType
-	_ = limit
+	if len(nodes) > 0 {
+		response.LatestNode = nodes[len(nodes)-1].NodeID
+		// Assume first nodes are roots for this MVP
+		response.RootNodes = []string{nodes[0].NodeID}
+	}
 
 	c.JSON(http.StatusOK, response)
 }
@@ -266,21 +250,7 @@ func (s *Server) handleGetLicenseStatus(c *gin.Context) {
 		return
 	}
 
-	// TODO: Get actual license info from license manager
-	// For now, return mock response
-	response := LicenseStatus{
-		MachineID:     "mock-machine-id",
-		Organization:  "Mock Organization",
-		LicenseTier:   "dod_premium",
-		Features:      []string{"premium_pqc", "white_box_crypto"},
-		IssuedAt:      time.Now().AddDate(0, -1, 0),
-		ExpiresAt:     time.Now().AddDate(1, 0, 0),
-		IsValid:       true,
-		DaysRemaining: 365,
-		Revoked:       false,
-		LastHeartbeat: nil,
-	}
-
+	response := s.licMgr.GetStatus()
 	c.JSON(http.StatusOK, response)
 }
 
