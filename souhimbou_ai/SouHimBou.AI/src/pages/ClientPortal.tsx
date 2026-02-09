@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +17,7 @@ import { KhepraScansWidget } from '@/components/khepra/KhepraScansWidget';
 import { KhepraLicenseWidget } from '@/components/khepra/KhepraLicenseWidget';
 import { KhepraDAGVisualization } from '@/components/khepra/KhepraDAGVisualization';
 import { useToast } from '@/hooks/use-toast';
+import { useKhepraDeployment } from '@/hooks/useKhepraDeployment';
 import {
   Shield,
   Network,
@@ -30,124 +29,27 @@ import {
   ExternalLink,
 } from 'lucide-react';
 
-interface DeploymentConfig {
-  deploymentUrl: string;
-  apiKey: string;
-  organizationName: string;
-}
-
-// Real function to get deployment config from Supabase
-async function getDeploymentConfig(orgId: string): Promise<DeploymentConfig | null> {
-  try {
-    const { data, error } = await supabase
-      .from('enhanced_open_controls_integrations')
-      .select('api_endpoint, performance_metrics, integration_name')
-      .eq('organization_id', orgId)
-      .eq('integration_name', 'Khepra VPS Deployment')
-      .maybeSingle();
-
-    if (error) throw error;
-
-    if (data) {
-      const metrics = data.performance_metrics as any;
-      return {
-        deploymentUrl: data.api_endpoint || 'http://localhost:8080',
-        apiKey: metrics?.api_key || 'test-api-key',
-        organizationName: data.integration_name,
-      };
-    }
-
-    // Fallback to local storage for dev transition or return default
-    return {
-      deploymentUrl: localStorage.getItem(`khepra_url_${orgId}`) || 'http://localhost:8080',
-      apiKey: localStorage.getItem(`khepra_key_${orgId}`) || 'test-api-key',
-      organizationName: 'Development Organization',
-    };
-  } catch (error) {
-    console.error('Error fetching deployment config:', error);
-    return null;
-  }
-}
-
 export default function ClientPortal() {
-  const { org_id } = useParams<{ org_id: string }>();
+  const { config, isLoading, isUpdating, updateConfig } = useKhepraDeployment();
   const { toast } = useToast();
 
-  const [config, setConfig] = useState<DeploymentConfig | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [tempUrl, setTempUrl] = useState('');
   const [tempKey, setTempKey] = useState('');
 
   useEffect(() => {
-    async function loadConfig() {
-      if (!org_id) return;
-
-      setIsLoading(true);
-      try {
-        const deploymentConfig = await getDeploymentConfig(org_id);
-        setConfig(deploymentConfig);
-        if (deploymentConfig) {
-          setTempUrl(deploymentConfig.deploymentUrl);
-          setTempKey(deploymentConfig.apiKey);
-        }
-      } catch (error) {
-        console.error('Failed to load deployment config:', error);
-        toast({
-          title: 'Configuration Error',
-          description: 'Failed to load deployment configuration.',
-          variant: 'destructive',
-        });
-      } finally {
-        setIsLoading(false);
-      }
+    if (config) {
+      setTempUrl(config.deploymentUrl);
+      setTempKey(config.apiKey);
     }
-
-    loadConfig();
-  }, [org_id, toast]);
+  }, [config]);
 
   const handleSaveConfig = async () => {
-    if (!org_id) return;
-
-    try {
-      // Save to Supabase
-      const { error } = await supabase
-        .from('enhanced_open_controls_integrations')
-        .upsert({
-          organization_id: org_id,
-          integration_name: 'Khepra VPS Deployment',
-          api_endpoint: tempUrl,
-          performance_metrics: {
-            api_key: tempKey,
-            updated_at: new Date().toISOString()
-          } as any,
-          is_active: true,
-          authentication_method: 'api_key'
-        }, { onConflict: 'organization_id,integration_name' });
-
-      if (error) throw error;
-
-      // Update local state
-      setConfig({
-        deploymentUrl: tempUrl,
-        apiKey: tempKey,
-        organizationName: 'Khepra VPS Deployment',
-      });
-
-      setIsConfigOpen(false);
-
-      toast({
-        title: 'Configuration Saved',
-        description: 'Your Khepra deployment settings have been updated in the cloud.',
-      });
-    } catch (error) {
-      console.error('Error saving config:', error);
-      toast({
-        title: 'Save Failed',
-        description: 'Could not save configuration to the database.',
-        variant: 'destructive'
-      });
-    }
+    await updateConfig({
+      deploymentUrl: tempUrl,
+      apiKey: tempKey
+    });
+    setIsConfigOpen(false);
   };
 
   if (isLoading) {
@@ -234,8 +136,12 @@ export default function ClientPortal() {
                     onChange={(e) => setTempKey(e.target.value)}
                   />
                 </div>
-                <Button onClick={handleSaveConfig} className="w-full">
-                  Save Configuration
+                <Button
+                  onClick={handleSaveConfig}
+                  className="w-full"
+                  disabled={isUpdating}
+                >
+                  {isUpdating ? 'Saving...' : 'Save Configuration'}
                 </Button>
               </div>
             </DialogContent>
