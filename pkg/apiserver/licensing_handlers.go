@@ -3,6 +3,7 @@ package apiserver
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/gin-gonic/gin"
@@ -274,14 +275,21 @@ func (s *Server) handleTelemetryHeartbeat(c *gin.Context) {
 }
 
 // handleTelemetryStatus returns telemetry server connection status
-// GET /api/v1/license/telemetry/status
 func (s *Server) handleTelemetryStatus(c *gin.Context) {
-	// TODO: Check actual telemetry server connectivity
+	full := s.licMgr.GetFullStatus()
+
 	status := "online"
+	if !full.Valid && full.Error == "license_server_unreachable" {
+		status = "offline"
+	}
 
 	c.JSON(http.StatusOK, map[string]interface{}{
 		"status":             status,
 		"telemetry_server":   "https://telemetry.souhimbou.org",
+		"machine_id":         s.licMgr.GetMachineID(),
+		"mode":               os.Getenv("KHEPRA_MODE"),
+		"license_valid":      full.Valid,
+		"license_tier":       full.LicenseTier,
 		"supports_enroll":    true,
 		"supports_validate":  true,
 		"supports_heartbeat": true,
