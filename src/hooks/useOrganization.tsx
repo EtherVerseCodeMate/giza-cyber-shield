@@ -65,6 +65,32 @@ export const useOrganization = () => {
     }
   }, [user]);
 
+  const handleFetchError = async (error: any) => {
+    // Detailed logging for debugging, but less aggressive UI feedback
+    console.warn('Organization fetch status:', { code: error.code, message: error.message });
+
+    // If JWT expired, sign out user - this is a critical state transition
+    if (error.code === 'PGRST301') {
+      await supabase.auth.signOut();
+      return;
+    }
+
+    // Only show toast for unexpected errors (excluding common transition/empty states)
+    if (error.code !== 'PGRST116' && error.message !== 'Unexpected token') {
+      // If the error is real (e.g. connection, RLS failure), log it prominently
+      console.error('Critical organization load failure:', error);
+
+      // Only show toast if we are CERTAIN it's a failure and not just a new user case
+      if (user?.id) {
+        toast({
+          title: "Connection Alert",
+          description: "Retrying organization sync...",
+          variant: "default", // Less alarming variant
+        });
+      }
+    }
+  };
+
   const fetchUserOrganizations = async () => {
     try {
       setLoading(true);
@@ -87,29 +113,7 @@ export const useOrganization = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        // Detailed logging for debugging, but less aggressive UI feedback
-        console.warn('Organization fetch status:', { code: error.code, message: error.message });
-
-        // If JWT expired, sign out user - this is a critical state transition
-        if (error.code === 'PGRST301') {
-          await supabase.auth.signOut();
-          return;
-        }
-
-        // Only show toast for unexpected errors (excluding common transition/empty states)
-        if (error.code !== 'PGRST116' && error.message !== 'Unexpected token') {
-          // If the error is real (e.g. connection, RLS failure), log it prominently
-          console.error('Critical organization load failure:', error);
-
-          // Only show toast if we are CERTAIN it's a failure and not just a new user case
-          if (user?.id) {
-            toast({
-              title: "Connection Alert",
-              description: "Retrying organization sync...",
-              variant: "default", // Less alarming variant
-            });
-          }
-        }
+        await handleFetchError(error);
         return;
       }
 
