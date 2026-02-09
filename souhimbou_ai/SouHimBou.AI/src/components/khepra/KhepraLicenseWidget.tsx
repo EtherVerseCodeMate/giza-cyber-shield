@@ -23,20 +23,33 @@ interface KhepraLicenseWidgetProps {
 }
 
 const FEATURE_ICONS: Record<string, React.ReactNode> = {
-  premium_pqc: <Shield className="h-4 w-4" />,
-  white_box_crypto: <Lock className="h-4 w-4" />,
-  stig_validation: <CheckCircle className="h-4 w-4" />,
-  real_time_monitoring: <Zap className="h-4 w-4" />,
-  advanced_reporting: <Building2 className="h-4 w-4" />,
-  api_access: <Cpu className="h-4 w-4" />,
+  'premium-pqc': <Shield className="h-4 w-4" />,
+  'community-pqc': <Shield className="h-4 w-4" opacity={0.5} />,
+  'white-box-crypto': <Lock className="h-4 w-4" />,
+  'stig-validation': <CheckCircle className="h-4 w-4" />,
+  'stig-nist': <CheckCircle className="h-4 w-4" />,
+  'real-time-monitoring': <Zap className="h-4 w-4" />,
+  'threat-detection': <Zap className="h-4 w-4" />,
+  'advanced-reporting': <Building2 className="h-4 w-4" />,
+  'api-access': <Cpu className="h-4 w-4" />,
+  'sso-rbac': <Lock className="h-4 w-4" />,
+  'auto-remediation': <Zap className="h-4 w-4" />,
 };
 
 export function KhepraLicenseWidget({ deploymentUrl, apiKey }: KhepraLicenseWidgetProps) {
-  const { license } = useKhepraAPI(deploymentUrl, apiKey);
+  const { license, heartbeat, telemetryStatus } = useKhepraAPI(deploymentUrl, apiKey);
   const { licenseUpdates } = useKhepraLicenseUpdates(deploymentUrl);
 
   const latestUpdate = licenseUpdates[licenseUpdates.length - 1];
   const data = license.data;
+
+  const handleHeartbeat = async () => {
+    try {
+      await heartbeat.mutateAsync();
+    } catch (error) {
+      console.error('Heartbeat failed:', error);
+    }
+  };
 
   if (license.isLoading) {
     return (
@@ -76,15 +89,16 @@ export function KhepraLicenseWidget({ deploymentUrl, apiKey }: KhepraLicenseWidg
 
   const getTierBadge = (tier: string) => {
     const colors: Record<string, string> = {
-      community: 'bg-gray-100 text-gray-800',
-      pro: 'bg-blue-100 text-blue-800',
-      enterprise: 'bg-purple-100 text-purple-800',
-      dod_premium: 'bg-green-100 text-green-800',
+      community: 'bg-gray-100 text-gray-800 border-gray-200',
+      khepri: 'bg-orange-100 text-orange-800 border-orange-200',
+      ra: 'bg-blue-100 text-blue-800 border-blue-200',
+      atum: 'bg-purple-100 text-purple-800 border-purple-200',
+      osiris: 'bg-green-100 text-green-800 border-green-200 shadow-sm font-bold',
     };
 
     return (
-      <Badge className={colors[tier] || colors.community}>
-        {tier.replace('_', ' ').toUpperCase()}
+      <Badge variant="outline" className={`${colors[tier] || colors.community} uppercase px-2 py-0.5`}>
+        {tier}
       </Badge>
     );
   };
@@ -108,7 +122,7 @@ export function KhepraLicenseWidget({ deploymentUrl, apiKey }: KhepraLicenseWidg
       );
     }
 
-    if (data.days_remaining <= 7) {
+    if (data.days_remaining <= 7 && data.days_remaining > 0) {
       return (
         <div className="flex items-center gap-2 text-orange-600">
           <AlertTriangle className="h-5 w-5" />
@@ -117,11 +131,11 @@ export function KhepraLicenseWidget({ deploymentUrl, apiKey }: KhepraLicenseWidg
       );
     }
 
-    if (data.days_remaining <= 30) {
+    if (data.days_remaining === 0 && data.license_tier !== 'osiris') {
       return (
-        <div className="flex items-center gap-2 text-yellow-600">
-          <Clock className="h-5 w-5" />
-          <span className="font-medium">Renewal Needed</span>
+        <div className="flex items-center gap-2 text-red-600">
+          <XCircle className="h-5 w-5" />
+          <span className="font-medium">Expired</span>
         </div>
       );
     }
@@ -134,7 +148,9 @@ export function KhepraLicenseWidget({ deploymentUrl, apiKey }: KhepraLicenseWidg
     );
   };
 
-  const daysProgress = Math.min(100, (data.days_remaining / 365) * 100);
+  const daysProgress = data.days_remaining === 0 && data.license_tier === 'osiris'
+    ? 100
+    : Math.min(100, (data.days_remaining / 365) * 100);
 
   return (
     <Card className="w-full">
@@ -145,8 +161,8 @@ export function KhepraLicenseWidget({ deploymentUrl, apiKey }: KhepraLicenseWidg
               <Key className="h-5 w-5" />
               License Status
             </CardTitle>
-            <CardDescription>
-              AdinKhepra Protocol license for {data.organization}
+            <CardDescription className="flex items-center gap-1">
+              Merkaba Egyptian Tier System: <span className="text-foreground font-medium">{data.organization}</span>
             </CardDescription>
           </div>
           {getTierBadge(data.license_tier)}
@@ -156,8 +172,8 @@ export function KhepraLicenseWidget({ deploymentUrl, apiKey }: KhepraLicenseWidg
         {/* Status Indicator */}
         <div className="flex items-center justify-between">
           {getStatusIndicator()}
-          <span className="text-sm text-muted-foreground">
-            Machine: {data.machine_id.slice(0, 12)}...
+          <span className="text-xs text-muted-foreground font-mono bg-muted px-2 py-1 rounded">
+            ID: {data.machine_id}
           </span>
         </div>
 
@@ -171,21 +187,24 @@ export function KhepraLicenseWidget({ deploymentUrl, apiKey }: KhepraLicenseWidg
           </div>
         )}
 
-        {/* Days Remaining */}
+        {/* Days Remaining / Progress */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Days Remaining</span>
-            <span className="font-medium">{data.days_remaining} days</span>
+            <span className="text-muted-foreground">Validity Period</span>
+            <span className="font-medium">
+              {data.days_remaining === 0 && data.license_tier === 'osiris'
+                ? 'Perpetual (Eternal Sun)'
+                : `${data.days_remaining} days remaining`}
+            </span>
           </div>
           <Progress
             value={daysProgress}
-            className={`h-2 ${
-              data.days_remaining <= 7
+            className={`h-2 ${data.days_remaining <= 7 && data.license_tier !== 'osiris'
                 ? '[&>div]:bg-red-500'
-                : data.days_remaining <= 30
-                ? '[&>div]:bg-yellow-500'
-                : '[&>div]:bg-green-500'
-            }`}
+                : data.days_remaining <= 30 && data.license_tier !== 'osiris'
+                  ? '[&>div]:bg-yellow-500'
+                  : '[&>div]:bg-green-500'
+              }`}
           />
         </div>
 
@@ -194,22 +213,38 @@ export function KhepraLicenseWidget({ deploymentUrl, apiKey }: KhepraLicenseWidg
         {/* License Details */}
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <span className="text-muted-foreground">Issued</span>
+            <span className="text-muted-foreground">Solar Phase Birth</span>
             <div className="font-medium">
               {new Date(data.issued_at).toLocaleDateString()}
             </div>
           </div>
           <div>
-            <span className="text-muted-foreground">Expires</span>
+            <span className="text-muted-foreground">Sunset (Expiry)</span>
             <div className="font-medium">
-              {new Date(data.expires_at).toLocaleDateString()}
+              {data.days_remaining === 0 && data.license_tier === 'osiris'
+                ? 'Never (Osiris Rise)'
+                : new Date(data.expires_at).toLocaleDateString()}
             </div>
           </div>
           {data.last_heartbeat && (
             <div className="col-span-2">
-              <span className="text-muted-foreground">Last Heartbeat</span>
-              <div className="font-medium">
-                {new Date(data.last_heartbeat).toLocaleString()}
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-muted-foreground">Last Telemetry Heartbeat</span>
+                  <div className="font-medium">
+                    {new Date(data.last_heartbeat).toLocaleString()}
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleHeartbeat}
+                  disabled={heartbeat.isPending}
+                  className="h-8 text-xs gap-1"
+                >
+                  <Activity className={`h-3 w-3 ${heartbeat.isPending ? 'animate-pulse' : ''}`} />
+                  Sync
+                </Button>
               </div>
             </div>
           )}
@@ -219,16 +254,16 @@ export function KhepraLicenseWidget({ deploymentUrl, apiKey }: KhepraLicenseWidg
 
         {/* Features */}
         <div className="space-y-2">
-          <h4 className="text-sm font-medium">Licensed Features</h4>
+          <h4 className="text-sm font-medium">Deity Authorities & Features</h4>
           <div className="grid grid-cols-2 gap-2">
             {data.features.map((feature) => (
               <div
                 key={feature}
-                className="flex items-center gap-2 text-sm bg-muted rounded-lg px-3 py-2"
+                className="flex items-center gap-2 text-sm bg-muted/50 border border-border/50 rounded-lg px-3 py-2"
               >
-                {FEATURE_ICONS[feature] || <CheckCircle className="h-4 w-4" />}
+                {FEATURE_ICONS[feature] || <CheckCircle className="h-4 w-4 text-primary/60" />}
                 <span className="truncate">
-                  {feature.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                  {feature.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
                 </span>
               </div>
             ))}
