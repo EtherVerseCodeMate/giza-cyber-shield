@@ -16,7 +16,6 @@ import {
 import { KhepraScansWidget } from '@/components/khepra/KhepraScansWidget';
 import { KhepraLicenseWidget } from '@/components/khepra/KhepraLicenseWidget';
 import { KhepraDAGVisualization } from '@/components/khepra/KhepraDAGVisualization';
-import { useToast } from '@/hooks/use-toast';
 import { useKhepraDeployment } from '@/hooks/useKhepraDeployment';
 import {
   Shield,
