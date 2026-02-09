@@ -14,7 +14,6 @@ export const UnifiedAdminConsole = () => {
   const [securityPolicies, setSecurityPolicies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { currentOrganization } = useOrganization();
-  const { user } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -25,15 +24,15 @@ export const UnifiedAdminConsole = () => {
 
   const fetchConsoleData = async () => {
     if (!currentOrganization) return;
-    
+
     try {
       setLoading(true);
-      
+
       // Fetch performance metrics to determine system health
-      const { data: metrics, error } = await supabase
+      const { error } = await supabase
         .from('performance_metrics')
         .select('*')
-        .eq('organization_id', currentOrganization.id)
+        .eq('organization_id', currentOrganization.organization_id)
         .order('recorded_at', { ascending: false })
         .limit(20);
 
@@ -43,7 +42,7 @@ export const UnifiedAdminConsole = () => {
       const { data: securityEvents } = await supabase
         .from('security_events')
         .select('*')
-        .eq('organization_id', currentOrganization.id)
+        .eq('organization_id', currentOrganization.organization_id)
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -51,7 +50,7 @@ export const UnifiedAdminConsole = () => {
       const { data: assets } = await supabase
         .from('infrastructure_assets')
         .select('*')
-        .eq('organization_id', currentOrganization.id);
+        .eq('organization_id', currentOrganization.organization_id);
 
       // Create module status based on real activity
       const moduleData = [
