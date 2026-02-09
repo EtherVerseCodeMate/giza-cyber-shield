@@ -3,7 +3,6 @@ package apiserver
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/gin-gonic/gin"
@@ -250,17 +249,17 @@ func (s *Server) handleTelemetryEnroll(c *gin.Context) {
 		return
 	}
 
-	// TODO: Integrate with telemetry client for actual server enrollment
-	// For MVP, we simulate enrollment
-	licenseID := string(tierMap[req.Tier]) + "-" + license.GenerateMachineID()
+	resp, err := s.licMgr.Register(req.EnrollmentToken)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "enrollment_failed",
+			Message: err.Error(),
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
 
-	c.JSON(http.StatusCreated, map[string]interface{}{
-		"license_id": licenseID,
-		"tier":       req.Tier,
-		"customer":   req.CustomerName,
-		"expires_at": time.Now().AddDate(1, 0, 0),
-		"message":    "Successfully enrolled with Cloudflare telemetry server",
-	})
+	c.JSON(http.StatusOK, resp)
 }
 
 // handleTelemetryHeartbeat sends usage heartbeat to telemetry server
@@ -282,13 +281,17 @@ func (s *Server) handleTelemetryHeartbeat(c *gin.Context) {
 		return
 	}
 
-	// TODO: Integrate with telemetry client for actual heartbeat
-	c.JSON(http.StatusOK, map[string]interface{}{
-		"license_id":      req.LicenseID,
-		"nodes_created":   req.NodesCreated,
-		"node_quota_used": req.NodeQuotaUsed,
-		"message":         "Heartbeat received and queued",
-	})
+	resp, err := s.licMgr.Heartbeat()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "heartbeat_failed",
+			Message: err.Error(),
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
 
 // handleTelemetryStatus returns telemetry server connection status
