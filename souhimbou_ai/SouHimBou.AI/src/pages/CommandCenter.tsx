@@ -129,19 +129,12 @@ const CommandCenter = () => {
                         </div>
                         <div className="space-y-2">
                             {mockEndpoints.map((ep) => (
-                                <div
+                                <button
                                     key={ep.id}
-                                    role="button"
-                                    tabIndex={0}
+                                    type="button"
                                     aria-label={`Select endpoint: ${ep.hostname}`}
                                     onClick={() => setSelectedEndpoint(ep)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' || e.key === ' ') {
-                                            e.preventDefault();
-                                            setSelectedEndpoint(ep);
-                                        }
-                                    }}
-                                    className={`p-3 rounded-lg border cursor-pointer transition-all ${selectedEndpoint?.id === ep.id
+                                    className={`w-full text-left p-3 rounded-lg border cursor-pointer transition-all ${selectedEndpoint?.id === ep.id
                                         ? "bg-cyan-500/20 border-cyan-500"
                                         : "bg-slate-800/50 border-slate-700 hover:border-cyan-500/50"
                                         }`}
@@ -159,7 +152,7 @@ const CommandCenter = () => {
                                             <div className={`w-2 h-2 rounded-full ${getStatusColor(ep.status)}`} />
                                         </div>
                                     </div>
-                                </div>
+                                </button>
                             ))}
                         </div>
                     </CardContent>

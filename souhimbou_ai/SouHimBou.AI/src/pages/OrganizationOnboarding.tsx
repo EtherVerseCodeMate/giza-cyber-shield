@@ -7,6 +7,38 @@ import { useOrganization } from '@/hooks/useOrganization';
 const OrganizationOnboardingPage = () => {
   const { currentOrganization, loading } = useOrganization();
 
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <Card>
+          <CardContent className="flex items-center justify-center min-h-[400px]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (!currentOrganization) {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>Organization Required</CardTitle>
+            <CardDescription>
+              You need to be part of an organization to access onboarding.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Please create or join an organization to continue.
+            </p>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return <OnboardingWizard organizationId={currentOrganization.organization_id} />;
+  };
+
   return (
     <PageLayout>
       <div className="container max-w-6xl mx-auto py-8 space-y-8">
@@ -17,29 +49,7 @@ const OrganizationOnboardingPage = () => {
           </p>
         </div>
 
-        {loading ? (
-          <Card>
-            <CardContent className="flex items-center justify-center min-h-[400px]">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </CardContent>
-          </Card>
-        ) : !currentOrganization ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Organization Required</CardTitle>
-              <CardDescription>
-                You need to be part of an organization to access onboarding.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Please create or join an organization to continue.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <OnboardingWizard organizationId={currentOrganization.organization_id} />
-        )}
+        {renderContent()}
       </div>
     </PageLayout>
   );
