@@ -129,3 +129,23 @@ func calculateDaysRemaining(expires time.Time) int {
 func (a *LicenseManagerAdapter) GetManager() *license.Manager {
 	return a.mgr
 }
+
+// CreateLicense creates a new Egyptian tier license
+func (a *LicenseManagerAdapter) CreateLicense(id string, tier license.EgyptianTier, days int) (*license.License, error) {
+	return a.mgr.CreateLicense(id, tier, days)
+}
+
+// GetLicense retrieves a license by ID
+func (a *LicenseManagerAdapter) GetLicense(id string) (*license.License, error) {
+	return a.mgr.GetLicense(id)
+}
+
+// GetAllLicenses returns all managed licenses
+func (a *LicenseManagerAdapter) GetAllLicenses() []*license.License {
+	return a.mgr.GetAllLicenses()
+}
+
+// UpgradeLicense upgrades a license to a higher tier
+func (a *LicenseManagerAdapter) UpgradeLicense(id string, newTier license.EgyptianTier) error {
+	return a.mgr.UpgradeLicense(id, newTier)
+}

@@ -7,6 +7,7 @@ import (
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // Merkaba Egyptian Licensing System Handlers (Version 2)
@@ -59,44 +60,21 @@ func (s *Server) handleCreateLicense(c *gin.Context) {
 		return
 	}
 
-	// Get tier configuration
-	tierInfo, ok := license.TierConfigurations[tier]
-	if !ok {
+	// Generate license ID (e.g. atum-machineid)
+	licenseID := string(tier) + "-" + uuid.New().String()[:8]
+
+	// Create real license via manager
+	lic, err := s.licMgr.CreateLicense(licenseID, tier, req.DurationDays)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error:   "invalid_tier_config",
-			Message: fmt.Sprintf("Tier configuration not found for: %s", req.Tier),
+			Error:   "license_creation_failed",
+			Message: err.Error(),
 			Code:    http.StatusInternalServerError,
 		})
 		return
 	}
 
-	// Generate license ID using the tier prefix
-	licenseID := string(tier) + "-" + license.GenerateMachineID()
-
-	// Create license struct
-	expiresAt := time.Now().AddDate(0, 0, req.DurationDays)
-	lic := &license.License{
-		ID:          licenseID,
-		Tier:        tier,
-		NodeQuota:   tierInfo.NodeQuota,
-		NodeCount:   0,
-		CreatedAt:   time.Now(),
-		ExpiresAt:   expiresAt,
-		Features:    tierInfo.Features,
-		IsAirGapped: (tier == license.TierOsiris),
-	}
-
-	c.JSON(http.StatusCreated, map[string]interface{}{
-		"license_id":    lic.ID,
-		"tier":          string(lic.Tier),
-		"tier_name":     tierInfo.Name,
-		"customer":      req.Customer,
-		"created_at":    lic.CreatedAt,
-		"expires_at":    lic.ExpiresAt,
-		"node_quota":    lic.NodeQuota,
-		"duration_days": req.DurationDays,
-		"features":      lic.Features,
-	})
+	c.JSON(http.StatusCreated, lic)
 }
 
 // handleGetLicense retrieves a license by ID
@@ -112,17 +90,17 @@ func (s *Server) handleGetLicense(c *gin.Context) {
 		return
 	}
 
-	// For now, return a placeholder response
-	// In a full implementation, this would query an actual license database
-	c.JSON(http.StatusOK, map[string]interface{}{
-		"license_id": licenseID,
-		"tier":       "khepri",
-		"created_at": time.Now().AddDate(0, -1, 0),
-		"expires_at": time.Now().AddDate(1, 0, 0),
-		"node_quota": 1,
-		"node_count": 0,
-		"valid":      true,
-	})
+	lic, err := s.licMgr.GetLicense(licenseID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, ErrorResponse{
+			Error:   "license_not_found",
+			Message: err.Error(),
+			Code:    http.StatusNotFound,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, lic)
 }
 
 // handleUpgradeLicense upgrades a license to a higher tier
@@ -170,26 +148,20 @@ func (s *Server) handleUpgradeLicense(c *gin.Context) {
 		return
 	}
 
-	// Get tier configuration
-	tierInfo, ok := license.TierConfigurations[newTier]
-	if !ok {
+	// Perform upgrade via manager
+	err := s.licMgr.UpgradeLicense(licenseID, newTier)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error:   "invalid_tier_config",
-			Message: fmt.Sprintf("Tier configuration not found for: %s", req.NewTier),
+			Error:   "upgrade_failed",
+			Message: err.Error(),
 			Code:    http.StatusInternalServerError,
 		})
 		return
 	}
 
-	// In a full implementation, this would update the database
-	c.JSON(http.StatusOK, map[string]interface{}{
-		"license_id": licenseID,
-		"new_tier":   string(newTier),
-		"tier_name":  tierInfo.Name,
-		"node_quota": tierInfo.NodeQuota,
-		"features":   tierInfo.Features,
-		"message":    fmt.Sprintf("Successfully upgraded to %s tier", req.NewTier),
-	})
+	// Return updated license
+	lic, _ := s.licMgr.GetLicense(licenseID)
+	c.JSON(http.StatusOK, lic)
 }
 
 // handleGetLicenseUsage returns usage stats for a license
@@ -205,28 +177,31 @@ func (s *Server) handleGetLicenseUsage(c *gin.Context) {
 		return
 	}
 
-	// Mock usage data
-	nodeQuota := 10
-	nodeCount := 3
-	quotaRemaining := nodeQuota - nodeCount
-	percentUsed := float64(nodeCount) / float64(nodeQuota) * 100
+	lic, err := s.licMgr.GetLicense(licenseID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, ErrorResponse{
+			Error:   "license_not_found",
+			Message: err.Error(),
+			Code:    http.StatusNotFound,
+		})
+		return
+	}
 
 	c.JSON(http.StatusOK, map[string]interface{}{
-		"license_id":      licenseID,
-		"tier":            "ra",
-		"node_quota":      nodeQuota,
-		"nodes_created":   nodeCount,
-		"nodes_remaining": quotaRemaining,
-		"percent_used":    fmt.Sprintf("%.1f%%", percentUsed),
+		"license_id":      lic.ID,
+		"tier":            lic.Tier,
+		"node_quota":      lic.NodeQuota,
+		"nodes_created":   lic.NodeCount,
+		"nodes_remaining": lic.NodeQuota - lic.NodeCount,
+		"percent_used":    fmt.Sprintf("%.1f%%", float64(lic.NodeCount)/float64(lic.NodeQuota)*100),
+		"expires_at":      lic.ExpiresAt,
 	})
 }
 
 // handleListLicenses returns all licenses (admin endpoint)
 // GET /api/v1/license/admin/list
 func (s *Server) handleListLicenses(c *gin.Context) {
-	// TODO: Implement GetAllLicenses in license manager
-	// For now, return empty list
-	licenses := []map[string]interface{}{}
+	licenses := s.licMgr.GetAllLicenses()
 
 	c.JSON(http.StatusOK, map[string]interface{}{
 		"count":    len(licenses),
