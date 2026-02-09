@@ -11,7 +11,6 @@ import {
     Shield,
     Globe,
     Key,
-    Activity,
     CheckCircle,
     XCircle,
     RefreshCw,
@@ -21,7 +20,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export function KhepraVPSIntegration() {
-    const { config, updateConfig, isUpdating, isLoading: isConfigLoading } = useKhepraDeployment();
+    const { config, updateConfig, isUpdating } = useKhepraDeployment();
     const [url, setUrl] = useState('');
     const [key, setKey] = useState('');
 
