@@ -113,13 +113,13 @@ export const MVP1Dashboard = () => {
   const stats = [
     {
       label: 'Compliance Score',
-      value: loading ? '...' : `${metrics?.overall_score || 0}%`,
+      value: loading ? '...' : `${metrics?.overall_compliance_percentage || 0}%`,
       icon: Shield,
       color: 'text-green-600'
     },
     {
       label: 'Open Findings',
-      value: loading ? '...' : (metrics?.failed_rules || 0).toString(),
+      value: loading ? '...' : ((metrics?.critical_findings || 0) + (metrics?.high_findings || 0) + (metrics?.medium_findings || 0)).toString(),
       icon: AlertTriangle,
       color: 'text-red-600'
     },
