@@ -54,6 +54,12 @@ serve(async (req) => {
         return await updateFinding(req, supabase);
       case 'generate_report':
         return await generateComplianceReport(req, supabase);
+      case 'calculate_compliance':
+        return await calculateCompliance(req, supabase);
+      case 'get_remediation_actions':
+        return await getRemediationActions(req, supabase);
+      case 'get_remediation_executions':
+        return await getRemediationExecutions(req, supabase);
       default:
         return new Response(
           JSON.stringify({ error: 'Invalid action' }),
@@ -167,7 +173,7 @@ async function handleSTIGScan(req: Request, supabase: any) {
 async function getApplicableSTIGRules(asset: any, supabase: any): Promise<STIGRule[]> {
   // Get real STIG rules from library based on asset platform
   const platform = mapAssetTypeToPlatform(asset.asset_type, asset.asset_os);
-  
+
   const { data: rules, error } = await supabase
     .from('stig_rules_library')
     .select('*')
@@ -193,13 +199,13 @@ async function getApplicableSTIGRules(asset: any, supabase: any): Promise<STIGRu
 function mapAssetTypeToPlatform(assetType: string, assetOs?: string): string {
   const type = assetType?.toLowerCase() || '';
   const os = assetOs?.toLowerCase() || '';
-  
+
   if (type.includes('windows') || os.includes('windows')) return 'Windows';
   if (type.includes('rhel') || os.includes('red hat')) return 'RHEL';
   if (type.includes('ubuntu') || os.includes('ubuntu')) return 'Ubuntu';
   if (type.includes('linux') || os.includes('linux')) return 'Linux';
   if (type.includes('database')) return 'PostgreSQL';
-  
+
   return 'Generic';
 }
 
@@ -250,7 +256,7 @@ function calculateComplianceMetrics(findings: any[]) {
   const passed_rules = findings.filter(f => f.finding_status === 'NotAFinding').length;
   const failed_rules = findings.filter(f => f.finding_status === 'Open').length;
   const not_applicable_rules = findings.filter(f => f.finding_status === 'Not_Applicable').length;
-  
+
   const cat_i_open = findings.filter(f => f.finding_status === 'Open' && f.severity === 'CAT_I').length;
   const cat_ii_open = findings.filter(f => f.finding_status === 'Open' && f.severity === 'CAT_II').length;
   const cat_iii_open = findings.filter(f => f.finding_status === 'Open' && f.severity === 'CAT_III').length;
@@ -431,7 +437,7 @@ async function generateComplianceReport(req: Request, supabase: any) {
 
   // Calculate report metrics
   const metrics = calculateComplianceMetrics(findings);
-  
+
   const reportData = {
     generated_at: new Date().toISOString(),
     organization_id,
@@ -478,6 +484,129 @@ async function generateComplianceReport(req: Request, supabase: any) {
       report_id: report?.id,
       report_data: reportData
     }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
+async function calculateCompliance(req: Request, supabase: any) {
+  const { organization_id, scope_filter } = await req.json();
+
+  const { data: findings, error } = await supabase
+    .from('stig_findings')
+    .select('*')
+    .eq('organization_id', organization_id);
+
+  if (error) {
+    return new Response(
+      JSON.stringify({ error: 'Failed to fetch findings for calculation' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  const metrics = calculateComplianceMetrics(findings || []);
+
+  const { data: assets } = await supabase
+    .from('environment_assets')
+    .select('id, asset_name')
+    .eq('organization_id', organization_id);
+
+  const highRiskAssets = findings
+    ?.filter(f => f.severity === 'CAT_I' && f.finding_status === 'Open')
+    .map(f => {
+      const asset = assets?.find(a => a.id === f.asset_id);
+      return asset ? asset.asset_name : f.asset_id;
+    }) || [];
+
+  return new Response(
+    JSON.stringify({
+      overall_score: metrics.overall_score,
+      compliance_breakdown: {
+        compliant: metrics.passed_rules,
+        non_compliant: metrics.failed_rules,
+        not_applicable: metrics.not_applicable_rules,
+        exceptions_granted: 0
+      },
+      risk_analysis: {
+        critical_violations: metrics.cat_i_open,
+        high_risk_assets: [...new Set(highRiskAssets)].slice(0, 5),
+        trending: 'stable'
+      },
+      recommendations: [
+        'Prioritize remediation of CAT I findings',
+        'Update STIG baselines for network devices',
+        'Review exceptions for older assets'
+      ]
+    }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
+async function getRemediationActions(req: Request, supabase: any) {
+  const { organization_id } = await req.json();
+
+  // In production, these would be fetched from a stig_remediation_actions table
+  // For now, we return standard actions for common STIG rules
+  const actions = [
+    {
+      id: 'sysctl-network-harden',
+      rule_id: 'V-222442',
+      action_name: 'Sysctl Network Hardening',
+      description: 'Apply network stack hardening via sysctl parameters',
+      action_type: 'script',
+      risk_level: 'low',
+      estimated_duration_minutes: 5,
+      automation_enabled: true,
+      requires_reboot: false
+    },
+    {
+      id: 'ssh-config-harden',
+      rule_id: 'V-222445',
+      action_name: 'SSH Server Hardening',
+      description: 'Restrict SSH access and disable insecure protocols',
+      action_type: 'configuration',
+      risk_level: 'medium',
+      estimated_duration_minutes: 10,
+      automation_enabled: true,
+      requires_reboot: true
+    },
+    {
+      id: 'password-policy-harden',
+      rule_id: 'V-222450',
+      action_name: 'Apply Password Complexity',
+      description: 'Enforce strong password requirements and rotation',
+      action_type: 'policy',
+      risk_level: 'low',
+      estimated_duration_minutes: 2,
+      automation_enabled: true,
+      requires_reboot: false
+    }
+  ];
+
+  return new Response(
+    JSON.stringify({ actions }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
+async function getRemediationExecutions(req: Request, supabase: any) {
+  const { organization_id } = await req.json();
+
+  const { data: executions, error } = await supabase
+    .from('stig_remediation_executions')
+    .select('*')
+    .eq('organization_id', organization_id)
+    .order('initiated_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    return new Response(
+      JSON.stringify({ error: 'Failed to fetch remediation executions' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  return new Response(
+    JSON.stringify({ executions }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   );
 }
