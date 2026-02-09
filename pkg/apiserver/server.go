@@ -15,6 +15,15 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 )
 
+// Server represents the Khepra API server
+type Server struct {
+	router     *gin.Engine
+	wsHub      *WebSocketHub
+	dagStore   DAGStore
+	licMgr     LicenseManager
+	config     *Config
+	startTime  time.Time
+	version    string
 	httpServer *http.Server
 	agentMgr   AgentManagerInterface
 }
@@ -56,6 +65,10 @@ type LicenseManager interface {
 	GetLicense(id string) (*license.License, error)
 	GetAllLicenses() []*license.License
 	UpgradeLicense(id string, newTier license.EgyptianTier) error
+
+	// Telemetry & Enrollment
+	Register(token string) (*license.RegisterResponse, error)
+	Heartbeat() (*license.HeartbeatResponse, error)
 }
 
 // NewServer creates a new API server instance
