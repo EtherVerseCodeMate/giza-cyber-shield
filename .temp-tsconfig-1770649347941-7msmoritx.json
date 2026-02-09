@@ -1,0 +1,51 @@
+{
+  "exclude": [
+    "node_modules",
+    "supabase/functions",
+    "vendor",
+    "souhimbou_ai",
+    "pkg",
+    "cmd",
+    "services"
+  ],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    },
+    "noImplicitAny": false,
+    "noUnusedParameters": false,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "noUnusedLocals": false,
+    "strictNullChecks": false,
+    "target": "ES2017",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "strict": false,
+    "noEmit": true,
+    "incremental": false,
+    "module": "esnext",
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "include": [
+    "src\\hooks\\useUserAgreements.tsx",
+    "src\\lib\\svgSanitizer.ts",
+    "src\\components\\security\\EnhancedMFASetup.tsx",
+    "c:\\Users\\intel\\blackbox\\khepra protocol\\**\\*.d.ts"
+  ]
+}
