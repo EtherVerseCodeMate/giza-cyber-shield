@@ -113,14 +113,24 @@ export const useOrganization = () => {
         return;
       }
 
-      const userOrgs = data as UserOrganization[];
-      setOrganizations(userOrgs);
+      // Filter out entries where the joined organization data is missing (e.g. deleted or RLS restricted)
+      const validUserOrgs = (data as any[] || [])
+        .filter(item => item.organization && typeof item.organization === 'object')
+        .map(item => item as UserOrganization);
+
+      if (data && data.length > validUserOrgs.length) {
+        console.warn(`Filtered out ${data.length - validUserOrgs.length} invalid organization entries`);
+      }
+
+      setOrganizations(validUserOrgs);
 
       // Set current organization (first one or previously selected)
-      if (userOrgs.length > 0 && !currentOrganization) {
+      if (validUserOrgs.length > 0 && !currentOrganization) {
         const savedOrgId = localStorage.getItem('currentOrganizationId');
-        const savedOrg = userOrgs.find(org => org.organization_id === savedOrgId);
-        setCurrentOrganization(savedOrg || userOrgs[0]);
+        const savedOrg = validUserOrgs.find(org => org.organization_id === savedOrgId);
+        setCurrentOrganization(savedOrg || validUserOrgs[0]);
+      } else if (validUserOrgs.length === 0) {
+        setCurrentOrganization(null);
       }
     } catch (error) {
       console.error('Error in fetchUserOrganizations:', error);
