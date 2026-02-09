@@ -3,12 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Shield, 
-  AlertTriangle, 
-  CheckCircle, 
-  Clock, 
-  TrendingUp, 
+import {
+  Shield,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  TrendingUp,
   FileText,
   Play,
   Settings,
@@ -53,9 +53,8 @@ const ComplianceScoreCard: React.FC<ComplianceScoreCardProps> = ({
             <div className="flex items-center gap-2">
               <p className="text-2xl font-bold text-gray-400">{value}</p>
               {trend !== undefined && (
-                <div className={`flex items-center gap-1 text-sm ${
-                  trend > 0 ? 'text-green-600' : trend < 0 ? 'text-red-600' : 'text-gray-600'
-                }`}>
+                <div className={`flex items-center gap-1 text-sm ${trend > 0 ? 'text-green-600' : trend < 0 ? 'text-red-600' : 'text-gray-600'
+                  }`}>
                   <TrendingUp className="h-3 w-3" />
                   <span>{Math.abs(trend)}%</span>
                 </div>
@@ -71,12 +70,13 @@ const ComplianceScoreCard: React.FC<ComplianceScoreCardProps> = ({
 
 export const STIGFirstComplianceDashboard: React.FC = () => {
   const { currentOrganization } = useOrganization();
+  const organizationId = currentOrganization?.organization_id || '';
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
   const [showDataSourcesWizard, setShowDataSourcesWizard] = useState(false);
 
   const handleConnectDataSources = async () => {
-    if (!currentOrganization?.id) {
+    if (!organizationId) {
       toast({
         title: "Organization Required",
         description: "Please select an organization to connect data sources.",
@@ -84,12 +84,12 @@ export const STIGFirstComplianceDashboard: React.FC = () => {
       });
       return;
     }
-    
+
     setShowDataSourcesWizard(true);
   };
 
   const handleLoadSTIGRules = async () => {
-    if (!currentOrganization?.id) {
+    if (!organizationId) {
       toast({
         title: "Organization Required",
         description: "Please select an organization to load STIG rules.",
@@ -107,7 +107,7 @@ export const STIGFirstComplianceDashboard: React.FC = () => {
       // TODO: Replace with actual OpenControls API integration
       // const openControlsAPI = new OpenControlsService();
       // const stigRules = await openControlsAPI.fetchSTIGRules(['windows-server-2022', 'rhel-8', 'ubuntu-20.04']);
-      
+
       // Simulate STIG rule loading for now
       setTimeout(() => {
         toast({
@@ -117,7 +117,7 @@ export const STIGFirstComplianceDashboard: React.FC = () => {
       }, 3000);
     } catch (error) {
       toast({
-        title: "Rule Loading Failed", 
+        title: "Rule Loading Failed",
         description: "Failed to fetch STIG rules from OpenControls API. Please verify API connectivity.",
         variant: "destructive"
       });
@@ -195,7 +195,7 @@ export const STIGFirstComplianceDashboard: React.FC = () => {
           color="gray"
         />
         <ComplianceScoreCard
-          title="Assets Scanned" 
+          title="Assets Scanned"
           value="0"
           icon={CheckCircle}
           color="gray"
