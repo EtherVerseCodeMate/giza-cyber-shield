@@ -262,6 +262,9 @@ func (lm *LicenseManager) RegisterNodeCreation(licenseID string, nodeID string, 
 	return nil
 }
 
+// ErrLicenseNotFound is returned when a license ID does not exist.
+var ErrLicenseNotFound = errors.New("license not found")
+
 // WeighHeart implements the "Weighing of the Heart" compliance check.
 // Returns true if node's compliance weight is acceptable (heart lighter than Ma'at's feather).
 func (lm *LicenseManager) WeighHeart(nodeID string) (bool, error) {
