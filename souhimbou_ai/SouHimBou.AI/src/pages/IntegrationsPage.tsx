@@ -19,11 +19,8 @@ import {
   TrendingUp,
   AlertCircle,
   CheckCircle,
-  Clock,
   Activity,
-  Zap,
   Shield,
-  BarChart3,
   Settings,
   Plus,
   ExternalLink
@@ -43,7 +40,7 @@ const IntegrationStatusCard = ({ title, value, icon: Icon, status = 'normal', de
 );
 
 const IntegrationHealthDashboard = () => {
-  const { userIntegrations, loading } = useIndustryIntegrations();
+  const { userIntegrations } = useIndustryIntegrations();
   const { integrations } = useIntegrations();
 
   const totalIntegrations = userIntegrations.length + integrations.length;
