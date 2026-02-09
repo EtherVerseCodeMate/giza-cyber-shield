@@ -17,22 +17,21 @@ interface UserAgreement {
   updated_at?: string;
 }
 
+const REQUIRED_AGREEMENTS = [
+  'tos',
+  'privacy',
+  'saas',
+  'beta',
+  'dod_compliance',
+  'liability_waiver',
+  'export_control'
+];
+
 export const useUserAgreements = () => {
   const [agreements, setAgreements] = useState<UserAgreement[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasAcceptedAll, setHasAcceptedAll] = useState(false);
   const { toast } = useToast();
-
-  // Required agreement types based on Khepra LICENSE
-  const REQUIRED_AGREEMENTS = [
-    'tos',
-    'privacy',
-    'saas',
-    'beta',
-    'dod_compliance',
-    'liability_waiver',
-    'export_control'
-  ];
 
   // Check if user has accepted all required agreements
   const checkAgreementStatus = useCallback(async (userId: string) => {
