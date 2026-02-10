@@ -32,6 +32,7 @@ class SecurityIntent(Enum):
     PQC = "PQC"
     IR = "IR"  # Incident Response
     DRBC = "DRBC"  # Disaster Recovery Business Continuity
+    SCADA = "SCADA"  # Industrial Control Systems
     HELP = "HELP"
     STATUS = "STATUS"
     UNKNOWN = "UNKNOWN"
@@ -115,6 +116,11 @@ class IntentClassifier:
             "disaster": 2.0, "recovery": 1.5, "business continuity": 2.0,
             "backup": 1.5, "restore": 1.5, "drbc": 2.0, "bcp": 2.0,
             "rpo": 1.5, "rto": 1.5, "failover": 1.5,
+        },
+        SecurityIntent.SCADA: {
+            "scada": 2.5, "ics": 2.0, "ot": 1.5, "plc": 2.0, "hmi": 2.0,
+            "modbus": 2.0, "dnp3": 2.0, "ladder": 1.5, "relay": 1.0,
+            "actuator": 1.0, "pod": 1.5, "smart grid": 1.5,
         },
         SecurityIntent.HELP: {
             "help": 2.0, "guide": 1.5, "how": 1.0, "what": 0.5, "explain": 1.5,
