@@ -16,7 +16,13 @@ func (e *Engine) scanStrategyDocuments() []string {
 	patterns := []string{"strategy", "roadmap", "vision", "plan", "objective"}
 
 	filepath.Walk(e.targetPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			if isIgnoredDir(info.Name()) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 
@@ -222,71 +228,77 @@ func (e *Engine) buildDependencyGraph() map[string][]string {
 func (e *Engine) scanDependenciesForCVEs(deps map[string][]string) []VulnerableDep {
 	vulnerable := []VulnerableDep{}
 
-	for pkg := range deps {
-		// Extract package name (last component)
+	for pkg, versions := range deps {
 		pkgName := filepath.Base(pkg)
-
-		// Search CVE database
 		cves := e.cveDatabase.SearchByPackage(pkgName)
-
 		if len(cves) > 0 {
-			dep := VulnerableDep{
-				Package:     pkg,
-				Version:     deps[pkg][0],
-				CVEs:        []string{},
-				Severity:    "UNKNOWN",
-				Exploitable: false,
-			}
-
-			for _, cve := range cves {
-				dep.CVEs = append(dep.CVEs, cve.ID)
-
-				// Update severity to highest found
-				if cve.CVSS >= 9.0 && dep.Severity != "CRITICAL" {
-					dep.Severity = "CRITICAL"
-				} else if cve.CVSS >= 7.0 && dep.Severity != "CRITICAL" && dep.Severity != "HIGH" {
-					dep.Severity = "HIGH"
-				}
-
-				// Check if known exploited
-				if e.cveDatabase.IsKnownExploited(cve.ID) {
-					dep.Exploitable = true
-				}
-			}
-
-			vulnerable = append(vulnerable, dep)
+			vulnerable = append(vulnerable, e.assessVulnerability(pkg, versions[0], cves))
 		}
 
-		// Check for known dangerous packages
-		if strings.Contains(pkg, "log4j") {
-			vulnerable = append(vulnerable, VulnerableDep{
-				Package:     pkg,
-				Version:     deps[pkg][0],
-				CVEs:        []string{"CVE-2021-44228"},
-				Severity:    "CRITICAL",
-				Exploitable: true,
-			})
-		}
-
-		if strings.Contains(pkg, "solarwinds") {
-			vulnerable = append(vulnerable, VulnerableDep{
-				Package:     pkg,
-				Version:     deps[pkg][0],
-				CVEs:        []string{"CVE-2020-10148"},
-				Severity:    "CRITICAL",
-				Exploitable: true,
-			})
+		if dangerous := checkDangerousPackage(pkg, versions[0]); dangerous != nil {
+			vulnerable = append(vulnerable, *dangerous)
 		}
 	}
 
 	return vulnerable
 }
 
+func (e *Engine) assessVulnerability(pkg, version string, cves []CVEEntry) VulnerableDep {
+	dep := VulnerableDep{
+		Package:     pkg,
+		Version:     version,
+		CVEs:        []string{},
+		Severity:    "UNKNOWN",
+		Exploitable: false,
+	}
+
+	for _, cve := range cves {
+		dep.CVEs = append(dep.CVEs, cve.ID)
+		dep.Severity = updateSeverity(dep.Severity, cve.CVSS)
+		if e.cveDatabase.IsKnownExploited(cve.ID) {
+			dep.Exploitable = true
+		}
+	}
+	return dep
+}
+
+func updateSeverity(current string, cvss float64) string {
+	if cvss >= 9.0 {
+		return "CRITICAL"
+	}
+	if cvss >= 7.0 && current != "CRITICAL" {
+		return "HIGH"
+	}
+	return current
+}
+
+func checkDangerousPackage(pkg, version string) *VulnerableDep {
+	if strings.Contains(pkg, "log4j") {
+		return &VulnerableDep{
+			Package: pkg, Version: version,
+			CVEs: []string{"CVE-2021-44228"}, Severity: "CRITICAL", Exploitable: true,
+		}
+	}
+	if strings.Contains(pkg, "solarwinds") {
+		return &VulnerableDep{
+			Package: pkg, Version: version,
+			CVEs: []string{"CVE-2020-10148"}, Severity: "CRITICAL", Exploitable: true,
+		}
+	}
+	return nil
+}
+
 // countModules counts Go modules in codebase
 func (e *Engine) countModules() int {
 	count := 0
 	filepath.Walk(e.targetPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			if isIgnoredDir(info.Name()) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		if strings.HasSuffix(path, ".go") {
@@ -301,7 +313,13 @@ func (e *Engine) countModules() int {
 func (e *Engine) countFiles() int {
 	count := 0
 	filepath.Walk(e.targetPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			if isIgnoredDir(info.Name()) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		count++
@@ -373,7 +391,13 @@ func (e *Engine) hashSourceFiles() []string {
 	hashes := []string{}
 
 	filepath.Walk(e.targetPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			if isIgnoredDir(info.Name()) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 
@@ -406,7 +430,16 @@ func (e *Engine) scanCryptoPrimitives() CryptoUsage {
 	usage := CryptoUsage{}
 
 	filepath.Walk(e.targetPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".go") {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			if isIgnoredDir(info.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") {
 			return nil
 		}
 
@@ -436,20 +469,20 @@ func (e *Engine) scanCryptoPrimitives() CryptoUsage {
 
 // analyzeIPLineage determines code ownership
 func (e *Engine) analyzeIPLineage() IPLineage {
-	lineage := IPLineage{}
-
-	proprietaryCount := 0
-	ossCount := 0
-	gplCount := 0
-	totalFiles := 0
+	var counts lineageCounts
 
 	filepath.Walk(e.targetPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			if isIgnoredDir(info.Name()) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 
-		if !strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, ".py") &&
-			!strings.HasSuffix(path, ".js") {
+		if !isSourceFile(path) {
 			return nil
 		}
 
@@ -458,34 +491,62 @@ func (e *Engine) analyzeIPLineage() IPLineage {
 			return nil
 		}
 
-		content := string(data)
-		totalFiles++
-
-		// Check header (first 20 lines)
-		lines := strings.Split(content, "\n")
-		header := strings.Join(lines[:min(len(lines), 20)], "\n")
-
-		if strings.Contains(header, "Copyright") || strings.Contains(header, "Proprietary") {
-			proprietaryCount++
-		} else if strings.Contains(header, "GPL") {
-			gplCount++
-		} else if strings.Contains(header, "MIT") || strings.Contains(header, "Apache") {
-			ossCount++
-		} else {
-			proprietaryCount++ // Assume proprietary if no license
+		counts.totalFiles++
+		switch detectLicenseType(string(data)) {
+		case licenseProprietary:
+			counts.proprietary++
+		case licenseGPL:
+			counts.gpl++
+		case licenseOSS:
+			counts.oss++
 		}
 
 		return nil
 	})
 
-	if totalFiles > 0 {
-		lineage.Proprietary = float64(proprietaryCount) / float64(totalFiles) * 100
-		lineage.OSS = float64(ossCount) / float64(totalFiles) * 100
-		lineage.GPL = float64(gplCount) / float64(totalFiles) * 100
-		lineage.Clean = gplCount == 0
-	}
+	return finalizeLineage(counts)
+}
 
-	return lineage
+type lineageCounts struct {
+	proprietary, oss, gpl, totalFiles int
+}
+
+const (
+	licenseProprietary = "proprietary"
+	licenseGPL         = "gpl"
+	licenseOSS         = "oss"
+)
+
+func isSourceFile(path string) bool {
+	ext := filepath.Ext(path)
+	return ext == ".go" || ext == ".py" || ext == ".js"
+}
+
+func detectLicenseType(content string) string {
+	lines := strings.Split(content, "\n")
+	header := strings.Join(lines[:min(len(lines), 20)], "\n")
+
+	if strings.Contains(header, "Copyright") || strings.Contains(header, "Proprietary") {
+		return licenseProprietary
+	}
+	if strings.Contains(header, "GPL") {
+		return licenseGPL
+	}
+	if strings.Contains(header, "MIT") || strings.Contains(header, "Apache") {
+		return licenseOSS
+	}
+	return licenseProprietary // Assume proprietary if no license
+}
+
+func finalizeLineage(c lineageCounts) IPLineage {
+	l := IPLineage{Clean: c.gpl == 0}
+	if c.totalFiles > 0 {
+		total := float64(c.totalFiles)
+		l.Proprietary = float64(c.proprietary) / total * 100
+		l.OSS = float64(c.oss) / total * 100
+		l.GPL = float64(c.gpl) / total * 100
+	}
+	return l
 }
 
 // assessPQCReadiness assesses post-quantum readiness
@@ -557,4 +618,14 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func isIgnoredDir(name string) bool {
+	ignored := []string{".git", "node_modules", ".next", "vendor", "bin", "dist", ".venv", ".claude", "tools", "__pycache__", ".vscode", "souhimbou_ai/node_modules"}
+	for _, i := range ignored {
+		if name == i {
+			return true
+		}
+	}
+	return false
 }
