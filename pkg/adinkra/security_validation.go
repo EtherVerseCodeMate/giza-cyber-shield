@@ -16,16 +16,16 @@ func ValidateKeyPairIntegrity(kp *HybridKeyPair) error {
 		return errors.New("key pair is nil")
 	}
 
-	// Validate Khepra-PQC keys
-	if kp.KhepraPQCPublic == nil {
-		return errors.New("Khepra PQC public key is nil")
+	// Validate Adinkhepra-PQC keys
+	if kp.AdinkhepraPQCPublic == nil {
+		return errors.New("Adinkhepra PQC public key is nil")
 	}
-	if kp.KhepraPQCPrivate == nil {
-		return errors.New("Khepra PQC private key is nil")
+	if kp.AdinkhepraPQCPrivate == nil {
+		return errors.New("Adinkhepra PQC private key is nil")
 	}
-	if kp.KhepraPQCPublic.SecurityLevel != KhepraPQCSecurityLevel {
-		return fmt.Errorf("invalid Khepra PQC security level: got %d, want %d",
-			kp.KhepraPQCPublic.SecurityLevel, KhepraPQCSecurityLevel)
+	if kp.AdinkhepraPQCPublic.SecurityLevel != AdinkhepraPQCSecurityLevel {
+		return fmt.Errorf("invalid Adinkhepra PQC security level: got %d, want %d",
+			kp.AdinkhepraPQCPublic.SecurityLevel, AdinkhepraPQCSecurityLevel)
 	}
 
 	// Validate Dilithium keys
@@ -91,9 +91,9 @@ func ValidateEnvelopeIntegrity(envelope *SecureEnvelope) error {
 	}
 
 	// Validate signature sizes (if present)
-	if len(envelope.SignatureKhepra) > 0 && len(envelope.SignatureKhepra) != KhepraPQCSignatureSize {
-		return fmt.Errorf("invalid Khepra signature size: got %d, want %d",
-			len(envelope.SignatureKhepra), KhepraPQCSignatureSize)
+	if len(envelope.SignatureKhepra) > 0 && len(envelope.SignatureKhepra) != AdinkhepraPQCSignatureSize {
+		return fmt.Errorf("invalid Adinkhepra signature size: got %d, want %d",
+			len(envelope.SignatureKhepra), AdinkhepraPQCSignatureSize)
 	}
 	if len(envelope.SignatureDilithium) > 0 && len(envelope.SignatureDilithium) != DilithiumSignatureSize {
 		return fmt.Errorf("invalid Dilithium signature size: got %d, want %d",
@@ -159,16 +159,16 @@ func SanitizeInputData(data []byte, maxSize int) error {
 // ValidateCryptoParams validates cryptographic parameters meet security requirements
 func ValidateCryptoParams() error {
 	// Ensure constants are properly defined
-	if KhepraPQCSecurityLevel < 128 {
-		return fmt.Errorf("insufficient Khepra PQC security level: %d bits (minimum 128)",
-			KhepraPQCSecurityLevel)
+	if AdinkhepraPQCSecurityLevel < 128 {
+		return fmt.Errorf("insufficient Adinkhepra PQC security level: %d bits (minimum 128)",
+			AdinkhepraPQCSecurityLevel)
 	}
-	if KhepraPQCModulus <= 0 {
-		return errors.New("invalid Khepra PQC modulus")
+	if AdinkhepraPQCModulus <= 0 {
+		return errors.New("invalid Adinkhepra PQC modulus")
 	}
-	if KhepraLatticeRank < 4 {
-		return fmt.Errorf("insufficient Khepra lattice rank: %d (minimum 4)",
-			KhepraLatticeRank)
+	if AdinkhepraLatticeRank < 4 {
+		return fmt.Errorf("insufficient Adinkhepra lattice rank: %d (minimum 4)",
+			AdinkhepraLatticeRank)
 	}
 
 	// Validate key sizes
