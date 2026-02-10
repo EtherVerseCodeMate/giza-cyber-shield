@@ -86,7 +86,9 @@ export interface STIGValidationResponse {
 export interface LicenseStatus {
   machine_id: string;
   organization: string;
-  license_tier: 'community' | 'khepri' | 'ra' | 'atum' | 'osiris';
+  tier: 'community' | 'khepri' | 'ra' | 'atum' | 'osiris'; // Changed from license_tier to tier
+  node_quota: number; // Added
+  node_count: number; // Added
   features: string[];
   issued_at: string;
   expires_at: string;
