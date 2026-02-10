@@ -247,16 +247,16 @@ def validate() -> bool:
     print_header("ADINKHEPRA VALIDATION SUITE")
     
     # ========================================================================
-    # STEP 0: SCADA / Cyber-Physical Resilience Audit (HMADS)
+    # STEP 0: SUNSUM / Sacred Vessel Harmonization (Akoko Nan)
     # ========================================================================
-    print_step("Resilience Audit", 5, 0.5, "Running HMADS FIG. 1 Compliance Check")
+    print_step("Harmonization Ritual", 5, 0.5, "Running Akoko Nan Sacred Balance Check")
     if os.path.exists(get_binary_name("adinkhepra")):
         try:
             cli_bin = get_binary_name("adinkhepra")
             subprocess.check_call([cli_bin, "scada", "audit"], stderr=subprocess.STDOUT)
-            print_success("Cyber-Physical Resilience baseline verified (TRL-10)")
+            print_success("Sunsum Vitality baseline verified (TRL-10)")
         except subprocess.CalledProcessError:
-            print_warning("SCADA Simulation skipped or failed (Optional if no physical pod attached)")
+            print_warning("Akoko Nan Simulation skipped (Nsohia Flow not initiated)")
     
     # ========================================================================
     # STEP 1: Unit Tests
@@ -624,7 +624,7 @@ def print_usage() -> None:
     print("  launch           -> Launch Agent + Frontend")
     print("  agent  [args...] -> Run the ADINKHEPRA agent")
     print("  cli    [args...] -> Run the ADINKHEPRA CLI tool")
-    print("  scada  [args...] -> Run the ADINKHEPRA SCADA/ICS resilience suite")
+    print("  scada  [args...] -> Run the ADINKHEPRA Sacred Nsohia suite")
     print("  build            -> Rebuild binaries")
     print("  test             -> Run Go tests")
     print("  tnok             -> Start Tnok Stealth Gateway (tnokd)")
