@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -196,8 +196,8 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
                   <Card
                     key={term.key}
                     className={`transition-all duration-300 border-2 cursor-pointer ${isAccepted
-                        ? 'border-green-500/50 bg-green-500/5 shadow-sm'
-                        : 'border-border/50 hover:border-primary/30'
+                      ? 'border-green-500/50 bg-green-500/5 shadow-sm'
+                      : 'border-border/50 hover:border-primary/30'
                       }`}
                     onClick={() => handleTermChange(term.key, !isAccepted)}
                   >
