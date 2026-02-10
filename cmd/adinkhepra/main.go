@@ -30,6 +30,15 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/util"
 )
 
+const (
+	masterPubKeyFile  = "adinkhepra_master.pub"
+	licenseFile       = "license.adinkhepra"
+	listBulletMsg     = "  - %s\n"
+	adinkraExt        = ".adinkhepra"
+	separator         = "---------------------------------------------------"
+	subcommandsHeader = "Subcommands:"
+)
+
 func usage() {
 	fmt.Println(`adinkhepra CLI
 Usage:
@@ -67,95 +76,111 @@ func main() {
 		usage()
 		return
 	}
-	switch os.Args[1] {
+	cmd := os.Args[1]
+	args := os.Args[2:]
+
+	if handlePrimaryCmds(cmd, args) {
+		return
+	}
+	if handleSecondaryCmds(cmd, args) {
+		return
+	}
+	usage()
+}
+
+func handlePrimaryCmds(cmd string, args []string) bool {
+	switch cmd {
 	case "keygen":
-		keygenCmd(os.Args[2:])
+		keygenCmd(args)
 	case "crack":
-		crackCmd(os.Args[2:])
+		crackCmd(args)
 	case "kuntinkantan":
-		kuntinkantanCmd(os.Args[2:])
+		kuntinkantanCmd(args)
 	case "sankofa":
-		sankofaCmd(os.Args[2:])
-	case "ogya": // Fire (Recursive Encrypt)
-		ogyaCmd(os.Args[2:])
-	case "nsuo": // Water (Recursive Decrypt)
-		nsuoCmd(os.Args[2:])
+		sankofaCmd(args)
+	case "ogya":
+		ogyaCmd(args)
+	case "nsuo":
+		nsuoCmd(args)
 	case "git-remote":
 		gitRemoteCmd()
 	case "validate":
-		validateCmd(os.Args[2:])
+		validateCmd(args)
 	case "serve":
-		serveCmd(os.Args[2:])
+		serveCmd(args)
 	case "ert":
-		ertCmd(os.Args[2:])
+		ertCmd(args)
 	case "ert-readiness":
-		ertReadinessCmd(os.Args[2:])
+		ertReadinessCmd(args)
 	case "ert-architect":
-		ertArchitectCmd(os.Args[2:])
+		ertArchitectCmd(args)
 	case "ert-crypto":
-		ertCryptoCmd(os.Args[2:])
+		ertCryptoCmd(args)
 	case "ert-godfather":
-		ertGodfatherCmd(os.Args[2:])
+		ertGodfatherCmd(args)
+	case "compliance":
+		enforceLicense()
+		complianceCmd(args)
+	case "audit":
+		auditCmd(args)
+	case "scada":
+		scadaCmd(args)
+	default:
+		return false
+	}
+	return true
+}
+
+func handleSecondaryCmds(cmd string, args []string) bool {
+	switch cmd {
 	case "stig":
 		fmt.Println("[DEPRECATED] Use 'adinkhepra compliance scan' instead.")
-		complianceCmd(os.Args[2:])
-	case "explain":
-		explainCmd(os.Args[2:])
-	case "audit":
-		// enforceLicense() // Optional: Enforce for ingest too? Yes, usually.
-		auditCmd(os.Args[2:])
+		complianceCmd(args)
 	case "stigs":
 		fmt.Println("[DEPRECATED] Use 'adinkhepra compliance ingest' instead.")
-		complianceIngestCmd(os.Args[2:])
+		complianceIngestCmd(args)
+	case "explain":
+		explainCmd(args)
 	case "hostid":
 		printHostID()
 	case "license-gen":
-		licenseGenCmd(os.Args[2:])
-	case "compliance":
-		enforceLicense()
-		complianceCmd(os.Args[2:])
+		licenseGenCmd(args)
 	case "arsenal":
-		arsenalCmd(os.Args[2:])
+		arsenalCmd(args)
 	case "attest":
-		attestCmd(os.Args[2:])
+		attestCmd(args)
 	case "kms":
-		kmsCmd(os.Args[2:])
+		kmsCmd(args)
 	case "drbc":
-		drbcCmd(os.Args[2:])
+		drbcCmd(args)
 	case "agent":
-		agentCmd(os.Args[2:])
+		agentCmd(args)
 	case "fim":
-		fimCmd(os.Args[2:])
+		fimCmd(args)
 	case "network":
-		networkCmd(os.Args[2:])
+		networkCmd(args)
 	case "sbom":
-		sbomCmd(os.Args[2:])
+		sbomCmd(args)
 	case "engine":
-		engineCmd(os.Args[2:])
+		engineCmd(args)
 	case "report":
-		reportCmd(os.Args[2:])
+		reportCmd(args)
 	case "sign":
-		signCmd(os.Args[2:])
+		signCmd(args)
 	case "verify":
-		verifyCmd(os.Args[2:])
+		verifyCmd(args)
 	case "csr":
-		csrCmd(os.Args[2:])
-	case "scada":
-		scadaCmd(os.Args[2:])
-	// [IRON BANK COMPLIANCE]
+		csrCmd(args)
 	case "run":
-		// Iron Bank Entrypoint: "adinkhepra run" (Foreground Agent)
 		baseDir, _ := os.Getwd()
 		agent.Run(baseDir)
 	case "health":
-		// Iron Bank Healthcheck: "adinkhepra health"
-		// Basic check: binary runs, environment sanity.
-		// In future: curl localhost:8443/health
 		fmt.Println("OK")
 		os.Exit(0)
 	default:
-		usage()
+		return false
 	}
+	return true
 }
 
 // getExeDir returns the directory containing the executable
@@ -205,89 +230,79 @@ func resolvePath(relPath string) string {
 
 // EnforceLicense checks for valid license or panics
 func enforceLicense() {
-	// In production, embed this Public Key via -ldflags
-	// For now, we look for 'master_key.pub' or similar, or hardcoded dev key.
-
-	// Check if we are in dev mode (env var)
 	if os.Getenv("ADINKHEPRA_DEV") == "1" {
 		return
 	}
 
-	// Try multiple key paths in priority order:
-	// 1. ADINKHEPRA_MASTER_KEY_PUB environment variable (absolute)
-	// 2. keys/offline/OFFLINE_ROOT_KEY.pub (relative to project root)
-	// 3. adinkhepra_master.pub (in exe directory or cwd)
-	var pubKey []byte
-	var keyPath string
+	pubKey := findMasterPubKey()
+	if pubKey == nil {
+		fmt.Println("FATAL: AdinKhepra Master Key not found. Checked:")
+		fmt.Println("  - ADINKHEPRA_MASTER_KEY_PUB env var")
+		fmt.Printf(listBulletMsg, resolvePath("keys/offline/OFFLINE_ROOT_KEY.pub"))
+		fmt.Printf(listBulletMsg, filepath.Join(getExeDir(), masterPubKeyFile))
+		fmt.Printf("  - %s (cwd)\n", masterPubKeyFile)
+		fmt.Println("Integrity check failed.")
+		os.Exit(1)
+	}
 
+	licPath := findLicenseFile()
+	if licPath == "" {
+		fmt.Println("FATAL: License file not found. Checked:")
+		fmt.Printf(listBulletMsg, resolvePath(licenseFile))
+		fmt.Printf(listBulletMsg, filepath.Join(getExeDir(), licenseFile))
+		fmt.Printf("  - %s (cwd)\n", licenseFile)
+		os.Exit(1)
+	}
+
+	claims, err := license.Verify(licPath, pubKey)
+	if err != nil {
+		fmt.Printf("FATAL: LICENSE VIOLATION: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("[ADINKHEPRA] Licensed to: %s (Expires: %s)\n", claims.Tenant, claims.Expiry.Format("2006-01-02"))
+}
+
+func findMasterPubKey() []byte {
 	exeDir := getExeDir()
-
 	keyPaths := []string{
 		os.Getenv("ADINKHEPRA_MASTER_KEY_PUB"),
 		resolvePath("keys/offline/OFFLINE_ROOT_KEY.pub"),
-		filepath.Join(exeDir, "adinkhepra_master.pub"),
-		"adinkhepra_master.pub",
+		filepath.Join(exeDir, masterPubKeyFile),
+		masterPubKeyFile,
 	}
 
 	for _, path := range keyPaths {
 		if path == "" {
 			continue
 		}
-		keyData, readErr := os.ReadFile(path)
-		if readErr != nil {
+		keyData, err := os.ReadFile(path)
+		if err != nil {
 			continue
 		}
-		// Try hex-decoding first (for keys from regen-master-key.go)
-		decoded, decErr := hex.DecodeString(strings.TrimSpace(string(keyData)))
-		if decErr == nil {
-			pubKey = decoded
-		} else {
-			// Fall back to raw bytes (for pre-encoded keys)
-			pubKey = keyData
+		// Try hex-decoding first
+		decoded, err := hex.DecodeString(strings.TrimSpace(string(keyData)))
+		if err == nil {
+			return decoded
 		}
-		keyPath = path
-		break
+		return keyData
 	}
+	return nil
+}
 
-	if pubKey == nil {
-		fmt.Println("FATAL: AdinKhepra Master Key not found. Checked:")
-		fmt.Println("  - ADINKHEPRA_MASTER_KEY_PUB env var")
-		fmt.Printf("  - %s\n", resolvePath("keys/offline/OFFLINE_ROOT_KEY.pub"))
-		fmt.Printf("  - %s\n", filepath.Join(exeDir, "adinkhepra_master.pub"))
-		fmt.Println("  - adinkhepra_master.pub (cwd)")
-		fmt.Println("Integrity check failed.")
-		os.Exit(1)
-	}
-
-	// Also resolve license file path
+func findLicenseFile() string {
+	exeDir := getExeDir()
 	licensePaths := []string{
-		resolvePath("license.adinkhepra"),
-		filepath.Join(exeDir, "license.adinkhepra"),
-		"license.adinkhepra",
+		resolvePath(licenseFile),
+		filepath.Join(exeDir, licenseFile),
+		licenseFile,
 	}
 
-	var licensePath string
 	for _, lp := range licensePaths {
 		if _, err := os.Stat(lp); err == nil {
-			licensePath = lp
-			break
+			return lp
 		}
 	}
-
-	if licensePath == "" {
-		fmt.Println("FATAL: License file not found. Checked:")
-		fmt.Printf("  - %s\n", resolvePath("license.adinkhepra"))
-		fmt.Printf("  - %s\n", filepath.Join(exeDir, "license.adinkhepra"))
-		fmt.Println("  - license.adinkhepra (cwd)")
-		os.Exit(1)
-	}
-
-	claims, err := license.Verify(licensePath, pubKey)
-	if err != nil {
-		fmt.Printf("FATAL: LICENSE VIOLATION: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Printf("[ADINKHEPRA] Licensed to: %s (Expires: %s) [Key: %s]\n", claims.Tenant, claims.Expiry.Format("2006-01-02"), keyPath)
+	return ""
 }
 
 func printHostID() {
