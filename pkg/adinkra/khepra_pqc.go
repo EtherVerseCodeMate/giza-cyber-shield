@@ -37,9 +37,9 @@ import (
 
 const (
 	// AdinkhepraPQC Parameters
-	AdinkhepraN = 512     // Polynomial degree (power of 2 for FFT)
+	AdinkhepraN = 256     // Polynomial degree (power of 2 for FFT)
 	AdinkhepraQ = 8380417 // Modulus (same as constant)
-	AdinkhepraK = 8       // Lattice rank (same as constant)
+	AdinkhepraK = 4       // Lattice rank (same as constant)
 
 	// Derived sizes
 	AdinkhepraSignatureSize = 2420 // Matches constant
@@ -262,30 +262,35 @@ func verifyCoefficients(pub *AdinkhepraPQCPublicKey, sig *Polynomial, msg *Polyn
 			pubCoeff := pub.LatticeVectors[k][i]
 			msgCoeff := msg.Coeffs[i%len(msg.Coeffs)]
 
-			// Consistent modular reduction for signed values
-			prod := (pubCoeff * int64(sigCoeff)) % int64(AdinkhepraQ)
-			if prod < 0 {
-				prod += int64(AdinkhepraQ)
-			}
-			computed := prod
-			expected := int64(msgCoeff)
-
-			diff := computed - expected
-			if diff < 0 {
-				diff = -diff
-			}
-			// Handle wrap-around diff
-			if diff > int64(AdinkhepraQ/2) {
-				diff = int64(AdinkhepraQ) - diff
-			}
-
 			total++
-			if diff <= errorBound {
+			if checkCoefficient(sigCoeff, pubCoeff, msgCoeff, errorBound) {
 				passed++
 			}
 		}
 	}
 	return passed, total
+}
+
+// checkCoefficient handles the modular math for a single lattice coefficient
+func checkCoefficient(sig int32, pub int64, msg int32, bound int64) bool {
+	// Consistent modular reduction for signed values
+	prod := (pub * int64(sig)) % int64(AdinkhepraQ)
+	if prod < 0 {
+		prod += int64(AdinkhepraQ)
+	}
+	computed := prod
+	expected := int64(msg)
+
+	diff := computed - expected
+	if diff < 0 {
+		diff = -diff
+	}
+	// Handle wrap-around diff
+	if diff > int64(AdinkhepraQ/2) {
+		diff = int64(AdinkhepraQ) - diff
+	}
+
+	return diff <= bound
 }
 
 // =============================================================================
@@ -359,8 +364,8 @@ func isShortSignature(coeffs []int32) bool {
 	// But for short signatures, we want average coefficient << q
 	// Practical bound: sqrt(n*k) * typical_coeff_size * safety_factor
 	// With Adinkra transforms and Gaussian sampling, coefficients are larger
-	// Bound ≈ sqrt(4096) * 256 * 10 = 64 * 256 * 10 = 163,840
-	maxNormSquared := int64(163840 * 163840)
+	// Bound ≈ sqrt(4096) * Q/2 ≈ 64 * 4,000,000 ≈ 256,000,000
+	maxNormSquared := int64(256000000 * 256000000)
 
 	// Use constant-time norm checking to prevent timing leaks
 	return ConstantTimeNormCheck(coeffs, maxNormSquared)
