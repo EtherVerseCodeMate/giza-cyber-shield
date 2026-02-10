@@ -58,11 +58,32 @@
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     /* Adinkra-inspired animations */
-    --adinkra-glow: 0 0 20px hsl(194 100% 50% / 0.6);
-    --cultural-pulse: 0 0 15px hsl(280 100% 70% / 0.5);
+    --adinkra-glow: 0 0 25px hsl(194 100% 50% / 0.4);
+    --cultural-pulse: 0 0 20px hsl(280 100% 70% / 0.3);
 
     --radius: 0.75rem;
 
+  .bg-cyber-mesh {
+    background-image: 
+      radial-gradient(circle at 2px 2px, rgba(0, 255, 255, 0.05) 1px, transparent 0);
+    background-size: 40px 40px;
+    background-position: center;
+  }
+
+  .bg-cyber-grid {
+    background: 
+      linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 0),
+      linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 0);
+    background-size: 20px 20px;
+  }
+
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl;
+  }
+
+  .glow-text {
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+  }
     /* Sidebar - Enhanced for dark theme */
     --sidebar-background: 220 13% 8%;
     --sidebar-foreground: 0 0% 90%;
