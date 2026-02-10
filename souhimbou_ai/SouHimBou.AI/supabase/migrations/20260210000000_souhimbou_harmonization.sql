@@ -7,6 +7,13 @@ CREATE OR REPLACE VIEW public.sunsum_vitality AS SELECT * FROM public.pqc_readin
 CREATE OR REPLACE VIEW public.sacred_vessels AS SELECT * FROM public.discovered_assets;
 CREATE OR REPLACE VIEW public.ritual_executions AS SELECT * FROM public.discovery_executions;
 CREATE OR REPLACE VIEW public.sunsum_events AS SELECT * FROM public.security_events;
+CREATE OR REPLACE VIEW public.sacred_ordinances AS SELECT * FROM public.compliance_frameworks;
+CREATE OR REPLACE VIEW public.ritual_assertions AS SELECT * FROM public.control_assessments;
+CREATE OR REPLACE VIEW public.void_disturbances AS SELECT * FROM public.vulnerability_snapshots;
+CREATE OR REPLACE VIEW public.lattice_evolution AS SELECT * FROM public.adaptive_schemas;
+CREATE OR REPLACE VIEW public.vessel_links AS SELECT * FROM public.integrations;
+CREATE OR REPLACE VIEW public.ceremony_facilitators AS SELECT * FROM public.admin_roles;
+CREATE OR REPLACE VIEW public.quota_breath AS SELECT * FROM public.license_usage;
 
 -- 2. Poetic Auth Functions (Hardening & Obfuscation)
 -- Renaming failed login tracking to "Ritual Lapse"
