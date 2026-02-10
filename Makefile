@@ -110,3 +110,10 @@ validate: check-cve test
 .PHONY: ci
 ci: fetch-cve-quick ci-test secure-build
 	@echo "[ADINKHEPRA] CI pipeline complete."
+# Iron Bank Automation (hardening_manifest.yaml)
+# Auto-generates the manifest required for DoD container hardening
+.PHONY: ironbank
+ironbank: fips-boring-build
+	@echo "[ADINKHEPRA] Generating Iron Bank Hardening Manifest..."
+	@go run tools/gen_manifest.go "v1.0.0" "bin/$(APP)-fips"
+	@echo "[ADINKHEPRA] Manifest generated: hardening_manifest.yaml"
