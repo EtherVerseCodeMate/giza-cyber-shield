@@ -12,6 +12,12 @@ export const KhepraStatus = () => {
   const { config } = useKhepraDeployment();
   const { health, license } = useKhepraAPI(config?.deploymentUrl || '', config?.apiKey || '');
 
+  // Usage Metering Logic
+  const nodeQuota = license.data?.node_quota || 1; // Default to Scout (1 node)
+  const nodeCount = license.data?.node_count || 0;
+  const usagePercentage = Math.min((nodeCount / nodeQuota) * 100, 100);
+  const isExhausted = usagePercentage >= 90;
+
   const getTrustScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-400';
     if (score >= 60) return 'text-yellow-400';
@@ -158,6 +164,30 @@ export const KhepraStatus = () => {
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* License Quota (New) */}
+      <Card className={`border-primary/20 bg-card/50 backdrop-blur-sm ${isExhausted ? 'border-red-500/50' : ''}`}>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">License Quota</CardTitle>
+          <Server className={`h-4 w-4 ${isExhausted ? 'text-red-500' : 'text-primary'}`} />
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-2xl font-bold">
+              {nodeCount}/{nodeQuota === -1 ? '∞' : nodeQuota}
+            </span>
+            <Badge variant={isExhausted ? "destructive" : "secondary"}>
+              {license.data?.tier ? license.data.tier.toUpperCase() : 'FREE'}
+            </Badge>
+          </div>
+          <Progress value={usagePercentage} className={`h-2 ${isExhausted ? 'bg-red-200' : ''}`} />
+          <p className="text-xs text-muted-foreground mt-2">
+            {isExhausted
+              ? "CRITICAL: Upgrade Tier immediately."
+              : `${nodeQuota - nodeCount} nodes remaining`}
+          </p>
         </CardContent>
       </Card>
     </div>
