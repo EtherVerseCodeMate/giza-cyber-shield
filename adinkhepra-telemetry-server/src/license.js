@@ -34,17 +34,15 @@ export async function handleLicenseValidate(request, env, corsHeaders) {
 			});
 		}
 
-		// TODO: Verify Dilithium3 signature on machine_id
-		// For now, we'll check if signature is present (implement crypto later)
-		// Verify Dilithium3 Signature (Real Implementation)
+		// Verify Dilithium3 Signature
 		let signatureValid = false;
 
 		if (signature && env.TELEMETRY_PUBLIC_KEY) {
 			try {
 				const { ml_dsa65 } = await import("@noble/post-quantum/ml-dsa");
 				if (env.TELEMETRY_PUBLIC_KEY.length === 2624) {
-					const pubKeyBytes = new Uint8Array(env.TELEMETRY_PUBLIC_KEY.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-					const sigBytes = new Uint8Array(signature.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+					const pubKeyBytes = new Uint8Array(env.TELEMETRY_PUBLIC_KEY.match(/.{1,2}/g).map(byte => Number.parseInt(byte, 16)));
+					const sigBytes = new Uint8Array(signature.match(/.{1,2}/g).map(byte => Number.parseInt(byte, 16)));
 					const msgBytes = new TextEncoder().encode(machine_id);
 					if (ml_dsa65.verify(sigBytes, msgBytes, pubKeyBytes)) {
 						signatureValid = true;
@@ -556,10 +554,10 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 			hostname || 'unknown',
 			platform || 'unknown',
 			agent_version || 'unknown',
-			// Set limits based on tier (hardcoded mapping for now)
-			(enrollment.license_tier === 'business') ? 50 : (enrollment.license_tier === 'pro') ? 20 : 5,
-			(enrollment.license_tier === 'business') ? 30 : (enrollment.license_tier === 'pro') ? 7 : 1,
-			(enrollment.license_tier === 'business') ? 500 : (enrollment.license_tier === 'pro') ? 150 : 50,
+			// Set limits based on tier
+			getTierLimit(enrollment.license_tier, 'max_devices'),
+			getTierLimit(enrollment.license_tier, 'max_concurrent_scans'),
+			getTierLimit(enrollment.license_tier, 'retention_days'),
 			apiKeyHash
 		).run();
 
@@ -656,8 +654,8 @@ export async function handleEnrollmentTokenCreate(request, env, corsHeaders, adm
 		const expiresAt = expires_in_days ? now + (expires_in_days * 86400) : null;
 
 		// Generate enrollment token
-		const randomPart = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
-		const orgSlug = organization.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12);
+		const randomPart = crypto.randomUUID().replaceAll('-', '').slice(0, 16);
+		const orgSlug = organization.toLowerCase().replaceAll(/[^a-z0-9]/g, '').slice(0, 12);
 		const token = `khepra-enroll-${orgSlug}-${randomPart}`;
 
 		// Insert enrollment token
