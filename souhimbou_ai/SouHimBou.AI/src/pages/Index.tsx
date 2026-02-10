@@ -68,87 +68,100 @@ const Index = () => {
   }, [user, trackFeatureAccess]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white">
-      {/* Header */}
-      <header className="border-b border-blue-500/20 bg-black/20 backdrop-blur-lg">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-4">
-                <img 
-                  src="/lovable-uploads/94f06ba5-2c93-4be0-a03f-e3fff4157ca6.png" 
-                  alt="SouHimBou AI Logo" 
-                  className="h-12 w-auto"
+    <div className="min-h-screen bg-cyber-mesh bg-animate text-white selection:bg-primary/30 selection:text-white">
+      {/* Premium Multi-Layer Header */}
+      <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-background/60 backdrop-blur-2xl transition-all duration-500">
+        <div className="mx-auto flex h-20 max-w-[1600px] items-center justify-between px-8">
+          <div className="flex items-center gap-10">
+            {/* Branding Core */}
+            <div className="flex items-center gap-4 group cursor-pointer" onClick={() => setActiveTab("dashboard")}>
+              <div className="relative">
+                <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full group-hover:bg-primary/40 transition-all" />
+                <img
+                  src="/lovable-uploads/94f06ba5-2c93-4be0-a03f-e3fff4157ca6.png"
+                  alt="SouHimBou AI"
+                  className="relative h-12 w-auto drop-shadow-2xl brightness-110"
                 />
-                 <div className="flex items-center space-x-2">
-                   <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-                     SouHimBou AI
-                   </h1>
-                 <span className="text-xs bg-yellow-600/20 text-yellow-400 px-2 py-1 rounded border border-yellow-500/30">
-                   IN DEVELOPMENT
-                 </span>
-                 </div>
-                 <div className="ml-6">
-                   <OrganizationSwitcher />
-                 </div>
               </div>
-              <div className="hidden md:flex items-center space-x-6 text-sm text-gray-300">
-                <div 
-                  className="flex items-center space-x-1 cursor-pointer hover:text-green-300 transition-colors"
-                  onClick={() => setActiveTab("security")}
-                >
-                  <Activity className="h-4 w-4 text-green-400" />
-                  <span>System Ready</span>
+              <div className="flex flex-col mt-0.5">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl font-black tracking-tighter text-white uppercase italic">
+                    SouHimBou <span className="text-primary tracking-normal not-italic">AI</span>
+                  </h1>
+                  <Badge variant="outline" className="h-4 border-yellow-500/30 bg-yellow-500/10 text-[9px] font-bold text-yellow-500 tracking-widest uppercase py-0 px-1.5">
+                    Ra (Standard)
+                  </Badge>
                 </div>
-                <div 
-                  className="flex items-center space-x-1 cursor-pointer hover:text-purple-300 transition-colors"
-                  onClick={() => setActiveTab("ai-asoc")}
-                >
-                  <Brain className="h-4 w-4 text-purple-400" />
-                  <span>AI Agents: Ready</span>
-                </div>
-                <div 
-                  className="flex items-center space-x-1 cursor-pointer hover:text-orange-300 transition-colors"
-                  onClick={() => setActiveTab("automation")}
-                >
-                  <Container className="h-4 w-4 text-orange-400" />
-                  <span>Automation: Ready</span>
-                </div>
-                <div 
-                  className="flex items-center space-x-1 cursor-pointer hover:text-cyan-300 transition-colors bg-cyan-500/10 px-3 py-2 rounded-lg border border-cyan-500/30"
-                  onClick={() => setActiveTab("integrations")}
-                >
-                  <Plug className="h-4 w-4 text-cyan-400" />
-                  <span className="text-cyan-300 font-semibold">Integration Hub: Ready</span>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <div className="h-0.5 w-6 bg-gradient-to-r from-primary to-transparent rounded-full" />
+                  <span className="text-[9px] font-bold text-muted-foreground whitespace-nowrap uppercase tracking-widest">
+                    TRL-10 Autonomous Operations
+                  </span>
                 </div>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <div className="text-sm text-gray-300">
-                  {currentTime.toLocaleString()}
+
+            {/* Global Node Status */}
+            <nav className="hidden xl:flex items-center gap-8 pl-10 border-l border-white/10 h-10">
+              {[
+                { label: 'Security', icon: Shield, status: 'Active', color: 'text-emerald-400' },
+                { label: 'AI Core', icon: Brain, status: 'Synced', color: 'text-purple-400' },
+                { label: 'Network', icon: Network, status: 'Ready', color: 'text-cyan-400' }
+              ].map((node) => (
+                <div key={node.label} className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
+                  <div className={`p-1.5 rounded-lg bg-white/5 border border-white/10 ${node.color}`}>
+                    <node.icon className="h-4 w-4" />
+                  </div>
+                  <div className="flex flex-col -gap-1">
+                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+                      {node.label}
+                    </span>
+                    <span className={`text-[11px] font-bold ${node.color}`}>
+                      {node.status}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-xs text-gray-400">ZULU TIME</div>
+              ))}
+            </nav>
+          </div>
+
+          <div className="flex items-center gap-8">
+            {/* Dynamic Clock Section */}
+            <div className="hidden lg:flex flex-col items-end pr-8 border-r border-white/10">
+              <span className="text-lg font-mono font-black tabular-nums tracking-tighter text-white">
+                {currentTime.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <Globe className="h-3 w-3 text-primary animate-spin-[20s]" />
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  Zulu Sync Active
+                </span>
               </div>
-              <div className="flex items-center space-x-4">
-                <Button
-                  onClick={() => navigate('/dod')}
-                  className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white border-0"
-                >
-                  <Shield className="h-4 w-4 mr-2" />
-                  DOD Dashboard
-                </Button>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-300">{user?.email}</span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => signOut()}
-                    className="border-red-500/30 text-red-400 hover:bg-red-500/20"
-                  >
-                    <LogOut className="h-4 w-4" />
-                  </Button>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex items-center gap-4">
+              <Button
+                onClick={() => navigate('/dod')}
+                className="bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 h-10 px-6 font-black uppercase tracking-widest text-xs gap-2 shadow-lg shadow-primary/5 transition-all"
+              >
+                <Shield className="h-4 w-4" />
+                DoD Dashboard
+              </Button>
+
+              <div className="flex items-center gap-3 pl-4 border-l border-white/10">
+                <div className="flex flex-col items-end">
+                  <span className="text-xs font-bold text-white max-w-[150px] truncate">{user?.email}</span>
+                  <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Master Admin</span>
                 </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => signOut()}
+                  className="h-10 w-10 border-white/10 bg-white/5 hover:bg-red-500/20 hover:text-red-500 hover:border-red-500/50 transition-all"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           </div>
@@ -161,7 +174,7 @@ const Index = () => {
           <div className="flex items-center justify-center gap-3 text-sm">
             <Shield className="h-4 w-4 text-yellow-400 flex-shrink-0" />
             <p className="text-yellow-300 text-center">
-              <strong>Development Platform Notice:</strong> This system is in active development. Beta features shown are UI prototypes only. 
+              <strong>Development Platform Notice:</strong> This system is in active development. Beta features shown are UI prototypes only.
               Production CUI workloads require AWS GovCloud deployment (Q2 2025) with full NIST 800-171 compliance.
             </p>
           </div>
@@ -169,7 +182,7 @@ const Index = () => {
       </div>
 
       {/* Trial Onboarding */}
-          <TrialOnboarding />
+      <TrialOnboarding />
 
       <div className="container mx-auto px-6 py-8">
         <UsageTracker pageName="dashboard" />
@@ -196,66 +209,66 @@ const Index = () => {
                 <Plug className="h-4 w-4 text-cyan-400" />
                 <span className="text-cyan-400 font-semibold">Integration Hub</span>
               </TabsTrigger>
-                <TabsTrigger value="threat-feeds" className="flex items-center space-x-2">
-                  <Target className="h-4 w-4" />
-                  <span>Threat Feeds</span>
+              <TabsTrigger value="threat-feeds" className="flex items-center space-x-2">
+                <Target className="h-4 w-4" />
+                <span>Threat Feeds</span>
+              </TabsTrigger>
+              <TabsTrigger value="ai-asoc" className="flex items-center space-x-2">
+                <Bot className="h-4 w-4" />
+                <span>AI ASOC Agent</span>
+              </TabsTrigger>
+              <TabsTrigger value="ai-analysis" className="flex items-center space-x-2">
+                <Brain className="h-4 w-4" />
+                <span>AI Analysis</span>
+              </TabsTrigger>
+              <TabsTrigger value="deploy-agents" className="flex items-center space-x-2 bg-gradient-to-r from-primary/20 to-blue-500/20 border border-primary/30">
+                <Bot className="h-4 w-4 text-primary" />
+                <span className="text-primary font-semibold">Deploy AI Agents</span>
+              </TabsTrigger>
+              <TabsTrigger value="emergency" className="flex items-center space-x-2">
+                <Bell className="h-4 w-4" />
+                <span>Emergency Response</span>
+              </TabsTrigger>
+              <TabsTrigger value="alerts" className="flex items-center space-x-2">
+                <Bell className="h-4 w-4" />
+                <span>Alert System</span>
+              </TabsTrigger>
+              <TabsTrigger value="cmmc" className="flex items-center space-x-2">
+                <Shield className="h-4 w-4" />
+                <span>CMMC Compliance</span>
+              </TabsTrigger>
+              <TabsTrigger value="stig-codex" className="flex items-center space-x-2 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/50">
+                <Shield className="h-4 w-4 text-yellow-400" />
+                <span className="text-yellow-400 font-bold">🚀 STIG-First Autopilot MVP</span>
+              </TabsTrigger>
+              <TabsTrigger value="dod" className="flex items-center space-x-2 bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30">
+                <Shield className="h-4 w-4 text-orange-400" />
+                <span className="text-orange-400 font-semibold">DOD Operations</span>
+              </TabsTrigger>
+              <TabsTrigger value="automation" className="flex items-center space-x-2">
+                <Bot className="h-4 w-4" />
+                <span>Automation Engine</span>
+              </TabsTrigger>
+              <TabsTrigger value="billing" className="flex items-center space-x-2">
+                <CreditCard className="h-4 w-4" />
+                <span>Billing</span>
+              </TabsTrigger>
+              <TabsTrigger value="legal" className="flex items-center space-x-2">
+                <Scale className="h-4 w-4" />
+                <span>Legal</span>
+              </TabsTrigger>
+              {profile?.master_admin && (
+                <TabsTrigger value="master-admin" className="flex items-center space-x-2">
+                  <Crown className="h-4 w-4" />
+                  <span>Master Admin</span>
                 </TabsTrigger>
-                <TabsTrigger value="ai-asoc" className="flex items-center space-x-2">
-                  <Bot className="h-4 w-4" />
-                  <span>AI ASOC Agent</span>
+              )}
+              {(profile?.role === 'admin' && !profile?.master_admin) && (
+                <TabsTrigger value="admin" className="flex items-center space-x-2">
+                  <Crown className="h-4 w-4" />
+                  <span>Admin Console</span>
                 </TabsTrigger>
-                <TabsTrigger value="ai-analysis" className="flex items-center space-x-2">
-                  <Brain className="h-4 w-4" />
-                  <span>AI Analysis</span>
-                </TabsTrigger>
-                <TabsTrigger value="deploy-agents" className="flex items-center space-x-2 bg-gradient-to-r from-primary/20 to-blue-500/20 border border-primary/30">
-                  <Bot className="h-4 w-4 text-primary" />
-                  <span className="text-primary font-semibold">Deploy AI Agents</span>
-                </TabsTrigger>
-                <TabsTrigger value="emergency" className="flex items-center space-x-2">
-                  <Bell className="h-4 w-4" />
-                  <span>Emergency Response</span>
-                </TabsTrigger>
-                <TabsTrigger value="alerts" className="flex items-center space-x-2">
-                  <Bell className="h-4 w-4" />
-                  <span>Alert System</span>
-                </TabsTrigger>
-                <TabsTrigger value="cmmc" className="flex items-center space-x-2">
-                  <Shield className="h-4 w-4" />
-                  <span>CMMC Compliance</span>
-                </TabsTrigger>
-                <TabsTrigger value="stig-codex" className="flex items-center space-x-2 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/50">
-                  <Shield className="h-4 w-4 text-yellow-400" />
-                  <span className="text-yellow-400 font-bold">🚀 STIG-First Autopilot MVP</span>
-                </TabsTrigger>
-                <TabsTrigger value="dod" className="flex items-center space-x-2 bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30">
-                  <Shield className="h-4 w-4 text-orange-400" />
-                  <span className="text-orange-400 font-semibold">DOD Operations</span>
-                </TabsTrigger>
-                <TabsTrigger value="automation" className="flex items-center space-x-2">
-                  <Bot className="h-4 w-4" />
-                  <span>Automation Engine</span>
-                </TabsTrigger>
-                <TabsTrigger value="billing" className="flex items-center space-x-2">
-                  <CreditCard className="h-4 w-4" />
-                  <span>Billing</span>
-                </TabsTrigger>
-                <TabsTrigger value="legal" className="flex items-center space-x-2">
-                  <Scale className="h-4 w-4" />
-                  <span>Legal</span>
-                </TabsTrigger>
-                {profile?.master_admin && (
-                  <TabsTrigger value="master-admin" className="flex items-center space-x-2">
-                    <Crown className="h-4 w-4" />
-                    <span>Master Admin</span>
-                  </TabsTrigger>
-                )}
-                {(profile?.role === 'admin' && !profile?.master_admin) && (
-                  <TabsTrigger value="admin" className="flex items-center space-x-2">
-                    <Crown className="h-4 w-4" />
-                    <span>Admin Console</span>
-                  </TabsTrigger>
-                )}
+              )}
               {canManageUsers() && (
                 <>
                   <TabsTrigger value="users" className="flex items-center space-x-2">
@@ -333,9 +346,9 @@ const Index = () => {
             </TabsContent>
 
             <TabsContent value="ai-analysis" className="space-y-6">
-              <FeatureGate 
-                featureType="premium" 
-                featureName="AI Threat Analysis" 
+              <FeatureGate
+                featureType="premium"
+                featureName="AI Threat Analysis"
                 description="Advanced machine learning algorithms to analyze threats and predict security incidents"
               >
                 <AIThreatAnalyzer />
@@ -382,7 +395,7 @@ const Index = () => {
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div 
+                  <div
                     className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 cursor-pointer hover:bg-slate-700/50 transition-colors"
                     onClick={() => setActiveTab("users")}
                   >
@@ -394,7 +407,7 @@ const Index = () => {
                       </div>
                     </div>
                   </div>
-                  <div 
+                  <div
                     className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 cursor-pointer hover:bg-slate-700/50 transition-colors"
                     onClick={() => setActiveTab("alerts")}
                   >
@@ -406,7 +419,7 @@ const Index = () => {
                       </div>
                     </div>
                   </div>
-                  <div 
+                  <div
                     className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 cursor-pointer hover:bg-slate-700/50 transition-colors"
                     onClick={() => navigate('/compliance-automation')}
                   >
@@ -418,7 +431,7 @@ const Index = () => {
                       </div>
                     </div>
                   </div>
-                  <div 
+                  <div
                     className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 cursor-pointer hover:bg-slate-700/50 transition-colors"
                     onClick={() => setActiveTab("alerts")}
                   >
@@ -510,7 +523,7 @@ const Index = () => {
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div 
+                <div
                   className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 cursor-pointer hover:bg-slate-700/50 transition-colors"
                   onClick={() => navigate('/dod')}
                 >
@@ -522,7 +535,7 @@ const Index = () => {
                     </div>
                   </div>
                 </div>
-                <div 
+                <div
                   className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 cursor-pointer hover:bg-slate-700/50 transition-colors"
                   onClick={() => navigate('/infrastructure')}
                 >
@@ -534,7 +547,7 @@ const Index = () => {
                     </div>
                   </div>
                 </div>
-                <div 
+                <div
                   className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 cursor-pointer hover:bg-slate-700/50 transition-colors"
                   onClick={() => navigate('/security')}
                 >
@@ -546,7 +559,7 @@ const Index = () => {
                     </div>
                   </div>
                 </div>
-                <div 
+                <div
                   className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 cursor-pointer hover:bg-slate-700/50 transition-colors"
                   onClick={() => navigate('/compliance-automation')}
                 >
