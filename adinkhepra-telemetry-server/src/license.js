@@ -304,7 +304,7 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 		// Import HMAC verification
 		const { verifyLicenseHMAC, generateAPIKey } = await import('./hmac-auth.js');
 
-		// Verify HMAC signature (will use enrollment token for auth)
+		// Verify HMAC signature
 		const authResult = await verifyLicenseHMAC(request, body, env);
 		if (!authResult.valid) {
 			console.error('Registration authentication failed:', authResult.error);
@@ -312,121 +312,72 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 				error: 'Authentication required',
 				message: 'Registration requires HMAC authentication',
 				help: 'Include X-Khepra-Signature (HMAC using enrollment token) and X-Khepra-Timestamp headers.'
-			}), {
-				status: 401,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
+			}), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 		}
 
-		const {
-			machine_id,
-			enrollment_token,
-			hostname,
-			platform,
-			agent_version
-		} = JSON.parse(body);
+		const { machine_id, enrollment_token, hostname, platform, agent_version } = JSON.parse(body);
 
 		// Validate required fields
 		if (!machine_id || !enrollment_token) {
 			return new Response(JSON.stringify({
 				error: 'Missing required fields: machine_id, enrollment_token',
 				help: 'Get your enrollment token from the SouHimBou.ai dashboard'
-			}), {
-				status: 400,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
+			}), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 		}
 
-		// Validate enrollment token format (khepra-enroll-{org_id}-{random})
 		if (!enrollment_token.startsWith('khepra-enroll-')) {
 			return new Response(JSON.stringify({
 				error: 'Invalid enrollment token format',
 				help: 'Enrollment tokens start with "khepra-enroll-"'
-			}), {
-				status: 400,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
+			}), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 		}
 
 		// Look up enrollment token
-		const enrollment = await env.DB.prepare(`
-			SELECT
-				id, organization, license_tier, features,
-				max_registrations, current_registrations,
-				expires_at, active
-			FROM enrollment_tokens
-			WHERE token = ? AND active = 1
-		`).bind(enrollment_token).first();
+		const enrollment = await getEnrollmentToken(env, enrollment_token);
 
 		if (!enrollment) {
 			return new Response(JSON.stringify({
 				error: 'Invalid or expired enrollment token',
 				message: 'Contact your administrator for a new enrollment token'
-			}), {
-				status: 401,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
+			}), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 		}
 
-		// Check expiration
 		const now = Math.floor(Date.now() / 1000);
 		if (enrollment.expires_at && enrollment.expires_at < now) {
 			return new Response(JSON.stringify({
 				error: 'Enrollment token expired',
 				expired_at: new Date(enrollment.expires_at * 1000).toISOString()
-			}), {
-				status: 401,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
+			}), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 		}
 
-		// Check registration limit
-		if (enrollment.max_registrations > 0 &&
-			enrollment.current_registrations >= enrollment.max_registrations) {
+		if (enrollment.max_registrations > 0 && enrollment.current_registrations >= enrollment.max_registrations) {
 			return new Response(JSON.stringify({
 				error: 'Registration limit reached',
 				max_registrations: enrollment.max_registrations,
 				message: 'Contact your administrator to increase the limit'
-			}), {
-				status: 403,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
+			}), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 		}
 
 		// Check if machine already registered
-		const existingLicense = await env.DB.prepare(`
-			SELECT machine_id, revoked FROM licenses WHERE machine_id = ?
-		`).bind(machine_id).first();
+		const existingLicense = await checkExistingLicense(env, machine_id);
 
 		if (existingLicense && existingLicense.revoked === 0) {
-			// Already registered - return existing license info
-			const license = await env.DB.prepare(`
-				SELECT features, license_tier, expires_at, issued_at
-				FROM licenses WHERE machine_id = ?
-			`).bind(machine_id).first();
-
 			return new Response(JSON.stringify({
 				status: 'already_registered',
 				machine_id: machine_id,
 				organization: enrollment.organization,
-				features: JSON.parse(license.features || '[]'),
-				license_tier: license.license_tier,
-				expires_at: license.expires_at ? new Date(license.expires_at * 1000).toISOString() : 'never',
+				features: JSON.parse(existingLicense.features || '[]'),
+				license_tier: existingLicense.license_tier,
+				expires_at: existingLicense.expires_at ? new Date(existingLicense.expires_at * 1000).toISOString() : 'never',
 				message: 'This machine is already registered'
-			}), {
-				status: 200,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
+			}), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 		}
 
-		// Parse features from enrollment
 		const features = JSON.parse(enrollment.features || '["scan", "cve_check", "dashboard_view"]');
-
-		// Calculate expiration (30-day trial for auto-registration, or from enrollment settings)
 		const trialDays = 30;
 		const expiresAt = now + (trialDays * 86400);
 
-		// Generate API key for HMAC authentication
+		// Generate API key
 		const { apiKey, apiKeyHash } = await generateAPIKey();
 
 		// Create new license
@@ -459,7 +410,6 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 			hostname || 'unknown',
 			platform || 'unknown',
 			agent_version || 'unknown',
-			// Set limits based on tier
 			getTierLimit(enrollment.license_tier, 'max_devices'),
 			getTierLimit(enrollment.license_tier, 'max_concurrent_scans'),
 			getTierLimit(enrollment.license_tier, 'retention_days'),
@@ -467,12 +417,7 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 		).run();
 
 		// Increment registration count
-		await env.DB.prepare(`
-			UPDATE enrollment_tokens
-			SET current_registrations = current_registrations + 1,
-				last_used = ?
-			WHERE id = ?
-		`).bind(now, enrollment.id).run();
+		await incrementEnrollmentUsage(env, enrollment.id);
 
 		// Log registration event
 		await env.DB.prepare(`
@@ -482,16 +427,9 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 		`).bind(
 			machine_id,
 			now,
-			JSON.stringify({
-				enrollment_token_id: enrollment.id,
-				hostname,
-				platform,
-				agent_version
-			}),
+			JSON.stringify({ enrollment_token_id: enrollment.id, hostname, platform, agent_version }),
 			'system:auto-registration'
 		).run();
-
-		const country = request.cf?.country || 'UNKNOWN';
 
 		return new Response(JSON.stringify({
 			status: 'registered',
@@ -502,25 +440,19 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 			issued_at: new Date(now * 1000).toISOString(),
 			expires_at: new Date(expiresAt * 1000).toISOString(),
 			days_remaining: trialDays,
-			api_key: apiKey, // IMPORTANT: Client must securely store this for HMAC authentication
+			api_key: apiKey,
 			validation_url: 'https://telemetry.souhimbou.org/license/validate',
 			heartbeat_url: 'https://telemetry.souhimbou.org/license/heartbeat',
-			client_country: country,
+			client_country: request.cf?.country || 'UNKNOWN',
 			message: 'License activated successfully! Run scans to begin protecting your infrastructure.'
-		}), {
-			status: 201,
-			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-		});
+		}), { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
 	} catch (error) {
 		console.error('License registration error:', error);
 		return new Response(JSON.stringify({
 			error: 'Registration failed',
 			message: error.message
-		}), {
-			status: 500,
-			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-		});
+		}), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 	}
 }
 
@@ -1466,4 +1398,41 @@ async function verifySignature(env, machine_id, signature) {
 		console.error('Signature verification error:', e);
 	}
 	return false;
+}
+
+/**
+ * Helper: Get enrollment token
+ */
+async function getEnrollmentToken(env, token) {
+	return await env.DB.prepare(`
+		SELECT
+			id, organization, license_tier, features,
+			max_registrations, current_registrations,
+			expires_at, active
+		FROM enrollment_tokens
+		WHERE token = ? AND active = 1
+	`).bind(token).first();
+}
+
+/**
+ * Helper: Check existing license
+ */
+async function checkExistingLicense(env, machine_id) {
+	return await env.DB.prepare(`
+		SELECT machine_id, revoked, features, license_tier, expires_at, issued_at
+		FROM licenses WHERE machine_id = ?
+	`).bind(machine_id).first();
+}
+
+/**
+ * Helper: Increment enrollment usage
+ */
+async function incrementEnrollmentUsage(env, enrollment_id) {
+	const now = Math.floor(Date.now() / 1000);
+	await env.DB.prepare(`
+		UPDATE enrollment_tokens
+		SET current_registrations = current_registrations + 1,
+			last_used = ?
+		WHERE id = ?
+	`).bind(now, enrollment_id).run();
 }
