@@ -80,50 +80,50 @@ export function KhepraScansWidget({ deploymentUrl, apiKey }: KhepraScansWidgetPr
   const isKhepri = currentTier === 'community' || currentTier === 'khepri';
 
   return (
-    <Card className="w-full">
-      <CardHeader>
+    <Card className="glass-card overflow-hidden border-white/5 shadow-2xl">
+      <CardHeader className="border-b border-white/5 bg-white/2">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              Security Scans
+            <CardTitle className="flex items-center gap-2 text-xl font-black italic">
+              <Shield className="h-5 w-5 text-primary" />
+              SECURITY SCANS
             </CardTitle>
-            <CardDescription>
-              Real-time vulnerability scanning powered by AdinKhepra
+            <CardDescription className="text-muted-foreground uppercase text-[10px] tracking-widest font-bold">
+              Autonomous vulnerability discovery • Ra Core
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
             {isConnected ? (
-              <Badge variant="outline" className="text-green-600 border-green-600">
+              <Badge variant="outline" className="text-primary border-primary/30 bg-primary/10 animate-pulse uppercase text-[9px]">
                 <Wifi className="h-3 w-3 mr-1" />
-                Live
+                Live Sync
               </Badge>
             ) : (
-              <Badge variant="outline" className="text-red-600 border-red-600">
+              <Badge variant="outline" className="text-red-400 border-red-500/30 bg-red-500/10 uppercase text-[9px]">
                 <WifiOff className="h-3 w-3 mr-1" />
-                Disconnected
+                Air-Gapped
               </Badge>
             )}
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="p-6 space-y-6">
         {/* New Scan Form */}
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
           <div className="flex gap-2">
             <Input
-              placeholder="https://example.com"
+              placeholder="Target URL / Enterprise IP"
               value={targetUrl}
               onChange={(e) => setTargetUrl(e.target.value)}
-              className="flex-1"
+              className="flex-1 bg-white/5 border-white/10 h-11 font-mono text-sm placeholder:text-muted-foreground/30"
             />
             <Select value={scanType} onValueChange={setScanType}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-40 bg-white/5 border-white/10 h-11 text-xs font-bold">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="glass-card text-white border-white/10">
                 <SelectItem value="basic">Basic Check</SelectItem>
-                <SelectItem value="eval">Trial Evaluation</SelectItem>
+                <SelectItem value="eval">Evaluation</SelectItem>
                 <SelectItem value="full" disabled={isKhepri}>
                   Full Audit {isKhepri && '🔒'}
                 </SelectItem>
@@ -138,13 +138,14 @@ export function KhepraScansWidget({ deploymentUrl, apiKey }: KhepraScansWidgetPr
             <Button
               onClick={handleTriggerScan}
               disabled={!targetUrl || triggerScan.isPending}
+              className="bg-primary hover:bg-primary-glow text-primary-foreground font-black uppercase tracking-widest text-xs h-11 px-6 shadow-lg shadow-primary/20"
             >
               {triggerScan.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Play className="h-4 w-4" />
               )}
-              <span className="ml-2">Scan</span>
+              <span className="ml-2">EXECUTE</span>
             </Button>
           </div>
 
