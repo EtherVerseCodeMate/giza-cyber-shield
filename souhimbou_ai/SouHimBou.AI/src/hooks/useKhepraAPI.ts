@@ -144,8 +144,8 @@ interface KhepraAPIConfig {
 
 // API Client class
 class KhepraAPIClient {
-  private baseUrl: string;
-  private apiKey: string;
+  private readonly baseUrl: string;
+  private readonly apiKey: string;
 
   constructor(config: KhepraAPIConfig) {
     this.baseUrl = config.baseUrl.replace(/\/$/, '');
