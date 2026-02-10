@@ -451,7 +451,7 @@ async def get_telemetry_status():
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=5)
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=5)
         
         if proc.returncode != 0:
             return {
