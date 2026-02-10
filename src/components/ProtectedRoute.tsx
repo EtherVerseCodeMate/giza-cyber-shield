@@ -8,41 +8,37 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
-const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { user, loading } = useAuth();
-  const { hasAcceptedAll, loading: agreementsLoading, refreshAgreements } = useUserAgreements();
-  const navigate = useNavigate();
+const [showTerms, setShowTerms] = useState(!hasAcceptedAll);
 
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate('/auth');
-    }
-  }, [user, loading, navigate]);
+useEffect(() => {
+  setShowTerms(!hasAcceptedAll);
+}, [hasAcceptedAll]);
 
-  if (loading || agreementsLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
-        <div className="text-white">Loading...</div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
-
+if (loading || agreementsLoading) {
   return (
-    <>
-      {children}
-      {!hasAcceptedAll && (
-        <TermsAcceptance
-          open={true}
-          onOpenChange={() => {}}
-          onAccepted={refreshAgreements}
-        />
-      )}
-    </>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
+      <div className="text-white">Loading...</div>
+    </div>
   );
+}
+
+if (!user) {
+  return null;
+}
+
+return (
+  <>
+    {children}
+    <TermsAcceptance
+      open={showTerms}
+      onOpenChange={setShowTerms}
+      onAccepted={() => {
+        refreshAgreements();
+        setShowTerms(false);
+      }}
+    />
+  </>
+);
 };
 
 export default ProtectedRoute;
