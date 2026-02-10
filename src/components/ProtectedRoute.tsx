@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserAgreements } from '@/hooks/useUserAgreements';
@@ -12,7 +12,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
   const { hasAcceptedAll, loading: agreementsLoading, refreshAgreements } = useUserAgreements();
   const navigate = useNavigate();
-  const [showTerms, setShowTerms] = useState(!hasAcceptedAll);
+  const [showTerms, setShowTerms] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -21,8 +21,10 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    setShowTerms(!hasAcceptedAll);
-  }, [hasAcceptedAll]);
+    if (!agreementsLoading) {
+      setShowTerms(!hasAcceptedAll);
+    }
+  }, [hasAcceptedAll, agreementsLoading]);
 
   if (loading || agreementsLoading) {
     return (
