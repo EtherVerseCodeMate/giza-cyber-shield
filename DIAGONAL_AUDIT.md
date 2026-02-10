@@ -18,10 +18,9 @@
 *   **Component**: `adinkhepra-telemetry-server/src/license.js` -> `handleLicenseValidate`
 *   **Action**:
     1.  Parses JSON body.
-    2.  Checks `signature.length`.
-    3.  **TODO**: The code has a `TODO: Verify Dilithium3 signature`.
-    4.  **Critical Finding**: While `index.js` (Telemetry Beacon) *has* real PQC verification implemented, `license.js` (Validation) currently has a placeholder check (`signature.length > 100`).
-    5.  **Database**: Queries D1 `licenses` table.
+    2.  Verifies Dilithium3 (ML-DSA-65) signature using `@noble/post-quantum`.
+    3.  **Status**: **REMEDIATED**. Real PQC verification is now active.
+    4.  **Database**: Queries D1 `licenses` table via modular helper functions.
 
 ### Step 4: Storage (Data Layer)
 *   **Component**: Cloudflare D1 -> `licenses` table.
@@ -37,11 +36,11 @@
 
 ## Systems Integrity Verdict
 *   **Data Flow**: **PASS**. Data flows correctly from binary to UI.
-*   **Crypto Integrity**: **PARTIAL FAIL**.
-    *   **Issue**: Telemetry Beacons are cryptographically verified (High Integrity).
-    *   **Issue**: License Validation Endpoint (`/license/validate`) in the Worker needs the real PQC verification logic ported from `index.js`.
-    *   **Risk**: A spoofed license request might bypass validation if it just sends a long string as a signature.
+*   **Crypto Integrity**: **PASS**.
+    *   **Verification**: Both Telemetry Beacons and License Validations are now cryptographically verified using ML-DSA-65.
+    *   **Security**: Spoofed license requests are now rejected at the Worker layer.
 
-## Remediation Plan
-1.  Copy the `ml_dsa65.verify` logic from `index.js` to `license.js`.
-2.  Ensure the `TELEMETRY_PUBLIC_KEY` is accessible to the `handleLicenseValidate` function.
+## Remediation Status
+1.  **DONE**: Ported `ml_dsa65.verify` logic to `license.js`.
+2.  **DONE**: Refactored `license.js` for better modularity and lower cognitive complexity.
+3.  **DONE**: Addressed all linting issues in the telemetry server.

@@ -40,4 +40,4 @@
 *   **Refinement**: Ensure production builds restrict Origin to the specific domain.
 
 ## Conclusion
-The application shows high consistency in error handling and data formats. Configuration management is generally good but could be tightened in Python. Security headers are present but permissive.
+The application shows high consistency in error handling and data formats. Configuration management has been tightened in Python using Pydantic. Security headers are present, with a recommendation to restrict CORS in production.
