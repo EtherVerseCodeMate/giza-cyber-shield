@@ -52,7 +52,7 @@
 
 1. **PQC Non-Repudiation**: [COMPLETE] Sign all system audit logs with the `adinkhepra_master_dilithium` key. (Secret `ADINKHEPRA_MASTER_KEY_PUB` set).
 2. **Telemetry Handlers**: Complete the enrollment workflow to ensure "Community Mode" users can easily transition to "Ra" or "Atum" tiers.
-3. **Iron Bank Automation**: Automate the `make ironbank` build process to generate the `hardening_manifest.yaml` based on `go.sum`.
+3. **Iron Bank Automation**: [COMPLETE] Created `tools/gen_manifest.go` and `make ironbank` target. `hardening_manifest.yaml` is now auto-generated with SHA256 validation.
 4. **Explainable AI Integration**: [COMPLETE] Added "Intuition" logic to `ml_anomaly` API to explain risk factors (Legacy Crypto, Protocol, Soul Bias).
 5. **Code Hygiene**: Resolved IDE warnings in `index.html` (globalThis) and `KhepraStatus.tsx` (unique keys).
 6. **Usage Metering**: [COMPLETE] Added "Node Exhaustion" UI alerts in `KhepraStatus.tsx` to warn users when hitting Egyptian Tier limits.
