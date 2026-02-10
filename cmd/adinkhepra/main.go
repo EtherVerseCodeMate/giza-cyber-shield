@@ -26,17 +26,17 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/packet"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scorpion"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stigs"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/util"
 )
 
 const (
-	masterPubKeyFile  = "adinkhepra_master.pub"
-	licenseFile       = "license.adinkhepra"
-	listBulletMsg     = "  - %s\n"
-	adinkraExt        = ".adinkhepra"
-	separator         = "---------------------------------------------------"
-	subcommandsHeader = "Subcommands:"
+	masterPubKeyFile   = "adinkhepra_master.pub"
+	licenseFile        = "license.adinkhepra"
+	listBulletMsg      = "  - %s\n"
+	adinkraExt         = ".adinkhepra"
+	separator          = "---------------------------------------------------"
+	subcommandsHeader  = "Subcommands:"
+	speakSecretNameMsg = "Speak the Secret Name: "
 )
 
 func usage() {
@@ -372,35 +372,6 @@ func licenseGenCmd(args []string) {
 
 // Redirection to cmd_compliance.go is handled by the Go compiler as they share the 'main' package.
 
-func stigsCmd(args []string) {
-	if len(args) < 2 || args[0] != "ingest" {
-		fmt.Println("Usage: adinkhepra stigs ingest <file.xlsx>")
-		return
-	}
-	// Import pkg/stigs inside logic if needed or top level.
-	// Will add logic block here.
-	path := args[1]
-	fmt.Printf("[ADINKHEPRA] INGESTING STIG LIBRARY: %s\n", path)
-
-	items, err := stigs.LoadLibrary(path)
-	if err != nil {
-		fatal("load stigs failed", err)
-	}
-
-	fmt.Printf(" [SUCCESS] Loaded %d STIG Controls.\n", len(items))
-	// Analytics
-	families := make(map[string]int)
-	for _, it := range items {
-		families[it.Family]++
-	}
-	fmt.Println(" [Distrubution]")
-	for k, v := range families {
-		if k != "" {
-			fmt.Printf("   - %s: %d\n", k, v)
-		}
-	}
-}
-
 func auditCmd(args []string) {
 	if len(args) < 2 || args[0] != "ingest" {
 		fmt.Println("Usage: adinkhepra audit ingest <snapshot_file.json>")
@@ -542,7 +513,7 @@ func kuntinkantanCmd(args []string) {
 		fatal("the binding failed", err)
 	}
 
-	outPath := filePath + ".adinkhepra"
+	outPath := filePath + adinkraExt
 	if err := os.WriteFile(outPath, artifact, 0644); err != nil {
 		fatal("cannot scribe the artifact", err)
 	}
@@ -574,10 +545,10 @@ func sankofaCmd(args []string) {
 		fatal("the spirit rejected you", err)
 	}
 
-	// Remove .adinkhepra extension if present, otherwise append .revealed
+	// Remove adinkraExt extension if present, otherwise append .revealed
 	outPath := filePath + ".revealed"
-	if len(filePath) > 11 && filePath[len(filePath)-11:] == ".adinkhepra" {
-		outPath = filePath[:len(filePath)-11]
+	if len(filePath) > len(adinkraExt) && filePath[len(filePath)-len(adinkraExt):] == adinkraExt {
+		outPath = filePath[:len(filePath)-len(adinkraExt)]
 	}
 
 	if err := os.WriteFile(outPath, plaintext, 0644); err != nil {
@@ -664,7 +635,7 @@ func nsuoCmd(args []string) {
 		if info.IsDir() {
 			return nil
 		}
-		if filepath.Ext(path) != ".adinkhepra" {
+		if filepath.Ext(path) != adinkraExt {
 			return nil
 		} // Only touch ash
 
@@ -888,7 +859,7 @@ func explainCmd(args []string) {
 	} else if size == 4000 { // Approx for priv key
 		fmt.Println(" Type: Dilithium Mode 3 Private Key (ML-DSA)")
 		fmt.Println(" Meaning: 'I wield the seal of authority.'")
-	} else if size > 1592 && filepath.Ext(path) == ".adinkhepra" {
+	} else if size > 1592 && filepath.Ext(path) == adinkraExt {
 		fmt.Println(" Type: AdinKhepra Encrypted Artifact")
 		fmt.Println(" Components:")
 		fmt.Println("   - Capsule (Kyber): 1568 bytes")
@@ -911,7 +882,7 @@ func explainCmd(args []string) {
 		fmt.Println(" \"This is the Shield of Identity. A Dilithium-Mode-3 public key.")
 		fmt.Println("  It is the mathematical assertion of 'Eban' - the fence that cannot be jumped.")
 		fmt.Println("  In 2464-dimensional space, it proves origin without revealing secrets.\"")
-	} else if size > 1592 && filepath.Ext(path) == ".adinkhepra" {
+	} else if size > 1592 && filepath.Ext(path) == adinkraExt {
 		fmt.Println(" \"I see a reality that has been bent. The 'Kuntinkantan' ritual was performed here.")
 		fmt.Println("  The original matter is gone, replaced by this riddle.")
 		fmt.Println("  Only the one who holds the corresponding 'Sankofa' staff can return it to form.\"")
@@ -919,7 +890,7 @@ func explainCmd(args []string) {
 		fmt.Printf(" \"I sense raw bytes. %d of them. But they lack the harmonic resonance of AdinKhepra.\"\n", size)
 	}
 
-	fmt.Printf("---------------------------------------------------\n")
+	fmt.Println(separator)
 }
 
 func gitRemoteCmd() {
@@ -1000,7 +971,7 @@ func attestCmd(args []string) {
 func kmsCmd(args []string) {
 	if len(args) < 1 {
 		fmt.Println("Usage: khepra kms <subcommand> [flags]")
-		fmt.Println("Subcommands:")
+		fmt.Println(subcommandsHeader)
 		fmt.Println("  init   - Perform Tier 0 Root Ceremony")
 		return
 	}
@@ -1013,7 +984,7 @@ func kmsCmd(args []string) {
 		fs.Parse(args[1:])
 
 		fmt.Println("[KHEPRA] INITIATING TIER 0 ROOT CEREMONY...")
-		fmt.Println("-------------------------------------------")
+		fmt.Println(separator)
 
 		// Prompt for Master Password
 		fmt.Print("Enter Master Password [HIDDEN]: ")
@@ -1043,7 +1014,7 @@ func kmsCmd(args []string) {
 			fatal("failed to seal artifact", err)
 		}
 
-		fmt.Println("-------------------------------------------")
+		fmt.Println(separator)
 		fmt.Printf(" [SUCCESS] Root of Trust established.\n")
 		fmt.Printf("   - Fingerprint: %s\n", res.Fingerprint)
 		fmt.Printf("   - Sealed to  : %s\n", *out)
@@ -1079,7 +1050,7 @@ func fatal(what string, err error) {
 func agentCmd(args []string) {
 	if len(args) < 1 {
 		fmt.Println("Usage: khepra agent <subcommand>")
-		fmt.Println("Subcommands:")
+		fmt.Println(subcommandsHeader)
 		fmt.Println("  start           - Run the agent process (foreground)")
 		fmt.Println("  service install - Install as Windows Service (Auto-Start)")
 		fmt.Println("  service remove  - Uninstall Windows Service")
@@ -1099,44 +1070,52 @@ func agentCmd(args []string) {
 	case "start":
 		agent.Run(baseDir)
 	case "service":
-		if len(args) < 2 {
-			fmt.Println("Usage: khepra agent service <install|remove>")
-			return
-		}
-		action := args[1]
-		switch action {
-		case "install":
-			if err := agent.InstallService(exePath); err != nil {
-				fatal("service install failed", err)
-			}
-			fmt.Println("[SUCCESS] Khepra Sonar Agent installed as Windows Service.")
-		case "remove":
-			if err := agent.RemoveService(); err != nil {
-				fatal("service remove failed", err)
-			}
-			fmt.Println("[SUCCESS] Windows Service removed.")
-		}
+		agentServiceCmd(args, exePath)
 	case "baseline":
-		fmt.Println("[SONAR] Capturing Golden Image Baseline...")
-		snap, err := audit.NewSnapshot()
-		if err != nil {
-			fatal("baseline capture failed", err)
-		}
-		// Seal with current host key if available? For now just save JSON.
-		data, _ := json.MarshalIndent(snap, "", "  ")
-		basePath := filepath.Join(baseDir, "khepra_baseline.json")
-		if err := os.WriteFile(basePath, data, 0644); err != nil {
-			fatal("save baseline", err)
-		}
-		fmt.Printf("[SUCCESS] Baseline sealed at: %s\n", basePath)
+		agentBaselineCmd(baseDir)
 	default:
 		fmt.Printf("Unknown agent command: %s\n", cmd)
 	}
 }
 
+func agentServiceCmd(args []string, exePath string) {
+	if len(args) < 2 {
+		fmt.Println("Usage: khepra agent service <install|remove>")
+		return
+	}
+	action := args[1]
+	switch action {
+	case "install":
+		if err := agent.InstallService(exePath); err != nil {
+			fatal("service install failed", err)
+		}
+		fmt.Println("[SUCCESS] Khepra Sonar Agent installed as Windows Service.")
+	case "remove":
+		if err := agent.RemoveService(); err != nil {
+			fatal("service remove failed", err)
+		}
+		fmt.Println("[SUCCESS] Windows Service removed.")
+	}
+}
+
+func agentBaselineCmd(baseDir string) {
+	fmt.Println("[SONAR] Capturing Golden Image Baseline...")
+	snap, err := audit.NewSnapshot()
+	if err != nil {
+		fatal("baseline capture failed", err)
+	}
+	// Seal with current host key if available? For now just save JSON.
+	data, _ := json.MarshalIndent(snap, "", "  ")
+	basePath := filepath.Join(baseDir, "khepra_baseline.json")
+	if err := os.WriteFile(basePath, data, 0644); err != nil {
+		fatal("save baseline", err)
+	}
+	fmt.Printf("[SUCCESS] Baseline sealed at: %s\n", basePath)
+}
+
 func drbcInitCmd() {
 	fmt.Println("[PHOENIX] Awakening Genesis Protocol...")
-	fmt.Print("Speak the Secret Name: ")
+	fmt.Print(speakSecretNameMsg)
 	reader := bufio.NewReader(os.Stdin)
 	pass, _ := reader.ReadString('\n')
 	pass = strings.TrimSpace(pass)
@@ -1159,7 +1138,7 @@ func drbcScorpionCmd(args []string) {
 	}
 
 	data, _ := os.ReadFile(*target)
-	fmt.Print("Speak the Secret Name: ")
+	fmt.Print(speakSecretNameMsg)
 	reader := bufio.NewReader(os.Stdin)
 	pass, _ := reader.ReadString('\n')
 	pass = strings.TrimSpace(pass)
@@ -1185,7 +1164,7 @@ func drbcOpenCmd(args []string) {
 		return
 	}
 
-	fmt.Print("Speak the Secret Name: ")
+	fmt.Print(speakSecretNameMsg)
 	reader := bufio.NewReader(os.Stdin)
 	pass, _ := reader.ReadString('\n')
 	pass = strings.TrimSpace(pass)
@@ -1200,7 +1179,7 @@ func drbcOpenCmd(args []string) {
 
 func printDrbcUsage() {
 	fmt.Println("Usage: khepra drbc <subcommand>")
-	fmt.Println("Subcommands:")
+	fmt.Println(subcommandsHeader)
 	fmt.Println("  init      - Awaken the Genesis")
 	fmt.Println("  scorpion  - Bind Spirit to Vessel (Mpatapo)")
 	fmt.Println("  open      - Release Spirit (Sane)")
