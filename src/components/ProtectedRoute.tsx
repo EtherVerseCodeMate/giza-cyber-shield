@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserAgreements } from '@/hooks/useUserAgreements';
@@ -8,37 +8,47 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
-const [showTerms, setShowTerms] = useState(!hasAcceptedAll);
+const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
+  const { user, loading } = useAuth();
+  const { hasAcceptedAll, loading: agreementsLoading, refreshAgreements } = useUserAgreements();
+  const navigate = useNavigate();
+  const [showTerms, setShowTerms] = useState(!hasAcceptedAll);
 
-useEffect(() => {
-  setShowTerms(!hasAcceptedAll);
-}, [hasAcceptedAll]);
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/auth');
+    }
+  }, [user, loading, navigate]);
 
-if (loading || agreementsLoading) {
+  useEffect(() => {
+    setShowTerms(!hasAcceptedAll);
+  }, [hasAcceptedAll]);
+
+  if (loading || agreementsLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
-      <div className="text-white">Loading...</div>
-    </div>
+    <>
+      {children}
+      <TermsAcceptance
+        open={showTerms}
+        onOpenChange={setShowTerms}
+        onAccepted={() => {
+          refreshAgreements();
+          setShowTerms(false);
+        }}
+      />
+    </>
   );
-}
-
-if (!user) {
-  return null;
-}
-
-return (
-  <>
-    {children}
-    <TermsAcceptance
-      open={showTerms}
-      onOpenChange={setShowTerms}
-      onAccepted={() => {
-        refreshAgreements();
-        setShowTerms(false);
-      }}
-    />
-  </>
-);
 };
 
 export default ProtectedRoute;
