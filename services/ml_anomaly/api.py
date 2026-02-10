@@ -404,6 +404,71 @@ async def papyrus_chat(request: dict):
             "error": str(e)
         }
 
+
+# --- License & Telemetry Endpoints ---
+
+@app.get("/api/v1/license/status")
+async def get_license_status():
+    """
+    Returns the current license status.
+    Calls 'khepra license status --json'
+    """
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "khepra", "license", "status", "--json",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=5)
+        
+        if proc.returncode != 0:
+            logger.error(f"License status check failed: {stderr.decode()}")
+            # Return community fallback
+            return {
+                "valid": False,
+                "tier": "community",
+                "features": ["basic_pqc"],
+                "node_quota": 5,
+                "node_count": 1,
+                "expires_at": None,
+                "days_remaining": 999
+            }
+            
+        return json.loads(stdout.decode())
+    except Exception as e:
+        logger.error(f"License API Error: {e}")
+        raise HTTPException(status_code=500, detail="License service unavailable")
+
+@app.get("/api/v1/license/telemetry/status")
+async def get_telemetry_status():
+    """
+    Returns telemetry connection status.
+    Calls 'khepra telemetry status --json'
+    """
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "khepra", "telemetry", "status", "--json",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=5)
+        
+        if proc.returncode != 0:
+            return {
+                "status": "offline",
+                "telemetry_server": "unknown",
+                "machine_id": "unknown",
+                "license_valid": False
+            }
+            
+        return json.loads(stdout.decode())
+    except Exception:
+        # Fail gracefully
+        return {
+             "status": "offline",
+             "error": "Service unavailable"
+        }
+
 # --- WebSocket for Real-time DAG Updates ---
 # Import WebSocket functionality
 from typing import List
