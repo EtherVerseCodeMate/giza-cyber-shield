@@ -23,7 +23,6 @@ export async function handleLicenseValidate(request, env, corsHeaders) {
 	try {
 		const { machine_id, signature, version, installation_id } = await request.json();
 
-		// Validate required fields
 		if (!machine_id || !signature) {
 			return new Response(JSON.stringify({
 				valid: false,
@@ -32,22 +31,7 @@ export async function handleLicenseValidate(request, env, corsHeaders) {
 		}
 
 		// Verify Dilithium3 Signature
-		let signatureValid = false;
-		if (signature && env.TELEMETRY_PUBLIC_KEY) {
-			try {
-				const { ml_dsa65 } = await import("@noble/post-quantum/ml-dsa");
-				if (env.TELEMETRY_PUBLIC_KEY.length === 2624) {
-					const pubKeyBytes = new Uint8Array(env.TELEMETRY_PUBLIC_KEY.match(/.{1,2}/g).map(byte => Number.parseInt(byte, 16)));
-					const sigBytes = new Uint8Array(signature.match(/.{1,2}/g).map(byte => Number.parseInt(byte, 16)));
-					const msgBytes = new TextEncoder().encode(machine_id);
-					if (ml_dsa65.verify(sigBytes, msgBytes, pubKeyBytes)) {
-						signatureValid = true;
-					} else {
-						console.warn(`[Security] Invalid ML-DSA-65 signature for: ${machine_id}`);
-					}
-				}
-			} catch (e) { console.error(e); }
-		}
+		const signatureValid = await verifySignature(env, machine_id, signature);
 
 		if (!signatureValid) {
 			return new Response(JSON.stringify({
@@ -60,7 +44,6 @@ export async function handleLicenseValidate(request, env, corsHeaders) {
 		// Check license in D1 database
 		const license = await getLicenseFromDB(env, machine_id);
 
-		// License not found
 		if (!license) {
 			return new Response(JSON.stringify({
 				valid: false,
@@ -83,7 +66,7 @@ export async function handleLicenseValidate(request, env, corsHeaders) {
 			}), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 		}
 
-		// Log success
+		// Log successful validation
 		await logValidationResult(env, machine_id, 'success', { version, installation_id });
 
 		// Success response
@@ -1387,4 +1370,100 @@ export async function handleLicenseIssue(request, env, corsHeaders, admin) {
 			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
 		});
 	}
+}
+
+/**
+ * Helper: Get tier limit
+ */
+function getTierLimit(tier, limitType) {
+	const limits = {
+		business: { max_devices: 50, max_concurrent_scans: 30, retention_days: 500 },
+		pro: { max_devices: 20, max_concurrent_scans: 7, retention_days: 150 },
+		default: { max_devices: 5, max_concurrent_scans: 1, retention_days: 50 }
+	};
+	const selected = limits[tier] || limits.default;
+	return selected[limitType];
+}
+
+/**
+ * Helper: Get license from DB
+ */
+async function getLicenseFromDB(env, machine_id) {
+	return await env.DB.prepare(`
+		SELECT
+			machine_id,
+			organization,
+			features,
+			issued_at,
+			expires_at,
+			revoked,
+			license_tier,
+			max_devices,
+			max_concurrent_scans,
+			retention_days,
+			ai_credits_monthly
+		FROM licenses
+		WHERE machine_id = ? AND revoked = 0
+	`).bind(machine_id).first();
+}
+
+/**
+ * Helper: Log validation result
+ */
+async function logValidationResult(env, machine_id, result, details = {}) {
+	try {
+		const now = Math.floor(Date.now() / 1000);
+		if (result === 'success') {
+			await env.DB.prepare(`
+				INSERT INTO license_validations (
+					machine_id, timestamp, version, installation_id, validation_result
+				) VALUES (?, ?, ?, ?, 'success')
+			`).bind(
+				machine_id,
+				now,
+				details.version || 'unknown',
+				details.installation_id || machine_id
+			).run();
+
+			// Update license stats
+			await env.DB.prepare(`
+				UPDATE licenses
+				SET last_validated = ?, validation_count = validation_count + 1
+				WHERE machine_id = ?
+			`).bind(now, machine_id).run();
+		} else {
+			await env.DB.prepare(`
+				INSERT INTO license_validations (
+					machine_id, timestamp, version, validation_result, error_message
+				) VALUES (?, ?, ?, 'error', ?)
+			`).bind(
+				machine_id || 'error-unknown',
+				now,
+				details.version || 'unknown',
+				details.error_message || 'Unknown error'
+			).run();
+		}
+	} catch (logError) {
+		console.error('Failed to log validation result:', logError);
+	}
+}
+
+/**
+ * Helper: Verify Dilithium3 signature
+ */
+async function verifySignature(env, machine_id, signature) {
+	if (!signature || !env.TELEMETRY_PUBLIC_KEY) return false;
+
+	try {
+		const { ml_dsa65 } = await import("@noble/post-quantum/ml-dsa");
+		if (env.TELEMETRY_PUBLIC_KEY.length === 2624) {
+			const pubKeyBytes = new Uint8Array(env.TELEMETRY_PUBLIC_KEY.match(/.{1,2}/g).map(byte => Number.parseInt(byte, 16)));
+			const sigBytes = new Uint8Array(signature.match(/.{1,2}/g).map(byte => Number.parseInt(byte, 16)));
+			const msgBytes = new TextEncoder().encode(machine_id);
+			return ml_dsa65.verify(sigBytes, msgBytes, pubKeyBytes);
+		}
+	} catch (e) {
+		console.error('Signature verification error:', e);
+	}
+	return false;
 }
