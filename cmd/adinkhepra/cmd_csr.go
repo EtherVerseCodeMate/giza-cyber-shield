@@ -35,7 +35,8 @@ func csrCmd(args []string) {
 
 	fmt.Println("🛡️  Generating Khepra Hybrid Key Pair...")
 	// 1. Generate Hybrid Key
-	keyPair, err := adinkra.GenerateHybridKeyPair("client-cert", 12)
+	// We use 'Fawohodie' (Independence) for client certificates (FIG. 10 - Privilege Management).
+	keyPair, err := adinkra.GenerateHybridKeyPair("client-cert", "Fawohodie", 12)
 	if err != nil {
 		fatal("failed to generate hybrid key", err)
 	}
