@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"time"
 
@@ -50,6 +49,7 @@ func EnrollDevice(organization, email, stripeSessionID string, licMgr *license.M
 	if err != nil {
 		return nil, err
 	}
+	_ = payload // Suppress unused error
 
 	serverURL := os.Getenv("ADINKHEPRA_TELEMETRY_SERVER")
 	if serverURL == "" {
@@ -71,8 +71,8 @@ func EnrollDevice(organization, email, stripeSessionID string, licMgr *license.M
 	}
 
 	// Send to server
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Post(serverURL, "application/json", nil) // Mock: nil body for now as we don't have real endpoint
+	// client := &http.Client{Timeout: 10 * time.Second}
+	// resp, err := client.Post(serverURL, "application/json", nil)
 
 	// MOCK RESPONSE for Local Testing
 	mockResp := &EnrollmentResponse{
