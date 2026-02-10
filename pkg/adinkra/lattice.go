@@ -12,8 +12,12 @@ import (
 // SACRED CONSTANTS & ALPHABET
 // =============================================================================
 
+// SacredRunes represents 16 unique symbols for the SouHimBou Lattice.
 var SacredRunes = []rune{
-	'𓆣', '𓋹', '𓁹', '𓇳', '𐤀', '𐤁', '𐤂', '𐤃', 'א', 'ب', 'ג', 'ד', 'ا', 'ب', 'ج', 'د',
+	'𓆣', '𓋹', '𓁹', '𓇳', // Ancient Egyptian (SCARAB, ANKH, EYE, RA)
+	'𐤀', '𐤁', '𐤂', '𐤃', // Phoenician (ALEPH, BET, GIMEL, DALET)
+	'א', 'ב', 'ג', 'ד', // Hebrew (ALEPH, BET, GIMEL, DALET)
+	'ا', 'ب', 'ج', 'د', // Arabic (ALIF, BAA, JEEM, DAL)
 }
 
 var SacredReverseMap map[rune]int
