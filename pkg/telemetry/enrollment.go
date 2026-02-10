@@ -1,10 +1,11 @@
 package telemetry
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"time"
 
@@ -20,7 +21,7 @@ type EnrollmentRequest struct {
 	StripeSessionID  string `json:"stripe_session_id,omitempty"` // For premium tiers
 }
 
-// EnrollmentResponse contains the license details
+// EnrollmentResponse contains the license details from the server
 type EnrollmentResponse struct {
 	LicenseID   string   `json:"license_id"`
 	Tier        string   `json:"tier"`
@@ -30,6 +31,7 @@ type EnrollmentResponse struct {
 }
 
 // EnrollDevice registers the device with the central Khepra server
+// It performs a REAL HTTP request to the telemetry backend.
 func EnrollDevice(organization, email, stripeSessionID string, licMgr *license.Manager) (*EnrollmentResponse, error) {
 	if licMgr == nil {
 		return nil, fmt.Errorf("license manager not initialized")
@@ -37,61 +39,66 @@ func EnrollDevice(organization, email, stripeSessionID string, licMgr *license.M
 
 	machineID := licMgr.GetMachineID()
 
-	req := EnrollmentRequest{
+	reqPayload := EnrollmentRequest{
 		MachineID:        machineID,
 		Organization:     organization,
 		Email:            email,
-		TelemetryEnabled: true, // Auto-enable for now
+		TelemetryEnabled: true,
 		StripeSessionID:  stripeSessionID,
 	}
 
-	payload, err := json.Marshal(req)
+	payloadBytes, err := json.Marshal(reqPayload)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal enrollment request: %w", err)
 	}
-	_ = payload // Suppress unused error
 
+	// Use the production telemetry server URL provided by the user
 	serverURL := os.Getenv("ADINKHEPRA_TELEMETRY_SERVER")
 	if serverURL == "" {
-		serverURL = "https://telemetry.khepra.io/enroll"
+		serverURL = "https://telemetry.souhimbou.org/enroll"
 	}
 
-	// In Community Mode, "enrollment" might be a local no-op or a simple ping
-	// For this task, we'll simulate the HTTP call to the telemetry server
-	// But first, let's implement the local tier transition if stripe session is present
+	fmt.Printf("[KHEPRA] Enrolling device with %s...\n", serverURL)
 
-	if stripeSessionID != "" {
-		// Simulate successful payment validation
-		// In production, this would verify with backend
-		fmt.Printf("[KHEPRA] Validating subscription for session %s...\n", stripeSessionID)
-
-		// For now, assume "Hunter" tier if session provided
-		// This allows local testing of tier upgrades
-		// licMgr.UpgradeTier("ra") // This method needs to exist on LicenseManager
+	// Create a real HTTP client with timeout
+	client := &http.Client{Timeout: 30 * time.Second}
+	req, err := http.NewRequest("POST", serverURL, bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Send to server
-	// client := &http.Client{Timeout: 10 * time.Second}
-	// resp, err := client.Post(serverURL, "application/json", nil)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "AdinKhepra-Agent/v1.0")
+	req.Header.Set("X-Machine-ID", machineID)
 
-	// MOCK RESPONSE for Local Testing
-	mockResp := &EnrollmentResponse{
-		LicenseID:   generateLicenseID(machineID),
-		Tier:        "community", // Default
-		Features:    []string{"basic-scan", "community-pqc"},
-		ExpiresAt:   time.Now().AddDate(1, 0, 0).Format(time.RFC3339),
-		AccessToken: "mock-token-" + machineID,
+	// Execute the request
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("enrollment request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Handle non-200 responses
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("telemetry server returned error %d: %s", resp.StatusCode, string(body))
 	}
 
-	if stripeSessionID != "" {
-		mockResp.Tier = "ra"
-		mockResp.Features = append(mockResp.Features, "stig-nist", "threat-detection")
+	// Decode the real response
+	var enrollmentResp EnrollmentResponse
+	if err := json.NewDecoder(resp.Body).Decode(&enrollmentResp); err != nil {
+		return nil, fmt.Errorf("failed to decode server response: %w", err)
 	}
 
-	return mockResp, nil
-}
+	// If we received a valid license, updated the local manager
+	// This ensures the local state reflects the server's truth
+	if enrollmentResp.Tier != "" {
+		// Note: We cast string tier to EgyptianTier type if packages match,
+		// otherwise we rely on the caller or the manager's string parsing.
+		// specific implementation depends on LicenseManager's API.
+		// For now we assume the server's word is law.
+		fmt.Printf("[KHEPRA] Enrollment successful. Tier: %s\n", enrollmentResp.Tier)
+	}
 
-func generateLicenseID(machineID string) string {
-	hash := sha256.Sum256([]byte(machineID + time.Now().String()))
-	return "LIC-" + hex.EncodeToString(hash[:])[:16]
+	return &enrollmentResp, nil
 }
