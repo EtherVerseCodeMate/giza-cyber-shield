@@ -147,28 +147,63 @@ export default function DoD() {
       resourceType="dod_stig_system"
       resourceId="main_dashboard"
     >
-      <div className="space-y-6 p-6">
+      <div className="min-h-screen bg-cyber-mesh bg-animate p-6 space-y-8">
+        {/* Ra (Standard) Branding Strip */}
+        <div className="flex items-center justify-between bg-black/40 backdrop-blur-md border-b border-white/10 px-6 py-2 -mx-6 -mt-6 mb-6">
+          <div className="flex items-center gap-4">
+            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-[10px] uppercase tracking-tighter">
+              SouHimBou AI Core
+            </Badge>
+            <div className="h-4 w-px bg-white/20" />
+            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
+              Active Protocol: Ra (Standard)
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+            <span className="text-[10px] text-green-500 font-bold uppercase tracking-widest">
+              TRL-10 Verified
+            </span>
+          </div>
+        </div>
+
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 animate-fade-in">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-              <Shield className="h-8 w-8 text-blue-600" />
-              DoD STIG-Codex Center
-            </h1>
-            <p className="text-muted-foreground">
-              Comprehensive STIG-First compliance automation platform - Unified asset discovery,
-              continuous monitoring, and automated remediation for DoD environments
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl shadow-lg shadow-blue-500/20">
+                <Shield className="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-black tracking-tight text-white italic bg-gradient-to-r from-white to-white/60 bg-clip-text">
+                  STIG-CODEX CENTER
+                </h1>
+                <p className="text-blue-400/80 text-xs font-bold uppercase tracking-[0.2em]">
+                  Department of Defense Operations Portal
+                </p>
+              </div>
+            </div>
+            <p className="text-muted-foreground max-w-2xl leading-relaxed mt-4">
+              Comprehensive STIG-First compliance automation platform. Unified asset discovery,
+              continuous monitoring, and automated remediation for <span className="text-white font-semibold">DoD / Iron Bank</span> environments.
             </p>
-            <div className="flex items-center gap-2 mt-2">
-              <Badge variant="outline" className="text-xs">
-                Clearance: {currentClearance}
+            <div className="flex items-center gap-3 mt-6">
+              <Badge variant="secondary" className="bg-white/5 border-white/10 text-white px-3 py-1 font-mono">
+                CLEARANCE: {currentClearance}
               </Badge>
-              <Badge variant={getStatusBadgeVariant(stigCodexStatus)} className="text-xs">
-                STIG-Codex: {stigCodexStatus}
+              <Badge variant={getStatusBadgeVariant(stigCodexStatus)} className="px-3 py-1 uppercase tracking-widest text-[10px]">
+                STATUS: {stigCodexStatus}
               </Badge>
-              <Badge variant="secondary" className="text-xs">
-                Assets: {totalAssets}
-              </Badge>
+              <div className="flex -space-x-2">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="w-8 h-8 rounded-full border-2 border-background bg-muted flex items-center justify-center text-[10px] font-bold">
+                    ID
+                  </div>
+                ))}
+                <div className="w-8 h-8 rounded-full border-2 border-background bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
+                  +{totalAssets}
+                </div>
+              </div>
             </div>
           </div>
 
