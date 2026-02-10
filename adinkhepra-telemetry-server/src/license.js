@@ -36,7 +36,26 @@ export async function handleLicenseValidate(request, env, corsHeaders) {
 
 		// TODO: Verify Dilithium3 signature on machine_id
 		// For now, we'll check if signature is present (implement crypto later)
-		const signatureValid = signature && signature.length > 100;
+		// Verify Dilithium3 Signature (Real Implementation)
+		let signatureValid = false;
+
+		if (signature && env.TELEMETRY_PUBLIC_KEY) {
+			try {
+				const { ml_dsa65 } = await import("@noble/post-quantum/ml-dsa");
+				if (env.TELEMETRY_PUBLIC_KEY.length === 2624) {
+					const pubKeyBytes = new Uint8Array(env.TELEMETRY_PUBLIC_KEY.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+					const sigBytes = new Uint8Array(signature.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+					const msgBytes = new TextEncoder().encode(machine_id);
+					if (ml_dsa65.verify(sigBytes, msgBytes, pubKeyBytes)) {
+						signatureValid = true;
+					} else {
+						console.warn(`[Security] Invalid ML-DSA-65 signature for: ${machine_id}`);
+					}
+				}
+			} catch (e) { console.error(e); }
+		}
+
+		// Fallback for dev/test if needed, but in prod we enforce it
 
 		if (!signatureValid) {
 			return new Response(JSON.stringify({
@@ -122,8 +141,8 @@ export async function handleLicenseValidate(request, env, corsHeaders) {
 			WHERE machine_id = ?
 		`).bind(now, machine_id).run();
 
-		// Get client IP and country
-		const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
+
+		// Get client country
 		const country = request.cf?.country || 'UNKNOWN';
 
 		// Success response
@@ -193,10 +212,10 @@ export async function handleLicenseValidate(request, env, corsHeaders) {
 export async function handleLicenseHeartbeat(request, env, corsHeaders) {
 	try {
 		const body = await request.text();
-		
+
 		// Import HMAC verification
 		const { verifyLicenseHMAC } = await import('./hmac-auth.js');
-		
+
 		// Verify HMAC signature
 		const authResult = await verifyLicenseHMAC(request, body, env);
 		if (!authResult.valid) {
@@ -210,7 +229,7 @@ export async function handleLicenseHeartbeat(request, env, corsHeaders) {
 				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
 			});
 		}
-		
+
 		const { machine_id, signature, status_data } = JSON.parse(body);
 
 		if (!machine_id) {
@@ -378,10 +397,10 @@ export async function handleLicenseRevoke(request, env, corsHeaders, machineId, 
 export async function handleLicenseRegister(request, env, corsHeaders) {
 	try {
 		const body = await request.text();
-		
+
 		// Import HMAC verification
 		const { verifyLicenseHMAC, generateAPIKey } = await import('./hmac-auth.js');
-		
+
 		// Verify HMAC signature (will use enrollment token for auth)
 		const authResult = await verifyLicenseHMAC(request, body, env);
 		if (!authResult.valid) {
@@ -395,7 +414,7 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
 			});
 		}
-		
+
 		const {
 			machine_id,
 			enrollment_token,

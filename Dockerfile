@@ -32,14 +32,10 @@ RUN apt-get update && apt-get install -y \
 # Copy Python requirements
 COPY services/ml_anomaly/requirements.txt /app/requirements.txt
 
-# Install CPU-only PyTorch (optimized for size)
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
-
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Install additional dependencies
+# Install Python dependencies (including Torch CPU and extras)
 RUN pip install --no-cache-dir \
+    torch --index-url https://download.pytorch.org/whl/cpu \
+    -r requirements.txt \
     reportlab \
     websockets \
     pydantic-settings
@@ -50,17 +46,15 @@ RUN mkdir -p /app/data/cyber_brain /app/models /app/top_secret_intel
 # Copy Khepra binary from builder
 COPY --from=builder /usr/local/bin/khepra /usr/local/bin/khepra
 
-# Create non-root user for security (Iron Bank requirement)
-RUN useradd -m -u 1000 khepra
-RUN chown -R khepra:khepra /app
+# Create non-root user and directories
+RUN useradd -m -u 1000 khepra && \
+    mkdir -p models && touch models/.keep && \
+    mkdir -p top_secret_intel && touch top_secret_intel/.keep && \
+    chown -R khepra:khepra /app
 
 # Copy application code
 COPY services/ml_anomaly /app/services/ml_anomaly
-# Create dummy model directory if not exists to prevent copy errors
-RUN mkdir -p models && touch models/.keep
 COPY models /app/models
-# Create dummy intel directory
-RUN mkdir -p top_secret_intel && touch top_secret_intel/.keep
 COPY top_secret_intel /app/top_secret_intel
 
 # Switch to non-root user
