@@ -16,7 +16,8 @@ func main() {
 
 	// Test 1: Generate Hybrid Keys
 	fmt.Println("[Test 1/5] Generating Hybrid KeyPair...")
-	keys, err := adinkra.GenerateHybridKeyPair("test-identity", 12)
+	// Use 'Nkyinkyim' (Twisting) for general test identities (FIG. 10).
+	keys, err := adinkra.GenerateHybridKeyPair("test-identity", "Nkyinkyim", 12)
 	if err != nil {
 		log.Fatalf("Failed to generate keys: %v", err)
 	}

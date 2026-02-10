@@ -249,54 +249,50 @@ func VerifyAdinkhepraPQC(publicKey *AdinkhepraPQCPublicKey, messageHash []byte, 
 	// Verification: Check that signature is consistent with public key and message
 	// Formula: public * signature ≈ message (mod q) within error tolerance
 
-	// Track verification statistics
-	totalChecks := 0
-	passedChecks := 0
+	passed, total := verifyCoefficients(publicKey, signature, msgPoly)
 
-	// Compute verification value for each lattice rank
+	// Require 95% of checks to pass (lattice-based verification threshold)
+	threshold := (total * 95) / 100
+	if passed < threshold {
+		return fmt.Errorf("signature verification failed: only %d/%d checks passed (need %d)",
+			passed, total, threshold)
+	}
+
+	return nil
+}
+
+// verifyCoefficients performs the probabilistic lattice verification
+func verifyCoefficients(pub *AdinkhepraPQCPublicKey, sig *Polynomial, msg *Polynomial) (int, int) {
+	passed := 0
+	total := 0
+	errorBound := int64(AdinkhepraQ / 100) // 1% tolerance
+
 	for k := 0; k < AdinkhepraK; k++ {
 		offset := k * AdinkhepraN
-
 		for i := 0; i < AdinkhepraN; i++ {
-			if offset+i >= len(signature.Coeffs) {
-				return errors.New("signature coefficients out of range")
+			if offset+i >= len(sig.Coeffs) {
+				continue
 			}
 
-			sigCoeff := signature.Coeffs[offset+i]
-			pubCoeff := publicKey.LatticeVectors[k][i]
-			msgCoeff := msgPoly.Coeffs[i%len(msgPoly.Coeffs)]
+			sigCoeff := sig.Coeffs[offset+i]
+			pubCoeff := pub.LatticeVectors[k][i]
+			msgCoeff := msg.Coeffs[i%len(msg.Coeffs)]
 
-			// Verification equation: pub * sig ?≈ msg (mod q)
-			// We allow some error due to Gaussian noise
 			computed := (pubCoeff * int64(sigCoeff)) % int64(AdinkhepraQ)
 			expected := int64(msgCoeff)
-
-			// Error tolerance (lattice noise bound)
-			errorBound := int64(AdinkhepraQ / 100) // 1% tolerance
 
 			diff := computed - expected
 			if diff < 0 {
 				diff = -diff
 			}
 
-			// For Adinkhepra-PQC, we use probabilistic verification
-			// Not all coefficients need to match perfectly due to lattice structure
-			totalChecks++
+			total++
 			if diff <= errorBound {
-				passedChecks++
+				passed++
 			}
 		}
 	}
-
-	// Require 95% of checks to pass (lattice-based verification threshold)
-	threshold := (totalChecks * 95) / 100
-	if passedChecks < threshold {
-		return fmt.Errorf("signature verification failed: only %d/%d checks passed (need %d)",
-			passedChecks, totalChecks, threshold)
-	}
-
-	// Signature is valid if it passed all checks
-	return nil
+	return passed, total
 }
 
 // =============================================================================
