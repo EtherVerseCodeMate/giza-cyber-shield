@@ -4,12 +4,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { 
-  Users, 
-  Target, 
-  TrendingUp, 
-  Building, 
-  DollarSign, 
+import {
+  Users,
+  Target,
+  TrendingUp,
+  Building,
+  DollarSign,
   Calendar,
   CheckCircle,
   AlertCircle,
@@ -26,7 +26,7 @@ const BusinessDevelopment = () => {
     {
       name: 'Phase 1',
       title: 'Foundation & Validation',
-      timeline: 'Q1-Q2 2024',
+      timeline: 'Q1-Q2 2026',
       progress: 75,
       status: 'active',
       goals: [
@@ -40,7 +40,7 @@ const BusinessDevelopment = () => {
     {
       name: 'Phase 2',
       title: 'Market Entry',
-      timeline: 'Q2-Q3 2024',
+      timeline: 'Q2-Q3 2026',
       progress: 25,
       status: 'upcoming',
       goals: [
@@ -54,7 +54,7 @@ const BusinessDevelopment = () => {
     {
       name: 'Phase 3',
       title: 'Scale & Expansion',
-      timeline: 'Q3-Q4 2024',
+      timeline: 'Q3-Q4 2026',
       progress: 0,
       status: 'planned',
       goals: [
@@ -68,7 +68,7 @@ const BusinessDevelopment = () => {
     {
       name: 'Phase 4',
       title: 'Growth & Optimization',
-      timeline: '2025',
+      timeline: '2027',
       progress: 0,
       status: 'planned',
       goals: [
@@ -142,7 +142,7 @@ const BusinessDevelopment = () => {
               <p className="text-xs text-muted-foreground">Total Addressable Market</p>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Current ARR</CardTitle>
@@ -153,7 +153,7 @@ const BusinessDevelopment = () => {
               <p className="text-xs text-muted-foreground">Annual Recurring Revenue</p>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">LTV/CAC Ratio</CardTitle>
@@ -164,7 +164,7 @@ const BusinessDevelopment = () => {
               <p className="text-xs text-muted-foreground">Lifetime Value / Customer Acquisition Cost</p>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Customer Segments</CardTitle>
@@ -191,15 +191,14 @@ const BusinessDevelopment = () => {
           <TabsContent value="phases" className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {phases.map((phase) => (
-                <Card key={phase.name} className={`cursor-pointer transition-all hover:shadow-md ${
-                  phase.status === 'active' ? 'ring-2 ring-primary' : ''
-                }`}>
+                <Card key={phase.name} className={`cursor-pointer transition-all hover:shadow-md ${phase.status === 'active' ? 'ring-2 ring-primary' : ''
+                  }`}>
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">{phase.title}</CardTitle>
                       <Badge variant={
-                        phase.status === 'active' ? 'default' : 
-                        phase.status === 'upcoming' ? 'secondary' : 'outline'
+                        phase.status === 'active' ? 'default' :
+                          phase.status === 'upcoming' ? 'secondary' : 'outline'
                       }>
                         {phase.timeline}
                       </Badge>
@@ -213,7 +212,7 @@ const BusinessDevelopment = () => {
                         <span>{phase.progress}%</span>
                       </div>
                       <Progress value={phase.progress} className="w-full" />
-                      
+
                       <div className="space-y-2">
                         <h4 className="font-medium text-sm">Key Goals:</h4>
                         {phase.goals.map((goal, index) => (
@@ -257,7 +256,7 @@ const BusinessDevelopment = () => {
                         <span>{segment.engagement}%</span>
                       </div>
                       <Progress value={segment.engagement} className="w-full" />
-                      
+
                       <div className="space-y-2">
                         <h4 className="font-medium text-sm">Key Pain Points:</h4>
                         <div className="flex flex-wrap gap-1">
@@ -268,7 +267,7 @@ const BusinessDevelopment = () => {
                           ))}
                         </div>
                       </div>
-                      
+
                       <Button variant="outline" size="sm" className="w-full">
                         <Target className="h-4 w-4 mr-2" />
                         View Discovery Insights
