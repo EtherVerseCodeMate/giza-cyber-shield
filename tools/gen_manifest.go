@@ -1,26 +1,25 @@
 package main
 
 import (
-	"bufio"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 )
 
-// HardeningManifest Template (DoD Iron Bank)
+// Iron Bank Hardening Manifest Template
 const manifestTemplate = `apiVersion: v1
 name: adinkhepra
 tags:
 - %s
+- latest
 args:
-- BASE_IMAGE=registry1.dso.mil/ironbank/google/golang/1.23
-- BASE_TAG=1.23
+  BASE_IMAGE: "registry1.dso.mil/ironbank/google/golang/1.23"
+  BASE_TAG: "1.23"
 labels:
   org.opencontainers.image.title: "AdinKhepra - PQC Cybersecurity Agent"
   org.opencontainers.image.description: "Quantum-safe audit and compliance agent for critical infrastructure."
-  org.opencontainers.image.licenses: "Proprietary"
-  org.opencontainers.image.url: "https://souhimbou.ai"
   org.opencontainers.image.vendor: "EtherVerse CodeMate"
   org.opencontainers.image.version: "%s"
   mil.dso.ironbank.image.keywords: "security,audit,compliance,pqc,zero-trust"
@@ -28,7 +27,7 @@ labels:
   mil.dso.ironbank.product.name: "AdinKhepra"
 resources:
 - filename: adinkhepra-fips
-  url: "s3://adinkhepra-releases/v%s/adinkhepra-fips"
+  url: "https://github.com/EtherVerseCodeMate/giza-cyber-shield/releases/download/%s/adinkhepra-fips"
   validation:
     type: sha256
     value: %s
@@ -40,7 +39,7 @@ maintainers:
 
 func main() {
 	if len(os.Args) < 3 {
-		fmt.Println("Usage: gen_manifest <version> <binary_path>")
+		fmt.Println("Usage: go run tools/gen_manifest.go <version> <binary_path>")
 		os.Exit(1)
 	}
 
@@ -50,16 +49,13 @@ func main() {
 	// Calculate SHA256 of the binary (simulating the FIPS binary)
 	hash, err := calculateSHA256(binaryPath)
 	if err != nil {
-		// If binary doesn't exist yet, use a placeholder for dev
-		fmt.Printf("[WARN] Binary not found at %s. Using placeholder hash.\n", binaryPath)
+		// If binary doesn't exist yet (e.g. initial run), use a placeholder
+		fmt.Printf("[WARN] Binary not found at %s. Using placeholder hash for template generation.\n", binaryPath)
 		hash = "0000000000000000000000000000000000000000000000000000000000000000"
 	}
 
 	// Generate Manifest Content
-	// Tags: version, latest
-	tags := fmt.Sprintf("%s\n- latest", version)
-
-	manifestContent := fmt.Sprintf(manifestTemplate, tags, version, version, hash)
+	manifestContent := fmt.Sprintf(manifestTemplate, version, version, version, hash)
 
 	// Write to hardening_manifest.yaml
 	err = os.WriteFile("hardening_manifest.yaml", []byte(manifestContent), 0644)
@@ -80,9 +76,7 @@ func calculateSHA256(path string) (string, error) {
 	defer file.Close()
 
 	hash := sha256.New()
-	reader := bufio.NewReader(file)
-	_, err = reader.WriteTo(hash)
-	if err != nil {
+	if _, err := io.Copy(hash, file); err != nil {
 		return "", err
 	}
 
