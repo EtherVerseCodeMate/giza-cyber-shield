@@ -9321,6 +9321,27 @@ export type Database = {
         }
         Relationships: []
       }
+      sunsum_vitality: { Row: Database["public"]["Tables"]["pqc_readiness_metrics"]["Row"]; Relationships: [] }
+      sacred_vessels: { Row: Database["public"]["Tables"]["discovered_assets"]["Row"]; Relationships: [] }
+      ritual_executions: { Row: Database["public"]["Tables"]["discovery_executions"]["Row"]; Relationships: [] }
+      sunsum_events: { Row: Database["public"]["Tables"]["security_events"]["Row"]; Relationships: [] }
+      sacred_ordinances: { Row: Database["public"]["Tables"]["compliance_frameworks"]["Row"]; Relationships: [] }
+      ritual_assertions: { Row: Database["public"]["Tables"]["control_assessments"]["Row"]; Relationships: [] }
+      void_disturbances: { Row: Database["public"]["Tables"]["vulnerability_snapshots"]["Row"]; Relationships: [] }
+      lattice_evolution: { Row: Database["public"]["Tables"]["adaptive_schemas"]["Row"]; Relationships: [] }
+      vessel_links: { Row: Database["public"]["Tables"]["integrations"]["Row"]; Relationships: [] }
+      ceremony_facilitators: { Row: Database["public"]["Tables"]["admin_roles"]["Row"]; Relationships: [] }
+      quota_breath: { Row: Database["public"]["Tables"]["license_usage"]["Row"]; Relationships: [] }
+      harmonization_audit: {
+        Row: {
+          id: string;
+          user_id: string;
+          ritual_action: string;
+          harmonization_time: string;
+          cultural_context: Json;
+        };
+        Relationships: []
+      }
     }
     Functions: {
       analyze_component_vulnerabilities: {
