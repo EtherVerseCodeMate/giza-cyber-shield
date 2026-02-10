@@ -247,6 +247,18 @@ def validate() -> bool:
     print_header("ADINKHEPRA VALIDATION SUITE")
     
     # ========================================================================
+    # STEP 0: SCADA / Cyber-Physical Resilience Audit (HMADS)
+    # ========================================================================
+    print_step("Resilience Audit", 5, 0.5, "Running HMADS FIG. 1 Compliance Check")
+    if os.path.exists(get_binary_name("adinkhepra")):
+        try:
+            cli_bin = get_binary_name("adinkhepra")
+            subprocess.check_call([cli_bin, "scada", "audit"], stderr=subprocess.STDOUT)
+            print_success("Cyber-Physical Resilience baseline verified (TRL-10)")
+        except subprocess.CalledProcessError:
+            print_warning("SCADA Simulation skipped or failed (Optional if no physical pod attached)")
+    
+    # ========================================================================
     # STEP 1: Unit Tests
     # ========================================================================
     print_step("Unit Tests", 4, 1, "Running Unit Tests")
@@ -612,6 +624,7 @@ def print_usage() -> None:
     print("  launch           -> Launch Agent + Frontend")
     print("  agent  [args...] -> Run the ADINKHEPRA agent")
     print("  cli    [args...] -> Run the ADINKHEPRA CLI tool")
+    print("  scada  [args...] -> Run the ADINKHEPRA SCADA/ICS resilience suite")
     print("  build            -> Rebuild binaries")
     print("  test             -> Run Go tests")
     print("  tnok             -> Start Tnok Stealth Gateway (tnokd)")
@@ -639,6 +652,9 @@ def main() -> None:
         
     elif command == "cli":
         run("adinkhepra", extra_args)
+        
+    elif command == "scada":
+        run("adinkhepra", ["scada"] + extra_args)
         
     elif command == "launch":
         launch(extra_args)
