@@ -9,110 +9,120 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 )
 
-// scadaCmd handles the 'scada' subcommand for HMADS/ARC orchestration.
+// scadaCmd handles the 'scada' subcommand (Poetically: The Nsohia Suite).
 func scadaCmd(args []string) {
 	if len(args) < 1 {
-		fmt.Println("Usage: adinkhepra scada <subcommand>")
-		fmt.Println("\nSubcommands:")
-		fmt.Println("  init             - Initialize a new HMADS SCADA Pod (FIG. 3)")
-		fmt.Println("  audit            - Run a Cyber-Physical Resilience Audit (FIG. 1)")
-		fmt.Println("  fuzz             - Launch a Systemic Fuzzer (Trade-off Analysis)")
-		fmt.Println("  status           - View Distributed ARC Hierarchy status")
+		fmt.Println("Usage: adinkhepra scada <rite>")
+		fmt.Println("\nRites:")
+		fmt.Println("  init             - Summon the Akoko Nan Pod (Sacred Hierarchy)")
+		fmt.Println("  audit            - Harmonize the Sunsum (Vitality Audit)")
+		fmt.Println("  fuzz             - Invoke MmereDane (Trade-off Analysis)")
+		fmt.Println("  status           - Observe the Nsohia Flow (Tiered Status)")
 		return
 	}
 
 	switch args[0] {
 	case "init":
-		initScadaPod()
+		summonAkokoNan()
 	case "audit":
-		auditScadaResilience()
+		harmonizeSunsum()
 	case "fuzz":
-		runScadaFuzz()
+		invokeMmereDane()
 	case "status":
-		viewScadaStatus()
+		observeNsohiaFlow()
 	default:
-		fmt.Printf("Unknown SCADA subcommand: %s\n", args[0])
+		fmt.Printf("Unknown rite: %s\n", args[0])
 	}
 }
 
-func initScadaPod() {
-	fmt.Println("[ADINKHEPRA] Initializing HMADS SCADA Pod (Cyber-Physical Deployment)...")
-	pod := adinkra.NewHMADSPod("Khepra-Pod-Alpha")
+func summonAkokoNan() {
+	fmt.Println("[ADINKHEPRA] Summoning the Akoko Nan Pod (Sacred Survival Architecture)...")
+	pod := adinkra.NewAkokoNanPod("Khepra-Pod-Sovereign")
 
-	fmt.Printf("✅ Pod '%s' initialized with %d HMADS agents.\n", pod.Name, len(pod.Assets))
-	for _, asset := range pod.Assets {
-		fmt.Printf("   - [%s] ID: %s | Symbol: %s | Tier: %s\n", asset.Type, asset.ID, asset.Symbol, asset.Tier)
+	fmt.Printf("✨ Pod '%s' manifest with %d Sacred Vessels.\n", pod.Name, len(pod.Vessels))
+	for _, v := range pod.Vessels {
+		fmt.Printf("   - [%s] ID: %s | Symbol: %s | Hierarchy: %s\n", v.Kind, v.ID, v.Symbol, v.Hierarchy)
 	}
 
 	// Save baseline
 	data, _ := json.MarshalIndent(pod, "", "  ")
-	os.WriteFile("scada_pod_baseline.json", data, 0644)
-	fmt.Println("[SUCCESS] Baseline saved to scada_pod_baseline.json")
+	os.WriteFile("sacred_pod_baseline.json", data, 0644)
+	fmt.Println("[SUCCESS] Manifest sealed in sacred_pod_baseline.json")
 }
 
-func auditScadaResilience() {
-	fmt.Println("[ADINKHEPRA] Running FIG. 1 Resilience Audit (HMADS TRL-10)...")
+func harmonizeSunsum() {
+	fmt.Println("[ADINKHEPRA] Running the Sunsum Harmonization Audit (TRL-10)...")
 	time.Sleep(500 * time.Millisecond)
 
-	pod := adinkra.NewHMADSPod("Audit-Pod")
+	pod := adinkra.NewAkokoNanPod("Audit-Pod")
 
-	// Mocking a PQC key for attestation
-	signPub, signPriv, _ := adinkra.GenerateDilithiumKey()
+	// Generate a proprietary PQC key pair for the audit simulation
+	seed := make([]byte, 32)
+	for i := range seed {
+		seed[i] = byte(i)
+	}
+	signPub, signPriv, err := adinkra.GenerateAdinkhepraPQCKeyPair(seed, "Eban")
+	if err != nil {
+		fmt.Printf("FATAL: Key Generation Failed: %v\n", err)
+		return
+	}
 
 	fmt.Println("\n[PHASE 1] RECON: Verifying proactive state awareness...")
-	fmt.Println("   - Distributed Defense Tier: ONLINE")
-	fmt.Println("   - Intermediate Defense Tier: ONLINE")
+	fmt.Println("   - Kotoko (Distributed) Defense: PREPARED")
+	fmt.Println("   - Mpuanum (Guidance) Defense: PREPARED")
 
-	fmt.Println("\n[PHASE 2] RESIST: Stress testing Symbolic Hardening...")
-	for _, asset := range pod.Assets {
-		attest, err := pod.AttestARCState(asset.ID, signPriv, false)
+	fmt.Println("\n[PHASE 2] RESIST: Stress testing Sacred Hardening (Sunsum Resilience)...")
+	for _, v := range pod.Vessels {
+		attest, err := pod.AttestVitality(v.ID, signPriv, false)
 		if err != nil {
-			fmt.Printf("   ❌ Asset %s Fail: %v\n", asset.ID, err)
+			fmt.Printf("   ❌ Vessel %s Fails: %v\n", v.ID, err)
 			continue
 		}
-		// Verify with public key
+		// Verify with the matching proprietary public key
 		err = adinkra.VerifyAgentAction(signPub, attest)
 		if err == nil {
-			fmt.Printf("   ✅ Asset %s: PQC Signature Verified | Robustness: %.2f\n", asset.ID, asset.Resilience.Robustness)
+			fmt.Printf("   ✅ Vessel %s: Sunsum Attestation Verified | Force: %.2f\n", v.ID, v.Vitality.Eban)
+		} else {
+			fmt.Printf("   ❌ Vessel %s: Harmonic Verification FAILED: %v\n", v.ID, err)
 		}
 	}
 
-	fmt.Println("\n[PHASE 3] RESPOND: Measuring Agility (S) against simulated Jitter...")
-	agility := 0.94 // Mocked high agility
-	fmt.Printf("   - Calculated System Agility: %.2f (Goal: >0.80)\n", agility)
+	fmt.Println("\n[PHASE 3] RESPOND: Measuring Nkyinkyim (Dynamism) against simulated Jitter...")
+	dynamism := 0.94 // High agility
+	fmt.Printf("   - Calculated System Dynamism: %.2f (Threshold: >0.80)\n", dynamism)
 
 	fmt.Println("\n===============================================================")
-	fmt.Println(" CYRARR AUDIT VERDICT: RESILIENT")
+	fmt.Println(" FINAL VERDICT: HARMONIOUS & RESILIENT")
 	fmt.Println("===============================================================")
-	fmt.Println(" The SCADA Pod maintains Minimum Normalcy above the Resilience Threshold.")
-	fmt.Println(" HMADS Automated Response Control (ARC) is FULLY OPERATIONAL.")
+	fmt.Println(" The Akoko Nan Pod preserves its Sunsum above the Sacred Threshold.")
+	fmt.Println(" Nsohia Automated Response Control (ARC) is FULLY ALIGNED.")
 	fmt.Println("===============================================================")
 }
 
-func runScadaFuzz() {
-	fmt.Println("[ADINKHEPRA] Launching Systemic Fuzzer (Cyber-Physical Trade-off Analysis)...")
-	pod := adinkra.NewHMADSPod("Fuzz-Target")
+func invokeMmereDane() {
+	fmt.Println("[ADINKHEPRA] Invoking MmereDane (Cyber-Physical Trade-off Ritual)...")
+	pod := adinkra.NewAkokoNanPod("Fuzz-Target")
 
-	fmt.Println("Fuzzing PLC Register 40001 (Pressure Setpoint)...")
-	benefit, impact := pod.RunSystemicFuzz("plc-agent-01")
+	fmt.Println("Testing the flow of Oracle Register 40001 (Energy Setpoint)...")
+	merit, burden := pod.MmereDane("oracle-prime")
 
-	fmt.Printf("\nTrade-off Results (FIG. 3 Logic):\n")
-	fmt.Printf("   - Security Benefit: %.2f\n", benefit)
-	fmt.Printf("   - Stability Impact: %.2f\n", impact)
+	fmt.Printf("\nRitual Results (Trade-off Logic):\n")
+	fmt.Printf("   - Spirit Merit: %.2f (Security)\n", merit)
+	fmt.Printf("   - Vessel Burden: %.2f (Stability Impact)\n", burden)
 
-	if benefit > impact {
-		fmt.Println("\n[DECISION] Surgical Mitigation APPROVED. Executing Physical Offset.")
+	if merit > burden {
+		fmt.Println("\n[DECISION] Akofena (Surgical Response) APPROVED. Correcting local flow.")
 	} else {
-		fmt.Println("\n[DECISION] Mitigation REJECTED. Potential for System Instability detected.")
+		fmt.Println("\n[DECISION] Action REJECTED. Potential harm to the Sanctuary detected.")
 	}
 }
 
-func viewScadaStatus() {
-	fmt.Println("[ADINKHEPRA] Distributed ARC Hierarchy Status")
+func observeNsohiaFlow() {
+	fmt.Println("[ADINKHEPRA] Nsohia Flow Hierarchy Status")
 	fmt.Println("---------------------------------------------------------------")
-	fmt.Println("Tier 3 (Centralized)  : [HMI-Orchestrator] -> ACTIVE")
-	fmt.Println("Tier 2 (Intermediate) : [Switch-Agent]     -> HARDENED (Eban)")
-	fmt.Println("Tier 1 (Distributed)  : [PLC-Agent-01]     -> ARMED (Nkyinkyim)")
-	fmt.Println("Tier 1 (Distributed)  : [Relay-Agent-01]   -> ARMED (Dwennimmen)")
+	fmt.Println("Tier: NYAME (Central)  : [Scribe-Central]  -> WATCHING")
+	fmt.Println("Tier: MPUANUM (Guide) : [Messenger-Alpha] -> SHIELDED (Eban)")
+	fmt.Println("Tier: KOTOKO (Guard)   : [Oracle-Prime]    -> ARMED (Nkyinkyim)")
+	fmt.Println("Tier: KOTOKO (Guard)   : [Gate-Alpha]      -> ARMED (Dwennimmen)")
 	fmt.Println("---------------------------------------------------------------")
 }
