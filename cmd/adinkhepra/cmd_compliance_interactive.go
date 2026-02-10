@@ -207,7 +207,8 @@ func remediateControl(id string) {
 	switch id {
 	case "3.1.8": // Unsuccessful Logon Attempts
 		fmt.Println("  [ACTION] Configuring account lockout policy...")
-		if runtime.GOOS == "linux" {
+		switch runtime.GOOS {
+		case "linux":
 			// Real remediation for Linux
 			fmt.Println("  > Checking /etc/security/faillock.conf...")
 			fmt.Println("  > Setting: deny=3, unlock_time=900, fail_interval=900")
@@ -223,17 +224,18 @@ func remediateControl(id string) {
 			} else {
 				fmt.Println("  ✅ Lockout policy configured successfully")
 			}
-		} else if runtime.GOOS == "windows" {
+		case "windows":
 			fmt.Println("  > Configuring Account Lockout Policy via secpol...")
 			fmt.Println("  📋 Run: net accounts /lockoutthreshold:3 /lockoutduration:15")
 		}
 
 	case "3.1.11": // Session Termination
 		fmt.Println("  [ACTION] Configuring session timeout...")
-		if runtime.GOOS == "linux" {
+		switch runtime.GOOS {
+		case "linux":
 			fmt.Println("  > Setting TMOUT=900 in /etc/profile.d/timeout.sh")
 			fmt.Println("  📋 Manual: echo 'TMOUT=900; export TMOUT' > /etc/profile.d/timeout.sh")
-		} else if runtime.GOOS == "windows" {
+		case "windows":
 			fmt.Println("  📋 Run: powershell Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\...' -Name 'ScreenSaveTimeout' -Value 900")
 		}
 
