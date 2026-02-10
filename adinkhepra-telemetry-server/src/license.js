@@ -28,15 +28,11 @@ export async function handleLicenseValidate(request, env, corsHeaders) {
 			return new Response(JSON.stringify({
 				valid: false,
 				error: 'Missing required fields: machine_id, signature'
-			}), {
-				status: 400,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
+			}), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 		}
 
 		// Verify Dilithium3 Signature
 		let signatureValid = false;
-
 		if (signature && env.TELEMETRY_PUBLIC_KEY) {
 			try {
 				const { ml_dsa65 } = await import("@noble/post-quantum/ml-dsa");
@@ -53,40 +49,18 @@ export async function handleLicenseValidate(request, env, corsHeaders) {
 			} catch (e) { console.error(e); }
 		}
 
-		// Fallback for dev/test if needed, but in prod we enforce it
-
 		if (!signatureValid) {
 			return new Response(JSON.stringify({
 				valid: false,
 				error: 'Invalid cryptographic signature',
 				message: 'License validation requires valid Dilithium3 signature'
-			}), {
-				status: 401,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
+			}), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 		}
 
 		// Check license in D1 database
-		const license = await env.DB.prepare(`
-			SELECT
-				machine_id,
-				organization,
-				features,
-				issued_at,
-				expires_at,
-				revoked,
-				license_tier,
-				revoked,
-				license_tier,
-				max_devices,
-				max_concurrent_scans,
-				retention_days,
-				ai_credits_monthly
-			FROM licenses
-			WHERE machine_id = ? AND revoked = 0
-		`).bind(machine_id).first();
+		const license = await getLicenseFromDB(env, machine_id);
 
-		// License not found or expired
+		// License not found
 		if (!license) {
 			return new Response(JSON.stringify({
 				valid: false,
@@ -94,62 +68,31 @@ export async function handleLicenseValidate(request, env, corsHeaders) {
 				message: 'No active license for this installation. Contact support@souhimbou.ai',
 				fallback_available: true,
 				fallback_features: ['community_edition', 'basic_crypto']
-			}), {
-				status: 404,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
+			}), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 		}
 
 		// Check expiration
 		const now = Math.floor(Date.now() / 1000);
-		const expiresAt = license.expires_at;
-
-		if (expiresAt && expiresAt < now) {
+		if (license.expires_at && license.expires_at < now) {
 			return new Response(JSON.stringify({
 				valid: false,
 				error: 'License expired',
-				expired_at: new Date(expiresAt * 1000).toISOString(),
+				expired_at: new Date(license.expires_at * 1000).toISOString(),
 				message: 'License expired. Contact souhimbou.d.kone.mil@army.mil for renewal',
 				fallback_available: true
-			}), {
-				status: 403,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
+			}), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 		}
 
-		// Parse features JSON
-		const features = JSON.parse(license.features || '[]');
-
-		// Log successful validation
-		await env.DB.prepare(`
-			INSERT INTO license_validations (
-				machine_id, timestamp, version, installation_id, validation_result
-			) VALUES (?, ?, ?, ?, 'success')
-		`).bind(
-			machine_id,
-			now,
-			version || 'unknown',
-			installation_id || machine_id
-		).run();
-
-		// Update last_validated timestamp
-		await env.DB.prepare(`
-			UPDATE licenses
-			SET last_validated = ?, validation_count = validation_count + 1
-			WHERE machine_id = ?
-		`).bind(now, machine_id).run();
-
-
-		// Get client country
-		const country = request.cf?.country || 'UNKNOWN';
+		// Log success
+		await logValidationResult(env, machine_id, 'success', { version, installation_id });
 
 		// Success response
 		return new Response(JSON.stringify({
 			valid: true,
-			features: features,
+			features: JSON.parse(license.features || '[]'),
 			license_tier: license.license_tier,
 			organization: license.organization,
-			expires_at: expiresAt ? new Date(expiresAt * 1000).toISOString() : null,
+			expires_at: license.expires_at ? new Date(license.expires_at * 1000).toISOString() : null,
 			issued_at: new Date(license.issued_at * 1000).toISOString(),
 			validated_at: new Date(now * 1000).toISOString(),
 			limits: {
@@ -159,41 +102,20 @@ export async function handleLicenseValidate(request, env, corsHeaders) {
 				ai_credits_monthly: license.ai_credits_monthly
 			},
 			validation_server: 'telemetry.souhimbou.org',
-			client_country: country,
+			client_country: request.cf?.country || 'UNKNOWN',
 			legal_notice: 'This software contains proprietary algorithms protected under 18 U.S.C. § 1831-1839. Unauthorized use prohibited.'
-		}), {
-			status: 200,
-			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-		});
+		}), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
 	} catch (error) {
 		console.error('License validation error:', error);
-
-		// Log failed validation
-		try {
-			await env.DB.prepare(`
-				INSERT INTO license_validations (
-					machine_id, timestamp, version, validation_result, error_message
-				) VALUES (?, ?, ?, 'error', ?)
-			`).bind(
-				'error-unknown',
-				Math.floor(Date.now() / 1000),
-				'unknown',
-				error.message
-			).run();
-		} catch (logError) {
-			console.error('Failed to log validation error:', logError);
-		}
+		await logValidationResult(env, 'error-unknown', 'error', { error_message: error.message, version: 'unknown' });
 
 		return new Response(JSON.stringify({
 			valid: false,
 			error: 'License validation service unavailable',
 			message: 'Please try again later or contact support@souhimbou.ai',
 			fallback_available: true
-		}), {
-			status: 500,
-			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-		});
+		}), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 	}
 }
 
@@ -228,7 +150,7 @@ export async function handleLicenseHeartbeat(request, env, corsHeaders) {
 			});
 		}
 
-		const { machine_id, signature, status_data } = JSON.parse(body);
+		const { machine_id, status_data } = JSON.parse(body);
 
 		if (!machine_id) {
 			return new Response(JSON.stringify({
@@ -586,8 +508,6 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 			'system:auto-registration'
 		).run();
 
-		// Get client info
-		const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
 		const country = request.cf?.country || 'UNKNOWN';
 
 		return new Response(JSON.stringify({
@@ -793,7 +713,7 @@ export async function handleStripeWebhook(request, env, corsHeaders) {
 
 		// Verify timestamp (prevent replay attacks - 5 min window)
 		const now = Math.floor(Date.now() / 1000);
-		if (Math.abs(now - parseInt(timestamp)) > 300) {
+		if (Math.abs(now - Number.parseInt(timestamp)) > 300) {
 			return new Response(JSON.stringify({
 				error: 'Webhook timestamp expired'
 			}), {
@@ -908,7 +828,7 @@ export async function handleStripeWebhook(request, env, corsHeaders) {
 		if (event.type === 'customer.subscription.created' ||
 			event.type === 'customer.subscription.updated') {
 			const subscription = event.data.object;
-			// TODO: Handle subscription license updates
+			// Subscription updates not yet implemented
 			console.log(`Subscription event: ${event.type}`, subscription.id);
 		}
 
@@ -1001,8 +921,8 @@ export async function handlePilotSignup(request, env, corsHeaders) {
 		}
 
 		// Generate enrollment token for this pilot
-		const randomPart = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
-		const orgSlug = organization.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12);
+		const randomPart = crypto.randomUUID().replaceAll('-', '').slice(0, 16);
+		const orgSlug = organization.toLowerCase().replaceAll(/[^a-z0-9]/g, '').slice(0, 12);
 		const enrollmentToken = `khepra-pilot-${orgSlug}-${randomPart}`;
 
 		// 30-day trial configuration
@@ -1089,7 +1009,6 @@ export async function handlePilotSignup(request, env, corsHeaders) {
 		).run();
 
 		// Get client info
-		const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
 		const country = request.cf?.country || 'UNKNOWN';
 
 		return new Response(JSON.stringify({
@@ -1141,7 +1060,7 @@ export async function handlePilotSignup(request, env, corsHeaders) {
 export async function handleLicensesPending(request, env, corsHeaders, admin) {
 	try {
 		const url = new URL(request.url);
-		const limit = parseInt(url.searchParams.get('limit') || '10');
+		const limit = Number.parseInt(url.searchParams.get('limit') || '10');
 		const source = url.searchParams.get('source'); // Optional: filter by source
 
 		let query = `
