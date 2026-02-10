@@ -561,13 +561,39 @@ async def predict(request: PredictRequest):
             
         score = result["anomaly_score"].item()
         
-        # Explainability Mockup (Real implementation would use attention weights)
-        # We project the Soul Bias onto the result
+        # Explainability: "Why did I flag this?"
+        # 1. Heuristic Rule-Based Explanation (The Logic)
         influence = {}
+        explanation_triggers = []
+        
+        if request.metadata:
+            # Check for specific risk indicators in metadata
+            cipher = request.metadata.get("cipher_suite", "unknown")
+            protocol = request.metadata.get("protocol", "unknown")
+            
+            if "RSA" in cipher or "CBC" in cipher:
+                explanation_triggers.append("Legacy Crypto (RSA/CBC)")
+                influence["Legacy Crypto"] = 0.45
+            
+            if protocol in ["TLS 1.0", "TLS 1.1", "SSLv3"]:
+                explanation_triggers.append("Deprecated Protocol")
+                influence["Obsolete Protocol"] = 0.60
+                
+            if request.metadata.get("open_ports", 0) > 10:
+                explanation_triggers.append("Excessive Attack Surface")
+                influence["Attack Surface"] = 0.30
+
+        # 2. Soul/Intuition Explanation (The Vibe)
         if model_state["soul_embedding"]:
             dom_trait = max(model_state["soul_embedding"], key=model_state["soul_embedding"].get)
-            influence[dom_trait] = score * 0.8 # The dominant trait "explains" 80% of the decision
-            
+            # Intuition has a base influence depending on the "mood" of the soul
+            influence[f"Soul Bias ({dom_trait})"] = score * 0.2
+
+        # 3. Fallback Explanation
+        if not explanation_triggers and score > settings.anomaly_threshold:
+            explanation_triggers.append("Statistical Anomaly")
+            influence["Unknown Pattern"] = score
+
         return PredictResponse(
             anomaly_score=score,
             is_anomaly=score > settings.anomaly_threshold,
