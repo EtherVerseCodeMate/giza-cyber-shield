@@ -75,26 +75,30 @@ func (m *Merkaba) Seal(data []byte) (string, error) {
 	earthEnc := m.adinkraTraverse(earth, path, false)
 
 	// 3. Encode to Runes
+	return m.encodeInterleavedRunes(sunEnc, earthEnc), nil
+}
+
+// encodeInterleavedRunes interleaves two byte streams into a string of Sacred Runes
+func (m *Merkaba) encodeInterleavedRunes(sun, earth []byte) string {
 	var result []rune
-	maxLen := len(sunEnc)
-	if len(earthEnc) > maxLen {
-		maxLen = len(earthEnc)
+	maxLen := len(sun)
+	if len(earth) > maxLen {
+		maxLen = len(earth)
 	}
 
 	for i := 0; i < maxLen; i++ {
-		if i < len(sunEnc) {
-			b := sunEnc[i]
+		if i < len(sun) {
+			b := sun[i]
 			result = append(result, SacredRunes[b>>4])
 			result = append(result, SacredRunes[b&0x0F])
 		}
-		if i < len(earthEnc) {
-			b := earthEnc[i]
+		if i < len(earth) {
+			b := earth[i]
 			result = append(result, SacredRunes[b>>4])
 			result = append(result, SacredRunes[b&0x0F])
 		}
 	}
-
-	return string(result), nil
+	return string(result)
 }
 
 func (m *Merkaba) Unseal(sacred string) ([]byte, error) {
@@ -102,26 +106,9 @@ func (m *Merkaba) Unseal(sacred string) ([]byte, error) {
 	path := m.walkTreeOfLife()
 
 	// 1. Decode Runes
-	var sunEnc, earthEnc []byte
-	for i := 0; i < len(runes); i += 4 {
-		// Sun block
-		if i+1 < len(runes) {
-			h, ok1 := SacredReverseMap[runes[i]]
-			l, ok2 := SacredReverseMap[runes[i+1]]
-			if !ok1 || !ok2 {
-				return nil, errors.New("profane symbols in sun block")
-			}
-			sunEnc = append(sunEnc, byte((h<<4)|l))
-		}
-		// Earth block
-		if i+3 < len(runes) {
-			h, ok1 := SacredReverseMap[runes[i+2]]
-			l, ok2 := SacredReverseMap[runes[i+3]]
-			if !ok1 || !ok2 {
-				return nil, errors.New("profane symbols in earth block")
-			}
-			earthEnc = append(earthEnc, byte((h<<4)|l))
-		}
+	sunEnc, earthEnc, err := m.decodeRunes(runes)
+	if err != nil {
+		return nil, err
 	}
 
 	// 2. Reverse Traverse
@@ -129,17 +116,47 @@ func (m *Merkaba) Unseal(sacred string) ([]byte, error) {
 	earthDec := m.adinkraReverse(earthEnc, path, false)
 
 	// 3. Reconstruct
-	res := make([]byte, 0, len(sunDec)+len(earthDec))
-	for i := 0; i < len(sunDec) || i < len(earthDec); i++ {
-		if i < len(sunDec) {
-			res = append(res, sunDec[i])
+	return m.reconstructInterleavedData(sunDec, earthDec), nil
+}
+
+// decodeRunes converts a slice of runes back into two encrypted byte streams
+func (m *Merkaba) decodeRunes(runes []rune) ([]byte, []byte, error) {
+	var sun, earth []byte
+	for i := 0; i < len(runes); i += 4 {
+		// Sun block
+		if i+1 < len(runes) {
+			h, ok1 := SacredReverseMap[runes[i]]
+			l, ok2 := SacredReverseMap[runes[i+1]]
+			if !ok1 || !ok2 {
+				return nil, nil, errors.New("profane symbols in sun block")
+			}
+			sun = append(sun, byte((h<<4)|l))
 		}
-		if i < len(earthDec) {
-			res = append(res, earthDec[i])
+		// Earth block
+		if i+3 < len(runes) {
+			h, ok1 := SacredReverseMap[runes[i+2]]
+			l, ok2 := SacredReverseMap[runes[i+3]]
+			if !ok1 || !ok2 {
+				return nil, nil, errors.New("profane symbols in earth block")
+			}
+			earth = append(earth, byte((h<<4)|l))
 		}
 	}
+	return sun, earth, nil
+}
 
-	return res, nil
+// reconstructInterleavedData reconstructs the original data from two decrypted streams
+func (m *Merkaba) reconstructInterleavedData(sun, earth []byte) []byte {
+	res := make([]byte, 0, len(sun)+len(earth))
+	for i := 0; i < len(sun) || i < len(earth); i++ {
+		if i < len(sun) {
+			res = append(res, sun[i])
+		}
+		if i < len(earth) {
+			res = append(res, earth[i])
+		}
+	}
+	return res
 }
 
 func (m *Merkaba) walkTreeOfLife() []Sephirot {
@@ -170,20 +187,23 @@ func (m *Merkaba) adinkraTraverse(input []byte, path []Sephirot, spin bool) []by
 		if i%10 == 0 && i > 0 {
 			r = NewChaosEngine(path[(i/10)%10].Entropy)
 		}
-
-		val := uint64(b)
-		for dim := 0; dim < 4; dim++ {
-			op := r.Intn(4)
-			_ = r.Int63() // consume trap RNG
-			if spin {
-				val = m.applyOperator(val, op)
-			} else {
-				val = m.inverseOperator(val, op)
-			}
-		}
-		output[i] = byte(val)
+		output[i] = m.traverseByte(b, r, spin)
 	}
 	return output
+}
+
+func (m *Merkaba) traverseByte(b byte, r *ChaosEngine, spin bool) byte {
+	val := uint64(b)
+	for dim := 0; dim < 4; dim++ {
+		op := r.Intn(4)
+		_ = r.Int63() // consume trap RNG
+		if spin {
+			val = m.applyOperator(val, op)
+		} else {
+			val = m.inverseOperator(val, op)
+		}
+	}
+	return byte(val)
 }
 
 func (m *Merkaba) adinkraReverse(input []byte, path []Sephirot, spin bool) []byte {
@@ -197,27 +217,27 @@ func (m *Merkaba) adinkraReverse(input []byte, path []Sephirot, spin bool) []byt
 		if i%10 == 0 && i > 0 {
 			r = NewChaosEngine(path[(i/10)%10].Entropy)
 		}
-
-		val := uint64(b)
-		type step struct {
-			op int
-		}
-		var steps [4]step
-		for d := 0; d < 4; d++ {
-			steps[d].op = r.Intn(4)
-			_ = r.Int63() // consume trap
-		}
-
-		for d := 3; d >= 0; d-- {
-			if spin {
-				val = m.inverseOperator(val, steps[d].op)
-			} else {
-				val = m.applyOperator(val, steps[d].op)
-			}
-		}
-		output[i] = byte(val)
+		output[i] = m.reverseByte(b, r, spin)
 	}
 	return output
+}
+
+func (m *Merkaba) reverseByte(b byte, r *ChaosEngine, spin bool) byte {
+	val := uint64(b)
+	var ops [4]int
+	for d := 0; d < 4; d++ {
+		ops[d] = r.Intn(4)
+		_ = r.Int63() // consume trap
+	}
+
+	for d := 3; d >= 0; d-- {
+		if spin {
+			val = m.inverseOperator(val, ops[d])
+		} else {
+			val = m.applyOperator(val, ops[d])
+		}
+	}
+	return byte(val)
 }
 
 func (m *Merkaba) applyOperator(val uint64, color int) uint64 {
