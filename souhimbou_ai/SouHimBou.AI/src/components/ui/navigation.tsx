@@ -1,18 +1,20 @@
 import { useState, Fragment } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { 
-  ArrowLeft, 
-  Home, 
-  Shield, 
-  Settings, 
-  FileText, 
+import {
+  ArrowLeft,
+  Home,
+  Shield,
+  Settings,
+  FileText,
   Bot,
   Crown,
   Zap,
   BarChart3,
   Users,
-  Plug
+  Plug,
+  Briefcase,
+  Phone
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -29,10 +31,12 @@ const navigationItems: NavigationItem[] = [
   { id: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: Home, requiresAuth: true },
   { id: 'security', label: 'Security', path: '/security', icon: Shield, requiresAuth: true },
   { id: 'integrations', label: 'Integrations', path: '/integrations', icon: Plug, requiresAuth: true },
+  { id: 'business-dev', label: 'Business Development', path: '/business-development', icon: Briefcase, requiresAuth: true },
   { id: 'automation', label: 'Automation', path: '/automation', icon: Bot, requiresAuth: true },
   { id: 'khepra', label: 'KHEPRA Protocol', path: '/khepra', icon: Zap, requiresAuth: true },
   { id: 'billing', label: 'Billing', path: '/billing', icon: BarChart3, requiresAuth: true },
   { id: 'admin', label: 'Admin', path: '/admin', icon: Crown, requiresAuth: true, requiresAdmin: true },
+  { id: 'contact-sales', label: 'Contact Sales', path: '/contact-sales', icon: Phone, requiresAuth: false },
   { id: 'legal', label: 'Legal', path: '/legal', icon: FileText, requiresAuth: true },
 ];
 
@@ -42,13 +46,13 @@ interface BackButtonProps {
   customLabel?: string;
 }
 
-export const BackButton: React.FC<BackButtonProps> = ({ 
-  className, 
-  customPath, 
-  customLabel = "Back" 
+export const BackButton: React.FC<BackButtonProps> = ({
+  className,
+  customPath,
+  customLabel = "Back"
 }) => {
   const navigate = useNavigate();
-  
+
   const handleBack = () => {
     if (customPath) {
       navigate(customPath);
@@ -76,7 +80,7 @@ interface SideNavigationProps {
   isAdmin?: boolean;
 }
 
-export const SideNavigation: React.FC<SideNavigationProps> = ({ 
+export const SideNavigation: React.FC<SideNavigationProps> = ({
   className,
   userRole,
   isAdmin = false
@@ -90,8 +94,8 @@ export const SideNavigation: React.FC<SideNavigationProps> = ({
   });
 
   const isActive = (path: string) => {
-    return location.pathname === path || 
-           (path !== '/dashboard' && location.pathname.startsWith(path));
+    return location.pathname === path ||
+      (path !== '/dashboard' && location.pathname.startsWith(path));
   };
 
   return (
@@ -99,7 +103,7 @@ export const SideNavigation: React.FC<SideNavigationProps> = ({
       {filteredItems.map((item) => {
         const Icon = item.icon;
         const active = isActive(item.path);
-        
+
         return (
           <Button
             key={item.id}
