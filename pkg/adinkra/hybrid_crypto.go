@@ -25,11 +25,11 @@ import (
 const (
 	ErrDilithiumKeygen = "dilithium keygen failed: %w"
 
-	// Khepra-PQC Parameters (Your proprietary lattice scheme)
-	KhepraPQCSecurityLevel = 256 // bits
-	KhepraPQCModulus       = 8380417
-	KhepraLatticeRank      = 8
-	KhepraPQCSignatureSize = 2420 // bytes
+	// Adinkhepra-PQC Parameters (Your proprietary lattice scheme)
+	AdinkhepraPQCSecurityLevel = 256 // bits
+	AdinkhepraPQCModulus       = 8380417
+	AdinkhepraLatticeRank      = 8
+	AdinkhepraPQCSignatureSize = 2420 // bytes
 
 	// CRYSTALS-Dilithium3 (NIST ML-DSA)
 	DilithiumPublicKeySize  = 1952
@@ -56,9 +56,9 @@ const (
 
 // HybridKeyPair represents the complete key bundle for all three layers
 type HybridKeyPair struct {
-	// Layer 1: Khepra-PQC (Proprietary)
-	KhepraPQCPublic  *KhepraPQCPublicKey
-	KhepraPQCPrivate *KhepraPQCPrivateKey
+	// Layer 1: Adinkhepra-PQC (Proprietary)
+	AdinkhepraPQCPublic  *AdinkhepraPQCPublicKey
+	AdinkhepraPQCPrivate *AdinkhepraPQCPrivateKey
 
 	// Layer 2: CRYSTALS (NIST Standardized)
 	DilithiumPublic  []byte // Signing
@@ -78,15 +78,15 @@ type HybridKeyPair struct {
 	Expiration time.Time
 }
 
-// KhepraPQCPublicKey - Your proprietary post-quantum scheme
-type KhepraPQCPublicKey struct {
+// AdinkhepraPQCPublicKey - Your proprietary post-quantum scheme
+type AdinkhepraPQCPublicKey struct {
 	LatticeVectors [][]int64 // Rank x Dimension matrix
 	Seed           [32]byte  // For parameter derivation
 	SecurityLevel  int
 }
 
-// KhepraPQCPrivateKey - Corresponding private key
-type KhepraPQCPrivateKey struct {
+// AdinkhepraPQCPrivateKey - Corresponding private key
+type AdinkhepraPQCPrivateKey struct {
 	ShortVectors [][]int64 // Short basis for lattice
 	Seed         [32]byte
 }
@@ -140,13 +140,13 @@ func GenerateHybridKeyPair(purpose string, symbol string, expirationMonths int) 
 
 	keyPair.Symbol = symbol
 
-	// Layer 1: Khepra-PQC (Your proprietary scheme)
-	kPub, kPriv, err := generateKhepraPQCKeys(entropy[:32], symbol)
+	// Layer 1: Adinkhepra-PQC (Your proprietary scheme)
+	kPub, kPriv, err := generateAdinkhepraPQCKeys(entropy[:32], symbol)
 	if err != nil {
-		return nil, fmt.Errorf("khepra-pqc keygen failed: %w", err)
+		return nil, fmt.Errorf("adinkhepra-pqc keygen failed: %w", err)
 	}
-	keyPair.KhepraPQCPublic = kPub
-	keyPair.KhepraPQCPrivate = kPriv
+	keyPair.AdinkhepraPQCPublic = kPub
+	keyPair.AdinkhepraPQCPrivate = kPriv
 
 	// Layer 2: CRYSTALS-Dilithium3 (Signing)
 	dPub, dPriv, err := generateDilithiumKeys(entropy[32:])
@@ -196,14 +196,14 @@ func GenerateHybridKeyPairFromSeed(seed []byte, purpose string, symbol string) (
 
 	keyPair.Symbol = symbol
 
-	// Layer 1: Khepra-PQC (Proprietary)
+	// Layer 1: Adinkhepra-PQC (Proprietary)
 	// Currently use the first 32 bytes of seed directly, or verify usage in impl
-	kPub, kPriv, err := generateKhepraPQCKeys(seed[:32], symbol)
+	kPub, kPriv, err := generateAdinkhepraPQCKeys(seed[:32], symbol)
 	if err != nil {
-		return nil, fmt.Errorf("khepra-pqc keygen failed: %w", err)
+		return nil, fmt.Errorf("adinkhepra-pqc keygen failed: %w", err)
 	}
-	keyPair.KhepraPQCPublic = kPub
-	keyPair.KhepraPQCPrivate = kPriv
+	keyPair.AdinkhepraPQCPublic = kPub
+	keyPair.AdinkhepraPQCPrivate = kPriv
 
 	// Layer 2: CRYSTALS-Dilithium3 (Signing)
 	// Note: Actual impl might need randomness, use rng
@@ -282,12 +282,12 @@ func (kp *HybridKeyPair) SignArtifact(data []byte) (*SecureEnvelope, error) {
 		SignerKeyID: kp.KeyID,
 	}
 
-	// Layer 1: Khepra-PQC Signature (Proprietary)
-	khepraSlg, err := signKhepraPQC(kp.KhepraPQCPrivate, msgHash)
+	// Layer 1: Adinkhepra-PQC Signature (Proprietary)
+	adinkhepraSlg, err := signAdinkhepraPQC(kp.AdinkhepraPQCPrivate, msgHash)
 	if err != nil {
-		return nil, fmt.Errorf("khepra-pqc signing failed: %w", err)
+		return nil, fmt.Errorf("adinkhepra-pqc signing failed: %w", err)
 	}
-	envelope.SignatureKhepra = khepraSlg
+	envelope.SignatureKhepra = adinkhepraSlg
 
 	// Layer 2: CRYSTALS-Dilithium3 (NIST)
 	dilithiumSig, err := signDilithium(kp.DilithiumPrivate, msgHash)
@@ -327,8 +327,8 @@ func VerifyArtifact(envelope *SecureEnvelope, publicKeys *HybridKeyPair) error {
 	msgHash := computeCanonicalHash(envelope.EncryptedData, "KHEPRA-ARTIFACT-V2")
 
 	// Verify all three layers (ALL must pass)
-	if err := verifyKhepraPQC(publicKeys.KhepraPQCPublic, msgHash, envelope.SignatureKhepra); err != nil {
-		return fmt.Errorf("khepra-pqc verification failed: %w", err)
+	if err := verifyAdinkhepraPQC(publicKeys.AdinkhepraPQCPublic, msgHash, envelope.SignatureKhepra); err != nil {
+		return fmt.Errorf("adinkhepra-pqc verification failed: %w", err)
 	}
 
 	if err := verifyDilithium(publicKeys.DilithiumPublic, msgHash, envelope.SignatureDilithium); err != nil {
@@ -492,23 +492,22 @@ func deterministicECDSAPrivateKeyFromSeed(seed []byte) (*ecdsa.PrivateKey, error
 	return priv, nil
 }
 
-// ============================================================================
-// KHEPRA-PQC LATTICE-BASED SIGNATURES (Production Implementation)
+// ADINKHEPRA-PQC LATTICE-BASED SIGNATURES (Production Implementation)
 // ============================================================================
 
-// Khepra-PQC: Production lattice-based post-quantum signatures
+// Adinkhepra-PQC: Production lattice-based post-quantum signatures
 // Implementation in khepra_pqc.go using Merkaba geometry & Adinkra algebra
 
-func generateKhepraPQCKeys(seed []byte, symbol string) (*KhepraPQCPublicKey, *KhepraPQCPrivateKey, error) {
-	return GenerateKhepraPQCKeyPair(seed, symbol)
+func generateAdinkhepraPQCKeys(seed []byte, symbol string) (*AdinkhepraPQCPublicKey, *AdinkhepraPQCPrivateKey, error) {
+	return GenerateAdinkhepraPQCKeyPair(seed, symbol)
 }
 
-func signKhepraPQC(priv *KhepraPQCPrivateKey, msgHash []byte) ([]byte, error) {
-	return SignKhepraPQC(priv, msgHash)
+func signAdinkhepraPQC(priv *AdinkhepraPQCPrivateKey, msgHash []byte) ([]byte, error) {
+	return SignAdinkhepraPQC(priv, msgHash)
 }
 
-func verifyKhepraPQC(pub *KhepraPQCPublicKey, msgHash, signature []byte) error {
-	return VerifyKhepraPQC(pub, msgHash, signature)
+func verifyAdinkhepraPQC(pub *AdinkhepraPQCPublicKey, msgHash, signature []byte) error {
+	return VerifyAdinkhepraPQC(pub, msgHash, signature)
 }
 
 // CRYSTALS-Dilithium (Using Cloudflare CIRCL + Adinkra ChaosEngine)

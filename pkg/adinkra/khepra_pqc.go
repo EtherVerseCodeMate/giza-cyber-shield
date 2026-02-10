@@ -63,7 +63,7 @@ type LatticeBasis struct {
 
 // ShortBasis represents the private short basis (trapdoor)
 type ShortBasis struct {
-	Vectors []Polynomial // khepraK short polynomials
+	Vectors []Polynomial // AdinkhepraK polynomials
 }
 
 // =============================================================================
@@ -224,10 +224,10 @@ func SignAdinkhepraPQC(privateKey *AdinkhepraPQCPrivateKey, messageHash []byte) 
 // VERIFICATION
 // =============================================================================
 
-// VerifyKhepraPQC verifies a Khepra-PQC signature using the public key
-func VerifyKhepraPQC(publicKey *KhepraPQCPublicKey, messageHash []byte, signatureBytes []byte) error {
+// VerifyAdinkhepraPQC verifies an Adinkhepra-PQC signature using the public key
+func VerifyAdinkhepraPQC(publicKey *AdinkhepraPQCPublicKey, messageHash []byte, signatureBytes []byte) error {
 	// SECURITY: Validate inputs to prevent OWASP attacks
-	if err := ValidateSignatureInput(messageHash, signatureBytes, khepraSignatureSize); err != nil {
+	if err := ValidateSignatureInput(messageHash, signatureBytes, AdinkhepraSignatureSize); err != nil {
 		return err
 	}
 
@@ -254,10 +254,10 @@ func VerifyKhepraPQC(publicKey *KhepraPQCPublicKey, messageHash []byte, signatur
 	passedChecks := 0
 
 	// Compute verification value for each lattice rank
-	for k := 0; k < khepraK; k++ {
-		offset := k * khepraN
+	for k := 0; k < AdinkhepraK; k++ {
+		offset := k * AdinkhepraN
 
-		for i := 0; i < khepraN; i++ {
+		for i := 0; i < AdinkhepraN; i++ {
 			if offset+i >= len(signature.Coeffs) {
 				return errors.New("signature coefficients out of range")
 			}
@@ -268,18 +268,18 @@ func VerifyKhepraPQC(publicKey *KhepraPQCPublicKey, messageHash []byte, signatur
 
 			// Verification equation: pub * sig ?≈ msg (mod q)
 			// We allow some error due to Gaussian noise
-			computed := (pubCoeff * int64(sigCoeff)) % int64(khepraQ)
+			computed := (pubCoeff * int64(sigCoeff)) % int64(AdinkhepraQ)
 			expected := int64(msgCoeff)
 
 			// Error tolerance (lattice noise bound)
-			errorBound := int64(khepraQ / 100) // 1% tolerance
+			errorBound := int64(AdinkhepraQ / 100) // 1% tolerance
 
 			diff := computed - expected
 			if diff < 0 {
 				diff = -diff
 			}
 
-			// For Khepra-PQC, we use probabilistic verification
+			// For Adinkhepra-PQC, we use probabilistic verification
 			// Not all coefficients need to match perfectly due to lattice structure
 			totalChecks++
 			if diff <= errorBound {
@@ -306,12 +306,12 @@ func VerifyKhepraPQC(publicKey *KhepraPQCPublicKey, messageHash []byte, signatur
 // hashToPolynomial converts a hash to polynomial coefficients
 func hashToPolynomial(hash []byte) *Polynomial {
 	poly := &Polynomial{
-		Coeffs: make([]int32, khepraN),
+		Coeffs: make([]int32, AdinkhepraN),
 	}
 
 	// Expand hash using SHA-512 chaining
 	current := hash
-	for i := 0; i < khepraN; i += 64 {
+	for i := 0; i < AdinkhepraN; i += 64 {
 		// Hash chaining for more coefficients
 		hasher := sha512.New()
 		hasher.Write(current)
@@ -319,7 +319,7 @@ func hashToPolynomial(hash []byte) *Polynomial {
 		current = hasher.Sum(nil)
 
 		// Convert bytes to coefficients
-		for j := 0; j < 64 && i+j < khepraN; j++ {
+		for j := 0; j < 64 && i+j < AdinkhepraN; j++ {
 			// Map byte to coefficient in range [-q/2, q/2]
 			coeff := int32(current[j])
 			poly.Coeffs[i+j] = coeff
@@ -360,15 +360,15 @@ func isShortSignature(coeffs []int32) bool {
 // serializeSignature converts signature polynomial to bytes
 func serializeSignature(sig *Polynomial) []byte {
 	// Each coefficient is int32, but we compress to 2 bytes for space efficiency
-	// Total: 512*8*2 = 8192 bytes, but we use khepraSignatureSize = 2420
+	// Total: 512*8*2 = 8192 bytes, but we use AdinkhepraSignatureSize = 2420
 	// We'll use a compression scheme
 
-	result := make([]byte, khepraSignatureSize)
+	result := make([]byte, AdinkhepraSignatureSize)
 
 	// Simple compression: pack multiple small coefficients per byte
 	// For now, use direct encoding with truncation
 	pos := 0
-	for i := 0; i < len(sig.Coeffs) && pos < khepraSignatureSize-1; i++ {
+	for i := 0; i < len(sig.Coeffs) && pos < AdinkhepraSignatureSize-1; i++ {
 		// Store as 16-bit signed integer (most coefficients are small)
 		coeff16 := int16(sig.Coeffs[i] % 32768) // Reduce to fit in 16 bits
 		binary.LittleEndian.PutUint16(result[pos:], uint16(coeff16))
@@ -380,12 +380,12 @@ func serializeSignature(sig *Polynomial) []byte {
 
 // deserializeSignature converts bytes back to signature polynomial
 func deserializeSignature(data []byte) (*Polynomial, error) {
-	if len(data) != khepraSignatureSize {
+	if len(data) != AdinkhepraSignatureSize {
 		return nil, errors.New("invalid signature length")
 	}
 
 	sig := &Polynomial{
-		Coeffs: make([]int32, khepraN*khepraK),
+		Coeffs: make([]int32, AdinkhepraN*AdinkhepraK),
 	}
 
 	pos := 0
@@ -405,7 +405,7 @@ func deserializeSignature(data []byte) (*Polynomial, error) {
 
 // DestroyPrivateKey securely zeroizes a private key
 // SECURITY: Prevents key material from lingering in memory
-func (priv *KhepraPQCPrivateKey) DestroyPrivateKey() {
+func (priv *AdinkhepraPQCPrivateKey) DestroyPrivateKey() {
 	if priv == nil {
 		return
 	}
@@ -421,18 +421,18 @@ func (priv *KhepraPQCPrivateKey) DestroyPrivateKey() {
 }
 
 // ValidatePrivateKey checks private key integrity
-func (priv *KhepraPQCPrivateKey) ValidatePrivateKey() error {
+func (priv *AdinkhepraPQCPrivateKey) ValidatePrivateKey() error {
 	if priv == nil {
 		return errors.New("SECURITY: null private key")
 	}
-	if len(priv.ShortVectors) != khepraK {
+	if len(priv.ShortVectors) != AdinkhepraK {
 		return errors.New("SECURITY: invalid private key structure")
 	}
 	for i, vec := range priv.ShortVectors {
 		if vec == nil {
 			return fmt.Errorf("SECURITY: private key vector %d is null", i)
 		}
-		if len(vec) != khepraN {
+		if len(vec) != AdinkhepraN {
 			return fmt.Errorf("SECURITY: private key vector %d has invalid size", i)
 		}
 	}
@@ -493,7 +493,7 @@ func VerifyAgentAction(pub *AdinkhepraPQCPublicKey, attestation *AdinkhepraAttes
 	h := sha512.Sum512([]byte(payload))
 
 	// Verify signature
-	return VerifyAdinkraPQC(pub, h[:], attestation.Signature)
+	return VerifyAdinkhepraPQC(pub, h[:], attestation.Signature)
 }
 
 // MapSymbolToCompliance returns the regulatory mapping for an Adinkra symbol (FIG. 10).
