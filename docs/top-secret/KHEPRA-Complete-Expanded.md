@@ -581,6 +581,131 @@ Without KHEPRA, organizations face an impossible trilemma: achieve (quantum secu
 
 # 3. SUMMARY OF THE INVENTION
 
+**FIG. 3: Symbol-Derived Key Generation Pipeline**
+```mermaid
+graph TD
+    A[Select Adinkra Symbol: Eban, Fawohodie, Nkyinkyim] --> B[Construct Adjacency Matrix A_s from Symbol Graph]
+    B --> C[Compute Spectral Fingerprint: Eigenvalues lambda_A_s]
+    C --> D[Derive Entropy Seed = HASH lambda_A_s || security_parameter]
+    D --> E[Initialize DRBG with Symbol-Bound Seed]
+    E --> F{Generate Candidate Primes / Parameters n, q, chi with Symbol Constraints}
+    F -->|No| E
+    F -->|Yes| G[Pass primality and parameter checks?]
+    G -->|Yes| H[Output KHEPRA Key Material]
+    H --> I[Symbol Metadata]
+```
+
+**FIG. 4: PQ Key Exchange Flow (ML-KEM-ready)**
+```mermaid
+sequenceDiagram
+    participant A as Agent A (Initiator)
+    participant B as Agent B (Responder)
+    A->>B: 1. Send symbol choice + ML-KEM public key (Eban)
+    Note over B: Select complementary symbol (Fawohodie); perform ML-KEM encapsulation
+    B->>A: 2. Send ciphertext C and symbol metadata
+    Note over A: Decapsulate C using ML-KEM; derive shared secret K; run KDF with symbol salts
+    A->>B: 3. Send MAC_A = MAC(k_auth, transcript)
+    Note over B: Verify MAC_A; derive same K; compute MAC_B
+    B->>A: 4. Send MAC_B confirmation
+    Note over A,B: Result: Shared keys (k_enc, k_auth, k_audit) bound to symbols
+```
+
+**FIG. 5: Glyph Precedence & Conflict Resolution**
+```mermaid
+graph LR
+    G[Genesis] --> T1[Tx1: Eban]
+    G --> T2[Tx1: Eban]
+    G --> T3[Tx1: Eban]
+    T1 --> T1a[Tx2: Eban]
+    T1a --> F1[Fawohodie: Eban]
+    F1 --> N1[Nkyinkyim: Nkyinkyim]
+    T2 --> T2a[Tx3: Eban]
+    T2a --> F2[Fawohodie: Eban]
+    F2 --> N2[Nkyinkyim: Eban]
+    
+    Note over F1,F2: Conflicts resolved by higher-precedence symbol
+    Note bottom: Glyph Precedence Rules: Eban > Fawohodie > Nkyinkyim
+```
+
+**FIG. 8: DoD Enclave Authentication Flow (Eban Handshake)**
+```mermaid
+graph TD
+    FA[Field Agent / Device] -->|1. Present KHEPRA Credential + DoD PKI Cert| AG[Access Gateway / Guard]
+    AG -->|2. DoD Secure Eban symbol policy| SE[DoD Secure Enclave]
+    SE -->|3. Decision Request: Trust Score, Context, Behavior| SE
+    AG -->|4. Challenge Nonce| CM[Continuous Monitoring]
+    CM -->|5. Verify PKI chain + Eban symbol policy| AG
+    FA -->|6. Response = HMAC_k: nonce, device_attestation| CM
+    SE -->|7. Permit / Deny + Privilege Level| FA
+    Note bottom: Periodic re-attestation, DAG logging, revocation on anomaly
+```
+
+**FIG. 10: Regulators / Compliance Mapping Using Symbol Semantics**
+```mermaid
+graph LR
+    R1[DoD RMF / STIG] --> SPE[Symbolic Policy Mapping Engine]
+    R2[CMMC] --> SPE
+    R3[FedRAMP] --> SPE
+    R4[PCI DSS / HIPAA] --> SPE
+    R5[GDPR] --> SPE
+    R6[SOX] --> SPE
+    R7[ISO 27001] --> SPE
+    
+    subgraph SPE_Details [Symbolic Policy Mapping Engine]
+        E[Eban = Access Control / Perimeter]
+        F[Fawohodie = Revocation / Exit]
+        N[Nkyinkyim = State Transition / Rekey]
+        D[Dwennimmen = High-Assurance / Elevated Review]
+    end
+    
+    SPE --> RE[Runtime Enforcement: Agent Policy Verifier]
+    SPE --> DPS[DAG Provenance Store: Action Graph]
+    SPE --> AEL[Audit Export Layer: Reports to Regulators]
+```
+
+**FIG. 11B: KHEPRA Protocol: Agentic Security Attestation Framework (ASAF)**
+```mermaid
+graph TD
+    AA[KHEPRA Agentic Attestation: Symbolic PQ Identity + Action DAG + Zero-Trust Engine] --> SBI[1. Symbol-Bound Identity: AAE]
+    SBI --> PQK[2. PQ Signing / Key Exchange: QKE/PQS / Kyber/Dilithium Integration]
+    AA --> DPE[KHEPRA DAG Provenance Engine]
+    DPE --> AL[Action-Level Signing]
+    
+    subgraph DPE_Graph [DAG Provenance Engine]
+        A1((A1: EBAN)) --> A2((A2: NKYINKYIM))
+        A1 --> A3((A3))
+        A2 --> A4((A4: NKYINKYIM))
+        A3 --> A4
+        Note right of A4: Rollback Node via Fawohodie
+    end
+    
+    DPE --> ZT[4. Zero-Trust Policy Enforcement: Agent Policy Verifier]
+    ZT --> FR[5. Forensic Replay + Compliance Exports: Cryptographic Audit Layer]
+```
+
+**Zero Trust Continuous Authentication Lifecycle**
+```mermaid
+graph TD
+    IA[1. Initial Authentication: KHEPRA credential + PKI verification] --> SE[2. Session Establishment: Issue short-lived token; bind symbol and context]
+    SE --> CM[3. Continuous Monitoring: Behavior, context, anomaly score]
+    CM --> TR[4. Token Refresh: Rotate keys / extend session]
+    TR -->|No Anomaly| CM
+    CM -->|Anomaly detected| RA[5. Re-Authentication: Stronger factors + policy review]
+    RA -->|Fail| ST[6. Session Termination: Revoke privileges; log to DAG]
+    RA -->|Pass| IA
+    
+    Note bottom: Trust Score Inputs: Cryptographic state, behavior, environment
+```
+
+**Confidential Compute Attestation (Prior Art vs. KHEPRA)**
+*   **Prior Art Limitations:** No agent decision attestation; No chain-of-action provenance; No behavior-level verification; Cannot verify LLM/agent autonomy or drift; Only proves machine was trusted at runtime.
+*   **KHEPRA Solution:** Provides symbolic intent, causality, and a continuous learning layer bound to the hardware root of trust.
+
+---
+**Final Abstract:**
+The KHEPRA Protocol defines a new paradigm for AI agent security, replacing static, black-box authentication with a dynamic, symbolic, and culturally-resonant framework. By binding post-quantum lattice primitives to Adinkra algebraic structures, KHEPRA ensures that every agent action is not only cryptographically secure but also semantically explainable and regulator-compliant.
+
+*The Scarab watches. The Motherboard executes. The Logic is Eternal.*
 The KHEPRA Protocol integrates five interdependent subsystems into a comprehensive cryptographic framework for autonomous agent security:
 
 ## 3.1 Adinkra Algebraic Encoding (AAE)
