@@ -238,15 +238,15 @@ async def get_dag_visualize():
     """
     try:
         # Call the Go CLI to export DAG as JSON
-        result = subprocess.run(
-            ["khepra", "engine", "dag", "export", "--json"],
-            capture_output=True,
-            text=True,
-            timeout=10
+        proc = await asyncio.create_subprocess_exec(
+            "khepra", "engine", "dag", "export", "--json",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
         )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=10)
         
-        if result.returncode != 0:
-            logger.error(f"DAG export failed: {result.stderr}")
+        if proc.returncode != 0:
+            logger.error(f"DAG export failed: {stderr.decode()}")
             # Return empty graph if CLI fails
             return {
                 "nodes": [],
@@ -255,7 +255,7 @@ async def get_dag_visualize():
             }
         
         # Parse CLI output
-        dag_data = json.loads(result.stdout)
+        dag_data = json.loads(stdout.decode())
         
         # Transform to frontend format if needed
         return {
@@ -289,15 +289,15 @@ async def get_cmmc_status():
     """
     try:
         # Call the Go CLI to get compliance status
-        result = subprocess.run(
-            ["adinkhepra", "compliance", "status", "--json"],
-            capture_output=True,
-            text=True,
-            timeout=15
+        proc = await asyncio.create_subprocess_exec(
+            "adinkhepra", "compliance", "status", "--json",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
         )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=15)
         
-        if result.returncode != 0:
-            logger.error(f"Compliance check failed: {result.stderr}")
+        if proc.returncode != 0:
+            logger.error(f"Compliance check failed: {stderr.decode()}")
             # Return placeholder if CLI fails
             return {
                 "score": 0.0,
@@ -308,7 +308,7 @@ async def get_cmmc_status():
             }
         
         # Parse CLI output
-        compliance_data = json.loads(result.stdout)
+        compliance_data = json.loads(stdout.decode())
         return compliance_data
         
     except subprocess.TimeoutExpired:
@@ -338,20 +338,20 @@ async def get_ir_playbooks():
     """
     try:
         # Call the Go CLI to list IR playbooks
-        result = subprocess.run(
-            ["khepra", "ir", "playbooks", "list", "--json"],
-            capture_output=True,
-            text=True,
-            timeout=10
+        proc = await asyncio.create_subprocess_exec(
+            "khepra", "ir", "playbooks", "list", "--json",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
         )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=10)
         
-        if result.returncode != 0:
-            logger.error(f"IR playbooks list failed: {result.stderr}")
+        if proc.returncode != 0:
+            logger.error(f"IR playbooks list failed: {stderr.decode()}")
             # Return empty list if CLI fails
             return []
         
         # Parse CLI output
-        playbooks = json.loads(result.stdout)
+        playbooks = json.loads(stdout.decode())
         return playbooks
         
     except subprocess.TimeoutExpired:
@@ -439,15 +439,16 @@ async def dag_websocket(websocket):
 async def get_current_dag() -> dict:
     """Fetch current DAG state from Go CLI."""
     try:
-        result = subprocess.run(
-            ["khepra", "engine", "dag", "export", "--json"],
-            capture_output=True,
-            text=True,
-            timeout=5
+        proc = await asyncio.create_subprocess_exec(
+            "khepra", "engine", "dag", "export", "--json",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
         )
-        if result.returncode == 0 and result.stdout.strip():
-            return json.loads(result.stdout)
-    except:
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=5)
+        
+        if proc.returncode == 0 and stdout.strip():
+            return json.loads(stdout.decode())
+    except Exception:
         pass
     return {"nodes": [], "edges": [], "stats": {"nodes": 0, "critical": 0}}
 
@@ -466,14 +467,14 @@ async def export_compliance_report():
         from fastapi.responses import Response
         
         # Fetch compliance data
-        result = subprocess.run(
-            ["adinkhepra", "compliance", "status", "--json"],
-            capture_output=True,
-            text=True,
-            timeout=15
+        proc = await asyncio.create_subprocess_exec(
+            "adinkhepra", "compliance", "status", "--json",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
         )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=15)
         
-        compliance_data = json.loads(result.stdout) if result.returncode == 0 and result.stdout.strip() else {
+        compliance_data = json.loads(stdout.decode()) if proc.returncode == 0 and stdout.strip() else {
             "score": 0.0,
             "level": "Unknown",
             "controls": {"total": 110, "passing": 0, "failing": 0},
