@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -24,6 +25,7 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/packet"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scorpion"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stigs"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/util"
 )
@@ -1064,27 +1066,8 @@ func drbcCmd(args []string) {
 		drbcScorpionCmd(args[1:])
 	case "open":
 		drbcOpenCmd(args[1:])
-	case "restore":
-		fmt.Println("[PHOENIX] Initiating Restoration Protocol...")
-
-		fs := flag.NewFlagSet("drbc restore", flag.ExitOnError)
-		targetDir := fs.String("out", "restored_genesis", "Directory to restore to")
-		fs.Parse(args[1:])
-
-		fmt.Print("Speak the Secret Name [Unlock Master Seed]: ")
-		reader := bufio.NewReader(os.Stdin)
-		pass, _ := reader.ReadString('\n')
-		pass = strings.TrimSpace(pass)
-
-		if err := drbc.RestoreGenesis(pass, *targetDir); err != nil {
-			fatal("Restoration Failed", err)
-		}
-
-		fmt.Printf(" [SUCCESS] Reality Restored to '%s'\n", *targetDir)
-		fmt.Println(" [VERIFY] Check the directory for integrity.")
-
 	default:
-		fmt.Printf("Unknown ritual: %s\n", args[0])
+		fmt.Printf("Unknown drbc subcommand: %s\n", args[0])
 	}
 }
 
@@ -1149,4 +1132,76 @@ func agentCmd(args []string) {
 	default:
 		fmt.Printf("Unknown agent command: %s\n", cmd)
 	}
+}
+
+func drbcInitCmd() {
+	fmt.Println("[PHOENIX] Awakening Genesis Protocol...")
+	fmt.Print("Speak the Secret Name: ")
+	reader := bufio.NewReader(os.Stdin)
+	pass, _ := reader.ReadString('\n')
+	pass = strings.TrimSpace(pass)
+
+	if err := drbc.AwakenGenesis(pass); err != nil {
+		fatal("Genesis Failed", err)
+	}
+	fmt.Printf("[SUCCESS] Genesis Sealed: %s\n", drbc.GenesisOutput)
+}
+
+func drbcScorpionCmd(args []string) {
+	fs := flag.NewFlagSet("drbc scorpion", flag.ExitOnError)
+	target := fs.String("target", "", "Spirit to bind")
+	out := fs.String("out", "", "Vessel path")
+	fs.Parse(args)
+
+	if *target == "" || *out == "" {
+		fmt.Println("Usage: khepra drbc scorpion -target <file> -out <container.scorp>")
+		return
+	}
+
+	data, _ := os.ReadFile(*target)
+	fmt.Print("Speak the Secret Name: ")
+	reader := bufio.NewReader(os.Stdin)
+	pass, _ := reader.ReadString('\n')
+	pass = strings.TrimSpace(pass)
+
+	if len(pass) < 12 {
+		fatal("voice too weak", errors.New("the Name must have strength (12+ chars)"))
+	}
+
+	if err := scorpion.Mpatapo(*out, data, pass); err != nil {
+		fatal("Binding failed", err)
+	}
+	fmt.Println("[SUCCESS] Spirit Bound.")
+}
+
+func drbcOpenCmd(args []string) {
+	fs := flag.NewFlagSet("drbc open", flag.ExitOnError)
+	target := fs.String("target", "", "Vessel to open")
+	out := fs.String("out", "", "Transformation path")
+	fs.Parse(args)
+
+	if *target == "" || *out == "" {
+		fmt.Println("Usage: khepra drbc open -target <container.scorp> -out <file>")
+		return
+	}
+
+	fmt.Print("Speak the Secret Name: ")
+	reader := bufio.NewReader(os.Stdin)
+	pass, _ := reader.ReadString('\n')
+	pass = strings.TrimSpace(pass)
+
+	data, err := scorpion.Sane(*target, pass)
+	if err != nil {
+		fatal("Release failed", err)
+	}
+	_ = os.WriteFile(*out, data, 0644)
+	fmt.Println("[SUCCESS] Spirit Released.")
+}
+
+func printDrbcUsage() {
+	fmt.Println("Usage: khepra drbc <subcommand>")
+	fmt.Println("Subcommands:")
+	fmt.Println("  init      - Awaken the Genesis")
+	fmt.Println("  scorpion  - Bind Spirit to Vessel (Mpatapo)")
+	fmt.Println("  open      - Release Spirit (Sane)")
 }
