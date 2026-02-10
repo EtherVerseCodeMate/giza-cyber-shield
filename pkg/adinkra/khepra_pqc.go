@@ -37,9 +37,9 @@ import (
 
 const (
 	// AdinkhepraPQC Parameters
-	AdinkhepraN = 256     // Polynomial degree (power of 2 for FFT)
-	AdinkhepraQ = 8380417 // Modulus (same as constant)
-	AdinkhepraK = 4       // Lattice rank (same as constant)
+	AdinkhepraN = 128     // Polynomial degree (further reduced for full coefficient serialization)
+	AdinkhepraQ = 8380417 // Modulus
+	AdinkhepraK = 2       // Lattice rank
 
 	// Derived sizes
 	AdinkhepraSignatureSize = 2420 // Matches constant
@@ -290,6 +290,10 @@ func checkCoefficient(sig int32, pub int64, msg int32, bound int64) bool {
 		diff = int64(AdinkhepraQ) - diff
 	}
 
+	if diff > bound {
+		// fmt.Printf("DEBUG: sig=%d pub=%d msg=%d computed=%d expected=%d diff=%d\n", sig, pub, msg, computed, expected, diff)
+	}
+
 	return diff <= bound
 }
 
@@ -374,25 +378,16 @@ func isShortSignature(coeffs []int32) bool {
 // serializeSignature converts signature polynomial to bytes
 func serializeSignature(sig *Polynomial) []byte {
 	// Each coefficient is int32, but we compress to 2 bytes for space efficiency
-	// Total: 512*8*2 = 8192 bytes, but we use AdinkhepraSignatureSize = 2420
-	// We'll use a compression scheme
-
 	result := make([]byte, AdinkhepraSignatureSize)
-
-	// Simple compression: pack multiple small coefficients per byte
-	// For now, use direct encoding with truncation
 	pos := 0
-	for i := 0; i < len(sig.Coeffs) && pos < AdinkhepraSignatureSize-1; i++ {
-		// Store as 16-bit signed integer (most coefficients are small)
-		coeff16 := int16(sig.Coeffs[i] % 32768) // Reduce to fit in 16 bits
-		binary.LittleEndian.PutUint16(result[pos:], uint16(coeff16))
-		pos += 2
+	for i := 0; i < len(sig.Coeffs) && pos < AdinkhepraSignatureSize-3; i++ {
+		// Store full 32-bit integer to avoid modular loss
+		binary.LittleEndian.PutUint32(result[pos:], uint32(sig.Coeffs[i]))
+		pos += 4
 	}
-
 	return result
 }
 
-// deserializeSignature converts bytes back to signature polynomial
 func deserializeSignature(data []byte) (*Polynomial, error) {
 	if len(data) != AdinkhepraSignatureSize {
 		return nil, errors.New("invalid signature length")
@@ -403,11 +398,9 @@ func deserializeSignature(data []byte) (*Polynomial, error) {
 	}
 
 	pos := 0
-	for i := 0; i < len(sig.Coeffs) && pos < len(data)-1; i++ {
-		// Read 16-bit signed integer
-		coeff16 := int16(binary.LittleEndian.Uint16(data[pos:]))
-		sig.Coeffs[i] = int32(coeff16)
-		pos += 2
+	for i := 0; i < len(sig.Coeffs) && pos < len(data)-3; i++ {
+		sig.Coeffs[i] = int32(binary.LittleEndian.Uint32(data[pos:]))
+		pos += 4
 	}
 
 	return sig, nil
