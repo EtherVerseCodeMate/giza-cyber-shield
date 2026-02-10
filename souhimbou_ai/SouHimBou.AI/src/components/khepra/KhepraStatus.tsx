@@ -7,6 +7,24 @@ import { useKhepraAuth } from '@/khepra/hooks/useKhepraAuth';
 import { useKhepraDeployment } from '@/hooks/useKhepraDeployment';
 import { useKhepraAPI } from '@/hooks/useKhepraAPI';
 
+const getTrustScoreColor = (score: number) => {
+  if (score >= 80) return 'text-green-400';
+  if (score >= 60) return 'text-yellow-400';
+  return 'text-red-400';
+};
+
+const getTrustScoreVariant = (score: number) => {
+  if (score >= 80) return 'default';
+  if (score >= 60) return 'secondary';
+  return 'destructive';
+};
+
+const getTrustScoreLabel = (score: number) => {
+  if (score >= 80) return 'High';
+  if (score >= 60) return 'Medium';
+  return 'Low';
+};
+
 export const KhepraStatus = () => {
   const { authState, securityEvents, isMonitoring } = useKhepraAuth();
   const { config } = useKhepraDeployment();
@@ -17,24 +35,6 @@ export const KhepraStatus = () => {
   const nodeCount = license.data?.node_count || 0;
   const usagePercentage = Math.min((nodeCount / nodeQuota) * 100, 100);
   const isExhausted = usagePercentage >= 90;
-
-  const getTrustScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-400';
-    if (score >= 60) return 'text-yellow-400';
-    return 'text-red-400';
-  };
-
-  const getTrustScoreVariant = (score: number) => {
-    if (score >= 80) return 'default';
-    if (score >= 60) return 'secondary';
-    return 'destructive';
-  };
-
-  const getTrustScoreLabel = (score: number) => {
-    if (score >= 80) return 'High';
-    if (score >= 60) return 'Medium';
-    return 'Low';
-  };
 
   const isRemoteHealthy = health.data?.status === 'healthy';
   const recentEvents = securityEvents.slice(0, 3);
