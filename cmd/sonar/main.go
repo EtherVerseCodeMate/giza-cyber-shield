@@ -31,8 +31,6 @@ var (
 	signOutput     = flag.Bool("sign", false, "Sign output with PQC")
 	outputFile     = flag.String("out", "snapshot.json", "Output file path")
 	verboseOutput  = flag.Bool("verbose", false, "Enable verbose logging")
-
-	telemetryPrivateKey string = ""
 )
 
 func main() {
@@ -337,19 +335,10 @@ func log(format string, args ...interface{}) {
 	fmt.Printf("[SONAR] "+format+"\n", args...)
 }
 
-func logInfo(format string, args ...interface{}) {
-	fmt.Printf("[INFO] "+format+"\n", args...)
-}
-
 func logSuccess(format string, args ...interface{}) {
 	fmt.Printf("[✓] "+format+"\n", args...)
 }
 
 func logWarn(format string, args ...interface{}) {
 	fmt.Printf("[⚠] "+format+"\n", args...)
-}
-
-func fatal(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, "[FATAL] "+format+"\n", args...)
-	os.Exit(1)
 }
