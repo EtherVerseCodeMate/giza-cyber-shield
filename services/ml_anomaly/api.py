@@ -628,36 +628,14 @@ async def predict(request: PredictRequest):
         score = result["anomaly_score"].item()
         
         # Explainability: "Why did I flag this?"
-        # 1. Heuristic Rule-Based Explanation (The Logic)
-        influence = {}
-        explanation_triggers = []
-        
-        if request.metadata:
-            # Check for specific risk indicators in metadata
-            cipher = request.metadata.get("cipher_suite", "unknown")
-            protocol = request.metadata.get("protocol", "unknown")
-            
-            if "RSA" in cipher or "CBC" in cipher:
-                explanation_triggers.append("Legacy Crypto (RSA/CBC)")
-                influence["Legacy Crypto"] = 0.45
-            
-            if protocol in ["TLS 1.0", "TLS 1.1", "SSLv3"]:
-                explanation_triggers.append("Deprecated Protocol")
-                influence["Obsolete Protocol"] = 0.60
-                
-            if request.metadata.get("open_ports", 0) > 10:
-                explanation_triggers.append("Excessive Attack Surface")
-                influence["Attack Surface"] = 0.30
+        influence, triggers = self._get_heuristic_influence(request.metadata)
 
         # 2. Soul/Intuition Explanation (The Vibe)
-        if model_state["soul_embedding"]:
-            dom_trait = max(model_state["soul_embedding"], key=model_state["soul_embedding"].get)
-            # Intuition has a base influence depending on the "mood" of the soul
-            influence[f"Soul Bias ({dom_trait})"] = score * 0.2
+        soul_influence = self._get_soul_influence(score)
+        influence.update(soul_influence)
 
         # 3. Fallback Explanation
-        if not explanation_triggers and score > settings.anomaly_threshold:
-            explanation_triggers.append("Statistical Anomaly")
+        if not triggers and score > settings.anomaly_threshold:
             influence["Unknown Pattern"] = score
 
         return PredictResponse(
@@ -670,6 +648,43 @@ async def predict(request: PredictRequest):
     except Exception as e:
         logger.error(f"Prediction Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+def _get_heuristic_influence(self, metadata: Optional[Dict]) -> Tuple[Dict[str, float], List[str]]:
+    """Extracts heuristic risk factors from metadata."""
+    influence = {}
+    triggers = []
+    
+    if not metadata:
+        return influence, triggers
+
+    cipher = metadata.get("cipher_suite", "unknown")
+    protocol = metadata.get("protocol", "unknown")
+    
+    if "RSA" in cipher or "CBC" in cipher:
+        triggers.append("Legacy Crypto (RSA/CBC)")
+        influence["Legacy Crypto"] = 0.45
+    
+    if protocol in ["TLS 1.0", "TLS 1.1", "SSLv3"]:
+        triggers.append("Deprecated Protocol")
+        influence["Obsolete Protocol"] = 0.60
+    
+    if protocol in ["MODBUS", "DNP3", "BACNET", "ETHERNET/IP"]:
+        triggers.append("Plaintext ICS Protocol")
+        influence["Insecure SCADA"] = 0.80
+        
+    if metadata.get("open_ports", 0) > 10:
+        triggers.append("Excessive Attack Surface")
+        influence["Attack Surface"] = 0.30
+
+    return influence, triggers
+
+def _get_soul_influence(self, score: float) -> Dict[str, float]:
+    """Calculates bias based on the AGI Soul Embedding."""
+    influence = {}
+    if model_state["soul_embedding"]:
+        dom_trait = max(model_state["soul_embedding"], key=model_state["soul_embedding"].get)
+        influence[f"Soul Bias ({dom_trait})"] = score * 0.2
+    return influence
 
 def run_training_task():
     """Background task to run training"""

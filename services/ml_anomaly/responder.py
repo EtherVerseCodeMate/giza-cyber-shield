@@ -124,6 +124,12 @@ class SecurityResponder:
             "complete": "DR/BC complete. RPO: {rpo}. RTO: {rto}. Genesis backup verified.",
             "error": "DR/BC operation failed: {error_message}. Failover may be required.",
         },
+        SecurityIntent.SCADA: {
+            "ack": "SCADA/ICS AUDIT INITIATED. Scanning Pod Assets: PLC, HMI, Relays.",
+            "progress": "Auditing ICS components... {progress}% complete. {actions_taken} attestations logged.",
+            "complete": "SCADA Audit complete. All physical states bound to ASAF. Pod integrity verified.",
+            "error": "SCADA operation failed: {error_message}. Check physical connectivity to PLC/HMI.",
+        },
         SecurityIntent.HELP: {
             "general": """KASA OPERATIONAL MANUAL
 
@@ -236,40 +242,42 @@ Soul Integrity: {soul_status}
         self, templates: Dict[str, str], context: ResponseContext
     ) -> str:
         """Get the base response template and format it."""
+        # Handle special cases (HELP, STATUS, UNKNOWN)
+        if context.intent in (SecurityIntent.HELP, SecurityIntent.STATUS, SecurityIntent.UNKNOWN):
+            return self._handle_special_intent_cases(templates, context)
+
         # Select appropriate template based on state and params
-        template_key = context.state
+        template_key = self._select_state_template(context)
+        template = templates.get(template_key, templates.get("ack", "Processing request..."))
+        return self._format_template(template, context)
 
-        # Handle special cases
+    def _handle_special_intent_cases(self, templates: Dict[str, str], context: ResponseContext) -> str:
+        """Handles HELP, STATUS, and UNKNOWN intents separately to reduce complexity."""
         if context.intent == SecurityIntent.HELP:
-            # Check for specific help topics
             topic = context.params.get("topic", "general").lower()
-            template = templates.get(topic, templates.get("general", ""))
-            return template
-
+            return templates.get(topic, templates.get("general", ""))
+        
         if context.intent == SecurityIntent.STATUS:
             template = templates.get("ack", "")
             return self._format_template(template, context)
+        
+        return templates.get("default", "Command not recognized.")
 
-        if context.intent == SecurityIntent.UNKNOWN:
-            return templates.get("default", "Command not recognized.")
+    def _select_state_template(self, context: ResponseContext) -> str:
+        """Selects the specific template key based on intent-specific parameter presence."""
+        if context.state != "ack":
+            return context.state
 
-        # Check for missing required params and use alternative template
-        if context.state == "ack":
-            if context.intent == SecurityIntent.SCAN and not context.params.get("target"):
-                template_key = "ack_no_target"
-            elif context.intent == SecurityIntent.FIREWALL and not context.params.get("port"):
-                template_key = "ack_no_port"
-            elif context.intent == SecurityIntent.VULNHUNT and context.params.get("cve_id"):
-                template_key = "ack_cve"
-            elif context.intent == SecurityIntent.COMPLIANCE and not context.params.get("framework"):
-                template_key = "ack_no_framework"
-            elif context.intent == SecurityIntent.ENCRYPTION and not context.params.get("algorithm"):
-                template_key = "ack_no_algo"
-            elif context.intent == SecurityIntent.IR and not context.params.get("threat_level"):
-                template_key = "ack_default"
-
-        template = templates.get(template_key, templates.get("ack", "Processing request..."))
-        return self._format_template(template, context)
+        special_keys = {
+            SecurityIntent.SCAN: "ack_no_target" if not context.params.get("target") else None,
+            SecurityIntent.FIREWALL: "ack_no_port" if not context.params.get("port") else None,
+            SecurityIntent.VULNHUNT: "ack_cve" if context.params.get("cve_id") else None,
+            SecurityIntent.COMPLIANCE: "ack_no_framework" if not context.params.get("framework") else None,
+            SecurityIntent.ENCRYPTION: "ack_no_algo" if not context.params.get("algorithm") else None,
+            SecurityIntent.IR: "ack_default" if not context.params.get("threat_level") else None,
+        }
+        
+        return special_keys.get(context.intent) or "ack"
 
     def _format_template(self, template: str, context: ResponseContext) -> str:
         """Format template with context values."""
@@ -317,7 +325,7 @@ Soul Integrity: {soul_status}
 
         try:
             return template.format(**format_dict)
-        except KeyError as e:
+        except KeyError:
             # Graceful degradation if template has unknown placeholders
             return template
 
