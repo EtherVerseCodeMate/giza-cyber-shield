@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Shield, Activity, Zap, Server } from 'lucide-react';
-import { SecurityEvent } from '@/khepra/types'; // Assuming types are here, or I'll inline them if needed
+import { KhepraSecurityEvent } from '@/khepra/hooks/useKhepraAuth';
 
 // Helper functions (moved from KhepraStatus)
 export const getTrustScoreColor = (score: number) => {
@@ -138,7 +138,7 @@ export const MonitoringCard = ({
 }: {
     isMonitoring: boolean;
     events: number;
-    recentEvents: any[]; // Using any for simplicity if types aren't easily available, ideally SecurityEvent[]
+    recentEvents: KhepraSecurityEvent[];
 }) => (
     <Card className="border-primary/20 bg-card/50 backdrop-blur-sm">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
