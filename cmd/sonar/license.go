@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"runtime"
@@ -56,15 +57,15 @@ const (
 
 // LicenseResponse represents the server's license validation response
 type LicenseResponse struct {
-	Valid             bool     `json:"valid"`
-	Features          []string `json:"features"`
-	LicenseTier       string   `json:"license_tier"`
-	Organization      string   `json:"organization"`
-	ExpiresAt         string   `json:"expires_at"`
-	IssuedAt          string   `json:"issued_at"`
-	ValidatedAt       string   `json:"validated_at"`
-	ClientCountry     string   `json:"client_country"`
-	LegalNotice       string   `json:"legal_notice"`
+	Valid             bool          `json:"valid"`
+	Features          []string      `json:"features"`
+	LicenseTier       string        `json:"license_tier"`
+	Organization      string        `json:"organization"`
+	ExpiresAt         string        `json:"expires_at"`
+	IssuedAt          string        `json:"issued_at"`
+	ValidatedAt       string        `json:"validated_at"`
+	ClientCountry     string        `json:"client_country"`
+	LegalNotice       string        `json:"legal_notice"`
 	Limits            LicenseLimits `json:"limits"`
 	Error             string        `json:"error,omitempty"`
 	Message           string        `json:"message,omitempty"`
@@ -219,9 +220,25 @@ func getHostname() string {
 
 // getMACAddress returns the primary MAC address
 func getMACAddress() string {
-	// Simplified implementation - in production, use net.Interfaces()
-	// to get actual MAC address
-	return "00:00:00:00:00:00" // Placeholder
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return "00:00:00:00:00:00"
+	}
+
+	// Try to find physical interface (usually not loopback and has MAC)
+	for _, iface := range interfaces {
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue // skip loopback
+		}
+		if iface.Flags&net.FlagUp == 0 {
+			continue // skip down interfaces
+		}
+		if len(iface.HardwareAddr) > 0 {
+			return iface.HardwareAddr.String()
+		}
+	}
+
+	return "00:00:00:00:00:00"
 }
 
 // getCPUInfo returns CPU information
@@ -250,14 +267,6 @@ func signMachineID(machineID string) (string, error) {
 		// Correctly pass rand.Reader
 		_, sk, err = mode3.GenerateKey(nil)
 		if err != nil {
-			// Try with crypto/rand if nil fails (though GenerateKey(nil) often implies default rand)
-			// But to be safe and match adinkra_core:
-			// We need to import crypto/rand first.
-			// Since I can't easily add import in this replace block without touching top of file,
-			// I'll try passing nil first. If it fails at runtime, we'll know.
-			// But wait, the previous error was a build error 'undefined'.
-			// Let's assume nil is fine for now or implementation handles it.
-			// Actually, let's fix the undefined Sign first.
 			return "", fmt.Errorf("failed to generate ephemeral key: %w", err)
 		}
 	} else {
