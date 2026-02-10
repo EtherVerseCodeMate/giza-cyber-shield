@@ -537,7 +537,7 @@ async def export_compliance_report():
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=15)
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=15)
         
         compliance_data = json.loads(stdout.decode()) if proc.returncode == 0 and stdout.strip() else {
             "score": 0.0,
