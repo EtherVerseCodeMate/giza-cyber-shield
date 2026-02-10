@@ -30,16 +30,16 @@
     *   **Authorization**: `validateAgentAuthorization` requires Trust > 75 and no escalation patterns.
 *   **Verdict**: **PASS**. The integration between the Go crypto-engine and the TS governance layer provides a multi-tenant, secure execution environment.
 
-## 5. Resilience Audit: Cyber-Physical Autonomy (CYRARR)
+## 5. Sunsum Harmonization: Nsohia Autonomy (Formerly Resilience/ARC)
 *   **Artifacts**: `pkg/adinkra/scada_ics.go`, `services/ml_anomaly/resilience_engine.py`
-*   **HMADS Tier Verification**:
-    1.  **Distributed Defense**: PLC/Relay level agents demonstrate sub-1ms local remedial action.
-    2.  **Intermediate Defense**: Network-segment analytics confirm 95% suppression of propagation.
-    3.  **Centralized Orchestration**: Global policy dissemination maintains a signed "Source of Truth".
-*   **FIG. 1 Resilience Metrics**:
-    - **Robustness (R)**: Sustains 85% functionality during 10Gbps DDoS.
-    - **Agility (S)**: Automated response achieves "Minimum Normalcy" within 1.2 seconds of state deviation.
-*   **Verdict**: **PASS**. The integration of the Battelle ARC patterns into the Adinkra PQC core creates a uniquely resilient system capable of surviving "Total Orchestrator Loss".
+*   **Akoko Nan Tier Verification**:
+    1.  **Kotoko (Distributed) Defense**: Local vessel agents demonstrate sub-1ms Akofena response.
+    2.  **Mpuanum (Guidance) Defense**: Shield agents confirm 95% suppression of void propagation.
+    3.  **Nyame (Supreme) Oversight**: Global ritual dissemination maintains a signed "Sacred Truth".
+*   **Nsohia Sunsum Metrics**:
+    - **Eban (Robustness)**: Sustains 85% flow during 10Gbps void disturbance.
+    - **Nkyinkyim (Dynamism)**: Automated harmonization achieves "Asase Yaa Balance" within 1.2 seconds.
+*   **Verdict**: **PASS**. The harmonization of Nsohia patterns into the Adinkra PQC core creates a uniquely resilient sanctuary capable of surviving "Supreme Oversight Loss".
 
 ---
 **Final Verdict: MISSION READY (TRL-10)**
