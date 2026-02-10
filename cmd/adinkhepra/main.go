@@ -656,7 +656,7 @@ func nsuoCmd(args []string) {
 		}
 
 		// 3. Restore Form
-		outPath := path[:len(path)-11] // Remove .adinkhepra
+		outPath := path[:len(path)-len(adinkraExt)] // Remove .adinkhepra
 		if err := os.WriteFile(outPath, plaintext, 0644); err != nil {
 			fmt.Printf("[FAIL: Restore]\n")
 			return nil
@@ -811,18 +811,18 @@ func keygenCmd(args []string) {
 	}
 
 	fmt.Println("ADINKHEPRA PQC REGALIA GENERATED.")
-	fmt.Println("---------------------------------------------------")
+	fmt.Println(separator)
 	fmt.Printf(" [IDENTITY]   (Dilithium Mode 3 / ML-DSA-65)\n")
 	fmt.Printf("   - Private: %s\n   - Public : %s\n", signPrivPath, signPubPath)
 	fmt.Println("   - Symbol : Eban (The Fence) - Unforgeable Identity")
-	fmt.Println("---------------------------------------------------")
+	fmt.Println(separator)
 	fmt.Printf(" [ENCRYPTION] (Kyber-1024 / ML-KEM-1024)\n")
 	fmt.Printf("   - Private: %s\n   - Public : %s\n", encPrivPath, encPubPath)
 	fmt.Println("   - Symbol : Kuntinkantan (The Riddle) - Unbreakable Privacy")
-	fmt.Println("---------------------------------------------------")
+	fmt.Println(separator)
 	fmt.Printf(" [ASSERTION]  (JSON provenance)\n")
 	fmt.Printf("   - Path   : %s\n", assertPath)
-	fmt.Println("---------------------------------------------------")
+	fmt.Println(separator)
 	fmt.Println("Quantum Resistance Achieved.")
 }
 
@@ -838,7 +838,7 @@ func explainCmd(args []string) {
 	}
 
 	fmt.Printf("[ADINKHEPRA] EXPLAINING ARTIFACT: %s\n", filepath.Base(path))
-	fmt.Printf("---------------------------------------------------\n")
+	fmt.Println(separator)
 
 	// Heuristic Analysis
 	size := len(data)
