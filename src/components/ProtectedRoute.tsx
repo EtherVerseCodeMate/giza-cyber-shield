@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserAgreements } from '@/hooks/useUserAgreements';
+import TermsAcceptance from './legal/TermsAcceptance';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -9,14 +10,19 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
-  const { loading: agreementsLoading } = useUserAgreements();
+  const { hasAcceptedAll, loading: agreementsLoading, refreshAgreements } = useUserAgreements();
   const navigate = useNavigate();
+  const [showTerms, setShowTerms] = useState(!hasAcceptedAll);
 
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth');
     }
   }, [user, loading, navigate]);
+
+  useEffect(() => {
+    setShowTerms(!hasAcceptedAll);
+  }, [hasAcceptedAll]);
 
   if (loading || agreementsLoading) {
     return (
@@ -30,7 +36,19 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return null;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <TermsAcceptance
+        open={showTerms}
+        onOpenChange={setShowTerms}
+        onAccepted={() => {
+          refreshAgreements();
+          setShowTerms(false);
+        }}
+      />
+    </>
+  );
 };
 
 export default ProtectedRoute;
