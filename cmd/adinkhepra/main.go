@@ -407,81 +407,64 @@ func auditCmd(args []string) {
 		return
 	}
 	snapPath := args[1]
-
-	// Check for SHODAN_API_KEY env var
-	// Removed.
-
 	fmt.Printf("[ADINKHEPRA] INGESTING EXTERNAL AUDIT ARTIFACT: %s\n", snapPath)
 
-	// [NEW] Gitleaks / Secret Integration
-	// adinkhepra audit ingest <scan> -leaks <gitleaks.json>
-	gitleaksFlag := ""
-	for i, arg := range args {
-		if arg == "-leaks" && i+1 < len(args) {
-			gitleaksFlag = args[i+1]
-		}
-	}
+	flags := parseAuditFlags(args)
 
-	// adinkhepra audit ingest <scan> -zscan <zgrab.json>
-	zscanFlag := ""
-	for i, arg := range args {
-		if arg == "-zscan" && i+1 < len(args) {
-			zscanFlag = args[i+1]
-		}
-	}
-
-	// [BIG BROTHER] TruffleHog Integration
-	// adinkhepra audit ingest <scan> -truffle <trufflehog.json>
-	truffleFlag := ""
-	for i, arg := range args {
-		if arg == "-truffle" && i+1 < len(args) {
-			truffleFlag = args[i+1]
-		}
-	}
-
-	// [ARSENAL EXPANSION] ZAP, RetireJS, SARIF, Detect-Secrets
-	zapFlag, retireFlag, sarifFlag, detectFlag := "", "", "", ""
-	for i, arg := range args {
-		if arg == "-zap" && i+1 < len(args) {
-			zapFlag = args[i+1]
-		}
-		if arg == "-retire" && i+1 < len(args) {
-			retireFlag = args[i+1]
-		}
-		if arg == "-sarif" && i+1 < len(args) {
-			sarifFlag = args[i+1]
-		}
-		if arg == "-detect" && i+1 < len(args) {
-			detectFlag = args[i+1]
-		}
-	}
-
-	// [STIG NATIVE] SCAP / Checklist / ACAS / K8s
-	scapFlag, checklistFlag, nessusFlag, kubeFlag, crawlerFlag := "", "", "", "", ""
-	for i, rangeArg := range args {
-		if rangeArg == "-stig-scap" && i+1 < len(args) {
-			scapFlag = args[i+1]
-		}
-		if rangeArg == "-stig-checklist" && i+1 < len(args) {
-			checklistFlag = args[i+1]
-		}
-		if rangeArg == "-nessus" && i+1 < len(args) {
-			nessusFlag = args[i+1]
-		}
-		if rangeArg == "-kube" && i+1 < len(args) {
-			kubeFlag = args[i+1]
-		}
-		if rangeArg == "-crawler" && i+1 < len(args) {
-			crawlerFlag = args[i+1]
-		}
-	}
-
-	report, err := audit.Ingest(snapPath, gitleaksFlag, zscanFlag, truffleFlag, zapFlag, retireFlag, sarifFlag, detectFlag, scapFlag, checklistFlag, nessusFlag, kubeFlag, crawlerFlag)
+	report, err := audit.Ingest(snapPath, flags.gitleaks, flags.zscan, flags.truffle,
+		flags.zap, flags.retire, flags.sarif, flags.detect,
+		flags.scap, flags.checklist, flags.nessus, flags.kube, flags.crawler)
 	if err != nil {
 		fatal("ingest failed", err)
 	}
 
-	// Print Executive Summary
+	processAuditReport(snapPath, report, args)
+}
+
+type auditFlags struct {
+	gitleaks, zscan, truffle   string
+	zap, retire, sarif, detect string
+	scap, checklist, nessus    string
+	kube, crawler              string
+}
+
+func parseAuditFlags(args []string) auditFlags {
+	var f auditFlags
+	for i, arg := range args {
+		if i+1 >= len(args) {
+			continue
+		}
+		switch arg {
+		case "-leaks":
+			f.gitleaks = args[i+1]
+		case "-zscan":
+			f.zscan = args[i+1]
+		case "-truffle":
+			f.truffle = args[i+1]
+		case "-zap":
+			f.zap = args[i+1]
+		case "-retire":
+			f.retire = args[i+1]
+		case "-sarif":
+			f.sarif = args[i+1]
+		case "-detect":
+			f.detect = args[i+1]
+		case "-stig-scap":
+			f.scap = args[i+1]
+		case "-stig-checklist":
+			f.checklist = args[i+1]
+		case "-nessus":
+			f.nessus = args[i+1]
+		case "-kube":
+			f.kube = args[i+1]
+		case "-crawler":
+			f.crawler = args[i+1]
+		}
+	}
+	return f
+}
+
+func processAuditReport(snapPath string, report *audit.RiskReport, args []string) {
 	fmt.Printf(" [SUCCESS] Snapshot Ingested. ID: %s\n", report.ScanID)
 	fmt.Printf(" [CLIENT]  %s\n", report.Client)
 	fmt.Printf(" [RISKS]   %d Issues Identified\n", len(report.Risks))
@@ -491,51 +474,44 @@ func auditCmd(args []string) {
 	}
 
 	outReport := snapPath + ".risk_report.json"
-	if err := audit.SaveReport(report, outReport); err != nil {
-		fatal("save report", err)
-	}
+	audit.SaveReport(report, outReport)
 	fmt.Printf("\n[OUTPUT] Risk Report generated: %s\n", outReport)
 
-	// Export to Superset CSV
+	saveExtraAuditFormats(snapPath, report)
+	handlePacketAudit(args)
+}
+
+func saveExtraAuditFormats(snapPath string, report *audit.RiskReport) {
 	csvPath := snapPath + ".superset.csv"
-	if err := audit.ExportToCSV(report, csvPath); err != nil {
-		fmt.Printf("[WARN] Failed to export CSV: %v\n", err)
-	} else {
+	if err := audit.ExportToCSV(report, csvPath); err == nil {
 		fmt.Printf("[OUTPUT] Superset CSV generated: %s\n", csvPath)
 	}
 
-	// Generate Executive Memo (AFFiNE Block Format)
 	affinePath := snapPath + ".affine.md"
 	markdown := audit.GenerateAFFiNE(report)
-	if err := os.WriteFile(affinePath, []byte(markdown), 0644); err != nil {
-		fmt.Printf("[WARN] Failed to scribe Executive Memo: %v\n", err)
-	} else {
+	if err := os.WriteFile(affinePath, []byte(markdown), 0644); err == nil {
 		fmt.Printf("[OUTPUT] Executive Decision Memo generated: %s\n", affinePath)
 	}
-	// [NEW] Packet Analysis Integration
-	// adinkhepra audit ingest <scan> -pcap <file.json>
+}
+
+func handlePacketAudit(args []string) {
 	pcapFlag := ""
 	for i, arg := range args {
 		if arg == "-pcap" && i+1 < len(args) {
 			pcapFlag = args[i+1]
+			break
 		}
 	}
 
 	if pcapFlag != "" {
 		fmt.Printf("\n[ADINKHEPRA] PACKET INTERCEPTION DETECTED: %s\n", pcapFlag)
 		res, err := packet.AnalyzeWiresharkJSON(pcapFlag)
-		if err != nil {
-			fmt.Printf("[FAIL] Packet Reconstruction Error: %v\n", err)
-		} else {
+		if err == nil {
 			fmt.Println("[ADINKHEPRA] DEEP PACKET INSPECTION COMPLETE.")
 			fmt.Printf("   - Processed Packets: %d\n", res.TotalPackets)
 			fmt.Printf("   - Cleartext (HTTP) : %d\n", res.CleartextCount)
 			fmt.Printf("   - Legacy TLS       : %d\n", res.LegacyTLSCount)
 			fmt.Printf("   - Quantum Risky    : %d (RSA/ECDSA)\n", res.QuantumRiskyCount)
-
-			if res.QuantumRiskyCount > 0 {
-				fmt.Println("   > ALERT: S-N-D-L Attack Vector Confirmed.")
-			}
 		}
 	}
 }

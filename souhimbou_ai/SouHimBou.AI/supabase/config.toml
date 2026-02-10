@@ -37,7 +37,7 @@ pop3_port = 54327
 
 [storage]
 enabled = true
-port = 54328
+# port = 54328
 file_size_limit = "50MiB"
 
 [functions.polymorphic-schema-engine]
