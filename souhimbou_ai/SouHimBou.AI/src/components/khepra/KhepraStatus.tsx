@@ -24,6 +24,12 @@ export const KhepraStatus = () => {
     return 'destructive';
   };
 
+  const getTrustScoreLabel = (score: number) => {
+    if (score >= 80) return 'High';
+    if (score >= 60) return 'Medium';
+    return 'Low';
+  };
+
   const isRemoteHealthy = health.data?.status === 'healthy';
   const recentEvents = securityEvents.slice(0, 3);
   const assetCriticality = license.data?.asset_criticality || 2;
@@ -50,7 +56,7 @@ export const KhepraStatus = () => {
               {authState.trustScore}
             </div>
             <Badge variant={getTrustScoreVariant(authState.trustScore)} className="text-xs">
-              {authState.trustScore >= 80 ? 'High' : authState.trustScore >= 60 ? 'Medium' : 'Low'}
+              {getTrustScoreLabel(authState.trustScore)}
             </Badge>
           </div>
           <Progress value={authState.trustScore} className="mt-2" />
@@ -143,7 +149,7 @@ export const KhepraStatus = () => {
             <div className="mt-2 space-y-1">
               {recentEvents.map((event, index) => (
                 <Badge
-                  key={index}
+                  key={`${event.timestamp.getTime()}-${index}`}
                   variant={event.severity === 'high' ? 'destructive' : 'secondary'}
                   className="text-xs mr-1"
                 >
