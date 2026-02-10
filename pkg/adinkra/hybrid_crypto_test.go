@@ -15,13 +15,13 @@ func TestGhostIdentityDeterminism(t *testing.T) {
 	copy(seed, []byte(seedPhrase))
 
 	// 1. Generate First Identity
-	id1, err := GenerateHybridKeyPairFromSeed(seed, "sovereign")
+	id1, err := GenerateHybridKeyPairFromSeed(seed, "sovereign", "Eban")
 	if err != nil {
 		t.Fatalf("Failed to generate ID1: %v", err)
 	}
 
 	// 2. Generate Second Identity (Same Seed)
-	id2, err := GenerateHybridKeyPairFromSeed(seed, "sovereign")
+	id2, err := GenerateHybridKeyPairFromSeed(seed, "sovereign", "Eban")
 	if err != nil {
 		t.Fatalf("Failed to generate ID2: %v", err)
 	}
@@ -46,12 +46,12 @@ func TestHybridCryptoFlow(t *testing.T) {
 	seed := make([]byte, 64)
 	copy(seed, []byte("TEST-SEED-FOR-FLOW-VERIFICATION"))
 
-	sender, err := GenerateHybridKeyPairFromSeed(seed, "sender")
+	sender, err := GenerateHybridKeyPairFromSeed(seed, "sender", "Nkyinkyim")
 	if err != nil {
 		t.Fatalf("KeyGen failed: %v", err)
 	}
 
-	recipient, err := GenerateHybridKeyPairFromSeed(seed, "recipient") // Sending to self for test
+	recipient, err := GenerateHybridKeyPairFromSeed(seed, "recipient", "Nkyinkyim") // Sending to self for test
 	if err != nil {
 		t.Fatalf("KeyGen failed: %v", err)
 	}
@@ -70,9 +70,6 @@ func TestHybridCryptoFlow(t *testing.T) {
 	}
 
 	// 3. Test Encryption (Kyber + others)
-	// Note: We need a different function for pure encryption if we aren't using the envelope?
-	// 'SignArtifact' only signs. 'EncryptForRecipient' is what we need.
-
 	encEnvelope, err := EncryptForRecipient(message, recipient)
 	if err != nil {
 		t.Fatalf("EncryptForRecipient failed: %v", err)
@@ -89,6 +86,36 @@ func TestHybridCryptoFlow(t *testing.T) {
 	}
 
 	t.Log("SUCCESS: Hybrid PQC Sign/Verify and Encrypt/Decrypt functional.")
+}
+
+func TestASAFVerification(t *testing.T) {
+	seed := make([]byte, 64)
+	copy(seed, []byte("ASAF-ATTESTATION-TEST-SEED-PROVENANCE"))
+
+	agent, err := GenerateHybridKeyPairFromSeed(seed, "agent", "Eban")
+	if err != nil {
+		t.Fatalf("Agent KeyGen failed: %v", err)
+	}
+
+	// Create ASAF Attestation
+	attestation, err := SignAgentAction(
+		agent.AdinkhepraPQCPrivate,
+		"agent-007",
+		"action-x-99",
+		"Eban",
+		95,
+		"Terminal Access",
+	)
+	if err != nil {
+		t.Fatalf("ASAF Signing failed: %v", err)
+	}
+
+	// Verify Attestation
+	if err := VerifyAgentAction(agent.AdinkhepraPQCPublic, attestation); err != nil {
+		t.Errorf("ASAF Verification failed: %v", err)
+	}
+
+	t.Log("SUCCESS: ASAF Agentic Attestation verified.")
 }
 
 func TestChaosEngineReader(t *testing.T) {
