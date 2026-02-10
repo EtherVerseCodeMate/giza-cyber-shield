@@ -2,12 +2,11 @@ package main
 
 import (
 	"bufio"
-	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -25,7 +24,6 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/packet"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scorpion"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stigs"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/util"
 )
@@ -602,52 +600,45 @@ func ogyaCmd(args []string) {
 	fmt.Printf("[ADINKHEPRA OGYA] Igniting the hearth in: %s\n", targetDir)
 
 	err = filepath.Walk(targetDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
+		if err != nil || info.IsDir() || filepath.Ext(path) == adinkraExt {
 			return err
 		}
-		if info.IsDir() {
-			return nil
-		}
-		if filepath.Ext(path) == ".adinkhepra" {
-			return nil
-		} // Skip already burnt
-
-		fmt.Printf("   - Burning: %s ... ", info.Name())
-
-		// 1. Read
-		data, err := os.ReadFile(path)
-		if err != nil {
-			fmt.Printf("[FAIL: Read] \n")
-			return nil
-		}
-
-		// 2. Kuntinkantan (Encrypt)
-		artifact, err := adinkra.Kuntinkantan(pubKey, data)
-		if err != nil {
-			fmt.Printf("[FAIL: Bind] \n")
-			return nil
-		}
-
-		// 3. Scribe Artifact
-		if err := os.WriteFile(path+".adinkhepra", artifact, 0644); err != nil {
-			fmt.Printf("[FAIL: Scribe] \n")
-			return nil
-		}
-
-		// 4. Incinerate Original (Secure Delete)
-		if err := secureDelete(path); err != nil {
-			fmt.Printf("[FAIL: Incinerate] \n")
-			return nil
-		}
-
-		fmt.Printf("[ASHES]\n")
-		return nil
+		return incinerateFile(path, info.Name(), pubKey)
 	})
 
 	if err != nil {
 		fatal("the fire spread uncontrollably", err)
 	}
 	fmt.Println("[ADINKHEPRA] The purification is complete.")
+}
+
+func incinerateFile(path, name string, pubKey []byte) error {
+	fmt.Printf("   - Burning: %s ... ", name)
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		fmt.Printf("[FAIL: Read] \n")
+		return nil
+	}
+
+	artifact, err := adinkra.Kuntinkantan(pubKey, data)
+	if err != nil {
+		fmt.Printf("[FAIL: Bind] \n")
+		return nil
+	}
+
+	if err := os.WriteFile(path+adinkraExt, artifact, 0644); err != nil {
+		fmt.Printf("[FAIL: Scribe] \n")
+		return nil
+	}
+
+	if err := secureDelete(path); err != nil {
+		fmt.Printf("[FAIL: Incinerate] \n")
+		return nil
+	}
+
+	fmt.Printf("[ASHES]\n")
+	return nil
 }
 
 func nsuoCmd(args []string) {
@@ -902,7 +893,6 @@ func explainCmd(args []string) {
 		fmt.Println("   - Time (Nonce):    24 bytes")
 		fmt.Printf("   - Matter (Data):   %d bytes\n", size-1592)
 		fmt.Println(" Meaning: 'Reality bent into a riddle.'")
-	} else {
 	}
 	// AGI Semantic Analysis Layer
 	fmt.Printf("\n[AGI] SOUHIMBOU ARCHITECT INTERVENTION...\n")
@@ -1063,97 +1053,17 @@ func kmsCmd(args []string) {
 
 func drbcCmd(args []string) {
 	if len(args) < 1 {
-		fmt.Println("Usage: khepra drbc <subcommand>")
-		fmt.Println("Subcommands:")
-		fmt.Println("  init      - Awaken the Genesis")
-		fmt.Println("  scorpion  - Bind Spirit to Vessel (Mpatapo)")
-		fmt.Println("  open      - Release Spirit (Sane)")
+		printDrbcUsage()
 		return
 	}
 
 	switch args[0] {
 	case "init":
-		fmt.Println("[PHOENIX] Awakening Genesis Protocol...")
-		fmt.Println(" [INFO] This will archive the entire reality to 'khepra_v0.0_genesis.kpkg'")
-
-		fmt.Print("Speak the Secret Name [Unlock Master Seed]: ")
-		reader := bufio.NewReader(os.Stdin)
-		pass, _ := reader.ReadString('\n')
-		pass = strings.TrimSpace(pass)
-
-		// Call the Genesis Logic
-		if err := drbc.AwakenGenesis(pass); err != nil {
-			fatal("Genesis Failed", err)
-		}
-
-		fmt.Println(" [SUCCESS] The Genesis Artifact is sealed.")
-		fmt.Printf(" [OUTPUT] %s\n", drbc.GenesisOutput)
-		fmt.Println(" [ SAFE ] You may now offload this artifact to The Cloud or The Ghost.")
-
+		drbcInitCmd()
 	case "scorpion":
-		fs := flag.NewFlagSet("drbc scorpion", flag.ExitOnError)
-		target := fs.String("target", "", "Spirit to bind")
-		out := fs.String("out", "", "Vessel path")
-		fs.Parse(args[1:])
-
-		if *target == "" || *out == "" {
-			fmt.Println("Usage: khepra drbc scorpion -target <file> -out <container.scorp>")
-			return
-		}
-
-		data, err := os.ReadFile(*target)
-		if err != nil {
-			fatal("read spirit", err)
-		}
-
-		fmt.Print("Speak the Secret Name [Password]: ")
-		reader := bufio.NewReader(os.Stdin)
-		pass, _ := reader.ReadString('\n')
-		pass = strings.TrimSpace(pass)
-
-		if len(pass) < 12 {
-			fatal("voice too weak", errors.New("the Name must have strength (12+ chars)"))
-		}
-
-		fmt.Printf("[SCORPION] Performing Mpatapo (Binding) on %s...\n", *target)
-
-		if err := scorpion.Mpatapo(*out, data, pass); err != nil {
-			fatal("Ritual Mpatapo failed", err)
-		}
-
-		fmt.Println(" [SUCCESS] Spirit Bound to Vessel.")
-		fmt.Println(" [WARNING] The Vessel will CONSUME itself if the Name is spoken falsely thrice.")
-
+		drbcScorpionCmd(args[1:])
 	case "open":
-		fs := flag.NewFlagSet("drbc open", flag.ExitOnError)
-		target := fs.String("target", "", "Vessel to open")
-		out := fs.String("out", "", "Transformation path")
-		fs.Parse(args[1:])
-
-		if *target == "" || *out == "" {
-			fmt.Println("Usage: khepra drbc open -target <container.scorp> -out <file>")
-			return
-		}
-
-		fmt.Print("Speak the Secret Name: ")
-		reader := bufio.NewReader(os.Stdin)
-		pass, _ := reader.ReadString('\n')
-		pass = strings.TrimSpace(pass)
-
-		fmt.Printf("[SCORPION] Performing Sane (Untying) on %s...\n", *target)
-
-		data, err := scorpion.Sane(*target, pass)
-		if err != nil {
-			fmt.Println(" [FAILURE] The Vessel rejects you.")
-			fatal("Ritual Sane failed", err)
-		}
-
-		if err := os.WriteFile(*out, data, 0600); err != nil {
-			fatal("transformation failed", err)
-		}
-
-		fmt.Printf(" [SUCCESS] Spirit Released to %s\n", *out)
-
+		drbcOpenCmd(args[1:])
 	case "restore":
 		fmt.Println("[PHOENIX] Initiating Restoration Protocol...")
 
