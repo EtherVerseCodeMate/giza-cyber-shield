@@ -25,6 +25,7 @@
 
 - [x] **Problem Solving**: Khepra solves a measurable problem: **Reducing the PQC migration window and automating CMMC compliance.**
 - [x] **Data Strategy**: Using a telemetry-driven "Dark Crypto Moat" to collect non-proprietary metadata on PQC adoption.
+- [x] **Web Analytics**: Google Analytics 4 (GA4) integrated for unified user journey tracking across marketing and app domains.
 - [ ] **Explainability (Gap)**: AI model (`ml_anomaly`) currently returns a risk score without deep logic explaining the "Why".
     - **Improvement**: Implement "Explainable ASAF" using SHAP loads for the PyTorch models to show which features (e.g., specific cypher-suite frequency) triggered an anomaly.
 - [x] **Lean MVP**: Using pre-trained anomaly detection as the base while collecting fine-tuning data from live nodes.
@@ -53,6 +54,7 @@
 2. **Telemetry Handlers**: Complete the enrollment workflow to ensure "Community Mode" users can easily transition to "Ra" or "Atum" tiers.
 3. **Iron Bank Automation**: Automate the `make ironbank` build process to generate the `hardening_manifest.yaml` based on `go.sum`.
 4. **Explainable AI Integration**: Add an `/api/v1/ai/explain` endpoint to the `ml_anomaly` service.
+5. **Code Hygiene**: Resolved IDE warnings in `index.html` (globalThis) and `KhepraStatus.tsx` (unique keys).
 
 ---
 *The Scarab watches. The Motherboard executes. The Logic is Eternal.*
