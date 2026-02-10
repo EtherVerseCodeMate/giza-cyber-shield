@@ -71,6 +71,7 @@ type HybridKeyPair struct {
 	ECDSAPrivate *ecdsa.PrivateKey
 
 	// Metadata
+	Symbol     string
 	KeyID      string
 	Created    time.Time
 	Purpose    string // "operator", "agent", "sovereign"
@@ -118,7 +119,7 @@ type SecureEnvelope struct {
 // ============================================================================
 
 // GenerateHybridKeyPair creates a new triple-layer key bundle
-func GenerateHybridKeyPair(purpose string, expirationMonths int) (*HybridKeyPair, error) {
+func GenerateHybridKeyPair(purpose string, symbol string, expirationMonths int) (*HybridKeyPair, error) {
 	// CRITICAL: Use hardware RNG or fail
 	entropy := make([]byte, 64)
 	if _, err := io.ReadFull(rand.Reader, entropy); err != nil {
@@ -137,8 +138,10 @@ func GenerateHybridKeyPair(purpose string, expirationMonths int) (*HybridKeyPair
 		Expiration: time.Now().AddDate(0, expirationMonths, 0),
 	}
 
+	keyPair.Symbol = symbol
+
 	// Layer 1: Khepra-PQC (Your proprietary scheme)
-	kPub, kPriv, err := generateKhepraPQCKeys(entropy[:32])
+	kPub, kPriv, err := generateKhepraPQCKeys(entropy[:32], symbol)
 	if err != nil {
 		return nil, fmt.Errorf("khepra-pqc keygen failed: %w", err)
 	}
@@ -179,7 +182,7 @@ func GenerateHybridKeyPair(purpose string, expirationMonths int) (*HybridKeyPair
 
 // GenerateHybridKeyPairFromSeed creates a deterministic key pair from a 64-byte seed.
 // Used for "Ghost Identities" (Password-Derived Keys).
-func GenerateHybridKeyPairFromSeed(seed []byte, purpose string) (*HybridKeyPair, error) {
+func GenerateHybridKeyPairFromSeed(seed []byte, purpose string, symbol string) (*HybridKeyPair, error) {
 	if len(seed) < 64 {
 		return nil, errors.New("seed too short (must be 64 bytes)")
 	}
@@ -191,9 +194,11 @@ func GenerateHybridKeyPairFromSeed(seed []byte, purpose string) (*HybridKeyPair,
 		Expiration: time.Now().AddDate(99, 0, 0), // Ghost keys are effectively eternal until password changes
 	}
 
+	keyPair.Symbol = symbol
+
 	// Layer 1: Khepra-PQC (Proprietary)
 	// Currently use the first 32 bytes of seed directly, or verify usage in impl
-	kPub, kPriv, err := generateKhepraPQCKeys(seed[:32])
+	kPub, kPriv, err := generateKhepraPQCKeys(seed[:32], symbol)
 	if err != nil {
 		return nil, fmt.Errorf("khepra-pqc keygen failed: %w", err)
 	}
@@ -494,8 +499,8 @@ func deterministicECDSAPrivateKeyFromSeed(seed []byte) (*ecdsa.PrivateKey, error
 // Khepra-PQC: Production lattice-based post-quantum signatures
 // Implementation in khepra_pqc.go using Merkaba geometry & Adinkra algebra
 
-func generateKhepraPQCKeys(seed []byte) (*KhepraPQCPublicKey, *KhepraPQCPrivateKey, error) {
-	return GenerateKhepraPQCKeyPair(seed)
+func generateKhepraPQCKeys(seed []byte, symbol string) (*KhepraPQCPublicKey, *KhepraPQCPrivateKey, error) {
+	return GenerateKhepraPQCKeyPair(seed, symbol)
 }
 
 func signKhepraPQC(priv *KhepraPQCPrivateKey, msgHash []byte) ([]byte, error) {

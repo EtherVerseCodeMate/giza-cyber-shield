@@ -5,15 +5,16 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"time"
 )
 
 // =============================================================================
-// KHEPRA-PQC: LATTICE-BASED POST-QUANTUM SIGNATURE SCHEME
+// ADINKHEPRA-PQC: LATTICE-BASED POST-QUANTUM SIGNATURE SCHEME
 // Based on Hash-and-Sign with Merkaba Lattice Geometry & Adinkra Algebra
 // Security Level: 256-bit (NIST Level 5 equivalent)
 // =============================================================================
 
-// Khepra-PQC Signature Scheme Architecture:
+// ADINKHEPRA-PQC Signature Scheme Architecture:
 //
 // 1. Lattice Structure: NTRU-style lattice over polynomial ring Z[x]/(x^n+1)
 //    - Polynomial degree: n = 512 (balance between security and performance)
@@ -35,19 +36,19 @@ import (
 //    - Merkaba geometry validation
 
 const (
-	// KhepraPQC Parameters
-	khepraN = 512     // Polynomial degree (power of 2 for FFT)
-	khepraQ = 8380417 // Modulus (same as constant)
-	khepraK = 8       // Lattice rank (same as constant)
+	// AdinkhepraPQC Parameters
+	AdinkhepraN = 512     // Polynomial degree (power of 2 for FFT)
+	AdinkhepraQ = 8380417 // Modulus (same as constant)
+	AdinkhepraK = 8       // Lattice rank (same as constant)
 
 	// Derived sizes
-	khepraSignatureSize = 2420 // Matches constant
+	AdinkhepraSignatureSize = 2420 // Matches constant
 )
 
-// KhepraPQCKeyPair represents a complete Khepra-PQC key pair
-type KhepraPQCKeyPair struct {
-	PublicKey  *KhepraPQCPublicKey
-	PrivateKey *KhepraPQCPrivateKey
+// AdinkhepraPQCKeyPair represents a complete Adinkhepra-PQC key pair
+type AdinkhepraPQCKeyPair struct {
+	PublicKey  *AdinkhepraPQCPublicKey
+	PrivateKey *AdinkhepraPQCPrivateKey
 }
 
 // Polynomial represents a polynomial in Z[x]/(x^n+1)
@@ -69,42 +70,52 @@ type ShortBasis struct {
 // KEY GENERATION
 // =============================================================================
 
-// GenerateKhepraPQCKeyPair creates a new Khepra-PQC key pair using Merkaba geometry
-func GenerateKhepraPQCKeyPair(seed []byte) (*KhepraPQCPublicKey, *KhepraPQCPrivateKey, error) {
+func GenerateAdinkhepraPQCKeyPair(seed []byte, symbol string) (*AdinkhepraPQCPublicKey, *AdinkhepraPQCPrivateKey, error) {
 	if len(seed) < 32 {
-		return nil, nil, errors.New("seed too short for Khepra-PQC (need 32+ bytes)")
+		return nil, nil, errors.New("seed too short for Adinkhepra-PQC (need 32+ bytes)")
 	}
 
+	// 1. Spectral Fingerprint Step (FIG. 3)
+	// Combine raw entropy with the symbol's algebraic topology
+	spectral := GetSpectralFingerprint(symbol)
+	unifiedSeed := make([]byte, len(seed)+len(spectral))
+	copy(unifiedSeed, seed)
+	copy(unifiedSeed[len(seed):], spectral)
+
+	// Hash to final 32-byte entropy seed
+	h := sha512.Sum512(unifiedSeed)
+	finalSeed := h[:32]
+
 	// Initialize Merkaba for sacred geometry-based key derivation
-	merkaba := NewMerkaba(seed)
+	merkaba := NewMerkaba(finalSeed)
 
 	// Walk the Tree of Life to get 10 Sephirot keys
 	sephirotPath := merkaba.walkTreeOfLife()
 
 	// Generate private key: Short basis using Gaussian sampling
-	privateKey := &KhepraPQCPrivateKey{
-		ShortVectors: make([][]int64, khepraK),
+	privateKey := &AdinkhepraPQCPrivateKey{
+		ShortVectors: make([][]int64, AdinkhepraK),
 		Seed:         [32]byte{},
 	}
-	copy(privateKey.Seed[:], seed[:32])
+	copy(privateKey.Seed[:], finalSeed)
 
 	// Generate public key: Lattice basis
-	publicKey := &KhepraPQCPublicKey{
-		LatticeVectors: make([][]int64, khepraK),
+	publicKey := &AdinkhepraPQCPublicKey{
+		LatticeVectors: make([][]int64, AdinkhepraK),
 		Seed:           [32]byte{},
-		SecurityLevel:  KhepraPQCSecurityLevel,
+		SecurityLevel:  AdinkhepraPQCSecurityLevel,
 	}
-	copy(publicKey.Seed[:], seed[:32])
+	copy(publicKey.Seed[:], finalSeed)
 
 	// For each lattice rank dimension, generate key material
-	for k := 0; k < khepraK; k++ {
+	for k := 0; k < AdinkhepraK; k++ {
 		// Use Sephirot entropy for this dimension
 		sephirotEntropy := sephirotPath[k%10].Entropy
 		chaos := NewChaosEngine(sephirotEntropy)
 
 		// Generate short private vector (Gaussian distribution approximation)
-		privateVector := make([]int64, khepraN)
-		for i := 0; i < khepraN; i++ {
+		privateVector := make([]int64, AdinkhepraN)
+		for i := 0; i < AdinkhepraN; i++ {
 			// Approximate Gaussian sampling using sum of uniform (CLT)
 			sample := int64(0)
 			for j := 0; j < 12; j++ { // 12 samples for good approximation
@@ -118,8 +129,8 @@ func GenerateKhepraPQCKeyPair(seed []byte) (*KhepraPQCPublicKey, *KhepraPQCPriva
 
 		// Generate public vector using Adinkra transform
 		// Public = f(Private) where f is a one-way lattice function
-		publicVector := make([]int64, khepraN)
-		for i := 0; i < khepraN; i++ {
+		publicVector := make([]int64, AdinkhepraN)
+		for i := 0; i < AdinkhepraN; i++ {
 			// Apply Adinkra color operators to expand private to public
 			val := uint64(privateVector[i])
 
@@ -130,7 +141,7 @@ func GenerateKhepraPQCKeyPair(seed []byte) (*KhepraPQCPublicKey, *KhepraPQCPriva
 			}
 
 			// Modular reduction and store
-			publicVector[i] = int64(val) % int64(khepraQ)
+			publicVector[i] = int64(val) % int64(AdinkhepraQ)
 		}
 		publicKey.LatticeVectors[k] = publicVector
 	}
@@ -142,8 +153,8 @@ func GenerateKhepraPQCKeyPair(seed []byte) (*KhepraPQCPublicKey, *KhepraPQCPriva
 // SIGNING
 // =============================================================================
 
-// SignKhepraPQC creates a lattice-based signature using Merkaba geometry
-func SignKhepraPQC(privateKey *KhepraPQCPrivateKey, messageHash []byte) ([]byte, error) {
+// SignAdinkhepraPQC creates a lattice-based signature using Merkaba geometry
+func SignAdinkhepraPQC(privateKey *AdinkhepraPQCPrivateKey, messageHash []byte) ([]byte, error) {
 	if len(messageHash) != 64 {
 		return nil, errors.New("message hash must be 64 bytes (SHA-512)")
 	}
@@ -157,23 +168,23 @@ func SignKhepraPQC(privateKey *KhepraPQCPrivateKey, messageHash []byte) ([]byte,
 
 	// Create signature polynomial using private short vectors
 	signature := &Polynomial{
-		Coeffs: make([]int32, khepraN*khepraK),
+		Coeffs: make([]int32, AdinkhepraN*AdinkhepraK),
 	}
 
 	// Rejection sampling loop for short signatures
 	maxAttempts := 100
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		// Generate candidate signature using Gaussian sampling + private key
-		candidate := make([]int32, khepraN*khepraK)
+		candidate := make([]int32, AdinkhepraN*AdinkhepraK)
 
-		for k := 0; k < khepraK; k++ {
+		for k := 0; k < AdinkhepraK; k++ {
 			sephirotEntropy := sephirotPath[k%10].Entropy
 			// Add attempt number to ensure different samples
 			sephirotEntropy ^= uint64(attempt)
 			chaos := NewChaosEngine(sephirotEntropy)
 
-			offset := k * khepraN
-			for i := 0; i < khepraN; i++ {
+			offset := k * AdinkhepraN
+			for i := 0; i < AdinkhepraN; i++ {
 				// Gaussian sample
 				sample := gaussianSample(chaos)
 
@@ -189,7 +200,7 @@ func SignKhepraPQC(privateKey *KhepraPQCPrivateKey, messageHash []byte) ([]byte,
 				opColor := chaos.Intn(4)
 				val = merkaba.applyOperator(val, opColor)
 
-				candidate[offset+i] = int32(val % khepraQ)
+				candidate[offset+i] = int32(val % AdinkhepraQ)
 			}
 		}
 
@@ -429,5 +440,74 @@ func (priv *KhepraPQCPrivateKey) ValidatePrivateKey() error {
 }
 
 // =============================================================================
-// INTEGRATION FUNCTIONS (for hybrid_crypto.go)
+// ADINKHEPRA-ASAF: AGENTIC SECURITY ATTESTATION FRAMEWORK (FIG. 11B)
 // =============================================================================
+
+// AdinkhepraAttestation represents a cryptographically bound agent action
+type AdinkhepraAttestation struct {
+	ActionID   string
+	AgentID    string
+	Symbol     string
+	TrustScore int
+	Context    string
+	Signature  []byte
+	Timestamp  int64
+}
+
+// SignAgentAction creates a symbolic ASAF attestation for an agent action.
+// According to FIG. 11B, this binds the Action DAG provenance to the PQ Identity.
+func SignAgentAction(priv *AdinkhepraPQCPrivateKey, agentID, actionID, symbol string, trustScore int, context string) (*AdinkhepraAttestation, error) {
+	timestamp := time.Now().Unix()
+
+	// Create canonical payload for signing [AgentID | ActionID | Symbol | TrustScore | Context | Timestamp]
+	payload := fmt.Sprintf("%s:%s:%s:%d:%s:%d", agentID, actionID, symbol, trustScore, context, timestamp)
+
+	// Hash payload using SHA-512
+	h := sha512.Sum512([]byte(payload))
+
+	// Sign using Adinkhepra-PQC
+	sig, err := SignAdinkhepraPQC(priv, h[:])
+	if err != nil {
+		return nil, fmt.Errorf("ASAF signing failed: %w", err)
+	}
+
+	return &AdinkhepraAttestation{
+		ActionID:   actionID,
+		AgentID:    agentID,
+		Symbol:     symbol,
+		TrustScore: trustScore,
+		Context:    context,
+		Signature:  sig,
+		Timestamp:  timestamp,
+	}, nil
+}
+
+// VerifyAgentAction validates the ASAF attestation against the agent's public key.
+func VerifyAgentAction(pub *AdinkhepraPQCPublicKey, attestation *AdinkhepraAttestation) error {
+	// Reconstruct payload
+	payload := fmt.Sprintf("%s:%s:%s:%d:%s:%d",
+		attestation.AgentID, attestation.ActionID, attestation.Symbol,
+		attestation.TrustScore, attestation.Context, attestation.Timestamp)
+
+	// Hash payload
+	h := sha512.Sum512([]byte(payload))
+
+	// Verify signature
+	return VerifyAdinkraPQC(pub, h[:], attestation.Signature)
+}
+
+// MapSymbolToCompliance returns the regulatory mapping for an Adinkra symbol (FIG. 10).
+func MapSymbolToCompliance(symbol string) []string {
+	switch symbol {
+	case "Eban":
+		return []string{"DoD RMF", "STIG", "Access Control"}
+	case "Fawohodie":
+		return []string{"CMMC", "Revocation", "Privilege Management"}
+	case "Nkyinkyim":
+		return []string{"FedRAMP", "GDPR", "State Transition"}
+	case "Dwennimmen":
+		return []string{"PCI DSS", "HIPAA", "High-Assurance"}
+	default:
+		return []string{"General Compliance"}
+	}
+}

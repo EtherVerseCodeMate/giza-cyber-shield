@@ -52,7 +52,7 @@ except ImportError as e:
     raise e
 
 # Setup Logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=getattr(logging, settings.log_level))
 logger = logging.getLogger("souhimbou.api")
 
 # Global State
@@ -939,4 +939,4 @@ async def get_agi_status():
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host=settings.host, port=settings.port)

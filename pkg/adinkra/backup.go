@@ -37,8 +37,9 @@ func EncryptBackup(payload interface{}, passphrase string) (*KhepraBackup, error
 	}
 
 	// 3. Derive Ghost Identity (Deterministic)
+	// We use the "Eban" (Fortress) symbol for backups (FIG. 10).
 	seed := DeriveProprietaryKey(passphrase, salt)
-	ghostIdentity, err := GenerateHybridKeyPairFromSeed(seed, "ghost-backup")
+	ghostIdentity, err := GenerateHybridKeyPairFromSeed(seed, "ghost-backup", "Eban")
 	if err != nil {
 		return nil, fmt.Errorf("failed to summon ghost identity: %w", err)
 	}
@@ -68,8 +69,9 @@ func EncryptBackup(payload interface{}, passphrase string) (*KhepraBackup, error
 // DecryptBackup restores the data from the PQC container.
 func DecryptBackup(backup *KhepraBackup, passphrase string) ([]byte, error) {
 	// 1. Re-Derive Ghost Identity
+	// Must match the "Eban" (Fortress) symbol used during encryption.
 	seed := DeriveProprietaryKey(passphrase, backup.Header.Salt)
-	ghostIdentity, err := GenerateHybridKeyPairFromSeed(seed, "ghost-backup")
+	ghostIdentity, err := GenerateHybridKeyPairFromSeed(seed, "ghost-backup", "Eban")
 	if err != nil {
 		return nil, fmt.Errorf("failed to summon ghost identity: %w", err)
 	}
