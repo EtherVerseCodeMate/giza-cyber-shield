@@ -41,6 +41,7 @@ Usage:
   adinkhepra validate                             # Component smoke tests & health check
   adinkhepra serve        [-port 8080]            # Start DAG Viewer (Living Trust Constellation)
   adinkhepra compliance   <subcommand>            # Unified CMMC/STIG/NIST Attestation Suite
+  adinkhepra scada        <subcommand>            # HMADS/ARC Cyber-Physical Resilience Suite
 
   Executive Roundtable (ERT) Analysis:
   adinkhepra ert          <subcommand>            # Integrated ERT Intelligence Engine
@@ -139,6 +140,8 @@ func main() {
 		verifyCmd(os.Args[2:])
 	case "csr":
 		csrCmd(os.Args[2:])
+	case "scada":
+		scadaCmd(os.Args[2:])
 	// [IRON BANK COMPLIANCE]
 	case "run":
 		// Iron Bank Entrypoint: "adinkhepra run" (Foreground Agent)
