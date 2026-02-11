@@ -36,6 +36,16 @@ import UltimateDashboard from "./pages/UltimateDashboard";
 import CommandCenter from "./pages/CommandCenter";
 import NotFound from "./pages/NotFound";
 import LegalPage from "./pages/LegalPage";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+
+/**
+ * Invisible component that sets document.title per route.
+ * Must be inside <BrowserRouter> to access useLocation.
+ */
+const DocumentTitle = () => {
+  useDocumentTitle();
+  return null;
+};
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,6 +65,7 @@ const App = () => {
             <TooltipProvider>
               <OrganizationProvider>
                 <ErrorBoundary>
+                  <DocumentTitle />
                   <Toaster />
                   <Sonner />
                   <Routes>
@@ -72,7 +83,7 @@ const App = () => {
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/auth/callback" element={<AuthCallback />} />
                     <Route path="/auth/reset-password" element={<ResetPassword />} />
-                    <Route path="/onboarding" element={<Onboarding />} />
+                    <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
 
                     {/* Legal Pages */}
                     <Route path="/privacy" element={<LegalPage />} />
@@ -90,8 +101,8 @@ const App = () => {
                     <Route path="/ultimate" element={<ProtectedRoute><UltimateDashboard /></ProtectedRoute>} />
                     <Route path="/command-center" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
 
-                    {/* DoD STIG-Codex Center */}
-                    <Route path="/dod" element={<ProtectedRoute><DoD /></ProtectedRoute>} />
+                    {/* DoD Solutions (public marketing page) */}
+                    <Route path="/dod" element={<DoD />} />
 
                     {/* Admin Routes */}
                     <Route path="/admin" element={<ProtectedRoute><MasterAdmin /></ProtectedRoute>} />
