@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import {
   Shield,
   Activity,
-  LogOut,
   Search,
   Bell,
   User,
@@ -21,6 +20,7 @@ import {
 } from 'lucide-react';
 import { AdinkraSymbolDisplay } from '@/components/khepra/AdinkraSymbolDisplay';
 import HeaderClock from '@/components/console/HeaderClock';
+import SignOutDialog from '@/components/SignOutDialog';
 import { FloatingAIAssistant } from '@/components/FloatingAIAssistant';
 import { useNavigate } from 'react-router-dom';
 import { BrowserNavigation } from '@/components/ui/browser-navigation';
@@ -147,9 +147,7 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
             </div>
           </div>
 
-          <Button variant="ghost" size="sm" onClick={() => signOut()} aria-label="Sign out">
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <SignOutDialog onConfirm={() => signOut()} />
         </div>
       </header>
 
