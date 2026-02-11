@@ -11,103 +11,104 @@ import {
     Shield,
     Globe,
     Key,
+    RefreshCw,
     CheckCircle,
     XCircle,
-    RefreshCw,
     Info,
-    ExternalLink
+    ExternalLink,
 } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-export function KhepraVPSIntegration() {
-    const { config, updateConfig, isUpdating } = useKhepraDeployment();
-    const [url, setUrl] = useState('');
-    const [key, setKey] = useState('');
-
-    // Sync local state with fetched config
-    useEffect(() => {
-        if (config) {
-            setUrl(config.deploymentUrl);
-            setKey(config.apiKey);
-        }
-    }, [config]);
-
-    // Use the API hook with current local state for testing
-    const { health } = useKhepraAPI(url, key);
-
-    const handleSave = async () => {
-        await updateConfig({
-            deploymentUrl: url,
-            apiKey: key
-        });
+interface KhepraVPSIntegrationProps {
+    config: {
+        deploymentUrl: string;
+        apiKey: string;
     };
+    updateConfig: (url: string, key: string) => Promise<void>;
+    isUpdating: boolean;
+}
 
+export function KhepraVPSIntegration({ config, updateConfig, isUpdating }: KhepraVPSIntegrationProps) {
+    const [url, setUrl] = useState(config.deploymentUrl);
+    const [key, setKey] = useState(config.apiKey);
+
+    const { health } = useKhepraAPI(url, key);
     const isConnected = health.data?.status === 'healthy';
 
+    useEffect(() => {
+        setUrl(config.deploymentUrl);
+        setKey(config.apiKey);
+    }, [config]);
+
+    const handleSave = async () => {
+        await updateConfig(url, key);
+    };
+
     return (
-        <Card className="w-full border-primary/20 shadow-lg overflow-hidden">
-            <div className="h-2 bg-gradient-to-r from-primary via-primary/50 to-primary/20" />
-            <CardHeader>
+        <Card className="glass-card overflow-hidden border-white/5 shadow-2xl group animate-fade-in">
+            <div className="h-1 bg-gradient-to-r from-primary via-primary/50 to-transparent opacity-50" />
+            <CardHeader className="border-b border-white/5 bg-white/2">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 shadow-lg shadow-primary/10">
                             <Server className="h-6 w-6 text-primary" />
                         </div>
                         <div>
-                            <CardTitle className="text-xl">Khepra VPS / Private Cloud</CardTitle>
-                            <CardDescription>
-                                Connect your self-hosted Khepra instance for hybrid security orchestration.
+                            <CardTitle className="text-2xl font-black italic tracking-tight uppercase">Private Deployment</CardTitle>
+                            <CardDescription className="text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground">
+                                Hybrid Orchestration • Isolated Security Node
                             </CardDescription>
                         </div>
                     </div>
                     <Badge
-                        variant={isConnected ? "default" : "outline"}
-                        className={isConnected ? "bg-green-500 hover:bg-green-600" : "text-muted-foreground"}
+                        variant="outline"
+                        className={isConnected
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 font-black italic uppercase text-[10px] px-3 py-1"
+                            : "bg-white/5 text-muted-foreground border-white/10 font-black italic uppercase text-[10px] px-3 py-1"
+                        }
                     >
                         {isConnected ? (
-                            <span className="flex items-center gap-1">
-                                <CheckCircle className="h-3 w-3" /> Connected
+                            <span className="flex items-center gap-1.5 animate-pulse">
+                                <CheckCircle className="h-3 w-3" /> LINKED
                             </span>
                         ) : (
-                            <span className="flex items-center gap-1">
-                                <XCircle className="h-3 w-3" /> Disconnected
+                            <span className="flex items-center gap-1.5 opacity-50">
+                                <XCircle className="h-3 w-3" /> DETACHED
                             </span>
                         )}
                     </Badge>
                 </div>
             </CardHeader>
-            <CardContent className="space-y-6">
-                <Alert className="bg-muted/50 border-primary/10">
-                    <Info className="h-4 w-4" />
-                    <AlertTitle>Hybrid Deployment Model</AlertTitle>
-                    <AlertDescription className="text-xs">
-                        This integration allows SouHimBou.AI to orchestrate security scans, manage PQC licenses,
-                        and collect audit logs from your private Khepra deployment.
-                    </AlertDescription>
-                </Alert>
+            <CardContent className="p-8 space-y-8">
+                <div className="flex items-start gap-4 p-4 bg-primary/5 border border-primary/10 rounded-xl">
+                    <Info className="h-5 w-5 text-primary mt-0.5" />
+                    <div className="space-y-1">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-primary">Hybrid Protocol Active</h4>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            SouHimBou.AI is currently orchestrating security maneuvers through your private Khepra node.
+                            All PQC handshakes and audit trails are persisted to your local DAG constellation.
+                        </p>
+                    </div>
+                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                        <Label htmlFor="vps-url" className="flex items-center gap-2">
-                            <Globe className="h-4 w-4 text-muted-foreground" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-3">
+                        <Label htmlFor="vps-url" className="text-[10px] uppercase font-black tracking-widest text-primary/80 flex items-center gap-2">
+                            <Globe className="h-3 w-3" />
                             Deployment Endpoint
                         </Label>
                         <Input
                             id="vps-url"
-                            placeholder="https://khepra.yourdomain.com"
+                            placeholder="https://khepra.internal.cloud"
                             value={url}
                             onChange={(e) => setUrl(e.target.value)}
-                            className="font-mono text-sm"
+                            className="bg-white/5 border-white/10 h-12 font-mono text-sm focus:ring-primary/20"
                         />
-                        <p className="text-[10px] text-muted-foreground">
-                            The public or VPN-accessible URL of your Khepra API server.
-                        </p>
                     </div>
 
-                    <div className="space-y-2">
-                        <Label htmlFor="vps-key" className="flex items-center gap-2">
-                            <Key className="h-4 w-4 text-muted-foreground" />
-                            Environment API Key
+                    <div className="space-y-3">
+                        <Label htmlFor="vps-key" className="text-[10px] uppercase font-black tracking-widest text-primary/80 flex items-center gap-2">
+                            <Key className="h-3 w-3" />
+                            Secret Environment Key
                         </Label>
                         <div className="relative">
                             <Input
@@ -116,71 +117,68 @@ export function KhepraVPSIntegration() {
                                 placeholder="kp_live_xxxxxxxxxxxx"
                                 value={key}
                                 onChange={(e) => setKey(e.target.value)}
-                                className="font-mono text-sm pr-10"
+                                className="bg-white/5 border-white/10 h-12 font-mono text-sm pr-12 focus:ring-primary/20"
                             />
-                            <div className="absolute right-3 top-2.5">
-                                <Shield className="h-4 w-4 text-primary/30" />
+                            <div className="absolute right-4 top-3.5 opacity-20 group-hover:opacity-100 transition-opacity">
+                                <Shield className="h-5 w-5 text-primary" />
                             </div>
                         </div>
-                        <p className="text-[10px] text-muted-foreground">
-                            Required for authenticated access to your private node.
-                        </p>
                     </div>
                 </div>
 
                 {health.data && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-border/50">
-                        <div className="space-y-1">
-                            <span className="text-xs text-muted-foreground block">Version</span>
-                            <span className="text-sm font-medium">{health.data.version || 'N/A'}</span>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 p-6 bg-black/40 rounded-2xl border border-white/5">
+                        <div className="space-y-1.5">
+                            <span className="text-[9px] uppercase font-black tracking-widest text-muted-foreground block">Version</span>
+                            <span className="text-sm font-mono font-bold text-white italic">{health.data.version || '0.0.0-PROTOTYPE'}</span>
                         </div>
-                        <div className="space-y-1">
-                            <span className="text-xs text-muted-foreground block">Ledger Depth</span>
-                            <span className="text-sm font-medium">{health.data.dag_nodes || 0} nodes</span>
+                        <div className="space-y-1.5">
+                            <span className="text-[9px] uppercase font-black tracking-widest text-muted-foreground block">Ledger Depth</span>
+                            <span className="text-sm font-mono font-bold text-primary italic">{health.data.dag_nodes || 0} BLOCKS</span>
                         </div>
-                        <div className="space-y-1">
-                            <span className="text-xs text-muted-foreground block">License Mode</span>
-                            <span className="text-sm font-medium capitalize">{health.data.license_status || 'Unknown'}</span>
+                        <div className="space-y-1.5">
+                            <span className="text-[9px] uppercase font-black tracking-widest text-muted-foreground block">Merkaba Auth</span>
+                            <span className="text-sm font-mono font-bold text-emerald-400 italic uppercase">AUTHORIZED</span>
                         </div>
-                        <div className="space-y-1">
-                            <span className="text-xs text-muted-foreground block">Uptime</span>
-                            <span className="text-sm font-medium">
-                                {Math.floor(health.data.uptime_seconds / 3600)}h {Math.floor((health.data.uptime_seconds % 3600) / 60)}m
+                        <div className="space-y-1.5">
+                            <span className="text-[9px] uppercase font-black tracking-widest text-muted-foreground block">Runtime</span>
+                            <span className="text-sm font-mono font-bold text-white italic">
+                                {Math.floor(health.data.uptime_seconds / 3600)}H {Math.floor((health.data.uptime_seconds % 3600) / 60)}M
                             </span>
                         </div>
                     </div>
                 )}
             </CardContent>
-            <CardFooter className="bg-muted/30 border-t border-border/50 flex items-center justify-between py-4">
-                <div className="flex items-center gap-2">
+            <CardFooter className="bg-black/60 border-t border-white/5 p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
                     {url && (
                         <Button
-                            variant="ghost"
+                            variant="link"
                             size="sm"
-                            className="text-xs gap-1"
+                            className="text-[10px] uppercase font-black tracking-widest text-primary/60 hover:text-primary p-0 h-auto"
                             onClick={() => window.open(`${url}/health`, '_blank')}
                         >
-                            <ExternalLink className="h-3 w-3" /> View Raw Health
+                            <ExternalLink className="h-3 w-3 mr-2" /> Raw Telemetry Stream
                         </Button>
                     )}
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4 w-full sm:w-auto">
                     <Button
                         variant="outline"
-                        size="sm"
+                        className="flex-1 sm:flex-none h-11 border-white/10 bg-white/5 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest px-6"
                         onClick={() => health.refetch()}
                         disabled={health.isRefetching || !url}
                     >
-                        <RefreshCw className={`h-4 w-4 mr-1 ${health.isRefetching ? 'animate-spin' : ''}`} />
-                        Test Connection
+                        <RefreshCw className={`h-3 w-3 mr-2 ${health.isRefetching ? 'animate-spin' : ''}`} />
+                        Verify Handshake
                     </Button>
                     <Button
-                        size="sm"
+                        className="flex-1 sm:flex-none h-11 bg-primary hover:bg-primary-glow text-primary-foreground text-[10px] font-black uppercase tracking-widest px-8 shadow-lg shadow-primary/20"
                         onClick={handleSave}
                         disabled={isUpdating || !url || (url === config?.deploymentUrl && key === config?.apiKey)}
                     >
-                        {isUpdating ? <RefreshCw className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
-                        Save Configuration
+                        {isUpdating ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                        COMMIT CONFIG
                     </Button>
                 </div>
             </CardFooter>
