@@ -1,61 +1,37 @@
 import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { KhepraScansWidget } from '@/components/khepra/KhepraScansWidget';
 import { KhepraLicenseWidget } from '@/components/khepra/KhepraLicenseWidget';
 import { KhepraDAGVisualization } from '@/components/khepra/KhepraDAGVisualization';
+import { KhepraVPSIntegration } from '@/components/khepra/KhepraVPSIntegration';
 import { useKhepraDeployment } from '@/hooks/useKhepraDeployment';
 import {
-  Shield,
   Network,
   Key,
-  Settings,
   Activity,
   BarChart3,
   Server,
-  ExternalLink,
+  Shield,
 } from 'lucide-react';
 
 export default function ClientPortal() {
   const { config, isLoading, isUpdating, updateConfig } = useKhepraDeployment();
-
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
-  const [tempUrl, setTempUrl] = useState('');
-  const [tempKey, setTempKey] = useState('');
-
-  useEffect(() => {
-    if (config) {
-      setTempUrl(config.deploymentUrl);
-      setTempKey(config.apiKey);
-    }
-  }, [config]);
-
-  const handleSaveConfig = async () => {
-    await updateConfig({
-      deploymentUrl: tempUrl,
-      apiKey: tempKey
-    });
-    setIsConfigOpen(false);
-  };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <Shield className="h-12 w-12 animate-pulse mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Loading Client Portal...</p>
+          <p className="text-muted-foreground font-black italic uppercase tracking-widest text-xs">Synchronizing Portal...</p>
         </div>
       </div>
     );
@@ -63,23 +39,28 @@ export default function ClientPortal() {
 
   if (!config) {
     return (
-      <div className="container mx-auto py-8">
-        <Card>
+      <div className="min-h-screen bg-cyber-mesh p-12 flex items-center justify-center">
+        <Card className="glass-card max-w-md w-full border-red-500/20">
           <CardHeader>
-            <CardTitle>Deployment Not Found</CardTitle>
-            <CardDescription>
-              No Khepra deployment is configured for this organization.
+            <CardTitle className="text-2xl font-black italic text-red-500 uppercase tracking-tight">Deployment Missing</CardTitle>
+            <CardDescription className="text-muted-foreground uppercase text-[10px] font-bold tracking-widest">
+              No Khepra orchestration endpoint detected
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => setIsConfigOpen(true)}>
-              Configure Deployment
-            </Button>
+            <p className="text-sm text-muted-foreground bg-white/5 p-4 rounded-xl border border-white/5">
+              Protocol execution requires a linked private node. Please contact your administrator to provision an orchestration endpoint.
+            </p>
           </CardContent>
         </Card>
       </div>
     );
   }
+
+  // Wrapper for updateConfig to match the component's expectations
+  const handleUpdateConfig = async (url: string, key: string) => {
+    await updateConfig({ deploymentUrl: url, apiKey: key });
+  };
 
   return (
     <div className="min-h-screen bg-cyber-mesh bg-animate text-white p-6 space-y-8">
@@ -125,85 +106,37 @@ export default function ClientPortal() {
             </p>
           </div>
 
-          <div className="flex items-center gap-4">
-            <Badge variant="outline" className="bg-white/5 border-white/10 text-primary font-mono py-2 px-4 shadow-inner">
-              <Server className="h-3 w-3 mr-2" />
-              {new URL(config.deploymentUrl).host}
-            </Badge>
-
-            <Dialog open={isConfigOpen} onOpenChange={setIsConfigOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="h-11 border-white/10 bg-white/5 hover:bg-white/10 text-white font-bold uppercase tracking-widest text-xs px-6">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Orchestration Config
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="glass-card text-white border-white/10">
-                <DialogHeader>
-                  <DialogTitle className="text-2xl font-black italic">DEPLOYMENT CONFIG</DialogTitle>
-                  <DialogDescription className="text-muted-foreground">
-                    Connect your self-hosted Khepra instance for hybrid security orchestration.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-6 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="url" className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Endpoint URL</Label>
-                    <Input
-                      id="url"
-                      placeholder="https://khepra.example.com:8080"
-                      value={tempUrl}
-                      onChange={(e) => setTempUrl(e.target.value)}
-                      className="bg-white/5 border-white/10 font-mono text-sm h-12"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="key" className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Secure API Key</Label>
-                    <Input
-                      id="key"
-                      type="password"
-                      placeholder="kp_live_..."
-                      value={tempKey}
-                      onChange={(e) => setTempKey(e.target.value)}
-                      className="bg-white/5 border-white/10 font-mono text-sm h-12"
-                    />
-                  </div>
-                  <Button
-                    onClick={handleSaveConfig}
-                    className="w-full h-12 bg-primary text-primary-foreground font-black uppercase tracking-tighter shadow-lg shadow-primary/20"
-                    disabled={isUpdating}
-                  >
-                    {isUpdating ? 'SYNCHRONIZING...' : 'UPDATE DEPLOYMENT'}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
+          <KhepraVPSIntegration
+            config={config}
+            updateConfig={handleUpdateConfig}
+            isUpdating={isUpdating}
+          />
         </div>
 
         {/* Main Content */}
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <Activity className="h-4 w-4" />
+          <TabsList className="bg-black/20 border-white/5 p-1 rounded-xl h-12">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary font-black italic uppercase text-[10px] tracking-widest transition-all">
+              <Activity className="h-3 w-3 mr-2" />
               Overview
             </TabsTrigger>
-            <TabsTrigger value="scans" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
+            <TabsTrigger value="scans" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary font-black italic uppercase text-[10px] tracking-widest transition-all">
+              <Shield className="h-3 w-3 mr-2" />
               Security Scans
             </TabsTrigger>
-            <TabsTrigger value="dag" className="flex items-center gap-2">
-              <Network className="h-4 w-4" />
+            <TabsTrigger value="dag" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary font-black italic uppercase text-[10px] tracking-widest transition-all">
+              <Network className="h-3 w-3 mr-2" />
               DAG Constellation
             </TabsTrigger>
-            <TabsTrigger value="license" className="flex items-center gap-2">
-              <Key className="h-4 w-4" />
+            <TabsTrigger value="license" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary font-black italic uppercase text-[10px] tracking-widest transition-all">
+              <Key className="h-3 w-3 mr-2" />
               License
             </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <TabsContent value="overview" className="space-y-6 pt-4 animate-slide-up">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
               <KhepraScansWidget
                 deploymentUrl={config.deploymentUrl}
                 apiKey={config.apiKey}
@@ -221,7 +154,7 @@ export default function ClientPortal() {
           </TabsContent>
 
           {/* Scans Tab */}
-          <TabsContent value="scans">
+          <TabsContent value="scans" className="pt-4 animate-slide-up">
             <KhepraScansWidget
               deploymentUrl={config.deploymentUrl}
               apiKey={config.apiKey}
@@ -229,7 +162,7 @@ export default function ClientPortal() {
           </TabsContent>
 
           {/* DAG Tab */}
-          <TabsContent value="dag">
+          <TabsContent value="dag" className="pt-4 animate-slide-up">
             <KhepraDAGVisualization
               deploymentUrl={config.deploymentUrl}
               apiKey={config.apiKey}
@@ -238,43 +171,43 @@ export default function ClientPortal() {
           </TabsContent>
 
           {/* License Tab */}
-          <TabsContent value="license">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <TabsContent value="license" className="pt-4 animate-slide-up">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
               <KhepraLicenseWidget
                 deploymentUrl={config.deploymentUrl}
                 apiKey={config.apiKey}
               />
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5" />
-                    Usage Statistics
+              <Card className="glass-card border-white/5 shadow-2xl">
+                <CardHeader className="border-b border-white/5 bg-white/2">
+                  <CardTitle className="flex items-center gap-2 text-xl font-black italic">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                    USAGE STATISTICS
                   </CardTitle>
-                  <CardDescription>
-                    License usage and API call metrics
+                  <CardDescription className="text-muted-foreground uppercase text-[10px] tracking-widest font-bold">
+                    License consumption & API telemetry
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-6">
                   <div className="grid grid-cols-2 gap-4 text-center">
-                    <div className="bg-muted rounded-lg p-4">
-                      <div className="text-3xl font-bold text-primary">--</div>
-                      <div className="text-sm text-muted-foreground">API Calls Today</div>
+                    <div className="bg-white/5 border border-white/5 rounded-xl p-4 transition-all hover:bg-white/10 group">
+                      <div className="text-3xl font-black italic text-primary group-hover:scale-110 transition-transform">--</div>
+                      <div className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground mt-2">API Calls / 24h</div>
                     </div>
-                    <div className="bg-muted rounded-lg p-4">
-                      <div className="text-3xl font-bold text-primary">--</div>
-                      <div className="text-sm text-muted-foreground">Scans This Month</div>
+                    <div className="bg-white/5 border border-white/5 rounded-xl p-4 transition-all hover:bg-white/10 group">
+                      <div className="text-3xl font-black italic text-primary group-hover:scale-110 transition-transform">--</div>
+                      <div className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground mt-2">Scans / Month</div>
                     </div>
-                    <div className="bg-muted rounded-lg p-4">
-                      <div className="text-3xl font-bold text-green-600">--</div>
-                      <div className="text-sm text-muted-foreground">Issues Resolved</div>
+                    <div className="bg-white/5 border border-white/5 rounded-xl p-4 transition-all hover:bg-white/10 group">
+                      <div className="text-3xl font-black italic text-emerald-400 group-hover:scale-110 transition-transform">--</div>
+                      <div className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground mt-2">Remediations</div>
                     </div>
-                    <div className="bg-muted rounded-lg p-4">
-                      <div className="text-3xl font-bold text-orange-600">--</div>
-                      <div className="text-sm text-muted-foreground">Open Findings</div>
+                    <div className="bg-white/5 border border-white/5 rounded-xl p-4 transition-all hover:bg-white/10 group">
+                      <div className="text-3xl font-black italic text-red-400 group-hover:scale-110 transition-transform">--</div>
+                      <div className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground mt-2">Open Findings</div>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-4 text-center">
-                    Usage data will populate as you use the Khepra deployment.
+                  <p className="text-[9px] uppercase tracking-tighter text-muted-foreground mt-6 text-center opacity-40">
+                    Telemetry data stream initializing... Standby for node sync.
                   </p>
                 </CardContent>
               </Card>
