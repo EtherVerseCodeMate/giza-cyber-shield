@@ -66,8 +66,8 @@ export const useOrganization = () => {
   }, [user]);
 
   const handleFetchError = async (error: any) => {
-    // Detailed logging for debugging, but less aggressive UI feedback
-    console.warn('Organization fetch status:', { code: error.code, message: error.message });
+    // Detailed logging for debugging
+    console.warn('Organization fetch status:', { code: error.code, message: error.message, path: window.location.pathname });
 
     // If JWT expired, sign out user - this is a critical state transition
     if (error.code === 'PGRST301') {
@@ -80,11 +80,16 @@ export const useOrganization = () => {
       // If the error is real (e.g. connection, RLS failure), log it prominently
       console.error('Critical organization load failure:', error);
 
+      // Suppress error toast on public landing page to prevent bad UX for unauthenticated/stale sessions
+      if (window.location.pathname === '/') {
+        return;
+      }
+
       // Only show toast if we are CERTAIN it's a failure and not just a new user case
       if (user?.id) {
         toast({
-          title: "Connection Alert",
-          description: "Retrying organization sync...",
+          title: "Synchronization Issue",
+          description: "Retrying organization data sync...",
           variant: "default", // Less alarming variant
         });
       }
