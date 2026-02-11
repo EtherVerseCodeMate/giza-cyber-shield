@@ -10,7 +10,8 @@ import UserTierManager from "@/components/admin/UserTierManager";
 import { UnifiedAdminConsole } from "@/components/UnifiedAdminConsole";
 import { UserManagement } from "@/components/UserManagement";
 import { AuditLog } from "@/components/AuditLog";
-import { Crown, Users, FileText, Scale, Activity, LogOut, Shield } from "lucide-react";
+import { Crown, Users, FileText, Activity, LogOut, Shield } from "lucide-react";
+import LoadingScreen from "@/components/LoadingScreen";
 
 const MasterAdmin = () => {
   const { user, signOut } = useAuth();
@@ -62,7 +63,7 @@ const MasterAdmin = () => {
         }
 
         setHasAdminAccess(hasAccess);
-        
+
         if (!hasAccess) {
           navigate('/dashboard');
         }
@@ -70,7 +71,7 @@ const MasterAdmin = () => {
         console.error('Error checking admin access:', error);
         navigate('/dashboard');
       }
-      
+
       setCheckingAccess(false);
     };
 
@@ -80,11 +81,7 @@ const MasterAdmin = () => {
   }, [profile, profileLoading, navigate, user]);
 
   if (profileLoading || checkingAccess) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
-        <div className="text-white">Loading...</div>
-      </div>
-    );
+    return <LoadingScreen message="Verifying admin credentials..." />;
   }
 
   if (!hasAdminAccess) {
@@ -99,9 +96,9 @@ const MasterAdmin = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-4">
-                <img 
-                  src="/lovable-uploads/94f06ba5-2c93-4be0-a03f-e3fff4157ca6.png" 
-                  alt="SouHimBou AI Logo" 
+                <img
+                  src="/lovable-uploads/94f06ba5-2c93-4be0-a03f-e3fff4157ca6.png"
+                  alt="SouHimBou AI Logo"
                   className="h-12 w-auto"
                 />
                 <div className="flex items-center space-x-2">
@@ -131,6 +128,7 @@ const MasterAdmin = () => {
                   size="sm"
                   onClick={() => signOut()}
                   className="border-red-500/30 text-red-400 hover:bg-red-500/20"
+                  aria-label="Sign out"
                 >
                   <LogOut className="h-4 w-4" />
                 </Button>
@@ -151,7 +149,7 @@ const MasterAdmin = () => {
             </CardHeader>
             <CardContent>
               <p className="text-gray-300">
-                Welcome to the Master Admin console. You have full access to all platform functions, 
+                Welcome to the Master Admin console. You have full access to all platform functions,
                 user management and system administration.
               </p>
             </CardContent>
