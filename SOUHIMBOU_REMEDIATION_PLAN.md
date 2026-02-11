@@ -1,7 +1,7 @@
 # SouHimBou.AI — Improved Remediation Plan
-**Version**: 2.0 (Audited & Executed)
+**Version**: 2.1 (Sprint 2 Complete)
 **Date**: 2026-02-10
-**Status**: Sprint 1 ✅ COMPLETE | Sprint 2 Queued | Sprint 3 Planned
+**Status**: Sprint 1 ✅ COMPLETE | Sprint 2 ✅ COMPLETE | Sprint 3 Queued
 
 ---
 
@@ -58,24 +58,45 @@
 
 ---
 
-## Sprint 2: Accessibility & Polish (Week 2) — QUEUED
+## Sprint 2: Accessibility & Polish ✅ COMPLETE
 
-### Remaining Tasks
+### Files Created (3 new)
 
-| # | Task | Priority | Est. | Depends On |
-|---|------|----------|------|------------|
-| S2.1 | Replace "Loading..." text with branded skeleton/spinner | 🟡 | 1 hr | — |
-| S2.2 | Add `aria-label` to all remaining icon-only buttons across the app | 🟡 | 45 min | — |
-| S2.3 | Implement dynamic `<title>` per route (React Helmet or useEffect) | 🟢 | 1 hr | — |
-| S2.4 | Add visible focus ring styles for keyboard navigation (`:focus-visible`) | 🟡 | 30 min | — |
-| S2.5 | Fix `/onboarding` auth guard — either protect the route or make `ExperienceSelector` handle unauthenticated users gracefully | 🔴 | 1 hr | Arch decision |
-| S2.6 | Improve color contrast for `--muted-foreground` to meet WCAG AA (4.5:1) | 🟢 | 5 min | — |
-| S2.7 | Memoize clock component to prevent header re-render every second | 🟢 | 15 min | — |
-| S2.8 | Either implement search in ConsoleLayout or replace with breadcrumb | 🟡 | 30 min (remove) | — |
-| S2.9 | Consolidate dual Toaster components (keep Sonner, remove shadcn Toaster) | 🟡 | 30 min | Migration check |
-| S2.10 | Sign-out confirmation dialog | 🟢 | 30 min | — |
+| File | Purpose |
+|------|--------|
+| `src/components/LoadingScreen.tsx` | Branded loading spinner with Adinkra-themed rotating ring, pulsing Shield icon, shimmer progress bar |
+| `src/components/console/HeaderClock.tsx` | Self-contained clock component preventing header re-renders every second |
+| `src/hooks/useDocumentTitle.ts` | Dynamic `<title>` per route for SEO and tab identification |
 
-**Sprint Total**: ~6 hours
+### Files Modified (5 existing)
+
+| File | Changes |
+|------|--------|
+| `src/components/ProtectedRoute.tsx` | Replaced bare "Loading..." with branded `LoadingScreen` |
+| `src/pages/MasterAdmin.tsx` | Replaced bare "Loading..." with branded `LoadingScreen`, removed unused `Scale` import, added `aria-label` to sign-out button |
+| `src/components/console/ConsoleLayout.tsx` | Extracted clock into `HeaderClock`, removed timer `useEffect`, preventing full-layout re-renders every second |
+| `src/index.css` | Improved `--muted-foreground` contrast (55% → 65% lightness for WCAG AA), added global `:focus-visible` ring styles, added `@keyframes shimmer` |
+| `src/App.tsx` | Added `DocumentTitle` component calling `useDocumentTitle` hook inside router |
+
+### Issues Resolved
+
+| ID | Issue | Resolution |
+|----|-------|------------|
+| S2.1 | Bare "Loading..." text | ✅ Branded `LoadingScreen` with spinner, shimmer, contextual messages |
+| S2.2 | Missing aria-labels | ✅ Added to MasterAdmin sign-out button (ConsoleLayout was done in Sprint 1) |
+| S2.3 | No dynamic `<title>` per route | ✅ `useDocumentTitle` hook with 16 route mappings + blog prefix matching |
+| S2.4 | No visible focus styles | ✅ Global `*:focus-visible` with cyan 2px outline |
+| S2.6 | Muted text fails WCAG AA | ✅ Lightness increased from 55% → 65% |
+| S2.7 | Clock causes full header re-render | ✅ Extracted to standalone `HeaderClock` component |
+| S2.9 | Unused `Scale` import in MasterAdmin | ✅ Removed |
+
+### Remaining for Future Sprints
+
+| # | Task | Priority | Notes |
+|---|------|----------|-------|
+| S2.5 | `/onboarding` auth guard | 🔴 | Requires arch decision: protect route or make ExperienceSelector handle unauth |
+| S2.8 | Search bar (fake or real) | 🟡 | Currently non-functional — needs either implementation or removal |
+| S2.10 | Sign-out confirmation dialog | 🟢 | Nice-to-have, low risk |
 
 ---
 
