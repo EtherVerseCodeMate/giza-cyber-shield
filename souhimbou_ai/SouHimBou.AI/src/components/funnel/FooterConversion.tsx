@@ -17,34 +17,34 @@ export const FooterConversion = () => {
 
   const footerLinks = {
     solutions: [
-      { label: 'HPE GreenLake Solutions', href: '#hpe-greenlake' },
-      { label: 'SouHimBou AI ASOC', href: '#asoc' },
-      { label: 'Cyber-Rig Formula™', href: '#cyber-rig' },
-      { label: 'Managed Security', href: '#managed-security' },
+      { label: 'HPE GreenLake Solutions', href: 'https://www.hpe.com/greenlake', target: '_blank' },
+      { label: 'SouHimBou AI ASOC', href: '/onboarding' },
+      { label: 'Cyber-Rig Formula™', href: '/blog' },
+      { label: 'Managed Security', href: '/dod' },
     ],
     compliance: [
-      { label: 'NIST Framework', href: '#nist' },
-      { label: 'CMMC Certification', href: '#cmmc' },
-      { label: 'MITRE ATT&CK', href: '#mitre' },
-      { label: 'FedRAMP Pathway', href: '#fedramp' },
+      { label: 'NIST Framework', href: '/compliance' },
+      { label: 'CMMC Certification', href: '/compliance' },
+      { label: 'MITRE ATT&CK', href: 'https://attack.mitre.org/', target: '_blank' },
+      { label: 'FedRAMP Pathway', href: '/compliance' },
     ],
     company: [
-      { label: 'About NouchiX', href: '#about' },
-      { label: 'Leadership Team', href: '#team' },
-      { label: 'Veteran-Led Mission', href: '#mission' },
-      { label: 'Partner Program', href: '#partners' },
+      { label: 'About NouchiX', href: 'https://www.linkedin.com/company/nouchix', target: '_blank' },
+      { label: 'Leadership Team', href: 'https://www.linkedin.com/company/nouchix', target: '_blank' },
+      { label: 'Veteran-Led Mission', href: '/blog/episode-3-founder-inception-story' },
+      { label: 'Partner Program', href: '/onboarding' },
     ],
     resources: [
-      { label: 'Product Catalog', href: '#catalog' },
-      { label: 'Case Studies', href: '#case-studies' },
-      { label: 'Whitepapers', href: '#whitepapers' },
-      { label: 'Security Blog', href: '#blog' },
+      { label: 'Product Catalog', href: '/onboarding' },
+      { label: 'Case Studies', href: '/blog' },
+      { label: 'Whitepapers', href: '/blog' },
+      { label: 'Security Blog', href: '/blog' },
     ],
     recognition: [
       { label: 'F6S Profile', href: 'https://www.f6s.com', target: '_blank' },
       { label: 'DesignRush Featured', href: 'https://www.designrush.com', target: '_blank' },
-      { label: 'SecRed Knowledge Inc.', href: '#secred' },
-      { label: 'LinkedIn Company', href: 'https://www.linkedin.com', target: '_blank' },
+      { label: 'SecRed Knowledge Inc.', href: 'https://www.linkedin.com/company/nouchix', target: '_blank' },
+      { label: 'LinkedIn Company', href: 'https://www.linkedin.com/company/nouchix', target: '_blank' },
     ],
   };
 
@@ -263,7 +263,7 @@ export const FooterConversion = () => {
         <div className="space-y-4">
           <div className="text-center text-gray-500 text-sm">
             <p>
-              © 2025 SecRed Knowledge Inc. dba NouchiX. An authorized HPE Partner Ready T2 Solution Provider. All rights reserved.
+              © {new Date().getFullYear()} SecRed Knowledge Inc. dba NouchiX. An authorized HPE Partner Ready T2 Solution Provider. All rights reserved.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4 mt-3 text-xs">
               <a href="/privacy" className="hover:text-[#00ffff] transition-colors">Privacy Policy</a>
