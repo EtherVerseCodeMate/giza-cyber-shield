@@ -6,10 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
-  Home,
   Shield,
   Activity,
-  Settings,
   LogOut,
   Search,
   Bell,
@@ -18,9 +16,7 @@ import {
   X,
   Globe,
   Lock,
-  Brain,
-  Zap,
-  Plug
+  Brain
 } from 'lucide-react';
 import { AdinkraSymbolDisplay } from '@/components/khepra/AdinkraSymbolDisplay';
 import { FloatingAIAssistant } from '@/components/FloatingAIAssistant';
@@ -69,13 +65,15 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Top Navigation Bar */}
-      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6 sticky top-0 z-50 backdrop-blur-sm">
+      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6 sticky top-0 z-50 backdrop-blur-sm" role="banner">
         <div className="flex items-center space-x-4">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="lg:hidden"
+            aria-label={isSidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+            aria-expanded={isSidebarOpen}
           >
             {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
@@ -94,7 +92,7 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
               </h1>
               <div className="flex items-center space-x-2">
                 <Badge variant="secondary" className="text-xs">
-                  Default Organization
+                  {currentOrganization?.organization?.name || 'Default Organization'}
                 </Badge>
                 <Badge variant="outline" className="text-xs text-primary">
                   STIG Compliance
@@ -111,6 +109,7 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
             <input
               type="text"
               placeholder="Search services, resources..."
+              aria-label="Search services and resources"
               className="w-full pl-10 pr-4 py-2 bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
           </div>
@@ -133,9 +132,8 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
             </div>
           </div>
 
-          <Button variant="ghost" size="sm" className="relative">
+          <Button variant="ghost" size="sm" className="relative" aria-label="Notifications">
             <Bell className="h-5 w-5" />
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full"></div>
           </Button>
 
           <div className="flex items-center space-x-2">
@@ -148,7 +146,7 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
             </div>
           </div>
 
-          <Button variant="ghost" size="sm" onClick={() => signOut()}>
+          <Button variant="ghost" size="sm" onClick={() => signOut()} aria-label="Sign out">
             <LogOut className="h-4 w-4" />
           </Button>
         </div>
@@ -156,7 +154,8 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
 
       <div className="flex h-[calc(100vh-4rem)]">
         {/* Sidebar */}
-        <aside
+        <nav
+          aria-label="Main navigation"
           className={`
             ${isSidebarOpen ? 'w-64' : 'w-16'} 
             bg-card border-r border-border transition-all duration-300 overflow-hidden
@@ -238,10 +237,10 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
               </Card>
             </div>
           )}
-        </aside>
+        </nav>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto bg-gradient-to-br from-background to-muted/20">
+        <main className="flex-1 overflow-auto bg-gradient-to-br from-background to-muted/20" role="main">
           {browserNav && (
             <BrowserNavigation
               tabs={browserNav.tabs}
