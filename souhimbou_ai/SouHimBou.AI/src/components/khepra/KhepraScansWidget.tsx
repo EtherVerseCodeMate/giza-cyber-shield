@@ -76,7 +76,7 @@ export function KhepraScansWidget({ deploymentUrl, apiKey }: KhepraScansWidgetPr
     );
   };
 
-  const currentTier = license.data?.license_tier || 'community';
+  const currentTier = license.data?.tier || 'community';
   const isKhepri = currentTier === 'community' || currentTier === 'khepri';
 
   return (
