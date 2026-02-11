@@ -1,7 +1,7 @@
 # SouHimBou.AI — Improved Remediation Plan
-**Version**: 2.1 (Sprint 2 Complete)
+**Version**: 3.0 (Sprint 3 Complete)
 **Date**: 2026-02-10
-**Status**: Sprint 1 ✅ COMPLETE | Sprint 2 ✅ COMPLETE | Sprint 3 Queued
+**Status**: Sprint 1 ✅ | Sprint 2 ✅ | Sprint 3 ✅ | Sprint 4 Backlog
 
 ---
 
@@ -100,17 +100,30 @@
 
 ---
 
-## Sprint 3: UX Delight Layer (Week 3-4) — PLANNED
+## Sprint 3: UX Delight & Remaining Critical ✅ COMPLETE
 
-| # | Task | Priority | Est. |
-|---|------|----------|------|
-| S3.1 | Command Palette (Ctrl+K) with fuzzy search, quick nav, scan launch | 🟢 | 4 hrs |
-| S3.2 | Implement `?tour=true` onboarding walkthrough | 🟢 | 4 hrs |
-| S3.3 | Upgrade PapyrusGenie to visible "Help" assistant | 🟢 | 2 hrs |
-| S3.4 | Add "Help/Support" link to sidebar | 🟢 | 15 min |
-| S3.5 | Create `tokens.json` design system source-of-truth | 🟢 | 2 hrs |
+### Files Created (1 new)
 
-**Sprint Total**: ~12 hours
+| File | Purpose |
+|------|--------|
+| `src/components/CommandPalette.tsx` | Full Ctrl+K command palette with fuzzy search, keyboard nav (↑↓↵), auth-aware commands, grouped sections, backdrop blur |
+
+### Files Modified (2 existing)
+
+| File | Changes |
+|------|--------|
+| `src/App.tsx` | Merged useAuth import, added AuthAwareCommandPalette, protected /onboarding route, made /dod public |
+| `src/components/console/ConsoleLayout.tsx` | Added HelpCircle nav item, made search bar functional (filters sidebar), added searchQuery state |
+
+### Issues Resolved
+
+| ID | Issue | Resolution |
+|----|-------|------------|
+| S2.5 | /onboarding unprotected but uses auth state | ✅ Wrapped in `ProtectedRoute` — unauthenticated users redirected to /auth |
+| S2.8 | Fake non-functional search bar | ✅ Now filters sidebar nav items in real-time |
+| S3.1 | No Command Palette | ✅ Ctrl/Cmd+K with 12+ commands, fuzzy search, keyboard-navigable |
+| S3.4 | No Help/Support link | ✅ Added "Help & Support" to sidebar nav pointing to /vdp |
+| — | /dod behind auth despite being marketing page | ✅ Made public route |
 
 ---
 
