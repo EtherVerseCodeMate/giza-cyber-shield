@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, User, Lock, Building, Eye, EyeOff, AlertTriangle, CheckCircle, Fingerprint } from 'lucide-react';
+import { Shield, User, Lock, Building, Eye, EyeOff, CheckCircle, Fingerprint } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import PasswordResetOTP from '@/components/auth/PasswordResetOTP';
 
@@ -463,9 +463,9 @@ const Auth = () => {
           <p className="text-sm text-muted-foreground mt-2">
             Our Platform bridges CMMC requirements and STIGs implementation, AI-powered, friction-free!
           </p>
-          <Badge variant="destructive" className="inline-flex items-center space-x-1">
-            <AlertTriangle className="h-3 w-3" />
-            <span>DoD CLASSIFIED</span>
+          <Badge variant="outline" className="inline-flex items-center space-x-1 border-primary/30 text-primary">
+            <Shield className="h-3 w-3" />
+            <span>UNCLASSIFIED // FOUO</span>
           </Badge>
 
           {isAccountLocked() && (
