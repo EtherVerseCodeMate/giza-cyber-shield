@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { OrganizationProvider } from "@/components/OrganizationProvider";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import SecurityHeaders from "@/components/security/SecurityHeaders";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 // Core MVP Pages
 import NewHomepage from "./pages/NewHomepage";
@@ -34,6 +35,7 @@ import ClientPortal from "./pages/ClientPortal";
 import UltimateDashboard from "./pages/UltimateDashboard";
 import CommandCenter from "./pages/CommandCenter";
 import NotFound from "./pages/NotFound";
+import LegalPage from "./pages/LegalPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -52,48 +54,56 @@ const App = () => {
           <SecurityHeaders>
             <TooltipProvider>
               <OrganizationProvider>
-                <Toaster />
-                <Sonner />
-                <Routes>
-                  {/* Public Routes */}
-                  <Route path="/" element={<NewHomepage />} />
-                  <Route path="/blog" element={<BlogList />} />
-                  <Route path="/blog/episode-1-blood-moon-philosopher-api" element={<Episode1 />} />
-                  <Route path="/blog/episode-2-autonomous-ai-deepfakes-leadership" element={<Episode2 />} />
-                  <Route path="/blog/episode-3-founder-inception-story" element={<Episode3 />} />
-                  <Route path="/blog/episode-4-rising-through-ranks" element={<Episode4 />} />
-                  <Route path="/blog/building-cyber-immunity-cmmc-stig-database" element={<BuildingCyberImmunity />} />
-                  <Route path="/blog/launching-vdp" element={<LaunchingVDP />} />
-                  <Route path="/vdp" element={<VDP />} />
-                  <Route path="/hall-of-fame" element={<HallOfFame />} />
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/auth/callback" element={<AuthCallback />} />
-                  <Route path="/auth/reset-password" element={<ResetPassword />} />
-                  <Route path="/onboarding" element={<Onboarding />} />
+                <ErrorBoundary>
+                  <Toaster />
+                  <Sonner />
+                  <Routes>
+                    {/* Public Routes */}
+                    <Route path="/" element={<NewHomepage />} />
+                    <Route path="/blog" element={<BlogList />} />
+                    <Route path="/blog/episode-1-blood-moon-philosopher-api" element={<Episode1 />} />
+                    <Route path="/blog/episode-2-autonomous-ai-deepfakes-leadership" element={<Episode2 />} />
+                    <Route path="/blog/episode-3-founder-inception-story" element={<Episode3 />} />
+                    <Route path="/blog/episode-4-rising-through-ranks" element={<Episode4 />} />
+                    <Route path="/blog/building-cyber-immunity-cmmc-stig-database" element={<BuildingCyberImmunity />} />
+                    <Route path="/blog/launching-vdp" element={<LaunchingVDP />} />
+                    <Route path="/vdp" element={<VDP />} />
+                    <Route path="/hall-of-fame" element={<HallOfFame />} />
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/auth/callback" element={<AuthCallback />} />
+                    <Route path="/auth/reset-password" element={<ResetPassword />} />
+                    <Route path="/onboarding" element={<Onboarding />} />
 
-                  {/* STIG-First MVP Routes */}
-                  <Route path="/stig-dashboard" element={<ProtectedRoute><STIGDashboard /></ProtectedRoute>} />
-                  <Route path="/dashboard" element={<ProtectedRoute><STIGDashboard /></ProtectedRoute>} />
-                  <Route path="/asset-scanning" element={<ProtectedRoute><AssetScanning /></ProtectedRoute>} />
-                  <Route path="/compliance-reports" element={<ProtectedRoute><ComplianceReports /></ProtectedRoute>} />
-                  <Route path="/evidence-collection" element={<ProtectedRoute><EvidenceCollectionMVP /></ProtectedRoute>} />
-                  <Route path="/billing" element={<ProtectedRoute><SimpleBilling /></ProtectedRoute>} />
-                  <Route path="/ultimate" element={<ProtectedRoute><UltimateDashboard /></ProtectedRoute>} />
-                  <Route path="/command-center" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
+                    {/* Legal Pages */}
+                    <Route path="/privacy" element={<LegalPage />} />
+                    <Route path="/terms" element={<LegalPage />} />
+                    <Route path="/security" element={<LegalPage />} />
+                    <Route path="/compliance" element={<LegalPage />} />
 
-                  {/* DoD STIG-Codex Center */}
-                  <Route path="/dod" element={<ProtectedRoute><DoD /></ProtectedRoute>} />
+                    {/* STIG-First MVP Routes */}
+                    <Route path="/stig-dashboard" element={<ProtectedRoute><STIGDashboard /></ProtectedRoute>} />
+                    <Route path="/dashboard" element={<ProtectedRoute><STIGDashboard /></ProtectedRoute>} />
+                    <Route path="/asset-scanning" element={<ProtectedRoute><AssetScanning /></ProtectedRoute>} />
+                    <Route path="/compliance-reports" element={<ProtectedRoute><ComplianceReports /></ProtectedRoute>} />
+                    <Route path="/evidence-collection" element={<ProtectedRoute><EvidenceCollectionMVP /></ProtectedRoute>} />
+                    <Route path="/billing" element={<ProtectedRoute><SimpleBilling /></ProtectedRoute>} />
+                    <Route path="/ultimate" element={<ProtectedRoute><UltimateDashboard /></ProtectedRoute>} />
+                    <Route path="/command-center" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
 
-                  {/* Admin Routes */}
-                  <Route path="/admin" element={<ProtectedRoute><MasterAdmin /></ProtectedRoute>} />
+                    {/* DoD STIG-Codex Center */}
+                    <Route path="/dod" element={<ProtectedRoute><DoD /></ProtectedRoute>} />
 
-                  {/* Khepra Client Portal */}
-                  <Route path="/clients/:org_id/overview" element={<ProtectedRoute><ClientPortal /></ProtectedRoute>} />
-                  <Route path="/clients/:org_id" element={<ProtectedRoute><ClientPortal /></ProtectedRoute>} />
+                    {/* Admin Routes */}
+                    <Route path="/admin" element={<ProtectedRoute><MasterAdmin /></ProtectedRoute>} />
 
-                  {/* Catch-all */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
+                    {/* Khepra Client Portal */}
+                    <Route path="/clients/:org_id/overview" element={<ProtectedRoute><ClientPortal /></ProtectedRoute>} />
+                    <Route path="/clients/:org_id" element={<ProtectedRoute><ClientPortal /></ProtectedRoute>} />
+
+                    {/* Catch-all */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </ErrorBoundary>
               </OrganizationProvider>
             </TooltipProvider>
           </SecurityHeaders>
