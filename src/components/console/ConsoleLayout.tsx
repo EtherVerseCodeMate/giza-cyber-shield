@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useOrganizationContext } from '@/components/OrganizationProvider';
@@ -16,9 +16,11 @@ import {
   X,
   Globe,
   Lock,
-  Brain
+  Brain,
+  HelpCircle
 } from 'lucide-react';
 import { AdinkraSymbolDisplay } from '@/components/khepra/AdinkraSymbolDisplay';
+import HeaderClock from '@/components/console/HeaderClock';
 import { FloatingAIAssistant } from '@/components/FloatingAIAssistant';
 import { useNavigate } from 'react-router-dom';
 import { BrowserNavigation } from '@/components/ui/browser-navigation';
@@ -41,18 +43,11 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
   browserNav
 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { profile } = useUserProfile();
   const { currentOrganization } = useOrganizationContext();
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   const navigationItems = [
     { id: 'stig-dashboard', label: 'STIG Dashboard', icon: Shield, path: '/stig-dashboard', symbol: 'Eban' },
@@ -60,7 +55,14 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
     { id: 'compliance-reports', label: 'Reports', icon: Globe, path: '/compliance-reports', symbol: 'Duafe' },
     { id: 'evidence-collection', label: 'Evidence', icon: Lock, path: '/evidence-collection', symbol: 'Nkyinkyim' },
     { id: 'billing', label: 'Billing', icon: Brain, path: '/billing', symbol: 'Fawohodie' },
+    { id: 'help', label: 'Help & Support', icon: HelpCircle, path: '/vdp', symbol: 'Akoma' },
   ];
+
+  const filteredNavItems = searchQuery
+    ? navigationItems.filter(item =>
+      item.label.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    : navigationItems;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -110,6 +112,8 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
               type="text"
               placeholder="Search services, resources..."
               aria-label="Search services and resources"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
           </div>
@@ -126,10 +130,7 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
               <Globe className="h-4 w-4 text-primary" />
               <span>Region: US-East-1</span>
             </div>
-            <div className="text-right">
-              <div>{currentTime.toLocaleTimeString()}</div>
-              <div className="text-xs">UTC {currentTime.toISOString().slice(0, 10)}</div>
-            </div>
+            <HeaderClock />
           </div>
 
           <Button variant="ghost" size="sm" className="relative" aria-label="Notifications">
@@ -163,7 +164,7 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
           `}
         >
           <div className="p-4 space-y-2">
-            {navigationItems.map((item) => {
+            {filteredNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentSection === item.id;
 
