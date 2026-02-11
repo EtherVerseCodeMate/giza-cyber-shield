@@ -8,6 +8,8 @@ import { OrganizationProvider } from "@/components/OrganizationProvider";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import SecurityHeaders from "@/components/security/SecurityHeaders";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import CommandPalette from "@/components/CommandPalette";
+import { useAuth } from "@/hooks/useAuth";
 
 // Core MVP Pages
 import NewHomepage from "./pages/NewHomepage";
@@ -47,6 +49,14 @@ const DocumentTitle = () => {
   return null;
 };
 
+/**
+ * CommandPalette wrapper that reads auth state.
+ */
+const AuthAwareCommandPalette = () => {
+  const { user } = useAuth();
+  return <CommandPalette isAuthenticated={!!user} />;
+};
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -66,6 +76,7 @@ const App = () => {
               <OrganizationProvider>
                 <ErrorBoundary>
                   <DocumentTitle />
+                  <AuthAwareCommandPalette />
                   <Toaster />
                   <Sonner />
                   <Routes>
