@@ -36,6 +36,7 @@ type KeycloakProvider struct {
 	realmURL     string
 	clientID     string
 	clientSecret string
+	JWTSecret    string
 	httpClient   *http.Client
 }
 
@@ -68,6 +69,7 @@ func NewKeycloakProvider(config *KeycloakConfig) (*KeycloakProvider, error) {
 		realmURL:     config.RealmURL,
 		clientID:     config.ClientID,
 		clientSecret: config.ClientSecret,
+		JWTSecret:    config.JWTSecret,
 		httpClient: &http.Client{
 			Timeout: timeout,
 		},
@@ -200,27 +202,7 @@ func (kp *KeycloakProvider) RefreshToken(ctx context.Context, refreshToken strin
 // ValidateToken validates a Keycloak JWT token by checking structural integrity,
 // verifying the cryptographic signature, and checking standard claims (exp, iss, aud).
 func (kp *KeycloakProvider) ValidateToken(ctx context.Context, tokenString string) (bool, error) {
-	// Import jwt package if not already done (assuming github.com/golang-jwt/jwt/v5 is used)
-
-	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
-		// Validate signing method
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); ok {
-			// Use client secret or configured JWT secret for HMAC validation
-			secret := kp.clientSecret
-			// If a specific JWT secret is provided, prefer that
-			// In production, this would be the Keycloak public key (RS256)
-			return []byte(secret), nil
-		}
-
-		// Fallback for RS256 (Production standard for Keycloak)
-		if _, ok := token.Method.(*jwt.SigningMethodRSA); ok {
-			// In production, retrieve via JWKS from kp.realmURL + "/protocol/openid-connect/certs"
-			return nil, errors.New("RS256 signature verification requires public key (configured via JWKS)")
-		}
-
-		return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-	})
-
+	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, kp.keyFunc)
 	if err != nil {
 		return false, fmt.Errorf("JWT validation failed: %w", err)
 	}
@@ -230,6 +212,29 @@ func (kp *KeycloakProvider) ValidateToken(ctx context.Context, tokenString strin
 		return false, errors.New("invalid token or claims")
 	}
 
+	return kp.verifyClaims(claims)
+}
+
+func (kp *KeycloakProvider) keyFunc(token *jwt.Token) (interface{}, error) {
+	// Validate signing method
+	if _, ok := token.Method.(*jwt.SigningMethodHMAC); ok {
+		// Use client secret or configured JWT secret for HMAC validation
+		secret := kp.clientSecret
+		if kp.JWTSecret != "" {
+			secret = kp.JWTSecret
+		}
+		return []byte(secret), nil
+	}
+
+	if _, ok := token.Method.(*jwt.SigningMethodRSA); ok {
+		// In production, retrieve via JWKS from kp.realmURL + "/protocol/openid-connect/certs"
+		return nil, errors.New("RS256 signature verification requires public key (configured via JWKS)")
+	}
+
+	return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+}
+
+func (kp *KeycloakProvider) verifyClaims(claims *jwt.RegisteredClaims) (bool, error) {
 	// Verify issuer matches our realm
 	if claims.Issuer != kp.realmURL {
 		return false, fmt.Errorf("issuer mismatch: expected %s, got %s", kp.realmURL, claims.Issuer)
