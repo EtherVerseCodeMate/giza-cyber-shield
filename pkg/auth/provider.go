@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"time"
@@ -13,36 +14,36 @@ type Provider string
 const (
 	ProviderKeycloak Provider = "keycloak"
 	ProviderOkta     Provider = "okta"
-	ProviderCAC      Provider = "cac"        // DoD CAC (Common Access Card)
+	ProviderCAC      Provider = "cac" // DoD CAC (Common Access Card)
 	ProviderAzureAD  Provider = "azure-ad"
 	ProviderGoogle   Provider = "google"
-	ProviderLocal    Provider = "local"      // Local credential store (dev only)
+	ProviderLocal    Provider = "local" // Local credential store (dev only)
 )
 
 // User represents an authenticated user with role/permission data.
 type User struct {
-	ID           string
-	Username     string
-	Email        string
-	FirstName    string
-	LastName     string
+	ID            string
+	Username      string
+	Email         string
+	FirstName     string
+	LastName      string
 	Organizations []string
-	Roles        []string
-	Groups       []string
-	Attributes   map[string]interface{}
-	ExpiresAt    time.Time
+	Roles         []string
+	Groups        []string
+	Attributes    map[string]interface{}
+	ExpiresAt     time.Time
 }
 
 // Credentials represents authentication credentials.
 type Credentials struct {
-	Username  string
-	Password  string
-	Token     string
-	ClientID  string
-	ClientSecret string
+	Username      string
+	Password      string
+	Token         string
+	ClientID      string
+	ClientSecret  string
 	SAMLAssertion string
-	CertPath  string
-	KeyPath   string
+	CertPath      string
+	KeyPath       string
 }
 
 // AuthProvider defines the interface for authentication adapters.
@@ -89,7 +90,7 @@ type AuthProvider interface {
 
 // AuthManager manages multiple authentication providers.
 type AuthManager struct {
-	providers map[Provider]AuthProvider
+	providers        map[Provider]AuthProvider
 	default_provider Provider
 }
 
@@ -304,16 +305,16 @@ var PredefinedRoles = map[string]*Role{
 
 // TokenClaims represents standard JWT claims.
 type TokenClaims struct {
-	Subject           string
-	Issuer            string
-	Audience          []string
-	ExpirationTime    time.Time
-	IssuedAt          time.Time
-	NotBefore         time.Time
-	ID                string
-	Roles             []string
-	Permissions       []Permission
-	CustomAttributes  map[string]interface{}
+	Subject          string
+	Issuer           string
+	Audience         []string
+	ExpirationTime   time.Time
+	IssuedAt         time.Time
+	NotBefore        time.Time
+	ID               string
+	Roles            []string
+	Permissions      []Permission
+	CustomAttributes map[string]interface{}
 }
 
 // IsExpired checks if the token claims have expired.
@@ -414,8 +415,12 @@ func (sm *SessionManager) InvalidateSession(sessionID string) error {
 	return nil
 }
 
-// Placeholder for session ID generation
+// generateSessionID creates a cryptographically secure session identifier
 func generateSessionID() string {
-	// In production, use a cryptographically secure RNG
-	return fmt.Sprintf("session_%d", time.Now().UnixNano())
+	b := make([]byte, 32) // 256-bit entropy
+	if _, err := rand.Read(b); err != nil {
+		// Fallback should never happen, but don't silently fail
+		panic(fmt.Sprintf("crypto/rand failed: %v", err))
+	}
+	return fmt.Sprintf("khepra_session_%x", b)
 }
