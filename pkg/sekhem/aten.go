@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/agi"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/maat"
@@ -72,8 +73,16 @@ type ComplianceRule struct {
 func NewAtenRealm(kasa *agi.Engine, dagStore dag.Store, airGapped bool) (*AtenRealm, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// Generate ML-DSA-65 (Dilithium3) signing key pair for the Aten realm chronicle
+	// This provides CNSA 2.0-aligned post-quantum signature integrity
+	_, realmPrivKey, err := adinkra.GenerateDilithiumKey()
+	if err != nil {
+		cancel()
+		return nil, fmt.Errorf("failed to generate Aten realm signing key: %w", err)
+	}
+
 	// Create Chronicle for state awareness
-	chronicle := seshat.NewChronicle(dagStore, &seshat.Signer{PrivateKey: []byte("aten-realm-key")})
+	chronicle := seshat.NewChronicle(dagStore, &seshat.Signer{PrivateKey: realmPrivKey})
 
 	// Create Maat Guardian for this realm
 	guardian := maat.NewGuardian("aten-sovereign", kasa, chronicle)
