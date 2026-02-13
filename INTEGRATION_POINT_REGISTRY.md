@@ -14,7 +14,7 @@
 |----------|--------|------|----------|
 | **VirusTotal Enterprise** | INT-005, INT-006, INT-017, INT-021 | Threat Intelligence | `api/v3/files`, `api/v3/intelligence` |
 | **Datadog** | INT-001, INT-003 | Observability/Metrics | `v1/query`, `v1/metrics` |
-| **Tenable.io** | INT-002, INT-014 | Compliance/STIGs | `compliance/export`, `scans` |
+| **STIGViewer API** | INT-002, INT-014 | Compliance/STIGs (via DMZ) | `api.stigviewer.com/api/stigs` |
 | **Microsoft Defender TI** | INT-012, INT-014, INT-008 | Identity + STIG Compliance | `graph.microsoft.com/v1.0/security` |
 | **AWS Cost Explorer** | INT-004 | Financial | `ce.getCostAndUsage()` |
 | **HashiCorp Vault** | INT-009 | Credential Management | `v1/secret/data` |
@@ -343,10 +343,19 @@ These return default values where a database lookup should occur. Lower risk bec
 ## Connector Architecture
 
 ```
-src/services/integrations/
-├── index.ts                    # Barrel exports
-├── IntegrationKeyService.ts    # Secure API key retrieval from Supabase
-└── VirusTotalConnector.ts      # Alpha Connector — LIVE ✅
+src/services/integrations/          # TypeScript (Frontend → Supabase → Gateway)
+├── index.ts                        # Barrel exports
+├── IntegrationKeyService.ts        # Secure API key retrieval from Supabase
+├── VirusTotalConnector.ts          # Threat Intelligence — LIVE ✅
+├── DatadogConnector.ts             # Observability/Metrics — LIVE ✅
+└── STIGViewerConnector.ts          # Compliance/STIGs — LIVE ✅ (via DMZ)
+
+pkg/gateway/                        # Go (DMZ Zone 1)
+├── stig_connector.go               # DMZ proxy to STIGViewer API — LIVE ✅
+├── layer1_firewall.go              # WAF + IP ACLs (existing)
+├── layer2_auth.go                  # mTLS + PQC + API Key auth (existing)
+├── layer3_anomaly.go               # Anomaly detection (existing)
+└── layer4_control.go               # Rate control (existing)
 ```
 
 **Pattern:** Every connector follows the same lifecycle:
@@ -356,6 +365,9 @@ src/services/integrations/
 4. Persist results to `open_controls_performance_metrics`
 5. Return typed result or explicit `{ feed_status: 'not_configured' }`
 
+**STIGViewer DMZ Flow:**
+Browser → Supabase Edge Function → Go Gateway (Zone 2) → mTLS → `stig_connector` (Zone 1 DMZ) → STIGViewer API (Zone 0)
+
 ---
 
 ## Remediation Priority
@@ -363,19 +375,19 @@ src/services/integrations/
 ### ✅ Sprint 1A — Stop the Fabrication (COMPLETE)
 All `Math.random()` eliminated. Every INT point either queries real data or returns explicit failure states.
 
-### 🔥 Sprint 1B — Alpha Connector (COMPLETE)
+### ✅ Sprint 1B — Alpha Connector (COMPLETE)
 - VirusTotal Enterprise wired into `ingestVulnerabilityFeed()` (INT-005)
 - `IntegrationKeyService` created for secure API key management
 - `VirusTotalConnector` operational with hash/domain/IP analysis
 
-### Sprint 2 — Enterprise Connectors (Next)
-| Connector | INT Points | API | Priority |
-|-----------|-----------|-----|----------|
-| Datadog Metrics | INT-001, INT-003 | `api.datadoghq.com/api/v1/query` | 🔴 High |
-| Tenable.io | INT-002, INT-014 | `cloud.tenable.com/compliance/export` | 🔴 High |
-| AWS Cost Explorer | INT-004 | `aws.costExplorer.getCostAndUsage` | 🟡 Medium |
-| Microsoft Defender TI | INT-012, INT-021 | `graph.microsoft.com/v1.0/security` | 🟡 Medium |
-| HashiCorp Vault | INT-009 | `vault.example.com/v1/secret` | 🟡 Medium |
+### ✅ Sprint 2 — Enterprise Connectors (COMPLETE)
+| Connector | INT Points | API | Status |
+|-----------|-----------|-----|--------|
+| Datadog Metrics | INT-001, INT-003 | `api.datadoghq.com/api/v1/query` | ✅ LIVE |
+| STIGViewer API | INT-002, INT-014 | `api.stigviewer.com/api/stigs` (via DMZ) | ✅ LIVE |
+| AWS Cost Explorer | INT-004 | `aws.costExplorer.getCostAndUsage` | 🟡 Planned |
+| Microsoft Defender TI | INT-012, INT-021 | `graph.microsoft.com/v1.0/security` | 🟡 Planned |
+| HashiCorp Vault | INT-009 | `vault.example.com/v1/secret` | 🟡 Planned |
 
 ### Sprint 3 — Full Production Binding
 Replace all remaining placeholder responses with Enterprise API calls.
@@ -383,3 +395,4 @@ Replace all remaining placeholder responses with Enterprise API calls.
 ---
 
 *Registry maintained by AdinKhepra Security Framework — Architectural Lock Active*
+
