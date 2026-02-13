@@ -237,44 +237,44 @@ func (kp *KeycloakProvider) ValidateToken(ctx context.Context, token string) (bo
 // GetUser retrieves user information from Keycloak.
 func (kp *KeycloakProvider) GetUser(ctx context.Context, userID string) (*User, error) {
 	// Implementation would call Keycloak admin API
-	return nil, errors.New("not implemented")
+	return nil, errNotImplemented
 }
 
 // ListUsers lists all users in Keycloak realm.
 func (kp *KeycloakProvider) ListUsers(ctx context.Context) ([]*User, error) {
 	// Implementation would call Keycloak admin API
-	return nil, errors.New("not implemented")
+	return nil, errNotImplemented
 }
 
 // CreateUser creates a new Keycloak user.
 func (kp *KeycloakProvider) CreateUser(ctx context.Context, user *User) error {
 	// Implementation would call Keycloak admin API
-	return errors.New("not implemented")
+	return errNotImplemented
 }
 
 // DeleteUser deletes a Keycloak user.
 func (kp *KeycloakProvider) DeleteUser(ctx context.Context, userID string) error {
-	return errors.New("not implemented")
+	return errNotImplemented
 }
 
 // UpdateUser updates user information in Keycloak.
 func (kp *KeycloakProvider) UpdateUser(ctx context.Context, user *User) error {
-	return errors.New("not implemented")
+	return errNotImplemented
 }
 
 // AssignRole assigns a role to a Keycloak user.
 func (kp *KeycloakProvider) AssignRole(ctx context.Context, userID string, role string) error {
-	return errors.New("not implemented")
+	return errNotImplemented
 }
 
 // RevokeRole removes a role from a Keycloak user.
 func (kp *KeycloakProvider) RevokeRole(ctx context.Context, userID string, role string) error {
-	return errors.New("not implemented")
+	return errNotImplemented
 }
 
 // VerifyPermission checks if a user has a permission.
 func (kp *KeycloakProvider) VerifyPermission(ctx context.Context, userID string, resource string, action string) (bool, error) {
-	return false, errors.New("not implemented")
+	return false, errNotImplemented
 }
 
 // ============================================================================
@@ -460,35 +460,35 @@ func (cp *CACProvider) ValidateToken(ctx context.Context, token string) (bool, e
 
 // Other CAC provider methods...
 func (cp *CACProvider) GetUser(ctx context.Context, userID string) (*User, error) {
-	return nil, errors.New("not implemented")
+	return nil, errNotImplemented
 }
 
 func (cp *CACProvider) ListUsers(ctx context.Context) ([]*User, error) {
-	return nil, errors.New("not implemented")
+	return nil, errNotImplemented
 }
 
 func (cp *CACProvider) CreateUser(ctx context.Context, user *User) error {
-	return errors.New("not implemented")
+	return errNotImplemented
 }
 
 func (cp *CACProvider) DeleteUser(ctx context.Context, userID string) error {
-	return errors.New("not implemented")
+	return errNotImplemented
 }
 
 func (cp *CACProvider) UpdateUser(ctx context.Context, user *User) error {
-	return errors.New("not implemented")
+	return errNotImplemented
 }
 
 func (cp *CACProvider) AssignRole(ctx context.Context, userID string, role string) error {
-	return errors.New("not implemented")
+	return errNotImplemented
 }
 
 func (cp *CACProvider) RevokeRole(ctx context.Context, userID string, role string) error {
-	return errors.New("not implemented")
+	return errNotImplemented
 }
 
 func (cp *CACProvider) VerifyPermission(ctx context.Context, userID string, resource string, action string) (bool, error) {
-	return false, errors.New("not implemented")
+	return false, errNotImplemented
 }
 
 // ============================================================================
