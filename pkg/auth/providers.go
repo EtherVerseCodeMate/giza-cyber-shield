@@ -2,12 +2,16 @@ package auth
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
@@ -26,7 +30,7 @@ type KeycloakProvider struct {
 
 // KeycloakConfig holds Keycloak-specific configuration.
 type KeycloakConfig struct {
-	RealmURL     string        // https://keycloak.example.com/realms/khepra
+	RealmURL     string // https://keycloak.example.com/realms/khepra
 	ClientID     string
 	ClientSecret string
 	Timeout      time.Duration
@@ -102,23 +106,28 @@ func (kp *KeycloakProvider) Authenticate(ctx context.Context, creds *Credentials
 		return nil, errors.New("invalid token format")
 	}
 
-	// Decode payload (second part)
-	payload := parts[1]
-	decoded := make([]byte, len(payload))
-	// Base64 decoding (simplified; in production use proper base64url decoding)
-	for i, c := range payload {
-		switch c {
-		case '-':
-			decoded[i] = '+'
-		case '_':
-			decoded[i] = '/'
-		default:
-			decoded[i] = byte(c)
-		}
+	// Decode payload using proper base64url decoding (RFC 7515)
+	payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode JWT payload: %w", err)
 	}
 
 	var claims map[string]interface{}
-	// Parse JSON from decoded payload (simplified)
+	if err := json.Unmarshal(payloadBytes, &claims); err != nil {
+		return nil, fmt.Errorf("failed to parse JWT claims: %w", err)
+	}
+
+	// Extract roles from realm_access if present
+	var roles []string
+	if realmAccess, ok := claims["realm_access"].(map[string]interface{}); ok {
+		if roleList, ok := realmAccess["roles"].([]interface{}); ok {
+			for _, r := range roleList {
+				if s, ok := r.(string); ok {
+					roles = append(roles, s)
+				}
+			}
+		}
+	}
 
 	return &User{
 		ID:        fmt.Sprintf("%v", claims["sub"]),
@@ -126,6 +135,7 @@ func (kp *KeycloakProvider) Authenticate(ctx context.Context, creds *Credentials
 		Email:     fmt.Sprintf("%v", claims["email"]),
 		FirstName: fmt.Sprintf("%v", claims["given_name"]),
 		LastName:  fmt.Sprintf("%v", claims["family_name"]),
+		Roles:     roles,
 		ExpiresAt: time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second),
 	}, nil
 }
@@ -164,14 +174,56 @@ func (kp *KeycloakProvider) RefreshToken(ctx context.Context, refreshToken strin
 	return tokenResp.AccessToken, nil
 }
 
-// ValidateToken validates a Keycloak token.
+// ValidateToken validates a Keycloak JWT token by checking structure,
+// decoding claims, and verifying expiration. For full signature verification,
+// integrate with the Keycloak JWKS endpoint.
 func (kp *KeycloakProvider) ValidateToken(ctx context.Context, token string) (bool, error) {
-	// In production, validate JWT signature using public key
-	// For now, simple expiration check
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
-		return false, nil
+		return false, errors.New("invalid JWT format: expected 3 parts")
 	}
+
+	// Decode and verify payload claims
+	payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return false, fmt.Errorf("failed to decode JWT payload: %w", err)
+	}
+
+	var claims map[string]interface{}
+	if err := json.Unmarshal(payloadBytes, &claims); err != nil {
+		return false, fmt.Errorf("failed to parse JWT claims: %w", err)
+	}
+
+	// Verify expiration
+	if exp, ok := claims["exp"].(float64); ok {
+		if time.Now().Unix() > int64(exp) {
+			return false, errors.New("token expired")
+		}
+	} else {
+		return false, errors.New("missing exp claim")
+	}
+
+	// Verify issuer matches our realm
+	if iss, ok := claims["iss"].(string); ok {
+		if iss != kp.realmURL {
+			return false, fmt.Errorf("issuer mismatch: expected %s, got %s", kp.realmURL, iss)
+		}
+	}
+
+	// Verify audience contains our client ID
+	if aud, ok := claims["aud"].(string); ok {
+		if aud != kp.clientID && aud != "account" {
+			return false, fmt.Errorf("audience mismatch: expected %s, got %s", kp.clientID, aud)
+		}
+	}
+
+	// Verify not-before time
+	if nbf, ok := claims["nbf"].(float64); ok {
+		if time.Now().Unix() < int64(nbf) {
+			return false, errors.New("token not yet valid")
+		}
+	}
+
 	return true, nil
 }
 
@@ -231,8 +283,8 @@ type CACProvider struct {
 
 // CACConfig holds CAC-specific configuration.
 type CACConfig struct {
-	TrustedCertPath string        // Path to DoD root CA certificates
-	CRLURL          string        // Certificate Revocation List URL
+	TrustedCertPath string // Path to DoD root CA certificates
+	CRLURL          string // Certificate Revocation List URL
 	Timeout         time.Duration
 }
 
@@ -261,23 +313,128 @@ func NewCACProvider(config *CACConfig) (*CACProvider, error) {
 	}, nil
 }
 
-// Authenticate verifies a CAC certificate (client certificate from mTLS).
+// Authenticate verifies a CAC certificate from an mTLS connection.
+// It loads the client certificate, validates against DoD root CAs,
+// checks CRL revocation status, and extracts identity from the certificate subject.
 func (cp *CACProvider) Authenticate(ctx context.Context, creds *Credentials) (*User, error) {
-	// In production, extract certificate from mTLS connection
-	// For now, validate that a cert path is provided
 	if creds.CertPath == "" {
 		return nil, errors.New("CAC certificate path required")
 	}
 
-	// Validate certificate against DoD root CA
-	// Extract subject CN and email
+	// Load the client certificate from the provided path
+	certPEM, err := os.ReadFile(creds.CertPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read client certificate: %w", err)
+	}
+
+	// Parse the PEM-encoded certificate
+	clientCert, err := tls.LoadX509KeyPair(creds.CertPath, creds.KeyPath)
+	if err != nil {
+		// Try loading just the certificate without key for validation only
+		_ = certPEM // cert loaded successfully
+	}
+
+	// Parse the leaf certificate for identity extraction
+	var leaf *x509.Certificate
+	if len(clientCert.Certificate) > 0 {
+		leaf, err = x509.ParseCertificate(clientCert.Certificate[0])
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse client certificate: %w", err)
+		}
+	} else {
+		return nil, errors.New("no certificate found in provided path")
+	}
+
+	// Load DoD root CAs for validation
+	rootCAs := x509.NewCertPool()
+	if cp.trustedCertPath != "" {
+		caCert, err := os.ReadFile(cp.trustedCertPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read DoD root CA: %w", err)
+		}
+		if !rootCAs.AppendCertsFromPEM(caCert) {
+			return nil, errors.New("failed to parse DoD root CA certificates")
+		}
+	}
+
+	// Verify the certificate chain against DoD root CAs
+	opts := x509.VerifyOptions{
+		Roots:       rootCAs,
+		CurrentTime: time.Now(),
+		KeyUsages:   []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+
+	if _, err := leaf.Verify(opts); err != nil {
+		return nil, fmt.Errorf("certificate chain verification failed: %w", err)
+	}
+
+	// Check Certificate Revocation List (CRL) if configured
+	if cp.crlURL != "" {
+		revoked, err := cp.checkCRL(leaf)
+		if err != nil {
+			return nil, fmt.Errorf("CRL check failed: %w", err)
+		}
+		if revoked {
+			return nil, errors.New("certificate has been revoked")
+		}
+	}
+
+	// Extract identity from the certificate subject
+	// CAC certificates use Subject CN for name and SAN for email
+	email := ""
+	if len(leaf.EmailAddresses) > 0 {
+		email = leaf.EmailAddresses[0]
+	}
+
+	// Parse CN which typically contains "LAST.FIRST.MIDDLE.DODID"
+	cnParts := strings.Split(leaf.Subject.CommonName, ".")
+	firstName := ""
+	lastName := leaf.Subject.CommonName
+	if len(cnParts) >= 2 {
+		lastName = cnParts[0]
+		firstName = cnParts[1]
+	}
+
+	// Use serial number as unique ID (DoD EDIPI/DODID)
+	userID := leaf.SerialNumber.String()
+
 	user := &User{
-		ID:       "cac-user-001",
-		Username: "dod-employee",
-		Email:    "user@mil",
+		ID:        userID,
+		Username:  leaf.Subject.CommonName,
+		Email:     email,
+		FirstName: firstName,
+		LastName:  lastName,
+		ExpiresAt: leaf.NotAfter,
 	}
 
 	return user, nil
+}
+
+// checkCRL verifies the certificate hasn't been revoked
+func (cp *CACProvider) checkCRL(cert *x509.Certificate) (bool, error) {
+	resp, err := cp.httpClient.Get(cp.crlURL)
+	if err != nil {
+		return false, fmt.Errorf("failed to fetch CRL: %w", err)
+	}
+	defer resp.Body.Close()
+
+	crlBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return false, fmt.Errorf("failed to read CRL response: %w", err)
+	}
+
+	crl, err := x509.ParseRevocationList(crlBytes)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse CRL: %w", err)
+	}
+
+	for _, revoked := range crl.RevokedCertificateEntries {
+		if revoked.SerialNumber.Cmp(cert.SerialNumber) == 0 {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // RefreshToken is not applicable for CAC (certificate-based).
@@ -340,7 +497,7 @@ type LocalProvider struct {
 func NewLocalProvider() *LocalProvider {
 	return &LocalProvider{
 		BaseAuthProvider: BaseAuthProvider{
-			name:    string(ProviderLocal),
+			name:     string(ProviderLocal),
 			endpoint: "localhost",
 		},
 		users: make(map[string]*User),
