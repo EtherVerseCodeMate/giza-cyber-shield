@@ -5,19 +5,18 @@
  * Centralized exports for all external API integrations.
  * Each connector follows the same pattern:
  *   1. Retrieve API key via IntegrationKeyService
- *   2. Make authenticated API call with rate limiting
- *   3. Return typed results or explicit failure state
- *   4. Track cost via ExternalApiCostTracker
+ *   2. Pre-flight rate limit check via ExternalApiCostTracker
+ *   3. Make authenticated API call with typed response
+ *   4. Persist results to open_controls_performance_metrics
+ *   5. Return typed result or explicit failure state
  *
- * Active Connectors:
- *   - VirusTotal Enterprise (Alpha Connector) ✅
- *   - Datadog Metrics API ✅
- *   - STIGViewer API (replaces Tenable.io) ✅
- *
- * Planned Connectors:
- *   - AWS Cost Explorer (INT-004)
- *   - Microsoft Defender TI (INT-012, INT-014)
- *   - HashiCorp Vault (INT-009)
+ * Active Connectors (Sprint 1–3 COMPLETE):
+ *   - VirusTotal Enterprise        ✅  INT-005, INT-006, INT-017
+ *   - Datadog Metrics API          ✅  INT-001, INT-003
+ *   - STIGViewer API (via DMZ)     ✅  INT-002, INT-014
+ *   - AWS Cost Explorer            ✅  INT-004
+ *   - Microsoft Defender TI        ✅  INT-012, INT-021
+ *   - HashiCorp Vault              ✅  INT-009
  */
 
 // ─── Key Management ──────────────────────────────────────────────────────────
@@ -51,3 +50,30 @@ export type {
     ComplianceScoreResult,
     STIGQueryOptions,
 } from './STIGViewerConnector';
+
+// ─── Financial / Cost Analysis ───────────────────────────────────────────────
+export { AWSCostExplorerConnector } from './AWSCostExplorerConnector';
+export type {
+    CostBreakdown,
+    CostAnalysisResult,
+    CostForecastResult,
+} from './AWSCostExplorerConnector';
+
+// ─── Advanced Threat Intelligence ────────────────────────────────────────────
+export { MicrosoftDefenderTIConnector } from './MicrosoftDefenderTIConnector';
+export type {
+    ThreatIndicator,
+    VulnerabilityArticle,
+    ThreatArticle,
+    ThreatIntelligenceResult,
+    CVEEnrichmentResult,
+} from './MicrosoftDefenderTIConnector';
+
+// ─── Credential Management ──────────────────────────────────────────────────
+export { HashiCorpVaultConnector } from './HashiCorpVaultConnector';
+export type {
+    VaultHealthStatus,
+    CredentialTestResult,
+    SecretMetadata,
+    RotationResult,
+} from './HashiCorpVaultConnector';
