@@ -35,32 +35,35 @@ export class OpenControlsAPIService {
     client_secret?: string;
   }): Promise<{ success: boolean; message: string; expires_at?: string }> {
     try {
-      // Mock authentication - will integrate with actual DISA API
-      const mockResponse = {
-        success: true,
-        message: 'Successfully authenticated with DISA STIGs API',
-        expires_at: new Date(Date.now() + 86400000).toISOString(), // 24 hours
-        access_token: 'mock_access_token_ready_for_real_api'
-      };
+      // Validate that real credentials were provided
+      if (!apiCredentials.api_key && !(apiCredentials.client_id && apiCredentials.client_secret)) {
+        return {
+          success: false,
+          message: 'DISA API credentials not configured. Provide api_key or client_id/client_secret pair.',
+        };
+      }
 
-      // Store authentication in enhanced integrations
-      const { error } = await supabase
+      // TODO: Replace with actual DISA STIGs API OAuth2 flow
+      // For now, record the configuration attempt and return not-configured status
+      await supabase
         .from('enhanced_open_controls_integrations')
         .upsert({
           organization_id: organizationId,
           integration_name: 'DISA STIGs API',
           api_endpoint: this.baseUrl,
           authentication_method: 'oauth2',
-          sync_status: 'authenticated',
+          sync_status: 'pending_configuration',
           performance_metrics: {
-            last_auth: new Date().toISOString(),
-            auth_expires: mockResponse.expires_at
+            last_auth_attempt: new Date().toISOString(),
+            status: 'awaiting_disa_api_endpoint'
           },
-          is_active: true
+          is_active: false
         });
 
-      if (error) throw error;
-      return mockResponse;
+      return {
+        success: false,
+        message: 'DISA STIGs API integration pending. Actual API endpoint and OAuth2 flow not yet configured.',
+      };
     } catch (error) {
       console.error('DISA authentication failed:', error);
       throw error;
@@ -151,28 +154,53 @@ export class OpenControlsAPIService {
   }
 
   /**
-   * Real-time vulnerability feed ingestion
+   * Real-time vulnerability feed ingestion.
+   * Returns zero counts with feed_status indicating configuration state.
+   * Will connect to NVD API, MITRE ATT&CK, and DISA feeds when configured.
    */
   static async ingestVulnerabilityFeed(organizationId: string, feedSources: string[] = ['NVD', 'MITRE', 'DISA']): Promise<{
     vulnerabilities_processed: number;
     threat_correlations: number;
     high_priority_alerts: number;
+    feed_status: 'active' | 'not_configured' | 'error';
   }> {
     try {
-      // Mock vulnerability ingestion - ready for real feeds
-      const mockResult = {
-        vulnerabilities_processed: Math.floor(Math.random() * 50) + 10,
-        threat_correlations: Math.floor(Math.random() * 15) + 5,
-        high_priority_alerts: Math.floor(Math.random() * 3)
-      };
+      // Check if any feed integrations are actually configured
+      const { data: integrations, error: intError } = await supabase
+        .from('enhanced_open_controls_integrations')
+        .select('integration_name, is_active, sync_status')
+        .eq('organization_id', organizationId)
+        .in('integration_name', feedSources.map(s => `${s} Feed`))
+        .eq('is_active', true);
 
-      // Record performance metrics
-      await this.recordPerformanceMetric(organizationId, 'vulnerability_ingestion', mockResult.vulnerabilities_processed, {
+      if (intError) throw intError;
+
+      // If no active feed integrations, return explicit not-configured state
+      if (!integrations || integrations.length === 0) {
+        return {
+          vulnerabilities_processed: 0,
+          threat_correlations: 0,
+          high_priority_alerts: 0,
+          feed_status: 'not_configured',
+        };
+      }
+
+      // TODO: Call actual NVD API (https://services.nvd.nist.gov/rest/json/cves/2.0)
+      // TODO: Call actual MITRE ATT&CK API
+      // TODO: Call actual DISA vulnerability feed
+      // For now, record that feeds are configured but endpoint integration is pending
+      await this.recordPerformanceMetric(organizationId, 'vulnerability_ingestion', 0, {
         feed_sources: feedSources,
-        correlation_count: mockResult.threat_correlations
+        status: 'feeds_configured_but_api_integration_pending',
+        configured_feeds: integrations.length,
       });
 
-      return mockResult;
+      return {
+        vulnerabilities_processed: 0,
+        threat_correlations: 0,
+        high_priority_alerts: 0,
+        feed_status: 'not_configured',
+      };
     } catch (error) {
       console.error('Vulnerability feed ingestion failed:', error);
       throw error;
@@ -198,20 +226,32 @@ export class OpenControlsAPIService {
 
       // Calculate aggregated metrics
       const responseTimeMetrics = data.filter(m => m.metric_type === 'api_response_time');
-      const averageResponseTime = responseTimeMetrics.length > 0 
+      const averageResponseTime = responseTimeMetrics.length > 0
         ? responseTimeMetrics.reduce((sum, m) => sum + Number(m.metric_value), 0) / responseTimeMetrics.length
         : 0;
 
       const cacheMetrics = data.filter(m => m.metric_type === 'cache_hit_rate');
-      const cacheHitRate = cacheMetrics.length > 0 
+      const cacheHitRate = cacheMetrics.length > 0
         ? cacheMetrics[cacheMetrics.length - 1].metric_value
         : 0;
+
+      // Compute error_rate from actual error metrics
+      const errorMetrics = data.filter(m => m.metric_type === 'error_rate');
+      const errorRate = errorMetrics.length > 0
+        ? errorMetrics.reduce((sum, m) => sum + Number(m.metric_value), 0) / errorMetrics.length
+        : 0;
+
+      // Compute throughput from actual request count in the time range
+      const startMs = new Date(timeRange.start).getTime();
+      const endMs = new Date(timeRange.end).getTime();
+      const durationMinutes = Math.max((endMs - startMs) / 60000, 1);
+      const throughput = data.length / durationMinutes;
 
       return {
         average_response_time: Math.round(averageResponseTime),
         cache_hit_rate: Number(cacheHitRate),
-        error_rate: 0.02, // Mock 2% error rate
-        throughput_requests_per_minute: 150 // Mock throughput
+        error_rate: errorRate,
+        throughput_requests_per_minute: Math.round(throughput)
       };
     } catch (error) {
       console.error('Performance metrics fetch failed:', error);
@@ -225,44 +265,54 @@ export class OpenControlsAPIService {
   }
 
   /**
-   * Sync with Open Controls intelligence
+   * Sync with Open Controls intelligence.
+   * Returns not_configured status if the integration is not set up.
    */
   static async syncOpenControlsIntelligence(organizationId: string): Promise<{
-    sync_status: 'success' | 'partial' | 'failed';
+    sync_status: 'success' | 'partial' | 'failed' | 'not_configured';
     intelligence_updates: number;
     configuration_recommendations: any[];
   }> {
     try {
-      // Mock Open Controls sync - ready for real integration
-      const mockResult = {
-        sync_status: 'success' as const,
-        intelligence_updates: Math.floor(Math.random() * 20) + 5,
-        configuration_recommendations: [
-          {
-            recommendation_id: 'OC_REC_001',
-            priority: 'HIGH',
-            category: 'CONFIGURATION',
-            description: 'Update RHEL 8 SSH configuration based on latest DISA guidelines',
-            estimated_impact: 'Reduces attack surface by 15%'
-          }
-        ]
-      };
+      // Check if Open Controls integration is actually configured
+      const { data: integration, error: intError } = await supabase
+        .from('enhanced_open_controls_integrations')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .eq('integration_name', 'Open Controls Intelligence')
+        .eq('is_active', true)
+        .maybeSingle();
 
-      // Update integration status
+      if (intError) throw intError;
+
+      if (!integration) {
+        return {
+          sync_status: 'not_configured',
+          intelligence_updates: 0,
+          configuration_recommendations: [],
+        };
+      }
+
+      // TODO: Implement actual Open Controls API sync
+      // For now, record that integration exists but API sync is pending
       await supabase
         .from('enhanced_open_controls_integrations')
         .update({
           last_sync_timestamp: new Date().toISOString(),
-          sync_status: 'success',
+          sync_status: 'pending_api_integration',
           performance_metrics: {
-            last_sync: new Date().toISOString(),
-            intelligence_updates: mockResult.intelligence_updates
+            last_sync_attempt: new Date().toISOString(),
+            status: 'api_endpoint_not_implemented'
           }
         })
         .eq('organization_id', organizationId)
         .eq('integration_name', 'Open Controls Intelligence');
 
-      return mockResult;
+      return {
+        sync_status: 'not_configured',
+        intelligence_updates: 0,
+        configuration_recommendations: [],
+      };
     } catch (error) {
       console.error('Open Controls sync failed:', error);
       throw error;
@@ -287,7 +337,7 @@ export class OpenControlsAPIService {
 
   private static async cacheData(organizationId: string, endpoint: string, cacheKey: string, data: any) {
     const expiresAt = new Date(Date.now() + this.cacheTimeout).toISOString();
-    
+
     await supabase
       .from('disa_stigs_api_cache')
       .upsert({

@@ -69,13 +69,13 @@ export class MLTrainingPipeline {
     try {
       // Collect data from multiple sources
       const trainingData = await this.collectTrainingData(organizationId, datasetConfig);
-      
+
       // Perform feature engineering
       const features = await this.performFeatureEngineering(trainingData, datasetConfig);
-      
+
       // Calculate quality metrics
       const qualityMetrics = await this.calculateDataQuality(trainingData);
-      
+
       // Store dataset
       const { data, error } = await supabase
         .from('ml_training_datasets')
@@ -139,21 +139,21 @@ export class MLTrainingPipeline {
 
       // Mock advanced ML training - ready for real ML integration
       const mockTrainingResult = await this.simulateAdvancedTraining(dataset, modelConfig);
-      
+
       const trainingDuration = Date.now() - startTime;
 
       // Store model results
       await supabase
         .from('ml_training_datasets')
         .update({
-        model_metadata: {
-          ...(dataset.model_metadata as any),
-          latest_training_result: {
-            ...mockTrainingResult,
-            training_duration_ms: trainingDuration,
-            trained_at: new Date().toISOString()
-          }
-        } as any
+          model_metadata: {
+            ...(dataset.model_metadata as any),
+            latest_training_result: {
+              ...mockTrainingResult,
+              training_duration_ms: trainingDuration,
+              trained_at: new Date().toISOString()
+            }
+          } as any
         })
         .eq('id', datasetId);
 
@@ -168,7 +168,8 @@ export class MLTrainingPipeline {
   }
 
   /**
-   * Generate predictive insights using trained models
+   * Generate predictive insights using trained models.
+   * Returns empty array if no trained model is available.
    */
   static async generatePredictiveInsights(
     organizationId: string,
@@ -181,60 +182,44 @@ export class MLTrainingPipeline {
     }
   ): Promise<PredictiveInsight[]> {
     try {
-      // Mock predictive analysis - ready for real ML models
-      const insights: PredictiveInsight[] = [
-        {
-          insight_id: `insight_${Date.now()}_001`,
-          type: 'compliance_risk',
-          confidence_score: 0.87,
-          predicted_timeline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
-          recommended_actions: [
-            'Update SSH configuration on RHEL 8 systems',
-            'Implement additional access controls for privileged accounts',
-            'Review and update password policies'
-          ],
-          potential_impact: {
-            severity: 'high',
-            affected_assets: ['server-001', 'server-002', 'server-003'],
-            compliance_impact: 0.15 // 15% compliance score impact
-          }
-        },
-        {
-          insight_id: `insight_${Date.now()}_002`,
-          type: 'performance_degradation',
-          confidence_score: 0.73,
-          predicted_timeline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days
-          recommended_actions: [
-            'Optimize database query performance',
-            'Scale compute resources',
-            'Review and tune application configurations'
-          ],
-          potential_impact: {
-            severity: 'medium',
-            affected_assets: ['database-cluster-01'],
-            compliance_impact: 0.05
-          }
-        }
-      ];
+      // Check if a trained model actually exists
+      const { data: modelRecord, error: modelError } = await supabase
+        .from('open_controls_performance_metrics')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .eq('metric_type', 'model_training_complete')
+        .eq('metric_name', modelId)
+        .maybeSingle();
 
-      // Store insights for tracking
-      for (const insight of insights) {
+      if (modelError) throw modelError;
+
+      // If no trained model exists, return empty insights — don't fabricate
+      if (!modelRecord) {
+        console.warn(`[MLTrainingPipeline] No trained model '${modelId}' found. Cannot generate predictions.`);
+
+        // Log the failed attempt
         await supabase
           .from('open_controls_performance_metrics')
           .insert({
             organization_id: organizationId,
-            metric_type: 'predictive_insight',
-            metric_name: insight.insight_id,
-            metric_value: insight.confidence_score,
-          metric_metadata: {
-            insight: insight as any,
-            model_id: modelId,
-            generated_at: new Date().toISOString()
-          } as any
+            metric_type: 'predictive_insight_request',
+            metric_name: `insight_request_${Date.now()}`,
+            metric_value: 0,
+            metric_metadata: {
+              model_id: modelId,
+              status: 'ml_model_not_trained',
+              message: 'No trained model available. Train a model first using trainModel().',
+              requested_at: new Date().toISOString()
+            }
           });
+
+        return [];
       }
 
-      return insights;
+      // TODO: Run actual inference using the trained model
+      // This requires a real ML serving backend (TensorFlow Serving, ONNX Runtime, etc.)
+      console.warn('[MLTrainingPipeline] ML inference engine not configured. Returning empty insights.');
+      return [];
     } catch (error) {
       console.error('Predictive insights generation failed:', error);
       throw error;
@@ -242,7 +227,8 @@ export class MLTrainingPipeline {
   }
 
   /**
-   * Continuous model improvement with feedback loops
+   * Continuous model improvement with feedback loops.
+   * Stores feedback for future training but cannot compute improvement without a deployed model.
    */
   static async updateModelWithFeedback(
     organizationId: string,
@@ -256,17 +242,11 @@ export class MLTrainingPipeline {
     }
   ): Promise<{
     model_updated: boolean;
-    performance_improvement: number;
-    next_training_scheduled: string;
+    performance_improvement: number | null;
+    next_training_scheduled: string | null;
   }> {
     try {
-      // Mock model feedback integration - ready for real ML pipelines
-      const performanceImprovement = Math.random() * 0.1; // Mock 0-10% improvement
-      
-      // Schedule next training if significant feedback received
-      const nextTraining = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
-      
-      // Record feedback for model improvement
+      // Store feedback for future model retraining
       await supabase
         .from('open_controls_performance_metrics')
         .insert({
@@ -277,15 +257,17 @@ export class MLTrainingPipeline {
           metric_metadata: {
             model_id: modelId,
             feedback: feedback,
-            performance_improvement: performanceImprovement,
-            processed_at: new Date().toISOString()
+            processed_at: new Date().toISOString(),
+            status: 'feedback_stored_awaiting_retraining'
           }
         });
 
+      // Cannot compute actual performance improvement without a deployed model
+      // Feedback is stored and will be used during next training cycle
       return {
-        model_updated: true,
-        performance_improvement: performanceImprovement,
-        next_training_scheduled: nextTraining
+        model_updated: false,
+        performance_improvement: null,
+        next_training_scheduled: null,
       };
     } catch (error) {
       console.error('Model feedback update failed:', error);
@@ -297,61 +279,95 @@ export class MLTrainingPipeline {
    * Private helper methods
    */
   private static async collectTrainingData(organizationId: string, config: any) {
-    // Mock data collection from multiple sources
+    // Query real data from Supabase tables
+    const { data: complianceData } = await supabase
+      .from('discovered_assets')
+      .select('id, compliance_status, risk_score, applicable_stigs')
+      .eq('organization_id', organizationId)
+      .eq('is_active', true)
+      .limit(100);
+
+    const { data: performanceData } = await supabase
+      .from('open_controls_performance_metrics')
+      .select('metric_type, metric_value, metric_metadata')
+      .eq('organization_id', organizationId)
+      .order('measurement_timestamp', { ascending: false })
+      .limit(100);
+
     return {
-      compliance_data: [
-        { asset_id: 'asset_001', compliance_score: 0.85, stig_violations: 3 },
-        { asset_id: 'asset_002', compliance_score: 0.92, stig_violations: 1 }
-      ],
-      performance_data: [
-        { asset_id: 'asset_001', cpu_usage: 0.45, memory_usage: 0.67 },
-        { asset_id: 'asset_002', cpu_usage: 0.38, memory_usage: 0.52 }
-      ],
-      threat_data: [
-        { threat_id: 'threat_001', severity: 'high', likelihood: 0.3 }
-      ]
+      compliance_data: (complianceData || []).map(a => ({
+        asset_id: a.id,
+        compliance_score: (a.compliance_status as any)?.score ?? 0,
+        stig_violations: (a.compliance_status as any)?.violations ?? 0,
+      })),
+      performance_data: (performanceData || []).filter(m =>
+        m.metric_type === 'cpu_usage' || m.metric_type === 'memory_usage'
+      ),
+      threat_data: [], // Populated when threat intelligence feeds are configured
     };
   }
 
   private static async performFeatureEngineering(data: any, config: any) {
-    // Mock feature engineering
-    return [
-      { name: 'compliance_score', type: 'numerical', importance_score: 0.85 },
-      { name: 'stig_violation_count', type: 'numerical', importance_score: 0.79 },
-      { name: 'asset_type', type: 'categorical', importance_score: 0.65 },
-      { name: 'threat_exposure', type: 'numerical', importance_score: 0.72 }
-    ];
+    // Derive features from actual data structure
+    const features: Array<{ name: string; type: string; importance_score: number }> = [];
+
+    if (data.compliance_data?.length > 0) {
+      features.push({ name: 'compliance_score', type: 'numerical', importance_score: 0 });
+      features.push({ name: 'stig_violation_count', type: 'numerical', importance_score: 0 });
+    }
+    if (data.performance_data?.length > 0) {
+      features.push({ name: 'cpu_usage', type: 'numerical', importance_score: 0 });
+      features.push({ name: 'memory_usage', type: 'numerical', importance_score: 0 });
+    }
+    if (data.threat_data?.length > 0) {
+      features.push({ name: 'threat_exposure', type: 'numerical', importance_score: 0 });
+    }
+
+    // Importance scores are 0 until actual feature selection is run
+    return features;
   }
 
   private static async calculateDataQuality(data: any) {
+    const compliance = data.compliance_data || [];
+    const performance = data.performance_data || [];
+    const totalRecords = compliance.length + performance.length;
+
+    if (totalRecords === 0) {
+      return {
+        completeness: 0,
+        accuracy: 0,
+        consistency: 0,
+        timeliness: 0,
+      };
+    }
+
+    // Completeness: proportion of non-null fields
+    const nonNullFields = compliance.filter((c: any) => c.compliance_score !== null && c.compliance_score !== undefined).length;
+    const completeness = compliance.length > 0 ? nonNullFields / compliance.length : 0;
+
     return {
-      completeness: 0.95,
-      accuracy: 0.88,
-      consistency: 0.92,
-      timeliness: 0.85
+      completeness: Math.round(completeness * 100) / 100,
+      accuracy: 0, // Cannot determine without ground truth labels
+      consistency: 0, // Requires cross-validation between data sources
+      timeliness: 0, // Requires timestamp analysis
     };
   }
 
   private static async simulateAdvancedTraining(dataset: any, config: any): Promise<Omit<ModelTrainingResult, 'training_duration_ms'>> {
-    // Mock advanced ML training results
+    // ML training requires a real backend (TensorFlow Serving, PyTorch, etc.)
+    // Return explicit "not trained" state
+    console.warn('[MLTrainingPipeline] ML training backend not configured. No model was trained.');
     return {
-      model_id: `model_${Date.now()}`,
-      training_accuracy: 0.92,
-      validation_accuracy: 0.88,
-      test_accuracy: 0.85,
-      feature_importance: {
-        'compliance_score': 0.25,
-        'stig_violation_count': 0.22,
-        'threat_exposure': 0.18,
-        'asset_type': 0.15,
-        'configuration_drift': 0.12,
-        'performance_metrics': 0.08
-      },
+      model_id: `model_not_trained_${Date.now()}`,
+      training_accuracy: 0,
+      validation_accuracy: 0,
+      test_accuracy: 0,
+      feature_importance: {},
       performance_metrics: {
-        precision: 0.87,
-        recall: 0.84,
-        f1_score: 0.855,
-        auc_roc: 0.91
+        precision: 0,
+        recall: 0,
+        f1_score: 0,
+        auc_roc: 0
       }
     };
   }
