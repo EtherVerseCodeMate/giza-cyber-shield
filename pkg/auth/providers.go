@@ -543,7 +543,7 @@ func (lp *LocalProvider) GetUser(ctx context.Context, userID string) (*User, err
 			return user, nil
 		}
 	}
-	return nil, errors.New("user not found")
+	return nil, errUserNotFound
 }
 
 // ListUsers lists all local users.
@@ -572,7 +572,7 @@ func (lp *LocalProvider) DeleteUser(ctx context.Context, userID string) error {
 			return nil
 		}
 	}
-	return errors.New("user not found")
+	return errUserNotFound
 }
 
 // UpdateUser modifies a local user.
@@ -583,7 +583,7 @@ func (lp *LocalProvider) UpdateUser(ctx context.Context, user *User) error {
 			return nil
 		}
 	}
-	return errors.New("user not found")
+	return errUserNotFound
 }
 
 // AssignRole assigns a role to a local user.
@@ -594,7 +594,7 @@ func (lp *LocalProvider) AssignRole(ctx context.Context, userID string, role str
 			return nil
 		}
 	}
-	return errors.New("user not found")
+	return errUserNotFound
 }
 
 // RevokeRole removes a role from a local user.
@@ -611,7 +611,7 @@ func (lp *LocalProvider) RevokeRole(ctx context.Context, userID string, role str
 			return nil
 		}
 	}
-	return errors.New("user not found")
+	return errUserNotFound
 }
 
 // VerifyPermission always returns true for local provider (dev only).
