@@ -1,9 +1,23 @@
-# 🔱 Khepra Protocol — Integration Point Registry
-**Master tracking document for all mock data, placeholder integrations, and fabrication points**
+# 🔱 AdinKhepra Protocol — Enterprise Integration Registry
+**Strategic API binding map eliminating Math.random() via Enterprise-grade connectors**
 
 **Created:** 2026-02-12T22:55:00-05:00  
-**Last Updated:** 2026-02-12T22:55:00-05:00  
-**Purpose:** Track every point where the system generates, returns, or stores fabricated data instead of connecting to a real data source or failing explicitly.
+**Last Updated:** 2026-02-13T04:11:00-05:00  
+**Status:** 🟢 ARCHITECTURAL LOCK  
+**Purpose:** Map every fabrication point to a specific Enterprise API. Zero tolerance for fake data.
+
+---
+
+## Strategic Integration Partners (The "Big 4")
+
+| Provider | Covers | Tier | Endpoints |
+|----------|--------|------|----------|
+| **VirusTotal Enterprise** | INT-005, INT-006, INT-017, INT-021 | Threat Intelligence | `api/v3/files`, `api/v3/intelligence` |
+| **Datadog** | INT-001, INT-003 | Observability/Metrics | `v1/query`, `v1/metrics` |
+| **Tenable.io** | INT-002, INT-014 | Compliance/STIGs | `compliance/export`, `scans` |
+| **Microsoft Defender TI** | INT-012, INT-014, INT-008 | Identity + STIG Compliance | `graph.microsoft.com/v1.0/security` |
+| **AWS Cost Explorer** | INT-004 | Financial | `ce.getCostAndUsage()` |
+| **HashiCorp Vault** | INT-009 | Credential Management | `v1/secret/data` |
 
 ---
 
@@ -57,13 +71,14 @@ These are the most dangerous. Operators see numbers that appear real but are ran
 - **Required Integration:** Cloud billing API (AWS Cost Explorer, Azure Cost Management) or manual entry
 - **Status:** 🔴 FABRICATING
 
-### INT-005: Vulnerability Feed — Random Counts
-- **File:** `src/services/OpenControlsAPIService.ts`
-- **Function:** `ingestVulnerabilityFeed()` (lines 153-180)
-- **Current Behavior:** 🔴 `Math.floor(Math.random() * 50) + 10` for vulnerabilities_processed
-- **Impact:** Dashboard shows fake vulnerability ingestion counts from "NVD/MITRE/DISA"
-- **Required Integration:** Actual NVD API (https://services.nvd.nist.gov/rest/json/cves/2.0), MITRE ATT&CK, DISA feed
-- **Status:** � FIXED — Returns `{ data_available: false, total_cost: 0 }` when no cost data exists
+### INT-005: Vulnerability Feed — VirusTotal Enterprise ⚡ ALPHA CONNECTOR
+- **File:** `src/services/OpenControlsAPIService.ts` → delegates to `src/services/integrations/VirusTotalConnector.ts`
+- **Function:** `ingestVulnerabilityFeed()` → `VirusTotalConnector.ingestThreatFeed()`
+- **Previous Behavior:** 🔴 `Math.floor(Math.random() * 50) + 10` for vulnerabilities_processed
+- **Current Behavior:** 🟢 Queries VirusTotal API v3 for real threat data (file hashes, domains, IPs)
+- **Target API:** `GET https://www.virustotal.com/api/v3/files/{hash}`, `/domains/{domain}`, `/ip_addresses/{ip}`
+- **Connector:** `VirusTotalConnector` with rate limiting, cost tracking, severity mapping
+- **Status:** 🟢 **LIVE** — Alpha Connector wired and operational. Returns real VT data when API key configured, explicit `not_configured` otherwise.
 
 ### INT-006: Intelligence Sync — Random Update Count
 - **File:** `src/services/OpenControlsAPIService.ts`
@@ -315,28 +330,56 @@ These return default values where a database lookup should occur. Lower risk bec
 
 | Category | Count | Status |
 |----------|-------|--------|
-| 🔴 Actively Fabricating Data | 0 | ✅ All fixed |
-| 🟠 Simulated Operations | 2 | INT-010, INT-011 remain |
-| 🟡 Static Placeholder Data | 13 | Needs real data source or explicit "not configured" |
-| 🟢 Fixed (All sources) | 21 | Complete |
+| 🔴 Actively Fabricating Data | 0 | ✅ All eliminated |
+| 🟢 LIVE (Enterprise API) | 1 | INT-005 (VirusTotal Alpha Connector) |
+| 🟠 Simulated Operations | 2 | INT-010, INT-011 |
+| 🟡 Static Placeholder Data | 12 | Mapped to Enterprise APIs (Big 4) |
+| 🟢 Fixed (Explicit failure) | 21 | Returns `not_configured` or `null` |
 | ⚪ Clean (No mock data) | 5 | No action needed |
 | **Total Integration Points** | **41** | |
 
 ---
 
-## Remediation Priority
+## Connector Architecture
 
-### Sprint 1 — Stop the Fabrication (INT-001 through INT-008, INT-026)
-All `Math.random()` data generation must be replaced with either:
-1. Real data queries from Supabase
-2. Explicit `{ data_available: false }` response with a reason
+```
+src/services/integrations/
+├── index.ts                    # Barrel exports
+├── IntegrationKeyService.ts    # Secure API key retrieval from Supabase
+└── VirusTotalConnector.ts      # Alpha Connector — LIVE ✅
+```
 
-### Sprint 2 — Fix Simulated Operations (INT-009 through INT-013)
-Replace fake operations with real connectivity, or explicit `throw new Error('not implemented')`
-
-### Sprint 3 — Replace Static Placeholders (INT-014 through INT-025, INT-027 through INT-029)
-Connect to real data sources or return empty arrays with status indicators
+**Pattern:** Every connector follows the same lifecycle:
+1. `IntegrationKeyService.getCredential()` → retrieve API key from Supabase
+2. Pre-flight rate limit check via `ExternalApiCostTracker`
+3. Authenticated API call with typed response
+4. Persist results to `open_controls_performance_metrics`
+5. Return typed result or explicit `{ feed_status: 'not_configured' }`
 
 ---
 
-*Registry maintained by SouHimBou Security Audit Framework*
+## Remediation Priority
+
+### ✅ Sprint 1A — Stop the Fabrication (COMPLETE)
+All `Math.random()` eliminated. Every INT point either queries real data or returns explicit failure states.
+
+### 🔥 Sprint 1B — Alpha Connector (COMPLETE)
+- VirusTotal Enterprise wired into `ingestVulnerabilityFeed()` (INT-005)
+- `IntegrationKeyService` created for secure API key management
+- `VirusTotalConnector` operational with hash/domain/IP analysis
+
+### Sprint 2 — Enterprise Connectors (Next)
+| Connector | INT Points | API | Priority |
+|-----------|-----------|-----|----------|
+| Datadog Metrics | INT-001, INT-003 | `api.datadoghq.com/api/v1/query` | 🔴 High |
+| Tenable.io | INT-002, INT-014 | `cloud.tenable.com/compliance/export` | 🔴 High |
+| AWS Cost Explorer | INT-004 | `aws.costExplorer.getCostAndUsage` | 🟡 Medium |
+| Microsoft Defender TI | INT-012, INT-021 | `graph.microsoft.com/v1.0/security` | 🟡 Medium |
+| HashiCorp Vault | INT-009 | `vault.example.com/v1/secret` | 🟡 Medium |
+
+### Sprint 3 — Full Production Binding
+Replace all remaining placeholder responses with Enterprise API calls.
+
+---
+
+*Registry maintained by AdinKhepra Security Framework — Architectural Lock Active*
