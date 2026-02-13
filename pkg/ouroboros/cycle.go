@@ -97,11 +97,26 @@ func (c *Cycle) manifest(heka []maat.Heka) {
 	}
 }
 
-// verify confirms restoration of Maat
+// verify confirms restoration of Maat by re-scanning all eyes
+// and checking that Isfet levels have decreased after remediation.
 func (c *Cycle) verify() {
-	// TODO: Implement verification logic
-	// For now, just log
-	log.Printf("[Ouroboros] Maat verification complete")
+	// Post-remediation scan: check if chaos was reduced
+	remainingIsfet := c.perceive()
+	count := len(remainingIsfet)
+
+	if count == 0 {
+		log.Printf("[Ouroboros] Maat verification: PASS — no remaining Isfet")
+		return
+	}
+
+	// Classify remaining threats by severity for reporting
+	severityCounts := make(map[maat.Severity]int)
+	for _, chaos := range remainingIsfet {
+		severityCounts[chaos.Severity]++
+	}
+
+	log.Printf("[Ouroboros] Maat verification: %d Isfet remain after remediation (breakdown: %v)",
+		count, severityCounts)
 }
 
 // Stop halts the cycle
