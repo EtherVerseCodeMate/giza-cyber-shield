@@ -431,7 +431,7 @@ export class MicrosoftDefenderTIConnector {
                         total_indicators: indicators.length,
                         severity_breakdown: severityBreakdown,
                         ingested_at: new Date().toISOString(),
-                    },
+                    } as any,
                 });
         } catch (error) {
             console.error('[MicrosoftDefenderTI] Persistence failed:', error);
