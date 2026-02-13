@@ -85,12 +85,12 @@ Deno.serve(async (req) => {
     }
 
     const { email }: PasswordResetRequest = requestBody;
-    
+
     if (!email) {
       return new Response(
         JSON.stringify({ error: 'Email is required' }),
-        { 
-          status: 400, 
+        {
+          status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
@@ -135,8 +135,11 @@ Deno.serve(async (req) => {
 
     console.log('User found:', userData.id);
 
-    // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate 6-digit OTP using cryptographically secure random number generator
+    // Math.random() is NOT cryptographically secure and MUST NOT be used for security tokens
+    const otpBuffer = new Uint32Array(1);
+    crypto.getRandomValues(otpBuffer);
+    const otp = (100000 + (otpBuffer[0] % 900000)).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     // Store OTP in database
@@ -240,24 +243,24 @@ Deno.serve(async (req) => {
     console.log('Password reset OTP sent successfully to:', email);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         message: 'Verification code sent to your email',
         expires_in: 600 // 10 minutes in seconds
       }),
-      { 
-        status: 200, 
+      {
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
 
   } catch (error) {
     console.error('Password reset OTP error:', error);
-    
+
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
-      { 
-        status: 500, 
+      {
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );

@@ -45,7 +45,7 @@ export interface EncryptionKey {
 }
 
 export class SecureCredentialVault {
-  
+
   /**
    * Store encrypted credentials with enterprise security controls
    */
@@ -66,7 +66,7 @@ export class SecureCredentialVault {
     try {
       // Validate credential strength
       this.validateCredentialStrength(credentialData.credentials, credentialData.credential_type);
-      
+
       // Encrypt credentials using database function
       const { data: encryptedData, error: encryptError } = await supabase
         .rpc('encrypt_credential_data', {
@@ -167,13 +167,13 @@ export class SecureCredentialVault {
       };
     } catch (error) {
       console.error('Retrieve credential failed:', error);
-      
+
       // Log failed access attempt
       await this.logCredentialEvent('credential_access_denied', credentialId, '', {
         error: error.message,
         access_reason: accessRequest.access_reason
       }, 'ERROR');
-      
+
       throw error;
     }
   }
@@ -231,7 +231,7 @@ export class SecureCredentialVault {
       // Mark old key as inactive
       await supabase
         .from('encryption_keys')
-        .update({ 
+        .update({
           is_active: false,
           rotated_at: new Date().toISOString()
         })
@@ -261,9 +261,9 @@ export class SecureCredentialVault {
     try {
       const { error } = await supabase
         .from('secure_discovery_credentials')
-        .update({ 
+        .update({
           is_active: false,
-          metadata: { 
+          metadata: {
             revoked_at: new Date().toISOString(),
             revocation_reason: reason
           }
@@ -326,7 +326,7 @@ export class SecureCredentialVault {
           throw new Error('Password must be at least 12 characters long');
         }
         break;
-      
+
       case 'ssh_key':
         if (!credentials.private_key || !credentials.public_key) {
           throw new Error('SSH key pair required');
@@ -335,7 +335,7 @@ export class SecureCredentialVault {
           throw new Error('Invalid SSH private key format');
         }
         break;
-      
+
       case 'api_token':
         if (!credentials.token) {
           throw new Error('API token required');
@@ -344,7 +344,7 @@ export class SecureCredentialVault {
           throw new Error('API token appears to be too short');
         }
         break;
-      
+
       case 'certificate':
         if (!credentials.certificate || !credentials.private_key) {
           throw new Error('Certificate and private key required');
@@ -379,7 +379,7 @@ export class SecureCredentialVault {
       // Check if last use was recent (within 5 minutes)
       const lastUsed = new Date(credential.last_used_at || 0);
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      
+
       if (lastUsed > fiveMinutesAgo) {
         throw new Error('Credential usage limit exceeded');
       }
@@ -394,7 +394,7 @@ export class SecureCredentialVault {
     if (credential.access_pattern && Object.keys(credential.access_pattern).length > 0) {
       const currentHour = new Date().getHours();
       const allowedHours = credential.access_pattern.allowed_hours;
-      
+
       if (allowedHours && !allowedHours.includes(currentHour)) {
         throw new Error('Credential access not allowed at this time');
       }
@@ -461,42 +461,43 @@ export class SecureCredentialVault {
   }
 
   /**
-   * Test credential connectivity
+   * Test credential connectivity.
+   * 
+   * NOTE: Actual connectivity testing requires backend integration to probe
+   * the target system (SSH handshake, HTTPS connection, API auth, etc.).
+   * This function does NOT simulate or fabricate test results.
    */
   static async testCredential(
     credentialId: string,
     testTarget: string
   ): Promise<{ success: boolean; details: string }> {
     try {
-      // This would implement actual connectivity testing
-      // For now, simulate the test
-      
       await this.logCredentialEvent('credential_test_initiated', credentialId, '', {
         test_target: testTarget,
         test_timestamp: new Date().toISOString()
       });
 
-      // Simulate test delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // TODO: Implement actual connectivity testing via Supabase edge function:
+      // - SSH: Attempt SSH handshake to testTarget using decrypted credential
+      // - API Token: Attempt authenticated request to testTarget endpoint
+      // - Certificate: Validate cert chain and attempt mTLS handshake
+      // - Username/Password: Attempt authentication to target service
 
-      const success = Math.random() > 0.2; // 80% success rate for simulation
-      
       await this.logCredentialEvent(
-        success ? 'credential_test_successful' : 'credential_test_failed',
+        'credential_test_skipped',
         credentialId,
         '',
         {
           test_target: testTarget,
-          test_result: success ? 'connectivity_verified' : 'connection_failed'
+          reason: 'connectivity_testing_not_implemented',
+          message: 'Backend connectivity probe not yet configured. Credential was NOT tested against the target system.'
         },
-        success ? 'INFO' : 'WARN'
+        'WARN'
       );
 
       return {
-        success,
-        details: success 
-          ? 'Credential connectivity verified successfully'
-          : 'Failed to establish connection with provided credentials'
+        success: false,
+        details: 'Credential connectivity testing not implemented. Configure backend connectivity probes to enable real testing.'
       };
     } catch (error) {
       console.error('Test credential failed:', error);
