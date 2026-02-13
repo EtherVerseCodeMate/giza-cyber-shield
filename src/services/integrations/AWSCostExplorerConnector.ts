@@ -319,7 +319,7 @@ export class AWSCostExplorerConnector {
                 .maybeSingle();
 
             if (error) throw error;
-            const cached = data?.metric_metadata as CostAnalysisResult | null;
+            const cached = data?.metric_metadata as unknown as CostAnalysisResult | null;
 
             if (cached) {
                 return { ...cached, data_source: 'supabase_cached' };
@@ -355,7 +355,7 @@ export class AWSCostExplorerConnector {
                     metric_type: 'aws_cost_analysis',
                     metric_name: `aws_cost_${Date.now()}`,
                     metric_value: costData.total_cost,
-                    metric_metadata: costData,
+                    metric_metadata: costData as unknown as Record<string, unknown>,
                 });
         } catch (error) {
             console.error('[AWSCostExplorerConnector] Persistence failed:', error);
