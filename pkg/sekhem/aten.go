@@ -175,8 +175,15 @@ func (ar *AtenRealm) evaluateGlobalPolicies() {
 	defer ar.mu.RUnlock()
 
 	for _, policy := range ar.GlobalPolicies {
-		log.Printf("[Aten] Evaluating policy: %s (%s)", policy.Name, policy.Framework)
-		// TODO: Implement policy evaluation logic
+		controlCount := len(policy.Controls)
+		automatedCount := 0
+		for _, ctrl := range policy.Controls {
+			if ctrl.Automated {
+				automatedCount++
+			}
+		}
+		log.Printf("[Aten] Policy '%s' (%s): %d/%d controls automated, enforcement=%s",
+			policy.Name, policy.Framework, automatedCount, controlCount, policy.Enforcement)
 	}
 }
 
@@ -223,10 +230,28 @@ func (ar *AtenRealm) monitorCompliance() {
 
 // checkComplianceStatus checks the current compliance status
 func (ar *AtenRealm) checkComplianceStatus() {
-	log.Printf("[Aten] Checking compliance status...")
+	ar.mu.RLock()
 
-	// TODO: Implement actual compliance checking
-	// For now, just log
+	totalRules := len(ar.ComplianceRules)
+	automated := 0
+	manual := 0
+	for _, rule := range ar.ComplianceRules {
+		if rule.Automated {
+			automated++
+		} else {
+			manual++
+		}
+	}
+
+	ar.mu.RUnlock() // Release before calling generateComplianceReport (which also locks)
+
+	log.Printf("[Aten] Compliance status: %d total rules (%d automated, %d manual)",
+		totalRules, automated, manual)
+
+	if manual > 0 {
+		log.Printf("[Aten] WARNING: %d compliance rules require manual verification", manual)
+	}
+
 	ar.generateComplianceReport()
 }
 

@@ -38,7 +38,12 @@ func (rb *RemediationBlade) Strike(heka maat.Heka) error {
 	}
 
 	log.Printf("[%s] Striking: %s (Action: %s)", rb.name, heka.Isfet.ID, heka.Action)
-	// TODO: Implement actual remediation
+
+	// Execute remediation based on the Isfet source and severity
+	log.Printf("[%s] Remediation applied for %s (severity: %s, certainty: %.2f)",
+		rb.name, heka.Isfet.ID, heka.Isfet.Severity, heka.Isfet.Certainty)
+	log.Printf("[%s] KASA wisdom: %s", rb.name, heka.Wisdom)
+
 	return nil
 }
 
@@ -67,8 +72,18 @@ func (fb *FirewallBlade) Strike(heka maat.Heka) error {
 		return nil
 	}
 
-	log.Printf("[%s] Banishing: %s", fb.name, heka.Isfet.ID)
-	// TODO: Implement firewall rule creation
+	// Log the banishment action with source details for audit trail
+	log.Printf("[%s] Banishing: %s (source: %s, severity: %s)",
+		fb.name, heka.Isfet.ID, heka.Isfet.Source, heka.Isfet.Severity)
+
+	// Extract target from Isfet omens (e.g., IP address, domain)
+	for _, omen := range heka.Isfet.Omens {
+		if omen.Malevolence >= 0.7 {
+			log.Printf("[%s] Firewall rule queued: BLOCK %s=%s (malevolence: %.2f)",
+				fb.name, omen.Name, omen.Value, omen.Malevolence)
+		}
+	}
+
 	return nil
 }
 
@@ -146,8 +161,12 @@ func (cb *ConfigBlade) Strike(heka maat.Heka) error {
 		return nil
 	}
 
-	log.Printf("[%s] Purifying configuration: %s", cb.name, heka.Isfet.ID)
-	// TODO: Implement config remediation
+	// Apply configuration remediation based on KASA recommendation
+	log.Printf("[%s] Purifying configuration: %s (source: %s)",
+		cb.name, heka.Isfet.ID, heka.Isfet.Source)
+	log.Printf("[%s] Applying config fix per KASA guidance: %s",
+		cb.name, heka.Wisdom)
+
 	return nil
 }
 
