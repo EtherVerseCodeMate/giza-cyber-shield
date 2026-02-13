@@ -18,6 +18,7 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/argon2"
 )
 
 // AuthLayer implements Layer 2 zero-trust authentication
@@ -393,10 +394,15 @@ func getOrgFromCert(cert *x509.Certificate) string {
 	return cert.Subject.CommonName
 }
 
-// hashAPIKey returns a simple hash of the API key
+// hashAPIKey returns a secure Argon2id hash of the API key.
+// Uses OWASP-recommended parameters for key derivation.
 func hashAPIKey(key string) string {
-	// Placeholder implementation - in production use Argon2
-	return fmt.Sprintf("%x", adinkra.Hash([]byte(key)))
+	// Use a deterministic salt derived from the key itself for lookup purposes
+	// (In a full implementation, store the salt alongside the hash)
+	salt := adinkra.Hash([]byte("khepra-api-key-salt:" + key))
+	// Argon2id parameters per OWASP guidelines: time=1, memory=64MB, threads=4, keyLen=32
+	hash := argon2.IDKey([]byte(key), []byte(salt), 1, 64*1024, 4, 32)
+	return hex.EncodeToString(hash)
 }
 
 func min(a, b float64) float64 {
