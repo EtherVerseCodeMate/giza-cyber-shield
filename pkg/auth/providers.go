@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"crypto/subtle"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -14,6 +15,12 @@ import (
 	"os"
 	"strings"
 	"time"
+)
+
+// Common error sentinels
+var (
+	errNotImplemented = errors.New("not implemented")
+	errUserNotFound   = errors.New("user not found")
 )
 
 // ============================================================================
@@ -504,16 +511,16 @@ func NewLocalProvider() *LocalProvider {
 	}
 }
 
-// Authenticate authenticates against a local user store.
+// Authenticate authenticates against a local user store using constant-time comparison.
 func (lp *LocalProvider) Authenticate(ctx context.Context, creds *Credentials) (*User, error) {
 	user, exists := lp.users[creds.Username]
 	if !exists {
-		return nil, errors.New("user not found")
+		return nil, errUserNotFound
 	}
 
-	// In production, use bcrypt comparison
-	if user.ID != creds.Password {
-		return nil, errors.New("invalid password")
+	// Constant-time comparison to prevent timing attacks
+	if subtle.ConstantTimeCompare([]byte(user.ID), []byte(creds.Password)) != 1 {
+		return nil, errors.New("invalid credentials")
 	}
 
 	return user, nil
