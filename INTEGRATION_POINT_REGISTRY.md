@@ -343,19 +343,22 @@ These return default values where a database lookup should occur. Lower risk bec
 ## Connector Architecture
 
 ```
-src/services/integrations/          # TypeScript (Frontend → Supabase → Gateway)
-├── index.ts                        # Barrel exports
-├── IntegrationKeyService.ts        # Secure API key retrieval from Supabase
-├── VirusTotalConnector.ts          # Threat Intelligence — LIVE ✅
-├── DatadogConnector.ts             # Observability/Metrics — LIVE ✅
-└── STIGViewerConnector.ts          # Compliance/STIGs — LIVE ✅ (via DMZ)
+src/services/integrations/                # TypeScript (Frontend → Supabase → Gateway)
+├── index.ts                              # Barrel exports (all 6 connectors)
+├── IntegrationKeyService.ts              # Secure API key retrieval from Supabase
+├── VirusTotalConnector.ts                # Threat Intelligence — LIVE ✅
+├── DatadogConnector.ts                   # Observability/Metrics — LIVE ✅
+├── STIGViewerConnector.ts                # Compliance/STIGs — LIVE ✅ (via DMZ)
+├── AWSCostExplorerConnector.ts           # Financial/Cost Analysis — LIVE ✅
+├── MicrosoftDefenderTIConnector.ts       # Advanced Threat Intel — LIVE ✅
+└── HashiCorpVaultConnector.ts            # Credential Management — LIVE ✅
 
-pkg/gateway/                        # Go (DMZ Zone 1)
-├── stig_connector.go               # DMZ proxy to STIGViewer API — LIVE ✅
-├── layer1_firewall.go              # WAF + IP ACLs (existing)
-├── layer2_auth.go                  # mTLS + PQC + API Key auth (existing)
-├── layer3_anomaly.go               # Anomaly detection (existing)
-└── layer4_control.go               # Rate control (existing)
+pkg/gateway/                              # Go (DMZ Zone 1)
+├── stig_connector.go                     # DMZ proxy to STIGViewer API — LIVE ✅
+├── layer1_firewall.go                    # WAF + IP ACLs (existing)
+├── layer2_auth.go                        # mTLS + PQC + API Key auth (existing)
+├── layer3_anomaly.go                     # Anomaly detection (existing)
+└── layer4_control.go                     # Rate control (existing)
 ```
 
 **Pattern:** Every connector follows the same lifecycle:
@@ -385,12 +388,15 @@ All `Math.random()` eliminated. Every INT point either queries real data or retu
 |-----------|-----------|-----|--------|
 | Datadog Metrics | INT-001, INT-003 | `api.datadoghq.com/api/v1/query` | ✅ LIVE |
 | STIGViewer API | INT-002, INT-014 | `api.stigviewer.com/api/stigs` (via DMZ) | ✅ LIVE |
-| AWS Cost Explorer | INT-004 | `aws.costExplorer.getCostAndUsage` | 🟡 Planned |
-| Microsoft Defender TI | INT-012, INT-021 | `graph.microsoft.com/v1.0/security` | 🟡 Planned |
-| HashiCorp Vault | INT-009 | `vault.example.com/v1/secret` | 🟡 Planned |
 
-### Sprint 3 — Full Production Binding
-Replace all remaining placeholder responses with Enterprise API calls.
+### ✅ Sprint 3 — Full Production Binding (COMPLETE)
+| Connector | INT Points | API | Status |
+|-----------|-----------|-----|--------|
+| AWS Cost Explorer | INT-004 | `ce.getCostAndUsage` / `getCostForecast` | ✅ LIVE |
+| Microsoft Defender TI | INT-012, INT-021 | `graph.microsoft.com/security/threatIntelligence` | ✅ LIVE |
+| HashiCorp Vault | INT-009 | `vault/v1/secret/data` / `sys/health` | ✅ LIVE |
+
+**All 6 enterprise connectors operational. Zero fabricating data points.**
 
 ---
 
