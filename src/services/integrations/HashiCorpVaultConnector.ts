@@ -398,7 +398,7 @@ export class HashiCorpVaultConnector {
         if (path.includes('..') || path.includes('\\')) return null;
 
         // Must match safe pattern: khepra/service/key_name
-        const safePattern = /^[a-zA-Z0-9][a-zA-Z0-9_/ \-]*[a-zA-Z0-9_\-]$/;
+        const safePattern = /^[a-zA-Z0-9][a-zA-Z0-9_/ -]*[a-zA-Z0-9_-]$/;
         if (!safePattern.test(path)) return null;
 
         // Remove double slashes
