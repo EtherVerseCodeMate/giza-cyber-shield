@@ -1,8 +1,6 @@
 package apiserver
 
 import (
-	"log"
-	"os"
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
@@ -96,14 +94,6 @@ func (a *LicenseManagerAdapter) ValidateAPIKey(apiKey string) (bool, error) {
 	// Only requests from this specific installation are accepted
 	machineID := a.mgr.GetMachineID()
 	if apiKey == machineID {
-		return true, nil
-	}
-
-	// Dev mode: ONLY available when KHEPRA_DEV_MODE=true is explicitly set
-	// This MUST NEVER be set in production deployments
-	if os.Getenv("KHEPRA_DEV_MODE") == "true" {
-		log.Printf("[SECURITY][CRITICAL] ⚠️  Dev-mode API key authentication used. " +
-			"KHEPRA_DEV_MODE is enabled — this MUST be disabled in production!")
 		return true, nil
 	}
 
