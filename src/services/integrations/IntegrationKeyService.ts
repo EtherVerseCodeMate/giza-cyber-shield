@@ -9,7 +9,7 @@
  * Supported providers:
  *   - virustotal     (VirusTotal Enterprise v3)
  *   - datadog        (Datadog Metrics API v1)
- *   - tenable        (Tenable.io / ACAS)
+ *   - stigviewer     (STIGViewer API — replaces Tenable.io)
  *   - microsoft      (Microsoft Defender / Entra ID / Graph)
  *   - aws            (AWS Cost Explorer / CloudTrail)
  *   - hashicorp      (HashiCorp Vault)
@@ -20,7 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 export type IntegrationProvider =
     | 'virustotal'
     | 'datadog'
-    | 'tenable'
+    | 'stigviewer'
     | 'microsoft'
     | 'aws'
     | 'hashicorp';
@@ -57,11 +57,11 @@ const PROVIDER_DEFAULTS: Record<IntegrationProvider, {
         rate_limits_free: { requests_per_minute: 60, requests_per_day: 10000 },
         rate_limits_enterprise: { requests_per_minute: 600, requests_per_day: 100000 },
     },
-    tenable: {
-        integration_name: 'Tenable.io',
-        base_url: 'https://cloud.tenable.com',
-        rate_limits_free: { requests_per_minute: 10, requests_per_day: 1000 },
-        rate_limits_enterprise: { requests_per_minute: 120, requests_per_day: 50000 },
+    stigviewer: {
+        integration_name: 'STIGViewer API',
+        base_url: 'https://api.stigviewer.com',
+        rate_limits_free: { requests_per_minute: 2, requests_per_day: 2400 },
+        rate_limits_enterprise: { requests_per_minute: 4, requests_per_day: 4800 },
     },
     microsoft: {
         integration_name: 'Microsoft Defender TI',
@@ -196,7 +196,7 @@ export class IntegrationKeyService {
         const verifyEndpoints: Record<IntegrationProvider, string> = {
             virustotal: '/users/me',              // Returns user quota info
             datadog: '/v1/validate',              // API key validation endpoint
-            tenable: '/session',                  // Session info
+            stigviewer: '/api/health',            // STIGViewer health check
             microsoft: '/me',                     // Graph API profile
             aws: '/',                             // STS GetCallerIdentity
             hashicorp: '/sys/health',             // Vault health check

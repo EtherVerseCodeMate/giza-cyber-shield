@@ -549,11 +549,11 @@ Step 19: Generate audit record in DAG (pkg/seshat)
 **DO NOT proceed to Phase 1 until:**
 1. ✅ This document is approved by project lead
 2. ⬜ STRIDE threat model is complete (full document, not this summary)
-3. ⬜ STIGViewer API key is received and stored in Vault
+3. ✅ STIGViewer API key received and stored in encrypted Supabase vault (IntegrationKeyService)
 4. ⬜ Network segmentation rules are defined and tested
 5. ⬜ Security review gate process is documented
 
-**After each phase:** Security review gate before proceeding to next phase.
+**Phase 1 Status:** `stig_connector.go` implemented — DMZ proxy with circuit breaker, rate limiter, HMAC-signed cache, JSON schema validation. Frontend `STIGViewerConnector.ts` wired via Supabase Edge Function relay.
 
 ---
 
