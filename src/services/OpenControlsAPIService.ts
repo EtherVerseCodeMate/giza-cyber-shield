@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { VirusTotalConnector } from './integrations/VirusTotalConnector';
 
 export interface DISASTIGsAPIResponse {
   data: any;
@@ -155,17 +156,51 @@ export class OpenControlsAPIService {
 
   /**
    * Real-time vulnerability feed ingestion.
-   * Returns zero counts with feed_status indicating configuration state.
-   * Will connect to NVD API, MITRE ATT&CK, and DISA feeds when configured.
+   *
+   * Integration Priority:
+   *   1. VirusTotal Enterprise (Alpha Connector) — if API key configured
+   *   2. Legacy NVD/MITRE/DISA feeds — if feed integrations configured
+   *   3. Explicit not_configured state — no integrations found
    */
-  static async ingestVulnerabilityFeed(organizationId: string, feedSources: string[] = ['NVD', 'MITRE', 'DISA']): Promise<{
+  static async ingestVulnerabilityFeed(
+    organizationId: string,
+    feedSources: string[] = ['NVD', 'MITRE', 'DISA'],
+    options?: {
+      hashes?: string[];
+      domains?: string[];
+      ips?: string[];
+      limit?: number;
+    }
+  ): Promise<{
     vulnerabilities_processed: number;
     threat_correlations: number;
     high_priority_alerts: number;
-    feed_status: 'active' | 'not_configured' | 'error';
+    feed_status: 'active' | 'not_configured' | 'rate_limited' | 'error';
+    error_message?: string;
+    items?: Array<{
+      hash: string;
+      type: string;
+      detection_ratio: string;
+      threat_label: string | null;
+      severity: string;
+      first_seen: string;
+      last_analyzed: string;
+      tags: string[];
+    }>;
   }> {
     try {
-      // Check if any feed integrations are actually configured
+      // ── Priority 1: VirusTotal Enterprise (Alpha Connector) ────────────
+      const vtResult = await VirusTotalConnector.ingestThreatFeed(
+        organizationId,
+        options
+      );
+
+      // If VT is configured (even if it returned 0 results), use its response
+      if (vtResult.feed_status !== 'not_configured') {
+        return vtResult;
+      }
+
+      // ── Priority 2: Legacy feed integrations (NVD/MITRE/DISA) ─────────
       const { data: integrations, error: intError } = await supabase
         .from('enhanced_open_controls_integrations')
         .select('integration_name, is_active, sync_status')
@@ -175,23 +210,21 @@ export class OpenControlsAPIService {
 
       if (intError) throw intError;
 
-      // If no active feed integrations, return explicit not-configured state
       if (!integrations || integrations.length === 0) {
         return {
           vulnerabilities_processed: 0,
           threat_correlations: 0,
           high_priority_alerts: 0,
           feed_status: 'not_configured',
+          error_message: 'No threat intelligence integrations configured. Add a VirusTotal API key in Settings > Integrations.',
+          items: [],
         };
       }
 
-      // TODO: Call actual NVD API (https://services.nvd.nist.gov/rest/json/cves/2.0)
-      // TODO: Call actual MITRE ATT&CK API
-      // TODO: Call actual DISA vulnerability feed
-      // For now, record that feeds are configured but endpoint integration is pending
+      // Legacy feeds configured but not yet integrated with live API endpoints
       await this.recordPerformanceMetric(organizationId, 'vulnerability_ingestion', 0, {
         feed_sources: feedSources,
-        status: 'feeds_configured_but_api_integration_pending',
+        status: 'legacy_feeds_configured_awaiting_api_integration',
         configured_feeds: integrations.length,
       });
 
@@ -200,6 +233,8 @@ export class OpenControlsAPIService {
         threat_correlations: 0,
         high_priority_alerts: 0,
         feed_status: 'not_configured',
+        error_message: `Legacy feeds (${integrations.map(i => i.integration_name).join(', ')}) configured but API integration pending. Consider adding VirusTotal for immediate results.`,
+        items: [],
       };
     } catch (error) {
       console.error('Vulnerability feed ingestion failed:', error);
