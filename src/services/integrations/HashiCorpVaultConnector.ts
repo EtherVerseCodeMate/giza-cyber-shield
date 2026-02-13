@@ -28,6 +28,8 @@ import { apiCostTracker } from '../ExternalApiCostTracker';
 
 // ─── Response Types ────────────────────────────────────────────────────────────
 
+export type VaultDataSource = 'hashicorp_vault' | 'not_configured' | 'error';
+
 export interface VaultHealthStatus {
     initialized: boolean;
     sealed: boolean;
@@ -37,7 +39,7 @@ export interface VaultHealthStatus {
     version: string;
     cluster_name: string;
     data_available: boolean;
-    data_source: 'hashicorp_vault' | 'not_configured' | 'error';
+    data_source: VaultDataSource;
     error_message?: string;
 }
 
@@ -49,7 +51,7 @@ export interface CredentialTestResult {
     response_time_ms: number;
     last_rotation: string | null;
     expires_at: string | null;
-    data_source: 'hashicorp_vault' | 'not_configured' | 'error';
+    data_source: VaultDataSource;
 }
 
 export interface SecretMetadata {
@@ -67,7 +69,7 @@ export interface RotationResult {
     new_version: number;
     rotated_at: string;
     next_rotation: string;
-    data_source: 'hashicorp_vault' | 'not_configured' | 'error';
+    data_source: VaultDataSource;
     error_message?: string;
 }
 
@@ -396,11 +398,11 @@ export class HashiCorpVaultConnector {
         if (path.includes('..') || path.includes('\\')) return null;
 
         // Must match safe pattern: khepra/service/key_name
-        const safePattern = /^[a-zA-Z0-9][a-zA-Z0-9_\-/]*[a-zA-Z0-9_\-]$/;
+        const safePattern = /^[a-zA-Z0-9][a-zA-Z0-9_/ \-]*[a-zA-Z0-9_\-]$/;
         if (!safePattern.test(path)) return null;
 
         // Remove double slashes
-        return path.replace(/\/+/g, '/');
+        return path.replaceAll(/\/+/g, '/');
     }
 
     /**
