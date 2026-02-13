@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -21,23 +22,27 @@ type ServiceAccount struct {
 	CreatedAt   time.Time
 }
 
-// Known service accounts (in production, load from secure config)
-var serviceAccounts = map[string]ServiceAccount{
-	// Cloudflare Worker telemetry service
-	"cloudflare-telemetry": {
-		Name:        "cloudflare-telemetry",
-		Permissions: []string{"telemetry:write", "telemetry:read"},
-	},
-	// Local license signer
-	"license-signer": {
-		Name:        "license-signer",
-		Permissions: []string{"license:write", "license:read"},
-	},
-	// Master operator console
-	"master-console": {
-		Name:        "master-console",
-		Permissions: []string{"*"}, // All permissions
-	},
+var (
+	serviceAccounts = make(map[string]ServiceAccount)
+	serviceMu       sync.RWMutex
+)
+
+// InitializeServiceAccounts loads service accounts from secure config.
+// OWASP API8:2023 - Secure Configuration
+func InitializeServiceAccounts(accounts []ServiceAccount) {
+	serviceMu.Lock()
+	defer serviceMu.Unlock()
+	for _, acc := range accounts {
+		serviceAccounts[acc.Name] = acc
+	}
+}
+
+// LoadDefaultServiceAccounts provides backward compatibility with secure defaults
+func LoadDefaultServiceAccounts() {
+	InitializeServiceAccounts([]ServiceAccount{
+		{Name: "cloudflare-telemetry", Permissions: []string{"telemetry:write", "telemetry:read"}},
+		{Name: "license-signer", Permissions: []string{"license:write", "license:read"}},
+	})
 }
 
 // ServiceAuthMiddleware validates service account tokens
@@ -118,7 +123,10 @@ func validateServiceToken(token string) (*ServiceAccount, error) {
 	serviceName := beforeSig[:secondLastHyphen]
 
 	// Validate service account exists
+	serviceMu.RLock()
 	account, exists := serviceAccounts[serviceName]
+	serviceMu.RUnlock()
+
 	if !exists {
 		return nil, &AuthError{Message: "Unknown service account"}
 	}
