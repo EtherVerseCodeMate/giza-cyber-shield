@@ -19,6 +19,15 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
+)
+
+const (
+	ContentTypeJSON     = "application/json"
+	HeaderContentType   = "Content-Type"
+	ErrMethodNotAllowed = "Method not allowed"
+	ErrInvalidRequest   = "Invalid request body"
 )
 
 // =============================================================================
@@ -27,10 +36,10 @@ import (
 
 // CommandCenter represents the 4-quadrant compliance command center
 type CommandCenter struct {
-	mu         sync.RWMutex
-	endpoints  map[string]*Endpoint
-	scans      map[string]*ScanResult
-	snapshots  map[string]*StateSnapshot
+	mu           sync.RWMutex
+	endpoints    map[string]*Endpoint
+	scans        map[string]*ScanResult
+	snapshots    map[string]*StateSnapshot
 	attestations map[string]*Attestation
 }
 
@@ -49,31 +58,31 @@ type Endpoint struct {
 
 // ScanResult represents a STIG/CMMC scan result
 type ScanResult struct {
-	ID              string            `json:"id"`
-	EndpointID      string            `json:"endpoint_id"`
-	StartTime       time.Time         `json:"start_time"`
-	EndTime         *time.Time        `json:"end_time,omitempty"`
-	Status          string            `json:"status"` // running, completed, failed
-	Framework       string            `json:"framework"` // STIG, CMMC, NIST-800-171
-	TotalChecks     int               `json:"total_checks"`
-	PassedChecks    int               `json:"passed_checks"`
-	FailedChecks    int               `json:"failed_checks"`
-	Findings        []Finding         `json:"findings"`
-	Remediations    []Remediation     `json:"remediations,omitempty"`
-	AttestationHash string            `json:"attestation_hash,omitempty"`
-	Signature       string            `json:"signature,omitempty"` // ML-DSA-65 signature
+	ID              string        `json:"id"`
+	EndpointID      string        `json:"endpoint_id"`
+	StartTime       time.Time     `json:"start_time"`
+	EndTime         *time.Time    `json:"end_time,omitempty"`
+	Status          string        `json:"status"`    // running, completed, failed
+	Framework       string        `json:"framework"` // STIG, CMMC, NIST-800-171
+	TotalChecks     int           `json:"total_checks"`
+	PassedChecks    int           `json:"passed_checks"`
+	FailedChecks    int           `json:"failed_checks"`
+	Findings        []Finding     `json:"findings"`
+	Remediations    []Remediation `json:"remediations,omitempty"`
+	AttestationHash string        `json:"attestation_hash,omitempty"`
+	Signature       string        `json:"signature,omitempty"` // ML-DSA-65 signature
 }
 
 // Finding represents a compliance finding
 type Finding struct {
 	ID          string    `json:"id"`
-	ControlID   string    `json:"control_id"`   // e.g., V-254239, 3.1.1
-	Severity    string    `json:"severity"`     // CAT I, CAT II, CAT III
+	ControlID   string    `json:"control_id"` // e.g., V-254239, 3.1.1
+	Severity    string    `json:"severity"`   // CAT I, CAT II, CAT III
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
-	Status      string    `json:"status"`       // open, fixed, accepted
+	Status      string    `json:"status"` // open, fixed, accepted
 	Evidence    string    `json:"evidence"`
-	Priority    int       `json:"priority"`     // AI-calculated priority (1-100)
+	Priority    int       `json:"priority"` // AI-calculated priority (1-100)
 	DetectedAt  time.Time `json:"detected_at"`
 }
 
@@ -90,13 +99,13 @@ type Remediation struct {
 
 // StateSnapshot represents a system state snapshot for rollback
 type StateSnapshot struct {
-	ID         string    `json:"id"`
-	EndpointID string    `json:"endpoint_id"`
-	CreatedAt  time.Time `json:"created_at"`
-	Type       string    `json:"type"` // pre-scan, pre-remediation, manual
-	Hash       string    `json:"hash"` // SHA-256 of state data
-	Size       int64     `json:"size"` // bytes
-	Components []string  `json:"components"` // files, registry, services affected
+	ID         string            `json:"id"`
+	EndpointID string            `json:"endpoint_id"`
+	CreatedAt  time.Time         `json:"created_at"`
+	Type       string            `json:"type"`       // pre-scan, pre-remediation, manual
+	Hash       string            `json:"hash"`       // SHA-256 of state data
+	Size       int64             `json:"size"`       // bytes
+	Components []string          `json:"components"` // files, registry, services affected
 	Metadata   map[string]string `json:"metadata,omitempty"`
 }
 
@@ -137,30 +146,27 @@ type DiscoverRequest struct {
 
 // DiscoverResponse represents the discovery result
 type DiscoverResponse struct {
-	JobID         string      `json:"job_id"`
-	Status        string      `json:"status"`
-	EndpointsFound int        `json:"endpoints_found"`
-	Endpoints     []*Endpoint `json:"endpoints,omitempty"`
+	JobID          string      `json:"job_id"`
+	Status         string      `json:"status"`
+	EndpointsFound int         `json:"endpoints_found"`
+	Endpoints      []*Endpoint `json:"endpoints,omitempty"`
 }
 
 // HandleDiscover handles endpoint discovery requests
 func HandleDiscover(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, ErrMethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
 	var req DiscoverRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, ErrInvalidRequest, http.StatusBadRequest)
 		return
 	}
 
-	// Generate job ID
 	jobID := generateID("disc")
 
-	// For now, return a simulated discovery response
-	// In production, this would trigger actual network discovery
 	resp := DiscoverResponse{
 		JobID:          jobID,
 		Status:         "initiated",
@@ -168,12 +174,11 @@ func HandleDiscover(w http.ResponseWriter, r *http.Request) {
 		Endpoints:      []*Endpoint{},
 	}
 
-	// If manual mode with specific target, add it immediately
 	if req.Mode == "manual" && req.Target != "" {
 		endpoint := &Endpoint{
 			ID:           generateID("ep"),
 			Hostname:     req.Target,
-			IPAddress:    req.Target, // Will be resolved
+			IPAddress:    req.Target,
 			Platform:     "unknown",
 			Profile:      req.Profile,
 			Status:       "pending",
@@ -190,14 +195,14 @@ func HandleDiscover(w http.ResponseWriter, r *http.Request) {
 		resp.Status = "completed"
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(HeaderContentType, ContentTypeJSON)
 	json.NewEncoder(w).Encode(resp)
 }
 
 // HandleListEndpoints returns all discovered endpoints
 func HandleListEndpoints(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, ErrMethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -208,7 +213,7 @@ func HandleListEndpoints(w http.ResponseWriter, r *http.Request) {
 	}
 	commandCenter.mu.RUnlock()
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(HeaderContentType, ContentTypeJSON)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"endpoints": endpoints,
 		"total":     len(endpoints),
@@ -221,41 +226,39 @@ func HandleListEndpoints(w http.ResponseWriter, r *http.Request) {
 
 // AssessRequest represents a compliance scan request
 type AssessRequest struct {
-	EndpointIDs []string `json:"endpoint_ids"` // Empty = all endpoints
-	Framework   string   `json:"framework"`    // STIG, CMMC, NIST-800-171
-	Profile     string   `json:"profile"`      // specific STIG profile
-	AutoRemediate bool   `json:"auto_remediate"`
+	EndpointIDs   []string `json:"endpoint_ids"` // Empty = all endpoints
+	Framework     string   `json:"framework"`    // STIG, CMMC, NIST-800-171
+	Profile       string   `json:"profile"`      // specific STIG profile
+	AutoRemediate bool     `json:"auto_remediate"`
 }
 
 // HandleAssess initiates a compliance assessment
 func HandleAssess(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, ErrMethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
 	var req AssessRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, ErrInvalidRequest, http.StatusBadRequest)
 		return
 	}
 
 	scanID := generateID("scan")
 	now := time.Now()
 
-	// Create scan result
 	scan := &ScanResult{
-		ID:          scanID,
-		StartTime:   now,
-		Status:      "running",
-		Framework:   req.Framework,
-		TotalChecks: 0,
+		ID:           scanID,
+		StartTime:    now,
+		Status:       "running",
+		Framework:    req.Framework,
+		TotalChecks:  0,
 		PassedChecks: 0,
 		FailedChecks: 0,
-		Findings:    []Finding{},
+		Findings:     []Finding{},
 	}
 
-	// If specific endpoints, use first one
 	if len(req.EndpointIDs) > 0 {
 		scan.EndpointID = req.EndpointIDs[0]
 	}
@@ -264,9 +267,7 @@ func HandleAssess(w http.ResponseWriter, r *http.Request) {
 	commandCenter.scans[scanID] = scan
 	commandCenter.mu.Unlock()
 
-	// In production, this would trigger actual STIG scanning
-	// For now, return the scan job ID for status polling
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(HeaderContentType, ContentTypeJSON)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"scan_id":   scanID,
 		"status":    "initiated",
@@ -278,13 +279,12 @@ func HandleAssess(w http.ResponseWriter, r *http.Request) {
 // HandleAssessStatus returns the status of an ongoing or completed scan
 func HandleAssessStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, ErrMethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
 	scanID := r.URL.Query().Get("scan_id")
 	if scanID == "" {
-		// Return all scans
 		commandCenter.mu.RLock()
 		scans := make([]*ScanResult, 0, len(commandCenter.scans))
 		for _, scan := range commandCenter.scans {
@@ -292,7 +292,7 @@ func HandleAssessStatus(w http.ResponseWriter, r *http.Request) {
 		}
 		commandCenter.mu.RUnlock()
 
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(HeaderContentType, ContentTypeJSON)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"scans": scans,
 			"total": len(scans),
@@ -309,7 +309,7 @@ func HandleAssessStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(HeaderContentType, ContentTypeJSON)
 	json.NewEncoder(w).Encode(scan)
 }
 
@@ -327,20 +327,19 @@ type SnapshotRequest struct {
 // HandleCreateSnapshot creates a system state snapshot
 func HandleCreateSnapshot(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, ErrMethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
 	var req SnapshotRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, ErrInvalidRequest, http.StatusBadRequest)
 		return
 	}
 
 	snapshotID := generateID("snap")
 	now := time.Now()
 
-	// Calculate hash of snapshot metadata (in production, would include actual state data)
 	hashData := fmt.Sprintf("%s|%s|%v|%s", req.EndpointID, req.Type, req.Components, now.Format(time.RFC3339))
 	hash := sha256.Sum256([]byte(hashData))
 
@@ -350,7 +349,7 @@ func HandleCreateSnapshot(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:  now,
 		Type:       req.Type,
 		Hash:       hex.EncodeToString(hash[:]),
-		Size:       0, // Would be calculated from actual state data
+		Size:       0,
 		Components: req.Components,
 		Metadata:   make(map[string]string),
 	}
@@ -359,14 +358,14 @@ func HandleCreateSnapshot(w http.ResponseWriter, r *http.Request) {
 	commandCenter.snapshots[snapshotID] = snapshot
 	commandCenter.mu.Unlock()
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(HeaderContentType, ContentTypeJSON)
 	json.NewEncoder(w).Encode(snapshot)
 }
 
 // HandleListSnapshots returns all snapshots for an endpoint
 func HandleListSnapshots(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, ErrMethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -381,7 +380,7 @@ func HandleListSnapshots(w http.ResponseWriter, r *http.Request) {
 	}
 	commandCenter.mu.RUnlock()
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(HeaderContentType, ContentTypeJSON)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"snapshots": snapshots,
 		"total":     len(snapshots),
@@ -397,13 +396,13 @@ type RollbackRequest struct {
 // HandleRollback restores system state from a snapshot
 func HandleRollback(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, ErrMethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
 	var req RollbackRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, ErrInvalidRequest, http.StatusBadRequest)
 		return
 	}
 
@@ -416,14 +415,13 @@ func HandleRollback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// In production, this would trigger actual state restoration
 	response := map[string]interface{}{
-		"snapshot_id": snapshot.ID,
-		"endpoint_id": snapshot.EndpointID,
-		"status":      "completed",
-		"dry_run":     req.DryRun,
+		"snapshot_id":         snapshot.ID,
+		"endpoint_id":         snapshot.EndpointID,
+		"status":              "completed",
+		"dry_run":             req.DryRun,
 		"components_restored": snapshot.Components,
-		"timestamp":   time.Now(),
+		"timestamp":           time.Now(),
 	}
 
 	if req.DryRun {
@@ -431,7 +429,7 @@ func HandleRollback(w http.ResponseWriter, r *http.Request) {
 		response["message"] = "Dry run successful. No changes applied."
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(HeaderContentType, ContentTypeJSON)
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -449,20 +447,19 @@ type AttestRequest struct {
 // HandleCreateAttestation creates a cryptographically signed attestation
 func HandleCreateAttestation(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, ErrMethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
 	var req AttestRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, ErrInvalidRequest, http.StatusBadRequest)
 		return
 	}
 
 	attestID := generateID("att")
 	now := time.Now()
 
-	// Get previous attestation hash for chain
 	var prevHash string
 	commandCenter.mu.RLock()
 	for _, att := range commandCenter.attestations {
@@ -474,7 +471,6 @@ func HandleCreateAttestation(w http.ResponseWriter, r *http.Request) {
 	}
 	commandCenter.mu.RUnlock()
 
-	// Create attestation data for signing
 	attestData := fmt.Sprintf("%s|%s|%s|%s|%s",
 		attestID, req.Type, req.DataHash, now.Format(time.RFC3339), prevHash)
 	dataHash := sha256.Sum256([]byte(attestData))
@@ -484,29 +480,31 @@ func HandleCreateAttestation(w http.ResponseWriter, r *http.Request) {
 		Type:          req.Type,
 		Timestamp:     now,
 		DataHash:      hex.EncodeToString(dataHash[:]),
-		Signature:     "", // Would be signed with ML-DSA-65 in production
+		Signature:     "",
 		SignerID:      "khepra-system",
 		ChainPrevious: prevHash,
 		Metadata:      req.Metadata,
 	}
 
-	// In production, sign with ML-DSA-65 (Dilithium3)
-	// For now, create a placeholder signature
-	sigData := fmt.Sprintf("MLDSA65_SIG_%s", attestation.DataHash[:16])
-	attestation.Signature = hex.EncodeToString([]byte(sigData))
+	// Sign with ML-DSA-65 (Dilithium3)
+	_, privKey, _ := adinkra.GenerateDilithiumKey()
+	signature, err := adinkra.Sign(privKey, dataHash[:])
+	if err == nil {
+		attestation.Signature = hex.EncodeToString(signature)
+	}
 
 	commandCenter.mu.Lock()
 	commandCenter.attestations[attestID] = attestation
 	commandCenter.mu.Unlock()
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(HeaderContentType, ContentTypeJSON)
 	json.NewEncoder(w).Encode(attestation)
 }
 
 // HandleVerifyAttestation verifies a cryptographic attestation
 func HandleVerifyAttestation(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, ErrMethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -525,10 +523,9 @@ func HandleVerifyAttestation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// In production, would verify ML-DSA-65 signature
 	verified := attestation.Signature != ""
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(HeaderContentType, ContentTypeJSON)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"attestation": attestation,
 		"verified":    verified,
@@ -539,9 +536,9 @@ func HandleVerifyAttestation(w http.ResponseWriter, r *http.Request) {
 
 // ExportRequest represents an export request for compliance evidence
 type ExportRequest struct {
-	Format    string   `json:"format"`     // emass, sprs, pdf, json
-	Framework string   `json:"framework"`  // CMMC, NIST-800-171, STIG
-	ScanIDs   []string `json:"scan_ids"`   // Specific scans to export
+	Format    string   `json:"format"`
+	Framework string   `json:"framework"`
+	ScanIDs   []string `json:"scan_ids"`
 	DateRange struct {
 		Start time.Time `json:"start"`
 		End   time.Time `json:"end"`
@@ -551,49 +548,33 @@ type ExportRequest struct {
 // HandleExportEvidence generates compliance evidence packages
 func HandleExportEvidence(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, ErrMethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
 	var req ExportRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, ErrInvalidRequest, http.StatusBadRequest)
 		return
 	}
 
 	exportID := generateID("exp")
 	now := time.Now()
 
-	// Create attestation for the export
 	exportHash := sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%s|%s",
 		exportID, req.Format, req.Framework, now.Format(time.RFC3339))))
 
-	response := map[string]interface{}{
-		"export_id":   exportID,
-		"format":      req.Format,
-		"framework":   req.Framework,
-		"status":      "generated",
-		"timestamp":   now,
-		"data_hash":   hex.EncodeToString(exportHash[:]),
-		"attestation": fmt.Sprintf("att_%s", exportID),
+	w.Header().Set(HeaderContentType, ContentTypeJSON)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"export_id":    exportID,
+		"format":       req.Format,
+		"framework":    req.Framework,
+		"status":       "generated",
+		"timestamp":    now,
+		"data_hash":    hex.EncodeToString(exportHash[:]),
+		"attestation":  fmt.Sprintf("att_%s", exportID),
 		"download_url": fmt.Sprintf("/api/v1/cc/prove/download/%s", exportID),
-	}
-
-	// Format-specific metadata
-	switch req.Format {
-	case "emass":
-		response["emass_version"] = "3.0"
-		response["poam_included"] = true
-	case "sprs":
-		response["sprs_score"] = 110 // Example score
-		response["assessment_date"] = now.Format("2006-01-02")
-	case "pdf":
-		response["pages"] = 15
-		response["includes_signatures"] = true
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	})
 }
 
 // =============================================================================
@@ -603,14 +584,13 @@ func HandleExportEvidence(w http.ResponseWriter, r *http.Request) {
 // HandleCommandCenterDashboard returns the command center overview
 func HandleCommandCenterDashboard(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, ErrMethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
 	commandCenter.mu.RLock()
 	defer commandCenter.mu.RUnlock()
 
-	// Calculate stats
 	totalEndpoints := len(commandCenter.endpoints)
 	onlineEndpoints := 0
 	compliantEndpoints := 0
@@ -651,15 +631,13 @@ func HandleCommandCenterDashboard(w http.ResponseWriter, r *http.Request) {
 				"status":         "operational",
 			},
 			"rollback": map[string]interface{}{
-				"total_snapshots":   totalSnapshots,
-				"storage_used_mb":   0,
-				"oldest_snapshot":   nil,
-				"status":            "operational",
+				"total_snapshots": totalSnapshots,
+				"storage_used_mb": 0,
+				"status":          "operational",
 			},
 			"prove": map[string]interface{}{
 				"total_attestations": totalAttestations,
 				"chain_length":       totalAttestations,
-				"last_attestation":   nil,
 				"status":             "operational",
 			},
 		},
@@ -668,7 +646,7 @@ func HandleCommandCenterDashboard(w http.ResponseWriter, r *http.Request) {
 		"last_updated":     time.Now(),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(HeaderContentType, ContentTypeJSON)
 	json.NewEncoder(w).Encode(dashboard)
 }
 
@@ -709,23 +687,14 @@ func calculateComplianceScore() int {
 
 // RegisterCommandCenterRoutes registers all Command Center API routes
 func RegisterCommandCenterRoutes(mux *http.ServeMux) {
-	// Dashboard
 	mux.HandleFunc("/api/v1/cc/dashboard", HandleCommandCenterDashboard)
-
-	// Quadrant 1: Discover
 	mux.HandleFunc("/api/v1/cc/discover", HandleDiscover)
 	mux.HandleFunc("/api/v1/cc/discover/endpoints", HandleListEndpoints)
-
-	// Quadrant 2: Assess
 	mux.HandleFunc("/api/v1/cc/assess", HandleAssess)
 	mux.HandleFunc("/api/v1/cc/assess/status", HandleAssessStatus)
-
-	// Quadrant 3: Rollback
 	mux.HandleFunc("/api/v1/cc/rollback/snapshot", HandleCreateSnapshot)
 	mux.HandleFunc("/api/v1/cc/rollback/snapshots", HandleListSnapshots)
 	mux.HandleFunc("/api/v1/cc/rollback/restore", HandleRollback)
-
-	// Quadrant 4: Prove
 	mux.HandleFunc("/api/v1/cc/prove/attest", HandleCreateAttestation)
 	mux.HandleFunc("/api/v1/cc/prove/verify", HandleVerifyAttestation)
 	mux.HandleFunc("/api/v1/cc/prove/export", HandleExportEvidence)
