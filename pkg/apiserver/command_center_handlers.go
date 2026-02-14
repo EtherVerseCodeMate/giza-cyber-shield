@@ -81,7 +81,7 @@ func (s *Server) handleCCDashboard(c *gin.Context) {
 		"compliance_score": calculateComplianceScore(),
 		"system_health":    "healthy",
 		"last_updated":     time.Now(),
-		"differentiator":   "ConfigOS gives you a PDF. We give you cryptographic proof.",
+		"differentiator":   MarketingDifferentiator,
 	})
 }
 
@@ -317,12 +317,12 @@ func (s *Server) handleCCCreateAttestation(c *gin.Context) {
 
 	// Get previous attestation hash for chain
 	var prevHash string
+	var latestAttestationTime time.Time
 	commandCenter.mu.RLock()
 	for _, att := range commandCenter.attestations {
-		if att.Timestamp.Before(now) {
-			if prevHash == "" || att.Timestamp.After(time.Time{}) {
-				prevHash = att.DataHash
-			}
+		if att.Timestamp.After(latestAttestationTime) {
+			latestAttestationTime = att.Timestamp
+			prevHash = att.DataHash
 		}
 	}
 	commandCenter.mu.RUnlock()
