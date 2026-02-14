@@ -3,7 +3,6 @@ package apiserver
 import (
 	"crypto/hmac"
 	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/hex"
 	"net/http"
 	"os"
@@ -297,8 +296,3 @@ func abs(n int64) int64 {
 // API10:2023 - Unsafe Consumption of APIs
 //   - Signature validation on incoming data
 //   - Input validation on all endpoints
-
-// Secure comparison to prevent timing attacks
-func secureCompare(a, b string) bool {
-	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
-}
