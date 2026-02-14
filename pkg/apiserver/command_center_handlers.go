@@ -320,7 +320,7 @@ func (s *Server) handleCCCreateAttestation(c *gin.Context) {
 	var latestAttestationTime time.Time
 	commandCenter.mu.RLock()
 	for _, att := range commandCenter.attestations {
-		if att.Timestamp.After(latestAttestationTime) {
+		if att.Timestamp.Before(now) && att.Timestamp.After(latestAttestationTime) {
 			latestAttestationTime = att.Timestamp
 			prevHash = att.DataHash
 		}
