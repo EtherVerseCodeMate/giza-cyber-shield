@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/gin-gonic/gin"
 )
 
@@ -341,9 +342,13 @@ func (s *Server) handleCCCreateAttestation(c *gin.Context) {
 		Metadata:      req.Metadata,
 	}
 
-	// Create placeholder signature (in production: ML-DSA-65)
-	sigData := fmt.Sprintf("MLDSA65_SIG_%s", attestation.DataHash[:16])
-	attestation.Signature = hex.EncodeToString([]byte(sigData))
+	// Sign with ML-DSA-65 (Dilithium3)
+	// In production, the system private key is loaded from the license manager or vault
+	_, privKey, _ := adinkra.GenerateDilithiumKey() // Temporary key for demonstration
+	signature, err := adinkra.Sign(privKey, dataHash[:])
+	if err == nil {
+		attestation.Signature = hex.EncodeToString(signature)
+	}
 
 	commandCenter.mu.Lock()
 	commandCenter.attestations[attestID] = attestation
@@ -371,10 +376,10 @@ func (s *Server) handleCCVerifyAttestation(c *gin.Context) {
 	verified := attestation.Signature != ""
 
 	c.JSON(http.StatusOK, gin.H{
-		"attestation": attestation,
-		"verified":    verified,
-		"algorithm":   "ML-DSA-65 (FIPS 204)",
-		"chain_valid": attestation.ChainPrevious != "",
+		"attestation":       attestation,
+		"verified":          verified,
+		"algorithm":         "ML-DSA-65 (FIPS 204)",
+		"chain_valid":       attestation.ChainPrevious != "",
 		"quantum_resistant": true,
 	})
 }
@@ -393,14 +398,14 @@ func (s *Server) handleCCExportEvidence(c *gin.Context) {
 		exportID, req.Format, req.Framework, now.Format(time.RFC3339))))
 
 	response := gin.H{
-		"export_id":    exportID,
-		"format":       req.Format,
-		"framework":    req.Framework,
-		"status":       "generated",
-		"timestamp":    now,
-		"data_hash":    hex.EncodeToString(exportHash[:]),
-		"attestation":  fmt.Sprintf("att_%s", exportID),
-		"download_url": fmt.Sprintf("/api/v1/cc/prove/download/%s", exportID),
+		"export_id":      exportID,
+		"format":         req.Format,
+		"framework":      req.Framework,
+		"status":         "generated",
+		"timestamp":      now,
+		"data_hash":      hex.EncodeToString(exportHash[:]),
+		"attestation":    fmt.Sprintf("att_%s", exportID),
+		"download_url":   fmt.Sprintf("/api/v1/cc/prove/download/%s", exportID),
 		"differentiator": "Cryptographically sealed evidence chain - survives quantum computers",
 	}
 
