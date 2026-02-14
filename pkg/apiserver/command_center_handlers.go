@@ -92,7 +92,7 @@ func (s *Server) handleCCDashboard(c *gin.Context) {
 func (s *Server) handleCCDiscover(c *gin.Context) {
 	var req DiscoverRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": ErrInvalidRequest})
 		return
 	}
 
@@ -100,7 +100,7 @@ func (s *Server) handleCCDiscover(c *gin.Context) {
 
 	resp := DiscoverResponse{
 		JobID:          jobID,
-		Status:         "initiated",
+		Status:         StatusInitiated,
 		EndpointsFound: 0,
 		Endpoints:      []*Endpoint{},
 	}
@@ -113,7 +113,7 @@ func (s *Server) handleCCDiscover(c *gin.Context) {
 			IPAddress:    req.Target,
 			Platform:     "unknown",
 			Profile:      req.Profile,
-			Status:       "pending",
+			Status:       StatusPending,
 			DiscoveredAt: time.Now(),
 			Metadata:     make(map[string]string),
 		}
@@ -124,7 +124,7 @@ func (s *Server) handleCCDiscover(c *gin.Context) {
 
 		resp.EndpointsFound = 1
 		resp.Endpoints = append(resp.Endpoints, endpoint)
-		resp.Status = "completed"
+		resp.Status = StatusCompleted
 	}
 
 	c.JSON(http.StatusOK, resp)
@@ -151,7 +151,7 @@ func (s *Server) handleCCListEndpoints(c *gin.Context) {
 func (s *Server) handleCCAssess(c *gin.Context) {
 	var req AssessRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": ErrInvalidRequest})
 		return
 	}
 
@@ -161,7 +161,7 @@ func (s *Server) handleCCAssess(c *gin.Context) {
 	scan := &ScanResult{
 		ID:           scanID,
 		StartTime:    now,
-		Status:       "running",
+		Status:       StatusRunning,
 		Framework:    req.Framework,
 		TotalChecks:  0,
 		PassedChecks: 0,
@@ -179,9 +179,9 @@ func (s *Server) handleCCAssess(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"scan_id":   scanID,
-		"status":    "initiated",
+		"status":    StatusInitiated,
 		"framework": req.Framework,
-		"message":   "Scan initiated. Poll /api/v1/cc/assess/status for progress.",
+		"message":   ScanStatusMessage,
 	})
 }
 
@@ -222,7 +222,7 @@ func (s *Server) handleCCAssessStatus(c *gin.Context) {
 func (s *Server) handleCCCreateSnapshot(c *gin.Context) {
 	var req SnapshotRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": ErrInvalidRequest})
 		return
 	}
 
@@ -271,7 +271,7 @@ func (s *Server) handleCCListSnapshots(c *gin.Context) {
 func (s *Server) handleCCRollback(c *gin.Context) {
 	var req RollbackRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": ErrInvalidRequest})
 		return
 	}
 
@@ -308,7 +308,7 @@ func (s *Server) handleCCRollback(c *gin.Context) {
 func (s *Server) handleCCCreateAttestation(c *gin.Context) {
 	var req AttestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": ErrInvalidRequest})
 		return
 	}
 
@@ -387,7 +387,7 @@ func (s *Server) handleCCVerifyAttestation(c *gin.Context) {
 func (s *Server) handleCCExportEvidence(c *gin.Context) {
 	var req ExportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": ErrInvalidRequest})
 		return
 	}
 
