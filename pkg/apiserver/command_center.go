@@ -28,6 +28,14 @@ const (
 	HeaderContentType   = "Content-Type"
 	ErrMethodNotAllowed = "Method not allowed"
 	ErrInvalidRequest   = "Invalid request body"
+
+	StatusInitiated = "initiated"
+	StatusCompleted = "completed"
+	StatusRunning   = "running"
+	StatusFailed    = "failed"
+	StatusPending   = "pending"
+
+	ScanStatusMessage = "Scan initiated. Poll /api/v1/cc/assess/status for progress."
 )
 
 // =============================================================================
@@ -169,7 +177,7 @@ func HandleDiscover(w http.ResponseWriter, r *http.Request) {
 
 	resp := DiscoverResponse{
 		JobID:          jobID,
-		Status:         "initiated",
+		Status:         StatusInitiated,
 		EndpointsFound: 0,
 		Endpoints:      []*Endpoint{},
 	}
@@ -181,7 +189,7 @@ func HandleDiscover(w http.ResponseWriter, r *http.Request) {
 			IPAddress:    req.Target,
 			Platform:     "unknown",
 			Profile:      req.Profile,
-			Status:       "pending",
+			Status:       StatusPending,
 			DiscoveredAt: time.Now(),
 			Metadata:     make(map[string]string),
 		}
@@ -192,7 +200,7 @@ func HandleDiscover(w http.ResponseWriter, r *http.Request) {
 
 		resp.EndpointsFound = 1
 		resp.Endpoints = append(resp.Endpoints, endpoint)
-		resp.Status = "completed"
+		resp.Status = StatusCompleted
 	}
 
 	w.Header().Set(HeaderContentType, ContentTypeJSON)
@@ -251,7 +259,7 @@ func HandleAssess(w http.ResponseWriter, r *http.Request) {
 	scan := &ScanResult{
 		ID:           scanID,
 		StartTime:    now,
-		Status:       "running",
+		Status:       StatusRunning,
 		Framework:    req.Framework,
 		TotalChecks:  0,
 		PassedChecks: 0,
@@ -270,9 +278,9 @@ func HandleAssess(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(HeaderContentType, ContentTypeJSON)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"scan_id":   scanID,
-		"status":    "initiated",
+		"status":    StatusInitiated,
 		"framework": req.Framework,
-		"message":   "Scan initiated. Poll /api/v1/cc/assess/status for progress.",
+		"message":   ScanStatusMessage,
 	})
 }
 
