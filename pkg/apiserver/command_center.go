@@ -36,6 +36,9 @@ const (
 	StatusPending   = "pending"
 
 	ScanStatusMessage = "Scan initiated. Poll /api/v1/cc/assess/status for progress."
+
+	MarketingDifferentiator = "ConfigOS gives you a PDF. We give you cryptographic proof."
+	QuantumDifferentiator   = "Cryptographically sealed evidence chain - survives quantum computers"
 )
 
 // =============================================================================
@@ -469,12 +472,12 @@ func HandleCreateAttestation(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 
 	var prevHash string
+	var latestTime time.Time
 	commandCenter.mu.RLock()
 	for _, att := range commandCenter.attestations {
-		if att.Timestamp.Before(now) {
-			if prevHash == "" || att.Timestamp.After(time.Time{}) {
-				prevHash = att.DataHash
-			}
+		if att.Timestamp.Before(now) && att.Timestamp.After(latestTime) {
+			latestTime = att.Timestamp
+			prevHash = att.DataHash
 		}
 	}
 	commandCenter.mu.RUnlock()
@@ -652,6 +655,7 @@ func HandleCommandCenterDashboard(w http.ResponseWriter, r *http.Request) {
 		"compliance_score": calculateComplianceScore(),
 		"system_health":    "healthy",
 		"last_updated":     time.Now(),
+		"differentiator":   MarketingDifferentiator,
 	}
 
 	w.Header().Set(HeaderContentType, ContentTypeJSON)
