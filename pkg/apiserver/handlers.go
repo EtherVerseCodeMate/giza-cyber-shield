@@ -198,9 +198,10 @@ func (s *Server) handleSTIGValidation(c *gin.Context) {
 	passed := 0
 	failed := 0
 	for _, result := range results {
-		if result.Status == "pass" {
+		switch result.Status {
+		case "pass":
 			passed++
-		} else if result.Status == "fail" {
+		case "fail":
 			failed++
 		}
 	}
@@ -381,10 +382,11 @@ func (s *Server) handleSTIGRemediation(c *gin.Context) {
 		command := ""
 		output := ""
 		if err == nil {
-			if res.Status == "Success" {
+			switch res.Status {
+			case "Success":
 				status = "success"
 				successCount++
-			} else if res.Status == "Requires Manual Intervention" {
+			case "Requires Manual Intervention":
 				status = "requires_manual"
 			}
 			command = res.Command
