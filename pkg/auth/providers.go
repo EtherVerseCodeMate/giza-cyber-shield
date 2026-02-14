@@ -77,17 +77,6 @@ func NewKeycloakProvider(config *KeycloakConfig) (*KeycloakProvider, error) {
 	}, nil
 }
 
-// jwtClaims represents the local claims structure
-type jwtClaims struct {
-	jwt.RegisteredClaims
-	Email       string `json:"email"`
-	GivenName   string `json:"given_name"`
-	FamilyName  string `json:"family_name"`
-	RealmAccess struct {
-		Roles []string `json:"roles"`
-	} `json:"realm_access"`
-}
-
 // Authenticate authenticates a user via Keycloak.
 func (kp *KeycloakProvider) Authenticate(ctx context.Context, creds *Credentials) (*User, error) {
 	tokenResp, err := kp.requestToken(ctx, creds)
