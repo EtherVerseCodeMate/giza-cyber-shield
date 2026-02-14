@@ -13,6 +13,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	ServiceTokenPrefix = "khepra-svc-"
+)
+
 // ServiceAccount represents a service-to-service authentication principal
 // OWASP API2:2023 - Broken Authentication mitigation
 type ServiceAccount struct {
@@ -96,14 +100,14 @@ func ServiceAuthMiddleware() gin.HandlerFunc {
 func validateServiceToken(token string) (*ServiceAccount, error) {
 	// Token format: khepra-svc-{service_name}-{timestamp_hex}-{hmac_hex}
 	// where timestamp_hex is 16 chars, hmac_hex is 64 chars
-	if !strings.HasPrefix(token, "khepra-svc-") {
+	if !strings.HasPrefix(token, ServiceTokenPrefix) {
 		return nil, &AuthError{Message: "Invalid token format"}
 	}
 
 	// Parse from the end since service name can contain hyphens
 	// HMAC signature is 64 chars (32 bytes hex)
 	// Timestamp is 16 chars (8 bytes hex)
-	remainder := token[11:] // Remove "khepra-svc-" prefix
+	remainder := token[len(ServiceTokenPrefix):] // Remove prefix
 
 	// Find the last hyphen (before signature)
 	lastHyphen := strings.LastIndex(remainder, "-")
@@ -148,7 +152,7 @@ func validateServiceToken(token string) (*ServiceAccount, error) {
 
 	// Validate HMAC signature
 	secret := getServiceSecret()
-	message := "khepra-svc-" + serviceName + "-" + timestampHex
+	message := ServiceTokenPrefix + serviceName + "-" + timestampHex
 	expectedSig := computeHMAC(message, secret)
 
 	if !hmac.Equal([]byte(signatureHex), []byte(expectedSig)) {
