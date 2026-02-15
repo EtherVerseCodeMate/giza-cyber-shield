@@ -307,13 +307,53 @@ async function fetchCVSSData(source: OSINTSource): Promise<CVSSData> {
 }
 
 async function fetchThreatFeedData(source: OSINTSource) {
-  console.log(`Fetching actual threat feed data from ${source.name}...`);
+  console.log(`Fetching real threat feed data from ${source.name}...`);
 
-  // Real implementation must fetch verified threat intelligence
+  try {
+    // CISA Known Exploited Vulnerabilities Catalog (JSON feed)
+    if (source.id === 'cisa-kev') {
+      const response = await fetch(
+        'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json',
+        {
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'Khepra-OSINT-Sync/1.0'
+          }
+        }
+      );
 
-  return {
-    indicators: []
-  };
+      if (!response.ok) {
+        throw new Error(`CISA KEV fetch failed: ${response.status}`);
+      }
+
+      const kevData = await response.json();
+      console.log(`✅ Fetched ${kevData.vulnerabilities?.length || 0} KEVs from CISA`);
+
+      const indicators = kevData.vulnerabilities?.map((vuln: any) => ({
+        type: 'cve',
+        value: vuln.cveID,
+        threat_level: 'HIGH', // KEV = actively exploited
+        description: vuln.vulnerabilityName,
+        metadata: {
+          vendor_project: vuln.vendorProject,
+          product: vuln.product,
+          date_added: vuln.dateAdded,
+          required_action: vuln.requiredAction,
+          due_date: vuln.dueDate,
+          known_ransomware: vuln.knownRansomwareCampaignUse === 'Known'
+        }
+      })) || [];
+
+      return { indicators };
+    }
+
+    // Generic fallback for other threat feeds
+    return { indicators: [] };
+
+  } catch (error: any) {
+    console.error(`❌ Threat feed fetch failed for ${source.name}:`, error);
+    throw new Error(`Failed to fetch threat feed: ${error.message}`);
+  }
 }
 
 async function processMITREData(supabase: any, data: MITREData): Promise<number> {
