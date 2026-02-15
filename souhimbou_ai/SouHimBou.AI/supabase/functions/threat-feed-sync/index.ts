@@ -70,7 +70,7 @@ serve(async (req) => {
 
   try {
     console.log('Threat feed sync function called');
-    
+
     const { action, source } = await req.json().catch(() => ({ action: 'sync_all' }));
 
     let result;
@@ -98,13 +98,13 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in threat-feed-sync function:', error);
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message 
+      JSON.stringify({
+        success: false,
+        error: error.message
       }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    }
     );
   }
 });
@@ -112,10 +112,10 @@ serve(async (req) => {
 async function syncAllFeeds() {
   console.log('Starting sync for all threat feeds');
   const results = [];
-  
+
   for (const feed of THREAT_FEEDS) {
     if (!feed.enabled) continue;
-    
+
     try {
       const result = await syncThreatFeed(feed);
       results.push(result);
@@ -153,7 +153,7 @@ async function syncSpecificFeed(sourceName: string) {
 
 async function syncThreatFeed(feed: ThreatFeedConfig) {
   console.log(`Syncing threat feed: ${feed.source}`);
-  
+
   // Get API keys from environment
   const apiKeys = {
     'AlienVault OTX': Deno.env.get('OTX_API_KEY'),
@@ -163,10 +163,10 @@ async function syncThreatFeed(feed: ThreatFeedConfig) {
   };
 
   const apiKey = apiKeys[feed.source as keyof typeof apiKeys];
-  
-  // For demo purposes, generate mock data if no API key
+
+  // For security and pilot readiness, return error if no API key
   if (!apiKey) {
-    return await generateMockThreatData(feed.source);
+    throw new Error(`API key missing for ${feed.source}. Real threat data cannot be fetched.`);
   }
 
   const headers: Record<string, string> = {
@@ -210,51 +210,9 @@ async function syncThreatFeed(feed: ThreatFeedConfig) {
 
   } catch (error) {
     console.error(`Failed to sync ${feed.source}:`, error);
-    // Fallback to mock data for demo
-    return await generateMockThreatData(feed.source);
+    // TRL10 PRODUCTION: Do not fallback to mock data
+    throw error;
   }
-}
-
-async function generateMockThreatData(source: string) {
-  console.log(`Generating mock threat data for ${source}`);
-  
-  const mockIndicators: ThreatIndicator[] = [
-    {
-      source,
-      indicator_type: 'IP',
-      indicator_value: `${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`,
-      threat_level: ['CRITICAL', 'HIGH', 'MEDIUM'][Math.floor(Math.random() * 3)] as any,
-      description: `Malicious IP detected by ${source}`,
-      confidence: Math.floor(Math.random() * 30) + 70
-    },
-    {
-      source,
-      indicator_type: 'Domain',
-      indicator_value: `malicious-${Math.floor(Math.random() * 1000)}.com`,
-      threat_level: ['HIGH', 'MEDIUM'][Math.floor(Math.random() * 2)] as any,
-      description: `Suspicious domain flagged by ${source}`,
-      confidence: Math.floor(Math.random() * 25) + 75
-    },
-    {
-      source,
-      indicator_type: 'Hash',
-      indicator_value: Array.from({length: 32}, () => Math.floor(Math.random() * 16).toString(16)).join(''),
-      threat_level: 'CRITICAL',
-      description: `Malware hash identified by ${source}`,
-      confidence: Math.floor(Math.random() * 15) + 85
-    }
-  ];
-
-  const inserted = await insertThreatIndicators(mockIndicators);
-
-  return {
-    source,
-    success: true,
-    indicators_fetched: mockIndicators.length,
-    indicators_added: inserted,
-    last_sync: new Date().toISOString(),
-    note: 'Mock data generated (API key not configured)'
-  };
 }
 
 async function parseFeedData(data: any, feed: ThreatFeedConfig): Promise<ThreatIndicator[]> {
@@ -313,7 +271,7 @@ async function parseFeedData(data: any, feed: ThreatFeedConfig): Promise<ThreatI
 
 function mapThreatLevel(type: string, false_positive?: boolean): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
   if (false_positive) return 'LOW';
-  
+
   switch (type?.toLowerCase()) {
     case 'malware':
     case 'trojan':
@@ -370,7 +328,7 @@ async function insertThreatIndicators(indicators: ThreatIndicator[]) {
 
 async function processIndicators() {
   console.log('Processing and correlating threat indicators');
-  
+
   // Get recent indicators for correlation
   const { data: recentIndicators } = await supabase
     .from('threat_intelligence')
@@ -397,7 +355,7 @@ async function processIndicators() {
   return {
     processed: recentIndicators.length,
     correlations: correlations.length,
-    high_risk_events: recentIndicators.filter(i => 
+    high_risk_events: recentIndicators.filter(i =>
       i.threat_level === 'CRITICAL' || i.threat_level === 'HIGH'
     ).length
   };
@@ -425,16 +383,16 @@ async function createSecurityEvent(indicator: any) {
 
 function calculateRiskScore(indicator: any): number {
   let score = 0;
-  
+
   switch (indicator.threat_level) {
     case 'CRITICAL': score += 40; break;
     case 'HIGH': score += 30; break;
     case 'MEDIUM': score += 20; break;
     case 'LOW': score += 10; break;
   }
-  
+
   score += (indicator.confidence || 50) * 0.6;
-  
+
   return Math.min(Math.round(score), 100);
 }
 
@@ -449,7 +407,7 @@ async function getFeedStatus() {
     return {
       source: feed.source,
       enabled: feed.enabled,
-      last_sync: indicators.length > 0 ? 
+      last_sync: indicators.length > 0 ?
         Math.max(...indicators.map(i => new Date(i.created_at).getTime())) : null,
       indicators_today: indicators.length,
       status: indicators.length > 0 ? 'active' : 'inactive'
