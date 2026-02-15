@@ -1,9 +1,11 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
+// @ts-ignore
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+// @ts-ignore
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const corsHeaders = {
@@ -21,31 +23,40 @@ const DiscoveryRequestSchema = z.object({
 
 type DiscoveryRequest = z.infer<typeof DiscoveryRequestSchema>;
 
-serve(async (req: Request) => {
+// @ts-ignore
+// Helper to get authenticated user
+async function getAuthUser(supabase: any, authHeader: string | null) {
+  if (!authHeader) return null;
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  return error ? null : user;
+}
+
+// Helper to verify organization access
+async function verifyAccess(supabase: any, user: any, organizationId: string) {
+  if (!user) return true; // Allow anonymous access for onboarding
+  const { data: orgAccess } = await supabase
+    .from('user_organizations')
+    .select('role')
+    .eq('user_id', user.id)
+    .eq('organization_id', organizationId)
+    .single();
+  return !!orgAccess;
+}
+
+// @ts-ignore
+Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Try to get user, but allow anonymous access for onboarding
-    const authHeader = req.headers.get('Authorization');
-    let user = null;
-
-    if (authHeader) {
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
-
-      if (!authError && authUser) {
-        user = authUser;
-      }
-    }
+    const user = await getAuthUser(supabase, req.headers.get('Authorization'));
 
     // Parse and validate request
     const requestBody = await req.json();
-    const validatedRequest: DiscoveryRequest = DiscoveryRequestSchema.parse(requestBody);
-    const { organizationId, clientDiscoveries } = validatedRequest;
+    const { organizationId, clientDiscoveries } = DiscoveryRequestSchema.parse(requestBody);
 
     console.log('NouchiX STIGs Discovery started:', {
       organizationId,
@@ -53,85 +64,60 @@ serve(async (req: Request) => {
       isOnboarding: !user
     });
 
-    // Verify user has access if authenticated
-    if (user) {
-      const { data: orgAccess } = await supabase
-        .from('user_organizations')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('organization_id', organizationId)
-        .single();
-
-      if (!orgAccess) {
-        console.error('User does not have access to organization:', organizationId);
-        return new Response(
-          JSON.stringify({ error: 'Access denied to organization', success: false }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+    if (user && !(await verifyAccess(supabase, user, organizationId))) {
+      console.error('User does not have access to organization:', organizationId);
+      return new Response(
+        JSON.stringify({ error: 'Access denied to organization', success: false }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Log the discovery request for audit (only if authenticated)
+    // Log for audit
     if (user) {
       await supabase.from('audit_logs').insert({
         user_id: user.id,
         action: 'nouchix_stigs_discovery_started',
         resource_type: 'environment_discovery',
         resource_id: organizationId,
-        details: {
-          method: 'server_side',
-          timestamp: new Date().toISOString(),
-        },
+        details: { method: 'server_side', timestamp: new Date().toISOString() },
       });
     }
 
-    // Perform server-side deep discovery using open-source tools
     const serverDiscoveries = await performDeepDiscovery(organizationId, clientDiscoveries, user?.id);
 
-    // Store server-side discoveries
     if (serverDiscoveries.length > 0) {
-      const { error: insertError } = await supabase
-        .from('environment_discoveries')
-        .insert(serverDiscoveries);
-
-      if (insertError) {
-        console.error('Failed to store server discoveries:', insertError);
-      }
+      const { error: insertError } = await supabase.from('environment_discoveries').insert(serverDiscoveries);
+      if (insertError) console.error('Failed to store server discoveries:', insertError);
     }
 
-    // Fetch all discoveries for this organization
     const { data: allDiscoveries, error: fetchError } = await supabase
       .from('environment_discoveries')
       .select('*')
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false });
 
-    if (fetchError) {
-      throw fetchError;
-    }
+    if (fetchError) throw fetchError;
 
     return new Response(JSON.stringify({
       success: true,
       discoveries: allDiscoveries,
       serverSideDiscoveries: serverDiscoveries.length,
       totalDiscoveries: allDiscoveries?.length || 0,
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in environment-discovery:', error);
 
     const isValidationError = error instanceof z.ZodError;
     const statusCode = isValidationError ? 400 : 500;
-    const errorMessage = isValidationError
-      ? `Validation error: ${error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`
-      : error.message || 'Unknown error';
 
-    return new Response(JSON.stringify({
-      error: errorMessage,
-      success: false,
-    }), {
+    let errorMessage = error.message || 'Unknown error';
+    if (isValidationError) {
+      const details = error.errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+      errorMessage = `Validation error: ${details}`;
+    }
+
+    return new Response(JSON.stringify({ error: errorMessage, success: false }), {
       status: statusCode,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
