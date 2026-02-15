@@ -212,15 +212,28 @@ func (m *Manager) GetFullStatus() *ValidateResponse {
 	m.validationMu.RLock()
 	defer m.validationMu.RUnlock()
 
+	var resp *ValidateResponse
 	if m.cachedValidation == nil {
-		return &ValidateResponse{
+		resp = &ValidateResponse{
 			Valid:       false,
 			LicenseTier: "community",
 			Error:       "no_cached_validation",
 		}
+	} else {
+		// Create a copy to avoid mutation issues
+		r := *m.cachedValidation
+		resp = &r
 	}
 
-	return m.cachedValidation
+	// Try to populate LicenseID from the Egyptian Manager if missing
+	if resp.LicenseID == "" && m.egyptianMgr != nil {
+		licenses := m.egyptianMgr.GetAllLicenses()
+		if len(licenses) > 0 {
+			resp.LicenseID = licenses[0].ID
+		}
+	}
+
+	return resp
 }
 
 // Stop stops heartbeat daemon
