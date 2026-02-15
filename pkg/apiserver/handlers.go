@@ -207,6 +207,17 @@ func (s *Server) handleSTIGValidation(c *gin.Context) {
 		return
 	}
 
+	// RBAC check: Verify organization access
+	apiKey, _ := c.Get("api_key")
+	if authorized, err := s.checkOrganizationAccess(apiKey.(string), req.OrganizationID); !authorized || err != nil {
+		c.JSON(http.StatusForbidden, ErrorResponse{
+			Error:   "access_denied",
+			Message: "You are not authorized to perform STIG validation for this organization",
+			Code:    http.StatusForbidden,
+		})
+		return
+	}
+
 	// Determine target path from request
 	targetPath := "/"
 	if req.TargetHost != "" && req.TargetHost != "localhost" {
@@ -455,6 +466,19 @@ func (s *Server) handleListScans(c *gin.Context) {
 
 // handleCMMCAudit performs a full CMMC Level 2 audit (110 controls)
 func (s *Server) handleCMMCAudit(c *gin.Context) {
+	// RBAC check: CMMC audits require Commercial or Sovereign tier
+	if s.licMgr != nil {
+		status := s.licMgr.GetFullStatus()
+		if status.LicenseTier == "community" {
+			c.JSON(http.StatusForbidden, ErrorResponse{
+				Error:   "feature_restricted",
+				Message: "CMMC Level 2 audits require a Commercial or Sovereign license",
+				Code:    http.StatusForbidden,
+			})
+			return
+		}
+	}
+
 	// Initialize STIG/CMMC validator
 	validator := stig.NewValidator("/") // Target root for full system audit
 
@@ -483,6 +507,17 @@ func (s *Server) handleSTIGRemediation(c *gin.Context) {
 			Error:   "invalid_request",
 			Message: err.Error(),
 			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// RBAC check: Verify organization access
+	apiKey, _ := c.Get("api_key")
+	if authorized, err := s.checkOrganizationAccess(apiKey.(string), req.OrganizationID); !authorized || err != nil {
+		c.JSON(http.StatusForbidden, ErrorResponse{
+			Error:   "access_denied",
+			Message: "You are not authorized to perform STIG remediation for this organization",
+			Code:    http.StatusForbidden,
 		})
 		return
 	}
