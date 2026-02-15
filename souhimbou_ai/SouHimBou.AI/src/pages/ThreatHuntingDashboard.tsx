@@ -5,11 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import {
   Shield,
   Globe,
-  CheckCircle,
-  RefreshCw,
-  Settings,
-  Database,
   TrendingUp,
+  Users,
+  FileText,
+  Settings,
+  Link,
+  AlertTriangle,
+  Activity,
+  Search,
   Radar
 } from "lucide-react";
 import { CMMCDashboard } from "@/components/compliance/CMMCDashboard";
