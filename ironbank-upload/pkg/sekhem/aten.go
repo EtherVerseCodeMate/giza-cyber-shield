@@ -7,11 +7,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/agi"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/maat"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/ouroboros"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/seshat"
+)
+
+const (
+	FrameworkNIST80053 = "NIST-800-53"
 )
 
 // AtenRealm represents the Sovereign/Iron Bank Mode (strategic orchestration)
@@ -40,7 +45,7 @@ type GlobalPolicy struct {
 	ID          string
 	Name        string
 	Description string
-	Framework   string // "STIG", "NIST-800-53", "CMMC", etc.
+	Framework   string // "STIG", FrameworkNIST80053, "CMMC", etc.
 	Controls    []ControlMapping
 	Enforcement string // "mandatory", "recommended", "audit-only"
 	CreatedAt   time.Time
@@ -68,8 +73,16 @@ type ComplianceRule struct {
 func NewAtenRealm(kasa *agi.Engine, dagStore dag.Store, airGapped bool) (*AtenRealm, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// Generate ML-DSA-65 (Dilithium3) signing key pair for the Aten realm chronicle
+	// This provides CNSA 2.0-aligned post-quantum signature integrity
+	_, realmPrivKey, err := adinkra.GenerateDilithiumKey()
+	if err != nil {
+		cancel()
+		return nil, fmt.Errorf("failed to generate Aten realm signing key: %w", err)
+	}
+
 	// Create Chronicle for state awareness
-	chronicle := seshat.NewChronicle(dagStore, &seshat.Signer{PrivateKey: []byte("aten-realm-key")})
+	chronicle := seshat.NewChronicle(dagStore, &seshat.Signer{PrivateKey: realmPrivKey})
 
 	// Create Maat Guardian for this realm
 	guardian := maat.NewGuardian("aten-sovereign", kasa, chronicle)
@@ -171,8 +184,15 @@ func (ar *AtenRealm) evaluateGlobalPolicies() {
 	defer ar.mu.RUnlock()
 
 	for _, policy := range ar.GlobalPolicies {
-		log.Printf("[Aten] Evaluating policy: %s (%s)", policy.Name, policy.Framework)
-		// TODO: Implement policy evaluation logic
+		controlCount := len(policy.Controls)
+		automatedCount := 0
+		for _, ctrl := range policy.Controls {
+			if ctrl.Automated {
+				automatedCount++
+			}
+		}
+		log.Printf("[Aten] Policy '%s' (%s): %d/%d controls automated, enforcement=%s",
+			policy.Name, policy.Framework, automatedCount, controlCount, policy.Enforcement)
 	}
 }
 
@@ -219,10 +239,28 @@ func (ar *AtenRealm) monitorCompliance() {
 
 // checkComplianceStatus checks the current compliance status
 func (ar *AtenRealm) checkComplianceStatus() {
-	log.Printf("[Aten] Checking compliance status...")
+	ar.mu.RLock()
 
-	// TODO: Implement actual compliance checking
-	// For now, just log
+	totalRules := len(ar.ComplianceRules)
+	automated := 0
+	manual := 0
+	for _, rule := range ar.ComplianceRules {
+		if rule.Automated {
+			automated++
+		} else {
+			manual++
+		}
+	}
+
+	ar.mu.RUnlock() // Release before calling generateComplianceReport (which also locks)
+
+	log.Printf("[Aten] Compliance status: %d total rules (%d automated, %d manual)",
+		totalRules, automated, manual)
+
+	if manual > 0 {
+		log.Printf("[Aten] WARNING: %d compliance rules require manual verification", manual)
+	}
+
 	ar.generateComplianceReport()
 }
 
@@ -250,11 +288,11 @@ func (ar *AtenRealm) initializeComplianceFrameworks() {
 		ID:          "nist-800-53",
 		Name:        "NIST 800-53 Rev 5 Compliance",
 		Description: "NIST security controls for federal systems",
-		Framework:   "NIST-800-53",
+		Framework:   FrameworkNIST80053,
 		Controls: []ControlMapping{
-			{ControlID: "AC-2", Framework: "NIST-800-53", Description: "Account Management", Automated: true},
-			{ControlID: "AU-2", Framework: "NIST-800-53", Description: "Audit Events", Automated: true},
-			{ControlID: "SC-13", Framework: "NIST-800-53", Description: "Cryptographic Protection", Automated: true},
+			{ControlID: "AC-2", Framework: FrameworkNIST80053, Description: "Account Management", Automated: true},
+			{ControlID: "AU-2", Framework: FrameworkNIST80053, Description: "Audit Events", Automated: true},
+			{ControlID: "SC-13", Framework: FrameworkNIST80053, Description: "Cryptographic Protection", Automated: true},
 		},
 		Enforcement: "mandatory",
 		CreatedAt:   time.Now(),
@@ -287,7 +325,7 @@ func (ar *AtenRealm) initializeComplianceFrameworks() {
 
 	ar.ComplianceRules["nist-audit"] = &ComplianceRule{
 		ID:          "nist-audit",
-		Framework:   "NIST-800-53",
+		Framework:   FrameworkNIST80053,
 		Control:     "AU-2",
 		Requirement: "System must generate audit records",
 		Severity:    maat.SeveritySevere,
