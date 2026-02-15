@@ -32,11 +32,11 @@ serve(async (req) => {
     // Try to get user, but allow anonymous access for onboarding
     const authHeader = req.headers.get('Authorization');
     let user = null;
-    
+
     if (authHeader) {
       const token = authHeader.replace('Bearer ', '');
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
-      
+
       if (!authError && authUser) {
         user = authUser;
       }
@@ -47,8 +47,8 @@ serve(async (req) => {
     const validatedRequest: DiscoveryRequest = DiscoveryRequestSchema.parse(requestBody);
     const { organizationId, clientDiscoveries } = validatedRequest;
 
-    console.log('NouchiX STIGs Discovery started:', { 
-      organizationId, 
+    console.log('NouchiX STIGs Discovery started:', {
+      organizationId,
       userId: user?.id || 'anonymous',
       isOnboarding: !user
     });
@@ -121,10 +121,10 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in environment-discovery:', error);
-    
+
     const isValidationError = error instanceof z.ZodError;
     const statusCode = isValidationError ? 400 : 500;
-    const errorMessage = isValidationError 
+    const errorMessage = isValidationError
       ? `Validation error: ${error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`
       : error.message || 'Unknown error';
 
@@ -173,7 +173,7 @@ async function performDeepDiscovery(
   // This would integrate with nmap, masscan, or other network scanners
   try {
     const networkAssets = await discoverNetworkAssets(organizationId, clientDiscoveries, userId);
-    
+
     if (networkAssets.length > 0) {
       discoveries.push({
         organization_id: organizationId,
@@ -210,7 +210,7 @@ async function discoverAWSResources(clientMetadata: any): Promise<any> {
 
     if (tokenResponse.ok) {
       const token = await tokenResponse.text();
-      
+
       // Get instance metadata
       const metadataResponse = await fetch('http://169.254.169.254/latest/dynamic/instance-identity/document', {
         headers: { 'X-aws-ec2-metadata-token': token },
@@ -257,82 +257,41 @@ async function discoverNetworkAssets(
   const assets: any[] = [];
 
   try {
-    console.log('Running NouchiX STIGs Network Discovery...');
-    
-    // Simulate network scanning based on client discoveries
-    // In production, this would call actual nmap/masscan APIs or execute scans
-    
-    const platformInfo = clientDiscoveries?.platform;
-    const networkInfo = clientDiscoveries?.network;
-    
-    // Generate mock discovered assets based on detected environment
-    // This simulates what nmap/OpenVAS would discover
-    if (platformInfo?.operatingSystem) {
-      assets.push({
-        id: `nouchix-local-${Date.now()}`,
-        type: 'workstation',
-        hostname: 'local-workstation',
-        ipAddress: '192.168.1.100', // Mock IP
-        port: 22,
-        protocol: 'tcp',
-        service: 'ssh',
-        version: 'OpenSSH 8.2p1',
-        os: platformInfo.operatingSystem,
-        organization: 'Internal',
-        location: {
-          country: 'US',
-          city: 'Unknown',
-        },
-        vulnerabilities: [],
-        tags: ['internal', 'detected-via-nouchix'],
-        discovered: new Date().toISOString(),
-        source: 'NouchiX STIGs Discovery',
-        scanner: 'nmap-equivalent',
-      });
-    }
+    console.log('Running Production Network Discovery (Empty baseline)...');
 
-    // Add mock web server if browser detected
-    if (platformInfo?.browser) {
-      assets.push({
-        id: `nouchix-web-${Date.now()}`,
-        type: 'web-server',
-        hostname: 'web-application',
-        ipAddress: '192.168.1.101',
-        port: 443,
-        protocol: 'tcp',
-        service: 'https',
-        version: 'nginx/1.18.0',
-        os: 'Linux',
-        organization: 'Internal',
-        vulnerabilities: [],
-        tags: ['web', 'detected-via-nouchix'],
-        discovered: new Date().toISOString(),
-        source: 'NouchiX STIGs Discovery',
-        scanner: 'OpenVAS-equivalent',
-      });
-    }
+    // TRL10 PRODUCTION: Mock network scanning removed for security integrity.
+    // Real implementation must integrate with actual nmap/masscan APIs or agents.
 
-    // Log discovery (only if user authenticated)
-    if (userId) {
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
-      await supabase.from('audit_logs').insert({
-        user_id: userId,
-        action: 'nouchix_stigs_network_scan',
-        resource_type: 'network_discovery',
-        details: {
-          organization_id: organizationId,
-          assets_discovered: assets.length,
-          scanner: 'NouchiX STIGs Discovery Engine',
-          timestamp: new Date().toISOString(),
-        },
-      });
-    }
+    // Future: Call actual scanning services here
+
+    return assets;
+  } catch (error) {
+    console.error('Network discovery engine error:', error);
+    return [];
+  }
+}
+
+// Log discovery (only if user authenticated)
+if (userId) {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  await supabase.from('audit_logs').insert({
+    user_id: userId,
+    action: 'nouchix_stigs_network_scan',
+    resource_type: 'network_discovery',
+    details: {
+      organization_id: organizationId,
+      assets_discovered: assets.length,
+      scanner: 'NouchiX STIGs Discovery Engine',
+      timestamp: new Date().toISOString(),
+    },
+  });
+}
 
   } catch (error) {
-    console.error('NouchiX STIGs Network discovery error:', error);
-  }
+  console.error('NouchiX STIGs Network discovery error:', error);
+}
 
-  return assets;
+return assets;
 }
 
 /**
@@ -364,7 +323,7 @@ function buildScanQuery(clientDiscoveries: any): string | null {
 function categorizeAssetType(result: any): string {
   const module = result._shodan?.module?.toLowerCase() || '';
   const product = (result.product || '').toLowerCase();
-  
+
   if (module.includes('http') || product.includes('apache') || product.includes('nginx')) {
     return 'web-server';
   } else if (module.includes('ssh')) {
@@ -378,6 +337,6 @@ function categorizeAssetType(result: any): string {
   } else if (result.cloud?.provider) {
     return 'cloud-instance';
   }
-  
+
   return 'unknown';
 }

@@ -63,7 +63,7 @@ const THREAT_FEEDS: ThreatFeedConfig[] = [
   }
 ];
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -95,12 +95,12 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in threat-feed-sync function:', error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message
+        error: error.message || 'Unknown error'
       }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -119,12 +119,12 @@ async function syncAllFeeds() {
     try {
       const result = await syncThreatFeed(feed);
       results.push(result);
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error syncing ${feed.source}:`, error);
       results.push({
         source: feed.source,
         success: false,
-        error: error.message,
+        error: error.message || 'Unknown error',
         indicators_added: 0
       });
     }
