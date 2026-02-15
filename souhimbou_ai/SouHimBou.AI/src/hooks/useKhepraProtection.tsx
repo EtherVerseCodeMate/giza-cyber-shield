@@ -225,8 +225,17 @@ async function initializeProtectionLayers(deploymentVector: string): Promise<voi
 
 async function performSecurityScan(): Promise<number> {
   // Simulate security scanning
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  
-  // Return mock vulnerability count
-  return Math.floor(Math.random() * 5);
+  try {
+    // Query real vulnerability count from threat intelligence
+    const { count } = await supabase
+      .from('threat_intelligence')
+      .select('*', { count: 'exact', head: true })
+      .eq('indicator_type', 'vulnerability')
+      .in('threat_level', ['HIGH', 'CRITICAL']);
+
+    return count || 0;
+  } catch (error) {
+    console.error('Failed to fetch vulnerability count:', error);
+    throw new Error('Vulnerability scan failed - unable to query threat intelligence database');
+  }
 }
