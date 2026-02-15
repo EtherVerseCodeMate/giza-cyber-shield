@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 
 interface BrandingConfig {
@@ -20,7 +20,7 @@ interface BrandingConfig {
 
 interface WhiteLabelContextType {
   branding: BrandingConfig;
-  updateBranding: (updates: Partial<BrandingConfig>) => void;
+  updateBranding: (updates: Partial<BrandingConfig>) => Promise<void> | void;
   isPartnerBranded: boolean;
   loading: boolean;
 }
@@ -199,13 +199,15 @@ export const WhiteLabelProvider = ({
 
   const isPartnerBranded = branding.white_label_enabled && !!branding.partner_name;
 
+  const contextValue = useMemo(() => ({
+    branding,
+    updateBranding,
+    isPartnerBranded,
+    loading
+  }), [branding, updateBranding, isPartnerBranded, loading]);
+
   return (
-    <WhiteLabelContext.Provider value={{
-      branding,
-      updateBranding,
-      isPartnerBranded,
-      loading
-    }}>
+    <WhiteLabelContext.Provider value={contextValue}>
       {children}
     </WhiteLabelContext.Provider>
   );

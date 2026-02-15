@@ -167,6 +167,7 @@ export const SentinelIntelIntegration = () => {
         description: `Successfully synced ${activeFeeds.length} Sentinel intel feeds.`
       });
     } catch (error) {
+      console.error("Bulk sync error:", error);
       toast({
         title: "Bulk Sync Failed",
         description: "Some feeds failed to sync. Check individual feed status.",
