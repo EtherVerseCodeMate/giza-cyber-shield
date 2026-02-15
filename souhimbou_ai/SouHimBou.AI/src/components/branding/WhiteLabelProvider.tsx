@@ -67,7 +67,7 @@ export const WhiteLabelProvider = ({
       setLoading(true);
 
       // Check if this is a partner-branded instance (Example: Ananse Sentinel)
-      if (partnerId === 'ananse' || window.location.hostname.includes('sentinel')) {
+      if (partnerId === 'ananse' || (typeof globalThis !== 'undefined' && globalThis.location?.hostname.includes('sentinel'))) {
         const sentinelBranding: BrandingConfig = {
           organization_name: 'Ananse Sentinel',
           logo_url: '/sentinel-logo.png',
@@ -122,9 +122,9 @@ export const WhiteLabelProvider = ({
 
     // Convert hex to HSL for CSS custom properties
     const hexToHsl = (hex: string) => {
-      const r = parseInt(hex.slice(1, 3), 16) / 255;
-      const g = parseInt(hex.slice(3, 5), 16) / 255;
-      const b = parseInt(hex.slice(5, 7), 16) / 255;
+      const r = Number.parseInt(hex.slice(1, 3), 16) / 255;
+      const g = Number.parseInt(hex.slice(3, 5), 16) / 255;
+      const b = Number.parseInt(hex.slice(5, 7), 16) / 255;
 
       const max = Math.max(r, g, b);
       const min = Math.min(r, g, b);
