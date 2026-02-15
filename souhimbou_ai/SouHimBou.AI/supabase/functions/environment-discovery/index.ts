@@ -21,7 +21,7 @@ const DiscoveryRequestSchema = z.object({
 
 type DiscoveryRequest = z.infer<typeof DiscoveryRequestSchema>;
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -250,9 +250,9 @@ async function discoverAWSResources(clientMetadata: any): Promise<any> {
  * In production, this would integrate with actual scanning tools via APIs
  */
 async function discoverNetworkAssets(
-  organizationId: string,
-  clientDiscoveries: any,
-  userId?: string
+  _organizationId: string,
+  _clientDiscoveries: any,
+  _userId?: string
 ): Promise<any[]> {
   const assets: any[] = [];
 
@@ -265,33 +265,10 @@ async function discoverNetworkAssets(
     // Future: Call actual scanning services here
 
     return assets;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Network discovery engine error:', error);
     return [];
   }
-}
-
-// Log discovery (only if user authenticated)
-if (userId) {
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
-  await supabase.from('audit_logs').insert({
-    user_id: userId,
-    action: 'nouchix_stigs_network_scan',
-    resource_type: 'network_discovery',
-    details: {
-      organization_id: organizationId,
-      assets_discovered: assets.length,
-      scanner: 'NouchiX STIGs Discovery Engine',
-      timestamp: new Date().toISOString(),
-    },
-  });
-}
-
-  } catch (error) {
-  console.error('NouchiX STIGs Network discovery error:', error);
-}
-
-return assets;
 }
 
 /**
