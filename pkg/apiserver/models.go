@@ -59,10 +59,11 @@ type DAGGraphResponse struct {
 
 // STIGValidationRequest represents a STIG compliance validation request
 type STIGValidationRequest struct {
-	STIGVersion string            `json:"stig_version" binding:"required"` // e.g., "RHEL9"
-	TargetHost  string            `json:"target_host" binding:"required"`
-	Credentials map[string]string `json:"credentials,omitempty"`
-	Controls    []string          `json:"controls,omitempty"` // Specific STIG IDs to check
+	STIGVersion    string            `json:"stig_version" binding:"required"` // e.g., "RHEL9"
+	TargetHost     string            `json:"target_host" binding:"required"`
+	OrganizationID string            `json:"organization_id,omitempty"`
+	Credentials    map[string]string `json:"credentials,omitempty"`
+	Controls       []string          `json:"controls,omitempty"` // Specific STIG IDs to check
 }
 
 // STIGValidationResponse represents STIG validation results
@@ -135,8 +136,9 @@ type HealthResponse struct {
 
 // STIGRemediationRequest represents a request to fix security controls
 type STIGRemediationRequest struct {
-	ControlIDs []string `json:"control_ids" binding:"required"`
-	TargetHost string   `json:"target_host" binding:"required"`
+	ControlIDs     []string `json:"control_ids" binding:"required"`
+	TargetHost     string   `json:"target_host" binding:"required"`
+	OrganizationID string   `json:"organization_id,omitempty"`
 }
 
 // STIGRemediationResponse represents the outcome of automated fixes
