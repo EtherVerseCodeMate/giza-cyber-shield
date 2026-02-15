@@ -14,6 +14,8 @@ import { KhepraVPSIntegration } from '@/components/khepra/KhepraVPSIntegration';
 import { useIndustryIntegrations } from '@/hooks/useIndustryIntegrations';
 import { useIntegrations } from '@/hooks/useIntegrations';
 import { useToast } from '@/hooks/use-toast';
+import { useOrganizationContext } from '@/components/OrganizationProvider';
+import { PolymorphicIngestionEngine } from '@/components/discovery/PolymorphicIngestionEngine';
 import {
   Plug,
   TrendingUp,
@@ -23,7 +25,9 @@ import {
   Shield,
   Settings,
   Plus,
-  ExternalLink
+  ExternalLink,
+  Cloud,
+  Zap
 } from 'lucide-react';
 
 const IntegrationStatusCard = ({ title, value, icon: Icon, status = 'normal', description }: any) => (
@@ -118,19 +122,16 @@ const QuickSetupCards = ({ setActiveTab }: { setActiveTab: (tab: string) => void
     { name: 'Splunk SIEM', icon: '🔍', category: 'SIEM', status: 'ready', type: 'SIEM' },
     { name: 'CrowdStrike Falcon', icon: '🛡️', category: 'EDR', status: 'ready', type: 'ENDPOINT' },
     { name: 'Microsoft Sentinel', icon: '☁️', category: 'Cloud SIEM', status: 'ready', type: 'CLOUD' },
-    { name: 'Palo Alto Networks', icon: '🔥', category: 'Firewall', status: 'ready', type: 'FIREWALL' }
+    { name: 'Palo Alto Networks', icon: '🔥', category: 'FIREWALL', status: 'ready', type: 'FIREWALL' }
   ];
 
   const handleQuickSetup = (integration: typeof popularIntegrations[0]) => {
-    console.log('🚀 Quick Setup triggered for:', integration.name);
-    // Switch to Active Integrations tab and trigger add integration dialog
     setActiveTab('active');
     setTimeout(() => {
       toast({
         title: "Quick Setup",
         description: `Setting up ${integration.name} integration...`,
       });
-      console.log('✅ Quick Setup toast displayed for:', integration.name);
     }, 100);
   };
 
@@ -189,7 +190,6 @@ const IntegrationRecommendations = ({ setActiveTab }: { setActiveTab: (tab: stri
   ];
 
   const handleRecommendationAction = (rec: typeof recommendations[0]) => {
-    console.log('🎯 Recommendation action triggered:', rec.actionType, rec.title);
     switch (rec.actionType) {
       case 'configure':
         setActiveTab('active');
@@ -197,11 +197,9 @@ const IntegrationRecommendations = ({ setActiveTab }: { setActiveTab: (tab: stri
           title: "Opening Integration Setup",
           description: "Redirecting to integration configuration...",
         });
-        console.log('✅ Switched to active tab for configuration');
         break;
       case 'learn':
         window.open('/integration-guide/custom-api', '_blank');
-        console.log('📚 Opened integration guide in new tab');
         break;
       case 'explore':
         setActiveTab('marketplace');
@@ -209,7 +207,6 @@ const IntegrationRecommendations = ({ setActiveTab }: { setActiveTab: (tab: stri
           title: "Opening Marketplace",
           description: "Exploring available integrations...",
         });
-        console.log('🛒 Switched to marketplace tab');
         break;
     }
   };
@@ -250,25 +247,21 @@ export default function IntegrationsPage() {
   const [showMondaySettings, setShowMondaySettings] = useState(false);
   const { toast } = useToast();
   const { userIntegrations } = useIndustryIntegrations();
+  const { currentOrganization } = useOrganizationContext();
 
   const handleSettings = () => {
-    console.log('⚙️ Settings button clicked');
     toast({
       title: "Integration Settings",
       description: "Opening integration configuration panel...",
     });
-    console.log('✅ Settings toast displayed');
-    // Could navigate to a settings page or open a dialog
   };
 
   const handleAddIntegration = () => {
-    console.log('➕ Add Integration button clicked');
     setActiveTab('active');
     toast({
       title: "Add Integration",
       description: "Switching to Active Integrations tab to add new integration...",
     });
-    console.log('✅ Switched to active tab and displayed toast');
   };
 
   return (
@@ -277,7 +270,7 @@ export default function IntegrationsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Strategic Integration Hub</h1>
-            <p className="text-muted-foreground">Connect IMOHTEP with DoD tactical systems, critical infrastructure, and enterprise AI platforms</p>
+            <p className="text-muted-foreground">Connect Sentinel Intelligence with diverse environments via standard or polymorphic connectors</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleSettings}>
@@ -291,12 +284,13 @@ export default function IntegrationsPage() {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={(value) => {
-          console.log('🔄 Tab changed to:', value);
-          setActiveTab(value);
-        }} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-7 overflow-x-auto h-auto p-1 bg-slate-100/50">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="polymorphic" className="text-indigo-600 font-bold flex items-center gap-2">
+              <Zap className="w-3 h-3" />
+              Polymorphic Connector
+            </TabsTrigger>
             <TabsTrigger value="active">Active Integrations</TabsTrigger>
             <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
             <TabsTrigger value="industry">Industry Hub</TabsTrigger>
@@ -306,7 +300,6 @@ export default function IntegrationsPage() {
 
           <TabsContent value="overview" className="space-y-6">
             <IntegrationHealthDashboard />
-
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
                 <Card>
@@ -319,19 +312,28 @@ export default function IntegrationsPage() {
                   </CardContent>
                 </Card>
               </div>
-
-              <div>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Recommended Actions</CardTitle>
-                    <CardDescription>Optimize your security integration setup</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <IntegrationRecommendations setActiveTab={setActiveTab} />
-                  </CardContent>
-                </Card>
-              </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recommended Actions</CardTitle>
+                  <CardDescription>Optimize your security integration setup</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <IntegrationRecommendations setActiveTab={setActiveTab} />
+                </CardContent>
+              </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="polymorphic">
+            {currentOrganization ? (
+              <PolymorphicIngestionEngine organizationId={currentOrganization.organization_id} />
+            ) : (
+              <Card className="p-12 text-center">
+                <Cloud className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                <h3 className="text-lg font-bold">Organization Context Missing</h3>
+                <p className="text-slate-500">Please select an organization to use the Polymorphic Engine.</p>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="active">
@@ -343,7 +345,6 @@ export default function IntegrationsPage() {
                 </h3>
                 <KhepraVPSIntegration />
               </div>
-
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <Plug className="h-5 w-5 text-primary" />
@@ -368,83 +369,24 @@ export default function IntegrationsPage() {
           <TabsContent value="analytics" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Data Ingestion Rate</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle className="text-sm">Data Ingestion Rate</CardTitle></CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{userIntegrations.length > 0 ? `${(userIntegrations.length * 0.8).toFixed(1)}k/min` : '0/min'}</div>
                   <p className="text-xs text-muted-foreground">Events per minute</p>
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Average Latency</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle className="text-sm">Average Latency</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{userIntegrations.length > 0 ? `${Math.max(50, 200 - userIntegrations.length * 10)}ms` : 'N/A'}</div>
+                  <div className="text-2xl font-bold">{userIntegrations.length > 0 ? '85ms' : 'N/A'}</div>
                   <p className="text-xs text-muted-foreground">Response time</p>
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Uptime</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle className="text-sm">Uptime</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{userIntegrations.length > 0 ? '99.9%' : 'N/A'}</div>
-                  <p className="text-xs text-muted-foreground">Last 30 days</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Integration Performance</CardTitle>
-                  <CardDescription>Monitor your integration health over time</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {userIntegrations.map((integration, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <p className="font-medium">{integration.integration_library?.name || 'Unknown Integration'}</p>
-                          <p className="text-sm text-muted-foreground capitalize">{integration.status}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium">{Math.floor(Math.random() * 40 + 80)}%</p>
-                          <p className="text-xs text-muted-foreground">Health</p>
-                        </div>
-                      </div>
-                    ))}
-                    {userIntegrations.length === 0 && (
-                      <p className="text-center text-muted-foreground py-8">No active integrations to monitor</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>Latest integration events and notifications</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {userIntegrations.slice(0, 5).map((integration, index) => (
-                      <div key={index} className="flex items-center space-x-3 text-sm">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-muted-foreground">
-                          {integration.integration_library?.name} sync completed
-                        </span>
-                        <span className="text-xs text-muted-foreground ml-auto">
-                          {Math.floor(Math.random() * 60)} min ago
-                        </span>
-                      </div>
-                    ))}
-                    {userIntegrations.length === 0 && (
-                      <p className="text-center text-muted-foreground py-8">No recent activity</p>
-                    )}
-                  </div>
+                  <div className="text-2xl font-bold">99.98%</div>
+                  <p className="text-xs text-muted-foreground">Platform reliability</p>
                 </CardContent>
               </Card>
             </div>
@@ -455,10 +397,7 @@ export default function IntegrationsPage() {
           </TabsContent>
         </Tabs>
 
-        <MondaySyncSettings
-          open={showMondaySettings}
-          onOpenChange={setShowMondaySettings}
-        />
+        <MondaySyncSettings open={showMondaySettings} onOpenChange={setShowMondaySettings} />
       </div>
     </PageLayout>
   );

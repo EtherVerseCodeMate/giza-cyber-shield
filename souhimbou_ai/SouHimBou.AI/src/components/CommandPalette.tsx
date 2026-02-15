@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
     Shield, Activity, Globe, Lock, Brain, HelpCircle,
     Search, Home, LogIn, FileText, BarChart3,
-    Command, ArrowRight
+    Command, ArrowRight, Zap, Cloud
 } from 'lucide-react';
 
 interface CommandItem {
@@ -51,6 +51,8 @@ const CommandPalette = ({ isAuthenticated = false }: CommandPaletteProps) => {
             { id: 'evidence', label: 'Evidence Collection', icon: Lock, section: 'Dashboard', keywords: ['evidence', 'upload', 'collect'], action: () => runAndClose(() => navigate('/evidence-collection')) },
             { id: 'billing', label: 'Billing', icon: Brain, section: 'Dashboard', keywords: ['billing', 'payment', 'subscription', 'plan'], action: () => runAndClose(() => navigate('/billing')) },
             { id: 'threat-hunting', label: 'Threat Hunting', icon: Shield, section: 'Dashboard', keywords: ['threat', 'hunt', 'forensics', 'behavior'], action: () => runAndClose(() => navigate('/threat-hunting')) },
+            { id: 'compliance-autopilot', label: 'Compliance Autopilot', icon: Zap, section: 'Dashboard', keywords: ['compliance', 'autopilot', 'cmmc', 'stig', 'bridge'], action: () => runAndClose(() => navigate('/compliance-autopilot')) },
+            { id: 'polymorphic-connector', label: 'Polymorphic Connector', icon: Cloud, section: 'Infrastructure', keywords: ['connect', 'environment', 'agnostic', 'ingestion', 'aws', 'azure', 'iot'], action: () => runAndClose(() => navigate('/integrations?tab=polymorphic')) },
         ] : [
             { id: 'signin', label: 'Sign In', icon: LogIn, section: 'Account', keywords: ['sign', 'login', 'account', 'auth'], action: () => runAndClose(() => navigate('/auth')) },
             { id: 'getstarted', label: 'Get Started', icon: ArrowRight, section: 'Account', keywords: ['start', 'register', 'signup', 'onboard'], action: () => runAndClose(() => navigate('/auth')) },
