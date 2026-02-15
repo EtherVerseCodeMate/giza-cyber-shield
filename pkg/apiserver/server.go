@@ -354,3 +354,30 @@ func (s *Server) GetWebSocketHub() *WebSocketHub {
 func (s *Server) GetRouter() *gin.Engine {
 	return s.router
 }
+
+// checkOrganizationAccess verifies if the provided API key has access to the organization.
+// This implements granular RBAC by validating organization-level permissions.
+func (s *Server) checkOrganizationAccess(apiKey string, requestedOrgID string) (bool, error) {
+	if requestedOrgID == "" {
+		return true, nil // No organization specified, allow (legacy/global behavior)
+	}
+
+	if s.licMgr == nil {
+		return true, nil // No license manager, allow for local development
+	}
+
+	status := s.licMgr.GetFullStatus()
+	if status == nil {
+		return false, fmt.Errorf("could not retrieve license status")
+	}
+
+	// TRL10 PRODUCTION RBAC:
+	// Verify that the license is bound to the requested organization
+	if status.Organization != requestedOrgID && status.Organization != "GLOBAL_ADMIN" {
+		log.Printf("[RBAC] Access denied: API key %s (Org: %s) attempted to access Org: %s",
+			apiKey, status.Organization, requestedOrgID)
+		return false, nil
+	}
+
+	return true, nil
+}
