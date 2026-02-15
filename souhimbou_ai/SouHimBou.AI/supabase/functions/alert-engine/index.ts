@@ -29,7 +29,7 @@ interface Alert {
   tags?: string[];
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -57,19 +57,19 @@ serve(async (req) => {
         result = await testNotification(data);
         break;
       default:
-        result = await processAlertRules();
+        result = await processAlertRules(data);
     }
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in alert-engine function:', error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message
+        error: error.message || 'Unknown error'
       }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
