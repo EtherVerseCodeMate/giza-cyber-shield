@@ -289,22 +289,29 @@ async function sendNotification(notificationData: any) {
 
   const messageContent = generateNotificationMessage(alert, channel);
 
-  let notificationResult;
-  switch (channel) {
-    case 'email':
-      notificationResult = await sendEmailNotification(recipient_email, messageContent);
-      break;
-    case 'sms':
-      notificationResult = await sendSMSNotification(recipient_phone, messageContent);
-      break;
-    case 'webhook':
-      notificationResult = await sendWebhookNotification(messageContent);
-      break;
-    case 'in_app':
-      notificationResult = await sendInAppNotification(alert);
-      break;
-    default:
-      notificationResult = { success: false, error: 'Unsupported channel' };
+  let notificationResult: any;
+  let errorMessage: string | null = null;
+
+  try {
+    switch (channel) {
+      case 'email':
+        notificationResult = await sendEmailNotification(recipient_email, messageContent);
+        break;
+      case 'sms':
+        notificationResult = await sendSMSNotification(recipient_phone, messageContent);
+        break;
+      case 'webhook':
+        notificationResult = await sendWebhookNotification(messageContent);
+        break;
+      case 'in_app':
+        notificationResult = await sendInAppNotification(alert);
+        break;
+      default:
+        throw new Error('Unsupported notification channel');
+    }
+  } catch (error: any) {
+    errorMessage = error.message;
+    notificationResult = { success: false, error: errorMessage };
   }
 
   // Log notification attempt
@@ -317,7 +324,7 @@ async function sendNotification(notificationData: any) {
       channel,
       status: notificationResult.success ? 'SENT' : 'FAILED',
       message_content: messageContent,
-      error_message: notificationResult.error,
+      error_message: errorMessage,
       sent_at: notificationResult.success ? new Date().toISOString() : null
     });
 
@@ -378,38 +385,150 @@ Please investigate immediately.
 }
 
 async function sendEmailNotification(email: string, content: any) {
-  // Mock email sending - replace with real email service
-  console.log(`Sending email to ${email}:`, content.subject);
+  const apiKey = Deno.env.get('AUTOSEND_API_KEY');
 
-  // Simulate email API call
-  await new Promise(resolve => setTimeout(resolve, 500));
+  if (!apiKey) {
+    console.error('CRITICAL: AUTOSEND_API_KEY not configured');
+    throw new Error('Email delivery not configured - AUTOSEND_API_KEY missing');
+  }
 
-  return {
-    success: true,
-    message_id: `email_${Date.now()}`,
-    recipient: email
-  };
+  console.log(`Sending alert email to ${email} via Autosend`);
+
+  try {
+    const response = await fetch('https://api.autosend.com/v1/mails/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: email,
+        from: 'alerts@khepraprotocol.com',
+        subject: content.subject,
+        html: `
+          <div style="font-family: Arial, sans-serif; padding: 20px; background: #1a1a1a; color: #fff;">
+            <h2 style="color: #f59e0b;">${content.subject}</h2>
+            <pre style="background: #2d2d2d; padding: 15px; border-radius: 5px; white-space: pre-wrap;">${content.body}</pre>
+            <p style="margin-top: 20px; font-size: 12px; color: #888;">
+              Alert ID: ${content.alert_id} | Timestamp: ${content.timestamp}
+            </p>
+          </div>
+        `,
+        text: content.body
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Autosend API failed: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log('✅ Email sent successfully via Autosend:', result);
+
+    return {
+      success: true,
+      message_id: result.id || `autosend_${Date.now()}`,
+      recipient: email,
+      provider: 'autosend'
+    };
+  } catch (error: any) {
+    console.error('❌ Email delivery failed:', error);
+    // Re-throw to ensure failure is visible
+    throw new Error(`Email delivery failed: ${error.message}`);
+  }
 }
 
 async function sendSMSNotification(phone: string, content: any) {
-  // Mock SMS sending - replace with Twilio or similar
-  console.log(`Sending SMS to ${phone}:`, content.text);
+  const twilioSid = Deno.env.get('TWILIO_ACCOUNT_SID');
+  const twilioToken = Deno.env.get('TWILIO_AUTH_TOKEN');
+  const twilioFrom = Deno.env.get('TWILIO_PHONE_NUMBER');
 
-  return {
-    success: true,
-    message_id: `sms_${Date.now()}`,
-    recipient: phone
-  };
+  if (!twilioSid || !twilioToken || !twilioFrom) {
+    console.error('CRITICAL: Twilio credentials not configured');
+    throw new Error('SMS delivery not configured - Twilio credentials missing');
+  }
+
+  console.log(`Sending alert SMS to ${phone} via Twilio`);
+
+  try {
+    const auth = btoa(`${twilioSid}:${twilioToken}`);
+    const params = new URLSearchParams({
+      To: phone,
+      From: twilioFrom,
+      Body: content.text
+    });
+
+    const response = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Twilio API failed: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log('✅ SMS sent successfully via Twilio:', result.sid);
+
+    return {
+      success: true,
+      message_id: result.sid,
+      recipient: phone,
+      provider: 'twilio'
+    };
+  } catch (error: any) {
+    console.error('❌ SMS delivery failed:', error);
+    throw new Error(`SMS delivery failed: ${error.message}`);
+  }
 }
 
 async function sendWebhookNotification(content: any) {
-  console.log('Sending webhook notification:', content);
+  const webhookUrl = Deno.env.get('ALERT_WEBHOOK_URL');
 
-  // Mock webhook - replace with actual webhook URLs
-  return {
-    success: true,
-    webhook_id: `webhook_${Date.now()}`
-  };
+  if (!webhookUrl) {
+    console.error('CRITICAL: ALERT_WEBHOOK_URL not configured');
+    throw new Error('Webhook delivery not configured - ALERT_WEBHOOK_URL missing');
+  }
+
+  console.log(`Sending webhook notification to ${webhookUrl}`);
+
+  try {
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Khepra-Alert-Engine/1.0'
+      },
+      body: JSON.stringify(content)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Webhook delivery failed: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.text();
+    console.log('✅ Webhook delivered successfully');
+
+    return {
+      success: true,
+      webhook_id: `webhook_${Date.now()}`,
+      provider: 'custom_webhook',
+      response_preview: result.substring(0, 100)
+    };
+  } catch (error: any) {
+    console.error('❌ Webhook delivery failed:', error);
+    throw new Error(`Webhook delivery failed: ${error.message}`);
+  }
 }
 
 async function sendInAppNotification(alert: any) {
