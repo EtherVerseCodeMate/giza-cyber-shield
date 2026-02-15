@@ -66,6 +66,7 @@ type ValidateRequest struct {
 // ValidateResponse from /license/validate
 type ValidateResponse struct {
 	Valid             bool     `json:"valid"`
+	LicenseID         string   `json:"license_id,omitempty"`
 	Features          []string `json:"features"`
 	LicenseTier       string   `json:"license_tier"`
 	Organization      string   `json:"organization"`
