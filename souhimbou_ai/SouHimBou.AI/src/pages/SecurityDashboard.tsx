@@ -102,9 +102,16 @@ export const SecurityDashboard = () => {
         100 - (criticalCount || 0) * 10 - (eventsCount || 0) * 2 + mfaPercentage * 0.3
       ));
 
+      // Count active sessions (profiles with recent activity in last 24 hours)
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { count: activeSessionCount } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .gte('last_sign_in_at', oneDayAgo);
+
       setSecurityMetrics({
         mfaEnabled: mfaPercentage,
-        activeSessions: Math.floor(Math.random() * 15) + 5, // Would be real session count
+        activeSessions: activeSessionCount || 0,
         securityEvents: eventsCount || 0,
         complianceScore: Math.round(complianceScore),
         criticalAlerts: criticalCount || 0,
