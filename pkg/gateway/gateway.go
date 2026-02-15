@@ -369,12 +369,18 @@ type RequestContext struct {
 
 // Identity represents an authenticated identity
 type Identity struct {
-	ID           string
-	Type         string // "api_key", "mtls", "jwt"
-	Organization string
-	TrustScore   float64
-	Permissions  []string
-	Metadata     map[string]string
+	ID                 string
+	Type               string // "api_key", "mtls", "jwt"
+	Organization       string
+	TrustScore         float64
+	Permissions        []string
+	Metadata           map[string]string
+	Role               STIGRole           // RBAC role (from MCP)
+	DataClassification DataClassification // Max data classification this identity can access
+	Name               string             // Display name
+	Source             string             // "mcp_agent", "api_key", "user_session"
+	IssuedAt           time.Time
+	ExpiresAt          time.Time
 }
 
 // responseWriter wraps http.ResponseWriter to capture status code

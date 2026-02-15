@@ -8,7 +8,6 @@ import {
   TrendingUp,
   Users,
   FileText,
-  Settings,
   Link,
   AlertTriangle,
   Activity,
