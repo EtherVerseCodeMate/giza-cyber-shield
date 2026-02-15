@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -26,6 +27,13 @@ import (
 var (
 	errNotImplemented = errors.New("not implemented")
 	errUserNotFound   = errors.New("user not found")
+)
+
+// Context keys
+type contextKey string
+
+const (
+	ContextKeyPeerCerts contextKey = "peer_certs"
 )
 
 // ============================================================================
@@ -39,6 +47,11 @@ type KeycloakProvider struct {
 	clientSecret string
 	JWTSecret    string
 	httpClient   *http.Client
+
+	// JWKS cache
+	jwksMu     sync.RWMutex
+	jwks       map[string]interface{}
+	jwksExpiry time.Time
 }
 
 // KeycloakConfig holds Keycloak-specific configuration.
@@ -136,6 +149,19 @@ func (kp *KeycloakProvider) requestToken(ctx context.Context, creds *Credentials
 }
 
 func (kp *KeycloakProvider) decodeAccessToken(token string) (map[string]interface{}, error) {
+	// First, validate the token properly (checks signature and claims)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	valid, err := kp.ValidateToken(ctx, token)
+	if err != nil {
+		return nil, fmt.Errorf("token validation failed: %w", err)
+	}
+	if !valid {
+		return nil, errors.New("invalid token signature")
+	}
+
+	// Token is valid, now decode claims for extraction
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
 		return nil, errors.New("invalid token format")
@@ -239,11 +265,87 @@ func (kp *KeycloakProvider) keyFunc(token *jwt.Token) (interface{}, error) {
 	}
 
 	if _, ok := token.Method.(*jwt.SigningMethodRSA); ok {
-		// In production, retrieve via JWKS from kp.realmURL + "/protocol/openid-connect/certs"
-		return nil, errors.New("RS256 signature verification requires public key (configured via JWKS)")
+		// Retrieve public key via JWKS
+		kid, ok := token.Header["kid"].(string)
+		if !ok {
+			return nil, errors.New("missing kid in JWT header")
+		}
+
+		return kp.getPublicKeyFromJWKS(kid)
 	}
 
 	return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+}
+
+func (kp *KeycloakProvider) getPublicKeyFromJWKS(kid string) (interface{}, error) {
+	kp.jwksMu.RLock()
+	if kp.jwks != nil && time.Now().Before(kp.jwksExpiry) {
+		if key, exists := kp.jwks[kid]; exists {
+			kp.jwksMu.RUnlock()
+			return key, nil
+		}
+	}
+	kp.jwksMu.RUnlock()
+
+	// Need to fetch or refresh JWKS
+	kp.jwksMu.Lock()
+	defer kp.jwksMu.Unlock()
+
+	// Re-check after acquiring lock
+	if kp.jwks != nil && time.Now().Before(kp.jwksExpiry) {
+		if key, exists := kp.jwks[kid]; exists {
+			return key, nil
+		}
+	}
+
+	// Fetch JWKS from Keycloak
+	certsURL := fmt.Sprintf("%s/protocol/openid-connect/certs", kp.realmURL)
+	resp, err := kp.httpClient.Get(certsURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch JWKS: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var jwks struct {
+		Keys []struct {
+			Kid string   `json:"kid"`
+			Kty string   `json:"kty"`
+			Alg string   `json:"alg"`
+			Use string   `json:"use"`
+			N   string   `json:"n"`
+			E   string   `json:"e"`
+			X5c []string `json:"x5c"`
+		} `json:"keys"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&jwks); err != nil {
+		return nil, fmt.Errorf("failed to decode JWKS: %w", err)
+	}
+
+	// Parse keys
+	newKeys := make(map[string]interface{})
+	for _, key := range jwks.Keys {
+		if key.Kty == "RSA" && (key.Use == "sig" || key.Use == "") {
+			if len(key.X5c) > 0 {
+				certDER, err := base64.StdEncoding.DecodeString(key.X5c[0])
+				if err == nil {
+					cert, err := x509.ParseCertificate(certDER)
+					if err == nil {
+						newKeys[key.Kid] = cert.PublicKey
+					}
+				}
+			}
+		}
+	}
+
+	kp.jwks = newKeys
+	kp.jwksExpiry = time.Now().Add(1 * time.Hour) // Cache for 1 hour
+
+	if key, exists := kp.jwks[kid]; exists {
+		return key, nil
+	}
+
+	return nil, fmt.Errorf("key %s not found in JWKS", kid)
 }
 
 func (kp *KeycloakProvider) verifyClaims(claims *jwt.RegisteredClaims) (bool, error) {
@@ -360,13 +462,15 @@ func NewCACProvider(config *CACConfig) (*CACProvider, error) {
 
 // Authenticate verifies a CAC certificate from an mTLS connection.
 func (cp *CACProvider) Authenticate(ctx context.Context, creds *Credentials) (*User, error) {
-	if creds.CertPath == "" {
-		return nil, errors.New("CAC certificate path required")
-	}
-
+	// Try to get leaf certificate from credentials path first
 	leaf, err := cp.loadLeafCertificate(creds)
 	if err != nil {
-		return nil, err
+		// If path loading fails, check if certificate is in the context (mTLS from gateway)
+		if certs, ok := ctx.Value(ContextKeyPeerCerts).([]*x509.Certificate); ok && len(certs) > 0 {
+			leaf = certs[0]
+		} else {
+			return nil, fmt.Errorf("no CAC certificate found: %w", err)
+		}
 	}
 
 	if err := cp.verifyCertificateChain(leaf); err != nil {

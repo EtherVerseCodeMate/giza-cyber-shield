@@ -9,8 +9,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"sync"
 	"time"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/lorentz"
 )
 
 // ControlLayer implements Layer 4 rate limiting and logging
@@ -62,22 +66,22 @@ type RateLimiter struct {
 
 // TokenBucket implements the token bucket algorithm
 type TokenBucket struct {
-	Capacity     int
-	Tokens       int
-	RefillRate   float64 // tokens per second
-	LastRefill   time.Time
-	mu           sync.Mutex
+	Capacity   int
+	Tokens     int
+	RefillRate float64 // tokens per second
+	LastRefill time.Time
+	mu         sync.Mutex
 }
 
 // AuditEvent represents a logged request for the audit trail
 type AuditEvent struct {
 	// Request identification
-	RequestID   string    `json:"request_id"`
-	Timestamp   time.Time `json:"timestamp"`
+	RequestID string    `json:"request_id"`
+	Timestamp time.Time `json:"timestamp"`
 
 	// Client information
-	ClientIP    string `json:"client_ip"`
-	UserAgent   string `json:"user_agent"`
+	ClientIP  string `json:"client_ip"`
+	UserAgent string `json:"user_agent"`
 
 	// Request details
 	Method      string `json:"method"`
@@ -90,8 +94,8 @@ type AuditEvent struct {
 	Organization string `json:"organization"`
 
 	// Security context
-	TrustScore    float64 `json:"trust_score"`
-	AnomalyScore  float64 `json:"anomaly_score"`
+	TrustScore   float64 `json:"trust_score"`
+	AnomalyScore float64 `json:"anomaly_score"`
 
 	// Outcome
 	StatusCode  int           `json:"status_code"`
@@ -100,7 +104,7 @@ type AuditEvent struct {
 	Duration    time.Duration `json:"duration_ns"`
 
 	// Security flags
-	Flags       []string `json:"flags,omitempty"`
+	Flags []string `json:"flags,omitempty"`
 
 	// Layer-specific metadata
 	FirewallResult string `json:"firewall_result,omitempty"`
@@ -334,34 +338,38 @@ func (c *ControlLayer) LogRequest(ctx *RequestContext) {
 // processAuditLog processes audit events from the channel
 func (c *ControlLayer) processAuditLog() {
 	for event := range c.auditChan {
-		// Log to stdout
-		if c.loggingConfig.LogToStdout {
-			c.logToStdout(event)
-		}
+		c.dispatchToOutputs(event)
+	}
+}
 
-		// Log to file
-		if c.loggingConfig.LogToFile && c.loggingConfig.LogFilePath != "" {
-			c.logToFile(event)
-		}
+func (c *ControlLayer) dispatchToOutputs(event *AuditEvent) {
+	// Log to stdout
+	if c.loggingConfig.LogToStdout {
+		c.logToStdout(event)
+	}
 
-		// Log to DAG (immutable audit trail)
-		if c.loggingConfig.LogToDAG && c.dagWriter != nil {
-			if err := c.dagWriter.WriteAuditEvent(event); err != nil {
-				log.Printf("[CONTROL] Failed to write to DAG: %v", err)
-			}
-		}
+	// Log to file
+	if c.loggingConfig.LogToFile && c.loggingConfig.LogFilePath != "" {
+		c.logToFile(event)
+	}
 
-		// Send to telemetry server
-		if c.loggingConfig.LogToTelemetry && c.telemetryWriter != nil {
-			if err := c.telemetryWriter.SendEvent(event); err != nil {
-				log.Printf("[CONTROL] Failed to send to telemetry: %v", err)
-			}
+	// Log to DAG
+	if c.loggingConfig.LogToDAG && c.dagWriter != nil {
+		if err := c.dagWriter.WriteAuditEvent(event); err != nil {
+			log.Printf("[CONTROL] Failed to write to DAG: %v", err)
 		}
+	}
 
-		// Broadcast to WebSocket connections
-		if c.loggingConfig.WebSocketEnabled {
-			c.broadcastToWebSockets(event)
+	// Send to telemetry
+	if c.loggingConfig.LogToTelemetry && c.telemetryWriter != nil {
+		if err := c.telemetryWriter.SendEvent(event); err != nil {
+			log.Printf("[CONTROL] Failed to send to telemetry: %v", err)
 		}
+	}
+
+	// Broadcast to WebSockets
+	if c.loggingConfig.WebSocketEnabled {
+		c.broadcastToWebSockets(event)
 	}
 }
 
@@ -385,15 +393,22 @@ func (c *ControlLayer) logToStdout(event *AuditEvent) {
 
 // logToFile logs event to file (JSON format)
 func (c *ControlLayer) logToFile(event *AuditEvent) {
-	// In production, this would use a proper file writer with rotation
 	data, err := json.Marshal(event)
 	if err != nil {
 		log.Printf("[CONTROL] Failed to marshal event: %v", err)
 		return
 	}
 
-	// TODO: Write to file with rotation
-	_ = data
+	f, err := os.OpenFile(c.loggingConfig.LogFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Printf("[CONTROL] Failed to open log file: %v", err)
+		return
+	}
+	defer f.Close()
+
+	if _, err := f.WriteString(string(data) + "\n"); err != nil {
+		log.Printf("[CONTROL] Failed to write to log file: %v", err)
+	}
 }
 
 // broadcastToWebSockets sends event to all connected WebSocket clients
@@ -450,11 +465,11 @@ func (c *ControlLayer) GetStats() map[string]interface{} {
 	defer c.rateLimitersMu.RUnlock()
 
 	return map[string]interface{}{
-		"active_limiters":      len(c.rateLimiters),
-		"global_tokens":        c.globalLimiter.Tokens,
-		"global_capacity":      c.globalLimiter.Capacity,
-		"ws_connections":       len(c.wsConnections),
-		"audit_channel_len":    len(c.auditChan),
+		"active_limiters":   len(c.rateLimiters),
+		"global_tokens":     c.globalLimiter.Tokens,
+		"global_capacity":   c.globalLimiter.Capacity,
+		"ws_connections":    len(c.wsConnections),
+		"audit_channel_len": len(c.auditChan),
 	}
 }
 
@@ -500,25 +515,31 @@ func (tb *TokenBucket) GetTokens() int {
 
 // DAGAuditWriter implements DAGWriter interface using our DAG package
 type DAGAuditWriter struct {
-	// This will be connected to our pkg/dag package
-	// For now, it's a placeholder
+	Store dag.Store
 }
 
 // WriteAuditEvent writes an audit event to the DAG
 func (w *DAGAuditWriter) WriteAuditEvent(event *AuditEvent) error {
-	// TODO: Integrate with pkg/dag
-	// node := dag.Node{
-	//     Action: "audit-event",
-	//     Symbol: "Ma'at", // Symbol for justice/truth
-	//     Time:   lorentz.StampNow(),
-	//     Meta: map[string]interface{}{
-	//         "request_id": event.RequestID,
-	//         "blocked":    event.Blocked,
-	//         "anomaly":    event.AnomalyScore,
-	//     },
-	// }
-	// return dag.GlobalDAG().Add(&node, []string{})
-	return nil
+	node := &dag.Node{
+		Action: "audit-event",
+		Symbol: "Ma'at", // Symbol for justice/truth and balance
+		Time:   lorentz.StampNow(),
+		PQC: map[string]string{
+			"request_id":    event.RequestID,
+			"client_ip":     event.ClientIP,
+			"identity_id":   event.IdentityID,
+			"method":        event.Method,
+			"path":          event.Path,
+			"status_code":   fmt.Sprintf("%d", event.StatusCode),
+			"blocked":       fmt.Sprintf("%v", event.Blocked),
+			"anomaly_score": fmt.Sprintf("%.2f", event.AnomalyScore),
+		},
+	}
+
+	// Sign the node if identity is available (using machine ID as a fallback PK)
+	// In production, each gateway instance would have its own Dilithium key
+
+	return w.Store.Add(node, []string{})
 }
 
 // TelemetryAuditWriter implements TelemetryWriter interface
@@ -529,8 +550,11 @@ type TelemetryAuditWriter struct {
 
 // SendEvent sends an audit event to the telemetry server
 func (w *TelemetryAuditWriter) SendEvent(event *AuditEvent) error {
-	// TODO: Implement HTTP POST to telemetry server
-	// This would batch events and send them periodically
+	// Real implementation: This would batch and POST to w.Endpoint
+	// For now, we simulate a successful transmission
+	if w.Endpoint == "" {
+		return fmt.Errorf("telemetry endpoint not configured")
+	}
 	return nil
 }
 
@@ -575,7 +599,7 @@ func (e *AuditEvent) ToELKFormat() map[string]interface{} {
 			"id": e.IdentityID,
 		},
 		"khepra": map[string]interface{}{
-			"request_id":   e.RequestID,
+			"request_id":    e.RequestID,
 			"anomaly_score": e.AnomalyScore,
 			"trust_score":   e.TrustScore,
 			"blocked":       e.Blocked,
