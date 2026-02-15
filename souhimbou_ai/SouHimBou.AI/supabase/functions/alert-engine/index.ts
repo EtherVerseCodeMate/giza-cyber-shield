@@ -36,7 +36,7 @@ serve(async (req) => {
 
   try {
     console.log('Alert engine function called');
-    
+
     const { action, data }: AlertRequest = await req.json();
 
     let result;
@@ -67,13 +67,13 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in alert-engine function:', error);
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message 
+      JSON.stringify({
+        success: false,
+        error: error.message
       }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    }
     );
   }
 });
@@ -133,7 +133,7 @@ async function processAlertRules(triggerData?: any) {
   for (const rule of rules) {
     try {
       const shouldTrigger = await evaluateRule(rule, triggerData);
-      
+
       if (shouldTrigger) {
         // Check cooldown
         if (rule.last_triggered) {
@@ -184,7 +184,8 @@ async function processAlertRules(triggerData?: any) {
 
 async function evaluateRule(rule: any, triggerData: any): Promise<boolean> {
   const conditions = rule.conditions;
-  
+  if (!conditions || !triggerData) return false;
+
   // Simple threshold-based rule evaluation
   if (rule.rule_type === 'threshold') {
     if (conditions.source === 'ai_analysis' && triggerData?.risk_score) {
@@ -193,7 +194,7 @@ async function evaluateRule(rule: any, triggerData: any): Promise<boolean> {
         return evaluateCondition(triggerData.risk_score, riskCondition);
       }
     }
-    
+
     if (conditions.source === 'security_event' && triggerData?.severity) {
       return triggerData.severity === conditions.severity;
     }
@@ -206,8 +207,8 @@ async function evaluateRule(rule: any, triggerData: any): Promise<boolean> {
     }
   }
 
-  // For demo purposes, randomly trigger some rules
-  return Math.random() > 0.8;
+  // TRL10 PRODUCTION: Random triggering removed
+  return false;
 }
 
 function evaluateCondition(value: number, condition: any): boolean {
@@ -287,7 +288,7 @@ async function sendNotification(notificationData: any) {
   }
 
   const messageContent = generateNotificationMessage(alert, channel);
-  
+
   let notificationResult;
   switch (channel) {
     case 'email':
@@ -379,10 +380,10 @@ Please investigate immediately.
 async function sendEmailNotification(email: string, content: any) {
   // Mock email sending - replace with real email service
   console.log(`Sending email to ${email}:`, content.subject);
-  
+
   // Simulate email API call
   await new Promise(resolve => setTimeout(resolve, 500));
-  
+
   return {
     success: true,
     message_id: `email_${Date.now()}`,
@@ -393,7 +394,7 @@ async function sendEmailNotification(email: string, content: any) {
 async function sendSMSNotification(phone: string, content: any) {
   // Mock SMS sending - replace with Twilio or similar
   console.log(`Sending SMS to ${phone}:`, content.text);
-  
+
   return {
     success: true,
     message_id: `sms_${Date.now()}`,
@@ -403,7 +404,7 @@ async function sendSMSNotification(phone: string, content: any) {
 
 async function sendWebhookNotification(content: any) {
   console.log('Sending webhook notification:', content);
-  
+
   // Mock webhook - replace with actual webhook URLs
   return {
     success: true,
@@ -413,7 +414,7 @@ async function sendWebhookNotification(content: any) {
 
 async function sendInAppNotification(alert: any) {
   console.log('Creating in-app notification for alert:', alert.id);
-  
+
   // In-app notifications would be handled via real-time subscriptions
   return {
     success: true,
@@ -423,7 +424,7 @@ async function sendInAppNotification(alert: any) {
 
 async function sendImmediateNotification(alert: any) {
   console.log('Sending immediate notification for critical alert');
-  
+
   // Get all analysts for immediate notification
   const { data: profiles } = await supabase
     .from('profiles')
@@ -442,7 +443,7 @@ async function sendImmediateNotification(alert: any) {
 
 async function escalateAlert(alertId: string) {
   console.log('Escalating alert:', alertId);
-  
+
   const { data: alert } = await supabase
     .from('alerts')
     .select('*')
@@ -455,7 +456,7 @@ async function escalateAlert(alertId: string) {
 
   // Update escalation level
   const newEscalationLevel = (alert.escalation_level || 0) + 1;
-  
+
   await supabase
     .from('alerts')
     .update({
@@ -475,7 +476,7 @@ async function escalateAlert(alertId: string) {
 async function scheduleEscalation(alert: any) {
   // Mock escalation scheduling - in production, use a job queue
   console.log(`Scheduling escalation for alert ${alert.id} in 5 minutes`);
-  
+
   setTimeout(async () => {
     await escalateAlert(alert.id);
   }, 5 * 60 * 1000); // 5 minutes
@@ -483,7 +484,7 @@ async function scheduleEscalation(alert: any) {
 
 async function testNotification(data: any) {
   const { channel, recipient } = data;
-  
+
   const testAlert = {
     id: 'test_alert',
     title: 'Test Alert - System Check',
