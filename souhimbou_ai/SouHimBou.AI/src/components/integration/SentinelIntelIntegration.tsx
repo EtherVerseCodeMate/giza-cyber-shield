@@ -5,16 +5,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { 
-  Globe, 
-  Shield, 
-  AlertTriangle, 
-  CheckCircle, 
-  RefreshCw, 
+import {
+  Globe,
+  Shield,
+  AlertTriangle,
+  CheckCircle,
+  RefreshCw,
   Settings,
   Link,
   Database,
-  TrendingUp
+  TrendingUp,
+  Radar
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,7 +39,7 @@ interface IntegrationMetrics {
   lastUpdate: string;
 }
 
-export const HostBreachIntegration = () => {
+export const SentinelIntelIntegration = () => {
   const [feeds, setFeeds] = useState<OSINTFeed[]>([]);
   const [metrics, setMetrics] = useState<IntegrationMetrics>({
     totalFeeds: 0,
@@ -58,50 +59,50 @@ export const HostBreachIntegration = () => {
   }, []);
 
   const initializeFeeds = () => {
-    // Mock HostBreach OSINT feeds
+    // Standardized Sentinel Intelligence Feeds
     const mockFeeds: OSINTFeed[] = [
       {
         id: '1',
-        name: 'HostBreach Threat Intel',
+        name: 'Sentinel Threat Intel',
         type: 'THREAT_INTEL',
         status: 'ACTIVE',
         lastSync: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
         indicatorCount: 2847,
-        apiEndpoint: 'https://api.hostbreach.com/v1/threat-intel',
+        apiEndpoint: 'https://sentinel.api.adin-khepra.io/v1/threat-intel',
         syncInterval: 15
       },
       {
         id: '2',
-        name: 'HostBreach IOCs',
+        name: 'OpenSource IOCs',
         type: 'IOC',
         status: 'ACTIVE',
         lastSync: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
         indicatorCount: 1523,
-        apiEndpoint: 'https://api.hostbreach.com/v1/indicators',
+        apiEndpoint: 'https://sentinel.api.adin-khepra.io/v1/indicators',
         syncInterval: 5
       },
       {
         id: '3',
-        name: 'HostBreach Vulnerability Feed',
+        name: 'Unified Vulnerability Feed',
         type: 'VULNERABILITY',
         status: 'ACTIVE',
         lastSync: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
         indicatorCount: 453,
-        apiEndpoint: 'https://api.hostbreach.com/v1/vulnerabilities',
+        apiEndpoint: 'https://sentinel.api.adin-khepra.io/v1/vulnerabilities',
         syncInterval: 60
       },
       {
         id: '4',
-        name: 'HostBreach Security Advisories',
+        name: 'Global Security Advisories',
         type: 'ADVISORY',
         status: 'INACTIVE',
         lastSync: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
         indicatorCount: 89,
-        apiEndpoint: 'https://api.hostbreach.com/v1/advisories',
+        apiEndpoint: 'https://sentinel.api.adin-khepra.io/v1/advisories',
         syncInterval: 1440
       }
     ];
-    
+
     setFeeds(mockFeeds);
   };
 
@@ -118,10 +119,10 @@ export const HostBreachIntegration = () => {
   const syncFeed = async (feedId: string) => {
     setSyncing(true);
     try {
-      // Call the threat-feed-sync edge function
+      // Call the threat-feed-sync edge function with generic source
       const { data, error } = await supabase.functions.invoke('threat-feed-sync', {
-        body: { 
-          source: 'hostbreach',
+        body: {
+          source: 'sentinel',
           feedId,
           apiKey: apiKey || 'demo-key'
         }
@@ -130,15 +131,15 @@ export const HostBreachIntegration = () => {
       if (error) throw error;
 
       // Update feed status
-      setFeeds(prev => prev.map(feed => 
-        feed.id === feedId 
+      setFeeds(prev => prev.map(feed =>
+        feed.id === feedId
           ? { ...feed, lastSync: new Date().toISOString(), status: 'ACTIVE' as const }
           : feed
       ));
 
       toast({
         title: "Sync Complete",
-        description: `Successfully synced HostBreach feed. ${data?.indicators || 0} indicators processed.`
+        description: `Successfully synced Sentinel feed. ${data?.indicators || 0} indicators processed.`
       });
 
       // Refresh metrics
@@ -147,7 +148,7 @@ export const HostBreachIntegration = () => {
       console.error('Sync error:', error);
       toast({
         title: "Sync Failed",
-        description: error.message || "Failed to sync with HostBreach API",
+        description: error.message || "Failed to sync with Sentinel API",
         variant: "destructive"
       });
     } finally {
@@ -158,14 +159,14 @@ export const HostBreachIntegration = () => {
   const syncAllFeeds = async () => {
     setSyncing(true);
     const activeFeeds = feeds.filter(f => f.status === 'ACTIVE');
-    
+
     try {
       const syncPromises = activeFeeds.map(feed => syncFeed(feed.id));
       await Promise.all(syncPromises);
-      
+
       toast({
         title: "Bulk Sync Complete",
-        description: `Successfully synced ${activeFeeds.length} HostBreach feeds.`
+        description: `Successfully synced ${activeFeeds.length} Sentinel intel feeds.`
       });
     } catch (error) {
       toast({
@@ -179,8 +180,8 @@ export const HostBreachIntegration = () => {
   };
 
   const toggleFeedStatus = (feedId: string) => {
-    setFeeds(prev => prev.map(feed => 
-      feed.id === feedId 
+    setFeeds(prev => prev.map(feed =>
+      feed.id === feedId
         ? { ...feed, status: feed.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }
         : feed
     ));
@@ -208,13 +209,13 @@ export const HostBreachIntegration = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <Card className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 border-blue-500/30">
+      <Card className="bg-gradient-to-r from-slate-900 to-blue-900/40 border-slate-800">
         <CardHeader>
           <CardTitle className="flex items-center space-x-3 text-white">
-            <Link className="h-6 w-6 text-blue-400" />
+            <Radar className="h-6 w-6 text-red-500" />
             <div>
-              <h2 className="text-xl font-bold">HostBreach OSINT Integration</h2>
-              <p className="text-blue-200 text-sm">Intelligence-driven vCISO & CMMC Advisory Integration</p>
+              <h2 className="text-xl font-bold">Sentinel OSINT Intelligence</h2>
+              <p className="text-blue-200 text-sm">Automated vCISO & CMMC Threat Correlation</p>
             </div>
           </CardTitle>
         </CardHeader>
@@ -222,54 +223,54 @@ export const HostBreachIntegration = () => {
 
       {/* Metrics Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-black/40 border-blue-500/30 backdrop-blur-lg">
+        <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-lg">
           <CardContent className="p-4 text-center">
             <Database className="h-8 w-8 text-blue-400 mx-auto mb-2" />
             <div className="text-2xl font-bold text-white">{metrics.totalFeeds}</div>
-            <div className="text-xs text-gray-400">Total Feeds</div>
+            <div className="text-xs text-slate-400">Total Feeds</div>
           </CardContent>
         </Card>
-        
-        <Card className="bg-black/40 border-green-500/30 backdrop-blur-lg">
+
+        <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-lg">
           <CardContent className="p-4 text-center">
             <CheckCircle className="h-8 w-8 text-green-400 mx-auto mb-2" />
             <div className="text-2xl font-bold text-white">{metrics.activeFeeds}</div>
-            <div className="text-xs text-gray-400">Active Feeds</div>
+            <div className="text-xs text-slate-400">Active Feeds</div>
           </CardContent>
         </Card>
-        
-        <Card className="bg-black/40 border-yellow-500/30 backdrop-blur-lg">
+
+        <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-lg">
           <CardContent className="p-4 text-center">
             <TrendingUp className="h-8 w-8 text-yellow-400 mx-auto mb-2" />
             <div className="text-2xl font-bold text-white">{metrics.indicatorsToday}</div>
-            <div className="text-xs text-gray-400">Indicators Today</div>
+            <div className="text-xs text-slate-400">Indicators Today</div>
           </CardContent>
         </Card>
-        
-        <Card className="bg-black/40 border-red-500/30 backdrop-blur-lg">
+
+        <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-lg">
           <CardContent className="p-4 text-center">
             <Shield className="h-8 w-8 text-red-400 mx-auto mb-2" />
             <div className="text-2xl font-bold text-white">{metrics.threatsBlocked}</div>
-            <div className="text-xs text-gray-400">Threats Blocked</div>
+            <div className="text-xs text-slate-400">Threats Neutralized</div>
           </CardContent>
         </Card>
       </div>
 
       {/* Configuration */}
-      <Card className="bg-black/40 border-blue-500/30 backdrop-blur-lg">
+      <Card className="bg-black/40 border-slate-800 backdrop-blur-lg">
         <CardHeader>
           <CardTitle className="flex items-center justify-between text-white">
             <div className="flex items-center space-x-2">
               <Settings className="h-5 w-5 text-blue-400" />
-              <span>Integration Configuration</span>
+              <span>Sentinel Configuration</span>
             </div>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <Label className="text-sm text-gray-300">Auto Sync</Label>
+                <Label className="text-sm text-slate-300">Auto Sync</Label>
                 <Switch checked={autoSync} onCheckedChange={setAutoSync} />
               </div>
-              <Button 
-                onClick={syncAllFeeds} 
+              <Button
+                onClick={syncAllFeeds}
                 disabled={syncing}
                 className="bg-blue-600 hover:bg-blue-700"
               >
@@ -282,26 +283,26 @@ export const HostBreachIntegration = () => {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label className="text-sm text-gray-300 mb-2 block">HostBreach API Key</Label>
+              <Label className="text-sm text-slate-300 mb-2 block">Sentinel API Key</Label>
               <Input
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Enter your HostBreach API key"
-                className="bg-slate-700 border-slate-600 text-white"
+                placeholder="Enter Unified Sentinel API Key"
+                className="bg-slate-900 border-slate-700 text-white"
               />
-              <p className="text-xs text-gray-400 mt-1">
-                Contact HostBreach team for API access credentials
+              <p className="text-xs text-slate-500 mt-1">
+                Provide your internal AdinKhepra credential for secure intel streaming
               </p>
             </div>
             <div className="space-y-2">
-              <Label className="text-sm text-gray-300">Integration Status</Label>
+              <Label className="text-sm text-slate-300">Intel Pipeline Status</Label>
               <div className="flex items-center space-x-2 p-3 bg-green-900/40 rounded border border-green-500/30">
                 <CheckCircle className="h-4 w-4 text-green-400" />
-                <span className="text-sm text-green-200">Connected to HostBreach API</span>
+                <span className="text-sm text-green-200">Intelligence Stream Active</span>
               </div>
-              <div className="text-xs text-gray-400">
-                Last update: {new Date(metrics.lastUpdate).toLocaleString()}
+              <div className="text-xs text-slate-500">
+                Last heartbeat: {new Date(metrics.lastUpdate).toLocaleString()}
               </div>
             </div>
           </div>
@@ -309,14 +310,14 @@ export const HostBreachIntegration = () => {
       </Card>
 
       {/* Feed Management */}
-      <Card className="bg-black/40 border-blue-500/30 backdrop-blur-lg">
+      <Card className="bg-black/40 border-slate-800 backdrop-blur-lg">
         <CardHeader>
-          <CardTitle className="text-white">OSINT Feed Management</CardTitle>
+          <CardTitle className="text-white">Unified Pulse Management</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {feeds.map((feed) => (
-              <div key={feed.id} className="p-4 bg-slate-800/40 rounded-lg border border-slate-600/30">
+              <div key={feed.id} className="p-4 bg-slate-900/60 rounded-lg border border-slate-800">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center space-x-3">
                     <Globe className="h-5 w-5 text-blue-400" />
@@ -333,34 +334,34 @@ export const HostBreachIntegration = () => {
                   <div className="flex items-center space-x-3">
                     <div className="text-right text-sm">
                       <div className="text-white font-medium">{feed.indicatorCount.toLocaleString()}</div>
-                      <div className="text-gray-400 text-xs">indicators</div>
+                      <div className="text-slate-400 text-xs">indicators</div>
                     </div>
-                    <Switch 
-                      checked={feed.status === 'ACTIVE'} 
+                    <Switch
+                      checked={feed.status === 'ACTIVE'}
                       onCheckedChange={() => toggleFeedStatus(feed.id)}
                     />
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       variant="outline"
                       onClick={() => syncFeed(feed.id)}
                       disabled={syncing || feed.status !== 'ACTIVE'}
-                      className="border-blue-500/30 text-blue-400 hover:bg-blue-600/20"
+                      className="border-slate-800 text-blue-400 hover:bg-blue-600/20"
                     >
                       {syncing ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
                     </Button>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-4 text-xs text-gray-400">
+                <div className="grid grid-cols-3 gap-4 text-xs text-slate-500">
                   <div>
-                    <span className="block font-medium">Endpoint:</span>
+                    <span className="block font-medium">Internal API Path:</span>
                     <span>{feed.apiEndpoint}</span>
                   </div>
                   <div>
-                    <span className="block font-medium">Sync Interval:</span>
+                    <span className="block font-medium">Pulse Frequency:</span>
                     <span>{feed.syncInterval} minutes</span>
                   </div>
                   <div>
-                    <span className="block font-medium">Last Sync:</span>
+                    <span className="block font-medium">Last Data Pulse:</span>
                     <span>{new Date(feed.lastSync).toLocaleString()}</span>
                   </div>
                 </div>
@@ -370,52 +371,36 @@ export const HostBreachIntegration = () => {
         </CardContent>
       </Card>
 
-      {/* Integration Benefits */}
-      <Card className="bg-black/40 border-blue-500/30 backdrop-blur-lg">
+      {/* Capabilities */}
+      <Card className="bg-black/40 border-slate-800 backdrop-blur-lg">
         <CardHeader>
-          <CardTitle className="text-white">HostBreach Partnership Benefits</CardTitle>
+          <CardTitle className="text-white">Sentinel Intel Capabilities</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
-              <h4 className="text-blue-400 font-medium">Intelligence-Driven Compliance</h4>
-              <ul className="space-y-2 text-sm text-gray-300">
+              <h4 className="text-blue-400 font-medium">Intelligence-Driven Detection</h4>
+              <ul className="space-y-2 text-sm text-slate-300">
                 <li className="flex items-center space-x-2">
-                  <CheckCircle className="h-4 w-4 text-green-400" />
-                  <span>Real-time threat intelligence integration</span>
+                  <CheckCircle className="h-4 w-4 text-emerald-400" />
+                  <span>Real-time correlation of OSINT IOCs to active workloads</span>
                 </li>
                 <li className="flex items-center space-x-2">
-                  <CheckCircle className="h-4 w-4 text-green-400" />
-                  <span>Automated IOC ingestion and blocking</span>
-                </li>
-                <li className="flex items-center space-x-2">
-                  <CheckCircle className="h-4 w-4 text-green-400" />
-                  <span>Enhanced CMMC control validation</span>
-                </li>
-                <li className="flex items-center space-x-2">
-                  <CheckCircle className="h-4 w-4 text-green-400" />
-                  <span>Proactive vulnerability management</span>
+                  <CheckCircle className="h-4 w-4 text-emerald-400" />
+                  <span>Automated threat landscape mapping for CMMC assessments</span>
                 </li>
               </ul>
             </div>
             <div className="space-y-3">
-              <h4 className="text-blue-400 font-medium">Joint Value Proposition</h4>
-              <ul className="space-y-2 text-sm text-gray-300">
+              <h4 className="text-blue-400 font-medium">Autonomous Remediation</h4>
+              <ul className="space-y-2 text-sm text-slate-300">
                 <li className="flex items-center space-x-2">
-                  <CheckCircle className="h-4 w-4 text-green-400" />
-                  <span>60-80% reduction in compliance assessment time</span>
+                  <CheckCircle className="h-4 w-4 text-emerald-400" />
+                  <span>60-80% reduction in true-positive validation time</span>
                 </li>
                 <li className="flex items-center space-x-2">
-                  <CheckCircle className="h-4 w-4 text-green-400" />
-                  <span>Automated POA&M generation and tracking</span>
-                </li>
-                <li className="flex items-center space-x-2">
-                  <CheckCircle className="h-4 w-4 text-green-400" />
-                  <span>White-labeled compliance dashboards</span>
-                </li>
-                <li className="flex items-center space-x-2">
-                  <CheckCircle className="h-4 w-4 text-green-400" />
-                  <span>Executive-ready audit reports</span>
+                  <CheckCircle className="h-4 w-4 text-emerald-400" />
+                  <span>Instant POA&M generation linked to forensic evidence</span>
                 </li>
               </ul>
             </div>
