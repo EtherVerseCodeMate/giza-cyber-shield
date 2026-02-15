@@ -170,6 +170,7 @@ func (s *Server) handleUpgradeLicense(c *gin.Context) {
 
 // handleGetLicenseUsage returns usage stats for a license
 // GET /api/v1/license/:license_id/usage
+// OWASP API1:2023 - Broken Object Level Authorization mitigation
 func (s *Server) handleGetLicenseUsage(c *gin.Context) {
 	licenseID := c.Param("license_id")
 	if licenseID == "" {
@@ -179,6 +180,24 @@ func (s *Server) handleGetLicenseUsage(c *gin.Context) {
 			Code:    http.StatusBadRequest,
 		})
 		return
+	}
+
+	// Authorization Check:
+	// 1. Service accounts (admin) can access any license
+	// 2. Regular users (API key/Machine ID) can only access licenses they own
+	authType, _ := c.Get("auth_type")
+	if authType != "service" {
+		// For non-service auth, we verify the license belongs to this machine
+		// In this implementation, we check if the requested license is the active one
+		fullStatus := s.licMgr.GetFullStatus()
+		if fullStatus.LicenseID != licenseID {
+			c.JSON(http.StatusForbidden, ErrorResponse{
+				Error:   "forbidden",
+				Message: "Access to another user's license usage is prohibited",
+				Code:    http.StatusForbidden,
+			})
+			return
+		}
 	}
 
 	lic, err := s.licMgr.GetLicense(licenseID)
@@ -199,7 +218,7 @@ func (s *Server) handleGetLicenseUsage(c *gin.Context) {
 		"nodes_remaining":   lic.NodeQuota - lic.NodeCount,
 		"percent_used":      fmt.Sprintf("%.1f%%", float64(lic.NodeCount)/float64(lic.NodeQuota)*100),
 		"expires_at":        lic.ExpiresAt,
-		"asset_criticality": license.TierConfigurations[lic.Tier].AssetCriticality, // Exposed for Risk Scoring
+		"asset_criticality": license.TierConfigurations[lic.Tier].AssetCriticality,
 	})
 }
 
