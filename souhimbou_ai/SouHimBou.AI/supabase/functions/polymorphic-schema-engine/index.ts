@@ -38,15 +38,15 @@ Deno.serve(async (req) => {
       case 'get_adapters': {
         // Get available adapters for the organization and environment type
         const { data: adapters, error } = await supabaseClient
-          .rpc('get_available_adapters', { 
+          .rpc('get_available_adapters', {
             org_id: organizationId,
-            env_type: environmentType 
+            env_type: environmentType
           })
 
         if (error) {
           console.error('Error fetching adapters:', error)
           return new Response(
-            JSON.stringify({ error: 'Failed to fetch adapters' }), 
+            JSON.stringify({ error: 'Failed to fetch adapters' }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
       case 'configure_connection': {
         if (!adapterId || !connectionConfig) {
           return new Response(
-            JSON.stringify({ error: 'Missing adapter ID or connection config' }), 
+            JSON.stringify({ error: 'Missing adapter ID or connection config' }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
         if (error) {
           console.error('Error creating connection:', error)
           return new Response(
-            JSON.stringify({ error: 'Failed to create connection' }), 
+            JSON.stringify({ error: 'Failed to create connection' }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
 
         if (!adapter) {
           return new Response(
-            JSON.stringify({ error: 'Adapter not found' }), 
+            JSON.stringify({ error: 'Adapter not found' }),
             { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
         // Update connection with test results
         await supabaseClient
           .from('data_source_connections')
-          .update({ 
+          .update({
             test_results: testResult,
             last_test: new Date().toISOString(),
             connection_status: testResult.success ? 'connected' : 'failed'
@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
             stig_applicability: ['RHEL_8_STIG', 'General_Purpose_OS_STIG']
           },
           {
-            asset_identifier: `${environmentType}-002`, 
+            asset_identifier: `${environmentType}-002`,
             asset_type: 'network_device',
             asset_metadata: {
               hostname: `${environmentType}-switch-001`,
@@ -199,13 +199,13 @@ Deno.serve(async (req) => {
         if (error) {
           console.error('Error saving discovered assets:', error)
           return new Response(
-            JSON.stringify({ error: 'Failed to save discovered assets' }), 
+            JSON.stringify({ error: 'Failed to save discovered assets' }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
 
         return new Response(
-          JSON.stringify({ 
+          JSON.stringify({
             discovered_assets: assets,
             discovery_summary: {
               total_assets: assets?.length || 0,
@@ -219,18 +219,18 @@ Deno.serve(async (req) => {
 
       default:
         return new Response(
-          JSON.stringify({ error: 'Unknown action' }), 
+          JSON.stringify({ error: 'Unknown action' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Polymorphic Engine error:', error)
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: 'Request processing failed',
-        message: 'Unable to complete the requested operation. Please try again.'
-      }), 
+        message: error.message || 'Unable to complete the requested operation.'
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
