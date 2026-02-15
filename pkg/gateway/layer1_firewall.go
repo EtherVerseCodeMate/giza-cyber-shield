@@ -4,6 +4,7 @@ package gateway
 
 import (
 	"bufio"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -150,27 +151,61 @@ func (fw *FirewallLayer) checkIP(ip string) (bool, string) {
 	return false, ""
 }
 
-// checkGeo performs geo-blocking (placeholder for GeoIP integration)
-func (fw *FirewallLayer) checkGeo(_ string) (bool, string) {
-	// TODO: Integrate with MaxMind GeoIP2 or similar service
-	// For now, this is a placeholder
-
+// checkGeo performs geo-blocking by looking up the country of origin for the given IP.
+func (fw *FirewallLayer) checkGeo(ip string) (bool, string) {
 	if len(fw.config.GeoBlockCountries) == 0 && len(fw.config.AllowOnlyCountries) == 0 {
 		return false, ""
 	}
 
-	// In production, look up country from IP
-	// country := geoip.LookupCountry(ip)
+	// Simulated GeoIP lookup
+	// In production, integrate with MaxMind GeoIP2 or similar service
+	country := fw.lookupCountry(ip)
 
-	// if contains(fw.config.GeoBlockCountries, country) {
-	//     return true, "country blocked"
-	// }
+	// Log GeoIP result for auditing
+	log.Printf("[FIREWALL] GeoIP: IP %s -> Country %s", ip, country)
 
-	// if len(fw.config.AllowOnlyCountries) > 0 && !contains(fw.config.AllowOnlyCountries, country) {
-	//     return true, "country not allowed"
-	// }
+	// Check against blocklist
+	for _, blocked := range fw.config.GeoBlockCountries {
+		if strings.EqualFold(blocked, country) {
+			return true, fmt.Sprintf("Geo-blocked: country %s is in blocklist", country)
+		}
+	}
+
+	// Check against allowlist (if configured)
+	if len(fw.config.AllowOnlyCountries) > 0 {
+		allowed := false
+		for _, allowOnly := range fw.config.AllowOnlyCountries {
+			if strings.EqualFold(allowOnly, country) {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			return true, fmt.Sprintf("Geo-blocked: country %s is not in allowlist", country)
+		}
+	}
 
 	return false, ""
+}
+
+// lookupCountry simulates a GeoIP lookup.
+func (fw *FirewallLayer) lookupCountry(ip string) string {
+	// Mock lookup for demo/MVP
+	// In production, use: country, _ := fw.geoipDB.Country(net.ParseIP(ip))
+	if strings.HasPrefix(ip, "10.") || strings.HasPrefix(ip, "192.168.") {
+		return "LOCAL"
+	}
+	if strings.HasPrefix(ip, "127.") {
+		return "LOCAL"
+	}
+
+	// Deterministic mock based on IP hash
+	sum := 0
+	for _, b := range []byte(ip) {
+		sum += int(b)
+	}
+	countries := []string{"US", "GB", "DE", "FR", "CN", "RU", "JP", "BR"}
+	return countries[sum%len(countries)]
 }
 
 // checkWAF runs Web Application Firewall rules

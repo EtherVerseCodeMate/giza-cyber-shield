@@ -4,6 +4,8 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -42,6 +44,19 @@ func InitializeServiceAccounts(accounts []ServiceAccount) {
 
 // LoadDefaultServiceAccounts provides backward compatibility with secure defaults
 func LoadDefaultServiceAccounts() {
+	// Attempt to load from JSON environment variable first
+	if accountsJSON := os.Getenv("KHEPRA_SERVICE_ACCOUNTS_JSON"); accountsJSON != "" {
+		var accounts []ServiceAccount
+		if err := json.Unmarshal([]byte(accountsJSON), &accounts); err == nil {
+			InitializeServiceAccounts(accounts)
+			log.Printf("[AUTH] Loaded %d service accounts from KHEPRA_SERVICE_ACCOUNTS_JSON", len(accounts))
+			return
+		} else {
+			log.Printf("[AUTH] Failed to parse KHEPRA_SERVICE_ACCOUNTS_JSON: %v", err)
+		}
+	}
+
+	// Fallback to defaults (in production, these should be empty and loaded via vault)
 	InitializeServiceAccounts([]ServiceAccount{
 		{Name: "cloudflare-telemetry", Permissions: []string{"telemetry:write", "telemetry:read"}},
 		{Name: "license-signer", Permissions: []string{"license:write", "license:read"}},
@@ -49,7 +64,7 @@ func LoadDefaultServiceAccounts() {
 }
 
 // ServiceAuthMiddleware validates service account tokens
-// Token format: khepra-svc-{service_name}-{timestamp}-{hmac_signature}
+// Token format: {ServiceTokenPrefix}{service_name}-{timestamp}-{hmac_signature}
 // OWASP API2:2023 - Use strong authentication mechanisms
 func ServiceAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -64,7 +79,7 @@ func ServiceAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Expected format: "Bearer khepra-svc-{service_name}-{timestamp}-{hmac}"
+		// Expected format: "Bearer {ServiceTokenPrefix}{service_name}-{timestamp}-{hmac}"
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || parts[0] != "Bearer" {
 			c.JSON(http.StatusUnauthorized, ErrorResponse{
@@ -98,7 +113,7 @@ func ServiceAuthMiddleware() gin.HandlerFunc {
 // validateServiceToken validates the HMAC-signed service token
 // OWASP API8:2023 - Security Misconfiguration prevention
 func validateServiceToken(token string) (*ServiceAccount, error) {
-	// Token format: khepra-svc-{service_name}-{timestamp_hex}-{hmac_hex}
+	// Token format: {ServiceTokenPrefix}{service_name}-{timestamp_hex}-{hmac_hex}
 	// where timestamp_hex is 16 chars, hmac_hex is 64 chars
 	if !strings.HasPrefix(token, ServiceTokenPrefix) {
 		return nil, &AuthError{Message: "Invalid token format"}
@@ -201,11 +216,11 @@ func GenerateServiceToken(serviceName string) (string, error) {
 
 	// Generate HMAC signature
 	secret := getServiceSecret()
-	message := "khepra-svc-" + serviceName + "-" + timestampHex
+	message := ServiceTokenPrefix + serviceName + "-" + timestampHex
 	signature := computeHMAC(message, secret)
 
 	// Construct token
-	token := "khepra-svc-" + serviceName + "-" + timestampHex + "-" + signature
+	token := ServiceTokenPrefix + serviceName + "-" + timestampHex + "-" + signature
 
 	return token, nil
 }
