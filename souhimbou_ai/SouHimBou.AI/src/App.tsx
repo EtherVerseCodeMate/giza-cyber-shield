@@ -37,6 +37,7 @@ import UltimateDashboard from "./pages/UltimateDashboard";
 import CommandCenter from "./pages/CommandCenter";
 import NotFound from "./pages/NotFound";
 import LegalPage from "./pages/LegalPage";
+import { ThreatHuntingDashboard } from "./pages/ThreatHuntingDashboard";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 /**
@@ -110,6 +111,7 @@ const App = () => {
                     <Route path="/billing" element={<ProtectedRoute><SimpleBilling /></ProtectedRoute>} />
                     <Route path="/ultimate" element={<ProtectedRoute><UltimateDashboard /></ProtectedRoute>} />
                     <Route path="/command-center" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
+                    <Route path="/threat-hunting" element={<ProtectedRoute><ThreatHuntingDashboard /></ProtectedRoute>} />
 
                     {/* DoD Solutions (public marketing page) */}
                     <Route path="/dod" element={<DoD />} />
