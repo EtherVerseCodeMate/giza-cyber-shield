@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Eye, Globe, Shield, Zap } from "lucide-react";
+import { Eye, Globe, Shield, Zap, Radar, Activity } from "lucide-react";
 
 const IntelligenceSovereignty = () => {
     // Mock data - will be replaced with real API calls
@@ -144,6 +144,41 @@ const IntelligenceSovereignty = () => {
 
                         <button className="w-full p-3 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium transition-all">
                             Start PQC Migration
+                        </button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Threat Hunting & Forensics Overlay */}
+            <Card className="bg-slate-900/50 border-slate-800 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <Radar className="w-24 h-24 text-red-500" />
+                </div>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-slate-200">
+                        <Radar className="w-5 h-5 text-red-500" />
+                        Sentinel Threat Hunting
+                    </CardTitle>
+                    <CardDescription>Advanced behavioral forensics and cross-process analysis</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-4">
+                        <div className="p-4 rounded-lg bg-red-950/20 border border-red-900/30">
+                            <div className="flex items-center gap-3">
+                                <Activity className="w-5 h-5 text-red-400" />
+                                <div>
+                                    <h4 className="text-sm font-medium text-slate-200">Behavioral Timeline Active</h4>
+                                    <p className="text-xs text-slate-400 mt-0.5">ProcDot-ready visualization of system mutations</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => window.location.href = '/threat-hunting'}
+                            className="w-full p-3 rounded-lg border border-red-500/50 text-red-400 hover:bg-red-500/10 font-medium transition-all flex items-center justify-center gap-2"
+                        >
+                            <Zap className="w-4 h-4" />
+                            Launch Forensics Intelligence
                         </button>
                     </div>
                 </CardContent>
