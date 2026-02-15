@@ -8,6 +8,7 @@ import {
     Server, Wifi, Shield, Clock, CheckCircle2, XCircle, AlertTriangle,
     Play, Pause, RefreshCw
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 // Types
 interface Endpoint {
@@ -57,19 +58,47 @@ const CommandCenter = () => {
     const [scanProgress, setScanProgress] = useState(0);
     const [isScanning, setIsScanning] = useState(false);
 
-    const startScan = () => {
+    const startScan = async () => {
         setIsScanning(true);
         setScanProgress(0);
-        const interval = setInterval(() => {
-            setScanProgress((prev) => {
-                if (prev >= 100) {
-                    clearInterval(interval);
-                    setIsScanning(false);
-                    return 100;
+
+        try {
+            // Call real STIG compliance scan via Supabase Edge Function
+            const { data, error } = await supabase.functions.invoke('stig-compliance-orchestrator', {
+                body: {
+                    action: 'start_scan',
+                    endpoint_id: selectedEndpoint?.id,
+                    scan_type: 'full'
                 }
-                return prev + Math.random() * 15;
             });
-        }, 500);
+
+            if (error) {
+                console.error('Scan initiation failed:', error);
+                setIsScanning(false);
+                return;
+            }
+
+            // Poll for real scan progress
+            const scanId = data?.scan_id;
+            const pollInterval = setInterval(async () => {
+                const { data: progressData } = await supabase.functions.invoke('stig-compliance-orchestrator', {
+                    body: { action: 'get_scan_status', scan_id: scanId }
+                });
+
+                const progress = progressData?.progress || 0;
+                setScanProgress(progress);
+
+                if (progress >= 100 || progressData?.status === 'completed') {
+                    clearInterval(pollInterval);
+                    setIsScanning(false);
+                    setScanProgress(100);
+                }
+            }, 2000); // Poll every 2 seconds
+
+        } catch (err) {
+            console.error('Scan failed:', err);
+            setIsScanning(false);
+        }
     };
 
     const severityColor = (severity: string) => {
