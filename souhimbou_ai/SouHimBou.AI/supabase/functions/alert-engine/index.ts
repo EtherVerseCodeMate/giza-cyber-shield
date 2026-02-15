@@ -163,13 +163,13 @@ async function processAlertRules(triggerData?: any) {
 
         triggeredRules++;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error processing rule ${rule.name}:`, error);
       results.push({
         rule_id: rule.id,
         rule_name: rule.name,
         triggered: false,
-        error: error.message
+        error: error.message || 'Unknown error'
       });
     }
   }
