@@ -17,9 +17,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"regexp"
-	"strings"
 	"time"
 )
 
@@ -102,18 +100,7 @@ var rolePermissions = map[STIGRole][]string{
 	},
 }
 
-// ─── Identity & Authentication ─────────────────────────────────────────────────
-
-// Identity represents an authenticated agent or user.
-type Identity struct {
-	ID                  string             // Unique identity ID (from JWT subject)
-	Role                STIGRole           // RBAC role
-	DataClassification  DataClassification // Max data classification this identity can access
-	Name                string             // Display name
-	Source              string             // "mcp_agent", "api_key", "user_session"
-	IssuedAt            time.Time
-	ExpiresAt           time.Time
-}
+// ─── Identity check handled in gateway.go ───────────────────────────────────
 
 // ─── MCP Gateway ───────────────────────────────────────────────────────────────
 
@@ -162,9 +149,9 @@ func (g *MCPGateway) ScanForInjection(content string) error {
 			}
 
 			g.auditLog.Log("prompt_injection_blocked", nil, map[string]interface{}{
-				"pattern_index": i,
+				"pattern_index":   i,
 				"content_preview": preview,
-				"timestamp": time.Now().UTC(),
+				"timestamp":       time.Now().UTC(),
 			})
 
 			return fmt.Errorf("potential prompt injection detected (pattern %d)", i)
@@ -195,7 +182,7 @@ func (g *MCPGateway) CheckPermission(identity *Identity, operation string) error
 	// Log access denial
 	g.auditLog.Log("stig_access_denied", identity, map[string]interface{}{
 		"operation": operation,
-		"role": identity.Role,
+		"role":      identity.Role,
 		"timestamp": time.Now().UTC(),
 	})
 
@@ -206,23 +193,23 @@ func (g *MCPGateway) CheckPermission(identity *Identity, operation string) error
 
 // STIGQueryRequest represents a query for STIG data.
 type STIGQueryRequest struct {
-	STIGID      string `json:"stig_id"`       // e.g., "RHEL-08-010010"
-	Operation   string `json:"operation"`      // e.g., "query_stigs", "view_decomposed_rules"
-	Filters     map[string]interface{} `json:"filters,omitempty"`
-	IncludeProcessTimeline bool `json:"include_process_timeline,omitempty"` // New: request process behavior data
+	STIGID                 string                 `json:"stig_id"`   // e.g., "RHEL-08-010010"
+	Operation              string                 `json:"operation"` // e.g., "query_stigs", "view_decomposed_rules"
+	Filters                map[string]interface{} `json:"filters,omitempty"`
+	IncludeProcessTimeline bool                   `json:"include_process_timeline,omitempty"` // New: request process behavior data
 }
 
 // STIGQueryResponse represents the filtered response.
 type STIGQueryResponse struct {
-	STIGID             string                 `json:"stig_id"`
-	Title              string                 `json:"title"`
-	Severity           string                 `json:"severity"`
-	Complexity         string                 `json:"complexity,omitempty"` // Filtered based on role
+	STIGID             string                   `json:"stig_id"`
+	Title              string                   `json:"title"`
+	Severity           string                   `json:"severity"`
+	Complexity         string                   `json:"complexity,omitempty"` // Filtered based on role
 	DecomposedRules    []map[string]interface{} `json:"decomposed_rules,omitempty"`
-	RoleMappings       []string               `json:"role_mappings,omitempty"` // Analyst+ only
-	ComplianceStatus   string                 `json:"compliance_status,omitempty"` // Analyst+ only
-	ProcessTimeline    []ProcessBehaviorEvent `json:"process_timeline,omitempty"` // Admin only
-	DataClassification DataClassification    `json:"data_classification"`
+	RoleMappings       []string                 `json:"role_mappings,omitempty"`     // Analyst+ only
+	ComplianceStatus   string                   `json:"compliance_status,omitempty"` // Analyst+ only
+	ProcessTimeline    []ProcessBehaviorEvent   `json:"process_timeline,omitempty"`  // Admin only
+	DataClassification DataClassification       `json:"data_classification"`
 }
 
 // ProcessBehaviorEvent represents a process behavior event from the timeline.
@@ -238,7 +225,7 @@ type ProcessBehaviorEvent struct {
 	Details          string    `json:"details,omitempty"`
 	CMMCControl      string    `json:"cmmc_control,omitempty"`
 	STIGControl      string    `json:"stig_control,omitempty"` // New: STIG mapping
-	ComplianceStatus string    `json:"compliance_status"` // VALIDATED, VIOLATION, PENDING
+	ComplianceStatus string    `json:"compliance_status"`      // VALIDATED, VIOLATION, PENDING
 }
 
 // HandleSTIGQuery processes a STIG query request with full security enforcement.
@@ -278,10 +265,10 @@ func (g *MCPGateway) HandleSTIGQuery(ctx context.Context, identity *Identity, re
 
 	// 7. Audit log the query
 	g.auditLog.Log("stig_query_executed", identity, map[string]interface{}{
-		"stig_id": req.STIGID,
-		"operation": req.Operation,
+		"stig_id":             req.STIGID,
+		"operation":           req.Operation,
 		"data_class_returned": filtered.DataClassification,
-		"timestamp": time.Now().UTC(),
+		"timestamp":           time.Now().UTC(),
 	})
 
 	return filtered, nil
