@@ -117,7 +117,7 @@ const mockEvents: BehaviorEvent[] = [
         processName: 'cmd.exe',
         type: 'FILE',
         action: 'CREATE',
-        target: 'C:\\temp\\exploit.exe',
+        target: String.raw`C:\temp\exploit.exe`,
         cmmcControl: 'SI.L2-3.14.6',
         complianceStatus: 'VALIDATED'
     },
@@ -128,7 +128,7 @@ const mockEvents: BehaviorEvent[] = [
         processName: 'cmd.exe',
         type: 'REGISTRY',
         action: 'SET',
-        target: 'HKLM\\Software\\Microsoft\\Windows\\Run',
+        target: String.raw`HKLM\Software\Microsoft\Windows\Run`,
         details: 'Persistence Mechanism',
         cmmcControl: 'AU.L2-3.3.2',
         complianceStatus: 'VIOLATION'
@@ -152,7 +152,7 @@ const mockEvents: BehaviorEvent[] = [
         processName: 'exploit.exe',
         type: 'FILE',
         action: 'READ',
-        target: 'C:\\Users\\admin\\Documents\\secrets.docx',
+        target: String.raw`C:\Users\admin\Documents\secrets.docx`,
         cmmcControl: 'AU.L2-3.3.1',
         complianceStatus: 'VIOLATION'
     },
@@ -257,12 +257,15 @@ export const ProcessBehaviorTimeline = () => {
                         }`}>
                         <Zap className={`h-3 w-3 ${autopilotActive ? 'text-emerald-500' : 'text-slate-500'}`} />
                         <span className="text-[10px] font-bold text-slate-300 uppercase">Compliance Autopilot</span>
-                        <div
+                        <button
+                            role="switch"
+                            aria-checked={autopilotActive}
                             onClick={() => setAutopilotActive(!autopilotActive)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setAutopilotActive(!autopilotActive); }}
                             className={`w-8 h-4 rounded-full relative cursor-pointer transition-colors ${autopilotActive ? 'bg-emerald-600' : 'bg-slate-700'}`}
                         >
                             <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${autopilotActive ? 'right-0.5' : 'left-0.5'}`} />
-                        </div>
+                        </button>
                     </div>
                     <div className="h-8 w-px bg-slate-800 mx-2" />
                     <div className="flex space-x-1">
