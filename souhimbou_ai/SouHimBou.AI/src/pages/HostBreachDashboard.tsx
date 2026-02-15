@@ -2,15 +2,16 @@ import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Shield, 
-  Globe, 
-  TrendingUp, 
-  Users, 
+import {
+  Shield,
+  Globe,
+  TrendingUp,
+  Users,
   FileText,
   Settings,
   Link,
-  AlertTriangle
+  AlertTriangle,
+  Activity
 } from "lucide-react";
 import { CMMCDashboard } from "@/components/compliance/CMMCDashboard";
 import { HostBreachIntegration } from "@/components/integration/HostBreachIntegration";
@@ -19,6 +20,7 @@ import { ThreatIntelligence } from "@/components/ThreatIntelligence";
 import { SecurityDashboard } from "@/pages/SecurityDashboard";
 import { useWhiteLabel } from "@/components/branding/WhiteLabelProvider";
 import { UsageTracker } from "@/components/UsageTracker";
+import { ProcessBehaviorTimeline } from "@/components/forensics/ProcessBehaviorTimeline";
 
 export const HostBreachDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -35,15 +37,15 @@ export const HostBreachDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <UsageTracker pageName="hostbreach-dashboard" />
-      
+
       {/* Header */}
       <div className="border-b border-slate-700/50 bg-black/20 backdrop-blur-sm">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               {isPartnerBranded && branding.partner_logo_url && (
-                <img 
-                  src={branding.partner_logo_url} 
+                <img
+                  src={branding.partner_logo_url}
                   alt={branding.partner_name}
                   className="h-10 w-auto"
                 />
@@ -57,7 +59,7 @@ export const HostBreachDashboard = () => {
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
                 CMMC Level 2 Ready
@@ -102,6 +104,10 @@ export const HostBreachDashboard = () => {
               <Link className="h-4 w-4 mr-2" />
               Integration
             </TabsTrigger>
+            <TabsTrigger value="forensics" className="data-[state=active]:bg-red-600">
+              <Activity className="h-4 w-4 mr-2" />
+              Forensics
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6 mt-6">
@@ -114,7 +120,7 @@ export const HostBreachDashboard = () => {
                   <div className="text-xs text-gray-400">Active Clients</div>
                 </CardContent>
               </Card>
-              
+
               <Card className="bg-black/40 border-green-500/30 backdrop-blur-lg">
                 <CardContent className="p-4 text-center">
                   <Shield className="h-8 w-8 text-green-400 mx-auto mb-2" />
@@ -122,7 +128,7 @@ export const HostBreachDashboard = () => {
                   <div className="text-xs text-gray-400">Avg Compliance</div>
                 </CardContent>
               </Card>
-              
+
               <Card className="bg-black/40 border-purple-500/30 backdrop-blur-lg">
                 <CardContent className="p-4 text-center">
                   <Globe className="h-8 w-8 text-purple-400 mx-auto mb-2" />
@@ -130,7 +136,7 @@ export const HostBreachDashboard = () => {
                   <div className="text-xs text-gray-400">Intel Feeds</div>
                 </CardContent>
               </Card>
-              
+
               <Card className="bg-black/40 border-yellow-500/30 backdrop-blur-lg">
                 <CardContent className="p-4 text-center">
                   <AlertTriangle className="h-8 w-8 text-yellow-400 mx-auto mb-2" />
@@ -138,7 +144,7 @@ export const HostBreachDashboard = () => {
                   <div className="text-xs text-gray-400">Incidents Prevented</div>
                 </CardContent>
               </Card>
-              
+
               <Card className="bg-black/40 border-green-500/30 backdrop-blur-lg">
                 <CardContent className="p-4 text-center">
                   <TrendingUp className="h-8 w-8 text-green-400 mx-auto mb-2" />
@@ -240,6 +246,10 @@ export const HostBreachDashboard = () => {
 
           <TabsContent value="integration" className="mt-6">
             <HostBreachIntegration />
+          </TabsContent>
+
+          <TabsContent value="forensics" className="mt-6">
+            <ProcessBehaviorTimeline />
           </TabsContent>
         </Tabs>
       </div>
