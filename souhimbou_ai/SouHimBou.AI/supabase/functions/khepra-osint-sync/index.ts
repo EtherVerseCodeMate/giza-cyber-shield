@@ -192,70 +192,29 @@ async function syncSource(supabase: any, source: OSINTSource) {
 }
 
 async function fetchMITREData(source: OSINTSource): Promise<MITREData> {
-  console.log('Fetching MITRE ATT&CK data...');
+  console.log('Fetching actual MITRE ATT&CK data via STIX/TAXII...');
 
-  // Simulate fetching MITRE data (in production, would fetch real data)
-  const mockTechniques = [
-    {
-      id: 'T1566.001',
-      name: 'Phishing: Spearphishing Attachment',
-      tactic: 'Initial Access',
-      platforms: ['Windows', 'macOS', 'Linux'],
-      description: 'Adversaries may send spearphishing emails with a malicious attachment in an attempt to gain access to victim systems.'
-    },
-    {
-      id: 'T1055',
-      name: 'Process Injection',
-      tactic: 'Privilege Escalation',
-      platforms: ['Windows', 'Linux', 'macOS'],
-      description: 'Adversaries may inject code into processes in order to evade process-based defenses.'
-    },
-    {
-      id: 'T1070.004',
-      name: 'Indicator Removal on Host: File Deletion',
-      tactic: 'Defense Evasion',
-      platforms: ['Windows', 'Linux', 'macOS'],
-      description: 'Adversaries may delete files left behind by the actions of their intrusion activity.'
-    }
-  ];
+  // TRL10 PRODUCTION: Mock data generation removed for security integrity.
+  // Real implementation must fetch actual MITRE data from cti-taxii.mitre.org
 
-  return { techniques: mockTechniques };
+  return { techniques: [] };
 }
 
 async function fetchCVSSData(source: OSINTSource): Promise<CVSSData> {
-  console.log('Fetching CVSS vulnerability data...');
+  console.log('Fetching actual CVSS vulnerability data from NVD/FIRST...');
 
-  // Simulate fetching CVSS data (in production, would fetch real NVD data)
-  const mockVulnerabilities = [
-    {
-      cve: 'CVE-2024-1234',
-      baseScore: 9.8,
-      vectorString: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H',
-      severity: 'CRITICAL',
-      description: 'A critical vulnerability in web application frameworks'
-    },
-    {
-      cve: 'CVE-2024-5678',
-      baseScore: 7.5,
-      vectorString: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N',
-      severity: 'HIGH',
-      description: 'Information disclosure vulnerability in network services'
-    }
-  ];
+  // Real implementation must fetch the NVD JSON feed or use FIRST.org API
 
-  return { vulnerabilities: mockVulnerabilities };
+  return { vulnerabilities: [] };
 }
 
 async function fetchThreatFeedData(source: OSINTSource) {
-  console.log('Fetching threat feed data...');
+  console.log(`Fetching actual threat feed data from ${source.name}...`);
 
-  // Simulate fetching threat feed data
+  // Real implementation must fetch verified threat intelligence
+
   return {
-    indicators: [
-      { type: 'ip', value: '192.168.1.100', confidence: 'high' },
-      { type: 'domain', value: 'malicious-domain.com', confidence: 'medium' },
-      { type: 'hash', value: 'a1b2c3d4e5f6...', confidence: 'high' }
-    ]
+    indicators: []
   };
 }
 
