@@ -24,10 +24,10 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
-    const { 
-      organization_id, 
-      sync_type = 'full', 
-      force_refresh = false 
+    const {
+      organization_id,
+      sync_type = 'full',
+      force_refresh = false
     }: OpenControlsSyncRequest = await req.json();
 
     console.log(`Open Controls Sync: ${sync_type} for org ${organization_id}`);
@@ -44,7 +44,7 @@ serve(async (req) => {
       if (lastSync?.last_sync_timestamp) {
         const lastSyncTime = new Date(lastSync.last_sync_timestamp);
         const hoursSinceSync = (Date.now() - lastSyncTime.getTime()) / (1000 * 60 * 60);
-        
+
         if (hoursSinceSync < 1) {
           return new Response(JSON.stringify({
             success: true,
@@ -105,7 +105,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Open Controls Sync Error:', error);
-    
+
     return new Response(JSON.stringify({
       success: false,
       error: error.message,
@@ -119,120 +119,36 @@ serve(async (req) => {
 
 async function performOpenControlsSync(supabase: any, organizationId: string, syncType: string) {
   const startTime = Date.now();
-  
-  // Mock Open Controls intelligence sync - Ready for real integration
-  const mockResults = {
+
+  // TRL10 PRODUCTION: Mock data generation removed for security integrity
+  // Real integration requires valid API configurations for Open Controls, DISA, and NIST
+
+  const syncResults = {
     intelligence_updates: 0,
     configuration_updates: 0,
     performance_insights: 0,
     new_recommendations: [],
-    sync_duration_ms: 0
+    sync_duration_ms: 0,
+    status: 'INTEGRATION_REQUIRED',
+    message: `Open Controls ${syncType} sync requires external provider configuration for organization ${organizationId}`
   };
 
-  if (syncType === 'intelligence' || syncType === 'full') {
-    // Mock intelligence updates
-    mockResults.intelligence_updates = Math.floor(Math.random() * 25) + 5;
-    
-    // Simulate fetching latest security intelligence
-    const intelligenceData = [
-      {
-        source: 'DISA',
-        category: 'vulnerability_intelligence',
-        data: {
-          new_cves: ['CVE-2024-1234', 'CVE-2024-5678'],
-          threat_level: 'ELEVATED',
-          affected_platforms: ['RHEL 8', 'Windows Server 2022']
-        }
-      },
-      {
-        source: 'NIST',
-        category: 'framework_updates',
-        data: {
-          framework: 'CSF 2.0',
-          updated_controls: ['ID.AM', 'PR.AC', 'DE.AE'],
-          effective_date: '2024-02-26'
-        }
+  // Log that a sync was attempted but skipped due to missing integration
+  await supabase
+    .from('open_controls_performance_metrics')
+    .insert({
+      organization_id: organizationId,
+      metric_type: 'sync_skip',
+      metric_name: `skip_${syncType}_${Date.now()}`,
+      metric_value: 0,
+      metric_metadata: {
+        reason: 'MOCK_DATA_REMOVED',
+        sync_type: syncType,
+        production_mode: true
       }
-    ];
+    });
 
-    // Store intelligence updates
-    for (const intel of intelligenceData) {
-      await supabase
-        .from('open_controls_performance_metrics')
-        .insert({
-          organization_id: organizationId,
-          metric_type: 'intelligence_update',
-          metric_name: `${intel.source}_${intel.category}_${Date.now()}`,
-          metric_value: 1,
-          metric_metadata: intel
-        });
-    }
-  }
+  syncResults.sync_duration_ms = Date.now() - startTime;
 
-  if (syncType === 'configurations' || syncType === 'full') {
-    // Mock configuration updates
-    mockResults.configuration_updates = Math.floor(Math.random() * 15) + 3;
-    
-    const configurationRecommendations = [
-      {
-        id: 'OC_CONFIG_001',
-        priority: 'HIGH',
-        category: 'SSH_HARDENING',
-        title: 'Update SSH Configuration for Enhanced Security',
-        description: 'Latest DISA guidelines recommend additional SSH hardening measures',
-        affected_assets: ['rhel-servers', 'ubuntu-systems'],
-        implementation_script: 'sudo sed -i "s/#PermitRootLogin yes/PermitRootLogin no/" /etc/ssh/sshd_config',
-        compliance_impact: '+5% STIG compliance score'
-      },
-      {
-        id: 'OC_CONFIG_002',
-        priority: 'MEDIUM',
-        category: 'FIREWALL_RULES',
-        title: 'Optimize Firewall Rules Based on Traffic Analysis',
-        description: 'ML analysis suggests optimizing firewall rules for better performance',
-        affected_assets: ['network-firewalls'],
-        implementation_script: 'firewall-cmd --add-rich-rule="rule family="ipv4" source address="10.0.0.0/8" accept"',
-        compliance_impact: 'Improved network security posture'
-      }
-    ];
-
-    mockResults.new_recommendations = configurationRecommendations;
-  }
-
-  if (syncType === 'performance' || syncType === 'full') {
-    // Mock performance insights
-    mockResults.performance_insights = Math.floor(Math.random() * 10) + 2;
-    
-    // Generate performance optimization suggestions
-    const performanceInsights = [
-      {
-        insight_type: 'resource_optimization',
-        confidence: 0.87,
-        recommendation: 'Database connection pooling optimization could improve response times by 15%',
-        estimated_impact: { performance: '+15%', cost: '-5%' }
-      },
-      {
-        insight_type: 'security_enhancement',
-        confidence: 0.92,
-        recommendation: 'Implementing additional access controls would improve security score by 8%',
-        estimated_impact: { security: '+8%', compliance: '+12%' }
-      }
-    ];
-
-    for (const insight of performanceInsights) {
-      await supabase
-        .from('open_controls_performance_metrics')
-        .insert({
-          organization_id: organizationId,
-          metric_type: 'performance_insight',
-          metric_name: `insight_${insight.insight_type}_${Date.now()}`,
-          metric_value: insight.confidence,
-          metric_metadata: insight
-        });
-    }
-  }
-
-  mockResults.sync_duration_ms = Date.now() - startTime;
-  
-  return mockResults;
+  return syncResults;
 }

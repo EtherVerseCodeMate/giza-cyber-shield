@@ -92,7 +92,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Performance Analysis Error:', error);
-    
+
     return new Response(JSON.stringify({
       success: false,
       error: error.message,
@@ -106,47 +106,45 @@ serve(async (req) => {
 
 async function performRealTimeAnalysis(supabase: any, organizationId: string) {
   console.log('Performing real-time performance analysis...');
-  
-  // Mock real-time metrics collection
+
+  // TRL10 PRODUCTION: Realistic mock data removed
+  // In production, this must fetch metrics from actual Prometheus or CloudWatch exporters
   const currentMetrics = {
     timestamp: new Date().toISOString(),
-    cpu_utilization: Math.random() * 100,
-    memory_usage: Math.random() * 100,
-    disk_io: Math.random() * 1000,
-    network_throughput: Math.random() * 10000,
-    response_time_ms: Math.random() * 500 + 50,
-    error_rate: Math.random() * 5,
-    concurrent_users: Math.floor(Math.random() * 1000) + 100,
-    database_connections: Math.floor(Math.random() * 200) + 50
+    cpu_utilization: 0,
+    memory_usage: 0,
+    disk_io: 0,
+    network_throughput: 0,
+    response_time_ms: 0,
+    error_rate: 0,
+    concurrent_users: 0,
+    database_connections: 0
   };
 
-  // Analyze current performance
-  const analysis = {
+  return {
     current_metrics: currentMetrics,
-    health_status: getHealthStatus(currentMetrics),
-    alerts: generateAlerts(currentMetrics),
+    health_status: { status: 'UNKNOWN', score: 0 },
+    alerts: [],
     trends: {
-      cpu_trend: Math.random() > 0.5 ? 'increasing' : 'stable',
-      memory_trend: Math.random() > 0.5 ? 'increasing' : 'stable',
-      response_time_trend: Math.random() > 0.5 ? 'improving' : 'stable'
+      cpu_trend: 'STABLE',
+      memory_trend: 'STABLE',
+      response_time_trend: 'STABLE'
     },
-    recommendations: generateRealTimeRecommendations(currentMetrics)
+    recommendations: ["Metrics collection integration required for real-time analysis"]
   };
-
-  return analysis;
 }
 
 async function performHistoricalAnalysis(supabase: any, organizationId: string, timeRange?: any) {
   console.log('Performing historical performance analysis...');
-  
+
   const defaultTimeRange = {
-    start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
+    start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
     end: new Date().toISOString()
   };
-  
+
   const range = timeRange || defaultTimeRange;
-  
-  // Fetch historical metrics
+
+  // Fetch actual historical metrics (if any exist)
   const { data: metrics } = await supabase
     .from('open_controls_performance_metrics')
     .select('*')
@@ -155,175 +153,71 @@ async function performHistoricalAnalysis(supabase: any, organizationId: string, 
     .lte('measurement_timestamp', range.end)
     .order('measurement_timestamp');
 
-  // Generate mock historical analysis
-  const analysis = {
+  return {
     time_range: range,
     summary: {
       total_data_points: metrics?.length || 0,
-      average_response_time: 150 + Math.random() * 100,
-      peak_cpu_usage: 60 + Math.random() * 30,
-      uptime_percentage: 99.0 + Math.random() * 1.0,
-      error_rate_avg: Math.random() * 2
+      average_response_time: 0,
+      peak_cpu_usage: 0,
+      uptime_percentage: 0,
+      error_rate_avg: 0
     },
     trends: {
-      performance_trend: Math.random() > 0.6 ? 'improving' : 'stable',
-      usage_growth: Math.random() * 15 - 5, // -5% to +10% growth
-      efficiency_score: 75 + Math.random() * 20
+      performance_trend: 'UNKNOWN',
+      usage_growth: 0,
+      efficiency_score: 0
     },
     pattern_analysis: {
-      peak_hours: ['09:00-11:00', '14:00-16:00'],
-      low_usage_periods: ['02:00-06:00'],
-      seasonal_patterns: ['Higher usage on weekdays', 'Lower weekend traffic']
+      peak_hours: [],
+      low_usage_periods: [],
+      seasonal_patterns: []
     },
-    bottlenecks_identified: [
-      {
-        type: 'database',
-        frequency: 'moderate',
-        impact: 'medium',
-        recommendation: 'Optimize slow queries and consider read replicas'
-      }
-    ]
+    bottlenecks_identified: []
   };
-
-  return analysis;
 }
 
 async function performPredictiveAnalysis(supabase: any, organizationId: string) {
   console.log('Performing predictive performance analysis...');
-  
-  // Mock predictive analysis using historical patterns
-  const predictions = {
-    forecast_period: '30_days',
-    predictions: [
-      {
-        metric: 'cpu_utilization',
-        predicted_trend: 'increasing',
-        confidence: 0.82,
-        predicted_values: generatePredictionSeries(45, 0.05, 30), // Base 45%, 5% growth, 30 days
-        threshold_breach_probability: 0.15
-      },
-      {
-        metric: 'response_time',
-        predicted_trend: 'stable',
-        confidence: 0.76,
-        predicted_values: generatePredictionSeries(180, 0.02, 30), // Base 180ms, 2% growth, 30 days
-        threshold_breach_probability: 0.08
-      },
-      {
-        metric: 'concurrent_users',
-        predicted_trend: 'increasing',
-        confidence: 0.89,
-        predicted_values: generatePredictionSeries(300, 0.08, 30), // Base 300, 8% growth, 30 days
-        threshold_breach_probability: 0.25
-      }
-    ],
-    risk_assessment: {
-      overall_risk: 'medium',
-      capacity_exhaustion_risk: 0.20,
-      performance_degradation_risk: 0.15,
-      recommended_actions: [
-        'Monitor CPU usage closely over next 2 weeks',
-        'Prepare scaling plan for user growth',
-        'Review and optimize resource allocation'
-      ]
-    },
-    recommended_interventions: [
-      {
-        intervention: 'scale_up_compute',
-        trigger_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-        expected_benefit: 'Prevent CPU bottlenecks',
-        cost_impact: 'moderate'
-      }
-    ]
-  };
 
-  return predictions;
+  // Predictive analysis requires historical data and ML models
+  return {
+    forecast_period: '30_days',
+    predictions: [],
+    risk_assessment: {
+      overall_risk: 'UNKNOWN',
+      capacity_exhaustion_risk: 0,
+      performance_degradation_risk: 0,
+      recommended_actions: ["Insufficient historical data for predictive modeling"]
+    },
+    recommended_interventions: []
+  };
 }
 
 async function performOptimizationAnalysis(supabase: any, organizationId: string, optimizationLevel = 'moderate') {
   console.log(`Performing optimization analysis at ${optimizationLevel} level...`);
-  
-  // Mock optimization analysis
-  const optimizations = {
+
+  return {
     optimization_level: optimizationLevel,
     analysis_results: {
-      current_efficiency_score: 72 + Math.random() * 18,
-      potential_improvement: getOptimizationPotential(optimizationLevel),
-      cost_benefit_ratio: 2.5 + Math.random() * 1.5
+      current_efficiency_score: 0,
+      potential_improvement: { min: 0, max: 0 },
+      cost_benefit_ratio: 0
     },
-    recommended_optimizations: [
-      {
-        category: 'resource_rightsizing',
-        priority: 'high',
-        description: 'Optimize compute resource allocation based on usage patterns',
-        implementation_effort: 'low',
-        expected_savings: 15,
-        performance_impact: 'minimal',
-        implementation_steps: [
-          'Analyze resource utilization patterns',
-          'Identify over-provisioned instances',
-          'Gradually reduce resource allocation',
-          'Monitor performance impact'
-        ]
-      },
-      {
-        category: 'caching_optimization',
-        priority: 'medium',
-        description: 'Implement intelligent caching strategies',
-        implementation_effort: 'medium',
-        expected_savings: 8,
-        performance_impact: 'positive',
-        implementation_steps: [
-          'Analyze cache hit rates',
-          'Implement tiered caching',
-          'Optimize cache TTL settings',
-          'Monitor cache performance'
-        ]
-      },
-      {
-        category: 'database_tuning',
-        priority: 'high',
-        description: 'Optimize database queries and indexing',
-        implementation_effort: 'high',
-        expected_savings: 20,
-        performance_impact: 'significant',
-        implementation_steps: [
-          'Identify slow queries',
-          'Create appropriate indexes',
-          'Optimize query execution plans',
-          'Implement query result caching'
-        ]
-      }
-    ],
-    auto_optimization_available: [
-      {
-        optimization: 'cache_tuning',
-        can_auto_apply: true,
-        confidence: 0.95,
-        rollback_available: true
-      },
-      {
-        optimization: 'resource_scaling',
-        can_auto_apply: optimizationLevel === 'aggressive',
-        confidence: 0.78,
-        rollback_available: true
-      }
-    ],
+    recommended_optimizations: [],
+    auto_optimization_available: [],
     estimated_timeline: {
-      quick_wins: '1-3 days',
-      medium_impact: '1-2 weeks',
-      major_optimizations: '3-4 weeks'
+      quick_wins: 'N/A',
+      medium_impact: 'N/A',
+      major_optimizations: 'N/A'
     }
   };
-
-  return optimizations;
 }
 
 // Helper functions
 
 function getHealthStatus(metrics: any) {
   const score = calculateHealthScore(metrics);
-  
+
   if (score >= 90) return { status: 'excellent', score };
   if (score >= 75) return { status: 'good', score };
   if (score >= 60) return { status: 'fair', score };
@@ -336,13 +230,13 @@ function calculateHealthScore(metrics: any) {
   const memoryScore = Math.max(0, 100 - metrics.memory_usage);
   const responseScore = Math.max(0, 100 - (metrics.response_time_ms / 10));
   const errorScore = Math.max(0, 100 - (metrics.error_rate * 20));
-  
+
   return (cpuScore + memoryScore + responseScore + errorScore) / 4;
 }
 
 function generateAlerts(metrics: any) {
   const alerts = [];
-  
+
   if (metrics.cpu_utilization > 80) {
     alerts.push({
       type: 'warning',
@@ -351,7 +245,7 @@ function generateAlerts(metrics: any) {
       current_value: metrics.cpu_utilization
     });
   }
-  
+
   if (metrics.response_time_ms > 400) {
     alerts.push({
       type: 'warning',
@@ -360,7 +254,7 @@ function generateAlerts(metrics: any) {
       current_value: metrics.response_time_ms
     });
   }
-  
+
   if (metrics.error_rate > 3) {
     alerts.push({
       type: 'critical',
@@ -369,13 +263,13 @@ function generateAlerts(metrics: any) {
       current_value: metrics.error_rate
     });
   }
-  
+
   return alerts;
 }
 
 function generateRealTimeRecommendations(metrics: any) {
   const recommendations = [];
-  
+
   if (metrics.cpu_utilization > 70) {
     recommendations.push({
       type: 'scaling',
@@ -384,7 +278,7 @@ function generateRealTimeRecommendations(metrics: any) {
       impact: 'Improved performance and user experience'
     });
   }
-  
+
   if (metrics.response_time_ms > 300) {
     recommendations.push({
       type: 'optimization',
@@ -393,7 +287,7 @@ function generateRealTimeRecommendations(metrics: any) {
       impact: 'Reduced response times and better user satisfaction'
     });
   }
-  
+
   return recommendations;
 }
 
