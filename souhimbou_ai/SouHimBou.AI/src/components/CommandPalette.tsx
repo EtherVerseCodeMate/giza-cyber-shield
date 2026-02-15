@@ -50,6 +50,7 @@ const CommandPalette = ({ isAuthenticated = false }: CommandPaletteProps) => {
             { id: 'reports', label: 'Compliance Reports', icon: Globe, section: 'Dashboard', keywords: ['report', 'compliance', 'export'], action: () => runAndClose(() => navigate('/compliance-reports')) },
             { id: 'evidence', label: 'Evidence Collection', icon: Lock, section: 'Dashboard', keywords: ['evidence', 'upload', 'collect'], action: () => runAndClose(() => navigate('/evidence-collection')) },
             { id: 'billing', label: 'Billing', icon: Brain, section: 'Dashboard', keywords: ['billing', 'payment', 'subscription', 'plan'], action: () => runAndClose(() => navigate('/billing')) },
+            { id: 'threat-hunting', label: 'Threat Hunting', icon: Shield, section: 'Dashboard', keywords: ['threat', 'hunt', 'forensics', 'behavior'], action: () => runAndClose(() => navigate('/threat-hunting')) },
         ] : [
             { id: 'signin', label: 'Sign In', icon: LogIn, section: 'Account', keywords: ['sign', 'login', 'account', 'auth'], action: () => runAndClose(() => navigate('/auth')) },
             { id: 'getstarted', label: 'Get Started', icon: ArrowRight, section: 'Account', keywords: ['start', 'register', 'signup', 'onboard'], action: () => runAndClose(() => navigate('/auth')) },
