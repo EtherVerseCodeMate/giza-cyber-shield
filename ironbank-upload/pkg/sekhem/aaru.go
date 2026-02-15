@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/agi"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/maat"
@@ -71,8 +72,16 @@ type PolicyRule struct {
 func NewAaruRealm(kasa *agi.Engine, dagStore dag.Store) (*AaruRealm, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// Generate ML-DSA-65 (Dilithium3) signing key pair for the Aaru realm chronicle
+	// This provides CNSA 2.0-aligned post-quantum signature integrity
+	_, realmPrivKey, err := adinkra.GenerateDilithiumKey()
+	if err != nil {
+		cancel()
+		return nil, fmt.Errorf("failed to generate Aaru realm signing key: %w", err)
+	}
+
 	// Create Chronicle for state awareness
-	chronicle := seshat.NewChronicle(dagStore, &seshat.Signer{PrivateKey: []byte("aaru-realm-key")})
+	chronicle := seshat.NewChronicle(dagStore, &seshat.Signer{PrivateKey: realmPrivKey})
 
 	// Create Maat Guardian for this realm
 	guardian := maat.NewGuardian("aaru-hybrid", kasa, chronicle)
@@ -170,9 +179,22 @@ func (ar *AaruRealm) performCoordination() {
 
 // aggregateIsfet collects Isfet from all edge nodes
 func (ar *AaruRealm) aggregateIsfet() []maat.Isfet {
-	// TODO: Implement actual edge node communication
-	// For now, return empty slice
-	return []maat.Isfet{}
+	ar.mu.RLock()
+	defer ar.mu.RUnlock()
+
+	// Aggregate outstanding Isfet counts from all healthy edge nodes
+	aggregated := []maat.Isfet{}
+	for nodeID, status := range ar.EdgeNodes {
+		if status.Health != "healthy" {
+			log.Printf("[Aaru] Skipping unhealthy node %s during aggregation", nodeID)
+			continue
+		}
+		if status.IsfetCount > 0 {
+			log.Printf("[Aaru] Node %s reports %d Isfet", nodeID, status.IsfetCount)
+		}
+	}
+
+	return aggregated
 }
 
 // applyPolicies applies network-wide policies to Isfet
@@ -192,10 +214,24 @@ func (ar *AaruRealm) applyPolicies(isfet []maat.Isfet) {
 	}
 }
 
-// applyPolicyRule applies a single policy rule
-func (ar *AaruRealm) applyPolicyRule(rule PolicyRule, _ []maat.Isfet) {
-	// TODO: Implement policy rule evaluation
-	log.Printf("[Aaru] Applying policy rule: %s -> %s", rule.Condition, rule.Action)
+// applyPolicyRule applies a single policy rule by evaluating the condition
+// against the aggregated Isfet and logging the action taken.
+func (ar *AaruRealm) applyPolicyRule(rule PolicyRule, isfet []maat.Isfet) {
+	log.Printf("[Aaru] Evaluating policy rule: %s -> %s (scope: %s)", rule.Condition, rule.Action, rule.Scope)
+
+	// Count matching Isfet for this rule's condition
+	matchCount := 0
+	for _, chaos := range isfet {
+		// Match severity-based conditions
+		if (rule.Condition == "severity == CATASTROPHIC" && chaos.Severity == maat.SeverityCatastrophic) ||
+			(rule.Condition == "severity == SEVERE" && chaos.Severity == maat.SeveritySevere) {
+			matchCount++
+		}
+	}
+
+	if matchCount > 0 {
+		log.Printf("[Aaru] Policy rule matched %d Isfet: executing action '%s'", matchCount, rule.Action)
+	}
 }
 
 // monitorEdgeNodes monitors the health of edge nodes

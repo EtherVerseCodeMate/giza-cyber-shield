@@ -192,20 +192,118 @@ async function syncSource(supabase: any, source: OSINTSource) {
 }
 
 async function fetchMITREData(source: OSINTSource): Promise<MITREData> {
-  console.log('Fetching actual MITRE ATT&CK data via STIX/TAXII...');
+  console.log('Fetching real MITRE ATT&CK Enterprise data from GitHub CTI repo...');
 
-  // TRL10 PRODUCTION: Mock data generation removed for security integrity.
-  // Real implementation must fetch actual MITRE data from cti-taxii.mitre.org
+  try {
+    // Fetch MITRE ATT&CK Enterprise matrix from official GitHub repo
+    const response = await fetch(
+      'https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json',
+      {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Khepra-OSINT-Sync/1.0'
+        }
+      }
+    );
 
-  return { techniques: [] };
+    if (!response.ok) {
+      throw new Error(`MITRE ATT&CK fetch failed: ${response.status} ${response.statusText}`);
+    }
+
+    const stixData = await response.json();
+    console.log(`✅ Fetched MITRE STIX bundle with ${stixData.objects?.length || 0} objects`);
+
+    // Parse STIX 2.1 bundle and extract attack-pattern objects
+    const techniques: MITREData['techniques'] = [];
+
+    if (stixData.objects) {
+      for (const obj of stixData.objects) {
+        if (obj.type === 'attack-pattern' && !obj.revoked && !obj.x_mitre_deprecated) {
+          // Extract tactic from kill chain phases
+          const tactic = obj.kill_chain_phases?.[0]?.phase_name || 'unknown';
+
+          // Extract platforms
+          const platforms = obj.x_mitre_platforms || [];
+
+          techniques.push({
+            id: obj.external_references?.[0]?.external_id || obj.id,
+            name: obj.name,
+            tactic: tactic,
+            platforms: platforms,
+            description: obj.description || 'No description available'
+          });
+        }
+      }
+    }
+
+    console.log(`✅ Extracted ${techniques.length} active ATT&CK techniques`);
+    return { techniques };
+
+  } catch (error: any) {
+    console.error('❌ MITRE ATT&CK fetch failed:', error);
+    throw new Error(`Failed to fetch MITRE ATT&CK data: ${error.message}`);
+  }
 }
 
 async function fetchCVSSData(source: OSINTSource): Promise<CVSSData> {
-  console.log('Fetching actual CVSS vulnerability data from NVD/FIRST...');
+  console.log('Fetching real CVSS vulnerability data from NIST NVD API 2.0...');
 
-  // Real implementation must fetch the NVD JSON feed or use FIRST.org API
+  const nvdApiKey = Deno.env.get('NVD_API_KEY');
+  if (!nvdApiKey) {
+    console.warn('⚠️ NVD_API_KEY not configured, using unauthenticated API (rate-limited)');
+  }
 
-  return { vulnerabilities: [] };
+  try {
+    // NVD API 2.0 - fetch recent CVEs with CVSS v3.x scores
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'User-Agent': 'Khepra-OSINT-Sync/1.0'
+    };
+
+    if (nvdApiKey) {
+      headers['apiKey'] = nvdApiKey;
+    }
+
+    // Fetch last 30 days of modified CVEs
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const url = `https://services.nvd.nist.gov/rest/json/cves/2.0?lastModStartDate=${thirtyDaysAgo}&resultsPerPage=100`;
+
+    const response = await fetch(url, { headers });
+
+    if (!response.ok) {
+      throw new Error(`NVD API failed: ${response.status} ${response.statusText}`);
+    }
+
+    const nvdData = await response.json();
+    console.log(`✅ Fetched ${nvdData.totalResults || 0} CVEs from NVD`);
+
+    const vulnerabilities: CVSSData['vulnerabilities'] = [];
+
+    if (nvdData.vulnerabilities) {
+      for (const item of nvdData.vulnerabilities) {
+        const cve = item.cve;
+        const metrics = cve.metrics?.cvssMetricV31?.[0] || cve.metrics?.cvssMetricV30?.[0];
+
+        if (metrics) {
+          const cvssData = metrics.cvssData;
+          vulnerabilities.push({
+            cve: cve.id,
+            baseScore: cvssData.baseScore,
+            vectorString: cvssData.vectorString,
+            severity: cvssData.baseSeverity,
+            description: cve.descriptions?.find((d: any) => d.lang === 'en')?.value || 'No description'
+          });
+        }
+      }
+    }
+
+    console.log(`✅ Extracted ${vulnerabilities.length} vulnerabilities with CVSS scores`);
+    return { vulnerabilities };
+
+  } catch (error: any) {
+    console.error('❌ NVD CVSS fetch failed:', error);
+    throw new Error(`Failed to fetch NVD data: ${error.message}`);
+  }
 }
 
 async function fetchThreatFeedData(source: OSINTSource) {
