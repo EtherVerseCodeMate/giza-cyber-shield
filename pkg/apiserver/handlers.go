@@ -3,6 +3,7 @@ package apiserver
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
@@ -116,17 +117,51 @@ func (s *Server) handleTriggerScan(c *gin.Context) {
 func (s *Server) handleGetScanStatus(c *gin.Context) {
 	scanID := c.Param("id")
 
-	// TODO: Integrate with actual scan storage
-	// For now, return mock data
+	// Look up the scan from the Command Center's scan registry
+	commandCenter.mu.RLock()
+	scan, exists := commandCenter.scans[scanID]
+	commandCenter.mu.RUnlock()
+
+	if !exists {
+		c.JSON(http.StatusNotFound, ErrorResponse{
+			Error:   "scan_not_found",
+			Message: fmt.Sprintf("Scan '%s' not found", scanID),
+			Code:    http.StatusNotFound,
+		})
+		return
+	}
+
+	// Calculate progress based on scan status
+	progress := 0.0
+	switch scan.Status {
+	case StatusRunning:
+		if scan.TotalChecks > 0 {
+			progress = float64(scan.PassedChecks+scan.FailedChecks) / float64(scan.TotalChecks)
+		} else {
+			progress = 0.1 // Scan started but no checks tallied yet
+		}
+	case StatusCompleted:
+		progress = 1.0
+	case StatusFailed:
+		progress = -1.0
+	}
+
 	response := ScanStatus{
-		ScanID:   scanID,
-		Status:   "completed",
-		Progress: 1.0,
+		ScanID:    scanID,
+		Status:    scan.Status,
+		Progress:  progress,
+		StartedAt: &scan.StartTime,
 		Results: map[string]interface{}{
-			"vulnerabilities_found": 3,
-			"crypto_issues":         1,
-			"stig_violations":       2,
+			"framework":     scan.Framework,
+			"total_checks":  scan.TotalChecks,
+			"passed_checks": scan.PassedChecks,
+			"failed_checks": scan.FailedChecks,
+			"findings":      len(scan.Findings),
 		},
+	}
+
+	if scan.EndTime != nil {
+		response.CompletedAt = scan.EndTime
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -172,54 +207,110 @@ func (s *Server) handleSTIGValidation(c *gin.Context) {
 		return
 	}
 
-	// TODO: Integrate with actual STIG validation engine
-	// For now, return mock response
-	validationID := uuid.New().String()
-
-	results := []STIGCheckResult{
-		{
-			ControlID:   "RHEL-09-010001",
-			Title:       "Operating system must enforce password complexity",
-			Severity:    "high",
-			Status:      "pass",
-			Finding:     "Password complexity is properly configured",
-			Remediation: "",
-		},
-		{
-			ControlID:   "RHEL-09-010002",
-			Title:       "Operating system must enforce minimum password length",
-			Severity:    "medium",
-			Status:      "fail",
-			Finding:     "Minimum password length is 8, should be 15",
-			Remediation: "Set minlen=15 in /etc/security/pwquality.conf",
-		},
+	// Determine target path from request
+	targetPath := "/"
+	if req.TargetHost != "" && req.TargetHost != "localhost" {
+		targetPath = req.TargetHost
 	}
 
+	// Initialize the real STIG validation engine
+	validator := stig.NewValidator(targetPath)
+
+	// Enable the requested framework based on STIG version
+	validator.EnableFramework(req.STIGVersion)
+
+	// Perform actual validation
+	report, err := validator.Validate()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "validation_failed",
+			Message: fmt.Sprintf("STIG validation failed: %v", err),
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	validationID := uuid.New().String()
+
+	// Convert stig.Finding results to API STIGCheckResult format
+	results := []STIGCheckResult{}
 	passed := 0
 	failed := 0
-	for _, result := range results {
-		switch result.Status {
-		case "pass":
-			passed++
-		case "fail":
-			failed++
+	notApplicable := 0
+
+	for _, vr := range report.Results {
+		for _, finding := range vr.Findings {
+			severity := mapStigSeverity(finding.Severity)
+			status := mapStigStatus(finding.Status)
+
+			results = append(results, STIGCheckResult{
+				ControlID:   finding.ID,
+				Title:       finding.Title,
+				Severity:    severity,
+				Status:      status,
+				Finding:     finding.Description,
+				Remediation: finding.Remediation,
+			})
+
+			switch status {
+			case "pass":
+				passed++
+			case "fail":
+				failed++
+			case "not_applicable":
+				notApplicable++
+			}
 		}
+	}
+
+	totalChecks := len(results)
+	score := 0.0
+	if totalChecks > 0 {
+		score = float64(passed) / float64(totalChecks) * 100
 	}
 
 	response := STIGValidationResponse{
 		ValidationID:  validationID,
 		STIGVersion:   req.STIGVersion,
 		TargetHost:    req.TargetHost,
-		TotalChecks:   len(results),
+		TotalChecks:   totalChecks,
 		Passed:        passed,
 		Failed:        failed,
-		NotApplicable: 0,
-		Score:         float64(passed) / float64(len(results)) * 100,
+		NotApplicable: notApplicable,
+		Score:         score,
 		Results:       results,
 		Timestamp:     time.Now(),
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// mapStigSeverity converts stig.Severity to API severity string
+func mapStigSeverity(s stig.Severity) string {
+	switch s {
+	case stig.SeverityCAT1, stig.SeverityCritical, stig.SeverityHigh:
+		return "high"
+	case stig.SeverityCAT2, stig.SeverityMedium:
+		return "medium"
+	case stig.SeverityCAT3, stig.SeverityLow:
+		return "low"
+	default:
+		return "medium"
+	}
+}
+
+// mapStigStatus converts stig finding status to API status string
+func mapStigStatus(status string) string {
+	switch status {
+	case "Pass":
+		return "pass"
+	case "Fail":
+		return "fail"
+	case "Not Applicable":
+		return "not_applicable"
+	default:
+		return "not_applicable"
+	}
 }
 
 // handleGenerateERT generates an Evidence Recording Token
@@ -303,24 +394,62 @@ func (s *Server) handleGetLicenseStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// handleListScans returns a list of all scans
+// handleListScans returns a list of all scans from the Command Center registry
 func (s *Server) handleListScans(c *gin.Context) {
-	// Get pagination parameters
-	page := c.DefaultQuery("page", "1")
-	pageSize := c.DefaultQuery("page_size", "20")
-	status := c.Query("status")
+	// Parse pagination parameters
+	pageStr := c.DefaultQuery("page", "1")
+	pageSizeStr := c.DefaultQuery("page_size", "20")
+	statusFilter := c.Query("status")
 
-	_ = page
-	_ = pageSize
-	_ = status
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(pageSizeStr)
+	if err != nil || pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
 
-	// TODO: Implement actual scan listing from database
-	scans := []ScanResponse{}
+	// Collect scans from Command Center, apply status filter
+	commandCenter.mu.RLock()
+	var allScans []*ScanResult
+	for _, scan := range commandCenter.scans {
+		if statusFilter == "" || scan.Status == statusFilter {
+			allScans = append(allScans, scan)
+		}
+	}
+	commandCenter.mu.RUnlock()
+
+	total := len(allScans)
+
+	// Apply pagination
+	start := (page - 1) * pageSize
+	end := start + pageSize
+	if start > total {
+		start = total
+	}
+	if end > total {
+		end = total
+	}
+
+	pagedScans := allScans[start:end]
+
+	// Convert to ScanResponse format
+	scans := make([]ScanResponse, 0, len(pagedScans))
+	for _, scan := range pagedScans {
+		scans = append(scans, ScanResponse{
+			ScanID:   scan.ID,
+			Status:   scan.Status,
+			ScanType: scan.Framework,
+			QueuedAt: scan.StartTime,
+		})
+	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"scans": scans,
-		"total": len(scans),
-		"page":  page,
+		"scans":     scans,
+		"total":     total,
+		"page":      page,
+		"page_size": pageSize,
 	})
 }
 
