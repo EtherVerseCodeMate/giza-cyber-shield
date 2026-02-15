@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Search, Server, Monitor, Shield, Wifi, Database, 
+import {
+  Search, Server, Monitor, Shield, Wifi, Database,
   Cloud, AlertTriangle, CheckCircle, RefreshCw, Settings
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -44,63 +44,44 @@ export const InfrastructureDiscovery = () => {
   const { toast } = useToast();
   const { currentOrganization } = useOrganization();
 
-  // STIG-targeted fingerprinting data
-  useEffect(() => {
-    const mockAssets: Asset[] = [
-      {
-        id: 'stig-win-01',
-        name: 'DC-01-STIG',
-        type: 'server',
-        ip_address: '10.0.1.10',
-        os: 'Windows Server 2019',
-        version: 'STIG V2R6',
-        status: 'online',
-        compliance_score: 94,
-        vulnerabilities: 2,
-        last_scan: '2024-01-13T14:30:00Z',
-        criticality: 'critical'
-      },
-      {
-        id: 'stig-ubuntu-01',
-        name: 'WEB-01-Ubuntu',
-        type: 'server',
-        ip_address: '10.0.2.15',
-        os: 'Ubuntu 22.04',
-        version: 'STIG V1R2',
-        status: 'online',
-        compliance_score: 98,
-        vulnerabilities: 0,
-        last_scan: '2024-01-13T14:25:00Z',
-        criticality: 'high'
-      },
-      {
-        id: 'stig-iis-01',
-        name: 'IIS-01',
-        type: 'server',
-        ip_address: '10.0.0.1',
-        os: 'IIS 10.0',
-        version: 'STIG V2R5',
-        status: 'online',
-        compliance_score: 96,
-        vulnerabilities: 1,
-        last_scan: '2024-01-13T14:20:00Z',
-        criticality: 'critical'
-      },
-      {
-        id: 'stig-apache-01',
-        name: 'Apache-01',
-        type: 'server',
-        ip_address: '10.0.0.2',
-        os: 'Apache 2.4',
-        version: 'STIG V2R4',
-        status: 'online',
-        compliance_score: 92,
-        vulnerabilities: 3,
-        last_scan: '2024-01-13T14:18:00Z',
-        criticality: 'high'
-      }
-    ];
+  // Fetch assets from database
+  const fetchAssets = async () => {
+    if (!currentOrganization?.id) return;
 
+    console.log('Fetching discovered assets for organization:', currentOrganization.id);
+    const { data, error } = await supabase
+      .from('discovered_assets')
+      .select('*')
+      .eq('organization_id', currentOrganization.id)
+      .order('last_discovered', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching assets:', error);
+      return;
+    }
+
+    if (data && data.length > 0) {
+      const mappedAssets: Asset[] = data.map(item => ({
+        id: item.asset_id,
+        name: item.asset_name,
+        type: (item.asset_type as any) || 'server',
+        ip_address: item.ip_addresses?.[0] || 'Unknown',
+        os: item.operating_system || 'Unknown',
+        version: item.version || '',
+        status: (item.metadata?.status as any) || 'online',
+        compliance_score: item.compliance_score || item.metadata?.compliance_score || 0,
+        vulnerabilities: item.vulnerabilities || item.metadata?.vulnerabilities || 0,
+        last_scan: item.last_discovered,
+        criticality: (item.metadata?.criticality as any) || 'medium'
+      }));
+      setAssets(mappedAssets);
+    }
+  };
+
+  useEffect(() => {
+    fetchAssets();
+
+    // Set up mock networks (since they aren't in DB yet)
     const mockNetworks: NetworkSegment[] = [
       {
         id: '1',
@@ -119,10 +100,8 @@ export const InfrastructureDiscovery = () => {
         security_zone: 'internal'
       }
     ];
-
-    setAssets(mockAssets);
     setNetworks(mockNetworks);
-  }, []);
+  }, [currentOrganization?.id]);
 
   const getAssetIcon = (type: string) => {
     switch (type) {
@@ -158,7 +137,7 @@ export const InfrastructureDiscovery = () => {
     setScanning(true);
     setDiscoveryProgress(0);
     console.log(`Starting STIG ${type} fingerprinting...`);
-    
+
     try {
       const { data, error } = await supabase.functions.invoke('infrastructure-discovery', {
         body: {
@@ -170,26 +149,20 @@ export const InfrastructureDiscovery = () => {
         }
       });
 
-      if (error) {
-        console.error('Discovery error:', error);
-        toast({
-          title: "Discovery Failed",
-          description: "Failed to perform infrastructure discovery. Please try again.",
-          variant: "destructive",
-        });
-        return;
-      }
+      if (error) throw error;
 
       setDiscoveryResults(data.results || []);
+      await fetchAssets();
+
       toast({
         title: "Discovery Complete",
         description: `Found ${data.discovered_count || 0} assets`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Discovery error:', error);
       toast({
         title: "Discovery Failed",
-        description: "An unexpected error occurred during discovery.",
+        description: error.message || "Failed to perform infrastructure discovery.",
         variant: "destructive",
       });
     } finally {
@@ -201,16 +174,16 @@ export const InfrastructureDiscovery = () => {
   const startSTIGDiscovery = async () => {
     setScanning(true);
     setDiscoveryProgress(0);
-    
+
     // Run STIG-targeted fingerprinting for supported systems
     const stigTypes = ['windows_server_2019', 'ubuntu_22_04', 'iis_10', 'apache_2_4'];
     let completed = 0;
-    
+
     for (const type of stigTypes) {
       performSTIGFingerprinting(type).finally(() => {
         completed++;
         setDiscoveryProgress((completed / stigTypes.length) * 100);
-        
+
         if (completed === stigTypes.length) {
           setScanning(false);
           toast({
@@ -243,7 +216,7 @@ export const InfrastructureDiscovery = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="card-cyber">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -255,7 +228,7 @@ export const InfrastructureDiscovery = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="card-cyber">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -267,7 +240,7 @@ export const InfrastructureDiscovery = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="card-cyber">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -294,8 +267,8 @@ export const InfrastructureDiscovery = () => {
                 STIG-targeted fingerprinting and compliance assessment for critical systems
               </CardDescription>
             </div>
-            <Button 
-              variant="cyber" 
+            <Button
+              variant="cyber"
               onClick={startSTIGDiscovery}
               disabled={scanning}
             >
@@ -313,7 +286,7 @@ export const InfrastructureDiscovery = () => {
             </Button>
           </div>
         </CardHeader>
-        
+
         {scanning && (
           <CardContent>
             <div className="space-y-2">
@@ -370,7 +343,7 @@ export const InfrastructureDiscovery = () => {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center space-x-2">
                         <Button variant="outline" size="sm">
                           <Settings className="h-3 w-3 mr-1" />
@@ -417,7 +390,7 @@ export const InfrastructureDiscovery = () => {
                           </div>
                         </div>
                       </div>
-                      
+
                       <Button variant="outline" size="sm">
                         <Search className="h-3 w-3 mr-1" />
                         Analyze
