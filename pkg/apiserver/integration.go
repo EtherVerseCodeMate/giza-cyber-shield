@@ -109,6 +109,7 @@ func (a *LicenseManagerAdapter) GetStatus() LicenseStatus {
 	expires, _ := time.Parse(time.RFC3339, full.ExpiresAt)
 
 	return LicenseStatus{
+		LicenseID:     full.LicenseID,
 		MachineID:     a.mgr.GetMachineID(),
 		Organization:  full.Organization,
 		LicenseTier:   full.LicenseTier,
