@@ -109,6 +109,7 @@ type ERTResponse struct {
 
 // LicenseStatus represents the current license status
 type LicenseStatus struct {
+	LicenseID     string     `json:"license_id"`
 	MachineID     string     `json:"machine_id"`
 	Organization  string     `json:"organization"`
 	LicenseTier   string     `json:"license_tier"`
