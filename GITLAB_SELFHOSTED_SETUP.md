@@ -147,14 +147,16 @@ openssl req -x509 -nodes -days 3650 -newkey rsa:4096 \
   -out ~/gitlab/config/ssl/gitlab.khepra.internal.crt \
   -subj "/C=US/ST=State/L=City/O=Khepra/CN=gitlab.khepra.internal"
 
+```bash
 # Edit GitLab config
 docker exec -it gitlab vi /etc/gitlab/gitlab.rb
 
-# Add these lines:
-# external_url 'https://gitlab.khepra.internal'
-# nginx['redirect_http_to_https'] = true
-# nginx['ssl_certificate'] = "/etc/gitlab/ssl/gitlab.khepra.internal.crt"
-# nginx['ssl_certificate_key'] = "/etc/gitlab/ssl/gitlab.khepra.internal.key"
+# Add or update these lines:
+external_url 'https://gitlab.khepra.internal'
+nginx['redirect_http_to_https'] = true
+nginx['ssl_certificate'] = "/etc/gitlab/ssl/gitlab.khepra.internal.crt"
+nginx['ssl_certificate_key'] = "/etc/gitlab/ssl/gitlab.khepra.internal.key"
+```
 
 # Reconfigure GitLab
 docker exec -it gitlab gitlab-ctl reconfigure
