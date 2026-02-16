@@ -167,30 +167,30 @@ func GetSecurityMetrics() map[string]interface{} {
 	uptime := time.Since(securityMetrics.BootstrapTime)
 
 	metrics := map[string]interface{}{
-		"uptime_seconds":     int(uptime.Seconds()),
-		"total_encryptions":  securityMetrics.TotalEncryptions,
-		"total_decryptions":  securityMetrics.TotalDecryptions,
-		"threats_detected":   securityMetrics.ThreatsDetected,
-		"threats_blocked":    securityMetrics.ThreatsBlocked,
-		"key_rotations":      securityMetrics.KeyRotations,
+		"uptime_seconds":    int(uptime.Seconds()),
+		"total_encryptions": securityMetrics.TotalEncryptions,
+		"total_decryptions": securityMetrics.TotalDecryptions,
+		"threats_detected":  securityMetrics.ThreatsDetected,
+		"threats_blocked":   securityMetrics.ThreatsBlocked,
+		"key_rotations":     securityMetrics.KeyRotations,
 	}
 
 	// Add key metrics
 	for k, v := range GetKeyMetrics() {
-		metrics["key_"+k.(string)] = v
+		metrics["key_"+k] = v
 	}
 
 	// Add Supabase metrics
 	if SecureDB != nil {
 		for k, v := range SecureDB.GetMetrics() {
-			metrics["db_"+k.(string)] = v
+			metrics["db_"+k] = v
 		}
 	}
 
 	// Add KASA metrics
 	if KASAAgent != nil {
 		for k, v := range KASAAgent.GetMetrics() {
-			metrics["kasa_"+k.(string)] = v
+			metrics["kasa_"+k] = v
 		}
 	}
 
@@ -230,7 +230,7 @@ func IncrementThreatsBlocked() {
 // HealthCheck verifies all security components are operational.
 func HealthCheck() map[string]interface{} {
 	health := map[string]interface{}{
-		"status": "healthy",
+		"status":    "healthy",
 		"timestamp": time.Now().Format(time.RFC3339),
 	}
 
