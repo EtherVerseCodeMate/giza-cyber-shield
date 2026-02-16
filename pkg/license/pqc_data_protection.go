@@ -144,9 +144,10 @@ func GenerateProtectionKeys(symbol string) (*ProtectionKeys, error) {
 //   - context: Usage context (at_rest, in_transit, etc.)
 //   - keys: Protection keys (own keys)
 //   - recipientKyberPubKey: Optional recipient public key (for transit encryption)
+//   - expiresAt: Optional expiration time (zero value for no expiration)
 //
 // Returns: ProtectedData structure (can be stored or transmitted)
-func ProtectData(plaintext interface{}, dataType string, context DataContext, keys *ProtectionKeys, recipientKyberPubKey []byte) (*ProtectedData, error) {
+func ProtectData(plaintext interface{}, dataType string, context DataContext, keys *ProtectionKeys, recipientKyberPubKey []byte, expiresAt time.Time) (*ProtectedData, error) {
 	// ─── Serialize Plaintext ──────────────────────────────────────────────────
 	plaintextJSON, err := json.Marshal(plaintext)
 	if err != nil {
@@ -162,22 +163,17 @@ func ProtectData(plaintext interface{}, dataType string, context DataContext, ke
 	var aesKey []byte
 	var kyberCapsule []byte
 
-	// If recipient public key provided, use Kyber KEM to generate ephemeral AES key
+	// If recipient public key provided, use Kuntinkantan (Kyber + Merkaba) to wrap AES key
 	if len(recipientKyberPubKey) > 0 {
-		// Kyber key encapsulation (generates shared secret)
-		kyberPK, err := adinkra.UnmarshalKyberPublicKey(recipientKyberPubKey)
+		// Encrypt the AES key using recipient's Kyber public key
+		// Kuntinkantan = Kyber-1024 + Merkaba white box
+		encryptedAESKey, err := adinkra.Kuntinkantan(recipientKyberPubKey, keys.AESKey)
 		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal Kyber public key: %w", err)
+			return nil, fmt.Errorf("failed to encrypt AES key with Kuntinkantan: %w", err)
 		}
 
-		capsule, sharedSecret, err := adinkra.EncapsulateKyber(kyberPK)
-		if err != nil {
-			return nil, fmt.Errorf("failed to encapsulate with Kyber: %w", err)
-		}
-
-		// Use first 32 bytes of shared secret as AES key
-		aesKey = sharedSecret[:32]
-		kyberCapsule = capsule
+		kyberCapsule = encryptedAESKey
+		aesKey = keys.AESKey
 	} else {
 		// Use static AES key from ProtectionKeys
 		aesKey = keys.AESKey
@@ -195,6 +191,7 @@ func ProtectData(plaintext interface{}, dataType string, context DataContext, ke
 		DataType:         dataType,
 		Context:          context,
 		CreatedAt:        time.Now(),
+		ExpiresAt:        expiresAt, // Set expiration BEFORE signing
 		LatticeSymbol:    keys.Symbol,
 		LatticeHash:      latticeHash,
 		EncryptedPayload: encryptedPayload,
@@ -277,13 +274,13 @@ func UnprotectData(protected *ProtectedData, keys *ProtectionKeys, trustedDilith
 	var aesKey []byte
 
 	if len(protected.KyberCapsule) > 0 {
-		// Decrypt Kyber capsule to get shared secret
-		sharedSecret, err := adinkra.DecapsulateKyber(keys.KyberPrivateKey, protected.KyberCapsule)
+		// Decrypt AES key using Sankofa (Kyber-1024 + Merkaba)
+		decryptedAESKey, err := adinkra.Sankofa(keys.KyberPrivateKey, protected.KyberCapsule)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decapsulate Kyber: %w", err)
+			return nil, fmt.Errorf("failed to decrypt AES key with Sankofa: %w", err)
 		}
 
-		aesKey = sharedSecret[:32]
+		aesKey = decryptedAESKey
 	} else {
 		// Use static AES key
 		aesKey = keys.AESKey
@@ -417,7 +414,7 @@ func ImportProtectedData(encoded string) (*ProtectedData, error) {
 
 // ProtectLicenseForStorage encrypts a license for persistent storage (at rest).
 func ProtectLicenseForStorage(license *License, keys *ProtectionKeys) (*ProtectedData, error) {
-	return ProtectData(license, "license", ContextAtRest, keys, nil)
+	return ProtectData(license, "license", ContextAtRest, keys, nil, time.Time{})
 }
 
 // UnprotectLicenseFromStorage decrypts a stored license.
@@ -439,12 +436,127 @@ func UnprotectLicenseFromStorage(protected *ProtectedData, keys *ProtectionKeys)
 
 // ProtectForTransit encrypts data for network transmission with recipient's public key.
 func ProtectForTransit(data interface{}, dataType string, keys *ProtectionKeys, recipientKyberPubKey []byte) (*ProtectedData, error) {
-	protected, err := ProtectData(data, dataType, ContextInTransit, keys, recipientKyberPubKey)
-	if err != nil {
-		return nil, err
+	// Set expiration for transit data (1 hour validity)
+	expiresAt := time.Now().Add(1 * time.Hour)
+	return ProtectData(data, dataType, ContextInTransit, keys, recipientKyberPubKey, expiresAt)
+}
+
+// UnprotectFromTransit decrypts data received over the network.
+func UnprotectFromTransit(protected *ProtectedData, keys *ProtectionKeys, trustedDilithiumPubKey []byte) (map[string]interface{}, error) {
+	// Verify it's transit data
+	if protected.Context != ContextInTransit {
+		return nil, fmt.Errorf("expected in_transit context, got %s", protected.Context)
 	}
 
-	// Set expiration for transit data (1 hour validity)
-	protected.ExpiresAt = time.Now().Add(1 * time.Hour)
-	return protected, nil
+	return UnprotectData(protected, keys, trustedDilithiumPubKey)
+}
+
+// ─── Audit Log Protection ──────────────────────────────────────────────────────
+
+// ProtectAuditLog encrypts audit log entries for compliance storage.
+// Audit logs are never expired (permanent retention) and signed for non-repudiation.
+func ProtectAuditLog(auditEntry interface{}, keys *ProtectionKeys) (*ProtectedData, error) {
+	// Audit logs never expire (permanent retention)
+	return ProtectData(auditEntry, "audit_log", ContextAuditLog, keys, nil, time.Time{})
+}
+
+// UnprotectAuditLog decrypts and verifies an audit log entry.
+func UnprotectAuditLog(protected *ProtectedData, keys *ProtectionKeys) (map[string]interface{}, error) {
+	if protected.Context != ContextAuditLog {
+		return nil, fmt.Errorf("expected audit_log context, got %s", protected.Context)
+	}
+
+	return UnprotectData(protected, keys, nil)
+}
+
+// ─── Telemetry Protection ──────────────────────────────────────────────────────
+
+// ProtectTelemetry encrypts telemetry data (metrics, usage stats, diagnostic data).
+// Telemetry data has short retention (24 hours) and can be optionally sent to external collectors.
+func ProtectTelemetry(telemetryData interface{}, keys *ProtectionKeys, recipientKyberPubKey []byte) (*ProtectedData, error) {
+	// Telemetry expires after 24 hours
+	expiresAt := time.Now().Add(24 * time.Hour)
+	return ProtectData(telemetryData, "telemetry", ContextTelemetry, keys, recipientKyberPubKey, expiresAt)
+}
+
+// UnprotectTelemetry decrypts telemetry data.
+func UnprotectTelemetry(protected *ProtectedData, keys *ProtectionKeys) (map[string]interface{}, error) {
+	if protected.Context != ContextTelemetry {
+		return nil, fmt.Errorf("expected telemetry context, got %s", protected.Context)
+	}
+
+	return UnprotectData(protected, keys, nil)
+}
+
+// ─── Backup Protection ─────────────────────────────────────────────────────────
+
+// ProtectBackup encrypts data for disaster recovery backups.
+// Backups are long-lived (3 years) and use maximum encryption strength.
+func ProtectBackup(backupData interface{}, dataType string, keys *ProtectionKeys) (*ProtectedData, error) {
+	// Backups expire after 3 years (compliance retention)
+	expiresAt := time.Now().AddDate(3, 0, 0)
+	return ProtectData(backupData, dataType, ContextBackup, keys, nil, expiresAt)
+}
+
+// UnprotectBackup decrypts backup data.
+func UnprotectBackup(protected *ProtectedData, keys *ProtectionKeys) (map[string]interface{}, error) {
+	if protected.Context != ContextBackup {
+		return nil, fmt.Errorf("expected backup context, got %s", protected.Context)
+	}
+
+	return UnprotectData(protected, keys, nil)
+}
+
+// ─── Archive Protection ────────────────────────────────────────────────────────
+
+// ProtectArchive encrypts data for long-term compliance archives.
+// Archives are permanent (7+ years) and include additional metadata for chain-of-custody.
+func ProtectArchive(archiveData interface{}, dataType string, keys *ProtectionKeys) (*ProtectedData, error) {
+	// Archives expire after 7 years (CMMC/FedRAMP compliance)
+	expiresAt := time.Now().AddDate(7, 0, 0)
+	return ProtectData(archiveData, dataType, ContextArchive, keys, nil, expiresAt)
+}
+
+// UnprotectArchive decrypts archived data.
+func UnprotectArchive(protected *ProtectedData, keys *ProtectionKeys) (map[string]interface{}, error) {
+	if protected.Context != ContextArchive {
+		return nil, fmt.Errorf("expected archive context, got %s", protected.Context)
+	}
+
+	return UnprotectData(protected, keys, nil)
+}
+
+// ─── In-Use Data Protection ────────────────────────────────────────────────────
+
+// ProtectInUse encrypts data for runtime memory (in-use).
+// In-use data is ephemeral (expires in 5 minutes) and optimized for speed.
+func ProtectInUse(inUseData interface{}, dataType string, keys *ProtectionKeys) (*ProtectedData, error) {
+	// In-use data expires after 5 minutes (short-lived session data)
+	expiresAt := time.Now().Add(5 * time.Minute)
+	return ProtectData(inUseData, dataType, ContextInUse, keys, nil, expiresAt)
+}
+
+// UnprotectInUse decrypts in-use data.
+func UnprotectInUse(protected *ProtectedData, keys *ProtectionKeys) (map[string]interface{}, error) {
+	if protected.Context != ContextInUse {
+		return nil, fmt.Errorf("expected in_use context, got %s", protected.Context)
+	}
+
+	return UnprotectData(protected, keys, nil)
+}
+
+// ─── Configuration Protection ──────────────────────────────────────────────────
+
+// ProtectConfig encrypts configuration data (API keys, credentials, settings).
+func ProtectConfig(configData interface{}, keys *ProtectionKeys) (*ProtectedData, error) {
+	return ProtectData(configData, "config", ContextAtRest, keys, nil, time.Time{})
+}
+
+// UnprotectConfig decrypts configuration data.
+func UnprotectConfig(protected *ProtectedData, keys *ProtectionKeys) (map[string]interface{}, error) {
+	if protected.DataType != "config" {
+		return nil, fmt.Errorf("expected config data type, got %s", protected.DataType)
+	}
+
+	return UnprotectData(protected, keys, nil)
 }
