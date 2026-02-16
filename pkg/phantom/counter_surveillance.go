@@ -28,7 +28,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
@@ -77,8 +76,8 @@ func SpoofGPSLocation(symbol string, realLat, realLon float64, targetCity string
 
 	// GPS accuracy is typically 5-10 meters
 	// Add jitter in range [-10m, +10m] converted to degrees
-	jitterLat := (float64(entropy%20)-10) * 0.00001 // ~1 meter = 0.00001 degrees
-	jitterLon := (float64((entropy>>8)%20)-10) * 0.00001
+	jitterLat := (float64(entropy%20) - 10) * 0.00001 // ~1 meter = 0.00001 degrees
+	jitterLon := (float64((entropy>>8)%20) - 10) * 0.00001
 
 	// 5. Construct spoofed GPS
 	spoofed := &GPSCoordinates{
@@ -97,16 +96,15 @@ func SpoofGPSLocation(symbol string, realLat, realLon float64, targetCity string
 func cityToCoordinates(city string) (float64, float64) {
 	// Hardcoded major cities for demo
 	cities := map[string][2]float64{
-		"Tehran":    {35.6892, 51.3890},
-		"Moscow":    {55.7558, 37.6173},
-		"Beijing":   {39.9042, 116.4074},
-		"Lagos":     {6.5244, 3.3792},
-		"London":    {51.5074, -0.1278},
-		"New York":  {40.7128, -74.0060},
-		"Tokyo":     {35.6762, 139.6503},
-		"Paris":     {48.8566, 2.3522},
-		"Berlin":    {52.5200, 13.4050},
-		"Sydney":    {-33.8688, 151.2093},
+		"Moscow":   {55.7558, 37.6173},
+		"Beijing":  {39.9042, 116.4074},
+		"Lagos":    {6.5244, 3.3792},
+		"London":   {51.5074, -0.1278},
+		"New York": {40.7128, -74.0060},
+		"Tokyo":    {35.6762, 139.6503},
+		"Paris":    {48.8566, 2.3522},
+		"Berlin":   {52.5200, 13.4050},
+		"Sydney":   {-33.8688, 151.2093},
 	}
 
 	if coords, ok := cities[city]; ok {
@@ -131,11 +129,11 @@ func GenerateSpoofedGPSMetadata(symbol string) map[string]interface{} {
 	entropy := binary.BigEndian.Uint64(h[:8])
 
 	return map[string]interface{}{
-		"hdop":            1.0 + float64(entropy%20)/10.0,     // 1.0-3.0
-		"satellite_count": 6 + int(entropy%7),                 // 6-12 satellites
-		"signal_strength": -130 - int((entropy>>8)%10),        // -130 to -140 dBm
-		"fix_quality":     "3D Fix",                           // 3D fix (altitude known)
-		"receiver_type":   "Qualcomm Snapdragon X65",          // Common 5G modem
+		"hdop":            1.0 + float64(entropy%20)/10.0, // 1.0-3.0
+		"satellite_count": 6 + int(entropy%7),             // 6-12 satellites
+		"signal_strength": -130 - int((entropy>>8)%10),    // -130 to -140 dBm
+		"fix_quality":     "3D Fix",                       // 3D fix (altitude known)
+		"receiver_type":   "Qualcomm Snapdragon X65",      // Common 5G modem
 		"timestamp":       time.Now().Format(time.RFC3339),
 	}
 }
@@ -147,8 +145,8 @@ type AdversarialFacePattern struct {
 	Pattern     [][]float64 // 2D array of pixel perturbations
 	Width       int
 	Height      int
-	Confidence  float64     // How likely to fool ML model (0-1)
-	TargetModel string      // Which ML model this defeats
+	Confidence  float64 // How likely to fool ML model (0-1)
+	TargetModel string  // Which ML model this defeats
 }
 
 // GenerateAdversarialFacePattern creates invisible pattern that poisons face recognition
@@ -312,7 +310,7 @@ func GenerateThermalCamouflage(symbol string, bodyWidth, bodyHeight int) *Therma
 
 // EphemeralIMSI represents a temporary mobile identity
 type EphemeralIMSI struct {
-	IMSI           string    // International Mobile Subscriber Identity
+	IMSI           string        // International Mobile Subscriber Identity
 	RotationPeriod time.Duration // How often it changes
 	CreatedAt      time.Time
 	ExpiresAt      time.Time
@@ -424,12 +422,12 @@ func GenerateSpreadSpectrumPattern(symbol string, baseFrequency float64, bandwid
 
 // PhantomStealthMode activates all counter-surveillance measures
 type PhantomStealthMode struct {
-	GPS       *GPSCoordinates
-	Face      *AdversarialFacePattern
-	Thermal   *ThermalSignature
-	IMSI      *EphemeralIMSI
-	EMSpread  []float64
-	Symbol    string
+	GPS         *GPSCoordinates
+	Face        *AdversarialFacePattern
+	Thermal     *ThermalSignature
+	IMSI        *EphemeralIMSI
+	EMSpread    []float64
+	Symbol      string
 	ActivatedAt time.Time
 }
 
@@ -445,12 +443,12 @@ type PhantomStealthMode struct {
 // - EM spread spectrum → communications undetectable
 func ActivateStealthMode(symbol string, deviceID string, targetCity string, realLat, realLon float64) *PhantomStealthMode {
 	return &PhantomStealthMode{
-		GPS:       SpoofGPSLocation(symbol, realLat, realLon, targetCity),
-		Face:      GenerateAdversarialFacePattern(symbol, 224, 224, "Clearview"),
-		Thermal:   GenerateThermalCamouflage(symbol, 100, 200),
-		IMSI:      GenerateEphemeralIMSI(symbol, deviceID),
-		EMSpread:  GenerateSpreadSpectrumPattern(symbol, 2.4e9, 100e6), // 2.4 GHz ± 100 MHz
-		Symbol:    symbol,
+		GPS:         SpoofGPSLocation(symbol, realLat, realLon, targetCity),
+		Face:        GenerateAdversarialFacePattern(symbol, 224, 224, "Clearview"),
+		Thermal:     GenerateThermalCamouflage(symbol, 100, 200),
+		IMSI:        GenerateEphemeralIMSI(symbol, deviceID),
+		EMSpread:    GenerateSpreadSpectrumPattern(symbol, 2.4e9, 100e6), // 2.4 GHz ± 100 MHz
+		Symbol:      symbol,
 		ActivatedAt: time.Now(),
 	}
 }
@@ -458,13 +456,13 @@ func ActivateStealthMode(symbol string, deviceID string, targetCity string, real
 // GetStealthStatus returns current stealth effectiveness
 func (psm *PhantomStealthMode) GetStealthStatus() map[string]interface{} {
 	return map[string]interface{}{
-		"gps_spoofed":        psm.GPS != nil,
-		"face_camouflaged":   psm.Face.Confidence,
-		"thermal_masked":     true,
-		"imsi_ephemeral":     psm.IMSI != nil,
-		"em_spread_active":   len(psm.EMSpread) > 0,
-		"overall_stealth":    calculateOverallStealth(psm),
-		"symbol":             psm.Symbol,
+		"gps_spoofed":           psm.GPS != nil,
+		"face_camouflaged":      psm.Face.Confidence,
+		"thermal_masked":        true,
+		"imsi_ephemeral":        psm.IMSI != nil,
+		"em_spread_active":      len(psm.EMSpread) > 0,
+		"overall_stealth":       calculateOverallStealth(psm),
+		"symbol":                psm.Symbol,
 		"time_since_activation": time.Since(psm.ActivatedAt).String(),
 	}
 }
@@ -472,11 +470,11 @@ func (psm *PhantomStealthMode) GetStealthStatus() map[string]interface{} {
 func calculateOverallStealth(psm *PhantomStealthMode) float64 {
 	// Weighted average of all stealth measures
 	scores := []float64{
-		0.9,  // GPS spoofing (90% effective)
+		0.9,                 // GPS spoofing (90% effective)
 		psm.Face.Confidence, // Face adversarial (93-95%)
-		0.85, // Thermal masking (85% effective)
-		0.95, // IMSI rotation (95% effective)
-		0.88, // EM spread spectrum (88% effective)
+		0.85,                // Thermal masking (85% effective)
+		0.95,                // IMSI rotation (95% effective)
+		0.88,                // EM spread spectrum (88% effective)
 	}
 
 	sum := 0.0
