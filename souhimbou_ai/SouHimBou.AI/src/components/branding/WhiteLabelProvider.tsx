@@ -48,7 +48,7 @@ export const useWhiteLabel = () => {
 
 interface WhiteLabelProviderProps {
   children: ReactNode;
-  partnerId?: string; // For HostBreach integration
+  partnerId?: string; // For third-party partner integration
 }
 
 export const WhiteLabelProvider = ({
