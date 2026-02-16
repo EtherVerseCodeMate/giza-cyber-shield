@@ -96,11 +96,11 @@ services:
       - DB_PASSWORD=phantom_secure_password_change_me  # ⚠️ CHANGE THIS
 
       # Counter-surveillance (optional)
-      - GPS_SPOOF_ENABLED=false
+      - GPS_SPOOF_ENABLED=true
       - GPS_SPOOF_TARGET=Switzerland
-      - FACE_DEFEAT_ENABLED=false
-      - THERMAL_MASKING_ENABLED=false
-      - IMSI_ROTATION_ENABLED=false
+      - FACE_DEFEAT_ENABLED=true
+      - THERMAL_MASKING_ENABLED=true
+      - IMSI_ROTATION_ENABLED=true
     networks:
       - phantom-network
     depends_on:
