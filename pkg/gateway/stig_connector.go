@@ -60,20 +60,28 @@ type STIGConnectorConfig struct {
 
 	// CircuitBreakerResetTime is how long before a half-open attempt (default: 60s).
 	CircuitBreakerResetTime time.Duration
+
+	// CacheEncryptionEnabled enables AES-256-GCM encryption for cached data (default: true).
+	CacheEncryptionEnabled bool
+
+	// CacheKeyRotationInterval is how often encryption keys rotate (default: 30 days).
+	CacheKeyRotationInterval time.Duration
 }
 
 // DefaultSTIGConnectorConfig returns sane defaults.
 func DefaultSTIGConnectorConfig() *STIGConnectorConfig {
 	return &STIGConnectorConfig{
-		VaultPath:               "khepra/stigviewer/api_key",
-		BaseURL:                 "https://api.stigviewer.com",
-		MaxRequestsPerHour:      100,
-		BurstSize:               10,
-		CacheTTL:                4 * time.Hour,
-		MetadataCacheTTL:        24 * time.Hour,
-		MaxPayloadBytes:         10 * 1024 * 1024, // 10 MB
-		CircuitBreakerThreshold: 3,
-		CircuitBreakerResetTime: 60 * time.Second,
+		VaultPath:                "khepra/stigviewer/api_key",
+		BaseURL:                  "https://api.stigviewer.com",
+		MaxRequestsPerHour:       100,
+		BurstSize:                10,
+		CacheTTL:                 4 * time.Hour,
+		MetadataCacheTTL:         24 * time.Hour,
+		MaxPayloadBytes:          10 * 1024 * 1024, // 10 MB
+		CircuitBreakerThreshold:  3,
+		CircuitBreakerResetTime:  60 * time.Second,
+		CacheEncryptionEnabled:   true,
+		CacheKeyRotationInterval: 30 * 24 * time.Hour, // 30 days
 	}
 }
 
@@ -284,6 +292,11 @@ type STIGConnector struct {
 	cache   sync.Map // thread-safe cache
 	audit   []AuditEntry
 	auditMu sync.Mutex
+
+	// Cache encryption
+	cacheEncryptionKey []byte         // Current AES-256 key (32 bytes)
+	keyRotatedAt       time.Time      // Last key rotation timestamp
+	keyMu              sync.RWMutex   // Protects encryption key access
 }
 
 // NewSTIGConnector creates a new DMZ connector.
@@ -292,16 +305,26 @@ func NewSTIGConnector(cfg *STIGConnectorConfig, keys KeyProvider) *STIGConnector
 		cfg = DefaultSTIGConnectorConfig()
 	}
 
-	return &STIGConnector{
+	connector := &STIGConnector{
 		config: cfg,
 		keys:   keys,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 			// TLS config inherited from gateway — enforces TLS 1.3
 		},
-		breaker: newCircuitBreaker(cfg.CircuitBreakerThreshold, cfg.CircuitBreakerResetTime),
-		limiter: newTokenBucket(cfg.MaxRequestsPerHour, cfg.BurstSize),
+		breaker:      newCircuitBreaker(cfg.CircuitBreakerThreshold, cfg.CircuitBreakerResetTime),
+		limiter:      newTokenBucket(cfg.MaxRequestsPerHour, cfg.BurstSize),
+		keyRotatedAt: time.Now(),
 	}
+
+	// Initialize cache encryption key
+	if cfg.CacheEncryptionEnabled {
+		if err := connector.rotateEncryptionKey(); err != nil {
+			log.Printf("[STIGConnector] Failed to initialize encryption key: %v", err)
+		}
+	}
+
+	return connector
 }
 
 // ─── Public API (Called by Zone 2 via mTLS on port 8443) ────────────────────────
@@ -567,9 +590,11 @@ func sanitizeTextField(input string, maxLen int) string {
 // ─── Cache (In-Memory, Encrypted, Signed) ───────────────────────────────────────
 
 type cacheEntry struct {
-	result    *STIGQueryResult
-	hmacSig   []byte
-	expiresAt time.Time
+	encryptedData []byte    // AES-256-GCM encrypted STIGQueryResult
+	nonce         []byte    // GCM nonce (12 bytes)
+	hmacSig       []byte    // HMAC-SHA256 signature
+	expiresAt     time.Time // Cache expiration
+	keyVersion    int       // Encryption key version (for rotation)
 }
 
 func (c *STIGConnector) getFromCache(key string) (*STIGQueryResult, bool) {
@@ -590,33 +615,77 @@ func (c *STIGConnector) getFromCache(key string) (*STIGQueryResult, bool) {
 		return nil, false
 	}
 
-	// Verify HMAC integrity
-	data, _ := json.Marshal(entry.result)
-	expected := c.computeHMAC(data)
+	// Verify HMAC integrity (computed over encrypted data)
+	expected := c.computeHMAC(entry.encryptedData)
 	if !hmac.Equal(entry.hmacSig, expected) {
 		c.cache.Delete(key)
 		c.logAudit("cache_tampering_detected", "system", map[string]string{"key": key})
 		return nil, false
 	}
 
+	// Decrypt the cached data
+	var result *STIGQueryResult
+	if c.config.CacheEncryptionEnabled {
+		decrypted, err := c.decryptCacheData(entry.encryptedData, entry.nonce)
+		if err != nil {
+			c.cache.Delete(key)
+			c.logAudit("cache_decryption_failed", "system", map[string]string{
+				"key":   key,
+				"error": err.Error(),
+			})
+			return nil, false
+		}
+
+		if err := json.Unmarshal(decrypted, &result); err != nil {
+			c.cache.Delete(key)
+			return nil, false
+		}
+	} else {
+		// Fallback: unencrypted cache (should not happen in production)
+		if err := json.Unmarshal(entry.encryptedData, &result); err != nil {
+			c.cache.Delete(key)
+			return nil, false
+		}
+	}
+
 	// Mark as cache hit
-	result := *entry.result
 	result.CacheHit = true
 	result.Source = "cache"
-	return &result, true
+	return result, true
 }
 
 func (c *STIGConnector) putInCache(key string, result *STIGQueryResult) {
+	// Check if key rotation is needed
+	c.checkAndRotateKey()
+
 	data, err := json.Marshal(result)
 	if err != nil {
 		log.Printf("[STIGConnector] Failed to marshal cache entry: %v", err)
 		return
 	}
 
+	var encryptedData []byte
+	var nonce []byte
+
+	if c.config.CacheEncryptionEnabled {
+		// Encrypt the cache data with AES-256-GCM
+		encryptedData, nonce, err = c.encryptCacheData(data)
+		if err != nil {
+			log.Printf("[STIGConnector] Failed to encrypt cache entry: %v", err)
+			return
+		}
+	} else {
+		// Fallback: store unencrypted (should not happen in production)
+		encryptedData = data
+		nonce = nil
+	}
+
 	c.cache.Store(key, &cacheEntry{
-		result:    result,
-		hmacSig:   c.computeHMAC(data),
-		expiresAt: time.Now().Add(c.config.CacheTTL),
+		encryptedData: encryptedData,
+		nonce:         nonce,
+		hmacSig:       c.computeHMAC(encryptedData),
+		expiresAt:     time.Now().Add(c.config.CacheTTL),
+		keyVersion:    c.getCurrentKeyVersion(),
 	})
 }
 
