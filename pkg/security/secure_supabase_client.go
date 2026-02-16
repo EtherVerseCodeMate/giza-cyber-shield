@@ -62,7 +62,6 @@ func (sc *SecureSupabaseClient) Insert(table string, data interface{}) (string, 
 		sc.encryptionErrors++
 		return "", fmt.Errorf("failed to encrypt data: %w", err)
 	}
-
 	// 2. Convert to JSON
 	protectedJSON, err := json.Marshal(protected)
 	if err != nil {
@@ -71,6 +70,7 @@ func (sc *SecureSupabaseClient) Insert(table string, data interface{}) (string, 
 
 	// 3. Insert into Supabase (would use actual Supabase SDK)
 	// For now, this is a skeleton showing the pattern
+	_ = protectedJSON // Future: sc.client.From(table).Insert(protectedJSON)
 	rowID := protected.ID
 
 	// TODO: Replace with actual Supabase client
@@ -173,7 +173,7 @@ func (sc *SecureSupabaseClient) Update(table string, id string, newData interfac
 
 	// 2. Update in Supabase
 	// TODO: Replace with actual Supabase client
-	// _, err = sc.client.From(table).Update(protected).Eq("id", id)
+	_ = protected // Future: _, err = sc.client.From(table).Update(protected).Eq("id", id)
 
 	sc.encryptedInserts++ // Count as encrypted operation
 	return nil

@@ -1,0 +1,51 @@
+# Prometheus configuration for Phantom Network Stack monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'phantom-network'
+    environment: 'development'
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+          # - alertmanager:9093
+
+# Scrape configurations
+scrape_configs:
+  # Phantom Node Metrics
+  - job_name: 'phantom-node'
+    static_configs:
+      - targets: ['phantom-node:9090']
+        labels:
+          service: 'phantom-node'
+          symbol: 'Eban'
+
+    # Scrape metrics
+    metrics_path: '/metrics'
+    scheme: 'http'
+
+    # Relabeling
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # PostgreSQL Metrics (if postgres_exporter is added)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+        labels:
+          service: 'postgres'
+
+    # Uncomment if using postgres_exporter
+    # metrics_path: '/metrics'
+
+  # Prometheus Self-Monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
