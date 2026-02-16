@@ -1,17 +1,18 @@
-// Example: Integrating PQC Security into main.go
-//
-// This shows how to wire the omnipotent PQC framework into your application.
-// Copy-paste this pattern into cmd/apiserver/main.go and cmd/gateway/main.go
+//go:build ignore
+
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/security"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/agi"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/security"
+	"github.com/gorilla/mux"
 )
 
 func main() {
@@ -84,10 +85,10 @@ func SecurityMetricsHandler(w http.ResponseWriter, r *http.Request) {
 // ─── User Management (with automatic encryption) ──────────────────────────────
 
 type UserProfile struct {
-	ID        string `json:"id"`
-	Email     string `json:"email"`
-	FullName  string `json:"full_name"`
-	SSN       string `json:"ssn"` // ← Will be encrypted automatically!
+	ID       string `json:"id"`
+	Email    string `json:"email"`
+	FullName string `json:"full_name"`
+	SSN      string `json:"ssn"` // ← Will be encrypted automatically!
 }
 
 func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
@@ -126,33 +127,33 @@ func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 
 // ─── License Management (with automatic encryption) ───────────────────────────
 
-type License struct {
-	ID        string   `json:"id"`
-	UserID    string   `json:"user_id"`
-	Tier      string   `json:"tier"`
-	Features  []string `json:"features"`
+type UserLicense struct {
+	ID       string   `json:"id"`
+	UserID   string   `json:"user_id"`
+	Tier     string   `json:"tier"`
+	Features []string `json:"features"`
 }
 
 func GetLicensesHandler(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user_id")
 
 	// AUTOMATIC DECRYPTION
-	licenses, err := security.SecureDB.Select("licenses", "user_id", userID)
+	hashes, err := security.SecureDB.Select("licenses", "user_id", userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(licenses)
+	json.NewEncoder(w).Encode(hashes)
 }
 
 func CreateLicenseHandler(w http.ResponseWriter, r *http.Request) {
-	var license License
-	json.NewDecoder(r.Body).Decode(&license)
+	var lic UserLicense
+	json.NewDecoder(r.Body).Decode(&lic)
 
 	// AUTOMATIC ENCRYPTION
-	licenseID, err := security.SecureDB.Insert("licenses", license)
+	licenseID, err := security.SecureDB.Insert("licenses", lic)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -161,9 +162,9 @@ func CreateLicenseHandler(w http.ResponseWriter, r *http.Request) {
 	// Log to encrypted audit trail
 	auditEvent := map[string]interface{}{
 		"action":     "CREATE_LICENSE",
-		"user_id":    license.UserID,
+		"user_id":    lic.UserID,
 		"license_id": licenseID,
-		"tier":       license.Tier,
+		"tier":       lic.Tier,
 		"timestamp":  time.Now(),
 	}
 
