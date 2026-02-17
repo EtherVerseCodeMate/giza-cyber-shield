@@ -46,6 +46,14 @@ services:
       # Security
       - PHANTOM_ENCRYPTION=kyber1024           # Post-quantum encryption
       - PHANTOM_SIGNING=dilithium3             # Post-quantum signatures
+      - PHANTOM_KEYGEN=true                    # Enable key generation
+      - PHANTOM_KEYGEN_INTERVAL=1h             # Key rotation interval
+      - PHANTOM_KEYGEN_OUTPUT=/root/.khepra/keys
+      - PHANTOM_KEYGEN_OUTPUT=/app/data/keys
+      - PHANTOM_ADINKHEPRA_LATTICE=true #Real Implementation of Adinkra Lattice from Khepra Protocol  
+      - PHANTOM_ADINKHEPRA_LATTICE_INTERVAL=1h #Real Implementation of Adinkra Lattice from Khepra Protocol  
+      - PHANTOM_ADINKHEPRA_LATTICE_OUTPUT=/app/data/lattice #Real Implementation of Adinkra Lattice from Khepra Protocol  
+
 
       # Database
       - DB_HOST=postgres
@@ -104,7 +112,7 @@ services:
       - postgres-data:/var/lib/postgresql/data
     environment:
       POSTGRES_USER: phantom
-      POSTGRES_PASSWORD: phantom_secure_password_change_me  # Change this!
+      POSTGRES_PASSWORD: Code@11phantom_mate  # Change this!
       POSTGRES_DB: phantom_network
     networks:
       - phantom-network
