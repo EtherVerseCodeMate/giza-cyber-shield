@@ -14,8 +14,10 @@ RUN go mod download
 COPY . .
 
 # Build the Khepra (Sonar) binary
-# Using CGO_ENABLED=0 for static binary
 RUN CGO_ENABLED=0 go build -o /usr/local/bin/khepra ./cmd/sonar/main.go
+
+# Build the Khepra Gateway binary
+RUN CGO_ENABLED=0 go build -o /usr/local/bin/khepra-gateway ./cmd/gateway/main.go
 
 # Stage 2: Runtime Environment (Python + Khepra)
 FROM python:3.11-slim
@@ -43,8 +45,13 @@ RUN pip install --no-cache-dir \
 # Create necessary directories
 RUN mkdir -p /app/data/cyber_brain /app/models /app/top_secret_intel
 
-# Copy Khepra binary from builder
+# Copy Khepra binaries from builder
 COPY --from=builder /usr/local/bin/khepra /usr/local/bin/khepra
+COPY --from=builder /usr/local/bin/khepra-gateway /usr/local/bin/khepra-gateway
+
+# Copy entrypoint script
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 # Create non-root user and directories
 RUN useradd -m -u 1000 khepra && \
@@ -68,4 +75,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8080/ || exit 1
 
 # Run the application
-CMD ["uvicorn", "services.ml_anomaly.api:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "2"]
+CMD ["/app/entrypoint.sh"]
