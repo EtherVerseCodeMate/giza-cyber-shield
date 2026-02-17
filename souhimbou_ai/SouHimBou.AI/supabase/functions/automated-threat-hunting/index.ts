@@ -62,16 +62,16 @@ serve(async (req) => {
     switch (action) {
       case 'sync_feeds':
         return await syncThreatFeeds(supabase, organizationId);
-      
+
       case 'generate_queries':
         return await generateHuntQueries(supabase, organizationId);
-      
+
       case 'execute_hunt':
         return await executeHunt(supabase, indicator!, indicatorType!, organizationId);
-      
+
       case 'generate_report':
         return await generateDailyReport(supabase, reportDate!, organizationId);
-      
+
       default:
         throw new Error('Invalid action');
     }
@@ -80,8 +80,8 @@ serve(async (req) => {
     console.error('Error in automated-threat-hunting function:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      { 
-        status: 500, 
+      {
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
@@ -89,77 +89,41 @@ serve(async (req) => {
 });
 
 async function syncThreatFeeds(supabase: any, organizationId?: string) {
-  console.log('🔄 Starting daily threat intelligence feed sync...');
-  
-  // Simulate collecting from multiple sources
-  const feedSources = [
-    'MITRE ATT&CK',
-    'CVE Database', 
-    'AbuseIPDB',
-    'AlienVault OTX',
-    'CISA KEV',
-    'Malware Bazaar',
-    'URLhaus',
-    'PhishTank'
-  ];
+  console.log('🔄 Triggering real threat intelligence feed sync via threat-feed-sync function...');
 
-  const collectedIndicators: ThreatIndicator[] = [];
-  
-  // Simulate feed collection
-  for (const source of feedSources) {
-    const indicatorCount = Math.floor(Math.random() * 150) + 50; // 50-200 per source
-    
-    for (let i = 0; i < indicatorCount; i++) {
-      const types = ['ip', 'domain', 'hash', 'url'];
-      const severities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-      
-      const indicator: ThreatIndicator = {
-        value: generateMockIndicator(types[Math.floor(Math.random() * types.length)]),
-        type: types[Math.floor(Math.random() * types.length)],
-        severity: severities[Math.floor(Math.random() * severities.length)],
-        source,
-        confidence: Math.floor(Math.random() * 40) + 60, // 60-100%
-        firstSeen: new Date(Date.now() - Math.random() * 86400000 * 7), // Last 7 days
-        lastSeen: new Date()
-      };
-      
-      collectedIndicators.push(indicator);
-    }
-  }
+  try {
+    const { data, error } = await supabase.functions.invoke('threat-feed-sync', {
+      body: { action: 'sync_all' }
+    });
 
-  // Store in threat_intelligence table
-  const { error: insertError } = await supabase
-    .from('threat_intelligence')
-    .insert(
-      collectedIndicators.map(ind => ({
-        source: ind.source,
-        indicator_type: ind.type,
-        indicator_value: ind.value,
-        threat_level: ind.severity,
-        description: `Automated collection from ${ind.source} - Confidence: ${ind.confidence}%`,
-        organization_id: organizationId
-      }))
+    if (error) throw error;
+
+    console.log(`✅ Threat feed sync completed: ${data.results?.length} feeds processed`);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Real threat feeds synced successfully',
+        feedsProcessed: data.results?.length || 0,
+        results: data.results,
+        timestamp: new Date().toISOString()
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-
-  if (insertError) {
-    console.error('Error inserting threat indicators:', insertError);
+  } catch (error: any) {
+    console.error('Error triggering threat feed sync:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message,
+        message: 'Failed to sync real threat feeds'
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
   }
-
-  console.log(`✅ Collected ${collectedIndicators.length} indicators from ${feedSources.length} sources`);
-
-  return new Response(
-    JSON.stringify({
-      success: true,
-      collected: collectedIndicators.length,
-      sources: feedSources,
-      breakdown: feedSources.map(source => ({
-        source,
-        count: collectedIndicators.filter(i => i.source === source).length
-      })),
-      timestamp: new Date().toISOString()
-    }),
-    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  );
 }
 
 async function generateHuntQueries(supabase: any, organizationId?: string) {
@@ -207,17 +171,17 @@ async function executeHunt(supabase: any, indicator: string, indicatorType: stri
   console.log(`🔍 Executing hunt for ${indicatorType}: ${indicator}`);
 
   const startTime = Date.now();
-  
+
   // Generate Splunk query
   const splunkQuery = generateSplunkQuery(indicator, indicatorType);
-  
+
   // Simulate Splunk search execution
   await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-  
+
   // Simulate results (80% chance of no matches for clean environment)
   const hasMatches = Math.random() > 0.8;
   const matchCount = hasMatches ? Math.floor(Math.random() * 5) + 1 : 0;
-  
+
   const findings = [];
   if (hasMatches) {
     for (let i = 0; i < matchCount; i++) {
@@ -290,18 +254,18 @@ async function generateDailyReport(supabase: any, reportDate: string, organizati
 
   const totalQueries = huntLogs?.length || 0;
   const matchedQueries = huntLogs?.filter(log => log.match_count > 0).length || 0;
-  const criticalFindings = huntLogs?.filter(log => 
+  const criticalFindings = huntLogs?.filter(log =>
     log.match_count > 0 && log.findings?.some((f: any) => f.riskScore >= 80)
   ).length || 0;
-  
+
   const cleanEnvironment = matchedQueries === 0;
 
   // Generate email content
-  const emailSubject = cleanEnvironment 
+  const emailSubject = cleanEnvironment
     ? `🛡️ Daily Threat Hunt Report: Clean Environment - ${reportDate}`
     : `🚨 Daily Threat Hunt Report: ${matchedQueries} IOC Matches - ${reportDate}`;
 
-  const emailBody = cleanEnvironment 
+  const emailBody = cleanEnvironment
     ? generateCleanReport(totalQueries, reportDate)
     : generateThreatReport(huntLogs, matchedQueries, criticalFindings, reportDate);
 
@@ -391,7 +355,7 @@ function generateMockIndicator(type: string): string {
       const domains = ['evil-domain.com', 'malicious-site.net', 'bad-actor.org', 'threat-source.io'];
       return domains[Math.floor(Math.random() * domains.length)];
     case 'hash':
-      return Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join('');
+      return Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
     case 'url':
       return `https://suspicious-site.com/malware/${Math.random().toString(36)}`;
     default:
@@ -459,7 +423,7 @@ Generated: ${new Date().toLocaleString()}
 
 function generateThreatReport(huntLogs: any[], matchedQueries: number, criticalFindings: number, reportDate: string): string {
   const matchedLogs = huntLogs.filter(log => log.match_count > 0);
-  
+
   const threatDetails = matchedLogs.map(log => `
 🎯 ${log.indicator_value} (${log.indicator_type.toUpperCase()})
    Matches: ${log.match_count}

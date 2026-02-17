@@ -66,6 +66,10 @@ type STIGConnectorConfig struct {
 
 	// CacheKeyRotationInterval is how often encryption keys rotate (default: 30 days).
 	CacheKeyRotationInterval time.Duration
+
+	// IntegrityKey is the key used for HMAC signature of cached data.
+	// In production, this should be a 32-byte or 64-byte secret.
+	IntegrityKey []byte
 }
 
 // DefaultSTIGConnectorConfig returns sane defaults.
@@ -294,9 +298,9 @@ type STIGConnector struct {
 	auditMu sync.Mutex
 
 	// Cache encryption
-	cacheEncryptionKey []byte         // Current AES-256 key (32 bytes)
-	keyRotatedAt       time.Time      // Last key rotation timestamp
-	keyMu              sync.RWMutex   // Protects encryption key access
+	cacheEncryptionKey []byte       // Current AES-256 key (32 bytes)
+	keyRotatedAt       time.Time    // Last key rotation timestamp
+	keyMu              sync.RWMutex // Protects encryption key access
 }
 
 // NewSTIGConnector creates a new DMZ connector.
@@ -690,9 +694,12 @@ func (c *STIGConnector) putInCache(key string, result *STIGQueryResult) {
 }
 
 func (c *STIGConnector) computeHMAC(data []byte) []byte {
-	// In production, this key comes from Vault.
-	// For now, derive from the connector's identity.
-	h := hmac.New(sha256.New, []byte("khepra-cache-integrity-key"))
+	key := c.config.IntegrityKey
+	if len(key) == 0 {
+		// Fallback for development only - in production this must be set
+		key = []byte("khepra-default-integrity-key-change-me-in-production")
+	}
+	h := hmac.New(sha256.New, key)
 	h.Write(data)
 	return h.Sum(nil)
 }
