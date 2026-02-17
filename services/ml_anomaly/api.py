@@ -22,10 +22,11 @@ import json
 import subprocess
 from pathlib import Path
 from datetime import datetime
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Response
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 import uvicorn
+import httpx
 import torch
 import numpy as np
 
@@ -585,6 +586,40 @@ async def export_compliance_report():
     except Exception as e:
         logger.error(f"PDF generation failed: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}")
+
+# --- STIG Gateway Proxy ---
+@app.get("/api/stigs")
+async def proxy_stig_gateway(request: Request):
+    """
+    Proxy request to the local Go STIG Gateway.
+    This enables the bridge between Vercel -> Fly.io (Python) -> localhost (Go Gateway) -> STIGViewer API.
+    """
+    GATEWAY_URL = "http://localhost:8443/api/stigs"
+    
+    try:
+        # Forward query parameters
+        params = request.query_params
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                GATEWAY_URL,
+                params=params,
+                headers={"X-Identity-ID": request.headers.get("X-Identity-ID", "anonymous")},
+                timeout=30.0
+            )
+            
+        return Response(
+            content=response.content,
+            status_code=response.status_code,
+            media_type="application/json"
+        )
+    except Exception as e:
+        logger.error(f"STIG Gateway Proxy Error: {e}")
+        # If local gateway is down, return a helpful error
+        raise HTTPException(
+            status_code=503, 
+            detail="STIG Gateway service is currently unavailable. Please ensure the Go connector is running."
+        )
 
 @app.get("/")
 async def root():

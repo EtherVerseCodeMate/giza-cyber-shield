@@ -49,7 +49,7 @@ export interface ConfigurationDelta {
 export class STIGViewerService {
   private static readonly SUPPORTED_PLATFORMS = [
     'Windows Server 2019',
-    'Windows Server 2022', 
+    'Windows Server 2022',
     'Ubuntu 22.04',
     'IIS 10.0',
     'Apache 2.4',
@@ -61,7 +61,7 @@ export class STIGViewerService {
    * Perform STIG fingerprinting for a target system
    */
   static async performSTIGFingerprinting(
-    targetIP: string, 
+    targetIP: string,
     platform: string
   ): Promise<STIGFingerprint> {
     try {
@@ -99,22 +99,47 @@ export class STIGViewerService {
   }
 
   /**
-   * Lookup specific STIG rule by ID
+   * Lookup specific STIG rule by ID via the real Go Gateway relay
    */
-  static async lookupSTIGRule(stigId: string, platform: string): Promise<STIGRule> {
+  static async lookupSTIGRule(stigId: string, _platform: string, organizationId?: string): Promise<STIGRule> {
     try {
-      const { data, error } = await supabase.functions.invoke('stig-taxii-sync', {
+      if (!organizationId) {
+        throw new Error('Organization ID is required for live STIG data');
+      }
+
+      const { data, error } = await supabase.functions.invoke('stig-relay', {
         body: {
-          action: 'lookup_rule',
-          stig_id: stigId,
-          platform: platform,
-          include_remediation: true
+          action: 'query_stigs',
+          organization_id: organizationId,
+          rule_id: stigId
         }
       });
 
       if (error) throw error;
 
-      return data as STIGRule;
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to fetch rule from gateway');
+      }
+
+      // Format data to match STIGRule interface
+      const ruleData = data.data?.rules?.[0];
+      if (!ruleData) {
+        throw new Error(`STIG rule ${stigId} not found in remote catalog`);
+      }
+
+      return {
+        id: ruleData.rule_id,
+        stigId: ruleData.stig_id || stigId,
+        title: ruleData.title,
+        description: ruleData.description,
+        checkText: ruleData.check_text || 'Refer to documentation',
+        fixText: ruleData.fix_text || 'See official STIG guide',
+        severity: ruleData.severity?.toLowerCase()?.replace('_', '') as any || 'cat2',
+        vulnId: ruleData.vuln_id || 'N/A',
+        ruleId: ruleData.rule_id,
+        version: ruleData.version || '1.0',
+        platform: ruleData.platform || _platform,
+      };
     } catch (error) {
       console.error('STIG rule lookup failed:', error);
       throw error;
@@ -126,7 +151,7 @@ export class STIGViewerService {
    */
   static async trackConfigurationDelta(
     assetId: string,
-    stigRuleId: string, 
+    stigRuleId: string,
     beforeState: any,
     afterState: any
   ): Promise<ConfigurationDelta> {
@@ -195,7 +220,7 @@ export class STIGViewerService {
   static async performAutomatedRemediation(
     assetId: string,
     stigRules: string[]
-  ): Promise<{ 
+  ): Promise<{
     remediated: string[];
     failed: string[];
     requiresManual: string[];

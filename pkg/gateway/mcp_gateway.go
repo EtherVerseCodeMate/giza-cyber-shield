@@ -210,6 +210,7 @@ type STIGQueryResponse struct {
 	ComplianceStatus   string                   `json:"compliance_status,omitempty"` // Analyst+ only
 	ProcessTimeline    []ProcessBehaviorEvent   `json:"process_timeline,omitempty"`  // Admin only
 	DataClassification DataClassification       `json:"data_classification"`
+	Source             string                   `json:"source,omitempty"`
 }
 
 // ProcessBehaviorEvent represents a process behavior event from the timeline.
@@ -247,19 +248,42 @@ func (g *MCPGateway) HandleSTIGQuery(ctx context.Context, identity *Identity, re
 	}
 
 	// 4. Fetch data from STIG Connector (DMZ Zone 1)
-	// Note: stigConnector.GetSTIG() would call the real STIGViewer API
-	rawData, err := g.fetchSTIGData(ctx, req.STIGID)
+	filter := STIGFilter{
+		STIGID: req.STIGID,
+		Limit:  1,
+	}
+	rawData, err := g.stigConnector.QuerySTIGs(ctx, identity.ID, filter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch STIG data: %w", err)
 	}
 
+	// Convert STIGQueryResult to STIGQueryResponse
+	response := &STIGQueryResponse{
+		STIGID:             req.STIGID,
+		DataClassification: DataClassPublic, // Default for now
+		Source:             rawData.Source,
+	}
+
+	if len(rawData.Rules) > 0 {
+		rule := rawData.Rules[0]
+		response.Title = rule.Title
+		response.Severity = rule.Severity
+		response.Complexity = rule.Complexity
+
+		// Map decomposed rules
+		for _, dec := range rawData.Rules {
+			ruleMap := mcpRuleToMap(dec)
+			response.DecomposedRules = append(response.DecomposedRules, ruleMap)
+		}
+	}
+
 	// 5. Filter response based on identity's role and data classification
-	filtered := g.filterByRoleAndClassification(rawData, identity)
+	g.filterByRoleAndClassification(response, identity)
 
 	// 6. Add Process Behavior Timeline data if requested (Admin only)
 	if req.IncludeProcessTimeline && identity.Role == RoleAdmin {
 		if err := g.CheckPermission(identity, "view_process_timeline"); err == nil {
-			filtered.ProcessTimeline = g.getProcessTimelineForSTIG(req.STIGID)
+			response.ProcessTimeline = g.getProcessTimelineForSTIG(req.STIGID)
 		}
 	}
 
@@ -267,11 +291,31 @@ func (g *MCPGateway) HandleSTIGQuery(ctx context.Context, identity *Identity, re
 	g.auditLog.Log("stig_query_executed", identity, map[string]interface{}{
 		"stig_id":             req.STIGID,
 		"operation":           req.Operation,
-		"data_class_returned": filtered.DataClassification,
+		"data_class_returned": response.DataClassification,
 		"timestamp":           time.Now().UTC(),
 	})
 
-	return filtered, nil
+	return response, nil
+}
+
+func mcpRuleToMap(rule STIGDecomposedRule) map[string]interface{} {
+	m := make(map[string]interface{})
+	m["rule_id"] = rule.RuleID
+	m["title"] = rule.Title
+	m["severity"] = rule.Severity
+	m["description"] = rule.Description
+
+	reqs := make([]map[string]interface{}, 0)
+	for _, ar := range rule.AtomicRequirements {
+		reqs = append(reqs, map[string]interface{}{
+			"id":          ar.ID,
+			"description": ar.Description,
+			"testable":    ar.Testable,
+			"automatable": ar.Automatable,
+		})
+	}
+	m["atomic_requirements"] = reqs
+	return m
 }
 
 // ─── Helper Functions ──────────────────────────────────────────────────────────
@@ -284,55 +328,41 @@ func isValidSTIGID(stigID string) bool {
 	return validFormat.MatchString(stigID) && len(stigID) <= 64
 }
 
-// fetchSTIGData fetches raw STIG data from the connector (placeholder).
-func (g *MCPGateway) fetchSTIGData(ctx context.Context, stigID string) (*STIGQueryResponse, error) {
-	// TODO: Call g.stigConnector.GetSTIG(ctx, stigID)
-	// For now, return a placeholder showing the integration point
-	return &STIGQueryResponse{
-		STIGID:             stigID,
-		Title:              "Placeholder STIG Data",
-		Severity:           "CAT_II",
-		DataClassification: DataClassPublic,
-	}, nil
+// RedactClassification redacts sensitive fields if clearance is insufficient.
+func (g *MCPGateway) RedactClassification(response *STIGQueryResponse, identity *Identity) {
+	if response.DataClassification > identity.DataClassification {
+		response.Title = "[REDACTED - Insufficient Clearance]"
+		response.DecomposedRules = nil
+		response.RoleMappings = nil
+	}
 }
 
 // filterByRoleAndClassification filters STIG response fields based on RBAC and data classification.
-func (g *MCPGateway) filterByRoleAndClassification(data *STIGQueryResponse, identity *Identity) *STIGQueryResponse {
-	filtered := &STIGQueryResponse{
-		STIGID:             data.STIGID,
-		Title:              data.Title,
-		Severity:           data.Severity,
-		DataClassification: data.DataClassification,
-	}
-
+func (g *MCPGateway) filterByRoleAndClassification(response *STIGQueryResponse, identity *Identity) {
 	// Complexity visible to all roles
-	filtered.Complexity = data.Complexity
-
 	// Decomposed rules visible to all roles (if PUBLIC classification)
-	if data.DataClassification == DataClassPublic {
-		filtered.DecomposedRules = data.DecomposedRules
+	if response.DataClassification != DataClassPublic && identity.Role == RoleReader {
+		response.DecomposedRules = nil
 	}
 
 	// Role mappings visible to Analyst+ roles
-	if identity.Role == RoleAnalyst || identity.Role == RoleAdmin {
-		filtered.RoleMappings = data.RoleMappings
-		filtered.ComplianceStatus = data.ComplianceStatus
+	if identity.Role != RoleAnalyst && identity.Role != RoleAdmin {
+		response.RoleMappings = nil
+		response.ComplianceStatus = ""
 	}
 
 	// Process timeline visible to Admin only
-	if identity.Role == RoleAdmin {
-		filtered.ProcessTimeline = data.ProcessTimeline
+	if identity.Role != RoleAdmin {
+		response.ProcessTimeline = nil
 	}
 
 	// Filter out CUI/CLASSIFIED data if identity lacks clearance
-	if data.DataClassification > identity.DataClassification {
+	if response.DataClassification > identity.DataClassification {
 		// Redact sensitive fields
-		filtered.Title = "[REDACTED - Insufficient Clearance]"
-		filtered.DecomposedRules = nil
-		filtered.RoleMappings = nil
+		response.Title = "[REDACTED - Insufficient Clearance]"
+		response.DecomposedRules = nil
+		response.RoleMappings = nil
 	}
-
-	return filtered
 }
 
 // getProcessTimelineForSTIG retrieves process behavior events related to a STIG control.
