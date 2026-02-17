@@ -11,9 +11,6 @@ RUN apk add --no-cache git gcc musl-dev curl
 # Set working directory
 WORKDIR /app
 
-# Copy pkg directory
-COPY pkg/ /app/pkg/
-
 # Create a simple placeholder server
 RUN cat > /app/main.go << 'GOEOF'
 package main
