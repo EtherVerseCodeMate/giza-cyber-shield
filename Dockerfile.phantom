@@ -1,75 +1,138 @@
 # Dockerfile for Phantom Network Node
 #
-# Multi-stage build:
-#   Stage 1: Build Go binary
-#   Stage 2: Minimal runtime image
+# Simple placeholder server until full implementation
+# Provides health endpoint and basic API structure
 
-# ═══════════════════════════════════════════════════════════════════
-# Stage 1: Builder
-# ═══════════════════════════════════════════════════════════════════
+FROM golang:1.22-alpine
 
-FROM golang:1.22-alpine AS builder
-
-# Install build dependencies
-RUN apk add --no-cache git gcc musl-dev
-
-# Set working directory
-WORKDIR /build
-
-# Copy go modules manifests
-COPY go.mod go.sum ./
-RUN go mod download
-
-# Copy source code
-COPY pkg/ ./pkg/
-COPY cmd/ ./cmd/
-
-# Build phantom node binary
-RUN CGO_ENABLED=1 GOOS=linux go build \
-    -a -installsuffix cgo \
-    -ldflags="-w -s" \
-    -o phantom-node \
-    ./cmd/phantom-node/main.go || \
-    echo "⚠️  phantom-node binary not built (cmd/phantom-node/main.go doesn't exist yet)"
-
-# ═══════════════════════════════════════════════════════════════════
-# Stage 2: Runtime
-# ═══════════════════════════════════════════════════════════════════
-
-FROM alpine:latest
-
-# Install runtime dependencies
-RUN apk --no-cache add ca-certificates curl
-
-# Create non-root user
-RUN addgroup -g 1000 phantom && \
-    adduser -D -u 1000 -G phantom phantom
+# Install dependencies
+RUN apk add --no-cache git gcc musl-dev curl
 
 # Set working directory
 WORKDIR /app
 
-# Copy binary from builder
-COPY --from=builder /build/phantom-node /app/phantom-node 2>/dev/null || \
-    echo "#!/bin/sh\necho 'Phantom node not built yet. Run: go build ./cmd/phantom-node'\nsleep infinity" > /app/phantom-node && \
-    chmod +x /app/phantom-node
-
-# Copy pkg directory (for development mode)
+# Copy pkg directory
 COPY pkg/ /app/pkg/
 
-# Create directories for keys and data
-RUN mkdir -p /root/.khepra/keys /app/data && \
-    chown -R phantom:phantom /app
+# Create a simple placeholder server
+RUN cat > /app/main.go << 'GOEOF'
+package main
 
-# Switch to non-root user
-USER phantom
+import (
+    "encoding/json"
+    "fmt"
+    "log"
+    "net/http"
+    "os"
+    "time"
+)
+
+type HealthResponse struct {
+    Status    string    `json:"status"`
+    Symbol    string    `json:"symbol"`
+    Mode      string    `json:"mode"`
+    Timestamp time.Time `json:"timestamp"`
+}
+
+type AddressResponse struct {
+    IPv6      string    `json:"ipv6"`
+    ExpiresAt time.Time `json:"expires_at"`
+}
+
+type PeersResponse struct {
+    Peers []string `json:"peers"`
+}
+
+func main() {
+    symbol := os.Getenv("PHANTOM_SYMBOL")
+    if symbol == "" {
+        symbol = "Eban"
+    }
+    mode := os.Getenv("PHANTOM_NETWORK_MODE")
+    if mode == "" {
+        mode = "stealth"
+    }
+
+    // Health endpoint
+    http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(HealthResponse{
+            Status:    "healthy",
+            Symbol:    symbol,
+            Mode:      mode,
+            Timestamp: time.Now(),
+        })
+    })
+
+    // Address endpoint (phantom IPv6)
+    http.HandleFunc("/api/v1/address", func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(AddressResponse{
+            IPv6:      "fc00::a41f:4ab8:3c2d:9f1e",
+            ExpiresAt: time.Now().Add(5 * time.Minute),
+        })
+    })
+
+    // Peers endpoint
+    http.HandleFunc("/api/v1/peers", func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(PeersResponse{
+            Peers: []string{},
+        })
+    })
+
+    // Counter-surveillance status
+    http.HandleFunc("/api/v1/status", func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("Content-Type", "application/json")
+        status := map[string]interface{}{
+            "symbol":          symbol,
+            "mode":            mode,
+            "gps_spoof":       os.Getenv("GPS_SPOOF_ENABLED") == "true",
+            "gps_target":      os.Getenv("GPS_SPOOF_TARGET"),
+            "face_defeat":     os.Getenv("FACE_DEFEAT_ENABLED") == "true",
+            "thermal_masking": os.Getenv("THERMAL_MASKING_ENABLED") == "true",
+            "imsi_rotation":   os.Getenv("IMSI_ROTATION_ENABLED") == "true",
+            "uptime":          time.Now().Format(time.RFC3339),
+        }
+        json.NewEncoder(w).Encode(status)
+    })
+
+    // Root endpoint
+    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]string{
+            "name":    "Phantom Network Node",
+            "symbol":  symbol,
+            "mode":    mode,
+            "version": "0.1.0-placeholder",
+            "status":  "Placeholder server - full implementation pending",
+        })
+    })
+
+    port := ":8080"
+    fmt.Printf("🌑 Phantom Node starting on %s (Symbol: %s, Mode: %s)\n", port, symbol, mode)
+    fmt.Println("   Endpoints:")
+    fmt.Println("   - GET /health         - Health check")
+    fmt.Println("   - GET /api/v1/address - Phantom IPv6 address")
+    fmt.Println("   - GET /api/v1/peers   - Discovered peers")
+    fmt.Println("   - GET /api/v1/status  - Counter-surveillance status")
+    log.Fatal(http.ListenAndServe(port, nil))
+}
+GOEOF
+
+# Build the server
+RUN go build -o phantom-node main.go
+
+# Create directories
+RUN mkdir -p /root/.khepra/keys /app/data
 
 # Expose ports
-EXPOSE 8080  # API
-EXPOSE 9090  # Metrics
+EXPOSE 8080
+EXPOSE 9090
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8080/health || exit 1
 
-# Default command (can be overridden in docker-compose.yml)
-CMD ["/app/phantom-node", "--symbol", "Eban", "--mode", "stealth"]
+# Run server
+CMD ["/app/phantom-node"]
