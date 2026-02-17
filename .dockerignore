@@ -1,14 +1,18 @@
 # Docker ignore for Phantom Network Stack
-# Exclude everything large - phantom-node builds inline
+# Include only necessary files for real Adinkhepra implementation
 
-# Exclude ALL large directories
+# Exclude ALL large directories by default
 *
 
-# Only include Dockerfiles and compose files
+# Include Dockerfiles and compose files
 !Dockerfile*
 !docker-compose*.yml
 !prometheus.yml
 !init-db.sql
+
+# Include real source code for Adinkhepra lattice
+!pkg/adinkra/
+!cmd/phantom-node/
 
 # Explicit excludes (in case * doesn't catch everything)
 .git/

@@ -16,12 +16,14 @@ import (
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
+	"golang.org/x/crypto/pbkdf2"
 )
 
 // Tier0Result represents the output of a Root of Trust ceremony
 type Tier0Result struct {
 	// SealedArtifact is the "Poetically Obfuscated" string containing the triple-encrypted seed
 	SealedArtifact string    `json:"sealed_artifact"`
+	Salt           string    `json:"salt"` // 32-byte hex encoded random salt
 	CreatedAt      time.Time `json:"created_at"`
 	Fingerprint    string    `json:"fingerprint"`
 	EntropySource  string    `json:"entropy_source"`
@@ -39,18 +41,25 @@ func BootstrapTier0(entropySource, password string) (*Tier0Result, error) {
 		return nil, fmt.Errorf("insufficient entropy: %w", err)
 	}
 
-	// 2. Compute Identity Fingerprint (SHA-512)
+	// 2. Generate Random Salt for this ceremony
+	salt := make([]byte, 32)
+	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
+		return nil, fmt.Errorf("salt generation failed: %w", err)
+	}
+
+	// 3. Compute Identity Fingerprint (SHA-512)
 	hash := sha512.Sum512(seed)
 	fingerprint := hex.EncodeToString(hash[:8])
 
-	// 3. Triple Encrypt & Obfuscate
-	sealed, err := tripleEncryptAndseal(seed, password)
+	// 4. Triple Encrypt & Obfuscate
+	sealed, err := tripleEncryptAndseal(seed, password, salt)
 	if err != nil {
 		return nil, fmt.Errorf("sealing failed: %w", err)
 	}
 
 	result := &Tier0Result{
 		SealedArtifact: sealed,
+		Salt:           hex.EncodeToString(salt),
 		CreatedAt:      time.Now().UTC(),
 		Fingerprint:    fmt.Sprintf("KHEPRA-ROOT-%s", fingerprint),
 		EntropySource:  entropySource,
@@ -81,8 +90,14 @@ func LoadMasterSeed(path, password string) ([]byte, error) {
 		return nil, fmt.Errorf("invalid artifact structure: %v", err)
 	}
 
-	// 2. Decode and Decrypt
-	seed, err := tripleDecryptAndUnseal(result.SealedArtifact, password)
+	// 2. Decode Salt
+	salt, err := hex.DecodeString(result.Salt)
+	if err != nil {
+		return nil, fmt.Errorf("invalid salt encoding")
+	}
+
+	// 3. Decode and Decrypt
+	seed, err := tripleDecryptAndUnseal(result.SealedArtifact, password, salt)
 	if err != nil {
 		return nil, fmt.Errorf("ACCESS DENIED: %v", err)
 	}
@@ -96,19 +111,13 @@ func LoadMasterSeed(path, password string) ([]byte, error) {
 
 // tripleEncryptAndseal applies 3 layers of AES-256-GCM with derived keys,
 // then encodes using the "Khepra Lattice" alphabet (Poetic Obfuscation).
-func tripleEncryptAndseal(plaintext []byte, password string) (string, error) {
-	// Key Derivation: Chain SHA-512 to get 3 distinct 32-byte keys
-	// Layer 1 Key
-	h1 := sha512.Sum512([]byte(password + "KHEPRA_LAYER_1_SALT"))
-	key1 := h1[:32]
-
-	// Layer 2 Key
-	h2 := sha512.Sum512([]byte(password + "KHEPRA_LAYER_2_SALT"))
-	key2 := h2[:32]
-
-	// Layer 3 Key
-	h3 := sha512.Sum512([]byte(password + "KHEPRA_LAYER_3_SALT"))
-	key3 := h3[:32]
+func tripleEncryptAndseal(plaintext []byte, password string, salt []byte) (string, error) {
+	// Key Derivation: Use PBKDF2 to derive 3 keys from password and random salt
+	// We derive 96 bytes (32 * 3)
+	keyMaterial := deriveKeys(password, salt)
+	key1 := keyMaterial[0:32]
+	key2 := keyMaterial[32:64]
+	key3 := keyMaterial[64:96]
 
 	// Layer 1: Encrypt
 	c1, err := aesGCMEncrypt(key1, plaintext)
@@ -129,24 +138,22 @@ func tripleEncryptAndseal(plaintext []byte, password string) (string, error) {
 	}
 
 	// 4. Encapsulate in Sacred Encrypted Geometric Merkaba (AdinKhepra Lattice)
-	// We use the full Layer 1 Hash (64 bytes) as the Geometry Seed.
+	// We use the full Layer 1 Key as part of the Geometry Seed for additional entropy.
+	h1 := sha512.Sum512(key1)
 	merkaba := adinkra.NewMerkaba(h1[:])
 	return merkaba.Seal(c3)
 }
 
 // tripleDecryptAndUnseal reverses the process
-func tripleDecryptAndUnseal(sealed string, password string) ([]byte, error) {
-	// Re-derive Keys (WE NEED H1 FOR MERKABA SEED)
-	h1 := sha512.Sum512([]byte(password + "KHEPRA_LAYER_1_SALT"))
-	key1 := h1[:32]
-
-	h2 := sha512.Sum512([]byte(password + "KHEPRA_LAYER_2_SALT"))
-	key2 := h2[:32]
-
-	h3 := sha512.Sum512([]byte(password + "KHEPRA_LAYER_3_SALT"))
-	key3 := h3[:32]
+func tripleDecryptAndUnseal(sealed string, password string, salt []byte) ([]byte, error) {
+	// Re-derive Keys
+	keyMaterial := deriveKeys(password, salt)
+	key1 := keyMaterial[0:32]
+	key2 := keyMaterial[32:64]
+	key3 := keyMaterial[64:96]
 
 	// 1. Unseal the Sacred Encrypted Geometric Merkaba
+	h1 := sha512.Sum512(key1)
 	merkaba := adinkra.NewMerkaba(h1[:])
 	ciphertext3, err := merkaba.Unseal(sealed)
 	if err != nil {
@@ -172,6 +179,12 @@ func tripleDecryptAndUnseal(sealed string, password string) ([]byte, error) {
 	}
 
 	return seed, nil
+}
+
+// deriveKeys implements the key derivation function (KDF)
+func deriveKeys(password string, salt []byte) []byte {
+	// 100,000 iterations for TRL10 high-assurance protection
+	return pbkdf2.Key([]byte(password), salt, 100000, 96, sha512.New)
 }
 
 func aesGCMEncrypt(key, data []byte) ([]byte, error) {
