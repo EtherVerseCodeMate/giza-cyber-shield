@@ -3,15 +3,17 @@ package stig
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 )
 
 // Validator performs comprehensive STIG validation
 type Validator struct {
-	targetPath    string
+	targetPath        string
 	enabledFrameworks []string
-	report        *ComprehensiveReport
+	report            *ComprehensiveReport
 }
 
 // NewValidator creates a new STIG validator
@@ -97,10 +99,25 @@ func (v *Validator) collectSystemInfo() error {
 	v.report.Hostname = hostname
 	v.report.ScanDate = time.Now()
 
-	// TODO: Collect OS version, kernel version
-	// For now, use placeholder values
-	v.report.OSVersion = "Red Hat Enterprise Linux 9.x"
-	v.report.KernelVersion = "5.14.0"
+	// Attempt to read OS version from /etc/os-release
+	v.report.OSVersion = runtime.GOOS + " " + runtime.GOARCH
+	if data, err := os.ReadFile("/etc/os-release"); err == nil {
+		lines := strings.Split(string(data), "\n")
+		for _, line := range lines {
+			if strings.HasPrefix(line, "PRETTY_NAME=") {
+				v.report.OSVersion = strings.Trim(strings.TrimPrefix(line, "PRETTY_NAME="), "\"")
+				break
+			}
+		}
+	}
+
+	// Get kernel version via uname -r
+	cmd := exec.Command("uname", "-r")
+	if out, err := cmd.Output(); err == nil {
+		v.report.KernelVersion = strings.TrimSpace(string(out))
+	} else {
+		v.report.KernelVersion = "unknown"
+	}
 
 	return nil
 }
@@ -288,13 +305,13 @@ func (v *Validator) generatePOAM() {
 		for _, finding := range result.Findings {
 			if finding.Status == "Fail" {
 				poam := POAMItem{
-					ID:         fmt.Sprintf("POAM-%s", finding.ID),
-					ControlID:  finding.ID,
-					Weakness:   finding.Description,
-					Severity:   finding.Severity,
-					Status:     "Open",
+					ID:                  fmt.Sprintf("POAM-%s", finding.ID),
+					ControlID:           finding.ID,
+					Weakness:            finding.Description,
+					Severity:            finding.Severity,
+					Status:              "Open",
 					ScheduledCompletion: time.Now().Add(30 * 24 * time.Hour), // Default: 30 days
-					MilestoneActions: []string{finding.Remediation},
+					MilestoneActions:    []string{finding.Remediation},
 				}
 				v.report.POAMItems = append(v.report.POAMItems, poam)
 			}

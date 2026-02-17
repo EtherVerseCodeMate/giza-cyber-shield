@@ -2,8 +2,10 @@ package ouroboros
 
 import (
 	"log"
+	"os/exec"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/maat"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
 )
 
 // KhopeshBlade represents an instrument of action
@@ -39,10 +41,18 @@ func (rb *RemediationBlade) Strike(heka maat.Heka) error {
 
 	log.Printf("[%s] Striking: %s (Action: %s)", rb.name, heka.Isfet.ID, heka.Action)
 
-	// Execute remediation based on the Isfet source and severity
-	log.Printf("[%s] Remediation applied for %s (severity: %s, certainty: %.2f)",
-		rb.name, heka.Isfet.ID, heka.Isfet.Severity, heka.Isfet.Certainty)
-	log.Printf("[%s] KASA wisdom: %s", rb.name, heka.Wisdom)
+	// REAL IMPLEMENTATION: Link to stig.Remediator
+	remediator := stig.NewRemediator(nil)
+	result, err := remediator.Remediate(heka.Isfet.ID)
+
+	if err != nil {
+		log.Printf("[%s] Remediation FAILED for %s: %v", rb.name, heka.Isfet.ID, err)
+		return err
+	}
+
+	log.Printf("[%s] Remediation Status: %s for %s", rb.name, result.Status, heka.Isfet.ID)
+	log.Printf("[%s] Execution Output: %s", rb.name, result.Output)
+	log.Printf("[%s] KASA wisdom applied: %s", rb.name, heka.Wisdom)
 
 	return nil
 }
@@ -73,18 +83,28 @@ func (fb *FirewallBlade) Strike(heka maat.Heka) error {
 	}
 
 	// Log the banishment action with source details for audit trail
-	log.Printf("[%s] Banishing: %s (source: %s, severity: %s)",
-		fb.name, heka.Isfet.ID, heka.Isfet.Source, heka.Isfet.Severity)
+	log.Printf("[%s] Banishing malicious entities for: %s", fb.name, heka.Isfet.ID)
 
+	var lastErr error
 	// Extract target from Isfet omens (e.g., IP address, domain)
 	for _, omen := range heka.Isfet.Omens {
 		if omen.Malevolence >= 0.7 {
-			log.Printf("[%s] Firewall rule queued: BLOCK %s=%s (malevolence: %.2f)",
+			log.Printf("[%s] DISRUPTING MALICIOUS PATH: BLOCK %s=%s (malevolence: %.2f)",
 				fb.name, omen.Name, omen.Value, omen.Malevolence)
+
+			// REAL IMPLEMENTATION: Execute iptables block
+			// Note: In Iron Bank hardened images, we usually need specific capabilities
+			cmd := exec.Command("iptables", "-A", "INPUT", "-s", omen.Value, "-j", "DROP")
+			if err := cmd.Run(); err != nil {
+				log.Printf("[%s] Failed to execute iptables: %v (verify root/CAP_NET_ADMIN)", fb.name, err)
+				lastErr = err
+			} else {
+				log.Printf("[%s] SUCCESS: IP %s blocked via host firewall", fb.name, omen.Value)
+			}
 		}
 	}
 
-	return nil
+	return lastErr
 }
 
 func (fb *FirewallBlade) Name() string {
