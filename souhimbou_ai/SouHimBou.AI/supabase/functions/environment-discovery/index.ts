@@ -237,19 +237,55 @@ async function discoverAWSResources(clientMetadata: any): Promise<any> {
  * In production, this would integrate with actual scanning tools via APIs
  */
 async function discoverNetworkAssets(
-  _organizationId: string,
-  _clientDiscoveries: any,
-  _userId?: string
+  organizationId: string,
+  clientDiscoveries: any,
+  userId?: string
 ): Promise<any[]> {
   const assets: any[] = [];
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    console.log('Running Production Network Discovery (Empty baseline)...');
+    console.log('Running Production Network Discovery via Shodan Engine...');
 
-    // TRL10 PRODUCTION: Mock network scanning removed for security integrity.
-    // Real implementation must integrate with actual nmap/masscan APIs or agents.
+    const targetIPs = clientDiscoveries?.targetIPs || [];
+    const targetDomains = clientDiscoveries?.targetDomains || [];
 
-    // Future: Call actual scanning services here
+    // 1. Process target IPs via Shodan
+    for (const ip of targetIPs) {
+      try {
+        const { data: hostData, error } = await supabase.functions.invoke('shodan-lookup', {
+          body: { ip }
+        });
+
+        if (!error && hostData) {
+          assets.push({
+            organization_id: organizationId,
+            asset_name: hostData.hostnames?.[0] || ip,
+            asset_type: categorizeAssetType(hostData),
+            ip_address: ip,
+            status: 'active',
+            detected_at: new Date().toISOString(),
+            metadata: {
+              source: 'shodan',
+              ports: hostData.ports,
+              vulns: hostData.vulns,
+              os: hostData.os,
+              org: hostData.org,
+              isp: hostData.isp
+            }
+          });
+        }
+      } catch (err) {
+        console.error(`Shodan lookup failed for ${ip}:`, err);
+      }
+    }
+
+    // 2. If no assets found but domain exists, perform domain discovery
+    if (assets.length === 0 && targetDomains.length > 0) {
+      // In production, we'd use a domain-to-IP resolution service here
+      // For now, we log the attempt
+      console.log(`Domain discovery requested for: ${targetDomains.join(', ')}`);
+    }
 
     return assets;
   } catch (error: any) {
