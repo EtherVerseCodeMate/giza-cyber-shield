@@ -1,6 +1,6 @@
 module github.com/EtherVerseCodeMate/giza-cyber-shield
 
-go 1.25.3
+go 1.23.6
 
 require (
 	github.com/cloudflare/circl v1.6.2
