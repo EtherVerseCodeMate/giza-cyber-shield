@@ -1,127 +1,60 @@
-# Dockerfile for Phantom Network Node
+# Dockerfile for Phantom Network Node - REAL IMPLEMENTATION
 #
-# Simple placeholder server until full implementation
-# Provides health endpoint and basic API structure
+# This builds the actual Phantom Node with:
+# - Adinkhepra-PQC lattice signatures
+# - Merkaba White Box encryption
+# - Spectral Fingerprint address derivation
+# - Automatic key rotation
 
-FROM golang:1.22-alpine
+FROM golang:1.22-alpine AS builder
 
-# Install dependencies
-RUN apk add --no-cache git gcc musl-dev curl
+# Install build dependencies
+RUN apk add --no-cache git gcc musl-dev
+
+# Set working directory
+WORKDIR /build
+
+# Initialize Go module
+RUN go mod init khepra-protocol
+
+# Copy the real Adinkra package (required for crypto)
+COPY pkg/adinkra/ ./pkg/adinkra/
+
+# Copy the phantom-node source
+COPY cmd/phantom-node/ ./cmd/phantom-node/
+
+# Download dependencies and tidy
+RUN go mod tidy
+
+# Build phantom-node binary
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -a -installsuffix cgo \
+    -ldflags="-w -s -X main.Version=1.0.0-adinkhepra" \
+    -o phantom-node \
+    ./cmd/phantom-node/
+
+# =============================================================================
+# Runtime Image
+# =============================================================================
+
+FROM alpine:latest
+
+# Install runtime dependencies
+RUN apk --no-cache add ca-certificates curl tzdata
+
+# Create non-root user
+RUN addgroup -g 1000 phantom && \
+    adduser -D -u 1000 -G phantom phantom
 
 # Set working directory
 WORKDIR /app
 
-# Create a simple placeholder server
-RUN cat > /app/main.go << 'GOEOF'
-package main
+# Copy binary from builder
+COPY --from=builder /build/phantom-node /app/phantom-node
 
-import (
-    "encoding/json"
-    "fmt"
-    "log"
-    "net/http"
-    "os"
-    "time"
-)
-
-type HealthResponse struct {
-    Status    string    `json:"status"`
-    Symbol    string    `json:"symbol"`
-    Mode      string    `json:"mode"`
-    Timestamp time.Time `json:"timestamp"`
-}
-
-type AddressResponse struct {
-    IPv6      string    `json:"ipv6"`
-    ExpiresAt time.Time `json:"expires_at"`
-}
-
-type PeersResponse struct {
-    Peers []string `json:"peers"`
-}
-
-func main() {
-    symbol := os.Getenv("PHANTOM_SYMBOL")
-    if symbol == "" {
-        symbol = "Eban"
-    }
-    mode := os.Getenv("PHANTOM_NETWORK_MODE")
-    if mode == "" {
-        mode = "stealth"
-    }
-
-    // Health endpoint
-    http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(HealthResponse{
-            Status:    "healthy",
-            Symbol:    symbol,
-            Mode:      mode,
-            Timestamp: time.Now(),
-        })
-    })
-
-    // Address endpoint (phantom IPv6)
-    http.HandleFunc("/api/v1/address", func(w http.ResponseWriter, r *http.Request) {
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(AddressResponse{
-            IPv6:      "fc00::a41f:4ab8:3c2d:9f1e",
-            ExpiresAt: time.Now().Add(5 * time.Minute),
-        })
-    })
-
-    // Peers endpoint
-    http.HandleFunc("/api/v1/peers", func(w http.ResponseWriter, r *http.Request) {
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(PeersResponse{
-            Peers: []string{},
-        })
-    })
-
-    // Counter-surveillance status
-    http.HandleFunc("/api/v1/status", func(w http.ResponseWriter, r *http.Request) {
-        w.Header().Set("Content-Type", "application/json")
-        status := map[string]interface{}{
-            "symbol":          symbol,
-            "mode":            mode,
-            "gps_spoof":       os.Getenv("GPS_SPOOF_ENABLED") == "true",
-            "gps_target":      os.Getenv("GPS_SPOOF_TARGET"),
-            "face_defeat":     os.Getenv("FACE_DEFEAT_ENABLED") == "true",
-            "thermal_masking": os.Getenv("THERMAL_MASKING_ENABLED") == "true",
-            "imsi_rotation":   os.Getenv("IMSI_ROTATION_ENABLED") == "true",
-            "uptime":          time.Now().Format(time.RFC3339),
-        }
-        json.NewEncoder(w).Encode(status)
-    })
-
-    // Root endpoint
-    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(map[string]string{
-            "name":    "Phantom Network Node",
-            "symbol":  symbol,
-            "mode":    mode,
-            "version": "0.1.0-placeholder",
-            "status":  "Placeholder server - full implementation pending",
-        })
-    })
-
-    port := ":8080"
-    fmt.Printf("🌑 Phantom Node starting on %s (Symbol: %s, Mode: %s)\n", port, symbol, mode)
-    fmt.Println("   Endpoints:")
-    fmt.Println("   - GET /health         - Health check")
-    fmt.Println("   - GET /api/v1/address - Phantom IPv6 address")
-    fmt.Println("   - GET /api/v1/peers   - Discovered peers")
-    fmt.Println("   - GET /api/v1/status  - Counter-surveillance status")
-    log.Fatal(http.ListenAndServe(port, nil))
-}
-GOEOF
-
-# Build the server
-RUN go build -o phantom-node main.go
-
-# Create directories
-RUN mkdir -p /root/.khepra/keys /app/data
+# Create directories for keys and data
+RUN mkdir -p /app/data/lattice /root/.khepra/keys && \
+    chown -R phantom:phantom /app
 
 # Expose ports
 EXPOSE 8080
@@ -131,5 +64,8 @@ EXPOSE 9090
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8080/health || exit 1
 
-# Run server
+# Run as non-root (commented for now as we need /root/.khepra access)
+# USER phantom
+
+# Default command
 CMD ["/app/phantom-node"]
