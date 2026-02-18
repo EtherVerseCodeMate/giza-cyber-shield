@@ -1,10 +1,15 @@
 package adinkra
 
 import (
+	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
+	"os"
 	"runtime"
+	"time"
 	"unsafe"
 )
 
@@ -61,7 +66,16 @@ func SecureZeroMemory(data []byte) {
 	runtime.KeepAlive(data)
 }
 
-func SecureZeroInt32(data []int32) float64 {
+// SecureZeroInt32 zeroes an int32 slice in constant time, preventing compiler optimisation.
+func SecureZeroInt32(data []int32) {
+	for i := range data {
+		data[i] = 0
+	}
+	runtime.KeepAlive(data)
+}
+
+// ComputeInt32Entropy returns the Shannon entropy (in bits) of an int32 slice.
+func ComputeInt32Entropy(data []int32) float64 {
 	if len(data) == 0 {
 		return 0.0
 	}
@@ -227,6 +241,26 @@ func ValidateResourceRequest(requestedSize int64, maxAllowed int64) error {
 	return nil
 }
 
+// auditEvent is the structured log record written to stderr for SIEM ingestion.
+type auditEvent struct {
+	Timestamp  string `json:"timestamp"`
+	Operation  string `json:"operation"`
+	Success    bool   `json:"success"`
+	ChainHash  string `json:"chain_hash"` // SHA-256 of (timestamp || operation || success)
+}
+
+// AuditSensitiveOperation writes a SIEM-compatible JSON event to stderr.
+// Chain hash binds each event to its content for tamper detection.
 func AuditSensitiveOperation(operation string, success bool) {
-	// SIEM hook
+	ts := time.Now().UTC().Format(time.RFC3339Nano)
+	pre := fmt.Sprintf("%s|%s|%v", ts, operation, success)
+	hash := sha256.Sum256([]byte(pre))
+	evt := auditEvent{
+		Timestamp: ts,
+		Operation: operation,
+		Success:   success,
+		ChainHash: fmt.Sprintf("%x", hash[:]),
+	}
+	line, _ := json.Marshal(evt)
+	fmt.Fprintf(os.Stderr, "%s\n", line)
 }

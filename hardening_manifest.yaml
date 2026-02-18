@@ -19,7 +19,7 @@ resources:
   url: "https://github.com/EtherVerseCodeMate/giza-cyber-shield/releases/download/v1.0.0/adinkhepra-fips"
   validation:
     type: sha256
-    value: 0000000000000000000000000000000000000000000000000000000000000000
+    value: a6189578fd4baa7863b07ddadc3461b194a7d028927202acab4969b1b8d2426c
 maintainers:
 - email: "security@souhimbou.ai"
   name: "Khepra Security Team"

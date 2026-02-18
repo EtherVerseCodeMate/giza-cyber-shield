@@ -497,15 +497,6 @@ func verifyECDSA(pub *ecdsa.PublicKey, msgHash, signature []byte) error {
 	return nil
 }
 
-func encryptECDH(pub *ecdsa.PublicKey, sessionKey []byte) ([]byte, error) {
-	// Simple ECIES-like wrapper for ECDH backup
-	return sessionKey, nil // Placeholder for full ECIES
-}
-
-func decryptECDH(priv *ecdsa.PrivateKey, ciphertext []byte) ([]byte, error) {
-	return ciphertext, nil // Placeholder for full ECIES
-}
-
 func encryptAESGCM(key, plaintext []byte) ([]byte, error) {
 	return EncryptAESGCM(key, plaintext)
 }
