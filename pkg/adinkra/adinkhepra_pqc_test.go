@@ -91,21 +91,13 @@ func TestAdinkhepraPQCDeterminism(t *testing.T) {
 		t.Error("Public key seeds do not match")
 	}
 
-	// Lattice vectors must match
-	for i := range pub1.LatticeVectors {
-		for j := range pub1.LatticeVectors[i] {
-			if pub1.LatticeVectors[i][j] != pub2.LatticeVectors[i][j] {
-				t.Fatalf("Lattice vectors mismatch at [%d][%d]", i, j)
-			}
-		}
+	// Raw public key bytes must match (deterministic from same seed)
+	if !bytes.Equal(pub1.Raw, pub2.Raw) {
+		t.Error("Public key Raw bytes do not match for same seed")
 	}
 
-	// Private keys must match
-	for i := range priv1.ShortVectors {
-		for j := range priv1.ShortVectors[i] {
-			if priv1.ShortVectors[i][j] != priv2.ShortVectors[i][j] {
-				t.Fatalf("Short vectors mismatch at [%d][%d]", i, j)
-			}
-		}
+	// Raw private key bytes must match (deterministic from same seed)
+	if !bytes.Equal(priv1.Raw, priv2.Raw) {
+		t.Error("Private key Raw bytes do not match for same seed")
 	}
 }
