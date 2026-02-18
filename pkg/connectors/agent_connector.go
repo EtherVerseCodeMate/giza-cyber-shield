@@ -15,24 +15,24 @@ import (
 
 // AgentSummary is a lightweight agent record returned by DiscoverAgents.
 type AgentSummary struct {
-	ID          string    // Platform-scoped agent identifier
-	Name        string    // Human-readable name
-	AgentType   string    // "openai-assistant", "claude", "langchain", "mcp-server", "shadow", etc.
-	Environment string    // Platform name (matches connector Platform())
-	RiskScore   float64   // 0.0 (low) → 1.0 (critical)
-	Permissions []string  // Known permission scopes
-	LastSeen    time.Time
-	Managed     bool // true = Khepra-provisioned, false = discovered externally
+	ID           string   // Platform-scoped agent identifier
+	Name         string   // Human-readable name
+	AgentType    string   // "openai-assistant", "claude", "langchain", "mcp-server", "shadow", etc.
+	Environment  string   // Platform name (matches connector Platform())
+	RiskScore    float64  // 0.0 (low) → 1.0 (critical)
+	Permissions  []string // Known permission scopes
+	LastSeen     time.Time
+	Managed      bool // true = Khepra-provisioned, false = discovered externally
 	PQCProtected bool // true = has valid Adinkhepra PQC attestation
 }
 
 // NHISummary is a lightweight NHI record for connector-level discovery.
 type NHISummary struct {
-	ID        string    // Credential identifier
-	Type      string    // "api-key", "oauth-token", "service-account", "pat"
-	Owner     string    // Agent/user that holds this credential
-	Platform  string    // Issuing platform
-	Scopes    []string  // Granted permission scopes
+	ID        string     // Credential identifier
+	Type      string     // "api-key", "oauth-token", "service-account", "pat"
+	Owner     string     // Agent/user that holds this credential
+	Platform  string     // Issuing platform
+	Scopes    []string   // Granted permission scopes
 	ExpiresAt *time.Time // nil = never expires
 	RiskScore float64
 }
@@ -75,6 +75,12 @@ type ConnectorRegistry struct {
 // NewConnectorRegistry creates an empty registry.
 func NewConnectorRegistry() *ConnectorRegistry {
 	return &ConnectorRegistry{}
+}
+
+// NewDefaultRegistry creates a registry with default connectors.
+func NewDefaultRegistry() *ConnectorRegistry {
+	// In the future this could load default keys/tokens from env or config
+	return NewConnectorRegistry()
 }
 
 // Register adds a connector to the registry.
