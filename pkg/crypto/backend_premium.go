@@ -96,9 +96,9 @@ func (p *PremiumBackend) VerifyDilithium(publicKey, message, signature []byte) b
 	return err == nil
 }
 
-// GenerateKyberKey is currently aliased to Dilithium in the premium lattice ring
+// GenerateKyberKey generates a real Kyber1024 key pair
 func (p *PremiumBackend) GenerateKyberKey() (publicKey, privateKey []byte, err error) {
-	return p.GenerateDilithiumKey()
+	return adinkra.GenerateKyberKey()
 }
 
 // EncapsulateKyber generates a shared secret with proprietary Kyber1024 implementation
