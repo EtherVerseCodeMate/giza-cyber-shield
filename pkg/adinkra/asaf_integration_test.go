@@ -197,7 +197,7 @@ func TestKHEPRAKDFSecureDestroy(t *testing.T) {
 // for a DAG vertex using a real AdinKhepra PQC key pair.
 func TestDAGAddAndVerifyVertex(t *testing.T) {
 	// Generate a real PQC key pair
-	pub, priv, err := GenerateAdinkhepraPQCKeyPair("Eban")
+	pub, priv, err := GenerateAdinkhepraPQCKeyPair(nil, "Eban")
 	if err != nil {
 		t.Fatalf("key gen: %v", err)
 	}
@@ -229,8 +229,8 @@ func TestDAGAddAndVerifyVertex(t *testing.T) {
 // TestDAGVerifyWithWrongKey verifies that a different key's public key
 // fails verification (tamper detection).
 func TestDAGVerifyWithWrongKey(t *testing.T) {
-	_, priv1, _ := GenerateAdinkhepraPQCKeyPair("Eban")
-	pub2, _, _ := GenerateAdinkhepraPQCKeyPair("Fawohodie")
+	_, priv1, _ := GenerateAdinkhepraPQCKeyPair(nil, "Eban")
+	pub2, _, _ := GenerateAdinkhepraPQCKeyPair(nil, "Fawohodie")
 
 	dag := NewDAGConsensus()
 	vertex, err := dag.AddVertex([]byte("tx"), "Eban", "agt-001", nil, priv1)
@@ -246,7 +246,7 @@ func TestDAGVerifyWithWrongKey(t *testing.T) {
 // TestDAGCausalOrdering verifies that a vertex that references a parent
 // correctly links to it, and GetAncestors returns the chain.
 func TestDAGCausalOrdering(t *testing.T) {
-	_, priv, _ := GenerateAdinkhepraPQCKeyPair("Eban")
+	_, priv, _ := GenerateAdinkhepraPQCKeyPair(nil, "Eban")
 	dag := NewDAGConsensus()
 
 	root, _ := dag.AddVertex([]byte("root"), "Eban", "agt-root", nil, priv)
@@ -270,7 +270,7 @@ func TestDAGCausalOrdering(t *testing.T) {
 // TestDAGConflictResolution verifies that Eban (higher precedence) wins
 // over Dwennimmen (lower precedence) in conflict resolution.
 func TestDAGConflictResolution(t *testing.T) {
-	_, priv, _ := GenerateAdinkhepraPQCKeyPair("Eban")
+	_, priv, _ := GenerateAdinkhepraPQCKeyPair(nil, "Eban")
 	dag := NewDAGConsensus()
 
 	tx := []byte("conflicting-tx")
@@ -287,8 +287,8 @@ func TestDAGConflictResolution(t *testing.T) {
 // TestDAGAuditChain verifies that DAGAuditChain maintains a rolling
 // hash chain and that every entry has a non-zero chain hash.
 func TestDAGAuditChain(t *testing.T) {
-	_, priv, _ := GenerateAdinkhepraPQCKeyPair("Eban")
-	chain := NewDAGAuditChain()
+	_, priv, _ := GenerateAdinkhepraPQCKeyPair(nil, "Eban")
+	chain := NewDAGAuditChain(NewDAGConsensus())
 
 	for i := 0; i < 5; i++ {
 		tx := []byte("audit-event")
@@ -414,13 +414,10 @@ func TestZeroTrustTokenShortKeyRejected(t *testing.T) {
 // TestKyberEncapsulateDecapsulate verifies the full KEM round-trip:
 // encapsulate with public key, decapsulate with private key, shared secrets match.
 func TestKyberEncapsulateDecapsulate(t *testing.T) {
-	pub, priv, err := GenerateKyberKey()
+	pubBytes, privBytes, err := GenerateKyberKey()
 	if err != nil {
 		t.Fatalf("GenerateKyberKey: %v", err)
 	}
-
-	pubBytes, _ := pub.MarshalBinary()
-	privBytes, _ := priv.MarshalBinary()
 
 	ct, ss1, err := KyberEncapsulate(pubBytes)
 	if err != nil {
@@ -440,11 +437,8 @@ func TestKyberEncapsulateDecapsulate(t *testing.T) {
 // TestKyberDecapsulateWithWrongKey verifies that decapsulating with a different
 // private key yields a different shared secret (not an error per NIST ML-KEM spec).
 func TestKyberDecapsulateWithWrongKey(t *testing.T) {
-	pub, _, _ := GenerateKyberKey()
-	_, priv2, _ := GenerateKyberKey()
-
-	pubBytes, _ := pub.MarshalBinary()
-	priv2Bytes, _ := priv2.MarshalBinary()
+	pubBytes, _, _ := GenerateKyberKey()
+	_, priv2Bytes, _ := GenerateKyberKey()
 
 	ct, ss1, _ := KyberEncapsulate(pubBytes)
 	ss2, err := KyberDecapsulate(priv2Bytes, ct)
