@@ -7,17 +7,30 @@
 # Include Dockerfiles and compose files
 !Dockerfile*
 !docker-compose*.yml
-!prometheus.yml
-!init-db.sql
+!hardening_manifest.yaml
+!LICENSE
+!README.md
+!CHANGELOG.md
 
-# Include source code
+# Include source code and dependencies
+!go.mod
+!go.sum
+!vendor/
 !pkg/
 !cmd/
+
+# Include scripts for testing
+!scripts/functional-test.sh
+!scripts/fips-test.sh
+
+# Include documentation files used in Dockerfile
+!docs/CCI_to_NIST53.csv
+!docs/NIST53_to_171.csv
+!docs/NIST53_to_172.csv
 
 # Explicit excludes (large or sensitive items)
 .git/
 node_modules/
-vendor/
 bin/
 dist/
 build/
@@ -31,7 +44,6 @@ deploy/
 aws-govcloud/
 data/
 models/
-docs/
 keys/
 telemetry-keys/
 .venv/
@@ -41,7 +53,6 @@ __pycache__/
 out/
 memory/
 tests/
-scripts/
 
 # Large binaries and logs
 *.exe

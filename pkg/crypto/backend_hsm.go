@@ -137,7 +137,8 @@ func (h *HSMBackend) VerifyDilithium(publicKey, message, signature []byte) bool 
 
 // GenerateKyberKey generates a Kyber1024 key pair
 func (h *HSMBackend) GenerateKyberKey() (publicKey, privateKey []byte, err error) {
-	return h.GenerateDilithiumKey()
+	log.Printf("[%s] Generating Kyber1024 key pair...", h.BackendName())
+	return adinkra.GenerateKyberKey()
 }
 
 // EncapsulateKyber generates a shared secret
