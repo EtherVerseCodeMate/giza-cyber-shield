@@ -60,6 +60,41 @@ func Verify(pkBytes []byte, msg []byte, sig []byte) (bool, error) {
 	return mldsa65.Verify(&pk, msg, nil, sig), nil
 }
 
+// KyberEncapsulate generates a fresh shared secret and encapsulates it with the given
+// Kyber-1024 public key. Returns (ciphertext, sharedSecret, error).
+func KyberEncapsulate(pubKeyBytes []byte) (ciphertext, sharedSecret []byte, err error) {
+	if len(pubKeyBytes) != kyber1024.PublicKeySize {
+		return nil, nil, fmt.Errorf("invalid Kyber public key size: expected %d, got %d",
+			kyber1024.PublicKeySize, len(pubKeyBytes))
+	}
+	pk, err := kyber1024.Scheme().UnmarshalBinaryPublicKey(pubKeyBytes)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse Kyber public key: %w", err)
+	}
+	ct, ss, err := kyber1024.Scheme().Encapsulate(pk)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Kyber encapsulation failed: %w", err)
+	}
+	return ct, ss, nil
+}
+
+// KyberDecapsulate recovers the shared secret from a Kyber-1024 ciphertext using the private key.
+func KyberDecapsulate(privKeyBytes, ciphertext []byte) (sharedSecret []byte, err error) {
+	if len(privKeyBytes) != kyber1024.PrivateKeySize {
+		return nil, fmt.Errorf("invalid Kyber private key size: expected %d, got %d",
+			kyber1024.PrivateKeySize, len(privKeyBytes))
+	}
+	sk, err := kyber1024.Scheme().UnmarshalBinaryPrivateKey(privKeyBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse Kyber private key: %w", err)
+	}
+	ss, err := kyber1024.Scheme().Decapsulate(sk, ciphertext)
+	if err != nil {
+		return nil, fmt.Errorf("Kyber decapsulation failed: %w", err)
+	}
+	return ss, nil
+}
+
 // Kuntinkantan (Do not be arrogant): Bends the reality of the detailed message
 // into a riddle that only the Okyeame (Linguist) can unravel.
 // Uses Kyber-1024 for the heavy lifting of the spirit, and the Merkaba Engine (White Box) for the weaving.
@@ -137,29 +172,69 @@ func Sankofa(okyeamePriv []byte, artifact []byte) ([]byte, error) {
 }
 
 // AdinkraPrecedence defines the authority hierarchy for conflict resolution.
-// Eban (Security) > Fawohodie (Privilege) > Nkyinkyim (State/Handoff)
+// Eban (Security) > Fawohodie (Privilege) > Nkyinkyim (State/Handoff) > Dwennimmen (Distributed Trust)
 var AdinkraPrecedence = map[string]int{
-	"Eban":      3,
-	"Fawohodie": 2,
-	"Nkyinkyim": 1,
+	"Eban":       3,
+	"Fawohodie":  2,
+	"Nkyinkyim":  1,
+	"Dwennimmen": 0,
 }
 
 // AdjacencyMatrix represents the symbolic graph of an Adinkra glyph.
-// Used for spectral fingerprinting and key derivation (FIG. 3).
+// Used for spectral fingerprinting and key derivation (patent §3.1).
 type AdjacencyMatrix [][]uint8
 
+// SymbolMatrices holds the complete 8×8 binary adjacency matrices for each Adinkra symbol.
+// Each matrix encodes the glyph's graph topology used in spectral fingerprint derivation.
+//
+// Eban (Fortress) — D₈ bipartite: bosonic nodes {0-3} fully connect to fermionic {4-7}.
+// Fawohodie (Emancipation) — asymmetric exit-graph: high-density left side, sparse right side.
+// Nkyinkyim (Journey) — twisted non-periodic: diagonal shift, no two rows identical.
+// Dwennimmen (Ram's Horns) — near-complete bipartite: each node connects to 6+ others.
 var SymbolMatrices = map[string]AdjacencyMatrix{
+	// Eban: D₈ symmetric bipartite — bosonic {0-3} ↔ fermionic {4-7} (patent §3.1 AAE)
 	"Eban": {
-		{0, 1, 0, 1, 0, 0, 0, 0},
-		{1, 0, 1, 0, 0, 0, 0, 0},
-		{0, 1, 0, 1, 0, 0, 0, 0},
-		{1, 0, 1, 0, 0, 0, 0, 0},
-		// ... truncated for brevitiy, full 8x8 in implementation
+		{0, 0, 0, 0, 1, 1, 1, 1}, // node 0 (bosonic): connects to all fermionic
+		{0, 0, 0, 0, 1, 1, 1, 1}, // node 1 (bosonic): connects to all fermionic
+		{0, 0, 0, 0, 1, 1, 1, 1}, // node 2 (bosonic): connects to all fermionic
+		{0, 0, 0, 0, 1, 1, 1, 1}, // node 3 (bosonic): connects to all fermionic
+		{1, 1, 1, 1, 0, 0, 0, 0}, // node 4 (fermionic): connects to all bosonic
+		{1, 1, 1, 1, 0, 0, 0, 0}, // node 5 (fermionic): connects to all bosonic
+		{1, 1, 1, 1, 0, 0, 0, 0}, // node 6 (fermionic): connects to all bosonic
+		{1, 1, 1, 1, 0, 0, 0, 0}, // node 7 (fermionic): connects to all bosonic
 	},
+	// Fawohodie: asymmetric exit-graph — privilege grant direction (left-dense, right-sparse)
 	"Fawohodie": {
-		{1, 1, 1, 0, 0, 0, 0, 0},
-		{1, 1, 0, 1, 0, 0, 0, 0},
-		// ... asymmetric pattern
+		{0, 1, 1, 1, 1, 0, 0, 0}, // node 0: dense left (grant node)
+		{1, 0, 1, 1, 1, 0, 0, 0}, // node 1: dense left
+		{1, 1, 0, 1, 0, 1, 0, 0}, // node 2: transitional
+		{1, 1, 1, 0, 0, 0, 1, 0}, // node 3: transitional
+		{1, 1, 0, 0, 0, 0, 0, 1}, // node 4: sparse right (exit node)
+		{0, 0, 1, 0, 0, 0, 0, 1}, // node 5: sparse right
+		{0, 0, 0, 1, 0, 0, 0, 1}, // node 6: sparse right
+		{0, 0, 0, 0, 1, 1, 1, 0}, // node 7: exit sink
+	},
+	// Nkyinkyim: twisted non-periodic — diagonal shift, no two rows identical
+	"Nkyinkyim": {
+		{0, 1, 0, 0, 1, 0, 0, 1}, // row 0: 3-connected, twist pattern A
+		{1, 0, 1, 0, 0, 1, 0, 0}, // row 1: 3-connected, shift +1
+		{0, 1, 0, 1, 0, 0, 1, 0}, // row 2: 3-connected, shift +2
+		{0, 0, 1, 0, 1, 0, 0, 1}, // row 3: 3-connected, shift +3
+		{1, 0, 0, 1, 0, 1, 0, 0}, // row 4: 3-connected, shift +4
+		{0, 1, 0, 0, 1, 0, 1, 0}, // row 5: 3-connected, shift +5
+		{0, 0, 1, 0, 0, 1, 0, 1}, // row 6: 3-connected, shift +6
+		{1, 0, 0, 1, 0, 0, 1, 0}, // row 7: 3-connected, shift +7 (unique)
+	},
+	// Dwennimmen: near-complete — each node connects to exactly 6 others (high distributed trust)
+	"Dwennimmen": {
+		{0, 1, 1, 1, 1, 1, 1, 0}, // node 0: 6-connected
+		{1, 0, 1, 1, 1, 1, 0, 1}, // node 1: 6-connected
+		{1, 1, 0, 1, 1, 0, 1, 1}, // node 2: 6-connected
+		{1, 1, 1, 0, 0, 1, 1, 1}, // node 3: 6-connected
+		{1, 1, 1, 0, 0, 1, 1, 1}, // node 4: 6-connected (symmetric to 3)
+		{1, 1, 0, 1, 1, 0, 1, 1}, // node 5: 6-connected (symmetric to 2)
+		{1, 0, 1, 1, 1, 1, 0, 1}, // node 6: 6-connected (symmetric to 1)
+		{0, 1, 1, 1, 1, 1, 1, 0}, // node 7: 6-connected (symmetric to 0)
 	},
 }
 
