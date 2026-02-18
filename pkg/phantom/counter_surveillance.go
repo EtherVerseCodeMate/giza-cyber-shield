@@ -66,10 +66,6 @@ func SpoofGPSLocation(symbol string, realLat, realLon float64, targetCity string
 	// 2. Derive target coordinates from fingerprint + city
 	targetLat, targetLon := cityToCoordinates(targetCity)
 
-	// 3. Calculate offset (real → target)
-	offsetLat := targetLat - realLat
-	offsetLon := targetLon - realLon
-
 	// 4. Add realistic GPS drift (using spectral entropy)
 	h := sha256.Sum256(append(fingerprint, []byte(time.Now().Format("2006-01-02T15:04"))...))
 	entropy := binary.BigEndian.Uint64(h[:8])
