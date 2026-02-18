@@ -55,10 +55,10 @@ echo ""
 
 # Test 2: Verify KHEPRA Binary Execution in FIPS Mode
 echo "Test 2: Testing KHEPRA binary execution in FIPS mode..."
-if khepra --version &> /dev/null; then
-    test_pass "khepra executes successfully in FIPS mode"
+if adinkhepra --version &> /dev/null; then
+    test_pass "adinkhepra executes successfully in FIPS mode"
 else
-    test_info "khepra --version not available"
+    test_info "adinkhepra --version not available"
 fi
 
 echo ""
@@ -69,9 +69,9 @@ test_info "CRYSTALS-Dilithium3 and Kyber1024 are NOT FIPS 140-2 approved"
 test_info "They are NIST-selected post-quantum algorithms (future FIPS 140-3)"
 
 # KHEPRA should still work in FIPS mode but may fall back to FIPS-approved algos
-if khepra crypto test-dilithium3 &> /dev/null 2>&1; then
+if adinkhepra crypto test-dilithium3 &> /dev/null 2>&1; then
     test_pass "Dilithium3 functions in FIPS mode (non-FIPS algorithm)"
-elif khepra crypto 2>&1 | grep -qi "fips.*not supported"; then
+elif adinkhepra crypto 2>&1 | grep -qi "fips.*not supported"; then
     test_info "PQC disabled in FIPS mode (expected for strict FIPS compliance)"
 else
     test_info "Crypto test command not available"
@@ -83,13 +83,13 @@ echo ""
 echo "Test 4: Testing FIPS-approved algorithms..."
 
 # Test if KHEPRA can use FIPS-approved algorithms (ECDSA P-384, AES-256-GCM)
-if khepra crypto test-ecdsa &> /dev/null 2>&1; then
+if adinkhepra crypto test-ecdsa &> /dev/null 2>&1; then
     test_pass "ECDSA P-384 (FIPS-approved) is functional"
 else
     test_info "ECDSA test not available"
 fi
 
-if khepra crypto test-aes-gcm &> /dev/null 2>&1; then
+if adinkhepra crypto test-aes-gcm &> /dev/null 2>&1; then
     test_pass "AES-256-GCM (FIPS-approved) is functional"
 else
     test_info "AES-GCM test not available"
@@ -114,7 +114,7 @@ echo ""
 # Test 6: License Validation in FIPS Mode
 echo "Test 6: Testing license validation in FIPS mode..."
 # License signatures should still verify in FIPS mode
-if khepra license verify --license /etc/khepra/license.json &> /dev/null 2>&1; then
+if adinkhepra license verify --license /etc/khepra/license.json &> /dev/null 2>&1; then
     test_pass "License verification works in FIPS mode"
 elif [ ! -f /etc/khepra/license.json ]; then
     test_info "No license file present (expected in test environment)"
@@ -126,7 +126,7 @@ echo ""
 
 # Test 7: Gatekeeper Enforcement in FIPS Mode
 echo "Test 7: Testing gatekeeper in FIPS mode..."
-if khepra scan --target /etc 2>&1 | grep -qi "license"; then
+if adinkhepra scan --target /etc 2>&1 | grep -qi "license"; then
     test_pass "Gatekeeper enforcement active in FIPS mode"
 else
     test_info "License enforcement may not apply to test commands"
@@ -143,9 +143,9 @@ echo ""
 
 # Test 9: TLS/HTTPS in FIPS Mode (if applicable)
 echo "Test 9: Testing TLS connections in FIPS mode..."
-if khepra serve --tls --cert /tmp/test.crt --key /tmp/test.key &> /dev/null 2>&1; then
+if adinkhepra serve --tls --cert /tmp/test.crt --key /tmp/test.key &> /dev/null 2>&1; then
     test_pass "TLS server starts in FIPS mode"
-elif khepra serve 2>&1 | grep -qi "command not found"; then
+elif adinkhepra serve 2>&1 | grep -qi "command not found"; then
     test_info "Server mode not available in this build"
 else
     test_info "TLS test skipped (no test certificates)"

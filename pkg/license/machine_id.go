@@ -8,8 +8,6 @@ import (
 	"os"
 	"runtime"
 	"strings"
-
-	"golang.org/x/sys/windows/registry"
 )
 
 // GenerateMachineID creates a stable identifier based on hardware
@@ -60,33 +58,4 @@ func getPrimaryMAC() string {
 	}
 
 	return "unknown"
-}
-
-// getMachineUUID retrieves system-level machine UUID
-func getMachineUUID() string {
-	// Linux: /etc/machine-id or /var/lib/dbus/machine-id
-	if runtime.GOOS == "linux" {
-		if data, err := os.ReadFile("/etc/machine-id"); err == nil {
-			return strings.TrimSpace(string(data))
-		}
-		if data, err := os.ReadFile("/var/lib/dbus/machine-id"); err == nil {
-			return strings.TrimSpace(string(data))
-		}
-	}
-
-	// Windows: MachineGuid from registry
-	if runtime.GOOS == "windows" {
-		k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Cryptography`, registry.QUERY_VALUE)
-		if err == nil {
-			defer k.Close()
-			guid, _, err := k.GetStringValue("MachineGuid")
-			if err == nil {
-				return guid
-			}
-		}
-	}
-
-	// Fallback to hostname
-	hostname, _ := os.Hostname()
-	return "fallback-" + hostname
 }
