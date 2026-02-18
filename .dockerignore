@@ -10,11 +10,11 @@
 !prometheus.yml
 !init-db.sql
 
-# Include real source code for Adinkhepra lattice
-!pkg/adinkra/
-!cmd/phantom-node/
+# Include source code
+!pkg/
+!cmd/
 
-# Explicit excludes (in case * doesn't catch everything)
+# Explicit excludes (large or sensitive items)
 .git/
 node_modules/
 vendor/
@@ -42,10 +42,8 @@ out/
 memory/
 tests/
 scripts/
-pkg/
-cmd/
 
-# Large files
+# Large binaries and logs
 *.exe
 *.dll
 *.so
