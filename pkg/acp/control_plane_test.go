@@ -255,7 +255,7 @@ func TestRotateCredentialInvalidatesOriginal(t *testing.T) {
 	}
 	original, _ := acp.IssueCredential("agt-rot-inv", "Eban", nil, time.Hour)
 
-	_, err := acp.RotateCredential(original.ID)
+	_, err = acp.RotateCredential(original.ID)
 	if err != nil {
 		t.Fatalf("RotateCredential: %v", err)
 	}
