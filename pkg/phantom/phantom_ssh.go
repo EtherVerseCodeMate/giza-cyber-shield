@@ -219,42 +219,14 @@ func FromAuthorizedKeysFormat(line string) (*SpectralSSHAuthorizedKey, error) {
 
 // serializeAdinkhepraPQCPublicKey converts public key to bytes
 func serializeAdinkhepraPQCPublicKey(pub *adinkra.AdinkhepraPQCPublicKey) []byte {
-	// Simple serialization: concatenate all lattice vectors
-	// Production: use proper ASN.1 encoding
-	result := make([]byte, 0)
-
-	// Add security level (4 bytes)
-	securityBytes := make([]byte, 4)
-	securityBytes[0] = byte(pub.SecurityLevel >> 24)
-	securityBytes[1] = byte(pub.SecurityLevel >> 16)
-	securityBytes[2] = byte(pub.SecurityLevel >> 8)
-	securityBytes[3] = byte(pub.SecurityLevel)
-	result = append(result, securityBytes...)
-
-	// Add lattice vectors
-	for _, vector := range pub.LatticeVectors {
-		for _, coeff := range vector {
-			// Each coefficient is int64 (8 bytes)
-			coeffBytes := make([]byte, 8)
-			coeffBytes[0] = byte(coeff >> 56)
-			coeffBytes[1] = byte(coeff >> 48)
-			coeffBytes[2] = byte(coeff >> 40)
-			coeffBytes[3] = byte(coeff >> 32)
-			coeffBytes[4] = byte(coeff >> 24)
-			coeffBytes[5] = byte(coeff >> 16)
-			coeffBytes[6] = byte(coeff >> 8)
-			coeffBytes[7] = byte(coeff)
-			result = append(result, coeffBytes...)
-		}
-	}
-
-	return result
+	bytes, _ := pub.MarshalBinary()
+	return bytes
 }
 
 func deserializeAdinkhepraPQCPublicKey(data []byte) (*adinkra.AdinkhepraPQCPublicKey, error) {
-	// TODO: Implement deserialization
-	// Production: use proper ASN.1 decoding
-	return nil, fmt.Errorf("deserialization not implemented")
+	pub := &adinkra.AdinkhepraPQCPublicKey{}
+	err := pub.UnmarshalBinary(data)
+	return pub, err
 }
 
 // ─── SSH Authentication Protocol ───────────────────────────────────────────────
