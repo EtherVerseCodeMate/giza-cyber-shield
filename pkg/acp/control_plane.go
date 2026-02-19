@@ -148,6 +148,12 @@ func (acp *AgentControlPlane) ValidateCredential(cred *AgentCredential) error {
 	if cred == nil {
 		return fmt.Errorf("ACP: credential is nil")
 	}
+	if len(cred.PublicKey) == 0 {
+		return fmt.Errorf("ACP: credential %s has no public key (tampered?)", cred.ID)
+	}
+	if cred.Token == nil {
+		return fmt.Errorf("ACP: credential %s has no ZeroTrustToken (tampered?)", cred.ID)
+	}
 	if cred.IsExpired() {
 		return fmt.Errorf("ACP: credential %s has expired", cred.ID)
 	}
