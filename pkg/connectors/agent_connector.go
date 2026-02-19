@@ -77,12 +77,6 @@ func NewConnectorRegistry() *ConnectorRegistry {
 	return &ConnectorRegistry{}
 }
 
-// NewDefaultRegistry creates a registry with default connectors.
-func NewDefaultRegistry() *ConnectorRegistry {
-	// In the future this could load default keys/tokens from env or config
-	return NewConnectorRegistry()
-}
-
 // Register adds a connector to the registry.
 func (r *ConnectorRegistry) Register(c AgentEnvironmentConnector) {
 	r.connectors = append(r.connectors, c)

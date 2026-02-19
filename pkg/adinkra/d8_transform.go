@@ -63,23 +63,19 @@ func SymbolTransformID(symbol string) int {
 // =============================================================================
 
 // applyD8 applies (or inverts) a D₈ operation in-place, 8 bytes at a time.
+// Partial tail blocks (< 8 bytes) are passed through unchanged to guarantee
+// bijective round-trips on arbitrary-length inputs.  ML-KEM-1024 ciphertexts
+// are always 1568 bytes (exactly 196 blocks), so production use has no tail.
 func applyD8(data []byte, transformID int, inverse bool) {
 	n := len(data)
 	blocks := n / d8BlockSize
-	tail := n % d8BlockSize
 
 	for b := 0; b < blocks; b++ {
 		block := data[b*d8BlockSize : (b+1)*d8BlockSize]
 		permute8(block, transformID, inverse)
 	}
-
-	// Handle tail bytes smaller than a full block (pad-and-apply, take result).
-	if tail > 0 {
-		var padded [d8BlockSize]byte
-		copy(padded[:], data[blocks*d8BlockSize:])
-		permute8(padded[:], transformID, inverse)
-		copy(data[blocks*d8BlockSize:], padded[:tail])
-	}
+	// Tail bytes (n % 8 != 0) are left unchanged — they pass through unmodified
+	// in both the forward and inverse direction, ensuring round-trip correctness.
 }
 
 // permute8 applies one of the 16 D₈ operations to an 8-byte slice in-place.
@@ -96,10 +92,10 @@ func permute8(b []byte, transformID int, inverse bool) {
 	} else {
 		shift := transformID - 8
 		if inverse {
-			// Inverse of (reflect then rotate k) is (rotate -k then reflect)
+			// Forward was: reverse, then rotate left by shift.
+			// Inverse:  rotate right by shift (= left by 8-shift), then reverse.
+			rotateLeft8(b, (8-shift)%8)
 			reverseSlice8(b)
-			shift = (8 - shift) % 8
-			rotateLeft8(b, shift)
 		} else {
 			reverseSlice8(b)
 			rotateLeft8(b, shift)

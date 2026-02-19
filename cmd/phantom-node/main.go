@@ -10,10 +10,12 @@ package main
 
 import (
 	"crypto/sha256"
+	"embed"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log"
 	"net"
 	"net/http"
@@ -391,6 +393,22 @@ func (n *PhantomNode) handleSign(w http.ResponseWriter, r *http.Request) {
 }
 
 func (n *PhantomNode) handleRoot(w http.ResponseWriter, r *http.Request) {
+	// Serve static HTML for browser requests, JSON for API clients
+	accept := r.Header.Get("Accept")
+	if r.URL.Path == "/" && (accept == "" || contains(accept, "text/html")) {
+		// Try to serve embedded static file
+		staticFS, err := fs.Sub(staticFiles, "static")
+		if err == nil {
+			content, err := fs.ReadFile(staticFS, "index.html")
+			if err == nil {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.Write(content)
+				return
+			}
+		}
+	}
+
+	// Fallback to JSON API response
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"name":    "Phantom Network Node",
@@ -407,6 +425,26 @@ func (n *PhantomNode) handleRoot(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 }
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSubstr(s, substr))
+}
+
+func containsSubstr(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
+// =============================================================================
+// STATIC FILE SERVER
+// =============================================================================
+
+//go:embed static
+var staticFiles embed.FS
 
 // =============================================================================
 // MAIN
