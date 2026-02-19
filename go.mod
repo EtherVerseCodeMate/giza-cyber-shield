@@ -1,6 +1,6 @@
 module github.com/EtherVerseCodeMate/giza-cyber-shield
 
-go 1.23.6
+go 1.25.1
 
 require (
 	github.com/cloudflare/circl v1.6.2
@@ -21,7 +21,7 @@ require (
 )
 
 require (
-	filippo.io/edwards25519 v1.1.0 // indirect
+	filippo.io/edwards25519 v1.1.1 // indirect
 	github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358 // indirect
 	github.com/ChrisTrenkamp/goxpath v0.0.0-20210404020558-97928f7e12b6 // indirect
 	github.com/akutz/memconn v0.1.0 // indirect
