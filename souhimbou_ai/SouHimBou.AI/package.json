@@ -89,6 +89,8 @@
   },
   "overrides": {
     "lodash": "4.17.23",
-    "lodash-es": "4.17.23"
+    "lodash-es": "4.17.23",
+    "minimatch": ">=9.0.5",
+    "ajv": ">=8.17.1"
   }
 }

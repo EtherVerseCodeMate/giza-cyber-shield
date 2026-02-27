@@ -5,10 +5,6 @@ const AGENT_URL = process.env.AGENT_URL || process.env.NEXT_PUBLIC_API_URL || 'h
 const nextConfig = {
     reactStrictMode: true,
     output: 'standalone', // Required for Docker deployment
-    // Bypass type errors for quick ERT demo deployment
-    typescript: {
-        ignoreBuildErrors: true,
-    },
     async rewrites() {
         return [
             {
