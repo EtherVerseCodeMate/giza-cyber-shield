@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { OrganizationProvider } from "@/components/OrganizationProvider";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import SecurityHeaders from "@/components/security/SecurityHeaders";
+import NLChatPanel from "@/components/NLChatPanel";
 
 // Core MVP Pages
 import NewHomepage from "./views/NewHomepage";
@@ -99,6 +100,7 @@ const App = () => {
           </SecurityHeaders>
         </AuthProvider>
       </QueryClientProvider>
+      <NLChatPanel />
     </BrowserRouter>
   );
 };
