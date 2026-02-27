@@ -12,20 +12,25 @@ import (
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/acme/autocert"
 
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/auth"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/mcp"
 )
 
 // Server represents the Khepra API server
 type Server struct {
-	router     *gin.Engine
-	wsHub      *WebSocketHub
-	dagStore   DAGStore
-	licMgr     LicenseManager
-	config     *Config
-	startTime  time.Time
-	version    string
-	httpServer *http.Server
-	agentMgr   AgentManagerInterface
+	router      *gin.Engine
+	wsHub       *WebSocketHub
+	dagStore    DAGStore
+	licMgr      LicenseManager
+	config      *Config
+	startTime   time.Time
+	version     string
+	httpServer  *http.Server
+	agentMgr    AgentManagerInterface
+	mcpStore    MCPStore             // Supabase MCP persistence layer (optional)
+	nlProcessor *mcp.NLProcessor     // Natural language → tool chain processor (optional)
+	pqcGateway  *auth.PQCAuthGateway // PQC-SAML-OAuth2 auth gateway (optional)
 }
 
 const (
@@ -122,9 +127,17 @@ func (s *Server) setupRoutes() {
 		})
 	})
 
-	// API v1 routes (auth required)
+	// Public auth bootstrap endpoints (no auth required — they create credentials)
+	pubV1 := s.router.Group("/api/v1")
+	s.setupAuthRoutes(pubV1)
+
+	// API v1 routes — PQC auth when gateway is wired, legacy API key otherwise
 	v1 := s.router.Group("/api/v1")
-	v1.Use(s.AuthMiddleware())
+	if s.pqcGateway != nil {
+		v1.Use(s.PQCGinMiddleware())
+	} else {
+		v1.Use(s.AuthMiddleware())
+	}
 	{
 		// Scan endpoints
 		scans := v1.Group("/scans")
@@ -215,6 +228,9 @@ func (s *Server) setupRoutes() {
 		// Telemetry analytics (read-only, requires user auth)
 		v1.GET("/telemetry/stats", s.handleTelemetryStats)
 		v1.GET("/telemetry/dark-crypto-moat", s.handleDarkCryptoMoat)
+
+		// MCP (Model Context Protocol) endpoints — Supabase bridge + AI tool integration
+		s.setupMCPRoutes(v1)
 	}
 
 	// Service-to-service API (authenticated with service tokens)
