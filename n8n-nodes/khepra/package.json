@@ -1,0 +1,45 @@
+{
+  "name": "n8n-nodes-khepra",
+  "version": "1.0.0",
+  "description": "n8n community node for Khepra Cyber Shield — PQC-secured AI security platform",
+  "keywords": [
+    "n8n-community-node-package",
+    "cybersecurity",
+    "compliance",
+    "cmmc",
+    "stig",
+    "pqc",
+    "mcp",
+    "khepra"
+  ],
+  "license": "MIT",
+  "homepage": "https://souhimbou.ai",
+  "author": {
+    "name": "EtherVerseCodeMate",
+    "email": "support@souhimbou.ai"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EtherVerseCodeMate/giza-cyber-shield.git"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && gulp build:icons",
+    "dev": "tsc --watch",
+    "lint": "eslint nodes credentials --ext .ts"
+  },
+  "files": ["dist"],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": ["dist/credentials/KhepraApi.credentials.js"],
+    "nodes": ["dist/nodes/KhepraNode.node.js"]
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "n8n-workflow": "*",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
+}
