@@ -37,7 +37,7 @@ class SunsumEngine:
     def perform_harmonization(
         self, 
         void_type: VoidDisturbance, 
-        corruption_score: float,
+        _corruption_score: float,
         options: List[AkofenaOption]
     ) -> MmereDaneResult:
         """

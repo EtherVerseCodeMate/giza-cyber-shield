@@ -96,19 +96,9 @@ export const useOrganization = () => {
           return;
         }
 
-        // Only show toast for unexpected errors (excluding common transition/empty states)
+        // Silently log — do not surface org-fetch errors to the UI on public pages
         if (error.code !== 'PGRST116' && error.message !== 'Unexpected token') {
-          // If the error is real (e.g. connection, RLS failure), log it prominently
-          console.error('Critical organization load failure:', error);
-
-          // Only show toast if we are CERTAIN it's a failure and not just a new user case
-          if (user?.id) {
-            toast({
-              title: "Connection Alert",
-              description: "Retrying organization sync...",
-              variant: "default", // Less alarming variant
-            });
-          }
+          console.warn('[useOrganization] fetch error:', error.code, error.message);
         }
         return;
       }

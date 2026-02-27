@@ -294,9 +294,9 @@ function generateRealTimeRecommendations(metrics: any) {
 function generatePredictionSeries(baseValue: number, growthRate: number, days: number) {
   const series = [];
   for (let i = 0; i < days; i++) {
+    // Pure trend calculation without random noise
     const trend = baseValue * Math.pow(1 + growthRate / 30, i); // Daily growth
-    const noise = (Math.random() - 0.5) * baseValue * 0.1; // ±10% noise
-    series.push(Math.max(0, trend + noise));
+    series.push(Math.max(0, trend));
   }
   return series;
 }

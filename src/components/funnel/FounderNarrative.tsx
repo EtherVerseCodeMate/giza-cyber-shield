@@ -1,8 +1,11 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { ChevronRight, Award, Globe, BookOpen, Shield } from 'lucide-react';
-import founderBanner from '@/assets/founder-veteran-banner.png';
-import founderMrap from '@/assets/founder-mrap.png';
+// Support both Vite (string) and Next.js (StaticImageData) import shapes
+import _founderBanner from '@/assets/founder-veteran-banner.png';
+import _founderMrap from '@/assets/founder-mrap.png';
+const founderBanner = typeof _founderBanner === 'string' ? _founderBanner : (_founderBanner as { src: string }).src;
+const founderMrap = typeof _founderMrap === 'string' ? _founderMrap : (_founderMrap as { src: string }).src;
 
 export const FounderNarrative = () => {
   const achievements = [
@@ -60,7 +63,7 @@ export const FounderNarrative = () => {
           >
             <div className="relative rounded-2xl overflow-hidden border border-[#d4af37]/40 shadow-[0_0_50px_rgba(212,175,55,0.3)]">
               <img
-                src={founderBanner.src}
+                src={founderBanner}
                 alt="SGT Souhimbou Kone - U.S. Army Veteran Banner"
                 className="w-full h-auto object-contain"
               />
@@ -74,7 +77,7 @@ export const FounderNarrative = () => {
               className="absolute -bottom-8 -right-8 w-48 h-48 rounded-xl overflow-hidden border-2 border-[#00ffff]/40 shadow-[0_0_30px_rgba(0,255,255,0.2)] hidden lg:block"
             >
               <img
-                src={founderMrap.src}
+                src={founderMrap}
                 alt="SGT Kone with MRAP vehicle during deployment"
                 className="w-full h-full object-cover"
               />

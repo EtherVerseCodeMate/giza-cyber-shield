@@ -79,25 +79,24 @@ async function performDiscovery(domains: string[]): Promise<any[]> {
     { name: 'Splunk Enterprise', type: 'monitoring', version: '9.1.2', riskLevel: 'low', complianceScore: 89 }
   ];
 
-  // Randomly select 4-8 assets for discovery
-  const numAssets = Math.floor(Math.random() * 5) + 4;
+  // Discover all asset templates (deterministic)
   const discoveredAssets = [];
 
-  for (let i = 0; i < numAssets; i++) {
-    const template = assetTemplates[Math.floor(Math.random() * assetTemplates.length)];
-    
-    // Add some variance to make it realistic
+  for (let i = 0; i < assetTemplates.length; i++) {
+    const template = assetTemplates[i];
+
+    // Use template values directly (no random variance)
     const asset = {
       ...template,
       id: `asset-${Date.now()}-${i}`,
-      complianceScore: template.complianceScore + Math.floor(Math.random() * 10) - 5,
-      integrability: Math.floor(Math.random() * 30) + 70, // 70-100%
+      complianceScore: template.complianceScore,
+      integrability: 85, // Default integrability score
       discoveredAt: new Date().toISOString(),
       status: 'active'
     };
 
     discoveredAssets.push(asset);
-    
+
     // Add small delay to simulate real discovery
     await new Promise(resolve => setTimeout(resolve, 100));
   }

@@ -482,9 +482,9 @@ async function testTCPConnection(host: string, port: number): Promise<boolean> {
       return true; // If fetch succeeds, port is open
     }
     
-    // For other ports, we'll simulate based on common service patterns
-    // In a real implementation, this would use WebSocket or other connection methods
-    return Math.random() > 0.7; // Simulate some ports being open
+    // For other ports, return false until actual scanning is implemented
+    // In production, this would use WebSocket or other connection methods
+    return false; // Port status unknown without actual scan
     
   } catch (error) {
     return false; // Connection failed, port likely closed

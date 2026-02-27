@@ -369,7 +369,7 @@ serve(async (req) => {
 
 async function processSecurityEvent(source: string, eventType: string, data: any, timestamp: string) {
   const processedEvent = {
-    id: `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    id: `evt_${Date.now()}_${crypto.randomUUID().substring(0, 9)}`,
     event_type: eventType,
     severity: 'INFO' as 'INFO' | 'WARNING' | 'CRITICAL',
     source_system: source,

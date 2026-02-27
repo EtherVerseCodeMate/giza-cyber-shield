@@ -399,7 +399,8 @@ function generateControlRecommendation(control: any, gapType: string): string {
   };
   
   const options = recommendations[gapType as keyof typeof recommendations];
-  return options[Math.floor(Math.random() * options.length)];
+  // Return first recommendation (deterministic) - full list available via gap analysis
+  return options[0];
 }
 
 function getRequiredResources(control: any): string[] {
