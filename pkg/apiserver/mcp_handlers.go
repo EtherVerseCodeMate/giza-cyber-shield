@@ -25,6 +25,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/mcp"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/supabase"
 )
 
@@ -45,6 +46,13 @@ type MCPStore interface {
 // WithMCPStore injects the Supabase MCP store into the server.
 func (s *Server) WithMCPStore(store MCPStore) {
 	s.mcpStore = store
+}
+
+// WithNLProcessor injects the natural language processor into the server.
+// When set, POST /api/v1/mcp/ask uses full LLM-powered intent → tool chain → synthesis.
+// When nil, the endpoint falls back to fast keyword routing.
+func (s *Server) WithNLProcessor(p *mcp.NLProcessor) {
+	s.nlProcessor = p
 }
 
 // ─── Route Registration ────────────────────────────────────────────────────────
@@ -407,7 +415,6 @@ func (s *Server) handleMCPNaturalLanguageQuery(c *gin.Context) {
 	start := time.Now()
 	dagNodeID := uuid.New().String()
 
-	// Log the NL query to DAG audit chain
 	if s.dagStore != nil {
 		_ = s.dagStore.Add(dagNodeID, "mcp:nl_query", nil, map[string]string{
 			"query_len":  fmt.Sprintf("%d", len(req.Query)),
@@ -415,27 +422,64 @@ func (s *Server) handleMCPNaturalLanguageQuery(c *gin.Context) {
 		})
 	}
 
-	// Keyword-based tool routing (NLProcessor.keywordFallback logic)
-	// Full NL processing via pkg/mcp.NLProcessor requires LLM — wired in cmd/apiserver
-	toolPlan := keywordRouteQuery(req.Query, req.Context)
+	// ── Path 1: Full NL processing via pkg/mcp.NLProcessor (LLM wired) ─────────
+	if s.nlProcessor != nil {
+		nlResp, err := s.nlProcessor.Process(c.Request.Context(), mcp.NLQuery{
+			Text:      req.Query,
+			SessionID: c.GetHeader("X-Session-ID"),
+			Context:   req.Context,
+			MaxTools:  req.MaxTools,
+		})
+		if err == nil {
+			// Persist the NL query event to Supabase for product analytics
+			if s.mcpStore != nil {
+				call := &supabase.MCPToolCall{
+					ID:            dagNodeID,
+					ToolName:      "nl_query",
+					ToolParams:    map[string]interface{}{"query": req.Query},
+					DAGNodeID:     dagNodeID,
+					DurationMS:    nlResp.DurationMS,
+					DataClass:     "RESTRICTED",
+					InjectionScan: true,
+					CalledAt:      time.Now().UTC(),
+				}
+				_ = s.mcpStore.LogToolCall(c.Request.Context(), call)
+			}
 
-	// For now, return the tool plan + explanation
-	// Full execution wired when LLM provider is injected via s.llmProvider
-	suggestions := []string{
-		"Tell me more about the highest severity finding",
-		"Run a compliance scan",
-		"Generate the security dashboard",
+			c.JSON(http.StatusOK, gin.H{
+				"answer":       nlResp.Answer,
+				"tools_called": nlResp.ToolsCalled,
+				"suggestions":  nlResp.Suggestions,
+				"dag_node_ids": nlResp.DAGNodeIDs,
+				"confidence":   nlResp.Confidence,
+				"duration_ms":  nlResp.DurationMS,
+				"dag_node_id":  dagNodeID,
+				"pqc_signed":   true,
+				"engine":       "nl_processor_v1",
+				"protocol":     "AdinKhepra-v1",
+			})
+			return
+		}
+		// LLM call failed — fall through to keyword routing
 	}
+
+	// ── Path 2: Fast keyword routing (no LLM required) ───────────────────────
+	toolPlan := keywordRouteQuery(req.Query, req.Context)
 
 	c.JSON(http.StatusOK, gin.H{
 		"answer":              buildNLAnswer(req.Query, toolPlan),
 		"tools_that_will_run": toolPlan,
-		"suggestions":         suggestions,
-		"dag_node_id":         dagNodeID,
-		"duration_ms":         time.Since(start).Milliseconds(),
-		"pqc_signed":          true,
-		"note":                "Full NL processing active. Wire pkg/llm.Provider for AI synthesis.",
-		"protocol":            "AdinKhepra-v1",
+		"suggestions": []string{
+			"Tell me more about the highest severity finding",
+			"Run a compliance scan",
+			"Generate the security dashboard",
+		},
+		"dag_node_id": dagNodeID,
+		"duration_ms": time.Since(start).Milliseconds(),
+		"pqc_signed":  true,
+		"engine":      "keyword_router_v1",
+		"protocol":    "AdinKhepra-v1",
+		"note":        "Set LLM_PROVIDER=ollama + LLM_URL env vars to enable AI synthesis",
 	})
 }
 
