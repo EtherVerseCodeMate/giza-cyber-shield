@@ -74,7 +74,7 @@ async function getOptimizationHistory(
 ): Promise<{ currentCompliance: string; lastAnalysis: any | null }> {
   try {
     // Check current compliance status
-    const { data: findings, error: findingsError } = await supabase
+    const { data: findings } = await supabase
       .from('stig_findings')
       .select('status, severity, updated_at')
       .eq('asset_id', assetId)
@@ -83,7 +83,7 @@ async function getOptimizationHistory(
       .limit(1);
 
     // Check past analyses
-    const { data: analyses, error: analysesError } = await supabase
+    const { data: analyses } = await supabase
       .from('stig_ai_analyses')
       .select('ai_findings, confidence_score, implementation_priority')
       .contains('stig_rules_analyzed', [stigRule])
