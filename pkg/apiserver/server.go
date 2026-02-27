@@ -26,6 +26,7 @@ type Server struct {
 	version    string
 	httpServer *http.Server
 	agentMgr   AgentManagerInterface
+	mcpStore   MCPStore // Supabase MCP persistence layer (optional)
 }
 
 const (
@@ -215,6 +216,9 @@ func (s *Server) setupRoutes() {
 		// Telemetry analytics (read-only, requires user auth)
 		v1.GET("/telemetry/stats", s.handleTelemetryStats)
 		v1.GET("/telemetry/dark-crypto-moat", s.handleDarkCryptoMoat)
+
+		// MCP (Model Context Protocol) endpoints — Supabase bridge + AI tool integration
+		s.setupMCPRoutes(v1)
 	}
 
 	// Service-to-service API (authenticated with service tokens)
