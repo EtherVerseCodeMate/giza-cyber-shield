@@ -185,7 +185,7 @@ async def lifespan(app: FastAPI):
     # 1. Load Soul
     try:
         loader_instance = SouHimBouLoader(
-            secret_path=settings.secret_docs_path,
+            secret_path=settings.classified_docs_path,
             cyber_brain_path=settings.cyber_brain_path
         )
         loader_instance.load_unified_corpus()
