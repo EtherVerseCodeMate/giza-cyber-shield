@@ -39,7 +39,7 @@ class SoulBiasedTrainer:
         
         # Initialize Data Loader
         self.loader = SouHimBouLoader(
-            secret_path=settings.secret_docs_path,
+            secret_path=settings.classified_docs_path,
             cyber_brain_path=settings.cyber_brain_path
         )
 

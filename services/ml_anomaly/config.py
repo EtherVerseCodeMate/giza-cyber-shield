@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     metrics_port: int = Field(default=9090, ge=1, le=65535)
 
     # Data Source (The "Soul") - Use Path for better handling
-    secret_docs_path: Path = Path(r"c:\Users\intel\blackbox\khepra protocol\docs\top-secret")
+    classified_docs_path: Path = Path(r"c:\Users\intel\blackbox\khepra protocol\docs\top-secret")
     cyber_brain_path: Path = Path(r"c:\Users\intel\blackbox\khepra protocol\docs\cyber-brain")
 
     # Access Token for external API calls (if any)
