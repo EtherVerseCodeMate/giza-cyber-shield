@@ -7,6 +7,79 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// =============================================================================
+// Helper Functions for Real Data Queries
+// =============================================================================
+
+// Query actual compliance findings for an asset/rule
+async function getActualComplianceFinding(
+  supabase: any,
+  assetId: string,
+  stigRuleId: string
+): Promise<{ status: string; riskScore: number; lastChecked: string | null } | null> {
+  try {
+    const { data, error } = await supabase
+      .from('stig_findings')
+      .select('status, severity, risk_score, updated_at')
+      .eq('asset_id', assetId)
+      .eq('rule_id', stigRuleId)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !data) return null;
+
+    // Map severity to risk score if not provided
+    const severityToRisk: Record<string, number> = {
+      'critical': 9,
+      'high': 7,
+      'medium': 5,
+      'low': 3
+    };
+
+    return {
+      status: data.status,
+      riskScore: data.risk_score || severityToRisk[data.severity?.toLowerCase()] || 5,
+      lastChecked: data.updated_at
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Query asset configuration for security settings
+async function getAssetSecurityConfig(
+  supabase: any,
+  assetId: string
+): Promise<any | null> {
+  try {
+    const { data, error } = await supabase
+      .from('asset_configurations')
+      .select('*')
+      .eq('asset_id', assetId)
+      .order('collected_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+// Generate deterministic hash from data
+function generateDeterministicHash(data: any): string {
+  const str = JSON.stringify(data);
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(36);
+}
+
 interface STIGComplianceRequest {
   organization_id: string;
   asset_ids?: string[];
@@ -98,7 +171,7 @@ serve(async (req) => {
 
     for (const asset of assets) {
       for (const stigRule of stigRules) {
-        const result = await performSTIGComplianceCheck(asset, stigRule);
+        const result = await performSTIGComplianceCheck(supabase, asset, stigRule);
         complianceResults.push(result);
 
         // Store implementation tracking
@@ -284,22 +357,53 @@ serve(async (req) => {
   }
 });
 
-async function performSTIGComplianceCheck(asset: any, stigRule: any): Promise<ComplianceResult> {
-  // Simulate STIG compliance checking based on asset type and rule
-  const isCompliant = Math.random() > 0.3; // 70% compliance rate for demo
-  const riskScore = isCompliant ? Math.random() * 3 : Math.random() * 7 + 3;
-  
-  const currentConfig = generateCurrentConfiguration(asset, stigRule);
+async function performSTIGComplianceCheck(
+  supabase: any,
+  asset: any,
+  stigRule: any
+): Promise<ComplianceResult> {
+  // Query actual compliance finding from database
+  const actualFinding = await getActualComplianceFinding(supabase, asset.id, stigRule.rule_id);
+
+  // Determine compliance status from real data
+  let complianceStatus: 'COMPLIANT' | 'NOT_COMPLIANT' | 'PARTIAL' | 'ERROR';
+  let riskScore: number;
+
+  if (actualFinding) {
+    // Use actual finding data
+    if (actualFinding.status === 'PASS' || actualFinding.status === 'COMPLIANT') {
+      complianceStatus = 'COMPLIANT';
+      riskScore = Math.min(actualFinding.riskScore, 3); // Low risk if compliant
+    } else if (actualFinding.status === 'PARTIAL') {
+      complianceStatus = 'PARTIAL';
+      riskScore = actualFinding.riskScore;
+    } else {
+      complianceStatus = 'NOT_COMPLIANT';
+      riskScore = actualFinding.riskScore;
+    }
+  } else {
+    // No finding exists - treat as unknown/needs scan
+    complianceStatus = 'NOT_COMPLIANT';
+    // Risk based on STIG rule severity
+    const severityRisk: Record<string, number> = {
+      'CAT_I': 9, 'HIGH': 8, 'CAT_II': 6, 'MEDIUM': 5, 'CAT_III': 3, 'LOW': 2
+    };
+    riskScore = severityRisk[stigRule.severity?.toUpperCase()] || 5;
+  }
+
+  const currentConfig = await generateCurrentConfiguration(supabase, asset, stigRule);
   const requiredConfig = generateRequiredConfiguration(stigRule);
-  
+
+  const isCompliant = complianceStatus === 'COMPLIANT';
+
   return {
     asset_id: asset.id,
     stig_rule_id: stigRule.rule_id,
-    compliance_status: isCompliant ? 'COMPLIANT' : 'NOT_COMPLIANT',
+    compliance_status: complianceStatus,
     current_configuration: currentConfig,
     required_configuration: requiredConfig,
     deviation_details: isCompliant ? [] : [
-      `Configuration mismatch in ${stigRule.control_family}`,
+      `Configuration mismatch in ${stigRule.control_family || 'security controls'}`,
       'Security policy not enforced',
       'Access controls insufficient'
     ],
@@ -324,18 +428,40 @@ async function performSTIGComplianceCheck(asset: any, stigRule: any): Promise<Co
   };
 }
 
-function generateCurrentConfiguration(asset: any, stigRule: any): any {
+async function generateCurrentConfiguration(supabase: any, asset: any, stigRule: any): Promise<any> {
+  // Query actual asset security configuration
+  const securityConfig = await getAssetSecurityConfig(supabase, asset.id);
+
+  if (securityConfig) {
+    return {
+      asset_type: asset.asset_type,
+      platform: asset.platform,
+      os_version: asset.operating_system,
+      security_settings: {
+        password_policy: securityConfig.password_policy_status || 'unknown',
+        audit_logging: securityConfig.audit_logging_enabled ? 'enabled' : 'disabled',
+        firewall_status: securityConfig.firewall_enabled ? 'active' : 'inactive',
+        encryption: securityConfig.encryption_enabled ? 'enabled' : 'disabled'
+      },
+      compliance_level: stigRule.severity === 'HIGH' ? 'partial' : 'full',
+      data_source: 'AGENT_COLLECTED'
+    };
+  }
+
+  // Fallback to asset metadata (no random values)
   return {
     asset_type: asset.asset_type,
     platform: asset.platform,
     os_version: asset.operating_system,
     security_settings: {
-      password_policy: 'default',
-      audit_logging: asset.asset_type === 'server' ? 'enabled' : 'disabled',
-      firewall_status: 'active',
-      encryption: Math.random() > 0.5 ? 'enabled' : 'disabled'
+      password_policy: 'unknown',
+      audit_logging: asset.asset_type === 'server' ? 'enabled' : 'unknown',
+      firewall_status: 'unknown',
+      encryption: 'unknown'
     },
-    compliance_level: stigRule.severity === 'HIGH' ? 'partial' : 'full'
+    compliance_level: stigRule.severity === 'HIGH' ? 'partial' : 'full',
+    data_source: 'ASSET_METADATA',
+    needs_agent_scan: true
   };
 }
 
@@ -353,14 +479,18 @@ function generateRequiredConfiguration(stigRule: any): any {
 }
 
 function generateConfigurationData(asset: any): any {
-  return {
+  const configData = {
     hostname: asset.hostname,
     ip_address: asset.ip_address,
     operating_system: asset.operating_system,
     platform: asset.platform,
     last_scan: new Date().toISOString(),
-    services: ['ssh', 'http', 'https'],
-    security_patches: Math.floor(Math.random() * 50),
-    configuration_hash: Math.random().toString(36).substring(7)
+    services: asset.known_services || ['ssh', 'https'],
+    security_patches: asset.patch_level || 0
+  };
+
+  return {
+    ...configData,
+    configuration_hash: generateDeterministicHash(configData)
   };
 }
