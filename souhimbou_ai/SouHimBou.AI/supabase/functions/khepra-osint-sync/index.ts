@@ -455,14 +455,24 @@ async function updateSyncStatus(supabase: any, sourceId: string, indicators: num
 }
 
 async function getSourceStatus(supabase: any) {
-  const status = OSINT_SOURCES.map(source => ({
-    id: source.id,
-    name: source.name,
-    type: source.type,
-    status: 'active',
-    lastSync: new Date().toISOString(),
-    indicators: Math.floor(Math.random() * 1000) + 100
-  }));
+  // Query actual indicator counts from database for each source
+  const statusPromises = OSINT_SOURCES.map(async source => {
+    const { count } = await supabase
+      .from('threat_intelligence')
+      .select('*', { count: 'exact', head: true })
+      .eq('source', source.id);
+
+    return {
+      id: source.id,
+      name: source.name,
+      type: source.type,
+      status: 'active',
+      lastSync: new Date().toISOString(),
+      indicators: count || 0
+    };
+  });
+
+  const status = await Promise.all(statusPromises);
 
   return new Response(
     JSON.stringify({
