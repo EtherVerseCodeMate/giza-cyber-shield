@@ -8,12 +8,12 @@ primary_region = "iad" # US East (Ashburn, VA)
 [env]
   PORT = "8080"
   PYTHONUNBUFFERED = "1"
-  FEATURE_DIM = "128"
-  HIDDEN_DIM = "64"
-  LATENT_DIM = "32"
-  MODEL_PATH = "/app/models/souhimbou_v1.pt"
-  SECRET_DOCS_PATH = "/app/top_secret_intel"
-  CYBER_BRAIN_PATH = "/app/data/cyber_brain"
+  ADINKHEPRA_ML_FEATURE_DIM = "128"
+  ADINKHEPRA_ML_HIDDEN_DIM = "64"
+  ADINKHEPRA_ML_LATENT_DIM = "32"
+  ADINKHEPRA_ML_MODEL_PATH = "/app/models/souhimbou_v1.pt"
+  ADINKHEPRA_ML_SECRET_DOCS_PATH = "/app/top_secret_intel"
+  ADINKHEPRA_ML_CYBER_BRAIN_PATH = "/app/data/cyber_brain"
 
 [http_service]
   internal_port = 8080
