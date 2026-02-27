@@ -1,7 +1,9 @@
 project_id = "xjknkjbrjgljuovaazeu"
 
+# ── Billing ──────────────────────────────────────────────────────────────────
+
 [functions.stripe-webhook]
-verify_jwt = false
+verify_jwt = false   # Stripe signs requests with STRIPE_WEBHOOK_SECRET, not Supabase JWT
 
 [functions.create-diagnostic-checkout-session]
 verify_jwt = true
@@ -9,8 +11,31 @@ verify_jwt = true
 [functions.create-advisory-checkout-session]
 verify_jwt = true
 
+# ── Auth ─────────────────────────────────────────────────────────────────────
+
 [functions.send-password-reset-otp]
 verify_jwt = false
 
 [functions.verify-password-reset-otp]
 verify_jwt = false
+
+# ── License enforcement ───────────────────────────────────────────────────────
+
+[functions.license-register]
+verify_jwt = false   # Authenticated via license_id (called from Go binary on user machines)
+
+[functions.license-heartbeat]
+verify_jwt = false   # Authenticated via license_id (called from Go binary on user machines)
+
+# ── Integrations ──────────────────────────────────────────────────────────────
+
+[functions.mcp-agent-bridge]
+verify_jwt = true    # JWT required — row-level security enforces org isolation
+
+[functions.n8n-webhook-receiver]
+verify_jwt = false   # Authenticated via HMAC-SHA256 (X-N8n-Signature / KHEPRA_WEBHOOK_SECRET)
+
+# ── Storage / DR ──────────────────────────────────────────────────────────────
+
+[functions.storage-backup-worker]
+verify_jwt = false   # Invoked by pg_cron / service role key — no end-user JWT
