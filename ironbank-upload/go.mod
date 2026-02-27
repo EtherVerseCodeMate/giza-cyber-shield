@@ -3,7 +3,7 @@ module github.com/EtherVerseCodeMate/giza-cyber-shield
 go 1.25.3
 
 require (
-	github.com/cloudflare/circl v1.6.2
+	github.com/cloudflare/circl v1.6.3
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-pdf/fpdf v0.9.0
@@ -21,7 +21,7 @@ require (
 )
 
 require (
-	filippo.io/edwards25519 v1.1.0 // indirect
+	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358 // indirect
 	github.com/ChrisTrenkamp/goxpath v0.0.0-20210404020558-97928f7e12b6 // indirect
 	github.com/akutz/memconn v0.1.0 // indirect

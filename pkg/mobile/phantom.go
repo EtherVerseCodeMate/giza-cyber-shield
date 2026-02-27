@@ -10,7 +10,7 @@ import (
 	"net"
 	"time"
 
-	"khepra-protocol/pkg/adinkra"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 )
 
 // =============================================================================

@@ -34,6 +34,9 @@ import MasterAdmin from "./views/MasterAdmin";
 import ClientPortal from "./views/ClientPortal";
 import UltimateDashboard from "./views/UltimateDashboard";
 import CommandCenter from "./views/CommandCenter";
+import LegalPage from "./views/LegalPage";
+import ThreatHuntingDashboard from "./views/ThreatHuntingDashboard";
+import IntegrationsPage from "./views/IntegrationsPage";
 import NotFound from "./views/NotFound";
 
 const queryClient = new QueryClient({
@@ -87,6 +90,17 @@ const App = () => {
 
                   {/* Admin Routes */}
                   <Route path="/admin" element={<ProtectedRoute><MasterAdmin /></ProtectedRoute>} />
+
+                  {/* Legal Pages */}
+                  <Route path="/legal" element={<LegalPage />} />
+                  <Route path="/privacy" element={<LegalPage />} />
+                  <Route path="/terms" element={<LegalPage />} />
+
+                  {/* Threat Hunting */}
+                  <Route path="/threat-hunting" element={<ProtectedRoute><ThreatHuntingDashboard /></ProtectedRoute>} />
+
+                  {/* Integrations */}
+                  <Route path="/integrations" element={<ProtectedRoute><IntegrationsPage /></ProtectedRoute>} />
 
                   {/* Khepra Client Portal */}
                   <Route path="/clients/:org_id/overview" element={<ProtectedRoute><ClientPortal /></ProtectedRoute>} />
