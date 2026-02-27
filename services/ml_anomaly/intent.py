@@ -171,8 +171,6 @@ class IntentClassifier:
             IntentResult with classified intent and extracted parameters
         """
         message_lower = message.lower()
-        words = message_lower.split()
-        word_count = max(len(words), 1)
 
         # Calculate scores for each intent
         scores: Dict[SecurityIntent, float] = {}
