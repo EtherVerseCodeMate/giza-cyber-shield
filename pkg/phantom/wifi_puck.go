@@ -25,7 +25,6 @@ package phantom
 import (
 	"bytes"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -41,39 +40,39 @@ import (
 
 // WiFiPuckConfig holds the configuration for the OYEALINK hotspot
 type WiFiPuckConfig struct {
-	AdminIP         string            `json:"admin_ip"`
-	AdminUser       string            `json:"admin_user"`
-	AdminPass       string            `json:"admin_pass"`
-	NewUser         string            `json:"new_user"`
-	NewPass         string            `json:"new_pass"`
-	SSID            string            `json:"ssid"`
-	SSIDHidden      bool              `json:"ssid_hidden"`
-	WiFiPassword    string            `json:"wifi_password"`
-	Encryption      string            `json:"encryption"`      // WPA3, WPA2-AES
-	Channel         int               `json:"channel"`
-	Subnet          string            `json:"subnet"`
-	DHCPRange       string            `json:"dhcp_range"`
-	DNSServers      []string          `json:"dns_servers"`
-	DoHEnabled      bool              `json:"doh_enabled"`
-	DoHServer       string            `json:"doh_server"`
-	MACWhitelist    []string          `json:"mac_whitelist"`
-	MACFilterEnabled bool             `json:"mac_filter_enabled"`
-	UPnPDisabled    bool              `json:"upnp_disabled"`
-	WPSDisabled     bool              `json:"wps_disabled"`
-	FirewallEnabled bool              `json:"firewall_enabled"`
-	FirewallRules   []FirewallRule    `json:"firewall_rules"`
+	AdminIP          string         `json:"admin_ip"`
+	AdminUser        string         `json:"admin_user"`
+	AdminPass        string         `json:"admin_pass"`
+	NewUser          string         `json:"new_user"`
+	NewPass          string         `json:"new_pass"`
+	SSID             string         `json:"ssid"`
+	SSIDHidden       bool           `json:"ssid_hidden"`
+	WiFiPassword     string         `json:"wifi_password"`
+	Encryption       string         `json:"encryption"` // WPA3, WPA2-AES
+	Channel          int            `json:"channel"`
+	Subnet           string         `json:"subnet"`
+	DHCPRange        string         `json:"dhcp_range"`
+	DNSServers       []string       `json:"dns_servers"`
+	DoHEnabled       bool           `json:"doh_enabled"`
+	DoHServer        string         `json:"doh_server"`
+	MACWhitelist     []string       `json:"mac_whitelist"`
+	MACFilterEnabled bool           `json:"mac_filter_enabled"`
+	UPnPDisabled     bool           `json:"upnp_disabled"`
+	WPSDisabled      bool           `json:"wps_disabled"`
+	FirewallEnabled  bool           `json:"firewall_enabled"`
+	FirewallRules    []FirewallRule `json:"firewall_rules"`
 }
 
 // FirewallRule represents a firewall rule for the hotspot
 type FirewallRule struct {
-	Name        string `json:"name"`
-	Direction   string `json:"direction"`   // INBOUND, OUTBOUND
-	Protocol    string `json:"protocol"`    // TCP, UDP, ICMP, ALL
-	SourceIP    string `json:"source_ip"`
-	SourcePort  string `json:"source_port"`
-	DestIP      string `json:"dest_ip"`
-	DestPort    string `json:"dest_port"`
-	Action      string `json:"action"`      // ALLOW, DENY, DROP
+	Name       string `json:"name"`
+	Direction  string `json:"direction"` // INBOUND, OUTBOUND
+	Protocol   string `json:"protocol"`  // TCP, UDP, ICMP, ALL
+	SourceIP   string `json:"source_ip"`
+	SourcePort string `json:"source_port"`
+	DestIP     string `json:"dest_ip"`
+	DestPort   string `json:"dest_port"`
+	Action     string `json:"action"` // ALLOW, DENY, DROP
 }
 
 // =============================================================================
@@ -90,21 +89,21 @@ func NewSecureWiFiPuckConfig() *WiFiPuckConfig {
 	ssid := generateRandomSSID()
 
 	return &WiFiPuckConfig{
-		AdminIP:         "192.168.8.1",
-		AdminUser:       "phantom_admin",
-		AdminPass:       "admin", // Current password (to login)
-		NewUser:         "phantom_admin",
-		NewPass:         adminPass,
-		SSID:            ssid,
-		SSIDHidden:      true,
-		WiFiPassword:    wifiPass,
-		Encryption:      "WPA2-AES", // WPA3 if supported
-		Channel:         0,          // Auto
-		Subnet:          "192.168.8.0/24",
-		DHCPRange:       "192.168.8.100-192.168.8.199",
-		DNSServers:      []string{"1.1.1.1", "8.8.8.8"}, // Will use DoH
-		DoHEnabled:      true,
-		DoHServer:       "https://cloudflare-dns.com/dns-query",
+		AdminIP:      "192.168.8.1",
+		AdminUser:    "phantom_admin",
+		AdminPass:    "admin", // Current password (to login)
+		NewUser:      "phantom_admin",
+		NewPass:      adminPass,
+		SSID:         ssid,
+		SSIDHidden:   true,
+		WiFiPassword: wifiPass,
+		Encryption:   "WPA2-AES", // WPA3 if supported
+		Channel:      0,          // Auto
+		Subnet:       "192.168.8.0/24",
+		DHCPRange:    "192.168.8.100-192.168.8.199",
+		DNSServers:   []string{"1.1.1.1", "8.8.8.8"}, // Will use DoH
+		DoHEnabled:   true,
+		DoHServer:    "https://cloudflare-dns.com/dns-query",
 		MACWhitelist: []string{
 			// Add your device MACs here
 			// Pixel 9 WiFi MAC
@@ -176,10 +175,10 @@ func generateDefaultFirewallRules() []FirewallRule {
 
 // WiFiPuckController manages the OYEALINK hotspot
 type WiFiPuckController struct {
-	Config       *WiFiPuckConfig
-	httpClient   *http.Client
-	authToken    string
-	isConnected  bool
+	Config      *WiFiPuckConfig
+	httpClient  *http.Client
+	authToken   string
+	isConnected bool
 }
 
 // NewWiFiPuckController creates a new controller
@@ -288,11 +287,11 @@ func (wpc *WiFiPuckController) configureWiFi() error {
 	apiURL := fmt.Sprintf("http://%s/api/wifi/settings", wpc.Config.AdminIP)
 
 	data := map[string]interface{}{
-		"ssid":          wpc.Config.SSID,
-		"ssid_hidden":   wpc.Config.SSIDHidden,
-		"password":      wpc.Config.WiFiPassword,
-		"encryption":    wpc.Config.Encryption,
-		"channel":       wpc.Config.Channel,
+		"ssid":        wpc.Config.SSID,
+		"ssid_hidden": wpc.Config.SSIDHidden,
+		"password":    wpc.Config.WiFiPassword,
+		"encryption":  wpc.Config.Encryption,
+		"channel":     wpc.Config.Channel,
 	}
 
 	return wpc.postJSON(apiURL, data)
@@ -433,18 +432,18 @@ func (wpc *WiFiPuckController) EnablePhantomRelayMode(phantomNodeIP string) erro
 // GetPuckStatus returns the current status of the WiFi puck
 func (wpc *WiFiPuckController) GetPuckStatus() map[string]interface{} {
 	return map[string]interface{}{
-		"admin_ip":          wpc.Config.AdminIP,
-		"connected":         wpc.isConnected,
-		"ssid":              wpc.Config.SSID,
-		"ssid_hidden":       wpc.Config.SSIDHidden,
-		"encryption":        wpc.Config.Encryption,
-		"mac_filter":        wpc.Config.MACFilterEnabled,
-		"whitelist_count":   len(wpc.Config.MACWhitelist),
-		"firewall":          wpc.Config.FirewallEnabled,
-		"firewall_rules":    len(wpc.Config.FirewallRules),
-		"doh_enabled":       wpc.Config.DoHEnabled,
-		"upnp_disabled":     wpc.Config.UPnPDisabled,
-		"wps_disabled":      wpc.Config.WPSDisabled,
+		"admin_ip":        wpc.Config.AdminIP,
+		"connected":       wpc.isConnected,
+		"ssid":            wpc.Config.SSID,
+		"ssid_hidden":     wpc.Config.SSIDHidden,
+		"encryption":      wpc.Config.Encryption,
+		"mac_filter":      wpc.Config.MACFilterEnabled,
+		"whitelist_count": len(wpc.Config.MACWhitelist),
+		"firewall":        wpc.Config.FirewallEnabled,
+		"firewall_rules":  len(wpc.Config.FirewallRules),
+		"doh_enabled":     wpc.Config.DoHEnabled,
+		"upnp_disabled":   wpc.Config.UPnPDisabled,
+		"wps_disabled":    wpc.Config.WPSDisabled,
 	}
 }
 

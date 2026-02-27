@@ -10,8 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+
 import {
   Shield,
   Activity,
@@ -20,20 +19,12 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  TrendingUp,
   Eye,
-  Settings,
-  FileText,
   Globe,
   Server,
-  Network,
   Search,
-  Plus,
   RefreshCw,
-  Command,
-  Target,
-  Lock,
-  Users
+  Command
 } from 'lucide-react';
 
 // Import all STIG-related components and hooks
@@ -51,7 +42,7 @@ export default function DoD() {
   const { toast } = useToast();
   const { currentOrganization } = useOrganization();
   const organizationId = currentOrganization?.organization_id || '';
-  const { currentClearance, hasAccess } = useSecurityClearance('CONFIDENTIAL');
+  const { currentClearance } = useSecurityClearance('CONFIDENTIAL');
 
   const [activeTab, setActiveTab] = useState('overview');
   const [isInitializing, setIsInitializing] = useState(false);
@@ -64,13 +55,10 @@ export default function DoD() {
 
   const {
     complianceScore,
-    complianceBreakdown,
-    riskAnalysis,
     agents,
     driftEvents,
     threatCorrelations,
     loading: codexLoading,
-    error: codexError,
     initializeMonitoring,
     refreshAllData
   } = stigCodexData;
@@ -447,7 +435,7 @@ export default function DoD() {
           </TabsContent>
 
           <TabsContent value="codex">
-            <STIGCodexDashboard />
+            <STIGCodexDashboard {...stigCodexData} />
           </TabsContent>
 
           <TabsContent value="monitoring" className="space-y-4">
