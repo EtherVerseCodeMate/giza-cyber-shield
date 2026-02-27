@@ -289,7 +289,7 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
               <Button
                 onClick={handleSubmit}
                 disabled={!allTermsAccepted || isSubmitting}
-                variant="cyber"
+                  variant="default"
                 className="flex-1 sm:min-w-[180px] shadow-lg shadow-primary/20"
               >
                 {isSubmitting ? (

@@ -30,9 +30,6 @@ const NewHomepage = () => {
               />
               <div className="flex items-center gap-2">
                 <span className="text-xl font-bold text-white">SouHimBou AI</span>
-                <span className="text-xs bg-yellow-600/20 text-yellow-400 px-2 py-1 rounded border border-yellow-500/30">
-                  IN DEVELOPMENT
-                </span>
               </div>
             </div>
 
