@@ -39,6 +39,7 @@ import NotFound from "./pages/NotFound";
 import LegalPage from "./pages/LegalPage";
 import { ThreatHuntingDashboard } from "./pages/ThreatHuntingDashboard";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import NLChatPanel from "@/components/NLChatPanel";
 
 /**
  * Invisible component that sets document.title per route.
@@ -132,6 +133,7 @@ const App = () => {
           </SecurityHeaders>
         </AuthProvider>
       </QueryClientProvider>
+      <NLChatPanel />
     </BrowserRouter>
   );
 };
