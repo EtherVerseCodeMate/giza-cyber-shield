@@ -471,19 +471,19 @@ async function performDNSMonitoring(target: string, supabase: any) {
 }
 
 // Certificate Transparency monitoring
-async function performCertificateTransparencyCheck(target: string) {
+async function performCertificateTransparencyCheck(target: string, config: ThreatDetectionConfig) {
   console.log(`Checking certificate transparency for: ${target}`);
-  
-  let findings = [];
+
+  const findings: any[] = [];
   let threatLevel = 'low';
 
-  // Simulate CT log analysis
+  // Check for suspicious brand impersonation patterns
   const suspiciousPatterns = [
     'admin', 'secure', 'bank', 'paypal', 'microsoft', 'google',
     'update', 'verify', 'confirm', 'login', 'signin'
   ];
 
-  const containsSuspiciousPattern = suspiciousPatterns.some(pattern => 
+  const containsSuspiciousPattern = suspiciousPatterns.some(pattern =>
     target.toLowerCase().includes(pattern)
   );
 
@@ -496,15 +496,23 @@ async function performCertificateTransparencyCheck(target: string) {
     threatLevel = 'high';
   }
 
-  // Check for newly issued certificates (simulation)
-  const isNewlyIssued = Math.random() > 0.7;
+  // Query real Certificate Transparency logs
+  const ctResult = await queryCertTransparency(target, config);
+  const isNewlyIssued = ctResult.isNewlyIssued;
+  const dataSource = ctResult.success ? 'CT_LOG_API' : 'NOT_AVAILABLE';
+
   if (isNewlyIssued) {
     findings.push({
       type: 'NEWLY_ISSUED_CERTIFICATE',
       description: 'Certificate issued within last 24 hours',
       risk: 'medium'
     });
-    threatLevel = Math.max(threatLevel, 'medium');
+    if (threatLevel === 'low') threatLevel = 'medium';
+  }
+
+  // Log if CT API wasn't available
+  if (!ctResult.success) {
+    console.warn(`Certificate transparency check limited: ${ctResult.error}`);
   }
 
   return {
@@ -513,65 +521,114 @@ async function performCertificateTransparencyCheck(target: string) {
     certificate_analysis: {
       newly_issued: isNewlyIssued,
       suspicious_patterns: containsSuspiciousPattern,
-      ct_logs_checked: ['google_pilot', 'cloudflare_nimbus', 'digicert_log1']
+      certificates_found: ctResult.certificates.length,
+      ct_logs_checked: ctResult.success ? ['crt.sh'] : []
     },
-    sources: ['CERTIFICATE_TRANSPARENCY'],
+    data_source: dataSource,
+    sources: ['CERTIFICATE_TRANSPARENCY', dataSource],
     analysis_type: 'certificate_transparency'
   };
 }
 
 // Behavioral Analysis based on access patterns
-async function performBehavioralAnalysis(target: string, organizationId: string) {
+async function performBehavioralAnalysis(target: string, organizationId: string, supabase: any) {
   console.log(`Performing behavioral analysis for: ${target} in org: ${organizationId}`);
-  
-  let findings = [];
+
+  const findings: any[] = [];
   let threatLevel = 'low';
 
-  // Simulate behavioral patterns analysis
-  const anomalies = [
-    {
-      type: 'UNUSUAL_ACCESS_TIME',
-      description: 'Access attempts during off-hours',
-      risk: 'medium',
-      detected: Math.random() > 0.6
-    },
-    {
-      type: 'RAPID_AUTHENTICATION_ATTEMPTS',
-      description: 'Multiple failed login attempts in short timeframe',
-      risk: 'high',
-      detected: Math.random() > 0.8
-    },
-    {
-      type: 'GEOLOCATION_ANOMALY',
-      description: 'Access from unexpected geographic location',
-      risk: 'medium',
-      detected: Math.random() > 0.7
-    },
-    {
-      type: 'USER_AGENT_ANOMALY',
-      description: 'Unusual or automated user agent patterns',
-      risk: 'medium',
-      detected: Math.random() > 0.5
-    }
+  // Query real security events from database
+  const eventTypes = [
+    'off_hours_access',
+    'failed_login',
+    'geolocation_anomaly',
+    'user_agent_anomaly',
+    'authentication_failure',
+    'brute_force_attempt',
+    'unusual_access_pattern'
   ];
 
-  anomalies.forEach(anomaly => {
-    if (anomaly.detected) {
-      findings.push(anomaly);
-      if (anomaly.risk === 'high') threatLevel = 'high';
-      else if (anomaly.risk === 'medium' && threatLevel === 'low') threatLevel = 'medium';
-    }
-  });
+  const eventsResult = await querySecurityEvents(supabase, target, organizationId, eventTypes);
+  const dataSource = eventsResult.success ? 'DATABASE' : 'NOT_AVAILABLE';
+
+  // Thresholds for anomaly detection
+  const THRESHOLDS = {
+    offHoursAccessCount: 3,       // 3+ off-hours accesses = anomaly
+    failedLoginCount: 5,          // 5+ failed logins = brute force
+    geoAnomalyCount: 1,           // Any geo anomaly is suspicious
+    userAgentAnomalyCount: 2,     // 2+ UA anomalies = bot/automation
+  };
+
+  // Analyze real event counts
+  const counts = eventsResult.counts;
+
+  // Check for off-hours access
+  const offHoursCount = (counts['off_hours_access'] || 0) + (counts['unusual_access_pattern'] || 0);
+  if (offHoursCount >= THRESHOLDS.offHoursAccessCount) {
+    findings.push({
+      type: 'UNUSUAL_ACCESS_TIME',
+      description: `${offHoursCount} access attempts during off-hours in last 24h`,
+      risk: 'medium',
+      detected: true,
+      event_count: offHoursCount
+    });
+    if (threatLevel === 'low') threatLevel = 'medium';
+  }
+
+  // Check for brute force / rapid auth attempts
+  const failedLogins = (counts['failed_login'] || 0) + (counts['authentication_failure'] || 0) + (counts['brute_force_attempt'] || 0);
+  if (failedLogins >= THRESHOLDS.failedLoginCount) {
+    findings.push({
+      type: 'RAPID_AUTHENTICATION_ATTEMPTS',
+      description: `${failedLogins} failed login attempts in last 24h`,
+      risk: 'high',
+      detected: true,
+      event_count: failedLogins
+    });
+    threatLevel = 'high';
+  }
+
+  // Check for geolocation anomalies
+  const geoAnomalies = counts['geolocation_anomaly'] || 0;
+  if (geoAnomalies >= THRESHOLDS.geoAnomalyCount) {
+    findings.push({
+      type: 'GEOLOCATION_ANOMALY',
+      description: `${geoAnomalies} accesses from unexpected geographic locations`,
+      risk: 'medium',
+      detected: true,
+      event_count: geoAnomalies
+    });
+    if (threatLevel === 'low') threatLevel = 'medium';
+  }
+
+  // Check for user agent anomalies
+  const uaAnomalies = counts['user_agent_anomaly'] || 0;
+  if (uaAnomalies >= THRESHOLDS.userAgentAnomalyCount) {
+    findings.push({
+      type: 'USER_AGENT_ANOMALY',
+      description: `${uaAnomalies} unusual or automated user agent patterns detected`,
+      risk: 'medium',
+      detected: true,
+      event_count: uaAnomalies
+    });
+    if (threatLevel === 'low') threatLevel = 'medium';
+  }
+
+  // Log if no events were available
+  if (!eventsResult.success) {
+    console.warn('Behavioral analysis limited: security_events query unavailable');
+  }
 
   return {
     threat_level: threatLevel,
     findings,
     behavioral_metrics: {
-      baseline_established: true,
-      monitoring_period_days: 30,
-      anomaly_threshold: 2.5
+      events_analyzed: eventsResult.events.length,
+      monitoring_period_hours: 24,
+      thresholds: THRESHOLDS
     },
-    sources: ['BEHAVIORAL_ANALYSIS'],
+    data_source: dataSource,
+    sources: ['BEHAVIORAL_ANALYSIS', dataSource],
     analysis_type: 'behavioral_analysis'
   };
 }
