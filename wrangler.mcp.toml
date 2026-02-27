@@ -1,0 +1,92 @@
+# Khepra MCP Server — Cloudflare Worker Deployment Config
+#
+# Deploy command:
+#   wrangler deploy --config wrangler.mcp.toml
+#
+# Development:
+#   wrangler dev --config wrangler.mcp.toml
+#
+# Cost estimate (Cloudflare Workers pricing):
+#   Free tier:  100,000 requests/day → Perfect for beta/startup (essentially $0)
+#   Paid:       $5/month base + $0.15/million requests
+#   Example:    1M requests/month = $5.15/month
+#   DoD SMB:    ~500k requests/month = $5.08/month
+#
+# Security benefits of Cloudflare deployment:
+#   - Built-in DDoS protection (free)
+#   - WAF with OWASP ruleset (free tier available)
+#   - Bot Fight Mode (free)
+#   - TLS 1.3 everywhere (free)
+#   - Edge caching for tool list responses
+#   - Automatic HTTPS — no cert management
+
+name = "khepra-mcp-server"
+main = "workers/mcp-server/index.js"
+compatibility_date = "2024-11-05"
+node_compat = false
+
+# ─── Custom Domain ─────────────────────────────────────────────────────────────
+# Serve on: mcp.souhimbou.org or mcp.khepra.io
+# Uncomment after DNS is configured:
+# routes = [
+#   { pattern = "mcp.souhimbou.org/*", custom_domain = true }
+# ]
+
+# ─── Environment Variables (non-sensitive) ─────────────────────────────────────
+[vars]
+ENVIRONMENT = "production"
+
+# The Go DEMARC API URL (Fly.io)
+KHEPRA_API_URL = "https://souhimbou-ai.fly.dev"
+
+# Supabase project URL (from .env)
+SUPABASE_URL = "https://xjknkjbrjgljuovaazeu.supabase.co"
+
+# ─── Secrets (set via: wrangler secret put SECRET_NAME) ───────────────────────
+# wrangler secret put KHEPRA_SERVICE_SECRET   --config wrangler.mcp.toml
+# wrangler secret put KHEPRA_API_KEY_HASH     --config wrangler.mcp.toml  (sha256 of API key)
+# wrangler secret put SUPABASE_SERVICE_KEY    --config wrangler.mcp.toml
+# wrangler secret put SUPABASE_JWT_SECRET     --config wrangler.mcp.toml
+
+# ─── Durable Objects (Session State) ─────────────────────────────────────────
+# Durable Objects maintain MCP session state per AI tool connection.
+# WebSocket hibernation keeps costs near $0 for idle sessions.
+#
+# Cost: $12.50 per million GB-seconds (with hibernation: ~$0.01/month for typical SMB)
+
+[[durable_objects.bindings]]
+name = "MCP_SESSION"
+class_name = "MCPSession"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["MCPSession"]
+
+# ─── Rate Limiting ─────────────────────────────────────────────────────────────
+# Prevent abuse: 100 requests per minute per IP (free on Workers paid plan)
+# [[unsafe.bindings]]
+# name = "RATE_LIMITER"
+# type = "ratelimit"
+# namespace_id = "1"
+# simple = { limit = 100, period = 60 }
+
+# ─── Environments ─────────────────────────────────────────────────────────────
+
+[env.staging]
+name = "khepra-mcp-server-staging"
+vars = { ENVIRONMENT = "development", KHEPRA_API_URL = "http://localhost:8080", SUPABASE_URL = "https://xjknkjbrjgljuovaazeu.supabase.co" }
+
+[env.production]
+name = "khepra-mcp-server"
+vars = { ENVIRONMENT = "production" }
+# routes = [{ pattern = "mcp.souhimbou.org/*", custom_domain = true }]
+
+# ─── Telemetry Integration ─────────────────────────────────────────────────────
+# The MCP server shares the D1 telemetry database from wrangler.toml for
+# lightweight analytics (tool call counts, error rates, latency).
+# Uncomment to enable:
+#
+# [[d1_databases]]
+# binding = "TELEMETRY_DB"
+# database_name = "adinkhepra-telemetry"
+# database_id = "e8ef77ce-5203-4b78-8969-9ee2dc74a7b6"
