@@ -352,14 +352,23 @@ function getSTIGVersionMapping(applicableStigs: string[], stigRules: any[]) {
 
 // Helper functions for asset detection
 async function detectPlatform(target: string): Promise<string> {
-  // Simulate platform detection
-  const platforms = ['windows', 'linux', 'cisco_ios', 'vmware'];
-  return platforms[Math.floor(Math.random() * platforms.length)];
+  // Determine platform based on target patterns
+  if (target.includes('windows') || target.includes('win')) return 'windows';
+  if (target.includes('linux') || target.includes('ubuntu') || target.includes('rhel')) return 'linux';
+  if (target.includes('cisco') || target.includes('ios')) return 'cisco_ios';
+  if (target.includes('vmware') || target.includes('esx')) return 'vmware';
+  // Default to linux for most servers
+  return 'linux';
 }
 
 async function detectOS(target: string): Promise<string> {
-  const osList = ['Windows Server 2019', 'Ubuntu 22.04', 'Red Hat Enterprise Linux 8', 'Cisco IOS'];
-  return osList[Math.floor(Math.random() * osList.length)];
+  // Determine OS based on target name patterns
+  if (target.includes('windows') || target.includes('win')) return 'Windows Server 2019';
+  if (target.includes('ubuntu')) return 'Ubuntu 22.04';
+  if (target.includes('rhel') || target.includes('redhat')) return 'Red Hat Enterprise Linux 8';
+  if (target.includes('cisco')) return 'Cisco IOS';
+  // Default to Ubuntu
+  return 'Ubuntu 22.04';
 }
 
 async function detectVersion(target: string): Promise<string> {
@@ -371,15 +380,14 @@ async function resolveHostname(target: string): Promise<string> {
 }
 
 async function scanPorts(target: string) {
-  // Simulate port scanning
+  // Return common secure ports (deterministic)
+  // In production, actual port scanning would be performed
   const commonPorts = [
     { name: 'ssh', port: 22, protocol: 'tcp' },
-    { name: 'http', port: 80, protocol: 'tcp' },
-    { name: 'https', port: 443, protocol: 'tcp' },
-    { name: 'rdp', port: 3389, protocol: 'tcp' }
+    { name: 'https', port: 443, protocol: 'tcp' }
   ];
-  
-  return commonPorts.slice(0, Math.floor(Math.random() * 4) + 1);
+
+  return commonPorts;
 }
 
 async function handleGetStatus(supabase: any, jobId: string) {
