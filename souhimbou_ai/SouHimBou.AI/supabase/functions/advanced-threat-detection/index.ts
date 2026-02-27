@@ -633,107 +633,172 @@ async function performBehavioralAnalysis(target: string, organizationId: string,
   };
 }
 
-// Dark Web Monitoring simulation
-async function performDarkWebMonitoring(target: string) {
+// Dark Web Monitoring - queries breach data and threat intelligence
+async function performDarkWebMonitoring(target: string, supabase: any, config: ThreatDetectionConfig) {
   console.log(`Performing dark web monitoring for: ${target}`);
-  
-  let findings = [];
+
+  const findings: any[] = [];
   let threatLevel = 'low';
 
-  // Simulate dark web intelligence
   const darkWebSources = ['tor_forums', 'telegram_channels', 'paste_sites', 'credential_dumps'];
-  
-  // Check if target appears in simulated breach data
-  if (Math.random() > 0.85) {
+
+  // Query breach data from database
+  const breachResult = await queryBreachData(supabase, target);
+  const dataSource = breachResult.success ? 'DATABASE' : 'NOT_AVAILABLE';
+
+  // Check for credential exposure in breach data
+  if (breachResult.credentialExposed) {
+    const mostRecent = breachResult.breaches[0];
     findings.push({
       type: 'CREDENTIAL_EXPOSURE',
-      description: 'Credentials found in recent data breach',
+      description: `Credentials found in ${breachResult.breaches.length} data breach(es)`,
       risk: 'critical',
-      source: 'credential_dumps'
+      source: mostRecent?.source || 'credential_dumps',
+      breach_date: mostRecent?.breach_date,
+      data_types: mostRecent?.data_types
     });
     threatLevel = 'critical';
   }
 
-  // Check for threat actor discussions
-  if (Math.random() > 0.9) {
+  // Check for threat actor mentions
+  if (breachResult.threatMentions > 0) {
     findings.push({
       type: 'THREAT_ACTOR_MENTION',
-      description: 'Domain/IP mentioned in threat actor communications',
+      description: `Target mentioned in ${breachResult.threatMentions} threat intelligence entries`,
       risk: 'high',
-      source: 'tor_forums'
+      source: 'threat_intelligence',
+      mention_count: breachResult.threatMentions
     });
-    threatLevel = threatLevel === 'critical' ? 'critical' : 'high';
+    if (threatLevel !== 'critical') threatLevel = 'high';
+  }
+
+  // If configured, also query external dark web API
+  if (config.darkWebApiUrl && config.darkWebApiKey) {
+    try {
+      const response = await fetch(`${config.darkWebApiUrl}/search?indicator=${encodeURIComponent(target)}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${config.darkWebApiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const externalData = await response.json();
+        if (externalData.findings?.length > 0) {
+          externalData.findings.forEach((f: any) => {
+            findings.push({
+              type: f.type || 'EXTERNAL_DARK_WEB_HIT',
+              description: f.description || 'External dark web intelligence hit',
+              risk: f.severity || 'high',
+              source: 'EXTERNAL_DARK_WEB_API'
+            });
+          });
+          if (threatLevel === 'low') threatLevel = 'high';
+        }
+      }
+    } catch (err) {
+      console.warn('External dark web API query failed:', err);
+    }
+  }
+
+  // Log data source info
+  if (!breachResult.success) {
+    console.warn('Dark web monitoring limited: breach data query unavailable');
   }
 
   return {
     threat_level: threatLevel,
     findings,
     dark_web_sources: darkWebSources,
-    sources: ['DARK_WEB_MONITORING'],
+    breaches_found: breachResult.breaches.length,
+    threat_mentions: breachResult.threatMentions,
+    data_source: dataSource,
+    sources: ['DARK_WEB_MONITORING', dataSource],
     analysis_type: 'dark_web_monitoring'
   };
 }
 
-// Cloud Security Scanning
-async function performCloudSecurityScan(target: string) {
+// Cloud Security Scanning - queries real cloud security findings
+async function performCloudSecurityScan(target: string, supabase: any) {
   console.log(`Performing cloud security scan for: ${target}`);
-  
-  let findings = [];
+
+  const findings: any[] = [];
   let threatLevel = 'low';
 
-  // Check for cloud service indicators
-  const cloudProviders = {
+  // Detect cloud provider from target
+  const cloudProviders: Record<string, string> = {
     'amazonaws.com': 'AWS',
+    's3.': 'AWS',
     'azure.com': 'Azure',
+    'blob.core.windows.net': 'Azure',
     'googleapis.com': 'GCP',
-    'digitalocean.com': 'DigitalOcean'
+    'storage.cloud.google.com': 'GCP',
+    'digitalocean.com': 'DigitalOcean',
+    'spaces.': 'DigitalOcean'
   };
 
-  let cloudProvider = null;
-  for (const [domain, provider] of Object.entries(cloudProviders)) {
-    if (target.includes(domain)) {
+  let cloudProvider: string | null = null;
+  for (const [pattern, provider] of Object.entries(cloudProviders)) {
+    if (target.includes(pattern)) {
       cloudProvider = provider;
       break;
     }
   }
 
-  if (cloudProvider) {
-    // Simulate cloud security checks
-    const misconfigurations = [
-      {
-        type: 'OPEN_S3_BUCKET',
-        description: 'Publicly accessible S3 bucket detected',
-        risk: 'high',
-        detected: Math.random() > 0.8
-      },
-      {
-        type: 'WEAK_IAM_POLICIES',
-        description: 'Overly permissive IAM policies found',
-        risk: 'medium',
-        detected: Math.random() > 0.7
-      },
-      {
-        type: 'UNENCRYPTED_DATA',
-        description: 'Unencrypted data storage detected',
-        risk: 'high',
-        detected: Math.random() > 0.85
-      }
+  // Query real cloud security findings from database
+  const cloudResult = await queryCloudSecurityFindings(supabase, target, cloudProvider);
+  const dataSource = cloudResult.success ? 'DATABASE' : 'NOT_AVAILABLE';
+
+  if (cloudProvider && cloudResult.success) {
+    // Map real findings to standardized output
+    const misconfigTypes = [
+      { type: 'OPEN_S3_BUCKET', description: 'Publicly accessible storage bucket detected', risk: 'high' },
+      { type: 'WEAK_IAM_POLICIES', description: 'Overly permissive IAM policies found', risk: 'medium' },
+      { type: 'UNENCRYPTED_DATA', description: 'Unencrypted data storage detected', risk: 'high' }
     ];
 
-    misconfigurations.forEach(config => {
-      if (config.detected) {
-        findings.push(config);
+    misconfigTypes.forEach(config => {
+      if (cloudResult.misconfigurations[config.type]) {
+        findings.push({
+          type: config.type,
+          description: config.description,
+          risk: config.risk,
+          detected: true,
+          cloud_provider: cloudProvider
+        });
         if (config.risk === 'high') threatLevel = 'high';
         else if (config.risk === 'medium' && threatLevel === 'low') threatLevel = 'medium';
       }
     });
+
+    // Add any additional findings from database
+    cloudResult.findings.forEach((f: any) => {
+      // Avoid duplicates
+      if (!findings.some(existing => existing.type === f.finding_type)) {
+        findings.push({
+          type: f.finding_type,
+          description: f.description || `Cloud security finding: ${f.finding_type}`,
+          risk: f.severity || 'medium',
+          detected: true,
+          resource_id: f.resource_id
+        });
+      }
+    });
+  }
+
+  // Log data source info
+  if (!cloudResult.success && cloudProvider) {
+    console.warn(`Cloud security scan limited for ${cloudProvider}: findings query unavailable`);
   }
 
   return {
     threat_level: threatLevel,
     findings,
     cloud_provider: cloudProvider,
-    sources: ['CLOUD_SECURITY_SCANNER'],
+    findings_count: cloudResult.findings.length,
+    data_source: dataSource,
+    sources: ['CLOUD_SECURITY_SCANNER', dataSource],
     analysis_type: 'cloud_security_scan'
   };
 }
@@ -794,14 +859,14 @@ async function performEmailSecurityAnalysis(target: string) {
   };
 }
 
-// Advanced Persistent Threat (APT) Detection
-async function performAPTDetection(target: string, organizationId: string) {
+// Advanced Persistent Threat (APT) Detection - queries real threat intelligence
+async function performAPTDetection(target: string, organizationId: string, supabase: any) {
   console.log(`Performing APT detection for: ${target} in org: ${organizationId}`);
-  
-  let findings = [];
+
+  const findings: any[] = [];
   let threatLevel = 'low';
 
-  // Known APT indicators (simplified for demo)
+  // Known APT indicators (static heuristics)
   const aptIndicators = [
     {
       name: 'Lazarus Group',
@@ -820,57 +885,78 @@ async function performAPTDetection(target: string, organizationId: string) {
     }
   ];
 
-  // Check against known APT indicators
+  // Check against known APT indicators (heuristic)
   aptIndicators.forEach(apt => {
     if (apt.pattern.test(target) || apt.indicators.some(indicator => target.includes(indicator))) {
       findings.push({
         type: 'APT_INDICATOR_MATCH',
         description: `Potential ${apt.name} infrastructure detected`,
         risk: 'critical',
-        apt_group: apt.name
+        apt_group: apt.name,
+        source: 'HEURISTIC'
       });
       threatLevel = 'critical';
     }
   });
 
-  // Check for common APT tactics
+  // Query real APT indicators from threat intelligence database
+  const aptResult = await queryAPTIndicators(supabase, target);
+  const dataSource = aptResult.success ? 'DATABASE' : 'HEURISTIC_ONLY';
+
+  // Process database matches
+  if (aptResult.aptMatches.length > 0) {
+    aptResult.aptMatches.forEach((match: any) => {
+      findings.push({
+        type: 'APT_INDICATOR_MATCH',
+        description: `Match in threat intelligence: ${match.threat_actor || 'Unknown actor'}`,
+        risk: match.confidence_score >= 90 ? 'critical' : 'high',
+        apt_group: match.threat_actor,
+        confidence: match.confidence_score,
+        source: 'THREAT_INTEL_DB'
+      });
+      if (match.confidence_score >= 90) threatLevel = 'critical';
+      else if (threatLevel !== 'critical') threatLevel = 'high';
+    });
+  }
+
+  // Check for APT tactics from database
   const aptTactics = [
-    {
-      type: 'DOMAIN_FRONTING',
-      description: 'Potential domain fronting activity detected',
-      risk: 'high',
-      detected: Math.random() > 0.95
-    },
-    {
-      type: 'FAST_FLUX_NETWORK',
-      description: 'Fast flux network characteristics observed',
-      risk: 'high',
-      detected: Math.random() > 0.92
-    },
-    {
-      type: 'LIVING_OFF_THE_LAND',
-      description: 'Legitimate services being abused for C2',
-      risk: 'medium',
-      detected: Math.random() > 0.88
-    }
+    { type: 'DOMAIN_FRONTING', description: 'Potential domain fronting activity detected', risk: 'high' },
+    { type: 'FAST_FLUX_NETWORK', description: 'Fast flux network characteristics observed', risk: 'high' },
+    { type: 'LIVING_OFF_THE_LAND', description: 'Legitimate services being abused for C2', risk: 'medium' }
   ];
 
   aptTactics.forEach(tactic => {
-    if (tactic.detected) {
-      findings.push(tactic);
+    if (aptResult.tacticsDetected[tactic.type]) {
+      findings.push({
+        type: tactic.type,
+        description: tactic.description,
+        risk: tactic.risk,
+        detected: true,
+        source: 'THREAT_INTEL_DB'
+      });
       if (tactic.risk === 'high' && threatLevel !== 'critical') threatLevel = 'high';
       else if (tactic.risk === 'medium' && threatLevel === 'low') threatLevel = 'medium';
     }
   });
+
+  // Log data source info
+  if (!aptResult.success) {
+    console.warn('APT detection limited: threat intelligence query unavailable, using heuristics only');
+  }
 
   return {
     threat_level: threatLevel,
     findings,
     apt_analysis: {
       groups_checked: aptIndicators.map(apt => apt.name),
-      tactics_analyzed: aptTactics.map(tactic => tactic.type)
+      database_matches: aptResult.aptMatches.length,
+      tactics_detected: Object.entries(aptResult.tacticsDetected)
+        .filter(([, detected]) => detected)
+        .map(([tactic]) => tactic)
     },
-    sources: ['APT_DETECTION'],
+    data_source: dataSource,
+    sources: ['APT_DETECTION', dataSource],
     analysis_type: 'apt_detection'
   };
 }
@@ -898,25 +984,8 @@ function isDGADomain(domain: string): boolean {
   return consonants / vowels > 3;
 }
 
-async function simulateReverseDNS(ip: string) {
-  // Simulate reverse DNS lookup
-  const suspiciousPatterns = ['dynamic', 'pool', 'dhcp', 'unknown', 'generic'];
-  const pattern = suspiciousPatterns[Math.floor(Math.random() * suspiciousPatterns.length)];
-  
-  return {
-    suspicious: Math.random() > 0.7,
-    reason: `Reverse DNS indicates ${pattern} allocation`,
-    hostname: `${pattern}-${ip.replace(/\./g, '-')}.isp.com`
-  };
-}
-
-async function simulateDNSRecords(domain: string) {
-  return {
-    A: [`192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`],
-    MX: [`mail.${domain}`],
-    TXT: ['v=spf1 include:_spf.google.com ~all']
-  };
-}
+// Note: simulateReverseDNS and simulateDNSRecords removed
+// DNS data is now queried from network_assets table via queryNetworkAssets()
 
 function isTyposquatting(suspicious: string, legitimate: string): boolean {
   // Simple Levenshtein distance check
