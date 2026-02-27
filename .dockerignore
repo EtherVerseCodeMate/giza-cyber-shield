@@ -28,6 +28,12 @@
 !docs/NIST53_to_171.csv
 !docs/NIST53_to_172.csv
 
+# Include ML service, models, data, and entrypoint for Fly.io
+!services/ml_anomaly/
+!models/
+!top_secret_intel/
+!entrypoint.sh
+
 # Explicit excludes (large or sensitive items)
 .git/
 node_modules/
@@ -39,11 +45,9 @@ ironbank-upload/
 adinkhepra-asaf-ironbank/
 adinkhepra-telemetry-server/
 tools/
-services/
 deploy/
 aws-govcloud/
 data/
-models/
 keys/
 telemetry-keys/
 .venv/
@@ -61,9 +65,8 @@ tests/
 *.dylib
 *.db
 *.sqlite
-*.pt
-*.pth
 *.pem
 *.key
 *.log
 *.tmp
+
