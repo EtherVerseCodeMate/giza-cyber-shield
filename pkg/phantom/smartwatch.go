@@ -23,7 +23,6 @@ package phantom
 import (
 	"crypto/sha256"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"sync"
 	"time"
@@ -35,36 +34,36 @@ import (
 
 // BLE Service UUIDs (common for Chinese smartwatches like KLGO)
 const (
-	WatchServiceUUID  = "0000fff0-0000-1000-8000-00805f9b34fb"
-	WatchWriteUUID    = "0000fff1-0000-1000-8000-00805f9b34fb"
-	WatchNotifyUUID   = "0000fff2-0000-1000-8000-00805f9b34fb"
-	HeartRateUUID     = "00002a37-0000-1000-8000-00805f9b34fb" // Standard HR service
+	WatchServiceUUID = "0000fff0-0000-1000-8000-00805f9b34fb"
+	WatchWriteUUID   = "0000fff1-0000-1000-8000-00805f9b34fb"
+	WatchNotifyUUID  = "0000fff2-0000-1000-8000-00805f9b34fb"
+	HeartRateUUID    = "00002a37-0000-1000-8000-00805f9b34fb" // Standard HR service
 )
 
 // WatchCommand represents commands sent to the smartwatch
 type WatchCommand byte
 
 const (
-	CmdVibrate       WatchCommand = 0x01 // Vibrate watch
-	CmdDisplayText   WatchCommand = 0x02 // Display text on screen
-	CmdSetTime       WatchCommand = 0x03 // Set watch time
-	CmdGetBattery    WatchCommand = 0x04 // Get battery level
-	CmdGetHeartRate  WatchCommand = 0x05 // Get current HR
-	CmdFindPhone     WatchCommand = 0x06 // Find phone (ring)
-	CmdSilentMode    WatchCommand = 0x07 // Enable silent mode
+	CmdVibrate      WatchCommand = 0x01 // Vibrate watch
+	CmdDisplayText  WatchCommand = 0x02 // Display text on screen
+	CmdSetTime      WatchCommand = 0x03 // Set watch time
+	CmdGetBattery   WatchCommand = 0x04 // Get battery level
+	CmdGetHeartRate WatchCommand = 0x05 // Get current HR
+	CmdFindPhone    WatchCommand = 0x06 // Find phone (ring)
+	CmdSilentMode   WatchCommand = 0x07 // Enable silent mode
 )
 
 // WatchEvent represents events received from the smartwatch
 type WatchEvent string
 
 const (
-	EventHeartbeat     WatchEvent = "HEARTBEAT"      // Regular heartbeat
-	EventButtonPress   WatchEvent = "BUTTON_PRESS"   // Button pressed
-	EventButtonLong    WatchEvent = "BUTTON_LONG"    // Long press (3+ sec)
-	EventDisconnect    WatchEvent = "DISCONNECT"     // BLE disconnected
-	EventHeartRate     WatchEvent = "HEART_RATE"     // HR measurement
-	EventBatteryLow    WatchEvent = "BATTERY_LOW"    // Battery < 20%
-	EventWatchOff      WatchEvent = "WATCH_OFF"      // Watch removed from wrist
+	EventHeartbeat   WatchEvent = "HEARTBEAT"    // Regular heartbeat
+	EventButtonPress WatchEvent = "BUTTON_PRESS" // Button pressed
+	EventButtonLong  WatchEvent = "BUTTON_LONG"  // Long press (3+ sec)
+	EventDisconnect  WatchEvent = "DISCONNECT"   // BLE disconnected
+	EventHeartRate   WatchEvent = "HEART_RATE"   // HR measurement
+	EventBatteryLow  WatchEvent = "BATTERY_LOW"  // Battery < 20%
+	EventWatchOff    WatchEvent = "WATCH_OFF"    // Watch removed from wrist
 )
 
 // =============================================================================
@@ -73,28 +72,28 @@ const (
 
 // DeadManSwitch monitors watch connectivity and triggers emergency actions
 type DeadManSwitch struct {
-	WatchID          string
-	BTAddress        string
-	Timeout          time.Duration
-	CheckInterval    time.Duration
+	WatchID       string
+	BTAddress     string
+	Timeout       time.Duration
+	CheckInterval time.Duration
 
 	// State
-	lastHeartbeat    time.Time
-	isArmed          bool
-	isPanicMode      bool
+	lastHeartbeat time.Time
+	isArmed       bool
+	isPanicMode   bool
 
 	// Callbacks
-	onTimeout        func() error  // Called when timeout reached
-	onPanic          func() error  // Called on panic button
+	onTimeout        func() error // Called when timeout reached
+	onPanic          func() error // Called on panic button
 	onHeartRateAlert func(hr int) error
 
 	// Thresholds
-	hrLowThreshold   int
-	hrHighThreshold  int
+	hrLowThreshold  int
+	hrHighThreshold int
 
 	// Control
-	stopChan         chan struct{}
-	mutex            sync.RWMutex
+	stopChan chan struct{}
+	mutex    sync.RWMutex
 }
 
 // NewDeadManSwitch creates a new dead man's switch for the KLGO watch
@@ -218,16 +217,16 @@ func (dms *DeadManSwitch) GetStatus() map[string]interface{} {
 	timeSinceHeartbeat := time.Since(dms.lastHeartbeat)
 
 	return map[string]interface{}{
-		"watch_id":            dms.WatchID,
-		"bt_address":          dms.BTAddress,
-		"armed":               dms.isArmed,
-		"panic_mode":          dms.isPanicMode,
-		"timeout":             dms.Timeout.String(),
-		"last_heartbeat":      dms.lastHeartbeat,
+		"watch_id":             dms.WatchID,
+		"bt_address":           dms.BTAddress,
+		"armed":                dms.isArmed,
+		"panic_mode":           dms.isPanicMode,
+		"timeout":              dms.Timeout.String(),
+		"last_heartbeat":       dms.lastHeartbeat,
 		"time_since_heartbeat": timeSinceHeartbeat.String(),
-		"time_remaining":      (dms.Timeout - timeSinceHeartbeat).String(),
-		"hr_low_threshold":    dms.hrLowThreshold,
-		"hr_high_threshold":   dms.hrHighThreshold,
+		"time_remaining":       (dms.Timeout - timeSinceHeartbeat).String(),
+		"hr_low_threshold":     dms.hrLowThreshold,
+		"hr_high_threshold":    dms.hrHighThreshold,
 	}
 }
 
@@ -237,19 +236,19 @@ func (dms *DeadManSwitch) GetStatus() map[string]interface{} {
 
 // SmartWatchController handles communication with the smartwatch
 type SmartWatchController struct {
-	BTAddress        string
-	connected        bool
-	deadManSwitch    *DeadManSwitch
+	BTAddress     string
+	connected     bool
+	deadManSwitch *DeadManSwitch
 
 	// BLE characteristics (populated on connection)
-	writeHandle      uint16
-	notifyHandle     uint16
+	writeHandle  uint16
+	notifyHandle uint16
 
 	// 2FA display
-	currentKeyID     string
-	keyRotationTime  time.Duration
+	currentKeyID    string
+	keyRotationTime time.Duration
 
-	mutex            sync.RWMutex
+	mutex sync.RWMutex
 }
 
 // NewSmartWatchController creates a controller for the KLGO watch
@@ -384,12 +383,12 @@ func (swc *SmartWatchController) GetDeadManStatus() map[string]interface{} {
 type VibratePattern byte
 
 const (
-	VibrateShort    VibratePattern = 0x01 // Short buzz (notification)
-	VibrateLong     VibratePattern = 0x02 // Long buzz (alert)
-	VibrateDouble   VibratePattern = 0x03 // Double buzz (important)
-	VibrateTriple   VibratePattern = 0x04 // Triple buzz (urgent)
-	VibrateSOS      VibratePattern = 0x05 // SOS pattern (... --- ...)
-	VibratePanic    VibratePattern = 0xFF // Continuous until acknowledged
+	VibrateShort  VibratePattern = 0x01 // Short buzz (notification)
+	VibrateLong   VibratePattern = 0x02 // Long buzz (alert)
+	VibrateDouble VibratePattern = 0x03 // Double buzz (important)
+	VibrateTriple VibratePattern = 0x04 // Triple buzz (urgent)
+	VibrateSOS    VibratePattern = 0x05 // SOS pattern (... --- ...)
+	VibratePanic  VibratePattern = 0xFF // Continuous until acknowledged
 )
 
 // =============================================================================
@@ -475,13 +474,13 @@ func (swc *SmartWatchController) GetWatchInfo() map[string]interface{} {
 	defer swc.mutex.RUnlock()
 
 	return map[string]interface{}{
-		"bt_address":       swc.BTAddress,
-		"connected":        swc.connected,
-		"current_key_id":   swc.currentKeyID,
-		"dead_man_armed":   swc.deadManSwitch.isArmed,
-		"service_uuid":     WatchServiceUUID,
-		"write_uuid":       WatchWriteUUID,
-		"notify_uuid":      WatchNotifyUUID,
+		"bt_address":     swc.BTAddress,
+		"connected":      swc.connected,
+		"current_key_id": swc.currentKeyID,
+		"dead_man_armed": swc.deadManSwitch.isArmed,
+		"service_uuid":   WatchServiceUUID,
+		"write_uuid":     WatchWriteUUID,
+		"notify_uuid":    WatchNotifyUUID,
 	}
 }
 
@@ -491,12 +490,12 @@ func (swc *SmartWatchController) GetWatchInfo() map[string]interface{} {
 
 // PanicProtocol defines what happens during panic mode
 type PanicProtocol struct {
-	WipeKeys        bool   // Securely destroy all key material
-	SendDistress    bool   // Send encrypted distress signal
-	ActivateDecoy   bool   // Generate false activity trail
-	DisconnectAll   bool   // Disconnect all devices
-	GPSSpoof        bool   // Activate GPS spoofing
-	DecoyLocation   string // Where to appear during decoy
+	WipeKeys      bool   // Securely destroy all key material
+	SendDistress  bool   // Send encrypted distress signal
+	ActivateDecoy bool   // Generate false activity trail
+	DisconnectAll bool   // Disconnect all devices
+	GPSSpoof      bool   // Activate GPS spoofing
+	DecoyLocation string // Where to appear during decoy
 }
 
 // DefaultPanicProtocol returns the default panic configuration

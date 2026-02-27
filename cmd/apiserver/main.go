@@ -186,7 +186,10 @@ func main() {
 	supabaseURL := os.Getenv("SUPABASE_URL")
 	supabaseKey := os.Getenv("SUPABASE_SERVICE_ROLE_KEY")
 	if supabaseURL != "" && supabaseKey != "" {
-		sbClient := supabase.NewClient(supabaseURL, supabaseKey, "")
+		sbClient := supabase.NewClient(supabase.Config{
+			ProjectURL:     supabaseURL,
+			ServiceRoleKey: supabaseKey,
+		})
 		mcpStore := supabase.NewMCPStore(sbClient)
 		server.WithMCPStore(mcpStore)
 		log.Printf("Supabase MCP store: connected (%s)", supabaseURL)
