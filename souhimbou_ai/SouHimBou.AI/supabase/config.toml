@@ -72,3 +72,18 @@ verify_jwt = false
 
 [functions.stripe-webhook]
 verify_jwt = false
+
+[functions.license-register]
+verify_jwt = false
+
+[functions.license-heartbeat]
+verify_jwt = false
+
+[functions.mcp-agent-bridge]
+verify_jwt = true
+
+[functions.n8n-webhook-receiver]
+verify_jwt = false
+
+[functions.storage-backup-worker]
+verify_jwt = false
