@@ -336,12 +336,20 @@ async function syncIntegrationData(userIntegrationId: string, userId: string) {
       throw new Error('Integration not found');
     }
 
-    // Simulate data sync
+    // Query actual sync metrics from database (no simulation)
+    const { data: lastSyncData } = await supabase
+      .from('integration_sync_logs')
+      .select('events_processed, alerts_generated, threats_detected, data_volume_mb')
+      .eq('integration_id', userIntegrationId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
     const syncResult = {
-      events_processed: Math.floor(Math.random() * 1000) + 100,
-      alerts_generated: Math.floor(Math.random() * 10),
-      threats_detected: Math.floor(Math.random() * 5),
-      data_volume_mb: Math.floor(Math.random() * 100) + 10,
+      events_processed: lastSyncData?.events_processed || 0,
+      alerts_generated: lastSyncData?.alerts_generated || 0,
+      threats_detected: lastSyncData?.threats_detected || 0,
+      data_volume_mb: lastSyncData?.data_volume_mb || 0,
     };
 
     // Update last sync time

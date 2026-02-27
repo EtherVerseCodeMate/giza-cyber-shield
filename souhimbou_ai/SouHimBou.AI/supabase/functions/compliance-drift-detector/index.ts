@@ -7,6 +7,117 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// =============================================================================
+// Helper Functions for Real Data Queries
+// =============================================================================
+
+// Query actual system configuration from asset_configurations table
+async function getActualAssetConfiguration(
+  supabase: any,
+  assetId: string
+): Promise<any | null> {
+  try {
+    const { data, error } = await supabase
+      .from('asset_configurations')
+      .select('*')
+      .eq('asset_id', assetId)
+      .order('collected_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error) {
+      console.warn(`No configuration data for asset ${assetId}:`, error.message);
+      return null;
+    }
+
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+// Query compliance findings for an asset
+async function getAssetComplianceFindings(
+  supabase: any,
+  assetId: string,
+  stigRuleId: string
+): Promise<{ status: string; lastChecked: string | null; findings: any[] }> {
+  try {
+    const { data, error } = await supabase
+      .from('stig_findings')
+      .select('status, severity, finding_details, updated_at')
+      .eq('asset_id', assetId)
+      .eq('rule_id', stigRuleId)
+      .order('updated_at', { ascending: false })
+      .limit(5);
+
+    if (error || !data || data.length === 0) {
+      return { status: 'UNKNOWN', lastChecked: null, findings: [] };
+    }
+
+    return {
+      status: data[0].status || 'UNKNOWN',
+      lastChecked: data[0].updated_at,
+      findings: data
+    };
+  } catch {
+    return { status: 'UNKNOWN', lastChecked: null, findings: [] };
+  }
+}
+
+// Query historical compliance status for drift comparison
+async function getHistoricalComplianceStatus(
+  supabase: any,
+  assetId: string,
+  stigRuleId: string,
+  daysBack: number = 7
+): Promise<{ previousStatus: string | null; statusChanges: number }> {
+  try {
+    const cutoffDate = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data, error } = await supabase
+      .from('stig_findings')
+      .select('status, updated_at')
+      .eq('asset_id', assetId)
+      .eq('rule_id', stigRuleId)
+      .gte('updated_at', cutoffDate)
+      .order('updated_at', { ascending: true });
+
+    if (error || !data || data.length === 0) {
+      return { previousStatus: null, statusChanges: 0 };
+    }
+
+    // Count status changes
+    let statusChanges = 0;
+    let prevStatus = data[0].status;
+    for (let i = 1; i < data.length; i++) {
+      if (data[i].status !== prevStatus) {
+        statusChanges++;
+        prevStatus = data[i].status;
+      }
+    }
+
+    return {
+      previousStatus: data[0].status,
+      statusChanges
+    };
+  } catch {
+    return { previousStatus: null, statusChanges: 0 };
+  }
+}
+
+// Generate deterministic hash based on configuration data
+function generateConfigurationHash(config: any): string {
+  const configStr = JSON.stringify(config);
+  let hash = 0;
+  for (let i = 0; i < configStr.length; i++) {
+    const char = configStr.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(36);
+}
+
 interface DriftDetectionRequest {
   organization_id: string;
   asset_ids?: string[];
@@ -116,7 +227,7 @@ serve(async (req) => {
       }
 
       // Detect configuration drift
-      const currentConfig = generateCurrentConfiguration(asset);
+      const currentConfig = await generateCurrentConfiguration(supabase, asset);
       const baseline = baselineSnapshot[0];
       
       const configurationDrift = detectConfigurationDrift(
@@ -138,8 +249,8 @@ serve(async (req) => {
       }
 
       for (const impl of stigImplementations || []) {
-        // Simulate compliance drift detection
-        const hasDrift = detectComplianceDrift(impl, currentConfig, sensitivity_level);
+        // Detect compliance drift using real data
+        const hasDrift = await detectComplianceDrift(supabase, impl, currentConfig, sensitivity_level);
         
         if (hasDrift.detected) {
           const driftEvent: DriftEvent = {
@@ -278,22 +389,47 @@ serve(async (req) => {
   }
 });
 
-function generateCurrentConfiguration(asset: any): any {
-  // Simulate current system configuration
+async function generateCurrentConfiguration(supabase: any, asset: any): Promise<any> {
+  // Query actual configuration from database
+  const actualConfig = await getActualAssetConfiguration(supabase, asset.id);
+
+  if (actualConfig) {
+    // Use real configuration data from agent/scan
+    return {
+      hostname: actualConfig.hostname || asset.hostname,
+      os_version: actualConfig.os_version || asset.operating_system,
+      security_patches: actualConfig.patch_count || 0,
+      services: actualConfig.running_services || [],
+      firewall_rules: actualConfig.firewall_rule_count || 0,
+      user_accounts: actualConfig.user_account_count || 0,
+      last_login: actualConfig.last_login_at || null,
+      security_settings: {
+        password_policy: actualConfig.password_policy_status || 'unknown',
+        audit_logging: actualConfig.audit_logging_enabled ? 'enabled' : 'disabled',
+        encryption: actualConfig.encryption_enabled ? 'enabled' : 'disabled'
+      },
+      configuration_hash: generateConfigurationHash(actualConfig),
+      data_source: 'AGENT_COLLECTED'
+    };
+  }
+
+  // Fallback: Use asset metadata (no random values)
   return {
     hostname: asset.hostname,
     os_version: asset.operating_system,
-    security_patches: Math.floor(Math.random() * 100),
-    services: ['ssh', 'http', 'https', 'ftp'],
-    firewall_rules: Math.floor(Math.random() * 20),
-    user_accounts: Math.floor(Math.random() * 50),
-    last_login: new Date(Date.now() - Math.random() * 86400000).toISOString(),
+    security_patches: asset.patch_level || 0,
+    services: asset.known_services || [],
+    firewall_rules: asset.firewall_rule_count || 0,
+    user_accounts: asset.user_count || 0,
+    last_login: asset.last_seen_at || null,
     security_settings: {
-      password_policy: Math.random() > 0.8 ? 'weak' : 'strong',
-      audit_logging: Math.random() > 0.2 ? 'enabled' : 'disabled',
-      encryption: Math.random() > 0.3 ? 'enabled' : 'disabled'
+      password_policy: 'unknown',
+      audit_logging: 'unknown',
+      encryption: 'unknown'
     },
-    configuration_hash: Math.random().toString(36).substring(7)
+    configuration_hash: generateConfigurationHash(asset),
+    data_source: 'ASSET_METADATA',
+    needs_agent_scan: true
   };
 }
 
@@ -338,24 +474,85 @@ function detectConfigurationDrift(baseline: any, current: any, sensitivity: stri
   };
 }
 
-function detectComplianceDrift(implementation: any, currentConfig: any, sensitivity: string): any {
-  // Simulate compliance drift detection
-  const driftProbability = sensitivity === 'high' ? 0.3 : sensitivity === 'medium' ? 0.2 : 0.1;
-  const detected = Math.random() < driftProbability;
-  
+async function detectComplianceDrift(
+  supabase: any,
+  implementation: any,
+  currentConfig: any,
+  sensitivity: string
+): Promise<any> {
+  // Query actual compliance findings and history
+  const currentFindings = await getAssetComplianceFindings(
+    supabase,
+    implementation.asset_id,
+    implementation.stig_rule_id
+  );
+
+  const history = await getHistoricalComplianceStatus(
+    supabase,
+    implementation.asset_id,
+    implementation.stig_rule_id,
+    7 // Look back 7 days
+  );
+
+  // Determine if drift occurred based on real data
+  let detected = false;
+  let driftType = 'configuration_change';
+  let currentCompliance = currentFindings.status;
+  let impact = 'MEDIUM';
+
+  // Check for status change from compliant to non-compliant
+  if (history.previousStatus === 'PASS' && currentFindings.status !== 'PASS') {
+    detected = true;
+    driftType = 'configuration_change';
+    impact = 'HIGH';
+  }
+  // Check for frequent status changes (instability)
+  else if (history.statusChanges >= 2) {
+    detected = true;
+    driftType = 'policy_violation';
+    impact = history.statusChanges >= 4 ? 'HIGH' : 'MEDIUM';
+  }
+  // Check for security setting degradation
+  else if (currentConfig.security_settings) {
+    const settings = currentConfig.security_settings;
+    if (settings.password_policy === 'weak' || settings.audit_logging === 'disabled') {
+      detected = true;
+      driftType = 'security_event';
+      impact = settings.audit_logging === 'disabled' ? 'HIGH' : 'MEDIUM';
+    }
+  }
+
+  // Apply sensitivity filter
+  if (sensitivity === 'low' && impact === 'LOW') {
+    detected = false; // Ignore low-impact drift in low sensitivity mode
+  }
+  if (sensitivity === 'high' && currentFindings.status !== 'PASS') {
+    detected = true; // Any non-compliant state triggers in high sensitivity
+  }
+
   if (!detected) {
     return { detected: false };
   }
 
-  const driftTypes = ['configuration_change', 'policy_violation', 'security_event', 'unauthorized_access'];
-  const impacts = ['LOW', 'MEDIUM', 'HIGH'];
-  
+  // Calculate confidence based on data quality
+  let confidence = 0.7; // Base confidence
+  if (currentConfig.data_source === 'AGENT_COLLECTED') {
+    confidence += 0.2; // Higher confidence with agent data
+  }
+  if (currentFindings.findings.length > 0) {
+    confidence += 0.1; // Higher confidence with findings
+  }
+  confidence = Math.min(confidence, 0.99);
+
   return {
     detected: true,
-    type: driftTypes[Math.floor(Math.random() * driftTypes.length)],
-    current_compliance: Math.random() > 0.5 ? 'PARTIAL' : 'NOT_COMPLIANT',
-    confidence: Math.random() * 0.4 + 0.6, // 0.6 to 1.0
-    impact: impacts[Math.floor(Math.random() * impacts.length)]
+    type: driftType,
+    current_compliance: currentCompliance === 'PASS' ? 'COMPLIANT' :
+                       currentCompliance === 'FAIL' ? 'NOT_COMPLIANT' : 'PARTIAL',
+    confidence,
+    impact,
+    data_source: currentConfig.data_source || 'DATABASE',
+    status_changes_detected: history.statusChanges
   };
 }
 

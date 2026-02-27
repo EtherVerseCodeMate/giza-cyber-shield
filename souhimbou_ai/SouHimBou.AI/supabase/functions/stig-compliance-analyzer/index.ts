@@ -79,10 +79,9 @@ async function analyzeAssetCompliance(asset: any): Promise<any> {
   for (const rule of stigRules) {
     totalChecks++;
     
-    // Simulate compliance check with some randomness based on asset score
+    // Use actual asset compliance score (no random variance)
     const baseScore = asset.complianceScore || 75;
-    const variance = Math.random() * 20 - 10; // ±10%
-    const checkScore = Math.max(0, Math.min(100, baseScore + variance));
+    const checkScore = baseScore;
     
     const passed = checkScore > 70;
     if (passed) passedChecks++;

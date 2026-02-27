@@ -28,6 +28,8 @@ TELEMETRY_PORT = 8787
 FRONTEND_PORT = 3000
 AGENT_STARTUP_TIMEOUT = 120  # seconds (allow for heavy DB loading)
 PORT_WAIT_TIMEOUT = 30  # seconds
+MOD_VENDOR = "-mod=vendor"
+AGENT_EXE = "adinkhepra-agent.exe"
 
 # ============================================================================
 # UTILITY FUNCTIONS
@@ -105,7 +107,7 @@ def build(component: str, fips: bool = True) -> bool:
         cmd_path = f"./cmd/{component.replace('adinkhepra-', '')}"
     
     # Build command
-    cmd = ["go", "build", "-mod=vendor", "-o", binary]
+    cmd = ["go", "build", MOD_VENDOR, "-o", binary]
     
     # Configure environment for FIPS mode
     env = os.environ.copy()
@@ -120,7 +122,7 @@ def build(component: str, fips: bool = True) -> bool:
         subprocess.check_call(cmd, env=env)
         print_success(f"Build successful: {binary}")
         return True
-    except subprocess.CalledProcessError as e:
+    except subprocess.CalledProcessError:
         print_error(f"Failed to build {component}")
         return False
     except FileNotFoundError:
@@ -249,7 +251,7 @@ def validate() -> bool:
     # ========================================================================
     # STEP 0: SUNSUM / Sacred Vessel Harmonization (Akoko Nan)
     # ========================================================================
-    print_step("Harmonization Ritual", 5, 0.5, "Running Akoko Nan Sacred Balance Check")
+    print_step("Harmonization Ritual", 5, 1, "Running Akoko Nan Sacred Balance Check")
     if os.path.exists(get_binary_name("adinkhepra")):
         try:
             cli_bin = get_binary_name("adinkhepra")
@@ -265,7 +267,7 @@ def validate() -> bool:
     
     try:
         result = subprocess.call([
-            "go", "test", "-count=1", "-mod=vendor", 
+            "go", "test", "-count=1", MOD_VENDOR, 
             "./pkg/...", "./cmd/..."
         ])
         
@@ -318,7 +320,7 @@ def validate() -> bool:
         for f in expected_files:
             try:
                 os.remove(f)
-            except:
+            except OSError:
                 pass
                 
     except subprocess.CalledProcessError as e:
@@ -344,7 +346,7 @@ def validate() -> bool:
         print_warning(f"Port {AGENT_PORT} is in use, attempting to free it...")
         if platform.system().lower() == "windows":
             subprocess.call(
-                ["taskkill", "/F", "/IM", "adinkhepra-agent.exe"],
+                ["taskkill", "/F", "/IM", AGENT_EXE],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
             )
@@ -386,7 +388,7 @@ def validate() -> bool:
         # ====================================================================
         # STEP 3b: Polymorphic API Validation
         # ====================================================================
-        print_step("Polymorphic API", 4, 3.5, "Validating Polymorphic API (Mitochondreal-Scarab)")
+        print_step("Polymorphic API", 4, 4, "Validating Polymorphic API (Mitochondreal-Scarab)")
         
         # Check Python dependencies
         try:
@@ -440,7 +442,7 @@ def validate() -> bool:
         # Stop agent
         if platform.system().lower() == "windows":
             subprocess.call(
-                ["taskkill", "/F", "/IM", "adinkhepra-agent.exe"],
+                ["taskkill", "/F", "/IM", AGENT_EXE],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
             )
@@ -530,7 +532,7 @@ def launch(args: List[str] = None) -> None:
         # Stop agent
         if platform.system().lower() == "windows":
             subprocess.call(
-                ["taskkill", "/F", "/IM", "adinkhepra-agent.exe"],
+                ["taskkill", "/F", "/IM", AGENT_EXE],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
             )
@@ -662,7 +664,7 @@ def main() -> None:
     elif command == "test":
         print_info("Running tests...")
         result = subprocess.call([
-            "go", "test", "-count=1", "-mod=vendor",
+            "go", "test", "-count=1", MOD_VENDOR,
             "./pkg/...", "./cmd/..."
         ])
         sys.exit(result)

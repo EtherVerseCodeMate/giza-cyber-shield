@@ -282,8 +282,8 @@ async function checkAgentPermission(supabase: any, agentId: string, actionType: 
 
 async function performAgentAction(actionData: any): Promise<any> {
   // This is where the agent would actually perform the requested action
-  // For now, return a simulated result
-  await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 900));
+  // Fixed delay for consistent behavior (no random simulation)
+  await new Promise(resolve => setTimeout(resolve, 100));
   
   return {
     action: actionData.type,
