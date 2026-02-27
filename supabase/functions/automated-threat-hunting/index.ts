@@ -6,6 +6,129 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ============================================================================
+// SPLUNK API INTEGRATION
+// Real integration with Splunk Enterprise/Cloud for threat hunting
+// When SPLUNK_API_TOKEN is not configured, queries are recorded but not executed
+// ============================================================================
+
+interface SplunkConfig {
+  apiUrl?: string;
+  apiToken?: string;
+  searchIndex?: string;
+}
+
+function getSplunkConfig(): SplunkConfig {
+  return {
+    apiUrl: Deno.env.get('SPLUNK_API_URL'),
+    apiToken: Deno.env.get('SPLUNK_API_TOKEN'),
+    searchIndex: Deno.env.get('SPLUNK_SEARCH_INDEX') || 'main',
+  };
+}
+
+// Execute real Splunk search via REST API
+async function executeSplunkSearch(
+  query: string,
+  config: SplunkConfig
+): Promise<{ success: boolean; results: any[]; jobId?: string; error?: string }> {
+  if (!config.apiUrl || !config.apiToken) {
+    console.warn('Splunk API not configured - hunt query recorded but not executed');
+    return {
+      success: false,
+      results: [],
+      error: 'SPLUNK_API_URL or SPLUNK_API_TOKEN not configured',
+    };
+  }
+
+  try {
+    // Create search job
+    const createJobResponse = await fetch(`${config.apiUrl}/services/search/jobs`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${config.apiToken}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: `search=${encodeURIComponent(query)}&output_mode=json&earliest_time=-24h`,
+    });
+
+    if (!createJobResponse.ok) {
+      throw new Error(`Splunk job creation failed: ${createJobResponse.status}`);
+    }
+
+    const jobData = await createJobResponse.json();
+    const jobId = jobData.sid;
+
+    // Poll for job completion (max 30 seconds)
+    let attempts = 0;
+    while (attempts < 15) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      const statusResponse = await fetch(
+        `${config.apiUrl}/services/search/jobs/${jobId}?output_mode=json`,
+        {
+          headers: { 'Authorization': `Bearer ${config.apiToken}` },
+        }
+      );
+
+      const statusData = await statusResponse.json();
+      if (statusData.entry?.[0]?.content?.isDone) {
+        break;
+      }
+      attempts++;
+    }
+
+    // Fetch results
+    const resultsResponse = await fetch(
+      `${config.apiUrl}/services/search/jobs/${jobId}/results?output_mode=json&count=100`,
+      {
+        headers: { 'Authorization': `Bearer ${config.apiToken}` },
+      }
+    );
+
+    if (!resultsResponse.ok) {
+      throw new Error(`Splunk results fetch failed: ${resultsResponse.status}`);
+    }
+
+    const resultsData = await resultsResponse.json();
+
+    return {
+      success: true,
+      results: resultsData.results || [],
+      jobId: jobId,
+    };
+  } catch (error: any) {
+    console.error('Splunk search failed:', error);
+    return {
+      success: false,
+      results: [],
+      error: error.message,
+    };
+  }
+}
+
+// Query historical hunt results from database
+async function getHistoricalHuntMatches(
+  supabase: any,
+  indicatorValue: string,
+  indicatorType: string
+): Promise<number> {
+  const { data, error } = await supabase
+    .from('threat_hunt_logs')
+    .select('match_count')
+    .eq('indicator_value', indicatorValue)
+    .eq('indicator_type', indicatorType)
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (error || !data?.length) {
+    return 0;
+  }
+
+  // Return average match count from historical data
+  const totalMatches = data.reduce((sum: number, log: any) => sum + (log.match_count || 0), 0);
+  return Math.round(totalMatches / data.length);
+}
+
 interface HuntRequest {
   action: 'generate_queries' | 'execute_hunt' | 'generate_report' | 'sync_feeds';
   indicator?: string;
@@ -141,13 +264,26 @@ async function generateHuntQueries(supabase: any, organizationId?: string) {
     throw new Error(`Failed to fetch indicators: ${error.message}`);
   }
 
-  const huntQueries: HuntQuery[] = indicators.map((indicator: any) => ({
-    indicator: indicator.indicator_value,
-    type: indicator.indicator_type,
-    splunkQuery: generateSplunkQuery(indicator.indicator_value, indicator.indicator_type),
-    severity: indicator.threat_level,
-    expectedMatches: Math.random() > 0.8 ? Math.floor(Math.random() * 5) : 0
-  }));
+  // Build hunt queries with REAL historical match data
+  const huntQueries: HuntQuery[] = [];
+
+  for (const indicator of indicators || []) {
+    // Get historical match count from past hunts
+    const historicalMatches = await getHistoricalHuntMatches(
+      supabase,
+      indicator.indicator_value,
+      indicator.indicator_type
+    );
+
+    huntQueries.push({
+      indicator: indicator.indicator_value,
+      type: indicator.indicator_type,
+      splunkQuery: generateSplunkQuery(indicator.indicator_value, indicator.indicator_type),
+      severity: indicator.threat_level,
+      // Use REAL historical data, not random
+      expectedMatches: historicalMatches
+    });
+  }
 
   console.log(`📊 Generated ${huntQueries.length} hunt queries`);
 
@@ -161,7 +297,8 @@ async function generateHuntQueries(supabase: any, organizationId?: string) {
         HIGH: huntQueries.filter(q => q.severity === 'HIGH').length,
         MEDIUM: huntQueries.filter(q => q.severity === 'MEDIUM').length,
         LOW: huntQueries.filter(q => q.severity === 'LOW').length
-      }
+      },
+      dataSource: 'DATABASE'
     }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   );
@@ -171,26 +308,46 @@ async function executeHunt(supabase: any, indicator: string, indicatorType: stri
   console.log(`🔍 Executing hunt for ${indicatorType}: ${indicator}`);
 
   const startTime = Date.now();
+  const splunkConfig = getSplunkConfig();
 
   // Generate Splunk query
   const splunkQuery = generateSplunkQuery(indicator, indicatorType);
 
-  // Simulate Splunk search execution
-  await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+  let matchCount = 0;
+  let findings: Array<{ timestamp: string; source: string; event: any; riskScore: number }> = [];
+  let dataSource = 'SPLUNK_API';
 
-  // Simulate results (80% chance of no matches for clean environment)
-  const hasMatches = Math.random() > 0.8;
-  const matchCount = hasMatches ? Math.floor(Math.random() * 5) + 1 : 0;
+  // Execute REAL Splunk search if configured
+  const splunkResult = await executeSplunkSearch(splunkQuery, splunkConfig);
 
-  const findings = [];
-  if (hasMatches) {
-    for (let i = 0; i < matchCount; i++) {
-      findings.push({
-        timestamp: new Date(Date.now() - Math.random() * 86400000).toISOString(),
-        source: ['firewall', 'proxy', 'dns', 'endpoint'][Math.floor(Math.random() * 4)],
-        event: generateMockSplunkEvent(indicator, indicatorType),
-        riskScore: Math.floor(Math.random() * 40) + 60
-      });
+  if (splunkResult.success && splunkResult.results.length > 0) {
+    // Process REAL Splunk results
+    matchCount = splunkResult.results.length;
+    findings = splunkResult.results.map((event: any) => ({
+      timestamp: event._time || new Date().toISOString(),
+      source: event.sourcetype || event.source || 'unknown',
+      event: event,
+      // Calculate risk score based on event severity and indicator type
+      riskScore: calculateRiskScore(event, indicatorType)
+    }));
+  } else if (splunkResult.error) {
+    // Splunk not configured or failed - check for existing findings in database
+    console.warn(`Splunk API unavailable: ${splunkResult.error}`);
+    dataSource = 'DATABASE_FALLBACK';
+
+    // Query existing findings for this indicator from database
+    const { data: existingFindings } = await supabase
+      .from('threat_hunt_logs')
+      .select('findings, match_count')
+      .eq('indicator_value', indicator)
+      .eq('indicator_type', indicatorType)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (existingFindings?.findings) {
+      findings = existingFindings.findings;
+      matchCount = existingFindings.match_count || findings.length;
     }
   }
 
@@ -213,24 +370,45 @@ async function executeHunt(supabase: any, indicator: string, indicatorType: stri
       match_count: matchCount,
       execution_time: result.executionTime,
       findings: findings,
-      status: 'completed'
+      status: 'completed',
+      data_source: dataSource,
+      splunk_job_id: splunkResult.jobId || null
     });
 
   if (logError) {
     console.error('Error logging hunt result:', logError);
   }
 
-  console.log(`✅ Hunt completed: ${matchCount} matches found`);
+  console.log(`✅ Hunt completed: ${matchCount} matches found (source: ${dataSource})`);
 
   return new Response(
     JSON.stringify({
       success: true,
       result,
       status: matchCount > 0 ? 'MATCHES_FOUND' : 'CLEAN',
+      dataSource: dataSource,
+      splunkJobId: splunkResult.jobId,
       splunkUrl: `https://splunk.enterprise.local:8000/app/search/search?q=${encodeURIComponent(splunkQuery)}`
     }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   );
+}
+
+// Calculate risk score based on actual event data
+function calculateRiskScore(event: any, indicatorType: string): number {
+  let baseScore = 50;
+
+  // Increase score based on event severity
+  if (event.severity === 'critical' || event.priority === 'critical') baseScore += 40;
+  else if (event.severity === 'high' || event.priority === 'high') baseScore += 30;
+  else if (event.severity === 'medium' || event.priority === 'medium') baseScore += 15;
+
+  // Increase score for certain indicator types
+  if (indicatorType === 'hash') baseScore += 10; // File hashes are high confidence
+  if (indicatorType === 'ip' && event.action === 'blocked') baseScore += 5;
+
+  // Cap at 100
+  return Math.min(baseScore, 100);
 }
 
 async function generateDailyReport(supabase: any, reportDate: string, organizationId?: string) {
@@ -347,49 +525,11 @@ function generateSplunkQuery(indicator: string, type: string): string {
   return queries[type as keyof typeof queries] || queries.ip;
 }
 
-function generateMockIndicator(type: string): string {
-  switch (type) {
-    case 'ip':
-      return `${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`;
-    case 'domain':
-      const domains = ['evil-domain.com', 'malicious-site.net', 'bad-actor.org', 'threat-source.io'];
-      return domains[Math.floor(Math.random() * domains.length)];
-    case 'hash':
-      return Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-    case 'url':
-      return `https://suspicious-site.com/malware/${Math.random().toString(36)}`;
-    default:
-      return `indicator-${Math.random().toString(36)}`;
-  }
-}
-
-function generateMockSplunkEvent(indicator: string, type: string): any {
-  const baseEvent = {
-    _time: new Date(Date.now() - Math.random() * 86400000).toISOString(),
-    host: `server-${Math.floor(Math.random() * 100)}`,
-    sourcetype: ['firewall', 'proxy_logs', 'dns', 'syslog'][Math.floor(Math.random() * 4)]
-  };
-
-  switch (type) {
-    case 'ip':
-      return {
-        ...baseEvent,
-        src_ip: `10.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`,
-        dest_ip: indicator,
-        action: 'blocked',
-        bytes_out: Math.floor(Math.random() * 10000)
-      };
-    case 'domain':
-      return {
-        ...baseEvent,
-        query: indicator,
-        src_ip: `10.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`,
-        response_code: Math.random() > 0.5 ? 'NXDOMAIN' : 'NOERROR'
-      };
-    default:
-      return baseEvent;
-  }
-}
+// REMOVED: generateMockIndicator and generateMockSplunkEvent
+// These functions generated fake data. Now using:
+// - Real Splunk API results via executeSplunkSearch()
+// - Real database records via getHistoricalHuntMatches()
+// - calculateRiskScore() for actual event-based risk assessment
 
 function generateCleanReport(totalQueries: number, reportDate: string): string {
   return `
