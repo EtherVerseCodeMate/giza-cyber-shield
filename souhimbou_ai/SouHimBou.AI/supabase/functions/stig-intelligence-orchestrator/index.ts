@@ -11,6 +11,154 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// =============================================================================
+// Helper Functions for Real Data Queries
+// =============================================================================
+
+// Query historical verification data to determine baseline confidence
+async function getHistoricalVerificationStats(
+  supabase: any,
+  configurationId: string
+): Promise<{ avgConfidence: number; successRate: number; totalVerifications: number }> {
+  try {
+    const { data, error } = await supabase
+      .from('stig_ai_verifications')
+      .select('confidence_score, verification_status')
+      .eq('configuration_id', configurationId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error || !data || data.length === 0) {
+      return { avgConfidence: 0.85, successRate: 0.9, totalVerifications: 0 };
+    }
+
+    const totalVerifications = data.length;
+    const avgConfidence = data.reduce((sum: number, v: any) => sum + (v.confidence_score || 0.8), 0) / totalVerifications;
+    const successCount = data.filter((v: any) => v.verification_status === 'verified').length;
+    const successRate = successCount / totalVerifications;
+
+    return { avgConfidence, successRate, totalVerifications };
+  } catch {
+    return { avgConfidence: 0.85, successRate: 0.9, totalVerifications: 0 };
+  }
+}
+
+// Query CMMC-to-STIG mapping table for real mappings
+async function getCMMCToSTIGMappings(
+  supabase: any,
+  cmmcControl: string,
+  platforms: string[]
+): Promise<any[]> {
+  try {
+    const { data, error } = await supabase
+      .from('cmmc_stig_mappings')
+      .select('stig_id, platform, implementation_guidance, automation_possible, priority_score')
+      .eq('cmmc_control', cmmcControl)
+      .in('platform', platforms);
+
+    if (error || !data || data.length === 0) {
+      return [];
+    }
+
+    return data;
+  } catch {
+    return [];
+  }
+}
+
+// Query optimization analysis history
+async function getOptimizationHistory(
+  supabase: any,
+  assetId: string,
+  stigRule: string
+): Promise<{ currentCompliance: string; lastAnalysis: any | null }> {
+  try {
+    // Check current compliance status
+    const { data: findings, error: findingsError } = await supabase
+      .from('stig_findings')
+      .select('status, severity, updated_at')
+      .eq('asset_id', assetId)
+      .eq('rule_id', stigRule)
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    // Check past analyses
+    const { data: analyses, error: analysesError } = await supabase
+      .from('stig_ai_analyses')
+      .select('ai_findings, confidence_score, implementation_priority')
+      .contains('stig_rules_analyzed', [stigRule])
+      .eq('asset_id', assetId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const currentStatus = findings?.[0]?.status || 'unknown';
+    const compliance = currentStatus === 'PASS' ? 'compliant' : 'non_compliant';
+
+    return {
+      currentCompliance: compliance,
+      lastAnalysis: analyses?.[0] || null
+    };
+  } catch {
+    return { currentCompliance: 'unknown', lastAnalysis: null };
+  }
+}
+
+// Query intelligence feed sync status
+async function getIntelligenceFeedStatus(
+  supabase: any,
+  feedType: string
+): Promise<{ lastSyncRecords: number; lastSyncAt: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('intelligence_feed_syncs')
+      .select('records_synced, completed_at')
+      .eq('feed_type', feedType)
+      .eq('sync_status', 'completed')
+      .order('completed_at', { ascending: false })
+      .limit(1);
+
+    if (error || !data || data.length === 0) {
+      return { lastSyncRecords: 0, lastSyncAt: null };
+    }
+
+    return {
+      lastSyncRecords: data[0].records_synced || 0,
+      lastSyncAt: data[0].completed_at
+    };
+  } catch {
+    return { lastSyncRecords: 0, lastSyncAt: null };
+  }
+}
+
+// Query workflow execution history for success rate
+async function getWorkflowSuccessRate(
+  supabase: any,
+  workflowId: string
+): Promise<{ successRate: number; avgDuration: number; totalExecutions: number }> {
+  try {
+    const { data, error } = await supabase
+      .from('stig_remediation_executions')
+      .select('execution_status, execution_duration_seconds')
+      .eq('workflow_id', workflowId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error || !data || data.length === 0) {
+      return { successRate: 0.9, avgDuration: 30, totalExecutions: 0 };
+    }
+
+    const totalExecutions = data.length;
+    const successCount = data.filter((e: any) => e.execution_status === 'completed').length;
+    const successRate = successCount / totalExecutions;
+    const durations = data.filter((e: any) => e.execution_duration_seconds).map((e: any) => e.execution_duration_seconds);
+    const avgDuration = durations.length > 0 ? durations.reduce((a: number, b: number) => a + b, 0) / durations.length : 30;
+
+    return { successRate, avgDuration, totalExecutions };
+  } catch {
+    return { successRate: 0.9, avgDuration: 30, totalExecutions: 0 };
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
