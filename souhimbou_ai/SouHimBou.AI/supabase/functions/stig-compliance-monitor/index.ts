@@ -111,12 +111,12 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { 
-      organization_id, 
-      asset_ids, 
-      stig_rule_ids, 
-      scan_type, 
-      remediation_mode = 'safe' 
+    const {
+      organization_id,
+      asset_ids,
+      stig_rule_ids,
+      scan_type,
+      remediation_mode = 'safe'
     }: STIGComplianceRequest = await req.json();
 
     console.log(`Starting STIG compliance monitoring for org: ${organization_id}, scan type: ${scan_type}`);
@@ -129,7 +129,7 @@ serve(async (req) => {
         .select('*')
         .eq('organization_id', organization_id)
         .in('id', asset_ids);
-      
+
       if (assetsError) throw assetsError;
       assets = assetsData || [];
     } else {
@@ -137,7 +137,7 @@ serve(async (req) => {
         .from('environment_assets')
         .select('*')
         .eq('organization_id', organization_id);
-      
+
       if (assetsError) throw assetsError;
       assets = assetsData || [];
     }
@@ -149,7 +149,7 @@ serve(async (req) => {
         .from('stig_rules')
         .select('*')
         .in('rule_id', stig_rule_ids);
-      
+
       if (rulesError) throw rulesError;
       stigRules = rulesData || [];
     } else {
@@ -157,7 +157,7 @@ serve(async (req) => {
         .from('stig_rules')
         .select('*')
         .limit(50); // Limit for demo
-      
+
       if (rulesError) throw rulesError;
       stigRules = rulesData || [];
     }
@@ -208,7 +208,7 @@ serve(async (req) => {
             current_state: result.current_configuration,
             detection_method: 'automated_scan'
           };
-          
+
           await supabase.from('compliance_drift_events').insert(driftEvent);
           driftEvents.push(driftEvent);
         }
@@ -223,7 +223,7 @@ serve(async (req) => {
             evidence_data: evidence.data,
             collection_method: 'automated'
           };
-          
+
           await supabase.from('stig_evidence').insert(evidenceRecord);
           evidenceCollected.push(evidenceRecord);
         }
@@ -240,7 +240,7 @@ serve(async (req) => {
 
           if (playbook && playbook.risk_level === 'LOW') {
             console.log(`Auto-remediation triggered for ${asset.asset_name} - ${stigRule.rule_id}`);
-            
+
             // Trigger remediation function
             const { error: remediationError } = await supabase.functions.invoke(
               'automated-remediation-engine',
@@ -286,12 +286,12 @@ serve(async (req) => {
     const totalChecks = complianceResults.length;
     const compliantChecks = complianceResults.filter(r => r.compliance_status === 'COMPLIANT').length;
     const compliancePercentage = totalChecks > 0 ? (compliantChecks / totalChecks) * 100 : 0;
-    
-    const criticalFindings = complianceResults.filter(r => 
+
+    const criticalFindings = complianceResults.filter(r =>
       r.compliance_status !== 'COMPLIANT' && r.risk_score >= 8
     ).length;
-    
-    const highFindings = complianceResults.filter(r => 
+
+    const highFindings = complianceResults.filter(r =>
       r.compliance_status !== 'COMPLIANT' && r.risk_score >= 6 && r.risk_score < 8
     ).length;
 
@@ -305,10 +305,10 @@ serve(async (req) => {
       compliance_percentage: compliancePercentage,
       critical_findings: criticalFindings,
       high_findings: highFindings,
-      medium_findings: complianceResults.filter(r => 
+      medium_findings: complianceResults.filter(r =>
         r.compliance_status !== 'COMPLIANT' && r.risk_score >= 4 && r.risk_score < 6
       ).length,
-      low_findings: complianceResults.filter(r => 
+      low_findings: complianceResults.filter(r =>
         r.compliance_status !== 'COMPLIANT' && r.risk_score < 4
       ).length,
       report_data: {
@@ -330,6 +330,56 @@ serve(async (req) => {
 
     console.log(`Compliance monitoring completed: ${compliancePercentage.toFixed(2)}% compliant`);
 
+    // --- Send Discord Webhook to #stig-updates ---
+    const stigWebhookUrl = Deno.env.get('STIG_WEBHOOK_URL');
+    if (stigWebhookUrl) {
+      try {
+        const color = compliancePercentage >= 80 ? 0x00CC66
+          : compliancePercentage >= 50 ? 0xFFD700
+            : 0xFF0000;
+
+        const statusEmoji = compliancePercentage >= 80 ? '✅' : compliancePercentage >= 50 ? '⚠️' : '🔴';
+
+        const embed = {
+          title: `📜 STIG Compliance Scan Complete ${statusEmoji}`,
+          description: `Scanned **${assets.length}** assets against **${stigRules.length}** STIG rules`,
+          color,
+          fields: [
+            { name: '📊 Compliance', value: `**${compliancePercentage.toFixed(1)}%**`, inline: true },
+            { name: '✅ Passing', value: `${compliantChecks}/${totalChecks}`, inline: true },
+            { name: '🔴 Critical', value: `${criticalFindings}`, inline: true },
+            { name: '🟠 High', value: `${highFindings}`, inline: true },
+            { name: '🔄 Drift Events', value: `${driftEvents.length}`, inline: true },
+            { name: '📎 Evidence', value: `${evidenceCollected.length} items`, inline: true },
+          ],
+          footer: { text: `Org: ${organization_id} | Scan: ${scan_type}` },
+          timestamp: new Date().toISOString(),
+        };
+
+        // Add critical findings details if any
+        if (criticalFindings > 0) {
+          const criticals = complianceResults
+            .filter(r => r.compliance_status !== 'COMPLIANT' && r.risk_score >= 8)
+            .slice(0, 5)
+            .map(r => `\`${r.stig_rule_id}\` — Risk: ${r.risk_score}`)
+            .join('\n');
+          embed.fields.push({ name: '🚨 Critical Findings', value: criticals, inline: false });
+        }
+
+        await fetch(stigWebhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: 'Khepra STIG Monitor',
+            avatar_url: 'https://i.imgur.com/placeholder.png',
+            embeds: [embed],
+          }),
+        });
+      } catch (webhookErr) {
+        console.error('STIG Discord webhook failed:', webhookErr);
+      }
+    }
+
     return new Response(JSON.stringify({
       success: true,
       compliance_percentage: compliancePercentage,
@@ -347,7 +397,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('STIG compliance monitoring error:', error);
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       error: error.message,
       details: 'Failed to perform STIG compliance monitoring'
     }), {
