@@ -370,14 +370,97 @@ Please investigate immediately.
   }
 
   if (channel === 'webhook') {
+    // Discord-native rich embed format
+    const severityColors: Record<string, number> = {
+      'CRITICAL': 0xFF0000, // Red
+      'HIGH': 0xFF6B00, // Orange
+      'MEDIUM': 0xFFD700, // Gold
+      'LOW': 0x00CC66, // Green
+    };
+
+    const severityEmoji: Record<string, string> = {
+      'CRITICAL': '🔴',
+      'HIGH': '🟠',
+      'MEDIUM': '🟡',
+      'LOW': '🟢',
+    };
+
+    const emoji = severityEmoji[alert.severity] || '⚪';
+    const riskBar = '█'.repeat(Math.round((alert.risk_score || 0) / 10)) +
+      '░'.repeat(10 - Math.round((alert.risk_score || 0) / 10));
+
     return {
-      event: 'security_alert',
-      data: {
-        alert,
-        severity: alert.severity,
-        risk_score: alert.risk_score,
-        url: `${Deno.env.get('SUPABASE_URL')}/alerts/${alert.id}`
-      }
+      // Discord webhook payload
+      username: 'Khepra Alert Engine',
+      avatar_url: 'https://raw.githubusercontent.com/EtherVerseCodeMate/giza-cyber-shield/main/docs/khepra-icon.png',
+      content: alert.severity === 'CRITICAL' ? '@everyone 🚨 **CRITICAL SECURITY ALERT**' : undefined,
+      embeds: [{
+        title: `${emoji} ${alert.severity} Alert: ${alert.title}`,
+        description: alert.description || 'No description provided.',
+        color: severityColors[alert.severity] || 0x808080,
+        fields: [
+          {
+            name: '📊 Risk Score',
+            value: `\`${riskBar}\` **${alert.risk_score || 0}/100**`,
+            inline: true,
+          },
+          {
+            name: '🏷️ Type',
+            value: `\`${alert.alert_type || 'unknown'}\``,
+            inline: true,
+          },
+          {
+            name: '📋 Source',
+            value: `\`${alert.source_type || 'system'}\``,
+            inline: true,
+          },
+          {
+            name: '⏰ SLA Deadline',
+            value: alert.sla_deadline
+              ? `<t:${Math.floor(new Date(alert.sla_deadline).getTime() / 1000)}:R>`
+              : 'Not set',
+            inline: true,
+          },
+          {
+            name: '🎯 Confidence',
+            value: `${alert.confidence_score || 0}%`,
+            inline: true,
+          },
+          {
+            name: '🔗 Tags',
+            value: alert.tags?.length ? alert.tags.map((t: string) => `\`${t}\``).join(' ') : 'None',
+            inline: true,
+          },
+        ],
+        footer: {
+          text: `Alert ID: ${alert.id} • Khepra Protocol`,
+        },
+        timestamp: new Date().toISOString(),
+      }],
+      // Interactive action buttons
+      components: [{
+        type: 1, // ACTION_ROW
+        components: [
+          {
+            type: 2, // BUTTON
+            style: 3, // SUCCESS (green)
+            label: '✅ Acknowledge',
+            custom_id: `ack_alert:${alert.id}`,
+          },
+          {
+            type: 2,
+            style: 4, // DANGER (red)
+            label: '⬆️ Escalate',
+            custom_id: `escalate_alert:${alert.id}`,
+          },
+          {
+            type: 2,
+            style: 5, // LINK
+            label: '🔍 Investigate',
+            url: `${Deno.env.get('SITE_URL') || 'https://souhimbou.ai'}/alerts/${alert.id}`,
+          },
+        ],
+      }],
     };
   }
 
@@ -440,50 +523,43 @@ async function sendEmailNotification(email: string, content: any) {
 }
 
 async function sendSMSNotification(phone: string, content: any) {
-  const twilioSid = Deno.env.get('TWILIO_ACCOUNT_SID');
-  const twilioToken = Deno.env.get('TWILIO_AUTH_TOKEN');
-  const twilioFrom = Deno.env.get('TWILIO_PHONE_NUMBER');
+  const quoApiKey = Deno.env.get('QUO_API_KEY');
+  const quoFrom = Deno.env.get('QUO_PHONE_NUMBER');
 
-  if (!twilioSid || !twilioToken || !twilioFrom) {
-    console.error('CRITICAL: Twilio credentials not configured');
-    throw new Error('SMS delivery not configured - Twilio credentials missing');
+  if (!quoApiKey || !quoFrom) {
+    console.error('CRITICAL: Quo (OpenPhone) credentials not configured');
+    throw new Error('SMS delivery not configured - QUO_API_KEY or QUO_PHONE_NUMBER missing');
   }
 
-  console.log(`Sending alert SMS to ${phone} via Twilio`);
+  console.log(`Sending alert SMS to ${phone} via Quo`);
 
   try {
-    const auth = btoa(`${twilioSid}:${twilioToken}`);
-    const params = new URLSearchParams({
-      To: phone,
-      From: twilioFrom,
-      Body: content.text
+    const response = await fetch('https://api.openphone.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Authorization': quoApiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        content: content.text,
+        from: quoFrom,
+        to: [phone],
+      }),
     });
-
-    const response = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Basic ${auth}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: params
-      }
-    );
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Twilio API failed: ${response.status} - ${errorText}`);
+      throw new Error(`Quo API failed: ${response.status} - ${errorText}`);
     }
 
     const result = await response.json();
-    console.log('✅ SMS sent successfully via Twilio:', result.sid);
+    console.log('✅ SMS sent successfully via Quo:', result.data?.id);
 
     return {
       success: true,
-      message_id: result.sid,
+      message_id: result.data?.id || `quo_${Date.now()}`,
       recipient: phone,
-      provider: 'twilio'
+      provider: 'quo'
     };
   } catch (error: any) {
     console.error('❌ SMS delivery failed:', error);
@@ -499,7 +575,7 @@ async function sendWebhookNotification(content: any) {
     throw new Error('Webhook delivery not configured - ALERT_WEBHOOK_URL missing');
   }
 
-  console.log(`Sending webhook notification to ${webhookUrl}`);
+  console.log(`Sending Discord webhook to ${webhookUrl}`);
 
   try {
     const response = await fetch(webhookUrl, {
@@ -513,17 +589,15 @@ async function sendWebhookNotification(content: any) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Webhook delivery failed: ${response.status} - ${errorText}`);
+      throw new Error(`Discord webhook failed: ${response.status} - ${errorText}`);
     }
 
-    const result = await response.text();
-    console.log('✅ Webhook delivered successfully');
+    console.log('✅ Discord webhook delivered successfully');
 
     return {
       success: true,
-      webhook_id: `webhook_${Date.now()}`,
-      provider: 'custom_webhook',
-      response_preview: result.substring(0, 100)
+      webhook_id: `discord_${Date.now()}`,
+      provider: 'discord',
     };
   } catch (error: any) {
     console.error('❌ Webhook delivery failed:', error);
