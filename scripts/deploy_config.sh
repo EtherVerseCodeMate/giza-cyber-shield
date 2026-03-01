@@ -29,14 +29,18 @@ echo ""
 read -sp "Enter Autosend API Key (for email alerts): " AUTOSEND_KEY
 echo ""
 
-# --- SMS Delivery (Twilio) ---
-read -p "Enter Twilio Account SID: " TWILIO_SID
-read -sp "Enter Twilio Auth Token: " TWILIO_TOKEN
+# --- SMS Delivery (Quo / OpenPhone) ---
+read -sp "Enter Quo API Key (from quo.com dashboard): " QUO_KEY
 echo ""
-read -p "Enter Twilio Phone Number (e.g. +1234567890): " TWILIO_PHONE
+read -p "Enter Quo Phone Number (e.g. +1234567890): " QUO_PHONE
 
 # --- Webhook ---
-read -p "Enter Alert Webhook URL (Slack/Discord/PagerDuty): " WEBHOOK_URL
+read -p "Enter Alert Webhook URL (Discord webhook URL): " WEBHOOK_URL
+
+# --- Discord Bot ---
+read -p "Enter Discord Public Key: " DISCORD_PUB_KEY
+read -sp "Enter Discord Bot Token: " DISCORD_TOKEN
+echo ""
 
 echo ""
 echo "Setting Supabase secrets..."
@@ -45,10 +49,11 @@ npx supabase --workdir "$SUPABASE_DIR" secrets set \
   "OTX_API_KEY=$OTX_KEY" \
   "SHODAN_API_KEY=$SHODAN_KEY" \
   "AUTOSEND_API_KEY=$AUTOSEND_KEY" \
-  "TWILIO_ACCOUNT_SID=$TWILIO_SID" \
-  "TWILIO_AUTH_TOKEN=$TWILIO_TOKEN" \
-  "TWILIO_PHONE_NUMBER=$TWILIO_PHONE" \
-  "ALERT_WEBHOOK_URL=$WEBHOOK_URL"
+  "QUO_API_KEY=$QUO_KEY" \
+  "QUO_PHONE_NUMBER=$QUO_PHONE" \
+  "ALERT_WEBHOOK_URL=$WEBHOOK_URL" \
+  "DISCORD_PUBLIC_KEY=$DISCORD_PUB_KEY" \
+  "DISCORD_BOT_TOKEN=$DISCORD_TOKEN"
 
 echo "✅ Supabase secrets set."
 echo ""
