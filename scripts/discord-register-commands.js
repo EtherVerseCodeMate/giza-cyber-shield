@@ -16,6 +16,7 @@ if (!TOKEN) {
 }
 
 const commands = [
+    // --- Security Operations ---
     {
         name: "scan",
         description: "🔍 Scan an IP address or domain for threat intelligence",
@@ -23,22 +24,159 @@ const commands = [
             {
                 name: "target",
                 description: "IP address or domain to scan (e.g. 192.168.1.1 or example.com)",
-                type: 3, // STRING
+                type: 3,
                 required: true,
             },
         ],
     },
     {
+        name: "alerts",
+        description: "📬 Show the most recent security alerts",
+        options: [
+            {
+                name: "severity",
+                description: "Filter by severity level",
+                type: 3,
+                required: false,
+                choices: [
+                    { name: "CRITICAL", value: "CRITICAL" },
+                    { name: "HIGH", value: "HIGH" },
+                    { name: "MEDIUM", value: "MEDIUM" },
+                    { name: "LOW", value: "LOW" },
+                ],
+            },
+            {
+                name: "count",
+                description: "Number of alerts to show (default: 10, max: 25)",
+                type: 4, // INTEGER
+                required: false,
+                min_value: 1,
+                max_value: 25,
+            },
+        ],
+    },
+    {
+        name: "firewall",
+        description: "🔥 View or manage Polymorphic API firewall rules",
+        options: [
+            {
+                name: "action",
+                description: "Action to perform",
+                type: 3,
+                required: true,
+                choices: [
+                    { name: "List active rules", value: "list" },
+                    { name: "Block an IP", value: "block" },
+                    { name: "Unblock an IP", value: "unblock" },
+                    { name: "Show blocked IPs", value: "blocked" },
+                ],
+            },
+            {
+                name: "ip",
+                description: "IP address (required for block/unblock)",
+                type: 3,
+                required: false,
+            },
+        ],
+    },
+    {
+        name: "threat-feed",
+        description: "🌐 View latest threat intelligence feed entries",
+        options: [
+            {
+                name: "source",
+                description: "Feed source to query",
+                type: 3,
+                required: false,
+                choices: [
+                    { name: "CISA KEV", value: "cisa" },
+                    { name: "AlienVault OTX", value: "otx" },
+                    { name: "AbuseIPDB", value: "abuseipdb" },
+                    { name: "All Sources", value: "all" },
+                ],
+            },
+        ],
+    },
+    // --- Compliance & STIG ---
+    {
         name: "compliance",
         description: "📋 Check current CMMC compliance status and score",
     },
+    {
+        name: "stig",
+        description: "📜 View STIG findings and benchmark status",
+        options: [
+            {
+                name: "action",
+                description: "What to check",
+                type: 3,
+                required: true,
+                choices: [
+                    { name: "Summary", value: "summary" },
+                    { name: "Open findings", value: "open" },
+                    { name: "Recent changes", value: "changes" },
+                ],
+            },
+        ],
+    },
+    // --- Infrastructure ---
     {
         name: "status",
         description: "✅ Check health status of all Khepra services",
     },
     {
-        name: "alerts",
-        description: "📬 Show the 10 most recent security alerts",
+        name: "deploy",
+        description: "🚀 View deployment status or trigger a deploy",
+        options: [
+            {
+                name: "action",
+                description: "Deployment action",
+                type: 3,
+                required: true,
+                choices: [
+                    { name: "Show last deploy", value: "last" },
+                    { name: "Show all services", value: "services" },
+                ],
+            },
+        ],
+    },
+    {
+        name: "audit",
+        description: "📝 View DAG audit log entries",
+        options: [
+            {
+                name: "count",
+                description: "Number of entries to show (default: 10)",
+                type: 4,
+                required: false,
+                min_value: 1,
+                max_value: 50,
+            },
+        ],
+    },
+    // --- Users & Licensing ---
+    {
+        name: "users",
+        description: "👥 View registered users and their roles",
+        options: [
+            {
+                name: "action",
+                description: "User action",
+                type: 3,
+                required: true,
+                choices: [
+                    { name: "List recent users", value: "list" },
+                    { name: "Count by role", value: "stats" },
+                    { name: "Search by email", value: "search" },
+                ],
+            },
+            {
+                name: "query",
+                description: "Search query (for search action)",
+                type: 3,
+                required: false,
+            },
+        ],
     },
     {
         name: "license",
@@ -47,10 +185,27 @@ const commands = [
             {
                 name: "key",
                 description: "The license key to check",
-                type: 3, // STRING
+                type: 3,
                 required: true,
             },
         ],
+    },
+    // --- AI & Utility ---
+    {
+        name: "papyrus",
+        description: "🤖 Chat with Papyrus AI assistant",
+        options: [
+            {
+                name: "message",
+                description: "Your message to Papyrus",
+                type: 3,
+                required: true,
+            },
+        ],
+    },
+    {
+        name: "help",
+        description: "❓ Show all available bot commands and their descriptions",
     },
 ];
 
