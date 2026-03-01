@@ -8,16 +8,15 @@ RUN apk add --no-cache git make
 
 # Copy Go module files
 COPY go.mod go.sum ./
-RUN go mod download
 
 # Copy source code
 COPY . .
 
 # Build the Khepra (Sonar) binary
-RUN CGO_ENABLED=0 go build -o /usr/local/bin/khepra ./cmd/sonar/main.go
+RUN CGO_ENABLED=0 go build -mod=vendor -o /usr/local/bin/khepra ./cmd/sonar/main.go
 
 # Build the Khepra Gateway binary
-RUN CGO_ENABLED=0 go build -o /usr/local/bin/khepra-gateway ./cmd/gateway/main.go
+RUN CGO_ENABLED=0 go build -mod=vendor -o /usr/local/bin/khepra-gateway ./cmd/gateway/main.go
 
 # Stage 2: Runtime Environment (Python + Khepra)
 FROM python:3.11-slim
