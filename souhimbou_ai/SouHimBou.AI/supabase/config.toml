@@ -85,3 +85,6 @@ verify_jwt = false
 
 [functions.storage-backup-worker]
 verify_jwt = false
+
+[functions.discord-bot]
+verify_jwt = false
