@@ -217,14 +217,23 @@ async function handleStatus() {
     };
 }
 
-async function handleAlerts() {
+async function handleAlerts(options?: any[]) {
+    const severity = options?.find((o: any) => o.name === "severity")?.value;
+    const count = options?.find((o: any) => o.name === "count")?.value || 10;
+
     try {
         const supabase = getSupabase();
-        const { data: alerts, error } = await supabase
+        let query = supabase
             .from("alerts")
             .select("id, title, severity, risk_score, status, created_at")
             .order("created_at", { ascending: false })
-            .limit(10);
+            .limit(count);
+
+        if (severity) {
+            query = query.eq("severity", severity);
+        }
+
+        const { data: alerts, error } = await query;
 
         if (error) throw error;
         if (!alerts || alerts.length === 0) {
@@ -309,7 +318,7 @@ async function handleButton(customId: string, message: any) {
             return {
                 content: `✅ Alert \`${alertId}\` acknowledged.`,
                 embeds: message.embeds,
-                components: [], // Remove buttons after action
+                components: [],
             };
         }
 
@@ -334,6 +343,338 @@ async function handleButton(customId: string, message: any) {
         default:
             return { embeds: [errorEmbed(`Unknown action: ${action}`)] };
     }
+}
+
+// --- New Command Handlers ---
+
+async function handleFirewall(options: any[]) {
+    const action = options?.find((o: any) => o.name === "action")?.value;
+    const ip = options?.find((o: any) => o.name === "ip")?.value;
+
+    try {
+        switch (action) {
+            case "list": {
+                const res = await khepraFetch("/api/v1/firewall/rules");
+                const data = await res.json();
+                const rules = data.rules || [];
+                if (rules.length === 0) return { embeds: [infoEmbed("🔥 Firewall Rules", "No active rules.", [], 0x808080)] };
+                const lines = rules.map((r: any) => `\`${r.action}\` | \`${r.source || "*"}\` → \`${r.target || "*"}\` | ${r.description || ""}`);
+                return { embeds: [infoEmbed("🔥 Active Firewall Rules", lines.join("\n"), [], 0xFF6B00)] };
+            }
+            case "block": {
+                if (!ip) return { embeds: [errorEmbed("Provide an IP: `/firewall block ip:1.2.3.4`")] };
+                const res = await khepraFetch("/api/v1/firewall/block", {
+                    method: "POST",
+                    body: JSON.stringify({ ip, reason: "Blocked via Discord bot" }),
+                });
+                return { embeds: [infoEmbed("🔥 IP Blocked", `\`${ip}\` has been blocked at the Polymorphic firewall.`, [], 0xFF0000)] };
+            }
+            case "unblock": {
+                if (!ip) return { embeds: [errorEmbed("Provide an IP: `/firewall unblock ip:1.2.3.4`")] };
+                await khepraFetch("/api/v1/firewall/unblock", {
+                    method: "POST",
+                    body: JSON.stringify({ ip }),
+                });
+                return { embeds: [infoEmbed("🔥 IP Unblocked", `\`${ip}\` has been removed from the blocklist.`, [], 0x00CC66)] };
+            }
+            case "blocked": {
+                const res = await khepraFetch("/api/v1/firewall/blocked");
+                const data = await res.json();
+                const ips = data.blocked || [];
+                if (ips.length === 0) return { embeds: [infoEmbed("🔥 Blocked IPs", "No IPs are currently blocked.", [], 0x808080)] };
+                return { embeds: [infoEmbed("🔥 Blocked IPs", ips.map((b: any) => `\`${b.ip}\` — ${b.reason || "No reason"}`).join("\n"), [], 0xFF0000)] };
+            }
+            default:
+                return { embeds: [errorEmbed(`Unknown firewall action: ${action}`)] };
+        }
+    } catch (e: any) {
+        return { embeds: [errorEmbed(`Firewall error: ${e.message}`)] };
+    }
+}
+
+async function handleThreatFeed(options: any[]) {
+    const source = options?.find((o: any) => o.name === "source")?.value || "all";
+
+    try {
+        const supabase = getSupabase();
+        let query = supabase
+            .from("threat_intel_cache")
+            .select("indicator, source, threat_type, risk_score, created_at")
+            .order("created_at", { ascending: false })
+            .limit(10);
+
+        if (source !== "all") {
+            query = query.ilike("source", `%${source}%`);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        if (!data || data.length === 0) {
+            return { embeds: [infoEmbed("🌐 Threat Feed", `No recent entries for \`${source}\`.`, [], 0x808080)] };
+        }
+
+        const lines = data.map((t: any) => {
+            const time = `<t:${Math.floor(new Date(t.created_at).getTime() / 1000)}:R>`;
+            return `\`${t.indicator}\` | **${t.threat_type || "unknown"}** | Risk: ${t.risk_score || 0} | ${t.source} | ${time}`;
+        });
+
+        return { embeds: [infoEmbed(`🌐 Threat Feed — ${source.toUpperCase()}`, lines.join("\n"), [], 0x00BFFF)] };
+    } catch (e: any) {
+        return { embeds: [errorEmbed(`Threat feed error: ${e.message}`)] };
+    }
+}
+
+async function handleStig(options: any[]) {
+    const action = options?.find((o: any) => o.name === "action")?.value;
+
+    try {
+        const supabase = getSupabase();
+
+        switch (action) {
+            case "summary": {
+                const res = await khepraFetch("/api/v1/stig/summary");
+                if (!res.ok) {
+                    const { count: total } = await supabase.from("stig_findings").select("*", { count: "exact", head: true });
+                    const { count: open } = await supabase.from("stig_findings").select("*", { count: "exact", head: true }).eq("status", "OPEN");
+                    return {
+                        embeds: [infoEmbed("📜 STIG Summary", "STIG benchmark status", [
+                            { name: "📊 Total Findings", value: `${total || 0}`, inline: true },
+                            { name: "🔓 Open", value: `${open || 0}`, inline: true },
+                            { name: "✅ Resolved", value: `${(total || 0) - (open || 0)}`, inline: true },
+                        ], 0xFFD700)],
+                    };
+                }
+                const data = await res.json();
+                return {
+                    embeds: [infoEmbed("📜 STIG Summary", `Benchmark: **${data.benchmark || "N/A"}**`, [
+                        { name: "📊 Total", value: `${data.total || 0}`, inline: true },
+                        { name: "🔓 Open", value: `${data.open || 0}`, inline: true },
+                        { name: "🔴 CAT I", value: `${data.cat1 || 0}`, inline: true },
+                        { name: "🟠 CAT II", value: `${data.cat2 || 0}`, inline: true },
+                        { name: "🟡 CAT III", value: `${data.cat3 || 0}`, inline: true },
+                    ], 0xFFD700)],
+                };
+            }
+            case "open": {
+                const { data, error } = await supabase
+                    .from("stig_findings")
+                    .select("rule_id, title, severity")
+                    .eq("status", "OPEN")
+                    .order("severity", { ascending: true })
+                    .limit(15);
+                if (error) throw error;
+                if (!data?.length) return { embeds: [infoEmbed("📜 Open STIG Findings", "No open findings! 🎉", [], 0x00CC66)] };
+                const lines = data.map((f: any) => `\`${f.rule_id}\` **${f.severity}** — ${f.title}`);
+                return { embeds: [infoEmbed(`📜 Open Findings (${data.length})`, lines.join("\n"), [], 0xFF6B00)] };
+            }
+            case "changes": {
+                const { data, error } = await supabase
+                    .from("stig_findings")
+                    .select("rule_id, title, status, updated_at")
+                    .order("updated_at", { ascending: false })
+                    .limit(10);
+                if (error) throw error;
+                if (!data?.length) return { embeds: [infoEmbed("📜 STIG Changes", "No recent changes.", [], 0x808080)] };
+                const lines = data.map((f: any) => {
+                    const time = `<t:${Math.floor(new Date(f.updated_at).getTime() / 1000)}:R>`;
+                    return `\`${f.rule_id}\` → **${f.status}** | ${time}`;
+                });
+                return { embeds: [infoEmbed("📜 Recent STIG Changes", lines.join("\n"), [], 0x00BFFF)] };
+            }
+            default:
+                return { embeds: [errorEmbed(`Unknown STIG action: ${action}`)] };
+        }
+    } catch (e: any) {
+        return { embeds: [errorEmbed(`STIG error: ${e.message}`)] };
+    }
+}
+
+async function handleDeploy(options: any[]) {
+    const action = options?.find((o: any) => o.name === "action")?.value;
+
+    try {
+        switch (action) {
+            case "last": {
+                const supabase = getSupabase();
+                const { data, error } = await supabase
+                    .from("deployment_log")
+                    .select("*")
+                    .order("deployed_at", { ascending: false })
+                    .limit(1)
+                    .single();
+                if (error || !data) return { embeds: [infoEmbed("🚀 Last Deployment", "No deployment records found.", [], 0x808080)] };
+                const time = `<t:${Math.floor(new Date(data.deployed_at).getTime() / 1000)}:R>`;
+                return {
+                    embeds: [infoEmbed("🚀 Last Deployment", `Deployed ${time}`, [
+                        { name: "📦 Service", value: `\`${data.service || "all"}\``, inline: true },
+                        { name: "📍 Status", value: `\`${data.status || "unknown"}\``, inline: true },
+                        { name: "👤 By", value: data.deployed_by || "system", inline: true },
+                    ], data.status === "success" ? 0x00CC66 : 0xFF0000)],
+                };
+            }
+            case "services": {
+                const services = [
+                    { name: "Fly.io (ML API)", endpoint: "/" },
+                ];
+                const checks = [];
+                for (const svc of services) {
+                    try {
+                        const res = await khepraFetch(svc.endpoint, { signal: AbortSignal.timeout(5000) });
+                        checks.push({ name: `📦 ${svc.name}`, value: res.ok ? "`ONLINE`" : `\`ERROR ${res.status}\``, inline: true });
+                    } catch {
+                        checks.push({ name: `📦 ${svc.name}`, value: "`OFFLINE`", inline: true });
+                    }
+                }
+                // Add Supabase
+                try {
+                    const supabase = getSupabase();
+                    const { error } = await supabase.from("profiles").select("id").limit(1);
+                    checks.push({ name: "🗄️ Supabase", value: error ? "`ERROR`" : "`ONLINE`", inline: true });
+                } catch {
+                    checks.push({ name: "🗄️ Supabase", value: "`OFFLINE`", inline: true });
+                }
+                return { embeds: [infoEmbed("🚀 Service Status", "Current deployment health:", checks, 0x00BFFF)] };
+            }
+            default:
+                return { embeds: [errorEmbed(`Unknown deploy action: ${action}`)] };
+        }
+    } catch (e: any) {
+        return { embeds: [errorEmbed(`Deploy error: ${e.message}`)] };
+    }
+}
+
+async function handleAudit(options: any[]) {
+    const count = options?.find((o: any) => o.name === "count")?.value || 10;
+
+    try {
+        const supabase = getSupabase();
+        const { data, error } = await supabase
+            .from("audit_log")
+            .select("action, agent_id, details, created_at")
+            .order("created_at", { ascending: false })
+            .limit(count);
+
+        if (error) throw error;
+        if (!data?.length) return { embeds: [infoEmbed("📝 Audit Log", "No audit entries found.", [], 0x808080)] };
+
+        const lines = data.map((a: any) => {
+            const time = `<t:${Math.floor(new Date(a.created_at).getTime() / 1000)}:R>`;
+            return `\`${a.action}\` | ${a.agent_id || "system"} | ${time}`;
+        });
+
+        return { embeds: [infoEmbed(`📝 Audit Log (last ${data.length})`, lines.join("\n"), [], 0x9B59B6)] };
+    } catch (e: any) {
+        return { embeds: [errorEmbed(`Audit log error: ${e.message}`)] };
+    }
+}
+
+async function handleUsers(options: any[]) {
+    const action = options?.find((o: any) => o.name === "action")?.value;
+    const query = options?.find((o: any) => o.name === "query")?.value;
+
+    try {
+        const supabase = getSupabase();
+
+        switch (action) {
+            case "list": {
+                const { data, error } = await supabase
+                    .from("profiles")
+                    .select("id, email, role, created_at")
+                    .order("created_at", { ascending: false })
+                    .limit(15);
+                if (error) throw error;
+                if (!data?.length) return { embeds: [infoEmbed("👥 Users", "No users found.", [], 0x808080)] };
+                const lines = data.map((u: any) => {
+                    const time = `<t:${Math.floor(new Date(u.created_at).getTime() / 1000)}:R>`;
+                    return `\`${u.role || "user"}\` | ${u.email || u.id.substring(0, 8)} | ${time}`;
+                });
+                return { embeds: [infoEmbed(`👥 Recent Users (${data.length})`, lines.join("\n"), [], 0x00BFFF)] };
+            }
+            case "stats": {
+                const { data, error } = await supabase.from("profiles").select("role");
+                if (error) throw error;
+                const counts: Record<string, number> = {};
+                (data || []).forEach((u: any) => {
+                    const role = u.role || "user";
+                    counts[role] = (counts[role] || 0) + 1;
+                });
+                const fields = Object.entries(counts).map(([role, count]) => ({
+                    name: `🏷️ ${role}`, value: `${count}`, inline: true,
+                }));
+                fields.push({ name: "📊 Total", value: `${data?.length || 0}`, inline: true });
+                return { embeds: [infoEmbed("👥 User Stats", "Users by role:", fields, 0x00BFFF)] };
+            }
+            case "search": {
+                if (!query) return { embeds: [errorEmbed("Provide a search query: `/users search query:email@example.com`")] };
+                const { data, error } = await supabase
+                    .from("profiles")
+                    .select("id, email, role, created_at")
+                    .ilike("email", `%${query}%`)
+                    .limit(10);
+                if (error) throw error;
+                if (!data?.length) return { embeds: [infoEmbed("👥 Search Results", `No users matching \`${query}\`.`, [], 0x808080)] };
+                const lines = data.map((u: any) => `\`${u.role || "user"}\` | ${u.email} | ID: \`${u.id.substring(0, 8)}...\``);
+                return { embeds: [infoEmbed(`👥 Search: "${query}"`, lines.join("\n"), [], 0x00BFFF)] };
+            }
+            default:
+                return { embeds: [errorEmbed(`Unknown users action: ${action}`)] };
+        }
+    } catch (e: any) {
+        return { embeds: [errorEmbed(`Users error: ${e.message}`)] };
+    }
+}
+
+async function handlePapyrus(options: any[]) {
+    const message = options?.find((o: any) => o.name === "message")?.value;
+    if (!message) return { embeds: [errorEmbed("Please provide a message.")] };
+
+    try {
+        const res = await khepraFetch("/api/v1/papyrus/chat", {
+            method: "POST",
+            body: JSON.stringify({ message, agent: "discord-bot" }),
+        });
+
+        if (!res.ok) {
+            return { embeds: [infoEmbed("🤖 Papyrus AI", "Papyrus is currently unavailable. Try again shortly.", [], 0xFF6B00)] };
+        }
+
+        const data = await res.json();
+        return {
+            embeds: [infoEmbed(
+                "🤖 Papyrus AI",
+                data.response || data.message || "No response generated.",
+                data.sources ? [{ name: "📚 Sources", value: data.sources.join(", ") }] : [],
+                0x9B59B6,
+            )],
+        };
+    } catch (e: any) {
+        return { embeds: [errorEmbed(`Papyrus error: ${e.message}`)] };
+    }
+}
+
+function handleHelp() {
+    return {
+        embeds: [infoEmbed(
+            "❓ Khepra Bot Commands",
+            "All available slash commands:",
+            [
+                { name: "🔍 /scan `target`", value: "Scan an IP or domain for threats", inline: false },
+                { name: "📬 /alerts `[severity]` `[count]`", value: "Show recent security alerts", inline: false },
+                { name: "🔥 /firewall `action` `[ip]`", value: "Manage Polymorphic API firewall", inline: false },
+                { name: "🌐 /threat-feed `[source]`", value: "View threat intelligence entries", inline: false },
+                { name: "📋 /compliance", value: "Check CMMC compliance score", inline: false },
+                { name: "📜 /stig `action`", value: "View STIG findings & benchmarks", inline: false },
+                { name: "✅ /status", value: "Health check all services", inline: false },
+                { name: "🚀 /deploy `action`", value: "View deployment status", inline: false },
+                { name: "📝 /audit `[count]`", value: "View DAG audit log entries", inline: false },
+                { name: "👥 /users `action` `[query]`", value: "View and search users", inline: false },
+                { name: "🔑 /license `key`", value: "Look up a license key", inline: false },
+                { name: "🤖 /papyrus `message`", value: "Chat with Papyrus AI", inline: false },
+                { name: "❓ /help", value: "Show this help message", inline: false },
+            ],
+            0x00BFFF,
+        )],
+    };
 }
 
 // --- Main Handler ---
@@ -382,17 +723,41 @@ serve(async (req: Request) => {
             case "scan":
                 responseData = await handleScan(options);
                 break;
+            case "alerts":
+                responseData = await handleAlerts(options);
+                break;
+            case "firewall":
+                responseData = await handleFirewall(options);
+                break;
+            case "threat-feed":
+                responseData = await handleThreatFeed(options);
+                break;
             case "compliance":
                 responseData = await handleCompliance();
+                break;
+            case "stig":
+                responseData = await handleStig(options);
                 break;
             case "status":
                 responseData = await handleStatus();
                 break;
-            case "alerts":
-                responseData = await handleAlerts();
+            case "deploy":
+                responseData = await handleDeploy(options);
+                break;
+            case "audit":
+                responseData = await handleAudit(options);
+                break;
+            case "users":
+                responseData = await handleUsers(options);
                 break;
             case "license":
                 responseData = await handleLicense(options);
+                break;
+            case "papyrus":
+                responseData = await handlePapyrus(options);
+                break;
+            case "help":
+                responseData = handleHelp();
                 break;
             default:
                 responseData = { embeds: [errorEmbed(`Unknown command: /${name}`)] };
