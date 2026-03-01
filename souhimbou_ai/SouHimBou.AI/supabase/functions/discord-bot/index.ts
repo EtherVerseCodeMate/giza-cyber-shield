@@ -18,6 +18,33 @@ const InteractionResponseType = {
 
 const KHEPRA_API = Deno.env.get("KHEPRA_API_URL") || "https://souhimbou-ai.fly.dev";
 
+// --- DEMARC Boundary Authentication ---
+// All outbound calls to the Fly.io Polymorphic API pass through the
+// Mitochondrial DEMARC gateway. We attach service credentials so the
+// Go PolymorphicEngine.HTTPMiddleware() recognises us as an authorised agent.
+const DISCORD_AGENT_ID = "discord-bot";
+const AGENT_SYMBOL = "Eban"; // Adinkra symbol for boundary-crossing agents
+
+function khepraFetch(path: string, init: RequestInit = {}): Promise<Response> {
+    const serviceSecret = Deno.env.get("KHEPRA_SERVICE_SECRET") || "";
+    const requestId = crypto.randomUUID();
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+
+    const headers = new Headers(init.headers || {});
+    // Polymorphic Engine expects these headers for authenticated service calls
+    headers.set("X-Agent-ID", DISCORD_AGENT_ID);
+    headers.set("X-Khepra-Attestation", `${DISCORD_AGENT_ID}:${AGENT_SYMBOL}:${timestamp}`);
+    headers.set("X-Khepra-Service-Secret", serviceSecret);
+    headers.set("X-Request-ID", requestId);
+    headers.set("User-Agent", "Khepra-Discord-Bot/1.0");
+    if (!headers.has("Content-Type")) {
+        headers.set("Content-Type", "application/json");
+    }
+
+    const url = path.startsWith("http") ? path : `${KHEPRA_API}${path}`;
+    return fetch(url, { ...init, headers });
+}
+
 // --- Ed25519 Signature Verification ---
 async function verifyDiscordSignature(
     publicKey: string,
@@ -90,9 +117,8 @@ async function handleScan(options: any[]) {
     }
 
     try {
-        const res = await fetch(`${KHEPRA_API}/api/v1/threat-intel/lookup`, {
+        const res = await khepraFetch("/api/v1/threat-intel/lookup", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ target }),
         });
 
@@ -130,7 +156,7 @@ async function handleScan(options: any[]) {
 
 async function handleCompliance() {
     try {
-        const res = await fetch(`${KHEPRA_API}/api/v1/compliance/cmmc`);
+        const res = await khepraFetch("/api/v1/compliance/cmmc");
         const data = await res.json();
 
         const score = data.score || 0;
@@ -160,7 +186,7 @@ async function handleStatus() {
 
     // Fly.io
     try {
-        const res = await fetch(`${KHEPRA_API}/`, { signal: AbortSignal.timeout(5000) });
+        const res = await khepraFetch("/", { signal: AbortSignal.timeout(5000) });
         const data = await res.json();
         checks.push({ name: "🛸 Fly.io (ML API)", value: `\`${data.status || "ONLINE"}\``, inline: true });
     } catch {
