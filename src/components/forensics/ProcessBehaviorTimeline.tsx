@@ -1,14 +1,13 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
-import ReactFlow, {
+import { useMemo, useState } from 'react';
+import {
+    ReactFlow,
     Background,
     Controls,
-    Edge,
-    Node,
-    Panel,
-    NodeProps
+    Panel
 } from '@xyflow/react';
+import type { Edge, Node, NodeProps } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
