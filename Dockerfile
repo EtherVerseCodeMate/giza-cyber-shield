@@ -1,5 +1,5 @@
 # Stage 1: Build Khepra Core (Go)
-FROM golang:1.23.6-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
@@ -33,9 +33,11 @@ RUN apt-get update && apt-get install -y \
 # Copy Python requirements
 COPY services/ml_anomaly/requirements.txt /app/requirements.txt
 
-# Install Python dependencies (including Torch CPU and extras)
+# Install PyTorch CPU from dedicated index
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
+# Install remaining Python dependencies from PyPI
 RUN pip install --no-cache-dir \
-    torch --index-url https://download.pytorch.org/whl/cpu \
     -r requirements.txt \
     reportlab \
     websockets \
