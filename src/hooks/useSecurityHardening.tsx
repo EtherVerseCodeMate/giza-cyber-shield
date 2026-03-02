@@ -197,24 +197,24 @@ export const useSecurityHardening = () => {
     }
   };
 
-  // Check if account is currently locked
+  // Expire the lockout via useEffect — avoids setState during render
+  useEffect(() => {
+    if (!securityMetrics.isLocked || !securityMetrics.lockUntil) return;
+    const remaining = securityMetrics.lockUntil.getTime() - Date.now();
+    if (remaining <= 0) {
+      setSecurityMetrics(prev => ({ ...prev, isLocked: false, lockUntil: null }));
+      return;
+    }
+    const timer = setTimeout(() => {
+      setSecurityMetrics(prev => ({ ...prev, isLocked: false, lockUntil: null }));
+    }, remaining);
+    return () => clearTimeout(timer);
+  }, [securityMetrics.isLocked, securityMetrics.lockUntil]);
+
+  // Check if account is currently locked (read-only — no setState)
   const isAccountLocked = (): boolean => {
-    if (!securityMetrics.isLocked || !securityMetrics.lockUntil) {
-      return false;
-    }
-
-    const now = new Date();
-    if (now > securityMetrics.lockUntil) {
-      // Lock expired, reset
-      setSecurityMetrics(prev => ({
-        ...prev,
-        isLocked: false,
-        lockUntil: null
-      }));
-      return false;
-    }
-
-    return true;
+    if (!securityMetrics.isLocked || !securityMetrics.lockUntil) return false;
+    return Date.now() < securityMetrics.lockUntil.getTime();
   };
 
   // Get time remaining for lockout
