@@ -140,4 +140,25 @@ fly secrets set \
 
 echo "✅ Fly.io secrets set (6)."
 echo ""
-echo "🚀 All 33 secrets configured. Run './scripts/deploy.sh' to deploy."
+
+# ========================================
+# 3. Vercel Environment Variables (7)
+# ========================================
+echo "▲ Configuring Vercel Frontend..."
+
+read -p  "Enter Supabase Anon Key (public): " SUPA_ANON_KEY
+
+echo "Setting Vercel environment variables..."
+
+# Vercel env vars for the Next.js frontend
+vercel env add NEXT_PUBLIC_SUPABASE_URL production <<< "https://xjknkjbrjgljuovaazeu.supabase.co"
+vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY production <<< "$SUPA_ANON_KEY"
+vercel env add SUPABASE_SERVICE_ROLE_KEY production <<< "$SUPA_SERVICE_KEY"
+vercel env add NEXT_PUBLIC_KHEPRA_API_URL production <<< "https://souhimbou-ai.fly.dev"
+vercel env add STRIPE_SECRET_KEY production <<< "$STRIPE_SECRET"
+vercel env add STRIPE_WEBHOOK_SECRET production <<< "$STRIPE_WEBHOOK"
+vercel env add GROK_API_KEY production <<< "$GROK_KEY"
+
+echo "✅ Vercel env vars set (7)."
+echo ""
+echo "🚀 All secrets configured (34 Supabase + 6 Fly.io + 7 Vercel). Run './scripts/deploy.sh' to deploy."
