@@ -19,6 +19,15 @@
 !pkg/
 !cmd/
 
+# CRITICAL: Exclude large cached model files (12GB+)
+pkg/llm/ollama/blobs/
+pkg/llm/ollama/models/
+pkg/llm/mock/
+**/blobs/
+**/*.gguf
+**/*.safetensors
+**/*.bin
+
 # Include scripts for testing
 !scripts/functional-test.sh
 !scripts/fips-test.sh
