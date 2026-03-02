@@ -12,11 +12,11 @@ COPY go.mod go.sum ./
 # Copy source code
 COPY . .
 
-# Build the Khepra (Sonar) binary
-RUN CGO_ENABLED=0 go build -mod=vendor -o /usr/local/bin/khepra ./cmd/sonar/main.go
+# Build the Khepra (Sonar) binary (full package, not single file)
+RUN CGO_ENABLED=0 go build -mod=vendor -o /usr/local/bin/khepra ./cmd/sonar/
 
-# Build the Khepra Gateway binary
-RUN CGO_ENABLED=0 go build -mod=vendor -o /usr/local/bin/khepra-gateway ./cmd/gateway/main.go
+# Build the Khepra Gateway binary (full package, not single file)
+RUN CGO_ENABLED=0 go build -mod=vendor -o /usr/local/bin/khepra-gateway ./cmd/gateway/
 
 # Stage 2: Runtime Environment (Python + Khepra)
 FROM python:3.11-slim
