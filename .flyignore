@@ -1,0 +1,52 @@
+# Fly.io ignore - reduce build context
+# CRITICAL: Exclude Ollama model blobs (12GB+)
+pkg/llm/ollama/blobs/
+pkg/llm/ollama/models/
+pkg/llm/mock/
+**/blobs/
+**/*.gguf
+**/*.safetensors
+**/*.bin
+
+# Large directories not needed for deployment
+.git/
+node_modules/
+bin/
+dist/
+build/
+souhimbou_ai/
+ironbank-upload/
+adinkhepra-asaf-ironbank/
+adinkhepra-telemetry-server/
+tools/
+deploy/
+deploy-vercel/
+aws-govcloud/
+data/
+docs/
+keys/
+telemetry-keys/
+.venv/
+venv/
+__pycache__/
+.next/
+out/
+memory/
+tests/
+public/
+src/
+
+# Large binaries
+*.exe
+*.dll
+*.so
+*.dylib
+*.db
+*.sqlite
+*.pem
+*.key
+*.log
+*.tmp
+*.tar
+*.tar.gz
+*.zip
