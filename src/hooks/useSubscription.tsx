@@ -54,7 +54,7 @@ export const useSubscription = () => {
     }
   };
 
-  const createCheckout = async (plan: 'trailblazer_plus' | 'basic' | 'standard' | 'premium' = 'trailblazer_plus') => {
+  const createCheckout = async (plan: 'KHEPRI' | 'RA' | 'ATUM' | 'trailblazer_plus' | 'khepri' | 'ra' | 'atum' = 'KHEPRI') => {
     if (!user) throw new Error('User not authenticated');
 
     try {
@@ -112,9 +112,13 @@ export const useSubscription = () => {
     openCustomerPortal,
     hasFeatureAccess: (feature: string) => {
       if (!status.subscribed) return false;
-      if (status.subscription_tier === 'Premium') return true;
-      if (status.subscription_tier === 'Standard' && feature !== 'advanced-ai') return true;
-      if (status.subscription_tier === 'Basic' && ['basic-security', 'basic-monitoring'].includes(feature)) return true;
+      const tier = status.subscription_tier?.toUpperCase();
+      // OSIRIS / ATUM — full access
+      if (tier === 'OSIRIS' || tier === 'ATUM') return true;
+      // RA — all except enterprise-only features
+      if (tier === 'RA') return feature !== 'air-gapped' && feature !== 'hsm';
+      // KHEPRI — core features only
+      if (tier === 'KHEPRI') return ['pqc-scanning', 'basic-security', 'basic-monitoring', 'pdf-reports'].includes(feature);
       return false;
     }
   };
