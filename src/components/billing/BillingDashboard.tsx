@@ -29,73 +29,91 @@ const BillingDashboard = () => {
 
   const plans = [
     {
-      id: "trailblazer_beta",
-      name: "Trailblazer Beta",
-      price: "Free",
-      tier: "trailblazer_beta",
-      description: "Basic cybersecurity features - always free",
+      id: "KHEPRI",
+      name: "KHEPRI",
+      price: "$50",
+      tier: "KHEPRI",
+      description: "Entry-level PQC security for small teams",
       icon: Zap,
       features: [
-        "Basic threat monitoring", 
-        "Security event alerts",
-        "Compliance dashboard", 
+        "10 nodes • 1 user",
+        "500 API calls/day",
+        "PQC scanning",
+        "AdinKhepra read-only audit",
+        "PDF compliance reports",
         "Community support",
-        "Core integrations"
       ],
       color: "blue",
-      isFree: true
     },
     {
-      id: "trailblazer_plus", 
-      name: "Trailblazer Plus",
-      price: "$19",
-      tier: "trailblazer_plus",
-      description: "Enhanced features and customization",
+      id: "RA",
+      name: "RA",
+      price: "$500",
+      tier: "RA",
+      description: "Team-scale security with automated remediation",
       icon: Crown,
       features: [
-        "All Beta features",
-        "Custom security dashboards",
-        "Daily/weekly automated reminders", 
-        "Grace Mode - flexible compliance",
-        "Priority email support",
-        "Advanced integrations"
+        "100 nodes • 5 users",
+        "1,000 API calls/day",
+        "All KHEPRI features",
+        "Automated remediation",
+        "CMMC L2 audit trails",
+        "API access",
+        "Priority support",
       ],
       color: "purple",
-      popular: true
+      popular: true,
     },
     {
-      id: "enterprise",
-      name: "Enterprise",
-      price: "Contact Sales",
-      tier: "enterprise",
-      description: "Full platform with custom deployment options",
+      id: "ATUM",
+      name: "ATUM",
+      price: "$2,000",
+      tier: "ATUM",
+      description: "Enterprise-scale with advanced heuristics",
       icon: Building2,
       features: [
-        "Everything in Plus",
-        "M-XDR Core platform",
-        "SOAR automation", 
-        "AI-powered threat hunting",
-        "Dedicated enclave/on-prem",
-        "FedRAMP/FIPS compliance",
-        "24/7 dedicated support",
-        "Custom SLAs"
+        "1,000 nodes • 25 users",
+        "Unlimited API calls",
+        "All RA features",
+        "Advanced heuristic scanning",
+        "Dedicated account manager",
+        "Custom lattice config",
       ],
-      color: "gold"
-    }
+      color: "gold",
+    },
+    {
+      id: "OSIRIS",
+      name: "OSIRIS",
+      price: "Custom",
+      tier: "OSIRIS",
+      description: "Air-gapped / classified / unlimited scale",
+      icon: Building2,
+      features: [
+        "Unlimited nodes & users",
+        "Air-gapped deployment",
+        "Iron Bank containers",
+        "HSM hardware anchor",
+        "TS/SCI clearance support",
+        "24/7 critical response",
+        "Custom SLAs",
+      ],
+      color: "gold",
+      isEnterprise: true,
+    },
   ];
 
-  const handleUpgrade = async (planTier: 'trailblazer_plus') => {
+  const handleUpgrade = async (planTier: string) => {
     try {
-      await createCheckout(planTier);
+      await createCheckout(planTier as any);
       toast({
         title: "Redirecting to checkout",
         description: "Opening Stripe checkout in a new tab...",
       });
     } catch (error: any) {
       toast({
-        title: "Error", 
+        title: "Error",
         description: error.message || "Failed to create checkout session",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
@@ -229,25 +247,24 @@ const BillingDashboard = () => {
 
                 <Button
                   onClick={() => {
-                    if (plan.isFree) return; // Can't upgrade to free plan
                     if (isCurrentPlan) return handleManageSubscription();
-                    if (plan.tier === 'enterprise') return setContactOpen(true);
-                    if (plan.tier === 'trailblazer_plus') return handleUpgrade('trailblazer_plus');
+                    if ((plan as any).isEnterprise) return setContactOpen(true);
+                    return handleUpgrade(plan.tier);
                   }}
                   className={`w-full ${
-                    plan.isFree
-                      ? "bg-slate-600 text-slate-400 cursor-default"
-                      : plan.popular 
-                      ? "bg-yellow-600 hover:bg-yellow-700" 
+                    plan.popular
+                      ? "bg-yellow-600 hover:bg-yellow-700"
                       : isCurrentPlan
                       ? "bg-green-600 hover:bg-green-700"
                       : "bg-blue-600 hover:bg-blue-700"
                   }`}
-                  disabled={loading || plan.isFree}
+                  disabled={loading}
                 >
-                  {plan.isFree ? "Current Plan" : 
-                   isCurrentPlan ? "Manage Plan" : 
-                   (plan.tier === 'enterprise' ? 'Contact Sales' : `Upgrade to ${plan.name}`)}
+                  {isCurrentPlan
+                    ? "Manage Plan"
+                    : (plan as any).isEnterprise
+                    ? "Contact Sales"
+                    : `Upgrade to ${plan.name}`}
                 </Button>
               </CardContent>
             </Card>

@@ -91,8 +91,22 @@ export const useTrialStatus = () => {
   };
 
   const canAccessFeature = (featureType: 'basic' | 'customization' | 'reminders' | 'grace_mode' | 'premium' | 'enterprise') => {
-    // No free access - all features require subscription
-    return subscribed;
+    // Authenticated users always get basic access (free tier)
+    if (featureType === 'basic') return !!user;
+
+    // Paid tiers only
+    if (!subscribed) return false;
+
+    const tier = subscription_tier?.toUpperCase();
+
+    // Enterprise features require ATUM or OSIRIS
+    if (featureType === 'enterprise') return tier === 'ATUM' || tier === 'OSIRIS';
+
+    // Premium features require RA, ATUM, or OSIRIS
+    if (featureType === 'premium') return tier === 'RA' || tier === 'ATUM' || tier === 'OSIRIS';
+
+    // customization / reminders / grace_mode — any paid tier
+    return true;
   };
 
   return {
