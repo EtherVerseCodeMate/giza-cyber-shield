@@ -45,7 +45,7 @@ export const NetworkTopology = () => {
         id: asset.id,
         name: asset.target,
         status: asset.compliance_status === 'COMPLIANT' ? 'connected' : 'disconnected',
-        latency: Math.floor(Math.random() * 50) + 5 + 'ms', // Simulated for now
+        latency: 'N/A', // Requires network monitoring agent — not available from browser
         encryption: 'TLS 1.3',
         location: (asset.discovery_results as any)?.location || 'Unknown',
         last_seen: asset.last_updated

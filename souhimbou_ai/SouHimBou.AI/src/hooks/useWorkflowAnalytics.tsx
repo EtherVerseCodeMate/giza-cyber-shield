@@ -36,7 +36,7 @@ export const useWorkflowAnalytics = () => {
   const [events, setEvents] = useState<WorkflowEvent[]>([]);
   const [patterns, setPatterns] = useState<WorkflowPattern[]>([]);
   const [insights, setInsights] = useState<HeuristicInsight[]>([]);
-  const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  const [sessionId] = useState(() => `session_${Date.now()}_${crypto.randomUUID().replace(/-/g, '').substr(0, 9)}`);
 
   // Track user interactions
   const trackEvent = useCallback((
@@ -46,7 +46,7 @@ export const useWorkflowAnalytics = () => {
     metadata: Record<string, any> = {}
   ) => {
     const event: WorkflowEvent = {
-      id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `event_${Date.now()}_${crypto.randomUUID().replace(/-/g, '').substr(0, 9)}`,
       elementType,
       action,
       timestamp: Date.now(),
