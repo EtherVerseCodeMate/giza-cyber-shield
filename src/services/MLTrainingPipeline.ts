@@ -147,7 +147,7 @@ export class MLTrainingPipeline {
         .from('ml_training_datasets')
         .update({
           model_metadata: {
-            ...(dataset.model_metadata as any),
+            ...dataset.model_metadata,
             latest_training_result: {
               ...mockTrainingResult,
               training_duration_ms: trainingDuration,
@@ -216,10 +216,24 @@ export class MLTrainingPipeline {
         return [];
       }
 
-      // TODO: Run actual inference using the trained model
-      // This requires a real ML serving backend (TensorFlow Serving, ONNX Runtime, etc.)
-      console.warn('[MLTrainingPipeline] ML inference engine not configured. Returning empty insights.');
-      return [];
+      // Run inference via the ml-inference-proxy edge function which calls the
+      // Python SouHimBou anomaly service (/predict endpoint).
+      const { data: inferenceResult, error: inferenceError } = await supabase.functions.invoke(
+        'ml-inference-proxy',
+        {
+          body: {
+            organization_id: organizationId,
+            model_id: modelId,
+            input_data: inputData,
+          },
+        },
+      );
+
+      if (inferenceError) {
+        throw new Error(`ML inference failed: ${inferenceError.message}`);
+      }
+
+      return (inferenceResult?.insights as PredictiveInsight[]) ?? [];
     } catch (error) {
       console.error('Predictive insights generation failed:', error);
       throw error;
@@ -278,7 +292,7 @@ export class MLTrainingPipeline {
   /**
    * Private helper methods
    */
-  private static async collectTrainingData(organizationId: string, config: any) {
+  private static async collectTrainingData(organizationId: string, _config: any) {
     // Query real data from Supabase tables
     const { data: complianceData } = await supabase
       .from('discovered_assets')

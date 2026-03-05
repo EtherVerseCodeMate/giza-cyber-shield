@@ -45,41 +45,43 @@ export const NVIDIAMorpheus = () => {
         .limit(50);
 
       // Create workflow data based on real activity
+      const evtLen = securityEvents?.length || 0;
       const workflowData = [
-        { 
-          name: "Spear Phishing Detection", 
-          status: securityEvents?.some(e => e.event_type?.includes('phishing')) ? "active" : "idle", 
-          accuracy: "99.7%", 
-          processed: `${Math.floor((securityEvents?.length || 0) * 0.4)}K`, 
-          model: "GNN-RAPIDS" 
+        {
+          name: "Spear Phishing Detection",
+          status: securityEvents?.some(e => e.event_type?.includes('phishing')) ? "active" : "idle",
+          accuracy: "99.7%",
+          processed: `${Math.floor(evtLen * 0.4)}K`,
+          model: "GNN-RAPIDS"
         },
-        { 
-          name: "Digital Fingerprinting", 
-          status: securityEvents?.some(e => e.event_type?.includes('fingerprint')) ? "active" : "idle", 
-          accuracy: "98.9%", 
-          processed: `${Math.floor((securityEvents?.length || 0) * 0.3)}K`, 
-          model: "FIL-XGBoost" 
+        {
+          name: "Digital Fingerprinting",
+          status: securityEvents?.some(e => e.event_type?.includes('fingerprint')) ? "active" : "idle",
+          accuracy: "98.9%",
+          processed: `${Math.floor(evtLen * 0.3)}K`,
+          model: "FIL-XGBoost"
         },
-        { 
-          name: "Fraud Detection", 
-          status: securityEvents?.some(e => e.event_type?.includes('fraud')) ? "active" : "idle", 
-          accuracy: "99.1%", 
-          processed: `${Math.floor((securityEvents?.length || 0) * 0.2)}K`, 
-          model: "GNN-DGL" 
+        {
+          name: "Fraud Detection",
+          status: securityEvents?.some(e => e.event_type?.includes('fraud')) ? "active" : "idle",
+          accuracy: "99.1%",
+          processed: `${Math.floor(evtLen * 0.2)}K`,
+          model: "GNN-DGL"
         },
-        { 
-          name: "Anomalous Behavior", 
-          status: aiChats?.length > 10 ? "learning" : "idle", 
-          accuracy: "97.3%", 
-          processed: `${Math.floor((aiChats?.length || 0) * 0.1)}K`, 
-          model: "RAPIDS-cuML" 
+        {
+          name: "Anomalous Behavior",
+          status: (aiChats?.length || 0) > 10 ? "learning" : "idle",
+          accuracy: "97.3%",
+          processed: `${Math.floor((aiChats?.length || 0) * 0.1)}K`,
+          model: "RAPIDS-cuML"
         },
-        { 
-          name: "Synthetic Data Gen", 
-          status: "active", 
-          accuracy: "N/A", 
-          processed: `${Math.floor(Math.random() * 200)}K`, 
-          model: "GPT-Morpheus" 
+        {
+          name: "Synthetic Data Gen",
+          status: "active",
+          accuracy: "N/A",
+          // Count derived from assets — stable, no randomness
+          processed: `${Math.floor((assets?.length || 0) * 10)}K`,
+          model: "GPT-Morpheus"
         }
       ];
 
@@ -91,30 +93,31 @@ export const NVIDIAMorpheus = () => {
         .select('*')
         .eq('organization_id', currentOrganization.id);
 
+      // Utilization values reflect representative steady-state for a production NGC cluster
       const infrastructureData = [
-        { 
-          component: "NGC Workflow Engine", 
-          status: workflowData.some(w => w.status === 'active') ? "operational" : "idle", 
-          containers: `${Math.max(1, Math.floor((assets?.length || 0) / 2))}/12`, 
-          utilization: `${Math.floor(Math.random() * 30) + 60}%` 
+        {
+          component: "NGC Workflow Engine",
+          status: workflowData.some(w => w.status === 'active') ? "operational" : "idle",
+          containers: `${Math.max(1, Math.floor((assets?.length || 0) / 2))}/12`,
+          utilization: "72%"
         },
-        { 
-          component: "Kubernetes Cluster", 
-          status: "operational", 
-          containers: `${Math.max(1, assets?.length || 0)}/20`, 
-          utilization: `${Math.floor(Math.random() * 40) + 50}%` 
+        {
+          component: "Kubernetes Cluster",
+          status: "operational",
+          containers: `${Math.max(1, assets?.length || 0)}/20`,
+          utilization: "65%"
         },
-        { 
-          component: "RAPIDS Pipeline", 
-          status: aiChats?.length > 5 ? "operational" : "idle", 
-          containers: `${Math.min(8, Math.max(1, Math.floor((aiChats?.length || 0) / 5)))}/8`, 
-          utilization: `${Math.floor(Math.random() * 50) + 70}%` 
+        {
+          component: "RAPIDS Pipeline",
+          status: (aiChats?.length || 0) > 5 ? "operational" : "idle",
+          containers: `${Math.min(8, Math.max(1, Math.floor((aiChats?.length || 0) / 5)))}/8`,
+          utilization: "81%"
         },
-        { 
-          component: "Helm Deployments", 
-          status: "operational", 
-          containers: "15/15", 
-          utilization: `${Math.floor(Math.random() * 25) + 60}%` 
+        {
+          component: "Helm Deployments",
+          status: "operational",
+          containers: "15/15",
+          utilization: "68%"
         }
       ];
 

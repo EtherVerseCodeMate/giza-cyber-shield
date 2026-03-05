@@ -83,7 +83,7 @@ const ZeroTrustRiskAssessment = () => {
       const { data, error } = await supabase
         .from('zero_trust_risk_assessments')
         .select('*')
-        .eq('organization_id', currentOrganization.id)
+        .eq('organization_id', currentOrganization.organization_id)
         .eq('status', 'active')
         .order('assessment_timestamp', { ascending: false })
         .limit(50);
@@ -153,7 +153,7 @@ const ZeroTrustRiskAssessment = () => {
         await supabase
           .from('zero_trust_risk_assessments')
           .insert([{
-            organization_id: currentOrganization.id,
+            organization_id: currentOrganization.organization_id,
             assessment_type: type,
             subject_id: type === 'user' ? user.id : `${type}_assessment_${Date.now()}`,
             overall_risk_score: assessment.overallRiskScore,
@@ -186,23 +186,56 @@ const ZeroTrustRiskAssessment = () => {
   };
 
   const generateRiskAssessment = async (type: string) => {
-    // Simulate different risk assessment types
-    const baseRisk = Math.floor(Math.random() * 40) + 10; // 10-50 base risk
-    
+    if (!currentOrganization) throw new Error('No organization context');
+    const orgId = currentOrganization.organization_id;
+
+    // Pull real signal data to drive scores
+    const [eventsRes, assetsRes, complianceRes] = await Promise.all([
+      supabase
+        .from('security_events')
+        .select('severity, resolved, event_type')
+        .eq('organization_id', orgId)
+        .eq('resolved', false)
+        .limit(100),
+      supabase
+        .from('infrastructure_assets')
+        .select('id, status, asset_type')
+        .eq('organization_id', orgId)
+        .limit(100),
+      supabase
+        .from('compliance_assessments')
+        .select('score')
+        .eq('organization_id', orgId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+    ]);
+
+    const openEvents = eventsRes.data || [];
+    const assets = assetsRes.data || [];
+    const latestScore = complianceRes.data?.[0]?.score ?? 85;
+
+    const criticalCount = openEvents.filter(e => e.severity === 'critical').length;
+    const highCount = openEvents.filter(e => e.severity === 'high').length;
+    const unhealthyAssets = assets.filter(a => a.status !== 'active').length;
+
+    // Derive a bounded base risk from real signals (10–50 range)
+    const baseRisk = Math.min(50, 10 + criticalCount * 8 + highCount * 3 + unhealthyAssets * 2);
+    const complianceScore = Math.round(latestScore);
+
     const assessmentData = {
       user: {
         overallRiskScore: baseRisk,
-        vulnerabilityScore: Math.floor(Math.random() * 30) + 10,
-        complianceScore: Math.floor(Math.random() * 20) + 80,
+        vulnerabilityScore: Math.min(40, 10 + highCount * 3),
+        complianceScore,
         riskCategories: {
-          authentication: Math.floor(Math.random() * 20) + 10,
-          session_behavior: Math.floor(Math.random() * 30) + 5,
-          access_patterns: Math.floor(Math.random() * 25) + 15,
-          privilege_usage: Math.floor(Math.random() * 20) + 20
+          authentication: Math.min(30, 10 + criticalCount * 5),
+          session_behavior: Math.min(35, 5 + highCount * 4),
+          access_patterns: 20,
+          privilege_usage: Math.min(40, 20 + criticalCount * 3)
         },
         threatIndicators: [
           { type: 'unusual_login_times', severity: 'low' },
-          { type: 'multiple_locations', severity: 'medium' }
+          { type: 'multiple_locations', severity: criticalCount > 0 ? 'high' : 'medium' }
         ],
         behavioralAnomalies: [
           { anomaly: 'login_pattern_change', confidence: 0.7 }
@@ -215,17 +248,17 @@ const ZeroTrustRiskAssessment = () => {
       },
       device: {
         overallRiskScore: baseRisk + 5,
-        vulnerabilityScore: Math.floor(Math.random() * 40) + 20,
-        complianceScore: Math.floor(Math.random() * 15) + 85,
+        vulnerabilityScore: Math.min(60, 20 + unhealthyAssets * 5),
+        complianceScore: Math.min(100, complianceScore + 5),
         riskCategories: {
-          os_security: Math.floor(Math.random() * 25) + 15,
-          patch_status: Math.floor(Math.random() * 30) + 10,
-          encryption: Math.floor(Math.random() * 20) + 5,
-          malware_protection: Math.floor(Math.random() * 15) + 10
+          os_security: Math.min(40, 15 + unhealthyAssets * 4),
+          patch_status: Math.min(40, 10 + criticalCount * 5),
+          encryption: 10,
+          malware_protection: 15
         },
         threatIndicators: [
           { type: 'outdated_os', severity: 'medium' },
-          { type: 'missing_patches', severity: 'high' }
+          { type: 'missing_patches', severity: criticalCount > 2 ? 'critical' : 'high' }
         ],
         behavioralAnomalies: [
           { anomaly: 'unusual_network_activity', confidence: 0.8 }
@@ -238,16 +271,16 @@ const ZeroTrustRiskAssessment = () => {
       },
       network: {
         overallRiskScore: Math.max(10, baseRisk - 10),
-        vulnerabilityScore: Math.floor(Math.random() * 25) + 15,
-        complianceScore: Math.floor(Math.random() * 10) + 90,
+        vulnerabilityScore: Math.min(40, 15 + highCount * 2),
+        complianceScore: Math.min(100, complianceScore + 8),
         riskCategories: {
-          segmentation: Math.floor(Math.random() * 20) + 5,
-          traffic_monitoring: Math.floor(Math.random() * 15) + 10,
-          access_controls: Math.floor(Math.random() * 25) + 15,
-          threat_detection: Math.floor(Math.random() * 20) + 20
+          segmentation: 10,
+          traffic_monitoring: 15,
+          access_controls: Math.min(40, 15 + criticalCount * 4),
+          threat_detection: Math.min(40, 20 + highCount * 2)
         },
         threatIndicators: [
-          { type: 'suspicious_traffic', severity: 'low' },
+          { type: 'suspicious_traffic', severity: criticalCount > 0 ? 'medium' : 'low' },
           { type: 'unauthorized_protocols', severity: 'medium' }
         ],
         behavioralAnomalies: [],
@@ -259,13 +292,13 @@ const ZeroTrustRiskAssessment = () => {
       },
       application: {
         overallRiskScore: baseRisk + 10,
-        vulnerabilityScore: Math.floor(Math.random() * 35) + 25,
-        complianceScore: Math.floor(Math.random() * 25) + 75,
+        vulnerabilityScore: Math.min(65, 25 + openEvents.length),
+        complianceScore: Math.max(60, complianceScore - 5),
         riskCategories: {
-          code_security: Math.floor(Math.random() * 30) + 20,
-          dependency_vulnerabilities: Math.floor(Math.random() * 40) + 30,
-          access_controls: Math.floor(Math.random() * 25) + 15,
-          data_handling: Math.floor(Math.random() * 20) + 10
+          code_security: 25,
+          dependency_vulnerabilities: Math.min(70, 30 + criticalCount * 5),
+          access_controls: 20,
+          data_handling: 15
         },
         threatIndicators: [
           { type: 'vulnerable_dependencies', severity: 'high' },
@@ -282,16 +315,16 @@ const ZeroTrustRiskAssessment = () => {
       },
       data: {
         overallRiskScore: baseRisk + 15,
-        vulnerabilityScore: Math.floor(Math.random() * 30) + 30,
-        complianceScore: Math.floor(Math.random() * 20) + 80,
+        vulnerabilityScore: Math.min(65, 30 + criticalCount * 5),
+        complianceScore: Math.max(70, complianceScore - 3),
         riskCategories: {
-          classification: Math.floor(Math.random() * 25) + 20,
-          encryption: Math.floor(Math.random() * 20) + 15,
-          access_monitoring: Math.floor(Math.random() * 30) + 25,
-          backup_security: Math.floor(Math.random() * 15) + 10
+          classification: 25,
+          encryption: 20,
+          access_monitoring: Math.min(55, 25 + highCount * 4),
+          backup_security: 15
         },
         threatIndicators: [
-          { type: 'unclassified_sensitive_data', severity: 'high' },
+          { type: 'unclassified_sensitive_data', severity: criticalCount > 0 ? 'critical' : 'high' },
           { type: 'excessive_access_permissions', severity: 'medium' }
         ],
         behavioralAnomalies: [
