@@ -134,13 +134,18 @@ export default {
 					'50%': { transform: 'translateY(-10px)' }
 				}
 			},
+		backgroundImage: {
+				'gradient-primary': 'var(--gradient-primary)',
+				'gradient-cyber': 'var(--gradient-cyber)',
+				'gradient-dark': 'var(--gradient-dark)',
+			},
 			animation: {
-				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out',
-				'pulse-slow': 'pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-				'pulse-glow': 'pulse-glow 2s ease-in-out infinite',
-				'float': 'float 6s ease-in-out infinite'
-			}
+			'accordion-down': 'accordion-down 0.2s ease-out',
+			'accordion-up': 'accordion-up 0.2s ease-out',
+			'pulse-slow': 'pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+			'pulse-glow': 'pulse-glow 2s ease-in-out infinite',
+			'float': 'float 6s ease-in-out infinite'
+		}
 		}
 	},
 	plugins: [require("tailwindcss-animate")],

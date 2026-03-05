@@ -36,11 +36,13 @@ import { AutomatedThreatHunting } from '@/components/AutomatedThreatHunting';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useNavigate } from 'react-router-dom';
 
 export const SecurityDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
+  const navigate = useNavigate();
 
   // Real security metrics
   const [securityMetrics, setSecurityMetrics] = useState({
@@ -104,7 +106,7 @@ export const SecurityDashboard = () => {
 
       setSecurityMetrics({
         mfaEnabled: mfaPercentage,
-        activeSessions: Math.floor(Math.random() * 15) + 5, // Would be real session count
+        activeSessions: 0, // TODO: implement via RPC or server-side session table
         securityEvents: eventsCount || 0,
         complianceScore: Math.round(complianceScore),
         criticalAlerts: criticalCount || 0,
@@ -206,7 +208,7 @@ export const SecurityDashboard = () => {
                 {
                   label: "MFA Documentation",
                   description: "Learn about MFA best practices",
-                  action: () => window.open('/docs/mfa', '_blank'),
+                  action: () => setActiveTab('mfa'),
                   icon: <BookOpen className="h-3 w-3" />,
                   type: 'link'
                 }
@@ -254,7 +256,7 @@ export const SecurityDashboard = () => {
                 {
                   label: "Session Policies",
                   description: "Configure session timeout settings",
-                  action: () => window.open('/docs/sessions', '_blank'),
+                  action: () => setActiveTab('sessions'),
                   icon: <Settings className="h-3 w-3" />,
                   type: 'link'
                 }
@@ -463,7 +465,7 @@ export const SecurityDashboard = () => {
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div 
                     className="p-4 border rounded-lg hover:bg-muted/20 transition-colors cursor-pointer"
-                    onClick={() => window.open('/enterprise/stig-dashboard', '_blank')}
+                    onClick={() => navigate('/stig-dashboard')}
                   >
                     <div className="flex items-center space-x-3">
                       <CheckCircle2 className="h-5 w-5 text-success" />
@@ -475,7 +477,7 @@ export const SecurityDashboard = () => {
                   </div>
                   <div 
                     className="p-4 border rounded-lg hover:bg-muted/20 transition-colors cursor-pointer"
-                    onClick={() => window.open('/enterprise/remediation-engine', '_blank')}
+                    onClick={() => navigate('/asset-scanning')}
                   >
                     <div className="flex items-center space-x-3">
                       <Activity className="h-5 w-5 text-primary" />
@@ -487,7 +489,7 @@ export const SecurityDashboard = () => {
                   </div>
                   <div 
                     className="p-4 border rounded-lg hover:bg-muted/20 transition-colors cursor-pointer"
-                    onClick={() => window.open('/enterprise/evidence-collection', '_blank')}
+                    onClick={() => navigate('/evidence-collection')}
                   >
                     <div className="flex items-center space-x-3">
                       <FileText className="h-5 w-5 text-info" />
@@ -504,8 +506,8 @@ export const SecurityDashboard = () => {
             {/* Enterprise Dashboards Navigation */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card 
-                className="card-cyber cursor-pointer hover:shadow-lg transition-all duration-300"
-                onClick={() => window.open('/enterprise/stig-dashboard', '_blank')}
+              className="card-cyber cursor-pointer hover:shadow-lg transition-all duration-300"
+                onClick={() => navigate('/stig-dashboard')}
               >
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
@@ -526,8 +528,8 @@ export const SecurityDashboard = () => {
               </Card>
 
               <Card 
-                className="card-cyber cursor-pointer hover:shadow-lg transition-all duration-300"
-                onClick={() => window.open('/enterprise/cmmc-dashboard', '_blank')}
+              className="card-cyber cursor-pointer hover:shadow-lg transition-all duration-300"
+                onClick={() => navigate('/compliance-reports')}
               >
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
