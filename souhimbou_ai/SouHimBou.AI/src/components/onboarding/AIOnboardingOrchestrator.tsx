@@ -5,14 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Brain, 
-  MessageSquare, 
-  Scan, 
-  Network, 
-  Shield, 
-  CheckCircle, 
-  ArrowRight, 
+import {
+  Brain,
+  MessageSquare,
+  Scan,
+  Network,
+  Shield,
+  CheckCircle,
+  ArrowRight,
   Loader2,
   Bot,
   Target,
@@ -171,50 +171,20 @@ const AIOnboardingOrchestrator: React.FC<AIOnboardingOrchestratorProps> = ({ onC
 
       if (discoveryError) throw discoveryError;
 
-      const mockAssets: DiscoveredAsset[] = [
-        {
-          id: '1',
-          name: 'Windows Server 2022',
-          type: 'server',
-          status: 'active',
-          riskLevel: 'medium',
-          stigPackages: ['Windows_Server_2022_STIG', 'IIS_10_STIG'],
-          complianceScore: 75,
-          evidence: []
-        },
-        {
-          id: '2',
-          name: 'AWS API Gateway',
-          type: 'api',
-          status: 'active',
-          riskLevel: 'low',
-          stigPackages: ['AWS_Security_Framework'],
-          complianceScore: 88,
-          evidence: []
-        },
-        {
-          id: '3',
-          name: 'MongoDB Atlas',
-          type: 'database',
-          status: 'active',
-          riskLevel: 'high',
-          stigPackages: ['MongoDB_STIG', 'Database_Security_STIG'],
-          complianceScore: 62,
-          evidence: []
-        }
-      ];
+      // Awaiting telemetry for real discovered assets
+      const pendingAssets: DiscoveredAsset[] = [];
 
-      setDiscoveredAssets(mockAssets);
+      setDiscoveredAssets(pendingAssets);
       setCurrentPhase('analysis');
 
       addAIMessage(
-        `Excellent! I've discovered ${mockAssets.length} assets in your environment. I found potential compliance gaps that need attention. Let me analyze the STIG requirements for each asset.`,
-        { discoveredAssets: mockAssets }
+        `Discovery in progress. Awaiting telemetry. I'll analyze the STIG requirements next.`,
+        { discoveredAssets: pendingAssets }
       );
 
       // Auto-proceed to analysis
       setTimeout(() => {
-        performSTIGAnalysis(mockAssets);
+        performSTIGAnalysis(pendingAssets);
       }, 2000);
 
     } catch (error: any) {
@@ -273,9 +243,9 @@ const AIOnboardingOrchestrator: React.FC<AIOnboardingOrchestratorProps> = ({ onC
           <span className="font-medium">{asset.name}</span>
         </div>
         <Badge variant={
-          asset.riskLevel === 'low' ? 'default' : 
-          asset.riskLevel === 'medium' ? 'secondary' : 
-          'destructive'
+          asset.riskLevel === 'low' ? 'default' :
+            asset.riskLevel === 'medium' ? 'secondary' :
+              'destructive'
         }>
           {asset.riskLevel} risk
         </Badge>
@@ -315,7 +285,7 @@ const AIOnboardingOrchestrator: React.FC<AIOnboardingOrchestratorProps> = ({ onC
                 <div className={`
                   w-10 h-10 rounded-full flex items-center justify-center
                   ${phases.findIndex(p => p.id === currentPhase) >= index
-                    ? 'bg-blue-500 text-white' 
+                    ? 'bg-blue-500 text-white'
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
                   }
                 `}>
@@ -324,8 +294,8 @@ const AIOnboardingOrchestrator: React.FC<AIOnboardingOrchestratorProps> = ({ onC
                 {index < phases.length - 1 && (
                   <div className={`
                     w-16 h-0.5 mx-2
-                    ${phases.findIndex(p => p.id === currentPhase) > index 
-                      ? 'bg-blue-500' 
+                    ${phases.findIndex(p => p.id === currentPhase) > index
+                      ? 'bg-blue-500'
                       : 'bg-gray-200 dark:bg-gray-700'
                     }
                   `} />
@@ -360,8 +330,8 @@ const AIOnboardingOrchestrator: React.FC<AIOnboardingOrchestratorProps> = ({ onC
                   >
                     <div className={`
                       max-w-xs p-3 rounded-lg text-sm
-                      ${message.type === 'user' 
-                        ? 'bg-blue-500 text-white' 
+                      ${message.type === 'user'
+                        ? 'bg-blue-500 text-white'
                         : 'bg-white dark:bg-gray-700 border'
                       }
                     `}>
@@ -387,7 +357,7 @@ const AIOnboardingOrchestrator: React.FC<AIOnboardingOrchestratorProps> = ({ onC
                   placeholder="Type your response..."
                   disabled={isProcessing}
                 />
-                <Button 
+                <Button
                   onClick={() => processUserInput(userInput)}
                   disabled={isProcessing || !userInput.trim()}
                 >
@@ -415,9 +385,9 @@ const AIOnboardingOrchestrator: React.FC<AIOnboardingOrchestratorProps> = ({ onC
                   discoveredAssets.map(renderAssetCard)
                 )}
               </div>
-              
+
               {discoveredAssets.length > 0 && currentPhase === 'complete' && (
-                <Button 
+                <Button
                   onClick={() => onComplete(discoveredAssets)}
                   className="w-full mt-4"
                 >
