@@ -8,10 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useDeploymentProfiles } from '@/hooks/useDeploymentProfiles';
-import { 
-  Shield, 
-  Settings, 
-  TrendingUp, 
+import {
+  Shield,
+  Settings,
+  TrendingUp,
   Users,
   AlertTriangle,
   Loader2
@@ -21,7 +21,7 @@ import { IndustryType } from '@/types/deployment';
 const DeploymentManagementHome = () => {
   const { profile } = useUserProfile();
   const [selectedOrganization] = useState('org-1'); // Mock organization ID
-  
+
   const {
     deploymentSettings,
     trustMetrics,
@@ -30,48 +30,8 @@ const DeploymentManagementHome = () => {
     switchDeploymentProfile
   } = useDeploymentProfiles(selectedOrganization);
 
-  // Mock remediation actions data
-  const mockRemediationActions = [
-    {
-      id: '1',
-      stigRule: 'RHEL-08-010010',
-      title: 'Configure password complexity requirements',
-      description: 'Set minimum password length and complexity requirements',
-      riskLevel: 'medium' as const,
-      estimatedImpact: 'Low - affects new password creation only',
-      systemsAffected: ['web_servers', 'application_servers'],
-      automationDecision: 'auto_execute' as const,
-      trustScoreRequired: 75,
-      reasoning: 'Low risk configuration change with high success rate',
-      timeline: '2-5 minutes'
-    },
-    {
-      id: '2',
-      stigRule: 'RHEL-08-020030',
-      title: 'Disable unused network services',
-      description: 'Disable telnet, rsh, and other legacy network services',
-      riskLevel: 'high' as const,
-      estimatedImpact: 'Medium - may affect legacy applications',
-      systemsAffected: ['core_banking', 'payment_processing'],
-      automationDecision: 'requires_approval' as const,
-      trustScoreRequired: 90,
-      reasoning: 'High risk change affecting critical banking systems',
-      timeline: '10-15 minutes'
-    },
-    {
-      id: '3',
-      stigRule: 'RHEL-08-030010',
-      title: 'Configure audit log retention',
-      description: 'Set audit log retention period to minimum 180 days',
-      riskLevel: 'low' as const,
-      estimatedImpact: 'Minimal - increases disk usage slightly',
-      systemsAffected: ['logging_systems'],
-      automationDecision: 'auto_execute' as const,
-      trustScoreRequired: 60,
-      reasoning: 'Low risk configuration with no service impact',
-      timeline: '1-2 minutes'
-    }
-  ];
+  // Awaiting real integration with remediation engine
+  const pendingActions: any[] = [];
 
   const tabs = [
     { id: 'deployment', title: 'Deployment Management', path: '/deployment', isActive: true },
@@ -108,7 +68,7 @@ const DeploymentManagementHome = () => {
 
   if (loading) {
     return (
-      <ConsoleLayout 
+      <ConsoleLayout
         currentSection="deployment"
         browserNav={{
           title: 'Deployment Management',
@@ -130,7 +90,7 @@ const DeploymentManagementHome = () => {
 
   if (!deploymentSettings || !trustMetrics) {
     return (
-      <ConsoleLayout 
+      <ConsoleLayout
         currentSection="deployment"
         browserNav={{
           title: 'Deployment Management',
@@ -158,7 +118,7 @@ const DeploymentManagementHome = () => {
   }
 
   return (
-    <ConsoleLayout 
+    <ConsoleLayout
       currentSection="deployment"
       browserNav={{
         title: 'Deployment Management',
@@ -204,7 +164,7 @@ const DeploymentManagementHome = () => {
               organizationId={selectedOrganization}
               deploymentProfile={deploymentSettings.activeProfile}
               currentTrustScore={trustMetrics.currentScore}
-              pendingActions={mockRemediationActions}
+              pendingActions={pendingActions}
               onApproveAction={handleApproveAction}
               onDenyAction={handleDenyAction}
               onExecuteAction={handleExecuteAction}
@@ -217,7 +177,7 @@ const DeploymentManagementHome = () => {
               industry={deploymentSettings.activeProfile.industry}
               currentTrustScore={trustMetrics.currentScore}
               successfulActions={trustMetrics.successfulActions}
-              daysInCurrentStage={30} // Mock data
+              daysInCurrentStage={0} // Awaiting real journey tracking
               onAdvanceStage={handleAdvanceStage}
               onCustomizeJourney={handleCustomizeJourney}
             />
@@ -234,13 +194,12 @@ const DeploymentManagementHome = () => {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {(['banking', 'enterprise', 'smb', 'government', 'healthcare'] as IndustryType[]).map((industry) => (
-                    <Card 
+                    <Card
                       key={industry}
-                      className={`cursor-pointer transition-all hover:shadow-md ${
-                        deploymentSettings.activeProfile.industry === industry 
-                          ? 'border-primary bg-primary/5' 
+                      className={`cursor-pointer transition-all hover:shadow-md ${deploymentSettings.activeProfile.industry === industry
+                          ? 'border-primary bg-primary/5'
                           : ''
-                      }`}
+                        }`}
                       onClick={() => switchDeploymentProfile(industry)}
                     >
                       <CardContent className="p-4">
