@@ -21,6 +21,7 @@ export const useUserAgreements = () => {
   const [agreements, setAgreements] = useState<UserAgreement[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasAcceptedAll, setHasAcceptedAll] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
   const { toast } = useToast();
 
   // Required agreement types based on Khepra LICENSE
@@ -61,21 +62,15 @@ export const useUserAgreements = () => {
       setHasAcceptedAll(allAccepted);
       return allAccepted;
     } catch (error: any) {
-      console.error('Error checking agreement status:', error);
-      // Only show toast for actual errors, not missing table
-      if (!error.message?.includes('relation') && !error.message?.includes('does not exist')) {
-        toast({
-          title: "Error",
-          description: "Failed to check agreement status. Please try again.",
-          variant: "destructive"
-        });
-      }
+      // Log silently — this runs in the background and should not surface a toast
+      console.error('[useUserAgreements] checkAgreementStatus error:', error);
       return false;
     }
   };
 
   // Fetch user's agreements
   const fetchAgreements = async () => {
+    setFetchError(false);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -95,15 +90,11 @@ export const useUserAgreements = () => {
       setAgreements(data || []);
       await checkAgreementStatus(user.id);
     } catch (error: any) {
-      console.error('Error fetching agreements:', error);
-      // Don't show toast on initial load if table doesn't exist yet
-      if (!error.message?.includes('relation') && !error.message?.includes('does not exist')) {
-        toast({
-          title: "Error",
-          description: "Failed to fetch agreement status",
-          variant: "destructive"
-        });
-      }
+      // Mark fetch as errored so ProtectedRoute won't force the terms modal open.
+      // This is a background fetch — do NOT surface a toast here; the user didn't
+      // trigger it and a destructive toast on page load causes unnecessary alarm.
+      setFetchError(true);
+      console.error('[useUserAgreements] fetchAgreements error:', error);
     } finally {
       setLoading(false);
     }
@@ -223,6 +214,7 @@ export const useUserAgreements = () => {
     agreements,
     loading,
     hasAcceptedAll,
+    fetchError,
     acceptAllAgreements,
     revokeAgreement,
     checkAgreementStatus,
