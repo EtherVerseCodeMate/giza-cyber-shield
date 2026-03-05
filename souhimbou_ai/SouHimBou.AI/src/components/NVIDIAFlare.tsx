@@ -51,8 +51,8 @@ export const NVIDIAFlare = () => {
           location: assets?.[0]?.target ? `Location-${assets[0].target.slice(-2)}` : "FOB Alpha",
           status: aiChats?.length > 10 ? "training" : "idle",
           clients: Math.max(4, Math.floor((aiChats?.length || 0) / 5)),
-          accuracy: `${Math.floor(Math.random() * 5) + 95}.${Math.floor(Math.random() * 10)}%`,
-          rounds: `${Math.floor(Math.random() * 10) + 40}/50`,
+          accuracy: 'N/A',
+          rounds: `${Math.min(aiChats?.length ?? 0, 50)}/50`,
           privacy: "Differential Privacy"
         },
         {
@@ -60,8 +60,8 @@ export const NVIDIAFlare = () => {
           location: assets?.[1]?.target ? `Location-${assets[1].target.slice(-2)}` : "Mobile Command",
           status: aiChats?.length > 5 ? "syncing" : "idle",
           clients: Math.max(6, Math.floor((aiChats?.length || 0) / 4)),
-          accuracy: `${Math.floor(Math.random() * 5) + 94}.${Math.floor(Math.random() * 10)}%`,
-          rounds: `${Math.floor(Math.random() * 10) + 35}/50`,
+          accuracy: 'N/A',
+          rounds: `${Math.min(Math.floor((aiChats?.length ?? 0) * 0.8), 50)}/50`,
           privacy: "Homomorphic Encryption"
         },
         {
@@ -69,8 +69,8 @@ export const NVIDIAFlare = () => {
           location: assets?.[2]?.target ? `Location-${assets[2].target.slice(-2)}` : "Air-Gapped Base",
           status: aiChats?.length > 15 ? "training" : "idle",
           clients: Math.max(3, Math.floor((aiChats?.length || 0) / 8)),
-          accuracy: `${Math.floor(Math.random() * 3) + 97}.${Math.floor(Math.random() * 10)}%`,
-          rounds: `${Math.floor(Math.random() * 8) + 42}/50`,
+          accuracy: 'N/A',
+          rounds: `${Math.min(Math.floor((aiChats?.length ?? 0) * 0.9), 50)}/50`,
           privacy: "Secure Aggregation"
         },
         {
@@ -78,8 +78,8 @@ export const NVIDIAFlare = () => {
           location: assets?.[3]?.target ? `Location-${assets[3].target.slice(-2)}` : "Edge Tactical",
           status: aiChats?.length > 20 ? "completed" : "training",
           clients: Math.max(2, Math.floor((aiChats?.length || 0) / 10)),
-          accuracy: `${Math.floor(Math.random() * 3) + 96}.${Math.floor(Math.random() * 10)}%`,
-          rounds: aiChats?.length > 20 ? "50/50" : `${Math.floor(Math.random() * 10) + 40}/50`,
+          accuracy: 'N/A',
+          rounds: aiChats?.length > 20 ? "50/50" : `${Math.min(Math.floor((aiChats?.length ?? 0) * 0.7), 50)}/50`,
           privacy: "PSI + DP"
         }
       ];
@@ -127,25 +127,25 @@ export const NVIDIAFlare = () => {
           name: "Threat Detection FL",
           progress: Math.min(100, Math.floor((aiChats?.length || 0) * 2)),
           participants: Math.max(2, Math.min(8, Math.floor((aiChats?.length || 0) / 3))),
-          accuracy: `${Math.floor(Math.random() * 3) + 97}.${Math.floor(Math.random() * 10)}%`
+          accuracy: 'N/A'
         },
         {
           name: "Behavioral Analysis FL",
           progress: Math.min(100, Math.floor((aiChats?.length || 0) * 1.5)),
           participants: Math.max(2, Math.min(6, Math.floor((aiChats?.length || 0) / 4))),
-          accuracy: `${Math.floor(Math.random() * 5) + 95}.${Math.floor(Math.random() * 10)}%`
+          accuracy: 'N/A'
         },
         {
           name: "Anomaly Detection FL",
           progress: Math.min(100, Math.floor((aiChats?.length || 0) * 3)),
           participants: Math.max(2, Math.min(4, Math.floor((aiChats?.length || 0) / 6))),
-          accuracy: `${Math.floor(Math.random() * 2) + 98}.${Math.floor(Math.random() * 10)}%`
+          accuracy: 'N/A'
         },
         {
           name: "Digital Fingerprint FL",
           progress: Math.min(100, Math.floor((aiChats?.length || 0) * 1.2)),
           participants: Math.max(3, Math.min(12, Math.floor((aiChats?.length || 0) / 2))),
-          accuracy: `${Math.floor(Math.random() * 4) + 94}.${Math.floor(Math.random() * 10)}%`
+          accuracy: 'N/A'
         }
       ];
 

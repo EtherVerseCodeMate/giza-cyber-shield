@@ -113,7 +113,8 @@ const InteractiveDemoVideo = () => {
       }
     ];
     
-    return responses[Math.floor(Math.random() * responses.length)];
+    // Deterministic selection based on input length — no random fabrication
+    return responses[input.length % responses.length];
   };
 
   const currentData = demoSteps[currentStep];

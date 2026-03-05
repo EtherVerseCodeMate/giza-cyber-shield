@@ -242,9 +242,11 @@ export const EnhancedMFAManager = () => {
     
     setLoading(true);
     try {
-      const codes = Array.from({ length: 5 }, () => 
-        Math.random().toString(36).substring(2, 10).toUpperCase()
-      );
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      const codes = Array.from({ length: 5 }, () => {
+        const randomBytes = crypto.getRandomValues(new Uint8Array(8));
+        return Array.from(randomBytes).map(b => chars[b % chars.length]).join('');
+      });
       
       await supabase
         .from('profiles')

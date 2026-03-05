@@ -119,7 +119,7 @@ export const ThreatIntelligenceOrchestrator = () => {
     setThreatIntel(prev => ({
       ...prev,
       lastSync: new Date(),
-      indicators: prev.indicators + Math.floor(Math.random() * 100)
+      indicators: prev.indicators // Real indicator count requires sync response metadata
     }));
 
     setSyncInProgress(false);
@@ -619,9 +619,9 @@ function generateMockMITRETechniques(): MITRETechnique[] {
     name: `Technique ${i + 1}`,
     tactic: tactics[i % tactics.length],
     description: `Sample technique description for T${1000 + i}`,
-    platforms: platforms.slice(0, Math.floor(Math.random() * 4) + 1),
-    detectionCoverage: Math.floor(Math.random() * 101),
-    mitigationStatus: ['none', 'partial', 'complete'][Math.floor(Math.random() * 3)] as any,
+    platforms: platforms.slice(0, (i % 4) + 1), // Deterministic slice based on index
+    detectionCoverage: 0, // Real coverage requires threat detection engine data
+    mitigationStatus: 'none' as any, // Real status requires threat intelligence database
     references: [`https://attack.mitre.org/techniques/T${1000 + i}`]
   }));
 }
@@ -632,14 +632,14 @@ function generateMockCVSSAssessments(): CVSSAssessment[] {
   
   return Array.from({ length: 15 }, (_, i) => ({
     cveId: `CVE-2024-${(1000 + i).toString()}`,
-    baseScore: Math.random() * 10,
+    baseScore: 0, // Real CVSS score requires NVD or vulnerability feed
     vector: `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`,
-    severity: severities[Math.floor(Math.random() * severities.length)],
+    severity: severities[i % severities.length], // Deterministic cycle through severities
     lastAssessed: new Date(),
     khepraAnalysis: {
-      culturalRisk: Math.floor(Math.random() * 101),
-      adinkraMapping: symbols[Math.floor(Math.random() * symbols.length)],
-      protocolRecommendation: `Apply ${symbols[Math.floor(Math.random() * symbols.length)]} transformation with enhanced monitoring`
+      culturalRisk: 0, // Real cultural risk requires Khepra analysis engine
+      adinkraMapping: symbols[i % symbols.length], // Deterministic cycle
+      protocolRecommendation: `Apply ${symbols[i % symbols.length]} transformation with enhanced monitoring`
     }
   }));
 }
