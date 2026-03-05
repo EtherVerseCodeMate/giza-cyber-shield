@@ -361,7 +361,7 @@ export const SecurityEventsDashboard = () => {
               {
                 label: "Monitoring Best Practices",
                 description: "Learn about optimal security monitoring strategies",
-                action: () => window.open('/docs/security-monitoring', '_blank'),
+                action: () => window.open('https://docs.khepraprotocol.com/security-monitoring', '_blank'),
                 icon: <Shield className="h-3 w-3" />,
                 type: 'link'
               }
@@ -727,12 +727,19 @@ export const SecurityEventsDashboard = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        {['login_failure', 'suspicious_activity', 'session_timeout'].map((type, index) => (
-                          <div key={type} className="flex justify-between items-center">
-                            <span className="text-sm">{type.replace('_', ' ')}</span>
-                            <Badge variant="secondary">{Math.floor(Math.random() * 50)}</Badge>
-                          </div>
-                        ))}
+                        {(['login_failure', 'suspicious_activity', 'session_timeout'] as const).map((type) => {
+                          const EVENT_COUNTS: Record<string, number> = {
+                            login_failure: 12,
+                            suspicious_activity: 4,
+                            session_timeout: 8,
+                          };
+                          return (
+                            <div key={type} className="flex justify-between items-center">
+                              <span className="text-sm">{type.replace(/_/g, ' ')}</span>
+                              <Badge variant="secondary">{EVENT_COUNTS[type] ?? 0}</Badge>
+                            </div>
+                          );
+                        })}
                       </div>
                     </CardContent>
                   </Card>

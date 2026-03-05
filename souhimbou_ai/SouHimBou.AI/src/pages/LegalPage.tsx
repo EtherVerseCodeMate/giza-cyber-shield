@@ -149,8 +149,8 @@ const LegalPage = () => {
 
                 {/* Sections */}
                 <div className="space-y-8">
-                    {page.sections.map((section, index) => (
-                        <div key={index} className="p-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-lg">
+                    {page.sections.map((section) => (
+                        <div key={section.heading} className="p-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-lg">
                             <div className="flex items-center gap-3 mb-4">
                                 <CheckCircle className="h-5 w-5 text-cyan-400 flex-shrink-0" />
                                 <h2 className="text-xl font-semibold text-white">{section.heading}</h2>
