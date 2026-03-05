@@ -14,10 +14,10 @@ import { useIndustryIntegrations } from '@/hooks/useIndustryIntegrations';
 import { useIntegrations } from '@/hooks/useIntegrations';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Plug, 
-  TrendingUp, 
-  AlertCircle, 
-  CheckCircle, 
+  Plug,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle,
   Clock,
   Activity,
   Zap,
@@ -44,12 +44,12 @@ const IntegrationStatusCard = ({ title, value, icon: Icon, status = 'normal', de
 const IntegrationHealthDashboard = () => {
   const { userIntegrations, loading } = useIndustryIntegrations();
   const { integrations } = useIntegrations();
-  
+
   const totalIntegrations = userIntegrations.length + integrations.length;
-  const activeIntegrations = userIntegrations.filter(i => i.status === 'connected').length + 
-                            integrations.filter(i => i.status === 'CONNECTED').length;
-  const failedIntegrations = userIntegrations.filter(i => i.status === 'error').length + 
-                           integrations.filter(i => i.status === 'ERROR').length;
+  const activeIntegrations = userIntegrations.filter(i => i.status === 'connected').length +
+    integrations.filter(i => i.status === 'CONNECTED').length;
+  const failedIntegrations = userIntegrations.filter(i => i.status === 'error').length +
+    integrations.filter(i => i.status === 'ERROR').length;
   const healthScore = totalIntegrations > 0 ? Math.round((activeIntegrations / totalIntegrations) * 100) : 0;
 
   return (
@@ -115,7 +115,7 @@ const IntegrationHealthDashboard = () => {
 
 const QuickSetupCards = ({ setActiveTab }: { setActiveTab: (tab: string) => void }) => {
   const { toast } = useToast();
-  
+
   const popularIntegrations = [
     { name: 'Splunk SIEM', icon: '🔍', category: 'SIEM', status: 'ready', type: 'SIEM' },
     { name: 'CrowdStrike Falcon', icon: '🛡️', category: 'EDR', status: 'ready', type: 'ENDPOINT' },
@@ -148,8 +148,8 @@ const QuickSetupCards = ({ setActiveTab }: { setActiveTab: (tab: string) => void
             <CardTitle className="text-sm">{integration.name}</CardTitle>
           </CardHeader>
           <CardContent>
-            <Button 
-              size="sm" 
+            <Button
+              size="sm"
               className="w-full"
               onClick={() => handleQuickSetup(integration)}
             >
@@ -165,7 +165,7 @@ const QuickSetupCards = ({ setActiveTab }: { setActiveTab: (tab: string) => void
 
 const IntegrationRecommendations = ({ setActiveTab }: { setActiveTab: (tab: string) => void }) => {
   const { toast } = useToast();
-  
+
   const recommendations = [
     {
       title: 'Enable SIEM Integration',
@@ -177,7 +177,7 @@ const IntegrationRecommendations = ({ setActiveTab }: { setActiveTab: (tab: stri
     {
       title: 'Set Up EDR Connection',
       description: 'Endpoint detection and response for comprehensive threat visibility',
-      priority: 'medium', 
+      priority: 'medium',
       action: 'Learn More',
       actionType: 'learn'
     },
@@ -231,8 +231,8 @@ const IntegrationRecommendations = ({ setActiveTab }: { setActiveTab: (tab: stri
                 </div>
                 <p className="text-sm text-muted-foreground">{rec.description}</p>
               </div>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => handleRecommendationAction(rec)}
               >
@@ -308,7 +308,7 @@ export default function IntegrationsPage() {
 
           <TabsContent value="overview" className="space-y-6">
             <IntegrationHealthDashboard />
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
                 <Card>
@@ -321,7 +321,7 @@ export default function IntegrationsPage() {
                   </CardContent>
                 </Card>
               </div>
-              
+
               <div>
                 <Card>
                   <CardHeader>
@@ -383,7 +383,7 @@ export default function IntegrationsPage() {
                 </CardContent>
               </Card>
             </div>
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
@@ -399,7 +399,7 @@ export default function IntegrationsPage() {
                           <p className="text-sm text-muted-foreground capitalize">{integration.status}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-medium">{Math.floor(Math.random() * 40 + 80)}%</p>
+                          <p className="text-sm font-medium">{integration.status === 'connected' ? '100' : integration.status === 'pending' ? '50' : '0'}%</p>
                           <p className="text-xs text-muted-foreground">Health</p>
                         </div>
                       </div>
@@ -425,7 +425,7 @@ export default function IntegrationsPage() {
                           {integration.integration_library?.name} sync completed
                         </span>
                         <span className="text-xs text-muted-foreground ml-auto">
-                          {Math.floor(Math.random() * 60)} min ago
+                          {integration.last_sync ? `${Math.floor((Date.now() - new Date(integration.last_sync).getTime()) / 60000)} min ago` : 'Recently'}
                         </span>
                       </div>
                     ))}
@@ -443,9 +443,9 @@ export default function IntegrationsPage() {
           </TabsContent>
         </Tabs>
 
-        <MondaySyncSettings 
-          open={showMondaySettings} 
-          onOpenChange={setShowMondaySettings} 
+        <MondaySyncSettings
+          open={showMondaySettings}
+          onOpenChange={setShowMondaySettings}
         />
       </div>
     </PageLayout>

@@ -34,7 +34,7 @@ export const useIntegrations = () => {
   const [templates, setTemplates] = useState<IntegrationTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Safely get user with error handling - use demo mode if auth fails
   let user = null;
   let isDemo = false;
@@ -130,17 +130,17 @@ export const useIntegrations = () => {
   // Check for configured integrations and show them as active
   const checkConfiguredIntegrations = async (): Promise<Integration[]> => {
     const configuredIntegrations: Integration[] = [];
-    
+
     // Check if Splunk is configured (we have secrets for it)
     try {
       const { data: splunkTest } = await supabase.functions.invoke('siem-integration', {
-        body: { 
+        body: {
           action: 'splunk_integration',
           config: {},
           organizationId: 'current'
         }
       });
-      
+
       if (splunkTest?.results?.configured) {
         configuredIntegrations.push({
           id: 'splunk-active',
@@ -163,13 +163,13 @@ export const useIntegrations = () => {
     // Check if Elastic Stack is configured
     try {
       const { data: elasticTest } = await supabase.functions.invoke('siem-integration', {
-        body: { 
+        body: {
           action: 'elastic_integration',
           config: {},
           organizationId: 'current'
         }
       });
-      
+
       if (elasticTest?.results?.configured) {
         configuredIntegrations.push({
           id: 'elastic-active',
@@ -188,7 +188,7 @@ export const useIntegrations = () => {
     } catch (error) {
       console.error('Elastic integration check failed:', error);
     }
-    
+
     console.log('🚀 Active integrations found:', configuredIntegrations.length);
     return configuredIntegrations;
   };
@@ -197,10 +197,10 @@ export const useIntegrations = () => {
     try {
       // Call the appropriate integration function based on template type
       let result;
-      
+
       if (template.id === 'splunk') {
         result = await supabase.functions.invoke('siem-integration', {
-          body: { 
+          body: {
             action: 'splunk_integration',
             config,
             organizationId: 'current'
@@ -208,7 +208,7 @@ export const useIntegrations = () => {
         });
       } else if (template.id === 'elastic') {
         result = await supabase.functions.invoke('siem-integration', {
-          body: { 
+          body: {
             action: 'elastic_integration',
             config,
             organizationId: 'current'
@@ -234,9 +234,9 @@ export const useIntegrations = () => {
 
         // Simulate API call delay for non-Splunk integrations
         setTimeout(() => {
-          setIntegrations(prev => 
-            prev.map(int => 
-              int.id === newIntegration.id 
+          setIntegrations(prev =>
+            prev.map(int =>
+              int.id === newIntegration.id
                 ? { ...int, status: 'CONNECTED', last_sync: new Date().toISOString() }
                 : int
             )
@@ -253,7 +253,7 @@ export const useIntegrations = () => {
   const removeIntegration = async (integrationId: string) => {
     try {
       setIntegrations(prev => prev.filter(int => int.id !== integrationId));
-      
+
       // Log the action
       await supabase.rpc('log_user_action', {
         action_type: 'INTEGRATION_REMOVED',
@@ -272,16 +272,16 @@ export const useIntegrations = () => {
     try {
       // For Splunk integration, test the real connection
       if (integrationId === 'splunk-active') {
-        setIntegrations(prev => 
-          prev.map(int => 
-            int.id === integrationId 
+        setIntegrations(prev =>
+          prev.map(int =>
+            int.id === integrationId
               ? { ...int, status: 'PENDING' }
               : int
           )
         );
 
         const result = await supabase.functions.invoke('siem-integration', {
-          body: { 
+          body: {
             action: 'splunk_integration',
             config: {},
             organizationId: 'current'
@@ -289,30 +289,30 @@ export const useIntegrations = () => {
         });
 
         const isConnected = result.data?.results?.configured;
-        
-        setIntegrations(prev => 
-          prev.map(int => 
-            int.id === integrationId 
-              ? { 
-                  ...int, 
-                  status: isConnected ? 'CONNECTED' : 'ERROR',
-                  last_sync: new Date().toISOString()
-                }
+
+        setIntegrations(prev =>
+          prev.map(int =>
+            int.id === integrationId
+              ? {
+                ...int,
+                status: isConnected ? 'CONNECTED' : 'ERROR',
+                last_sync: new Date().toISOString()
+              }
               : int
           )
         );
       } else if (integrationId === 'elastic-active') {
         // For Elastic integration, test the real connection
-        setIntegrations(prev => 
-          prev.map(int => 
-            int.id === integrationId 
+        setIntegrations(prev =>
+          prev.map(int =>
+            int.id === integrationId
               ? { ...int, status: 'PENDING' }
               : int
           )
         );
 
         const result = await supabase.functions.invoke('siem-integration', {
-          body: { 
+          body: {
             action: 'elastic_integration',
             config: {},
             organizationId: 'current'
@@ -320,41 +320,60 @@ export const useIntegrations = () => {
         });
 
         const isConnected = result.data?.results?.configured;
-        
-        setIntegrations(prev => 
-          prev.map(int => 
-            int.id === integrationId 
-              ? { 
-                  ...int, 
-                  status: isConnected ? 'CONNECTED' : 'ERROR',
-                  last_sync: new Date().toISOString()
-                }
+
+        setIntegrations(prev =>
+          prev.map(int =>
+            int.id === integrationId
+              ? {
+                ...int,
+                status: isConnected ? 'CONNECTED' : 'ERROR',
+                last_sync: new Date().toISOString()
+              }
               : int
           )
         );
       } else {
-        // For other integrations, simulate connection test
-        setIntegrations(prev => 
-          prev.map(int => 
-            int.id === integrationId 
+        // For other integrations, test via integration-manager Edge Function
+        setIntegrations(prev =>
+          prev.map(int =>
+            int.id === integrationId
               ? { ...int, status: 'PENDING' }
               : int
           )
         );
 
-        setTimeout(() => {
-          setIntegrations(prev => 
-            prev.map(int => 
-              int.id === integrationId 
-                ? { 
-                    ...int, 
-                    status: Math.random() > 0.2 ? 'CONNECTED' : 'ERROR',
-                    last_sync: new Date().toISOString()
-                  }
+        try {
+          const integration = integrations.find(i => i.id === integrationId);
+          const result = await supabase.functions.invoke('integration-manager', {
+            body: {
+              action: 'test',
+              integration_type: integration?.name?.toLowerCase().replaceAll(' ', '-') || 'generic',
+              config: { endpoint_url: integration?.endpoint_url || '' },
+              integration_id: integrationId
+            }
+          });
+
+          const isConnected = result.data?.success === true;
+          setIntegrations(prev =>
+            prev.map(int =>
+              int.id === integrationId
+                ? {
+                  ...int,
+                  status: isConnected ? 'CONNECTED' : 'ERROR',
+                  last_sync: new Date().toISOString()
+                }
                 : int
             )
           );
-        }, 2000);
+        } catch {
+          setIntegrations(prev =>
+            prev.map(int =>
+              int.id === integrationId
+                ? { ...int, status: 'ERROR' }
+                : int
+            )
+          );
+        }
       }
 
       return { success: true };
@@ -366,10 +385,10 @@ export const useIntegrations = () => {
   useEffect(() => {
     const loadIntegrations = async () => {
       setLoading(true);
-      
+
       // Initialize with integration templates
       setTemplates(mockTemplates);
-      
+
       // Check for real configured integrations (if user is available)
       if (user) {
         const realIntegrations = await checkConfiguredIntegrations();
@@ -392,10 +411,10 @@ export const useIntegrations = () => {
           }
         ]);
       }
-      
+
       setLoading(false);
     };
-    
+
     loadIntegrations();
   }, [user, isDemo]);
 

@@ -224,9 +224,18 @@ async function initializeProtectionLayers(deploymentVector: string): Promise<voi
 }
 
 async function performSecurityScan(): Promise<number> {
-  // Simulate security scanning
   await new Promise(resolve => setTimeout(resolve, 1500));
-  
-  // Return mock vulnerability count
-  return Math.floor(Math.random() * 5);
+
+  // Count open (unresolved) security events as a proxy for active vulnerabilities
+  try {
+    const { count } = await import('@/integrations/supabase/client').then(
+      ({ supabase }) => supabase
+        .from('security_events')
+        .select('*', { count: 'exact', head: true })
+        .eq('resolved', false)
+    );
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
 }

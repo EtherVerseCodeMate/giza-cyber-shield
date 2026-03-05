@@ -61,46 +61,51 @@ export const InfrastructureDiscovery = () => {
     }
 
     if (data && data.length > 0) {
-      const mappedAssets: Asset[] = data.map(item => ({
-        id: item.asset_id,
-        name: item.asset_name,
-        type: (item.asset_type as any) || 'server',
-        ip_address: item.ip_addresses?.[0] || 'Unknown',
-        os: item.operating_system || 'Unknown',
-        version: item.version || '',
-        status: (item.metadata?.status as any) || 'online',
-        compliance_score: item.compliance_score || item.metadata?.compliance_score || 0,
-        vulnerabilities: item.vulnerabilities || item.metadata?.vulnerabilities || 0,
-        last_scan: item.last_discovered,
-        criticality: (item.metadata?.criticality as any) || 'medium'
-      }));
+      const mappedAssets: Asset[] = data.map(item => {
+        const meta = item.metadata as Record<string, any> | null;
+        const ipAddresses = item.ip_addresses as string[] | null;
+        return {
+          id: item.asset_identifier,
+          name: item.hostname || item.asset_identifier,
+          type: (item.asset_type as Asset['type']) || 'server',
+          ip_address: ipAddresses?.[0] ?? 'Unknown',
+          os: item.operating_system || 'Unknown',
+          version: item.version || '',
+          status: (meta?.status as Asset['status']) || 'online',
+          compliance_score: meta?.compliance_score ?? 0,
+          vulnerabilities: meta?.vulnerabilities ?? 0,
+          last_scan: item.last_discovered,
+          criticality: (meta?.criticality as Asset['criticality']) || 'medium'
+        };
+      });
       setAssets(mappedAssets);
+    }
+  };
+
+  // Fetch network segments from Supabase
+  const fetchNetworks = async () => {
+    if (!currentOrganization?.id) return;
+    const { data, error } = await supabase
+      .from('network_segments')
+      .select('*')
+      .eq('organization_id', currentOrganization.id);
+
+    if (!error && data && data.length > 0) {
+      const mappedNetworks: NetworkSegment[] = data.map((seg: any) => ({
+        id: seg.id,
+        name: seg.name,
+        cidr: seg.cidr,
+        assets_count: seg.assets_count ?? 0,
+        compliance_level: seg.compliance_level ?? 0,
+        security_zone: seg.security_zone || 'internal',
+      }));
+      setNetworks(mappedNetworks);
     }
   };
 
   useEffect(() => {
     fetchAssets();
-
-    // Set up mock networks (since they aren't in DB yet)
-    const mockNetworks: NetworkSegment[] = [
-      {
-        id: '1',
-        name: 'DMZ Network',
-        cidr: '10.0.2.0/24',
-        assets_count: 8,
-        compliance_level: 94,
-        security_zone: 'dmz'
-      },
-      {
-        id: '2',
-        name: 'Internal LAN',
-        cidr: '10.0.1.0/24',
-        assets_count: 45,
-        compliance_level: 89,
-        security_zone: 'internal'
-      }
-    ];
-    setNetworks(mockNetworks);
+    fetchNetworks();
   }, [currentOrganization?.id]);
 
   const getAssetIcon = (type: string) => {

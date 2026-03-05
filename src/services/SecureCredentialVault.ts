@@ -461,47 +461,28 @@ export class SecureCredentialVault {
   }
 
   /**
-   * Test credential connectivity.
-   * 
-   * NOTE: Actual connectivity testing requires backend integration to probe
-   * the target system (SSH handshake, HTTPS connection, API auth, etc.).
-   * This function does NOT simulate or fabricate test results.
+   * Test credential connectivity via the credential-connectivity-test edge function.
+   * Performs real network probes: HTTP auth (api_token/cloud/password), TLS (cert),
+   * or HTTP reachability (ssh_key). All results are written to the audit trail.
    */
   static async testCredential(
     credentialId: string,
     testTarget: string
-  ): Promise<{ success: boolean; details: string }> {
-    try {
-      await this.logCredentialEvent('credential_test_initiated', credentialId, '', {
-        test_target: testTarget,
-        test_timestamp: new Date().toISOString()
-      });
+  ): Promise<{ success: boolean; probe_type?: string; status_code?: number; latency_ms?: number; details: string }> {
+    const { data, error } = await supabase.functions.invoke('credential-connectivity-test', {
+      body: { credential_id: credentialId, test_target: testTarget },
+    });
 
-      // TODO: Implement actual connectivity testing via Supabase edge function:
-      // - SSH: Attempt SSH handshake to testTarget using decrypted credential
-      // - API Token: Attempt authenticated request to testTarget endpoint
-      // - Certificate: Validate cert chain and attempt mTLS handshake
-      // - Username/Password: Attempt authentication to target service
-
-      await this.logCredentialEvent(
-        'credential_test_skipped',
-        credentialId,
-        '',
-        {
-          test_target: testTarget,
-          reason: 'connectivity_testing_not_implemented',
-          message: 'Backend connectivity probe not yet configured. Credential was NOT tested against the target system.'
-        },
-        'WARN'
-      );
-
-      return {
-        success: false,
-        details: 'Credential connectivity testing not implemented. Configure backend connectivity probes to enable real testing.'
-      };
-    } catch (error) {
-      console.error('Test credential failed:', error);
-      throw error;
+    if (error) {
+      throw new Error(`Connectivity test failed: ${error.message}`);
     }
+
+    return {
+      success: data.success,
+      probe_type: data.probe_type,
+      status_code: data.status_code,
+      latency_ms: data.latency_ms,
+      details: data.details,
+    };
   }
 }
