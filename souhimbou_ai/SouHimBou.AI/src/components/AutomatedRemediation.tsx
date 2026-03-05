@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { 
+import {
   Zap, Settings, CheckCircle, Clock, AlertTriangle,
   Play, Pause, RotateCcw, Shield, Cpu, Database
 } from 'lucide-react';
@@ -55,107 +55,21 @@ export const AutomatedRemediation = () => {
 
   // Mock data
   useEffect(() => {
-    const mockTasks: RemediationTask[] = [
-      {
-        id: '1',
-        title: 'Critical Windows Security Update',
-        description: 'Install KB5034441 security update to patch CVE-2024-0001',
-        category: 'security_patch',
-        priority: 'critical',
-        status: 'pending',
-        progress: 0,
-        asset_name: 'DC-01',
-        asset_ip: '10.0.1.10',
-        estimated_duration: 15,
-        auto_approved: true,
-        requires_reboot: true,
-        risk_level: 'medium',
-        created_at: '2024-01-13T14:30:00Z',
-        remediation_script: 'powershell -Command "Install-WindowsUpdate -AcceptAll -AutoReboot"'
-      },
-      {
-        id: '2',
-        title: 'Firewall Rule Hardening',
-        description: 'Update firewall rules to block unnecessary ports as per CMMC requirements',
-        category: 'config_hardening',
-        priority: 'high',
-        status: 'completed',
-        progress: 100,
-        asset_name: 'FW-01',
-        asset_ip: '10.0.0.1',
-        estimated_duration: 5,
-        auto_approved: true,
-        requires_reboot: false,
-        risk_level: 'low',
-        created_at: '2024-01-13T13:00:00Z',
-        started_at: '2024-01-13T13:05:00Z',
-        completed_at: '2024-01-13T13:08:00Z',
-        remediation_script: 'config system interface\nedit "wan1"\nset allowaccess ping\nend'
-      },
-      {
-        id: '3',
-        title: 'SSH Configuration Update',
-        description: 'Disable root login and update SSH key algorithms for compliance',
-        category: 'compliance_fix',
-        priority: 'medium',
-        status: 'running',
-        progress: 60,
-        asset_name: 'WEB-01',
-        asset_ip: '10.0.2.15',
-        estimated_duration: 8,
-        auto_approved: true,
-        requires_reboot: false,
-        risk_level: 'low',
-        created_at: '2024-01-13T14:00:00Z',
-        started_at: '2024-01-13T14:15:00Z',
-        remediation_script: 'sed -i "s/#PermitRootLogin yes/PermitRootLogin no/" /etc/ssh/sshd_config'
-      }
-    ];
+    // Awaiting telemetry for real tasks and rules
+    const pendingTasks: RemediationTask[] = [];
+    const activeRules: AutomationRule[] = [];
 
-    const mockRules: AutomationRule[] = [
-      {
-        id: '1',
-        name: 'Critical Vulnerability Auto-Patch',
-        enabled: true,
-        trigger_condition: 'CVSS >= 9.0',
-        action_type: 'patch',
-        auto_execute: true,
-        approval_required: false,
-        maintenance_window_only: false
-      },
-      {
-        id: '2',
-        name: 'Compliance Drift Auto-Fix',
-        enabled: true,
-        trigger_condition: 'Compliance Score < 90%',
-        action_type: 'configure',
-        auto_execute: false,
-        approval_required: true,
-        maintenance_window_only: true
-      },
-      {
-        id: '3',
-        name: 'Suspicious Activity Isolation',
-        enabled: true,
-        trigger_condition: 'Threat Level = High',
-        action_type: 'isolate',
-        auto_execute: true,
-        approval_required: false,
-        maintenance_window_only: false
-      }
-    ];
-
-    setTasks(mockTasks);
-    setAutomationRules(mockRules);
+    setTasks(pendingTasks);
+    setAutomationRules(activeRules);
   }, []);
 
   const executeTask = async (taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
-    setTasks(prev => 
-      prev.map(t => 
-        t.id === taskId 
+    setTasks(prev =>
+      prev.map(t =>
+        t.id === taskId
           ? { ...t, status: 'running', progress: 0, started_at: new Date().toISOString() }
           : t
       )
@@ -197,9 +111,9 @@ export const AutomatedRemediation = () => {
 
       if (error) {
         console.error('Remediation error:', error);
-        setTasks(prev => 
-          prev.map(t => 
-            t.id === taskId 
+        setTasks(prev =>
+          prev.map(t =>
+            t.id === taskId
               ? { ...t, status: 'failed', completed_at: new Date().toISOString() }
               : t
           )
@@ -213,15 +127,15 @@ export const AutomatedRemediation = () => {
       }
 
       // Update task with real results
-      setTasks(prev => 
-        prev.map(t => 
-          t.id === taskId 
-            ? { 
-                ...t, 
-                status: 'completed', 
-                progress: 100, 
-                completed_at: new Date().toISOString() 
-              }
+      setTasks(prev =>
+        prev.map(t =>
+          t.id === taskId
+            ? {
+              ...t,
+              status: 'completed',
+              progress: 100,
+              completed_at: new Date().toISOString()
+            }
             : t
         )
       );
@@ -234,9 +148,9 @@ export const AutomatedRemediation = () => {
 
     } catch (error) {
       console.error('Remediation error:', error);
-      setTasks(prev => 
-        prev.map(t => 
-          t.id === taskId 
+      setTasks(prev =>
+        prev.map(t =>
+          t.id === taskId
             ? { ...t, status: 'failed', completed_at: new Date().toISOString() }
             : t
         )
@@ -251,7 +165,7 @@ export const AutomatedRemediation = () => {
 
   const executeAllPending = async () => {
     const pendingTasks = tasks.filter(t => t.status === 'pending' && t.auto_approved);
-    
+
     for (const task of pendingTasks) {
       if (task.requires_reboot && !maintenanceWindow) {
         toast({
@@ -316,7 +230,7 @@ export const AutomatedRemediation = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="card-cyber">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -328,7 +242,7 @@ export const AutomatedRemediation = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="card-cyber">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -340,7 +254,7 @@ export const AutomatedRemediation = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="card-cyber">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -369,21 +283,21 @@ export const AutomatedRemediation = () => {
             </div>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <Switch 
-                  checked={maintenanceWindow} 
+                <Switch
+                  checked={maintenanceWindow}
                   onCheckedChange={setMaintenanceWindow}
                 />
                 <span className="text-sm">Maintenance Window</span>
               </div>
               <div className="flex items-center space-x-2">
-                <Switch 
-                  checked={autoMode} 
+                <Switch
+                  checked={autoMode}
                   onCheckedChange={setAutoMode}
                 />
                 <span className="text-sm">Auto Mode</span>
               </div>
-              <Button 
-                variant="cyber" 
+              <Button
+                variant="cyber"
                 onClick={executeAllPending}
                 disabled={pendingTasks === 0}
               >
@@ -432,11 +346,11 @@ export const AutomatedRemediation = () => {
                             <Badge variant="outline">REBOOT REQUIRED</Badge>
                           )}
                         </div>
-                        
+
                         <p className="text-sm text-muted-foreground mb-3">
                           {task.description}
                         </p>
-                        
+
                         {task.status === 'running' && (
                           <div className="mb-3">
                             <div className="flex justify-between text-sm mb-1">
@@ -446,7 +360,7 @@ export const AutomatedRemediation = () => {
                             <Progress value={task.progress} className="w-full" />
                           </div>
                         )}
-                        
+
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-muted-foreground">
                           <span>Asset: {task.asset_name}</span>
                           <span>Duration: {task.estimated_duration}min</span>
@@ -454,11 +368,11 @@ export const AutomatedRemediation = () => {
                           <span>Created: {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}</span>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center space-x-2 ml-4">
                         {task.status === 'pending' && (
-                          <Button 
-                            variant="cyber" 
+                          <Button
+                            variant="cyber"
                             size="sm"
                             onClick={() => executeTask(task.id)}
                           >
@@ -473,8 +387,8 @@ export const AutomatedRemediation = () => {
                           </Button>
                         )}
                         {task.status === 'failed' && (
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => executeTask(task.id)}
                           >
@@ -515,20 +429,20 @@ export const AutomatedRemediation = () => {
                           </Badge>
                           <Badge variant="outline">{rule.action_type.toUpperCase()}</Badge>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
                           <span>Trigger: {rule.trigger_condition}</span>
                           <span>Auto-Execute: {rule.auto_execute ? 'Yes' : 'No'}</span>
                           <span>Approval: {rule.approval_required ? 'Required' : 'Not Required'}</span>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center space-x-2">
-                        <Switch 
-                          checked={rule.enabled} 
-                          onCheckedChange={(checked) => 
-                            setAutomationRules(prev => 
-                              prev.map(r => 
+                        <Switch
+                          checked={rule.enabled}
+                          onCheckedChange={(checked) =>
+                            setAutomationRules(prev =>
+                              prev.map(r =>
                                 r.id === rule.id ? { ...r, enabled: checked } : r
                               )
                             )
