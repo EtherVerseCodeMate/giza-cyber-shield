@@ -44,6 +44,7 @@ docker-compose*
 /adinkhepra-telemetry-server/
 /tools/
 /supabase/
+/n8n-nodes/
 
 # Documentation
 /docs/
