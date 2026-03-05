@@ -86,7 +86,6 @@ class RateLimitingService {
     }
 
     try {
-      // TODO: Replace with real usage data query when tables exist
       const usageData: any[] = [];
 
       const now = new Date();
