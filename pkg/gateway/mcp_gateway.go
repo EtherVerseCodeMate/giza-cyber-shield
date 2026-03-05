@@ -116,9 +116,9 @@ type MCPGateway struct {
 	processTimelineEnabled bool
 
 	// timelineStore provides access to process behavior events database.
-	// NOTE: This is a future integration point. Current implementation is in TypeScript:
-	// supabase/functions/stig-query-with-timeline/index.ts
-	// timelineStore ProcessTimelineStore
+	// Implemented by SupabaseProcessTimelineStore (see process_timeline_store.go).
+	// The TypeScript equivalent is: supabase/functions/stig-query-with-timeline/index.ts
+	timelineStore ProcessTimelineStore
 }
 
 // AuditLogger interface for tamper-proof logging (implemented by pkg/seshat DAG).
@@ -127,11 +127,14 @@ type AuditLogger interface {
 }
 
 // NewMCPGateway creates a new MCP Gateway instance.
-func NewMCPGateway(auditLog AuditLogger, connector *STIGConnector) *MCPGateway {
+// timelineStore may be nil; when provided it enables live process timeline queries.
+func NewMCPGateway(auditLog AuditLogger, connector *STIGConnector, timelineStore ProcessTimelineStore) *MCPGateway {
+	enabled := timelineStore != nil
 	return &MCPGateway{
 		auditLog:               auditLog,
 		stigConnector:          connector,
-		processTimelineEnabled: true, // Enable Process Behavior Timeline integration
+		processTimelineEnabled: enabled,
+		timelineStore:          timelineStore,
 	}
 }
 
@@ -373,34 +376,24 @@ func (g *MCPGateway) filterByRoleAndClassification(response *STIGQueryResponse, 
 //
 // Reference: souhimbou_ai/SouHimBou.AI/supabase/migrations/20260215000000_process_behavior_timeline.sql
 func (g *MCPGateway) getProcessTimelineForSTIG(stigID string) []ProcessBehaviorEvent {
-	if !g.processTimelineEnabled {
+	if !g.processTimelineEnabled || g.timelineStore == nil {
 		return nil
 	}
 
-	// Production implementation would use ProcessTimelineStore interface:
-	//
-	// events, err := g.timelineStore.QueryBySTIGControl(stigID, ProcessTimelineFilter{
-	//   Limit: 100,
-	//   ComplianceStatus: []string{"VIOLATION", "PENDING"},
-	//   TimeSince: time.Now().Add(-24 * time.Hour),
-	// })
-	//
-	// if err != nil {
-	//   g.auditLog.Log("process_timeline_query_failed", nil, map[string]interface{}{
-	//     "stig_control": stigID,
-	//     "error": err.Error(),
-	//   })
-	//   return nil
-	// }
-	//
-	// return events
+	events, err := g.timelineStore.QueryBySTIGControl(context.Background(), stigID, ProcessTimelineFilter{
+		Limit:            100,
+		ComplianceStatus: []string{"VIOLATION", "PENDING"},
+		TimeSince:        time.Now().Add(-24 * time.Hour),
+	})
+	if err != nil {
+		g.auditLog.Log("process_timeline_query_failed", nil, map[string]interface{}{
+			"stig_control": stigID,
+			"error":        err.Error(),
+		})
+		return nil
+	}
 
-	// TODO: Implement ProcessTimelineStore interface and wire to Supabase
-	// For now, return empty slice to indicate integration point exists
-	//
-	// NOTE: TypeScript implementation is complete in:
-	// supabase/functions/stig-query-with-timeline/index.ts
-	return []ProcessBehaviorEvent{}
+	return events
 }
 
 // ─── Response Filtering ────────────────────────────────────────────────────────

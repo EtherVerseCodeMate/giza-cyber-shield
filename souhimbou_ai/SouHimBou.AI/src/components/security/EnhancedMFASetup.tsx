@@ -163,7 +163,34 @@ export const EnhancedMFASetup = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!isEnabled ? (
+          {isEnabled ? (
+            <div className="space-y-4">
+              <Alert>
+                <CheckCircle className="w-4 h-4" />
+                <AlertDescription>
+                  <strong>MFA is enabled.</strong> Your account has an additional layer of
+                  security. You'll need to enter a code from your authenticator app when signing in.
+                </AlertDescription>
+              </Alert>
+
+              <div className="flex justify-between items-center p-3 border rounded-lg">
+                <div>
+                  <p className="font-medium">Authenticator App</p>
+                  <p className="text-sm text-muted-foreground">
+                    {factors.length} factor(s) configured
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDisableMFA}
+                  disabled={isLoading}
+                >
+                  Disable MFA
+                </Button>
+              </div>
+            </div>
+          ) : (
             <div className="space-y-4">
               <Alert>
                 <AlertTriangle className="w-4 h-4" />
@@ -174,22 +201,7 @@ export const EnhancedMFASetup = () => {
                 </AlertDescription>
               </Alert>
 
-              {!enrollmentData ? (
-                <div className="text-center py-4">
-                  <Button
-                    onClick={handleStartEnrollment}
-                    disabled={isLoading}
-                    className="w-full"
-                  >
-                    {isLoading ? (
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Key className="w-4 h-4 mr-2" />
-                    )}
-                    Set Up MFA
-                  </Button>
-                </div>
-              ) : (
+              {enrollmentData ? (
                 <div className="space-y-4">
                   {enrollmentData.qrCode && (
                     <div className="text-center">
@@ -198,10 +210,10 @@ export const EnhancedMFASetup = () => {
                         dangerouslySetInnerHTML={{
                           // Basic sanitization to prevent XSS from compromised QR code generation
                           __html: enrollmentData.qrCode
-                            .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
-                            .replace(/javascript:/gim, "")
-                            .replace(/ on\w+="[^"]*"/gim, "")
-                            .replace(/ on\w+='[^']*'/gim, "")
+                            .replaceAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
+                            .replaceAll(/javascript:/gim, "")
+                            .replaceAll(/ on\w+="[^"]*"/gim, "")
+                            .replaceAll(/ on\w+='[^']*'/gim, "")
                         }}
                       />
                       <p className="text-sm text-muted-foreground mt-2">
@@ -229,7 +241,7 @@ export const EnhancedMFASetup = () => {
                         type="text"
                         placeholder="000000"
                         value={verificationCode}
-                        onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        onChange={(e) => setVerificationCode(e.target.value.replaceAll(/\D/g, '').slice(0, 6))}
                         className="flex-1 px-3 py-2 border rounded-md text-center font-mono"
                         maxLength={6}
                       />
@@ -242,34 +254,22 @@ export const EnhancedMFASetup = () => {
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <Alert>
-                <CheckCircle className="w-4 h-4" />
-                <AlertDescription>
-                  <strong>MFA is enabled.</strong> Your account has an additional layer of
-                  security. You'll need to enter a code from your authenticator app when signing in.
-                </AlertDescription>
-              </Alert>
-
-              <div className="flex justify-between items-center p-3 border rounded-lg">
-                <div>
-                  <p className="font-medium">Authenticator App</p>
-                  <p className="text-sm text-muted-foreground">
-                    {factors.length} factor(s) configured
-                  </p>
+              ) : (
+                <div className="text-center py-4">
+                  <Button
+                    onClick={handleStartEnrollment}
+                    disabled={isLoading}
+                    className="w-full"
+                  >
+                    {isLoading ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Key className="w-4 h-4 mr-2" />
+                    )}
+                    Set Up MFA
+                  </Button>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDisableMFA}
-                  disabled={isLoading}
-                >
-                  Disable MFA
-                </Button>
-              </div>
+              )}
             </div>
           )}
 

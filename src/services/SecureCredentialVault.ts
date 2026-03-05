@@ -357,7 +357,7 @@ export class SecureCredentialVault {
    * Generate credential fingerprint for integrity verification
    */
   private static async generateCredentialFingerprint(credentials: any): Promise<string> {
-    const credentialString = JSON.stringify(credentials, Object.keys(credentials).sort());
+    const credentialString = JSON.stringify(credentials, Object.keys(credentials).sort((a, b) => a.localeCompare(b)));
     const encoder = new TextEncoder();
     const data = encoder.encode(credentialString);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);

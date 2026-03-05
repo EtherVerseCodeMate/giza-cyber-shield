@@ -58,13 +58,13 @@ const AuthCallback = () => {
             });
 
             // Clear the URL immediately for security
-            globalThis.history.replaceState({}, document.title, window.location.pathname);
+            globalThis.history.replaceState({}, document.title, globalThis.location.pathname);
             navigate('/auth?error=session_failed');
             return;
           }
 
           // Clear the URL hash immediately for security
-          globalThis.history.replaceState({}, document.title, window.location.pathname);
+          globalThis.history.replaceState({}, document.title, globalThis.location.pathname);
 
           console.log('Auth session established successfully');
 

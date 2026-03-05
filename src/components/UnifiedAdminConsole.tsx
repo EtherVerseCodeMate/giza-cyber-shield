@@ -107,36 +107,41 @@ export const UnifiedAdminConsole = () => {
 
       setModuleStatus(moduleData);
 
-      // Create system resource data based on real metrics where available
-      const latestMetric = metrics?.[0];
+      // Create system resource data based on real metrics where available.
+      // The system_metrics table stores one metric per row (metric_name + value),
+      // so we find each metric by name rather than accessing non-existent columns.
+      const findMetric = (name: string) =>
+        (metrics as Array<{ metric_name: string; value: number }>)
+          ?.find(m => m.metric_name === name)?.value ?? null;
+
       const resourceData = [
         {
           metric: "CPU Utilization",
-          value: latestMetric?.cpu_usage != null ? `${latestMetric.cpu_usage}%` : "—",
+          value: findMetric('cpu_usage') != null ? `${findMetric('cpu_usage')}%` : "—",
           status: "normal",
           limit: "80%"
         },
         {
           metric: "Memory Usage",
-          value: latestMetric?.memory_usage != null ? `${latestMetric.memory_usage}%` : "—",
+          value: findMetric('memory_usage') != null ? `${findMetric('memory_usage')}%` : "—",
           status: "normal",
           limit: "8TB"
         },
         {
           metric: "GPU Utilization",
-          value: latestMetric?.gpu_usage != null ? `${latestMetric.gpu_usage}%` : "—",
+          value: findMetric('gpu_usage') != null ? `${findMetric('gpu_usage')}%` : "—",
           status: "normal",
           limit: "95%"
         },
         {
           metric: "Network Bandwidth",
-          value: latestMetric?.network_throughput != null ? `${latestMetric.network_throughput}Gbps` : "—",
+          value: findMetric('network_throughput') != null ? `${findMetric('network_throughput')}Gbps` : "—",
           status: "normal",
           limit: "10Gbps"
         },
         {
           metric: "Storage I/O",
-          value: latestMetric?.disk_io != null ? `${latestMetric.disk_io}MB/s` : "—",
+          value: findMetric('disk_io') != null ? `${findMetric('disk_io')}MB/s` : "—",
           status: "normal",
           limit: "1GB/s"
         },

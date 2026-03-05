@@ -62,11 +62,7 @@
     --cultural-pulse: 0 0 15px hsl(280 100% 70% / 0.5);
 
     /* Giza color tokens — referenced by tailwind.config.ts giza.* colors */
-    --void-black: 220 15% 4%;
-    --gunmetal: 215 18% 20%;
-    --quantum-cyan: 194 100% 50%;
-    --khepra-gold: 43 96% 56%;
-    --canary-red: 0 84% 60%;
+    /* NOTE: canonical values are the second block below; kept for reference only */
 
     --radius: 0.75rem;
 

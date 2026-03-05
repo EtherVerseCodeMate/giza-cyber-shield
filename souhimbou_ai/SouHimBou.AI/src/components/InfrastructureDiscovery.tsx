@@ -40,7 +40,7 @@ export const InfrastructureDiscovery = () => {
   const [networks, setNetworks] = useState<NetworkSegment[]>([]);
   const [scanning, setScanning] = useState(false);
   const [discoveryProgress, setDiscoveryProgress] = useState(0);
-  const [discoveryResults, setDiscoveryResults] = useState<any[]>([]);
+  const [, setDiscoveryResults] = useState<any[]>([]);
   const { toast } = useToast();
   const { currentOrganization } = useOrganization();
 

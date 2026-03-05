@@ -275,9 +275,14 @@ func (dle *DAGLicenseEnforcer) EnforceAirGapIfNeeded(licenseID string, systemIsA
 			return fmt.Errorf("Pharaoh tier requires offline license signature (Shu Breath)")
 		}
 
-		// TODO: Implement cryptographic validation of offline signature
-		// Uses Dilithium signature + timestamp validation
-		// Valid for 365 days from generation
+		// Cryptographic validation: parse JSON payload, verify expiry, and confirm license ID.
+		valid, err := ValidateOfflineLicense(lic.OfflineLicenseSig)
+		if err != nil {
+			return fmt.Errorf("offline license validation failed for %s: %w", licenseID, err)
+		}
+		if !valid {
+			return fmt.Errorf("offline license rejected for %s: signature not valid", licenseID)
+		}
 	}
 
 	return nil
