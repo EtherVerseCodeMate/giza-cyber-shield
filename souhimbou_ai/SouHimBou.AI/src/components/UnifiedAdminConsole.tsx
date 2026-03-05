@@ -52,14 +52,27 @@ export const UnifiedAdminConsole = () => {
         .select('*')
         .eq('organization_id', currentOrganization.organization_id);
 
-      // Create module status based on real activity
+      // Create module status based on real event activity — NO Math.random()
+      const eventCount = securityEvents?.length || 0;
+      const recentEvents = securityEvents?.filter(
+        e => new Date(e.created_at).getTime() > Date.now() - 86400000
+      ).length || 0;
+
+      const deriveHealth = (baseActivity: number): number => {
+        // Health is 100 if recent events exist, degrades if stale
+        if (baseActivity > 10) return 98;
+        if (baseActivity > 5) return 95;
+        if (baseActivity > 0) return 90;
+        return 85;
+      };
+
       const moduleData = [
         {
           name: "NVIDIA Morpheus",
           status: securityEvents?.some(e => e.event_type?.includes('morpheus')) ? "operational" : "maintenance",
           version: "v24.03",
-          workflows: Math.max(3, Math.floor((securityEvents?.length || 0) / 10)),
-          health: Math.max(90, Math.min(100, 95 + Math.floor(Math.random() * 10))),
+          workflows: Math.max(3, Math.floor(eventCount / 10)),
+          health: deriveHealth(recentEvents),
           actions: ["restart", "configure", "scale"]
         },
         {
@@ -67,7 +80,7 @@ export const UnifiedAdminConsole = () => {
           status: assets?.some(a => a.compliance_status === 'COMPLIANT') ? "operational" : "maintenance",
           version: "v1.15",
           workflows: Math.max(2, Math.floor((assets?.length || 0) / 3)),
-          health: Math.max(85, Math.min(100, 95 + Math.floor(Math.random() * 10))),
+          health: assets?.length ? deriveHealth(assets.length) : 85,
           actions: ["restart", "configure", "monitor"]
         },
         {
@@ -75,72 +88,72 @@ export const UnifiedAdminConsole = () => {
           status: "operational",
           version: "v2.4.1",
           workflows: 4,
-          health: Math.max(90, Math.min(100, 95 + Math.floor(Math.random() * 8))),
+          health: 95,
           actions: ["restart", "configure", "federate"]
         },
         {
           name: "M-XDR Core",
-          status: securityEvents?.length > 5 ? "operational" : "idle",
+          status: eventCount > 5 ? "operational" : "idle",
           version: "v3.2",
-          workflows: Math.max(5, Math.floor((securityEvents?.length || 0) / 5)),
-          health: Math.max(92, Math.min(100, 96 + Math.floor(Math.random() * 8))),
+          workflows: Math.max(5, Math.floor(eventCount / 5)),
+          health: deriveHealth(recentEvents),
           actions: ["restart", "configure", "analyze"]
         },
         {
           name: "SOAR Platform",
           status: securityEvents?.some(e => e.resolved) ? "operational" : "maintenance",
           version: "v2.8",
-          workflows: Math.max(20, Math.floor((securityEvents?.length || 0) * 2)),
-          health: Math.max(80, Math.min(95, 85 + Math.floor(Math.random() * 15))),
+          workflows: Math.max(20, eventCount * 2),
+          health: securityEvents?.some(e => e.resolved) ? 92 : 80,
           actions: ["resume", "configure", "playbook"]
         },
         {
           name: "IPS Engine",
           status: "operational",
           version: "v6.7",
-          workflows: Math.max(8, Math.floor((securityEvents?.length || 0) / 3)),
-          health: Math.max(88, Math.min(100, 92 + Math.floor(Math.random() * 12))),
+          workflows: Math.max(8, Math.floor(eventCount / 3)),
+          health: 95,
           actions: ["restart", "configure", "rules"]
         }
       ];
 
       setModuleStatus(moduleData);
 
-      // Create system resource data based on metrics or defaults
+      // System resources — show "awaiting telemetry" when no real metrics from performance_metrics table
       const resourceData = [
         {
           metric: "CPU Utilization",
-          value: `${Math.floor(Math.random() * 30) + 50}%`,
+          value: "— (awaiting telemetry)",
           status: "normal",
           limit: "80%"
         },
         {
           metric: "Memory Usage",
-          value: `${Math.floor(Math.random() * 3) + 4}.${Math.floor(Math.random() * 10)}TB`,
+          value: "— (awaiting telemetry)",
           status: "normal",
           limit: "8TB"
         },
         {
           metric: "GPU Utilization",
-          value: `${Math.floor(Math.random() * 20) + 70}%`,
-          status: Math.random() > 0.7 ? "high" : "normal",
+          value: "— (awaiting telemetry)",
+          status: "normal",
           limit: "95%"
         },
         {
           metric: "Network Bandwidth",
-          value: `${Math.floor(Math.random() * 5) + 1}.${Math.floor(Math.random() * 10)}Gbps`,
+          value: "— (awaiting telemetry)",
           status: "normal",
           limit: "10Gbps"
         },
         {
           metric: "Storage I/O",
-          value: `${Math.floor(Math.random() * 400) + 200}MB/s`,
+          value: "— (awaiting telemetry)",
           status: "normal",
           limit: "1GB/s"
         },
         {
           metric: "Container Count",
-          value: Math.floor(Math.random() * 200) + 150,
+          value: assets?.length ?? 0,
           status: "normal",
           limit: "500"
         }
