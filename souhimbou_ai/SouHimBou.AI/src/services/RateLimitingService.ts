@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+
 
 export interface RateLimitConfig {
   apiProvider: string;
@@ -19,7 +19,7 @@ export interface RateLimitResult {
 
 class RateLimitingService {
   private static instance: RateLimitingService;
-  private limitConfigs: Map<string, RateLimitConfig> = new Map();
+  private readonly limitConfigs: Map<string, RateLimitConfig> = new Map();
 
   static getInstance(): RateLimitingService {
     if (!RateLimitingService.instance) {
@@ -90,7 +90,6 @@ class RateLimitingService {
 
       const now = new Date();
       const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-      const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
       // Calculate usage in current hour and day
       const hourlyRequests = usageData.filter((u: any) =>

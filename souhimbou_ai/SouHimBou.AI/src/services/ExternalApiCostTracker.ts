@@ -55,7 +55,7 @@ export class ExternalApiCostTracker {
   async trackApiCall(apiCall: ApiCall): Promise<CostCalculation> {
     try {
       // Use edge function for tracking until tables are available
-      const { data, error } = await supabase.functions.invoke('track-external-api-usage', {
+      const { error } = await supabase.functions.invoke('track-external-api-usage', {
         body: {
           organizationId: apiCall.organizationId,
           apiProvider: apiCall.apiProvider,
@@ -74,7 +74,7 @@ export class ExternalApiCostTracker {
       const defaultRates = {
         openai: { requestCost: 0.002, tokenCost: 0.00002 },
         grok: { requestCost: 0.001, tokenCost: 0.00001 },
-        shodan: { requestCost: 0.10, tokenCost: 0 },
+        shodan: { requestCost: 0.1, tokenCost: 0 },
         virustotal: { requestCost: 0.05, tokenCost: 0 }
       };
 

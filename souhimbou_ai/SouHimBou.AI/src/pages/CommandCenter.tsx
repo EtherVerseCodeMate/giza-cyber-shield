@@ -37,21 +37,9 @@ interface Attestation {
     verified: boolean;
 }
 
-// Mock Data
-const mockEndpoints: Endpoint[] = [
-    { id: "1", hostname: "DC01-PROD", ip: "10.0.1.10", os: "Windows Server 2022", status: "online", profile: "WIN-T", lastScan: "2026-01-27T00:30:00Z" },
-    { id: "2", hostname: "WEB-DMZ-01", ip: "10.0.2.50", os: "RHEL 9", status: "online", profile: "JDN", lastScan: "2026-01-26T22:00:00Z" },
-    { id: "3", hostname: "DB-CLUSTER-A", ip: "10.0.3.100", os: "Ubuntu 22.04", status: "scanning", profile: "SATCOM" },
-    { id: "4", hostname: "EDGE-NODE-42", ip: "192.168.50.1", os: "Windows 11", status: "offline", profile: "JNN" },
-];
-
-const mockScanResults: ScanResult[] = [
-    { controlId: "V-253263", title: "Encryption at Rest Required", severity: "critical", status: "fail", finding: "Volume C: not encrypted" },
-    { controlId: "V-253275", title: "Password Complexity Policy", severity: "high", status: "pass" },
-    { controlId: "V-253280", title: "Audit Log Retention", severity: "medium", status: "fail", finding: "Logs retained for 30 days, require 90" },
-    { controlId: "V-253301", title: "Firewall Default Deny", severity: "high", status: "pass" },
-    { controlId: "V-253315", title: "SSH Key-Based Auth", severity: "medium", status: "not_applicable" },
-];
+// Awaiting real telemetry
+const endpoints: Endpoint[] = [];
+const scanResults: ScanResult[] = [];
 
 const CommandCenter = () => {
     const [selectedEndpoint, setSelectedEndpoint] = useState<Endpoint | null>(null);
@@ -157,7 +145,11 @@ const CommandCenter = () => {
                             </Button>
                         </div>
                         <div className="space-y-2">
-                            {mockEndpoints.map((ep) => (
+                            {endpoints.length === 0 ? (
+                                <div className="p-4 text-center text-slate-500 text-sm">
+                                    Awaiting endpoint telemetry
+                                </div>
+                            ) : endpoints.map((ep) => (
                                 <button
                                     key={ep.id}
                                     type="button"
@@ -219,7 +211,11 @@ const CommandCenter = () => {
                         )}
 
                         <div className="space-y-2">
-                            {mockScanResults.map((result) => (
+                            {scanResults.length === 0 ? (
+                                <div className="p-4 text-center text-slate-500 text-sm">
+                                    Execute scan to retrieve results
+                                </div>
+                            ) : scanResults.map((result) => (
                                 <div
                                     key={result.controlId}
                                     className="p-3 rounded-lg bg-slate-800/50 border border-slate-700"

@@ -13,7 +13,8 @@
     "souhimbou_ai",
     "pkg",
     "cmd",
-    "services"
+    "services",
+    "n8n-nodes"
   ],
   "compilerOptions": {
     "baseUrl": ".",
