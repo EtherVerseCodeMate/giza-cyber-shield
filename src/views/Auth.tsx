@@ -338,7 +338,16 @@ const Auth = () => {
         </CardHeader>
 
         <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <Tabs
+              value={activeTab}
+              onValueChange={(tab) => {
+                setActiveTab(tab);
+                setEmail('');
+                setPassword('');
+                setFieldErrors({});
+              }}
+              className="w-full"
+            >
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login" className="flex items-center gap-2">
                 <Lock className="h-4 w-4" />
