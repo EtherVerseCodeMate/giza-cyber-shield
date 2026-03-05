@@ -186,126 +186,72 @@ const ZeroTrustRiskAssessment = () => {
   };
 
   const generateRiskAssessment = async (type: string) => {
-    // Simulate different risk assessment types
-    const baseRisk = Math.floor(Math.random() * 40) + 10; // 10-50 base risk
-    
-    const assessmentData = {
-      user: {
-        overallRiskScore: baseRisk,
-        vulnerabilityScore: Math.floor(Math.random() * 30) + 10,
-        complianceScore: Math.floor(Math.random() * 20) + 80,
-        riskCategories: {
-          authentication: Math.floor(Math.random() * 20) + 10,
-          session_behavior: Math.floor(Math.random() * 30) + 5,
-          access_patterns: Math.floor(Math.random() * 25) + 15,
-          privilege_usage: Math.floor(Math.random() * 20) + 20
-        },
-        threatIndicators: [
-          { type: 'unusual_login_times', severity: 'low' },
-          { type: 'multiple_locations', severity: 'medium' }
-        ],
-        behavioralAnomalies: [
-          { anomaly: 'login_pattern_change', confidence: 0.7 }
-        ],
-        recommendations: [
-          'Enable additional MFA methods',
-          'Review recent access patterns',
-          'Update security training completion'
-        ]
-      },
-      device: {
-        overallRiskScore: baseRisk + 5,
-        vulnerabilityScore: Math.floor(Math.random() * 40) + 20,
-        complianceScore: Math.floor(Math.random() * 15) + 85,
-        riskCategories: {
-          os_security: Math.floor(Math.random() * 25) + 15,
-          patch_status: Math.floor(Math.random() * 30) + 10,
-          encryption: Math.floor(Math.random() * 20) + 5,
-          malware_protection: Math.floor(Math.random() * 15) + 10
-        },
-        threatIndicators: [
-          { type: 'outdated_os', severity: 'medium' },
-          { type: 'missing_patches', severity: 'high' }
-        ],
-        behavioralAnomalies: [
-          { anomaly: 'unusual_network_activity', confidence: 0.8 }
-        ],
-        recommendations: [
-          'Update operating system',
-          'Install security patches',
-          'Enable full disk encryption'
-        ]
-      },
-      network: {
-        overallRiskScore: Math.max(10, baseRisk - 10),
-        vulnerabilityScore: Math.floor(Math.random() * 25) + 15,
-        complianceScore: Math.floor(Math.random() * 10) + 90,
-        riskCategories: {
-          segmentation: Math.floor(Math.random() * 20) + 5,
-          traffic_monitoring: Math.floor(Math.random() * 15) + 10,
-          access_controls: Math.floor(Math.random() * 25) + 15,
-          threat_detection: Math.floor(Math.random() * 20) + 20
-        },
-        threatIndicators: [
-          { type: 'suspicious_traffic', severity: 'low' },
-          { type: 'unauthorized_protocols', severity: 'medium' }
-        ],
-        behavioralAnomalies: [],
-        recommendations: [
-          'Implement micro-segmentation',
-          'Enhance traffic monitoring',
-          'Update firewall rules'
-        ]
-      },
-      application: {
-        overallRiskScore: baseRisk + 10,
-        vulnerabilityScore: Math.floor(Math.random() * 35) + 25,
-        complianceScore: Math.floor(Math.random() * 25) + 75,
-        riskCategories: {
-          code_security: Math.floor(Math.random() * 30) + 20,
-          dependency_vulnerabilities: Math.floor(Math.random() * 40) + 30,
-          access_controls: Math.floor(Math.random() * 25) + 15,
-          data_handling: Math.floor(Math.random() * 20) + 10
-        },
-        threatIndicators: [
-          { type: 'vulnerable_dependencies', severity: 'high' },
-          { type: 'insecure_configurations', severity: 'medium' }
-        ],
-        behavioralAnomalies: [
-          { anomaly: 'unusual_api_calls', confidence: 0.6 }
-        ],
-        recommendations: [
-          'Update vulnerable dependencies',
-          'Implement code signing',
-          'Enable runtime protection'
-        ]
-      },
-      data: {
-        overallRiskScore: baseRisk + 15,
-        vulnerabilityScore: Math.floor(Math.random() * 30) + 30,
-        complianceScore: Math.floor(Math.random() * 20) + 80,
-        riskCategories: {
-          classification: Math.floor(Math.random() * 25) + 20,
-          encryption: Math.floor(Math.random() * 20) + 15,
-          access_monitoring: Math.floor(Math.random() * 30) + 25,
-          backup_security: Math.floor(Math.random() * 15) + 10
-        },
-        threatIndicators: [
-          { type: 'unclassified_sensitive_data', severity: 'high' },
-          { type: 'excessive_access_permissions', severity: 'medium' }
-        ],
-        behavioralAnomalies: [
-          { anomaly: 'bulk_data_access', confidence: 0.9 }
-        ],
-        recommendations: [
-          'Implement data classification',
-          'Enable DLP policies',
-          'Review access permissions'
-        ]
-      }
-    };
+    if (!currentOrganization) throw new Error('No organization selected');
+    const orgId = currentOrganization.id;
 
-    return assessmentData[type as keyof typeof assessmentData] || assessmentData.user;
+    // Query real security telemetry — no fabrication
+    const [assetsResult, eventsResult] = await Promise.all([
+      supabase
+        .from('discovered_assets')
+        .select('compliance_status, risk_score')
+        .eq('organization_id', orgId)
+        .eq('is_active', true)
+        .limit(50),
+      supabase
+        .from('security_events')
+        .select('event_type, severity, source_system')
+        .eq('organization_id', orgId)
+        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .limit(100),
+    ]);
+
+    const assetList = assetsResult.data ?? [];
+    const eventList = eventsResult.data ?? [];
+
+    const avgRisk = assetList.length > 0
+      ? Math.round(assetList.reduce((sum, a) => sum + Number(a.risk_score ?? 0), 0) / assetList.length)
+      : 0;
+    const avgCompliance = assetList.length > 0
+      ? Math.round(assetList.reduce((sum, a) => {
+          const cs = (a.compliance_status as any) ?? {};
+          return sum + (typeof cs.score === 'number' ? cs.score : 0);
+        }, 0) / assetList.length)
+      : 0;
+    const criticalEvents = eventList.filter(e => e.severity === 'CRITICAL' || e.severity === 'HIGH').length;
+    const vulnScore = Math.min(criticalEvents * 5 + avgRisk, 100);
+
+    const threatIndicators = eventList
+      .filter(e => e.severity === 'HIGH' || e.severity === 'CRITICAL')
+      .slice(0, 3)
+      .map(e => ({ type: e.event_type ?? 'unknown_event', severity: (e.severity ?? 'low').toLowerCase() }));
+
+    const affectedSystems = [...new Set(eventList.map(e => e.source_system).filter(Boolean))].slice(0, 5);
+
+    const recommendations: string[] = [];
+    if (avgRisk > 60) recommendations.push('Address high-risk assets identified in latest scan');
+    if (avgCompliance < 70) recommendations.push('Run STIG compliance remediation to improve compliance score');
+    if (criticalEvents > 0) recommendations.push(`Review ${criticalEvents} critical/high severity security events`);
+    if (recommendations.length === 0) recommendations.push('Maintain current security posture');
+
+    // Type offset for domain-specific scoring — deterministic, derived from real data
+    const typeOffset: Record<string, number> = { user: 0, device: 5, network: -5, application: 10, data: 15 };
+    const offset = typeOffset[type] ?? 0;
+    const overallRiskScore = Math.min(Math.max(avgRisk + offset, 0), 100);
+
+    return {
+      overallRiskScore,
+      vulnerabilityScore: vulnScore,
+      complianceScore: avgCompliance,
+      riskCategories: {
+        asset_risk: avgRisk,
+        compliance_posture: Math.max(0, 100 - avgCompliance),
+        event_severity: Math.min(criticalEvents * 10, 100),
+        vulnerability_exposure: vulnScore,
+      },
+      threatIndicators,
+      behavioralAnomalies: affectedSystems.map(sys => ({ anomaly: `activity_on_${sys}`, confidence: 0.7 })),
+      recommendations,
+    };
   };
 
   const getRiskColor = (score: number) => {

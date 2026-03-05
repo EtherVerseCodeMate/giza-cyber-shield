@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,41 +37,78 @@ interface AuditReportData {
   executive_summary: string;
 }
 
+import { supabase } from '@/integrations/supabase/client';
+
 export const ComplianceAuditReport = () => {
   const [activeReport, setActiveReport] = useState<string>("executive");
-  
-  // Mock data - would come from Supabase in real implementation
-  const reportData: AuditReportData = {
-    assessment_name: "CMMC Level 2 Assessment",
+  const [reportData, setReportData] = useState<AuditReportData>({
+    assessment_name: "Compliance Assessment",
     framework: "CMMC 2.0",
-    assessment_date: "2024-01-15",
-    overall_score: 87,
-    compliance_level: "Level 2 Ready",
-    total_controls: 110,
-    implemented_controls: 96,
-    gaps: [
-      {
-        id: "1",
-        control_id: "AC.L2-3.1.1",
-        title: "Account Management",
-        severity: "HIGH",
-        status: "IN_PROGRESS",
-        finding: "Privileged account review process not documented",
-        recommendation: "Implement quarterly privileged account review procedures",
-        target_date: "2024-02-28"
-      },
-      {
-        id: "2",
-        control_id: "SC.L2-3.13.1",
-        title: "Boundary Protection",
-        severity: "MEDIUM",
-        status: "OPEN",
-        finding: "Firewall rules not regularly reviewed",
-        recommendation: "Establish monthly firewall rule review process",
-        target_date: "2024-03-15"
-      }
-    ],
-    executive_summary: "The organization demonstrates strong cybersecurity maturity with 87% compliance across CMMC Level 2 requirements. Key strengths include robust access controls and incident response capabilities. Priority remediation areas focus on documentation and process formalization."
+    assessment_date: new Date().toLocaleDateString(),
+    overall_score: 0,
+    compliance_level: "Loading...",
+    total_controls: 0,
+    implemented_controls: 0,
+    gaps: [],
+    executive_summary: "Loading assessment data from database..."
+  });
+
+  useEffect(() => {
+    loadReportData();
+  }, []);
+
+  const loadReportData = async () => {
+    try {
+      const [assessmentRes, gapControlsRes, allControlsRes, implementedControlsRes] = await Promise.all([
+        supabase
+          .from('compliance_assessments')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from('compliance_controls')
+          .select('id, control_id, description, implementation_status, created_at')
+          .not('implementation_status', 'eq', 'implemented')
+          .not('implementation_status', 'eq', 'validated')
+          .order('created_at', { ascending: false })
+          .limit(10),
+        supabase.from('compliance_controls').select('id', { count: 'exact', head: true }),
+        supabase.from('compliance_controls').select('id', { count: 'exact', head: true }).eq('implementation_status', 'implemented')
+      ]);
+
+      const assessment = assessmentRes.data;
+      const score = assessment?.score ?? 0;
+      const total = allControlsRes.count ?? 0;
+      const implemented = implementedControlsRes.count ?? 0;
+      const gapControls = gapControlsRes.data || [];
+
+      setReportData({
+        assessment_name: assessment?.assessment_type ? `${assessment.assessment_type} Assessment` : 'CMMC Level 2 Assessment',
+        framework: "CMMC 2.0",
+        assessment_date: assessment ? new Date(assessment.created_at).toLocaleDateString() : new Date().toLocaleDateString(),
+        overall_score: Math.round(score),
+        compliance_level: score >= 90 ? 'Level 2 Certified' : score >= 70 ? 'Level 2 Ready' : 'In Progress',
+        total_controls: total,
+        implemented_controls: implemented,
+        gaps: gapControls.map(c => {
+          const sev = (c as any).severity || (c as any).risk_level || 'medium';
+          return {
+            id: c.id,
+            control_id: c.control_id || c.id.slice(0, 12).toUpperCase(),
+            title: (c as any).title || `Control Gap: ${c.control_id || c.id.slice(0, 8)}`,
+            severity: sev === 'critical' || sev === 'high' ? 'HIGH' : sev === 'medium' ? 'MEDIUM' : 'LOW',
+            status: c.implementation_status === 'planned' ? 'IN_PROGRESS' : 'OPEN',
+            finding: c.description || 'Control implementation gap identified',
+            recommendation: (c as any).remediation_guidance || 'Implement control per framework requirements',
+            target_date: (c as any).target_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          };
+        }),
+        executive_summary: `Analysis of ${total} controls reveals ${Math.round(score)}% compliance with CMMC 2.0 requirements. ${total - implemented} gap${total - implemented !== 1 ? 's' : ''} identified requiring remediation. ${implemented} controls successfully implemented and validated.`
+      });
+    } catch (error) {
+      console.error('[ComplianceAuditReport] loadReportData error:', error);
+    }
   };
 
   const getSeverityIcon = (severity: string) => {

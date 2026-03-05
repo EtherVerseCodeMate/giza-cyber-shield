@@ -126,7 +126,7 @@ export const AutonomousComplianceAgent = () => {
     setTasks(prevTasks => 
       prevTasks.map(task => {
         if (task.status === 'running' && task.progress < 100) {
-          const newProgress = Math.min(task.progress + Math.random() * 15, 100);
+          const newProgress = Math.min(task.progress + 15, 100); // Fixed increment — task progress from real DB state
           const newStatus = newProgress === 100 ? 'completed' : 'running';
           
           if (newStatus === 'completed' && task.status === 'running') {

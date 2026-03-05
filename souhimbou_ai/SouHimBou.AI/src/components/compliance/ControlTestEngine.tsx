@@ -138,34 +138,7 @@ export const ControlTestEngine: React.FC = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Simulate real-time test execution updates
-    const interval = setInterval(() => {
-      setExecutions(prev => prev.map(execution => {
-        if (execution.status === 'running' && Math.random() > 0.7) {
-          const passed = Math.random() > 0.3;
-          return {
-            ...execution,
-            status: 'completed',
-            endTime: new Date(),
-            result: {
-              passed,
-              evidence: {
-                tested_resources: Math.floor(Math.random() * 100) + 10,
-                compliant_resources: passed ? Math.floor(Math.random() * 50) + 50 : Math.floor(Math.random() * 30)
-              },
-              metadata: {
-                test_duration: Math.floor(Math.random() * 120) + 30,
-                connector_version: '1.2.3'
-              },
-              reason: passed ? 'All resources meet compliance requirements' : 'Some resources are non-compliant'
-            }
-          };
-        }
-        return execution;
-      }));
-    }, 5000);
-
-    return () => clearInterval(interval);
+    // Real-time test execution updates require actual test runner integration; interval removed to avoid fabricated data
   }, []);
 
   const executeTest = async (test: ControlTest) => {
@@ -204,32 +177,30 @@ export const ControlTestEngine: React.FC = () => {
         description: `Control test ${test.controlId} has been executed`,
       });
 
-      // Simulate test completion after a delay
-      setTimeout(() => {
-        const passed = Math.random() > 0.3;
-        setTests(prev => prev.map(t => 
-          t.id === test.id ? { 
-            ...t, 
-            status: passed ? 'passed' : 'failed',
-            duration: Math.floor(Math.random() * 120) + 30,
-            passRate: passed ? Math.floor(Math.random() * 20) + 80 : Math.floor(Math.random() * 70) + 10
-          } : t
-        ));
+      // Update test result from real edge function response
+      const passed = data?.passed ?? false;
+      setTests(prev => prev.map(t =>
+        t.id === test.id ? {
+          ...t,
+          status: passed ? 'passed' : 'failed',
+          duration: data?.duration || 0, // Real duration from test execution
+          passRate: data?.passRate || 0 // Real pass rate from test execution
+        } : t
+      ));
 
-        setExecutions(prev => prev.map(exec => 
-          exec.id === executionId ? {
-            ...exec,
-            status: 'completed',
-            endTime: new Date(),
-            result: {
-              passed,
-              evidence: data?.evidence || {},
-              metadata: data?.metadata || {},
-              reason: passed ? 'All checks passed' : 'Compliance violations detected'
-            }
-          } : exec
-        ));
-      }, Math.random() * 5000 + 2000);
+      setExecutions(prev => prev.map(exec =>
+        exec.id === executionId ? {
+          ...exec,
+          status: 'completed',
+          endTime: new Date(),
+          result: {
+            passed,
+            evidence: data?.evidence || {},
+            metadata: data?.metadata || {},
+            reason: passed ? 'All checks passed' : 'Compliance violations detected'
+          }
+        } : exec
+      ));
 
     } catch (error) {
       console.error('Failed to execute test:', error);

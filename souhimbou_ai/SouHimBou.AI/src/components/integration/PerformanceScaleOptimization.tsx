@@ -122,23 +122,10 @@ export const PerformanceScaleOptimization = () => {
   ]);
 
   useEffect(() => {
-    // Generate mock performance data
-    const generateMetrics = () => {
-      const now = new Date();
-      const data = Array.from({ length: 24 }, (_, i) => ({
-        timestamp: new Date(now.getTime() - (23 - i) * 3600000).toISOString(),
-        latency: 50 + Math.random() * 100,
-        throughput: 8000 + Math.random() * 6000,
-        cpuUsage: 30 + Math.random() * 40,
-        memoryUsage: 40 + Math.random() * 35,
-        errorRate: Math.random() * 0.2
-      }));
-      setMetrics(data);
-    };
-
-    generateMetrics();
-    const interval = setInterval(generateMetrics, 60000);
-    return () => clearInterval(interval);
+    // Performance metrics require real monitoring integration (Datadog, CloudWatch, etc.)
+    // Returning empty array until real data source is connected
+    setMetrics([]);
+    // No interval needed without real data source
   }, []);
 
   const toggleScalingRule = (id: string) => {

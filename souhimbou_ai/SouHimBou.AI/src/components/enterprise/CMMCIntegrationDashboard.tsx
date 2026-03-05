@@ -152,12 +152,12 @@ export const CMMCIntegrationDashboard: React.FC = () => {
       control_id: `AC.${Math.floor(i / 10) + 1}.${(i % 10) + 1}`,
       family: controlFamilies[i % controlFamilies.length],
       title: `Control ${i + 1} - ${controlFamilies[i % controlFamilies.length]}`,
-      level: Math.floor(Math.random() * 3) + 1,
-      implementation_status: ['not_implemented', 'planned', 'implemented', 'validated'][Math.floor(Math.random() * 4)] as any,
-      stig_mappings: mappings.slice(0, Math.floor(Math.random() * 3) + 1).map(m => m.stig_rule_id),
-      nist_mapping: `SP 800-53 ${['AC', 'AU', 'CM', 'IA', 'IR'][Math.floor(Math.random() * 5)]}-${i + 1}`,
-      evidence_count: Math.floor(Math.random() * 5),
-      last_assessed: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString()
+      level: (i % 3) + 1, // Level determined by control index grouping
+      implementation_status: 'not_implemented' as any, // Real status requires cmmc_assessments query
+      stig_mappings: [], // Real mappings require stig_assessments join
+      nist_mapping: `SP 800-53 AC-${i + 1}`, // Real mapping requires controls database
+      evidence_count: 0, // Real count requires evidence collection query
+      last_assessed: new Date(0).toISOString() // Real date requires cmmc_assessments query
     }));
   };
 

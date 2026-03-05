@@ -96,41 +96,36 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
   };
 
   const fetchPOAMItems = async () => {
-    // Mock POAM data - in production this would come from database
-    const mockPOAM: POAMItem[] = [
-      {
-        id: '1',
-        control_id: 'AC.1.001',
-        weakness: 'Inadequate access control policy documentation',
-        remediation: 'Update and implement comprehensive access control policy',
-        status: 'IN_PROGRESS',
-        due_date: '2024-02-15',
-        priority: 'HIGH',
-        responsible_party: 'IT Security Team'
-      },
-      {
-        id: '2', 
-        control_id: 'AU.2.041',
-        weakness: 'Audit logs not centrally managed',
-        remediation: 'Implement centralized logging solution (SIEM)',
-        status: 'OPEN',
-        due_date: '2024-03-01',
-        priority: 'MEDIUM',
-        responsible_party: 'Infrastructure Team'
-      },
-      {
-        id: '3',
-        control_id: 'IA.1.076',
-        weakness: 'Multi-factor authentication not enforced',
-        remediation: 'Deploy MFA across all systems and accounts',
-        status: 'COMPLETED',
-        due_date: '2024-01-30',
-        priority: 'HIGH',
-        responsible_party: 'Security Team'
-      }
-    ];
-    
-    setPOAMItems(mockPOAM);
+    try {
+      // Load non-implemented controls as POAM items
+      const { data: controls, error } = await supabase
+        .from('compliance_controls')
+        .select('id, control_id, description, implementation_status, created_at')
+        .not('implementation_status', 'eq', 'implemented')
+        .not('implementation_status', 'eq', 'validated')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+
+      const poamItems: POAMItem[] = (controls || []).map(control => {
+        const sev = (control as any).severity || (control as any).risk_level || 'medium';
+        return {
+          id: control.id,
+          control_id: control.control_id || control.id.slice(0, 10).toUpperCase(),
+          weakness: control.description || 'Control implementation gap identified',
+          remediation: (control as any).remediation_guidance || 'Implement control per CMMC requirements and document evidence',
+          status: control.implementation_status === 'planned' ? 'IN_PROGRESS' : 'OPEN',
+          due_date: (control as any).target_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          priority: sev === 'critical' || sev === 'high' ? 'HIGH' : sev === 'medium' ? 'MEDIUM' : 'LOW',
+          responsible_party: (control as any).owner || 'Security Team'
+        };
+      });
+
+      setPOAMItems(poamItems);
+    } catch (error) {
+      console.error('[CMMCDashboard] fetchPOAMItems error:', error);
+    }
   };
 
   const fetchOrganizationData = async () => {

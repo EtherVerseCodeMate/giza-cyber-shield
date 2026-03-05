@@ -44,85 +44,79 @@ export const InfrastructureDiscovery = () => {
   const { toast } = useToast();
   const { currentOrganization } = useOrganization();
 
-  // STIG-targeted fingerprinting data
+  // Load discovered assets and network segments from Supabase
   useEffect(() => {
-    const mockAssets: Asset[] = [
-      {
-        id: 'stig-win-01',
-        name: 'DC-01-STIG',
-        type: 'server',
-        ip_address: '10.0.1.10',
-        os: 'Windows Server 2019',
-        version: 'STIG V2R6',
-        status: 'online',
-        compliance_score: 94,
-        vulnerabilities: 2,
-        last_scan: '2024-01-13T14:30:00Z',
-        criticality: 'critical'
-      },
-      {
-        id: 'stig-ubuntu-01',
-        name: 'WEB-01-Ubuntu',
-        type: 'server',
-        ip_address: '10.0.2.15',
-        os: 'Ubuntu 22.04',
-        version: 'STIG V1R2',
-        status: 'online',
-        compliance_score: 98,
-        vulnerabilities: 0,
-        last_scan: '2024-01-13T14:25:00Z',
-        criticality: 'high'
-      },
-      {
-        id: 'stig-iis-01',
-        name: 'IIS-01',
-        type: 'server',
-        ip_address: '10.0.0.1',
-        os: 'IIS 10.0',
-        version: 'STIG V2R5',
-        status: 'online',
-        compliance_score: 96,
-        vulnerabilities: 1,
-        last_scan: '2024-01-13T14:20:00Z',
-        criticality: 'critical'
-      },
-      {
-        id: 'stig-apache-01',
-        name: 'Apache-01',
-        type: 'server',
-        ip_address: '10.0.0.2',
-        os: 'Apache 2.4',
-        version: 'STIG V2R4',
-        status: 'online',
-        compliance_score: 92,
-        vulnerabilities: 3,
-        last_scan: '2024-01-13T14:18:00Z',
-        criticality: 'high'
-      }
-    ];
+    if (!currentOrganization?.id) return;
+    const orgId = currentOrganization.id;
 
-    const mockNetworks: NetworkSegment[] = [
-      {
-        id: '1',
-        name: 'DMZ Network',
-        cidr: '10.0.2.0/24',
-        assets_count: 8,
-        compliance_level: 94,
-        security_zone: 'dmz'
-      },
-      {
-        id: '2',
-        name: 'Internal LAN',
-        cidr: '10.0.1.0/24',
-        assets_count: 45,
-        compliance_level: 89,
-        security_zone: 'internal'
-      }
-    ];
+    const fetchAssets = async () => {
+      const { data, error } = await supabase
+        .from('discovered_assets')
+        .select('id, asset_identifier, hostname, operating_system, ip_addresses, compliance_status, risk_score, last_discovered, metadata')
+        .eq('organization_id', orgId)
+        .eq('is_active', true)
+        .order('last_discovered', { ascending: false })
+        .limit(100);
 
-    setAssets(mockAssets);
-    setNetworks(mockNetworks);
-  }, []);
+      if (error) {
+        console.error('Failed to load discovered assets:', error);
+        return;
+      }
+
+      const mapped: Asset[] = (data ?? []).map((row: any) => {
+        const meta = (row.metadata as any) ?? {};
+        const ips: string[] = Array.isArray(row.ip_addresses) ? row.ip_addresses : [];
+        const complianceStatus = (row.compliance_status as any) ?? {};
+        const score = typeof complianceStatus.score === 'number' ? complianceStatus.score : 0;
+        const vulns = typeof complianceStatus.violations === 'number' ? complianceStatus.violations : 0;
+        const risk = Number(row.risk_score ?? 0);
+
+        return {
+          id: row.id,
+          name: row.hostname ?? row.asset_identifier ?? row.id,
+          type: (meta.asset_type as Asset['type']) ?? 'server',
+          ip_address: ips[0] ?? 'Unknown',
+          os: row.operating_system ?? 'Unknown OS',
+          version: meta.stig_version ?? '',
+          status: meta.status ?? 'online',
+          compliance_score: score,
+          vulnerabilities: vulns,
+          last_scan: row.last_discovered ?? new Date().toISOString(),
+          criticality: risk >= 80 ? 'critical' : risk >= 60 ? 'high' : risk >= 40 ? 'medium' : 'low',
+        };
+      });
+      setAssets(mapped);
+    };
+
+    const fetchNetworks = async () => {
+      const { data, error } = await supabase
+        .from('zero_trust_network_segments')
+        .select('id, segment_name, cidr_range, security_zone, access_policies')
+        .eq('organization_id', orgId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Failed to load network segments:', error);
+        return;
+      }
+
+      const mapped: NetworkSegment[] = (data ?? []).map((row: any) => {
+        const policies = (row.access_policies as any) ?? {};
+        return {
+          id: row.id,
+          name: row.segment_name ?? 'Unnamed Segment',
+          cidr: row.cidr_range ?? 'N/A',
+          assets_count: policies.assets_count ?? 0,
+          compliance_level: policies.compliance_level ?? 0,
+          security_zone: (row.security_zone as NetworkSegment['security_zone']) ?? 'internal',
+        };
+      });
+      setNetworks(mapped);
+    };
+
+    fetchAssets();
+    fetchNetworks();
+  }, [currentOrganization?.id]);
 
   const getAssetIcon = (type: string) => {
     switch (type) {

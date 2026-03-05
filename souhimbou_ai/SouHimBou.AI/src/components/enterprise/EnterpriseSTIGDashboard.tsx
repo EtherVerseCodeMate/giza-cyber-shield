@@ -339,12 +339,12 @@ export const EnterpriseSTIGDashboard: React.FC = () => {
                     <div key={platform} className="flex items-center justify-between">
                       <span className="font-medium">{platform}</span>
                       <div className="flex items-center gap-2">
-                        <Progress 
-                          value={Math.random() * 40 + 60} 
-                          className="w-24" 
+                        <Progress
+                          value={0}
+                          className="w-24"
                         />
                         <span className="text-sm text-muted-foreground">
-                          {Math.floor(Math.random() * 40 + 60)}%
+                          {'N/A'}
                         </span>
                       </div>
                     </div>

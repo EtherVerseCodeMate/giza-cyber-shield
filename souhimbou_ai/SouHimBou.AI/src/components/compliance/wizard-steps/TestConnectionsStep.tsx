@@ -13,6 +13,7 @@ import {
   Clock,
   Zap
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { WizardData } from '../DataSourcesWizard';
 
 interface TestResult {
@@ -63,14 +64,16 @@ export const TestConnectionsStep: React.FC<TestConnectionsStepProps> = ({
       }
     }));
 
-    // Simulate connection testing
+    // Test real connection via Supabase edge function
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
-      
-      // Simulate different outcomes
-      const success = Math.random() > 0.2; // 80% success rate
-      const discoveredAssets = success ? Math.floor(Math.random() * 50) + 5 : 0;
-      const responseTime = Math.floor(Math.random() * 500) + 100;
+      const startTime = Date.now();
+      const { data, error } = await supabase.functions.invoke('test-environment-connection', {
+        body: { environment_type: environmentType }
+      });
+      const responseTime = Date.now() - startTime;
+
+      const success = !error && data?.success;
+      const discoveredAssets = data?.discovered_assets || 0;
 
       setTestResults(prev => ({
         ...prev,

@@ -111,7 +111,7 @@ export const SessionSecurityManager = () => {
               started_at: log.created_at,
               last_activity: log.created_at,
               is_current: false,
-              risk_score: Math.floor(Math.random() * 30) + 10,
+              risk_score: 0, // Real risk score requires session risk analysis engine
               suspicious_activity: false
             });
           }

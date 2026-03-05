@@ -261,7 +261,7 @@ export class MLTrainingPipeline {
   }> {
     try {
       // Mock model feedback integration - ready for real ML pipelines
-      const performanceImprovement = Math.random() * 0.1; // Mock 0-10% improvement
+      const performanceImprovement = 0; // Real ML performance improvement requires actual model evaluation pipeline
       
       // Schedule next training if significant feedback received
       const nextTraining = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours

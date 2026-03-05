@@ -52,25 +52,8 @@ export const PerformanceMonitor = () => {
 
   useEffect(() => {
     // Initialize with sample data
-    const generateMetrics = () => {
-      const now = new Date();
-      const data: SystemMetrics[] = [];
-      
-      for (let i = 30; i >= 0; i--) {
-        const timestamp = new Date(now.getTime() - i * 60000).toISOString();
-        data.push({
-          timestamp,
-          cpu: Math.floor(Math.random() * 40) + 20 + (i < 10 ? Math.random() * 30 : 0),
-          memory: Math.floor(Math.random() * 30) + 50,
-          disk: Math.floor(Math.random() * 20) + 60,
-          network: Math.floor(Math.random() * 50) + 25,
-          responseTime: Math.floor(Math.random() * 100) + 50,
-          throughput: Math.floor(Math.random() * 1000) + 500,
-          errors: Math.floor(Math.random() * 5)
-        });
-      }
-      return data;
-    };
+    // Real system metrics require infrastructure monitoring agent integration
+    const generateMetrics = (): SystemMetrics[] => [];
 
     const sampleServices: ServiceHealth[] = [
       {
@@ -151,27 +134,7 @@ export const PerformanceMonitor = () => {
     setAlerts(sampleAlerts);
     setLoading(false);
 
-    // Simulate real-time updates
-    const interval = setInterval(() => {
-      if (monitoring) {
-        setMetrics(prev => {
-          const newMetric: SystemMetrics = {
-            timestamp: new Date().toISOString(),
-            cpu: Math.floor(Math.random() * 40) + 20,
-            memory: Math.floor(Math.random() * 30) + 50,
-            disk: Math.floor(Math.random() * 20) + 60,
-            network: Math.floor(Math.random() * 50) + 25,
-            responseTime: Math.floor(Math.random() * 100) + 50,
-            throughput: Math.floor(Math.random() * 1000) + 500,
-            errors: Math.floor(Math.random() * 5)
-          };
-          
-          return [...prev.slice(-29), newMetric];
-        });
-      }
-    }, 30000);
-
-    return () => clearInterval(interval);
+    // Real-time metric updates require infrastructure monitoring agent; interval removed to avoid fabricated data
   }, [monitoring]);
 
   const getStatusColor = (status: string) => {

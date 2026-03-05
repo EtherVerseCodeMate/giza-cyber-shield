@@ -161,9 +161,9 @@ export class OpenControlsAPIService {
     try {
       // Mock vulnerability ingestion - ready for real feeds
       const mockResult = {
-        vulnerabilities_processed: Math.floor(Math.random() * 50) + 10,
-        threat_correlations: Math.floor(Math.random() * 15) + 5,
-        high_priority_alerts: Math.floor(Math.random() * 3)
+        vulnerabilities_processed: 0, // Real value requires live vulnerability feed integration
+        threat_correlations: 0, // Real value requires live threat correlation engine
+        high_priority_alerts: 0 // Real value requires live alert ingestion
       };
 
       // Record performance metrics
@@ -236,7 +236,7 @@ export class OpenControlsAPIService {
       // Mock Open Controls sync - ready for real integration
       const mockResult = {
         sync_status: 'success' as const,
-        intelligence_updates: Math.floor(Math.random() * 20) + 5,
+        intelligence_updates: 0, // Real value requires live Open Controls sync
         configuration_recommendations: [
           {
             recommendation_id: 'OC_REC_001',
