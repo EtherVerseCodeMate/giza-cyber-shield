@@ -1,14 +1,13 @@
 import { useState, useMemo } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import {
     Shield,
     Zap,
     Globe,
-    Database,
+
     Cpu,
     Activity,
     Code,
@@ -19,7 +18,7 @@ import {
     ChevronRight,
     RefreshCw,
     Terminal,
-    FileJson,
+
     CheckCircle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,7 +47,7 @@ export const PolymorphicIngestionEngine: React.FC<PolymorphicIngestionEngineProp
     }, null, 2));
 
     const [isProcessing, setIsProcessing] = useState(false);
-    const [transformedData, setTransformedData] = useState<any>(null);
+    const [, setTransformedData] = useState<any>(null);
 
     // Mock transformation preview
     const transformationPreview = useMemo(() => {
@@ -246,8 +245,8 @@ export const PolymorphicIngestionEngine: React.FC<PolymorphicIngestionEngineProp
                             { step: '02', title: 'Polymorphic Map', desc: 'Normalize schema into Sentinel Standard Data Objects', icon: Activity },
                             { step: '03', title: 'Regulatory Overlay', desc: 'Auto-map CMMC / STIG / NIST controls to discovery', icon: Shield },
                             { step: '04', title: 'Active Ingestion', desc: 'Live monitoring & Lifecycle management starts', icon: Globe }
-                        ].map((item, i) => (
-                            <div key={i} className="flex-1 flex flex-col items-center text-center space-y-2">
+                        ].map((item) => (
+                            <div key={item.step} className="flex-1 flex flex-col items-center text-center space-y-2">
                                 <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-indigo-400 font-black border border-slate-700">
                                     <item.icon className="h-5 w-5" />
                                 </div>

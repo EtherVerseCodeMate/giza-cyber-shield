@@ -1,17 +1,16 @@
-import { useState, Fragment } from 'react';
+import { Fragment } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
   ArrowLeft,
   Home,
   Shield,
-  Settings,
   FileText,
   Bot,
   Crown,
   Zap,
   BarChart3,
-  Users,
+
   Plug,
   Briefcase,
   Phone
@@ -82,7 +81,6 @@ interface SideNavigationProps {
 
 export const SideNavigation: React.FC<SideNavigationProps> = ({
   className,
-  userRole,
   isAdmin = false
 }) => {
   const location = useLocation();
@@ -138,11 +136,11 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items, className }) => {
   return (
     <nav className={cn("flex items-center space-x-2 text-sm text-muted-foreground mb-4", className)}>
       {items.map((item, index) => (
-        <Fragment key={index}>
+        <Fragment key={item.label}>
           {index > 0 && <span>/</span>}
           {item.path ? (
             <button
-              onClick={() => navigate(item.path!)}
+              onClick={() => item.path && navigate(item.path)}
               className="hover:text-foreground transition-colors"
             >
               {item.label}
