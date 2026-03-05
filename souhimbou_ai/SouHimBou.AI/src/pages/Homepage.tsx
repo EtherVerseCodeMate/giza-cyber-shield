@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Shield, Brain, Activity, Globe, Network, Target, Eye, Lock, ChevronRight, Play, Crown, Coffee, Heart, Users, Scan, Zap, Database, Cloud } from "lucide-react";
+import { Shield, Brain, Activity, ChevronRight, Crown, Heart, Users, Scan, Database } from "lucide-react";
 import InteractiveDemoVideo from "@/components/InteractiveDemoVideo";
 import EmailCaptureForm from "@/components/EmailCaptureForm";
 import RevenueStrategies from "@/components/billing/RevenueStrategies";
@@ -11,24 +11,10 @@ import CacheStatusBadge from "@/components/CacheStatusBadge";
 const Homepage = () => {
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [activeThreats, setActiveThreats] = useState([
-    { id: 1, type: "APT", location: "Beijing, CN", severity: "high", blocked: true },
-    { id: 2, type: "Malware", location: "Moscow, RU", severity: "critical", blocked: true },
-    { id: 3, type: "Phishing", location: "Lagos, NG", severity: "medium", blocked: true },
-    { id: 4, type: "DDoS", location: "Tehran, IR", severity: "high", blocked: true },
-    { id: 5, type: "Ransomware", location: "Pyongyang, KP", severity: "critical", blocked: true },
-  ]);
 
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-      // Simulate live threat feed updates
-      setActiveThreats(prev => 
-        prev.map(threat => ({
-          ...threat,
-          blocked: Math.random() > 0.1 // 90% block rate simulation
-        }))
-      );
     }, 3000);
     return () => clearInterval(timer);
   }, []);
@@ -47,9 +33,9 @@ const Homepage = () => {
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <img 
-                src="/lovable-uploads/94f06ba5-2c93-4be0-a03f-e3fff4157ca6.png" 
-                alt="SouHimBou AI Logo" 
+              <img
+                src="/lovable-uploads/94f06ba5-2c93-4be0-a03f-e3fff4157ca6.png"
+                alt="SouHimBou AI Logo"
                 className="h-12 w-auto"
               />
               <div className="flex items-center space-x-2">
@@ -102,7 +88,7 @@ const Homepage = () => {
                     STIG-First Compliance Platform - In Development
                   </p>
                 </div>
-                
+
                 <h1 className="text-5xl lg:text-6xl font-bold leading-tight">
                   <span className="text-white">Building the Future of</span>
                   <br />
@@ -110,11 +96,11 @@ const Homepage = () => {
                     CMMC Compliance Automation
                   </span>
                 </h1>
-                
+
                 <p className="text-xl text-gray-300 leading-relaxed">
                   A compliance-first GRC platform being built specifically for the Defense Industrial Base, featuring STIG automation, AI-powered verification, and AWS GovCloud deployment for CUI handling.
                 </p>
-                
+
                 {/* Development Status Disclaimer */}
                 <div className="border border-yellow-500/50 rounded-lg bg-yellow-900/20 p-5 space-y-3">
                   <div className="flex items-start gap-3">
@@ -126,14 +112,14 @@ const Homepage = () => {
                         🚧 Platform Development Status
                       </h3>
                       <p className="text-gray-300 text-sm leading-relaxed">
-                        <strong>Important:</strong> SouHimBou AI is currently in active development and <strong>NOT ready for production CUI workloads</strong>. 
-                        We're building with a secure-enclave architecture using AWS GovCloud (US) for future CMMC Level 2 compliance. 
+                        <strong>Important:</strong> SouHimBou AI is currently in active development and <strong>NOT ready for production CUI workloads</strong>.
+                        We're building with a secure-enclave architecture using AWS GovCloud (US) for future CMMC Level 2 compliance.
                         Current prototypes are for demonstration and beta testing only.
                       </p>
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="border border-blue-500/30 rounded-lg bg-blue-900/20 p-6 space-y-3">
                   <h3 className="text-lg font-semibold text-blue-400">
                     Current Development Roadmap
@@ -152,9 +138,9 @@ const Homepage = () => {
                   </div>
                 </div>
               </div>
-              
+
               <EmailCaptureForm />
-              
+
               {/* DoD STIG-Codex Center CTA */}
               <div className="pt-6">
                 <Button
@@ -185,7 +171,7 @@ const Homepage = () => {
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
             {stats.map((stat, index) => (
-              <div 
+              <div
                 key={stat.label}
                 className="text-center space-y-2 animate-fade-in"
                 style={{ animationDelay: `${index * 200}ms` }}
@@ -209,7 +195,7 @@ const Homepage = () => {
               <strong>Note:</strong> Beta access provides UI/dashboard prototyping only. Production CUI handling requires AWS GovCloud deployment (Q2 2025).
             </div>
           </div>
-          
+
           {/* Revenue Strategies Component */}
           <RevenueStrategies />
         </div>
@@ -222,7 +208,7 @@ const Homepage = () => {
             <h2 className="text-4xl font-bold text-white">Earn Rewards Through Referrals</h2>
             <p className="text-xl text-gray-300">Share the platform and get rewarded</p>
           </div>
-          
+
           <div className="max-w-4xl mx-auto">
             <ReferralProgram />
           </div>
@@ -242,7 +228,7 @@ const Homepage = () => {
               ⚠ Current beta pricing is for non-CUI UI/prototype access only. Production CUI workloads require separate GovCloud deployment contract.
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {/* Beta MVP 1.0 Plan */}
             <div className="bg-slate-800/50 border border-cyan-500/50 rounded-lg p-6 space-y-6 relative">
@@ -264,7 +250,7 @@ const Homepage = () => {
                 <li className="flex items-center"><div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>GovCloud Production (Q2 2025)</li>
                 <li className="flex items-center"><div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>CUI Handling (Q2 2025)</li>
               </ul>
-              <Button 
+              <Button
                 className="w-full bg-cyan-600 hover:bg-cyan-700 text-white"
                 onClick={() => navigate('/onboarding')}
               >
@@ -293,7 +279,7 @@ const Homepage = () => {
                 <li className="flex items-center"><div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>Multi-Tenant Production (Q2)</li>
                 <li className="flex items-center"><div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>Real CUI Processing (Q2 GovCloud)</li>
               </ul>
-              <Button 
+              <Button
                 className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
                 onClick={() => navigate('/onboarding')}
               >
@@ -322,7 +308,7 @@ const Homepage = () => {
                 <li className="flex items-center"><div className="w-2 h-2 bg-orange-400 rounded-full mr-2"></div>DISA STIG Automation</li>
                 <li className="flex items-center"><div className="w-2 h-2 bg-orange-400 rounded-full mr-2"></div>Co-branded Success Story</li>
               </ul>
-              <Button 
+              <Button
                 className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
                 onClick={() => navigate('/onboarding')}
               >
@@ -331,7 +317,7 @@ const Homepage = () => {
               <p className="text-xs text-gray-500 text-center">Limited to 5 pilot partners in Q1</p>
             </div>
           </div>
-          
+
           <div className="mt-12 text-center space-y-3">
             <p className="text-gray-400 text-sm">
               Beta plans include: Dashboard UI access • Prototype workflows • Mock data visualization • Email support
@@ -351,16 +337,16 @@ const Homepage = () => {
               🎯 Join Our Development Partnership Program
             </h2>
             <p className="text-xl text-gray-300">
-              Help us build the future of DoD compliance automation. Beta UI access available now. 
+              Help us build the future of DoD compliance automation. Beta UI access available now.
               Production AWS GovCloud deployment for CUI handling launching Q2 2025.
             </p>
             <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 max-w-2xl mx-auto">
               <p className="text-sm text-yellow-300">
-                <strong>Transparency Notice:</strong> Current platform is in active development. Beta features are for UI prototyping and demonstration only. 
+                <strong>Transparency Notice:</strong> Current platform is in active development. Beta features are for UI prototyping and demonstration only.
                 Production workloads handling CUI require our AWS GovCloud deployment (Q2 2025) with full NIST 800-171 controls.
               </p>
             </div>
-            
+
             {/* CTA Options */}
             <div className="grid md:grid-cols-3 gap-6 mt-12">
               {/* Beta Pricing CTA */}

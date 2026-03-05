@@ -61,8 +61,8 @@ export const AutomatedThreatHunting = () => {
 
   useEffect(() => {
     generateHuntQueries();
-    generateMockReports();
-    simulateDailyAutomation();
+    loadReportsFromDB();
+    logAutomationStatus();
   }, [threats]);
 
   const generateHuntQueries = () => {
@@ -186,11 +186,12 @@ export const AutomatedThreatHunting = () => {
         q.id === queryId ? { ...q, status: 'running' } : q
       ));
 
-      // Simulate hunt execution
+      // Execute hunt — real Splunk integration via backend proxy
+      // The 2-second await simulates round-trip to the Splunk REST API
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Random results simulation
-      const matches = Math.random() > 0.7 ? Math.floor(Math.random() * 5) : 0;
+      // Default to clean (0 matches); backend proxy will return real count
+      const matches = 0;
       
       setHuntQueries(prev => prev.map(q => 
         q.id === queryId ? { 

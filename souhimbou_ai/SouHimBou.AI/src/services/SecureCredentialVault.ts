@@ -45,7 +45,7 @@ export interface EncryptionKey {
 }
 
 export class SecureCredentialVault {
-  
+
   /**
    * Store encrypted credentials with enterprise security controls
    */
@@ -66,7 +66,7 @@ export class SecureCredentialVault {
     try {
       // Validate credential strength
       this.validateCredentialStrength(credentialData.credentials, credentialData.credential_type);
-      
+
       // Encrypt credentials using database function
       const { data: encryptedData, error: encryptError } = await supabase
         .rpc('encrypt_credential_data', {
@@ -167,13 +167,13 @@ export class SecureCredentialVault {
       };
     } catch (error) {
       console.error('Retrieve credential failed:', error);
-      
+
       // Log failed access attempt
       await this.logCredentialEvent('credential_access_denied', credentialId, '', {
         error: error.message,
         access_reason: accessRequest.access_reason
       }, 'ERROR');
-      
+
       throw error;
     }
   }
@@ -231,7 +231,7 @@ export class SecureCredentialVault {
       // Mark old key as inactive
       await supabase
         .from('encryption_keys')
-        .update({ 
+        .update({
           is_active: false,
           rotated_at: new Date().toISOString()
         })
@@ -261,9 +261,9 @@ export class SecureCredentialVault {
     try {
       const { error } = await supabase
         .from('secure_discovery_credentials')
-        .update({ 
+        .update({
           is_active: false,
-          metadata: { 
+          metadata: {
             revoked_at: new Date().toISOString(),
             revocation_reason: reason
           }
@@ -326,7 +326,7 @@ export class SecureCredentialVault {
           throw new Error('Password must be at least 12 characters long');
         }
         break;
-      
+
       case 'ssh_key':
         if (!credentials.private_key || !credentials.public_key) {
           throw new Error('SSH key pair required');
@@ -335,7 +335,7 @@ export class SecureCredentialVault {
           throw new Error('Invalid SSH private key format');
         }
         break;
-      
+
       case 'api_token':
         if (!credentials.token) {
           throw new Error('API token required');
@@ -344,7 +344,7 @@ export class SecureCredentialVault {
           throw new Error('API token appears to be too short');
         }
         break;
-      
+
       case 'certificate':
         if (!credentials.certificate || !credentials.private_key) {
           throw new Error('Certificate and private key required');
@@ -379,7 +379,7 @@ export class SecureCredentialVault {
       // Check if last use was recent (within 5 minutes)
       const lastUsed = new Date(credential.last_used_at || 0);
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      
+
       if (lastUsed > fiveMinutesAgo) {
         throw new Error('Credential usage limit exceeded');
       }
@@ -394,7 +394,7 @@ export class SecureCredentialVault {
     if (credential.access_pattern && Object.keys(credential.access_pattern).length > 0) {
       const currentHour = new Date().getHours();
       const allowedHours = credential.access_pattern.allowed_hours;
-      
+
       if (allowedHours && !allowedHours.includes(currentHour)) {
         throw new Error('Credential access not allowed at this time');
       }
@@ -468,35 +468,50 @@ export class SecureCredentialVault {
     testTarget: string
   ): Promise<{ success: boolean; details: string }> {
     try {
-      // This would implement actual connectivity testing
-      // For now, simulate the test
-      
       await this.logCredentialEvent('credential_test_initiated', credentialId, '', {
         test_target: testTarget,
         test_timestamp: new Date().toISOString()
       });
 
-      // Simulate test delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Call the real credential connectivity test via Edge Function
+      const { data, error } = await supabase.functions.invoke('credential-connectivity-test', {
+        body: {
+          credential_id: credentialId,
+          test_target: testTarget,
+        },
+      });
 
-      const success = Math.random() > 0.2; // 80% success rate for simulation
-      
+      if (error) {
+        await this.logCredentialEvent('credential_test_failed', credentialId, '', {
+          test_target: testTarget,
+          test_result: 'edge_function_error',
+          error_message: error.message,
+        }, 'WARN');
+
+        return {
+          success: false,
+          details: `Connectivity test failed: ${error.message}`,
+        };
+      }
+
+      const success = data?.success === true;
+
       await this.logCredentialEvent(
         success ? 'credential_test_successful' : 'credential_test_failed',
         credentialId,
         '',
         {
           test_target: testTarget,
-          test_result: success ? 'connectivity_verified' : 'connection_failed'
+          test_result: success ? 'connectivity_verified' : (data?.error || 'connection_failed'),
         },
         success ? 'INFO' : 'WARN'
       );
 
       return {
         success,
-        details: success 
+        details: success
           ? 'Credential connectivity verified successfully'
-          : 'Failed to establish connection with provided credentials'
+          : `Failed to establish connection: ${data?.error || 'unknown error'}`,
       };
     } catch (error) {
       console.error('Test credential failed:', error);
