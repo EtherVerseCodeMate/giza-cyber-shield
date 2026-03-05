@@ -52,10 +52,10 @@ export const STIGCodexDashboard: React.FC<STIGCodexDashboardProps> = (props) => 
   } = props;
 
   const handleInitializeMonitoring = async () => {
-    // Mock asset and STIG rule data for demo
-    const mockAssets = ['asset-1', 'asset-2', 'asset-3'];
-    const mockSTIGRules = ['WN22-DC-000010', 'WN22-DC-000020', 'WN22-DC-000030'];
-    await initializeMonitoring(mockAssets, mockSTIGRules);
+    // Awaiting telemetry for real asset and STIG rule data
+    const pendingAssets: string[] = [];
+    const pendingSTIGRules: string[] = [];
+    await initializeMonitoring(pendingAssets, pendingSTIGRules);
   };
 
   const getComplianceColor = (score: number) => {
@@ -333,7 +333,7 @@ export const STIGCodexDashboard: React.FC<STIGCodexDashboardProps> = (props) => 
         <TabsContent value="drift" className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Configuration Drift Detection</h3>
-            <Button onClick={() => detectDrift('mock-asset-1')} disabled={loading}>
+            <Button onClick={() => detectDrift('pending-asset')} disabled={loading}>
               <Zap className="h-4 w-4 mr-2" />
               Scan for Drift
             </Button>
@@ -445,7 +445,7 @@ export const STIGCodexDashboard: React.FC<STIGCodexDashboardProps> = (props) => 
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Automated Remediation</h3>
             <Button
-              onClick={() => executeRemediation('mock-violation-1')}
+              onClick={() => executeRemediation('pending-violation')}
               disabled={loading}
               variant="default"
             >
