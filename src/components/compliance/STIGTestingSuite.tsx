@@ -169,11 +169,11 @@ export const STIGTestingSuite: React.FC = () => {
                           Tests: {suite.passed_count}/{suite.tests_count}
                         </span>
 
-                        {suite.coverage_percentage && (
+                        {suite.coverage_percentage != null && (
                           <span>Coverage: {suite.coverage_percentage}%</span>
                         )}
 
-                        {suite.duration_ms && (
+                        {suite.duration_ms != null && (
                           <span>Duration: {(suite.duration_ms / 1000).toFixed(1)}s</span>
                         )}
                       </div>
