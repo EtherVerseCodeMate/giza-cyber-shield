@@ -6,11 +6,11 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Play, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
+import {
+  Play,
+  CheckCircle,
+  XCircle,
+  Clock,
   AlertTriangle,
   FileText,
   Database,
@@ -53,85 +53,11 @@ interface TestExecution {
   };
 }
 
-const mockControlTests: ControlTest[] = [
-  {
-    id: 'test-1',
-    controlId: 'SOC2-CC6.6-OKTA-MFA',
-    framework: 'SOC 2',
-    title: 'Okta - MFA enforced for all users',
-    severity: 'high',
-    status: 'passed',
-    lastRun: new Date(Date.now() - 1000 * 60 * 30),
-    duration: 45,
-    passRate: 95,
-    connector: 'okta',
-    query: {
-      path: '/api/v1/policies',
-      method: 'GET',
-      params: { type: 'MFA_ENROLL' }
-    },
-    passCondition: 'all(users, u -> u.mfa_enforced == true)',
-    evidenceTypes: ['users_summary', 'mfa_policy_document'],
-    automationPossible: true
-  },
-  {
-    id: 'test-2',
-    controlId: 'PCI-3.4-S3-SSE',
-    framework: 'PCI DSS',
-    title: 'AWS S3 - Encryption at rest enabled',
-    severity: 'critical',
-    status: 'failed',
-    lastRun: new Date(Date.now() - 1000 * 60 * 15),
-    duration: 120,
-    passRate: 68,
-    connector: 'aws',
-    query: {
-      path: '/s3/buckets',
-      method: 'GET'
-    },
-    passCondition: 'all(buckets, b -> b.encryption.enabled == true)',
-    evidenceTypes: ['bucket_configs', 'encryption_status'],
-    automationPossible: true
-  },
-  {
-    id: 'test-3',
-    controlId: 'ISO-A.9.2.1-GITHUB-BRANCH',
-    framework: 'ISO 27001',
-    title: 'GitHub - Branch protection rules enforced',
-    severity: 'medium',
-    status: 'running',
-    lastRun: new Date(),
-    passRate: 82,
-    connector: 'github',
-    query: {
-      path: '/repos/{org}/{repo}/branches/{branch}/protection',
-      method: 'GET'
-    },
-    passCondition: 'protection.required_status_checks.strict == true',
-    evidenceTypes: ['branch_protection_config', 'repository_settings'],
-    automationPossible: true
-  },
-  {
-    id: 'test-4',
-    controlId: 'NIST-AC-2-K8S-RBAC',
-    framework: 'NIST 800-171',
-    title: 'Kubernetes - RBAC properly configured',
-    severity: 'high',
-    status: 'pending',
-    passRate: 91,
-    connector: 'kubernetes',
-    query: {
-      path: '/api/v1/rbac.authorization.k8s.io/clusterroles',
-      method: 'GET'
-    },
-    passCondition: 'no_wildcard_permissions_for_non_admin_roles',
-    evidenceTypes: ['rbac_roles', 'cluster_bindings'],
-    automationPossible: false
-  }
-];
+// Awaiting telemetry for real control tests
+const pendingControlTests: ControlTest[] = [];
 
 export const ControlTestEngine: React.FC = () => {
-  const [tests, setTests] = useState<ControlTest[]>(mockControlTests);
+  const [tests, setTests] = useState<ControlTest[]>(pendingControlTests);
   const [executions, setExecutions] = useState<TestExecution[]>([]);
   const [isRunningAll, setIsRunningAll] = useState(false);
   const [selectedFramework, setSelectedFramework] = useState<string>('all');
@@ -151,7 +77,7 @@ export const ControlTestEngine: React.FC = () => {
     };
 
     setExecutions(prev => [...prev, execution]);
-    setTests(prev => prev.map(t => 
+    setTests(prev => prev.map(t =>
       t.id === test.id ? { ...t, status: 'running', lastRun: new Date() } : t
     ));
 
@@ -204,10 +130,10 @@ export const ControlTestEngine: React.FC = () => {
 
     } catch (error) {
       console.error('Failed to execute test:', error);
-      setTests(prev => prev.map(t => 
+      setTests(prev => prev.map(t =>
         t.id === test.id ? { ...t, status: 'error' } : t
       ));
-      
+
       toast({
         title: "Test Failed",
         description: "Failed to execute control test",
@@ -218,9 +144,9 @@ export const ControlTestEngine: React.FC = () => {
 
   const executeAllTests = async () => {
     setIsRunningAll(true);
-    
-    const filteredTests = selectedFramework === 'all' 
-      ? tests 
+
+    const filteredTests = selectedFramework === 'all'
+      ? tests
       : tests.filter(t => t.framework === selectedFramework);
 
     for (const test of filteredTests) {
@@ -232,7 +158,7 @@ export const ControlTestEngine: React.FC = () => {
     }
 
     setIsRunningAll(false);
-    
+
     toast({
       title: "Batch Execution Complete",
       description: `Executed ${filteredTests.length} control tests`,
@@ -270,8 +196,8 @@ export const ControlTestEngine: React.FC = () => {
   };
 
   const frameworks = ['all', ...Array.from(new Set(tests.map(t => t.framework)))];
-  const filteredTests = selectedFramework === 'all' 
-    ? tests 
+  const filteredTests = selectedFramework === 'all'
+    ? tests
     : tests.filter(t => t.framework === selectedFramework);
 
   const overallStats = {
@@ -342,7 +268,7 @@ export const ControlTestEngine: React.FC = () => {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <select 
+              <select
                 value={selectedFramework}
                 onChange={(e) => setSelectedFramework(e.target.value)}
                 className="px-3 py-2 border rounded-md"
@@ -353,7 +279,7 @@ export const ControlTestEngine: React.FC = () => {
                   </option>
                 ))}
               </select>
-              <Button 
+              <Button
                 onClick={executeAllTests}
                 disabled={isRunningAll}
                 className="flex items-center gap-2"
@@ -417,21 +343,21 @@ export const ControlTestEngine: React.FC = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="mb-4">
                 <div className="text-sm text-muted-foreground mb-1">Query</div>
                 <div className="bg-muted p-2 rounded text-sm font-mono">
                   {test.query.method} {test.query.path}
                 </div>
               </div>
-              
+
               <div className="mb-4">
                 <div className="text-sm text-muted-foreground mb-1">Pass Condition</div>
                 <div className="bg-muted p-2 rounded text-sm font-mono">
                   {test.passCondition}
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-muted-foreground" />
