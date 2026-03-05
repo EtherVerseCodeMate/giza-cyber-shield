@@ -6,29 +6,32 @@
 // Example Usage:
 //
 //	keys, _ := license.GenerateProtectionKeys("Eban")
-//	client := security.NewSecureSupabaseClient(supabaseURL, supabaseKey, keys)
+//	client := security.NewSecureSupabaseClient(supabase.Config{
+//	    ProjectURL:     os.Getenv("SUPABASE_URL"),
+//	    ServiceRoleKey: os.Getenv("SUPABASE_SERVICE_ROLE_KEY"),
+//	}, keys)
 //
 //	// INSERT - automatically encrypted
 //	user := &UserProfile{Email: "alice@example.com", SSN: "123-45-6789"}
-//	client.Insert("users", user)
+//	client.Insert(ctx, "users", user)
 //
 //	// SELECT - automatically decrypted
-//	result, _ := client.Select("users", "id", userID)
-//	profile := result.(*UserProfile)
+//	result, _ := client.Select(ctx, "users", "id", userID)
 package security
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/supabase"
 )
 
 // SecureSupabaseClient wraps Supabase with automatic PQC encryption.
 type SecureSupabaseClient struct {
-	url    string
-	apiKey string
+	client *supabase.Client
 	keys   *license.ProtectionKeys
 
 	// Metrics
@@ -37,122 +40,132 @@ type SecureSupabaseClient struct {
 	encryptionErrors int64
 }
 
-// NewSecureSupabaseClient creates a new encrypted Supabase client.
-func NewSecureSupabaseClient(url string, apiKey string, keys *license.ProtectionKeys) *SecureSupabaseClient {
+// NewSecureSupabaseClient creates a new PQC-encrypted Supabase client.
+func NewSecureSupabaseClient(cfg supabase.Config, keys *license.ProtectionKeys) *SecureSupabaseClient {
 	return &SecureSupabaseClient{
-		url:    url,
-		apiKey: apiKey,
+		client: supabase.NewClient(cfg),
 		keys:   keys,
 	}
 }
 
 // ─── INSERT Operations (Auto-Encrypt) ─────────────────────────────────────────
 
-// Insert encrypts data and inserts into Supabase table.
-//
-// Parameters:
-//   - table: Supabase table name (e.g., "users", "licenses")
-//   - data: Any Go struct or map to insert
-//
-// Returns: Encrypted row ID
-func (sc *SecureSupabaseClient) Insert(table string, data interface{}) (string, error) {
-	// 1. Protect data with PQC (4-layer encryption)
+// Insert encrypts data and inserts a single row into a Supabase table.
+func (sc *SecureSupabaseClient) Insert(ctx context.Context, table string, data interface{}) (string, error) {
 	protected, err := license.ProtectSupabaseRecord(data, table, sc.keys, time.Time{})
 	if err != nil {
 		sc.encryptionErrors++
-		return "", fmt.Errorf("failed to encrypt data: %w", err)
+		return "", fmt.Errorf("encrypt %s: %w", table, err)
 	}
-	// 2. Convert to JSON
-	protectedJSON, err := json.Marshal(protected)
+
+	body, err := sc.client.Insert(ctx, table, protected)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal protected data: %w", err)
+		return "", fmt.Errorf("supabase insert %s: %w", table, err)
 	}
 
-	// 3. Insert into Supabase (would use actual Supabase SDK)
-	// For now, this is a skeleton showing the pattern
-	_ = protectedJSON // Future: sc.client.From(table).Insert(protectedJSON)
-	rowID := protected.ID
-
-	// TODO: Replace with actual Supabase client
-	// response, err := sc.client.From(table).Insert(protectedJSON)
+	// Parse the returned row to confirm the server-assigned ID (may differ from client-generated ID).
+	var inserted []license.SupabaseEncryptedRow
+	if jsonErr := json.Unmarshal(body, &inserted); jsonErr == nil && len(inserted) > 0 && inserted[0].ID != "" {
+		sc.encryptedInserts++
+		return inserted[0].ID, nil
+	}
 
 	sc.encryptedInserts++
-	return rowID, nil
+	return protected.ID, nil
 }
 
-// InsertBatch encrypts multiple records and inserts in bulk.
-func (sc *SecureSupabaseClient) InsertBatch(table string, records []interface{}) ([]string, error) {
-	// 1. Protect batch in parallel
-	protectedRows, errors := license.ProtectSupabaseBatch(records, table, sc.keys)
-
-	// 2. Check for encryption errors
-	for i, err := range errors {
+// InsertBatch encrypts multiple records and inserts them in bulk.
+func (sc *SecureSupabaseClient) InsertBatch(ctx context.Context, table string, records []interface{}) ([]string, error) {
+	protectedRows, errs := license.ProtectSupabaseBatch(records, table, sc.keys)
+	for i, err := range errs {
 		if err != nil {
 			sc.encryptionErrors++
-			return nil, fmt.Errorf("failed to encrypt record %d: %w", i, err)
+			return nil, fmt.Errorf("encrypt record %d for %s: %w", i, table, err)
 		}
 	}
 
-	// 3. Insert batch into Supabase
-	rowIDs := make([]string, len(protectedRows))
-	for i, row := range protectedRows {
-		rowIDs[i] = row.ID
+	body, err := sc.client.Insert(ctx, table, protectedRows)
+	if err != nil {
+		return nil, fmt.Errorf("supabase batch insert %s: %w", table, err)
 	}
 
-	// TODO: Replace with actual Supabase batch insert
-	// response, err := sc.client.From(table).Insert(protectedRows)
+	// Parse server-returned IDs when available.
+	var inserted []license.SupabaseEncryptedRow
+	if jsonErr := json.Unmarshal(body, &inserted); jsonErr == nil && len(inserted) == len(protectedRows) {
+		ids := make([]string, len(inserted))
+		for i, row := range inserted {
+			ids[i] = row.ID
+		}
+		sc.encryptedInserts += int64(len(records))
+		return ids, nil
+	}
 
+	// Fall back to client-generated IDs.
+	ids := make([]string, len(protectedRows))
+	for i, row := range protectedRows {
+		ids[i] = row.ID
+	}
 	sc.encryptedInserts += int64(len(records))
-	return rowIDs, nil
+	return ids, nil
 }
 
 // ─── SELECT Operations (Auto-Decrypt) ─────────────────────────────────────────
 
-// Select decrypts data from Supabase table.
-//
-// Parameters:
-//   - table: Supabase table name
-//   - column: Column to filter by (e.g., "id", "email")
-//   - value: Value to match
-//
-// Returns: Decrypted data as map[string]interface{}
-func (sc *SecureSupabaseClient) Select(table string, column string, value interface{}) (map[string]interface{}, error) {
-	// 1. Fetch encrypted row from Supabase
-	// TODO: Replace with actual Supabase client
-	// var encryptedRow license.SupabaseEncryptedRow
-	// err := sc.client.From(table).Select("*").Eq(column, value).Single().ExecuteTo(&encryptedRow)
+// Select fetches and decrypts a single row matching column=value.
+func (sc *SecureSupabaseClient) Select(ctx context.Context, table string, column string, value interface{}) (map[string]interface{}, error) {
+	filter := fmt.Sprintf("%s=eq.%v", column, value)
+	body, err := sc.client.Select(ctx, table, filter, "*")
+	if err != nil {
+		return nil, fmt.Errorf("supabase select %s: %w", table, err)
+	}
 
-	// For now, return skeleton
-	var encryptedRow license.SupabaseEncryptedRow
+	var rows []license.SupabaseEncryptedRow
+	if err := json.Unmarshal(body, &rows); err != nil {
+		return nil, fmt.Errorf("unmarshal select %s: %w", table, err)
+	}
+	if len(rows) == 0 {
+		return nil, fmt.Errorf("record not found in %s where %s=%v", table, column, value)
+	}
 
-	// 2. Decrypt with PQC
-	decrypted, err := license.UnprotectSupabaseRecord(&encryptedRow, sc.keys)
+	decrypted, err := license.UnprotectSupabaseRecord(&rows[0], sc.keys)
 	if err != nil {
 		sc.encryptionErrors++
-		return nil, fmt.Errorf("failed to decrypt data: %w", err)
+		return nil, fmt.Errorf("decrypt %s: %w", table, err)
 	}
 
 	sc.decryptedSelects++
 	return decrypted, nil
 }
 
-// SelectBatch decrypts multiple records from Supabase.
-func (sc *SecureSupabaseClient) SelectBatch(table string, column string, values []interface{}) ([]map[string]interface{}, error) {
-	// 1. Fetch encrypted rows
-	// TODO: Replace with actual Supabase client
-	// var encryptedRows []*license.SupabaseEncryptedRow
-	// err := sc.client.From(table).Select("*").In(column, values).ExecuteTo(&encryptedRows)
+// SelectBatch fetches and decrypts all rows where column is in values.
+func (sc *SecureSupabaseClient) SelectBatch(ctx context.Context, table string, column string, values []interface{}) ([]map[string]interface{}, error) {
+	// Build PostgREST "in" filter: column=in.(v1,v2,v3)
+	valStrs := make([]string, len(values))
+	for i, v := range values {
+		valStrs[i] = fmt.Sprintf("%v", v)
+	}
+	filter := fmt.Sprintf("%s=in.(%s)", column, joinStrings(valStrs, ","))
 
-	var encryptedRows []*license.SupabaseEncryptedRow
+	body, err := sc.client.Select(ctx, table, filter, "*")
+	if err != nil {
+		return nil, fmt.Errorf("supabase select batch %s: %w", table, err)
+	}
 
-	// 2. Decrypt batch in parallel
-	decrypted, errors := license.UnprotectSupabaseBatch(encryptedRows, sc.keys)
+	var encryptedRows []license.SupabaseEncryptedRow
+	if err := json.Unmarshal(body, &encryptedRows); err != nil {
+		return nil, fmt.Errorf("unmarshal select batch %s: %w", table, err)
+	}
 
-	// 3. Check for decryption errors
-	for i, err := range errors {
+	ptrs := make([]*license.SupabaseEncryptedRow, len(encryptedRows))
+	for i := range encryptedRows {
+		ptrs[i] = &encryptedRows[i]
+	}
+
+	decrypted, decErrs := license.UnprotectSupabaseBatch(ptrs, sc.keys)
+	for i, err := range decErrs {
 		if err != nil {
 			sc.encryptionErrors++
-			return nil, fmt.Errorf("failed to decrypt record %d: %w", i, err)
+			return nil, fmt.Errorf("decrypt record %d from %s: %w", i, table, err)
 		}
 	}
 
@@ -162,45 +175,52 @@ func (sc *SecureSupabaseClient) SelectBatch(table string, column string, values 
 
 // ─── UPDATE Operations (Encrypt-then-Update) ──────────────────────────────────
 
-// Update encrypts new data and updates Supabase row.
-func (sc *SecureSupabaseClient) Update(table string, id string, newData interface{}) error {
-	// 1. Encrypt new data
+// Update encrypts newData and updates the row identified by id.
+func (sc *SecureSupabaseClient) Update(ctx context.Context, table string, id string, newData interface{}) error {
 	protected, err := license.ProtectSupabaseRecord(newData, table, sc.keys, time.Time{})
 	if err != nil {
 		sc.encryptionErrors++
-		return fmt.Errorf("failed to encrypt data: %w", err)
+		return fmt.Errorf("encrypt for update %s: %w", table, err)
 	}
 
-	// 2. Update in Supabase
-	// TODO: Replace with actual Supabase client
-	_ = protected // Future: _, err = sc.client.From(table).Update(protected).Eq("id", id)
+	filter := fmt.Sprintf("id=eq.%s", id)
+	if _, err := sc.client.Update(ctx, table, filter, protected); err != nil {
+		return fmt.Errorf("supabase update %s id=%s: %w", table, id, err)
+	}
 
-	sc.encryptedInserts++ // Count as encrypted operation
+	sc.encryptedInserts++
 	return nil
 }
 
 // ─── DELETE Operations (with Audit Trail) ─────────────────────────────────────
 
-// Delete removes row from Supabase (logs to encrypted audit trail).
-func (sc *SecureSupabaseClient) Delete(table string, id string) error {
-	// 1. Fetch current data (for audit trail)
-	currentData, _ := sc.Select(table, "id", id)
+// Delete removes the row identified by id and writes an encrypted audit entry.
+func (sc *SecureSupabaseClient) Delete(ctx context.Context, table string, id string) error {
+	// Fetch current data for audit trail (best-effort; ignore error on missing record).
+	currentData, _ := sc.Select(ctx, table, "id", id)
 
-	// 2. Delete from Supabase
-	// TODO: Replace with actual Supabase client
-	// _, err := sc.client.From(table).Delete().Eq("id", id)
+	// Delete from Supabase.
+	filter := fmt.Sprintf("id=eq.%s", id)
+	if err := sc.client.Delete(ctx, table, filter); err != nil {
+		return fmt.Errorf("supabase delete %s id=%s: %w", table, id, err)
+	}
 
-	// 3. Log deletion to encrypted audit trail
+	// Write encrypted audit trail entry.
 	auditEntry := map[string]interface{}{
 		"action":     "DELETE",
 		"table":      table,
 		"row_id":     id,
-		"deleted_at": time.Now(),
-		"data":       currentData, // Preserve deleted data in audit
+		"deleted_at": time.Now().UTC(),
+		"data":       currentData,
 	}
-
-	protectedAudit, _ := license.ProtectAuditLog(auditEntry, sc.keys)
-	_ = protectedAudit // TODO: Store in audit_trail table
+	protectedAudit, err := license.ProtectAuditLog(auditEntry, sc.keys)
+	if err == nil {
+		// Store in audit_trail table; log failure but don't block the delete.
+		if _, insertErr := sc.client.Insert(ctx, "audit_trail", protectedAudit); insertErr != nil {
+			// Non-fatal: audit persistence failure should be monitored but not block operations.
+			_ = insertErr
+		}
+	}
 
 	return nil
 }
@@ -219,35 +239,76 @@ func (sc *SecureSupabaseClient) GetMetrics() map[string]int64 {
 
 // ─── Key Rotation ──────────────────────────────────────────────────────────────
 
-// RotateKeys generates new PQC keys and re-encrypts all data.
-//
-// WARNING: This is a HEAVY operation. Run during maintenance window.
-func (sc *SecureSupabaseClient) RotateKeys(newSymbol string) error {
-	// 1. Generate new keys
+// RotateKeys generates new PQC keys and re-encrypts all data in the given tables.
+// WARNING: This is a heavy operation; run during a maintenance window.
+// pageSize controls how many rows are fetched per request (default 100).
+func (sc *SecureSupabaseClient) RotateKeys(ctx context.Context, newSymbol string, tables []string, pageSize int) error {
 	newKeys, err := license.GenerateProtectionKeys(newSymbol)
 	if err != nil {
-		return fmt.Errorf("failed to generate new keys: %w", err)
+		return fmt.Errorf("generate new keys: %w", err)
 	}
 
-	// 2. Fetch all encrypted rows (paginated)
-	// TODO: Implement pagination for large tables
-	// tables := []string{"users", "licenses", "configs", "audit_logs"}
-	// for _, table := range tables {
-	//     rows := sc.fetchAllRows(table)
-	//     for _, row := range rows {
-	//         // Decrypt with old keys
-	//         decrypted, _ := license.UnprotectSupabaseRecord(row, sc.keys)
-	//
-	//         // Re-encrypt with new keys
-	//         reencrypted, _ := license.ProtectSupabaseRecord(decrypted, table, newKeys, time.Time{})
-	//
-	//         // Update in Supabase
-	//         sc.Update(table, row.ID, reencrypted)
-	//     }
-	// }
+	if pageSize <= 0 {
+		pageSize = 100
+	}
 
-	// 3. Switch to new keys
+	for _, table := range tables {
+		offset := 0
+		for {
+			filter := fmt.Sprintf("limit=%d&offset=%d", pageSize, offset)
+			body, err := sc.client.Select(ctx, table, filter, "*")
+			if err != nil {
+				return fmt.Errorf("fetch page offset=%d from %s: %w", offset, table, err)
+			}
+
+			var encryptedRows []license.SupabaseEncryptedRow
+			if err := json.Unmarshal(body, &encryptedRows); err != nil {
+				return fmt.Errorf("unmarshal page from %s: %w", table, err)
+			}
+			if len(encryptedRows) == 0 {
+				break // No more pages.
+			}
+
+			for i := range encryptedRows {
+				row := &encryptedRows[i]
+
+				plaintext, err := license.UnprotectSupabaseRecord(row, sc.keys)
+				if err != nil {
+					return fmt.Errorf("decrypt row %s in %s: %w", row.ID, table, err)
+				}
+
+				reencrypted, err := license.ProtectSupabaseRecord(plaintext, table, newKeys, row.ExpiresAt)
+				if err != nil {
+					return fmt.Errorf("re-encrypt row %s in %s: %w", row.ID, table, err)
+				}
+				// Preserve the original ID so the UPDATE filter matches.
+				reencrypted.ID = row.ID
+
+				if err := sc.Update(ctx, table, row.ID, reencrypted); err != nil {
+					return fmt.Errorf("update row %s in %s: %w", row.ID, table, err)
+				}
+			}
+
+			if len(encryptedRows) < pageSize {
+				break // Last page.
+			}
+			offset += pageSize
+		}
+	}
+
 	sc.keys = newKeys
-
 	return nil
+}
+
+// ─── Internal helpers ─────────────────────────────────────────────────────────
+
+func joinStrings(ss []string, sep string) string {
+	result := ""
+	for i, s := range ss {
+		if i > 0 {
+			result += sep
+		}
+		result += s
+	}
+	return result
 }

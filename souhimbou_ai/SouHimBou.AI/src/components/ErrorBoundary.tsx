@@ -28,11 +28,11 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     }
 
     handleReload = () => {
-        window.location.reload();
+        globalThis.location.reload();
     };
 
     handleGoHome = () => {
-        window.location.href = '/';
+        globalThis.location.href = '/';
     };
 
     render() {

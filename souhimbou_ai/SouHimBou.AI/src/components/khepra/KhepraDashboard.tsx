@@ -199,8 +199,8 @@ const KhepraDashboardContent = () => {
                   <ScrollArea className="h-32">
                     {authState.adinkraTransformations.length > 0 ? (
                       <div className="space-y-2">
-                        {authState.adinkraTransformations.slice(-5).map((transform, index) => (
-                          <div key={index} className="text-sm border-l-2 border-primary/30 pl-2">
+                        {authState.adinkraTransformations.slice(-5).map((transform) => (
+                          <div key={`${transform.symbol}-${transform.timestamp.getTime()}`} className="text-sm border-l-2 border-primary/30 pl-2">
                             <div className="flex items-center justify-between">
                               <span className="font-medium">{transform.symbol}</span>
                               <span className="text-xs text-muted-foreground">
@@ -233,8 +233,8 @@ const KhepraDashboardContent = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {criticalEvents.slice(0, 3).map((event, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 border-l-2 border-destructive">
+                    {criticalEvents.slice(0, 3).map((event) => (
+                      <div key={`${event.type}-${event.timestamp.getTime()}`} className="flex items-center justify-between p-2 border-l-2 border-destructive">
                         <div>
                           <p className="font-medium text-destructive">{event.type}</p>
                           <p className="text-sm text-muted-foreground">
@@ -271,15 +271,15 @@ const KhepraDashboardContent = () => {
                 <ScrollArea className="h-96">
                   {recentEvents.length > 0 ? (
                     <div className="space-y-3">
-                      {recentEvents.map((event, index) => (
-                        <div key={index} className="border-l-2 border-primary/30 pl-4 py-2">
+                      {recentEvents.map((event) => (
+                        <div key={`${event.type}-${event.timestamp.getTime()}`} className="border-l-2 border-primary/30 pl-4 py-2">
                           <div className="flex items-center justify-between mb-1">
                             <span className="font-medium">{event.type}</span>
-                            <Badge variant={
-                              event.severity === 'critical' ? 'destructive' :
-                                event.severity === 'high' ? 'destructive' :
-                                  event.severity === 'medium' ? 'secondary' : 'default'
-                            }>
+                            <Badge variant={(() => {
+                              if (event.severity === 'critical' || event.severity === 'high') return 'destructive';
+                              if (event.severity === 'medium') return 'secondary';
+                              return 'default';
+                            })()}>
                               {event.severity}
                             </Badge>
                           </div>
@@ -319,8 +319,8 @@ const KhepraDashboardContent = () => {
                 <ScrollArea className="h-96">
                   {auditTrail.length > 0 ? (
                     <div className="space-y-3">
-                      {auditTrail.map((entry, index) => (
-                        <div key={index} className="border border-muted rounded p-3">
+                      {auditTrail.map((entry) => (
+                        <div key={`${entry.action}-${entry.nodeId}`} className="border border-muted rounded p-3">
                           <div className="flex items-center justify-between mb-2">
                             <span className="font-medium">{entry.action}</span>
                             <Badge variant="outline">{entry.trustScore}</Badge>

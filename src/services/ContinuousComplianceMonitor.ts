@@ -25,16 +25,18 @@ export interface ComplianceCheckResult {
   remediationSuccess?: boolean;
 }
 
+type DriftSeverity = 'CAT_I' | 'CAT_II' | 'CAT_III';
+
 export interface DriftFinding {
   stigRuleId: string;
   expectedState: any;
   actualState: any;
-  severity: 'CAT_I' | 'CAT_II' | 'CAT_III';
+  severity: DriftSeverity;
   autoRemediable: boolean;
 }
 
 export class ContinuousComplianceMonitor {
-  private monitoringIntervals: Map<string, NodeJS.Timeout> = new Map();
+  private readonly monitoringIntervals: Map<string, NodeJS.Timeout> = new Map();
 
   /**
    * Start continuous monitoring for an asset
@@ -287,7 +289,7 @@ export class ContinuousComplianceMonitor {
         .eq('stig_id', ruleId)
         .maybeSingle();
 
-      if (data && data.priority !== undefined) {
+      if (data?.priority !== undefined) {
         // Map priority to CAT level (lower priority = more severe)
         if (data.priority <= 1) return 'CAT_I';
         if (data.priority <= 5) return 'CAT_II';

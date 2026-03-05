@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Card,
@@ -8,7 +7,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { KhepraScansWidget } from '@/components/khepra/KhepraScansWidget';
 import { KhepraLicenseWidget } from '@/components/khepra/KhepraLicenseWidget';
 import { KhepraDAGVisualization } from '@/components/khepra/KhepraDAGVisualization';
@@ -19,7 +17,6 @@ import {
   Key,
   Activity,
   BarChart3,
-  Server,
   Shield,
 } from 'lucide-react';
 

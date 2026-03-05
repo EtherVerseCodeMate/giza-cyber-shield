@@ -12,7 +12,7 @@ export interface DeploymentConfig {
 }
 
 export const useKhepraDeployment = () => {
-    const { user } = useAuth();
+    useAuth(); // auth context required for Supabase RLS
     const { currentOrganization } = useOrganization();
     const { toast } = useToast();
 

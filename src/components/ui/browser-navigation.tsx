@@ -88,10 +88,10 @@ export const BrowserNavigation: React.FC<BrowserNavigationProps> = ({
 
   const quickActions = [
     { label: 'Papyrus Guidance', icon: <HelpCircle className="h-4 w-4" />, action: () => navigate('/papyrus') },
-    { label: 'Documentation', icon: <HelpCircle className="h-4 w-4" />, action: () => window.open('/docs', '_blank') },
-    { label: 'Support Center', icon: <ExternalLink className="h-4 w-4" />, action: () => window.open('/support', '_blank') },
-    { label: 'API Reference', icon: <ExternalLink className="h-4 w-4" />, action: () => window.open('/api-docs', '_blank') },
-    { label: 'System Status', icon: <ExternalLink className="h-4 w-4" />, action: () => window.open('/status', '_blank') },
+    { label: 'Documentation', icon: <HelpCircle className="h-4 w-4" />, action: () => window.open('https://docs.khepraprotocol.com', '_blank') },
+    { label: 'Support Center', icon: <ExternalLink className="h-4 w-4" />, action: () => window.open('mailto:support@khepraprotocol.com') },
+    { label: 'API Reference', icon: <ExternalLink className="h-4 w-4" />, action: () => window.open('https://docs.khepraprotocol.com/api', '_blank') },
+    { label: 'System Status', icon: <ExternalLink className="h-4 w-4" />, action: () => window.open('https://status.khepraprotocol.com', '_blank') },
   ];
 
   const toolsMenu = [

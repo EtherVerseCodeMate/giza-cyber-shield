@@ -98,7 +98,7 @@ export const FeatureGateEnhanced = ({
     trackUpgradePrompt(featureName, 'clicked');
     if (featureType === 'enterprise') {
       // Could open contact form or external link
-      window.open('mailto:sales@example.com?subject=Enterprise Inquiry', '_blank');
+      window.open('mailto:sales@khepraprotocol.com?subject=Enterprise Inquiry', '_blank');
     } else {
       navigate('/billing');
     }

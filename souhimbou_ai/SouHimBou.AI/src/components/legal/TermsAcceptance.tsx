@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Shield, FileText, Scale, Users, Globe } from 'lucide-react';
+import { AlertTriangle, Shield, FileText, Scale, Users, Globe, CheckCircle, ArrowRight } from 'lucide-react';
 import { useUserAgreements } from '@/hooks/useUserAgreements';
 import { useToast } from '@/hooks/use-toast';
 

@@ -202,7 +202,7 @@ const IntegrationRecommendations = ({ setActiveTab }: { setActiveTab: (tab: stri
         console.log('✅ Switched to active tab for configuration');
         break;
       case 'learn':
-        window.open('/integration-guide/custom-api', '_blank');
+        window.open('https://docs.khepraprotocol.com/integrations/custom-api', '_blank');
         console.log('📚 Opened integration guide in new tab');
         break;
       case 'explore':

@@ -14,10 +14,14 @@ import (
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 )
 
-const (
-	MIMEApplicationJSON = "application/json"
-	AgentVersion        = "v1.5.0-NUCLEAR"
-)
+const MIMEApplicationJSON = "application/json"
+
+// AgentVersion is set at build time via:
+//
+//	go build -ldflags "-X github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license.AgentVersion=$(git describe --tags --always --dirty)"
+//
+// Falls back to the default below when built without ldflags (local/dev builds).
+var AgentVersion = "v1.5.0-NUCLEAR"
 
 // LicenseClient handles license validation with telemetry server
 type LicenseClient struct {
