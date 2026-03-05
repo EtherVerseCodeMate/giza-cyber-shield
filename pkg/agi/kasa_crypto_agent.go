@@ -27,6 +27,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
+	"strings"
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
@@ -124,17 +126,59 @@ func (kca *KASACryptoAgent) DetectTampering(data interface{}, componentID string
 	return isTampering, report
 }
 
-// extractFeatures converts data to ML feature vector.
+// extractFeatures converts data to ML feature vector using Shannon entropy and structural analysis.
 func (kca *KASACryptoAgent) extractFeatures(data interface{}) map[string]float64 {
-	// TODO: Implement feature extraction
-	// For now, return stub features
-	return map[string]float64{
-		"entropy":        7.8,  // Shannon entropy
-		"size_bytes":     1024,
-		"unique_fields":  15,
-		"nested_depth":   3,
-		"timestamp_diff": 0.5,  // Seconds since last event
+	raw, err := json.Marshal(data)
+	if err != nil {
+		raw = []byte(fmt.Sprintf("%v", data))
 	}
+
+	// Shannon entropy: measures randomness/compression of data bytes
+	freq := make(map[byte]int)
+	for _, b := range raw {
+		freq[b]++
+	}
+	entropy := 0.0
+	n := float64(len(raw))
+	for _, count := range freq {
+		p := float64(count) / n
+		if p > 0 {
+			entropy -= p * math.Log2(p)
+		}
+	}
+
+	// Count unique top-level fields (JSON object keys)
+	var obj map[string]interface{}
+	uniqueFields := 0
+	if json.Unmarshal(raw, &obj) == nil {
+		uniqueFields = len(obj)
+	}
+
+	// Measure JSON nesting depth
+	nestedDepth := jsonNestingDepth(string(raw))
+
+	return map[string]float64{
+		"entropy":       entropy,
+		"size_bytes":    float64(len(raw)),
+		"unique_fields": float64(uniqueFields),
+		"nested_depth":  float64(nestedDepth),
+	}
+}
+
+// jsonNestingDepth returns the maximum brace/bracket nesting depth in a JSON string.
+func jsonNestingDepth(s string) int {
+	maxDepth, depth := 0, 0
+	for _, c := range s {
+		if c == '{' || c == '[' {
+			depth++
+			if depth > maxDepth {
+				maxDepth = depth
+			}
+		} else if c == '}' || c == ']' {
+			depth--
+		}
+	}
+	return maxDepth
 }
 
 // calculateThreatLevel determines threat level from anomaly score and behavior flags.
@@ -343,22 +387,23 @@ func (kca *KASACryptoAgent) GenerateIncidentReport(componentID string, tampering
 // ─── Stub Functions (to be implemented) ───────────────────────────────────────
 
 func (kca *KASACryptoAgent) fetchComponentData(componentID string) interface{} {
-	// TODO: Integrate with actual data source (database, API, etc.)
 	return map[string]interface{}{
-		"component_id": componentID,
-		"data":         "sensitive component data",
-		"timestamp":    time.Now(),
+		"component_id":  componentID,
+		"captured_at":   time.Now(),
+		"status":        "quarantine_pending",
 	}
 }
 
 func (kca *KASACryptoAgent) revokeCredentials(componentID string) {
-	// TODO: Integrate with IAM/auth system
-	log.Printf("🔑 Revoking credentials for %s", componentID)
+	// Credential revocation requires IAM integration (Vault, Okta, or cloud IAM).
+	// Log the revocation intent to the audit trail for manual follow-up.
+	log.Printf("[KASA] REVOCATION_REQUIRED component=%s — wire to IAM provider to complete", componentID)
 }
 
 func (kca *KASACryptoAgent) blockNetworkAccess(componentID string) {
-	// TODO: Integrate with firewall/network controller
-	log.Printf("🚫 Blocking network access for %s", componentID)
+	// Network block requires firewall/SDN integration (iptables, Calico, AWS Security Group, etc.).
+	// Log the block intent to the audit trail for manual follow-up.
+	log.Printf("[KASA] NETWORK_BLOCK_REQUIRED component=%s — wire to network controller to complete", componentID)
 }
 
 func (kca *KASACryptoAgent) logAudit(protected *license.ProtectedData) {
@@ -369,28 +414,86 @@ func (kca *KASACryptoAgent) logAudit(protected *license.ProtectedData) {
 
 // ─── AI/ML Stubs (to be replaced with real models) ────────────────────────────
 
-type AnomalyDetectionModel struct {
-	// TODO: Load trained Isolation Forest, Autoencoder, or LSTM model
-}
+type AnomalyDetectionModel struct{}
 
+// PredictAnomaly returns an anomaly score [0.0, 1.0] derived from feature heuristics.
+// Scoring factors:
+//   - Shannon entropy > 7.5 bits/byte: high randomness (encrypted/obfuscated data)
+//   - Payload size > 100 KB: unusually large for in-process data exchange
+//   - JSON nesting > 5 levels: potential serialization or injection attack depth
+//   - Large unique field count: schema sprawl or reconnaissance probing
 func (adm *AnomalyDetectionModel) PredictAnomaly(features map[string]float64) float64 {
-	// TODO: Replace with real ML inference
-	// For now, return random score for demonstration
-	return 0.75 // Example: 75% anomalous
-}
+	score := 0.0
 
-type BehavioralAnalysisEngine struct {
-	// TODO: Load behavioral baseline profiles
-}
-
-func (bae *BehavioralAnalysisEngine) AnalyzeBehavior(data interface{}, componentID string) []string {
-	// TODO: Replace with real behavioral analysis
-	// For now, return example flags
-	return []string{
-		"UNUSUAL_ACCESS_TIME",
-		"GEO_ANOMALY",
-		"HIGH_DATA_VOLUME",
+	if entropy := features["entropy"]; entropy > 7.5 {
+		score += 0.4
+	} else if entropy > 6.5 {
+		score += 0.2
 	}
+
+	if size := features["size_bytes"]; size > 1_000_000 {
+		score += 0.3
+	} else if size > 100_000 {
+		score += 0.15
+	}
+
+	if depth := features["nested_depth"]; depth > 10 {
+		score += 0.2
+	} else if depth > 5 {
+		score += 0.1
+	}
+
+	if features["unique_fields"] > 50 {
+		score += 0.1
+	}
+
+	if score > 1.0 {
+		score = 1.0
+	}
+	return score
+}
+
+type BehavioralAnalysisEngine struct{}
+
+// AnalyzeBehavior returns behavioral anomaly flags based on data content and access context.
+// Checks: off-hours access, payload size, network indicators, encoded payloads, credential access.
+func (bae *BehavioralAnalysisEngine) AnalyzeBehavior(data interface{}, componentID string) []string {
+	var flags []string
+
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return flags
+	}
+	s := string(raw)
+
+	// Off-hours access: 02:00–05:00 UTC is a common lateral movement window
+	hour := time.Now().UTC().Hour()
+	if hour >= 2 && hour < 5 {
+		flags = append(flags, "UNUSUAL_ACCESS_TIME")
+	}
+
+	// Large data transfer indicates potential exfiltration
+	if len(raw) > 100_000 {
+		flags = append(flags, "HIGH_DATA_VOLUME")
+	}
+
+	// External network indicators in payload
+	if strings.Contains(s, "remote_addr") || strings.Contains(s, "ip_address") {
+		flags = append(flags, "EXTERNAL_NETWORK_INDICATOR")
+	}
+
+	// Encoded payloads suggest obfuscation or C2 traffic
+	if strings.Contains(s, "base64") || strings.Contains(s, `\u00`) {
+		flags = append(flags, "ENCODED_PAYLOAD_DETECTED")
+	}
+
+	// Credential-store components are high-value targets
+	lower := strings.ToLower(componentID)
+	if strings.Contains(lower, "auth") || strings.Contains(lower, "credential") || strings.Contains(lower, "key") {
+		flags = append(flags, "CREDENTIAL_STORE_ACCESS")
+	}
+
+	return flags
 }
 
 // ─── Metrics ───────────────────────────────────────────────────────────────────

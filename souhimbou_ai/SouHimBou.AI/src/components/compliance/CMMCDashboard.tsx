@@ -97,41 +97,10 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
   };
 
   const fetchPOAMItems = async () => {
-    // Mock POAM data - in production this would come from database
-    const mockPOAM: POAMItem[] = [
-      {
-        id: '1',
-        control_id: 'AC.1.001',
-        weakness: 'Inadequate access control policy documentation',
-        remediation: 'Update and implement comprehensive access control policy',
-        status: 'IN_PROGRESS',
-        due_date: '2024-02-15',
-        priority: 'HIGH',
-        responsible_party: 'IT Security Team'
-      },
-      {
-        id: '2',
-        control_id: 'AU.2.041',
-        weakness: 'Audit logs not centrally managed',
-        remediation: 'Implement centralized logging solution (SIEM)',
-        status: 'OPEN',
-        due_date: '2024-03-01',
-        priority: 'MEDIUM',
-        responsible_party: 'Infrastructure Team'
-      },
-      {
-        id: '3',
-        control_id: 'IA.1.076',
-        weakness: 'Multi-factor authentication not enforced',
-        remediation: 'Deploy MFA across all systems and accounts',
-        status: 'COMPLETED',
-        due_date: '2024-01-30',
-        priority: 'HIGH',
-        responsible_party: 'Security Team'
-      }
-    ];
+    // Awaiting telemetry for real POAM data
+    const pendingPOAM: POAMItem[] = [];
 
-    setPOAMItems(mockPOAM);
+    setPOAMItems(pendingPOAM);
   };
 
   const fetchOrganizationData = async () => {
@@ -265,9 +234,9 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-black text-white mb-1">5 Active Traces</div>
+            <div className="text-2xl font-black text-white mb-1">Pending Traces</div>
             <p className="text-[11px] text-slate-500 leading-relaxed mb-4">
-              Sentinel is currently mapping 12 behavioral events to SI.L2-3.14.6 integrity controls.
+              Awaiting telemetry to map behavioral events to integrity controls.
             </p>
             <Button variant="outline" className="w-full text-[10px] font-bold uppercase tracking-widest border-red-500/30 text-red-400 hover:bg-red-500/10">
               View Forensic Evidence

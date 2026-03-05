@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/acme/autocert"
 
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/auth"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/mcp"
@@ -31,6 +32,8 @@ type Server struct {
 	mcpStore    MCPStore             // Supabase MCP persistence layer (optional)
 	nlProcessor *mcp.NLProcessor     // Natural language → tool chain processor (optional)
 	pqcGateway  *auth.PQCAuthGateway // PQC-SAML-OAuth2 auth gateway (optional)
+	sigPrivKey  []byte               // ML-DSA-65 Dilithium3 signing key (server identity)
+	sigPubKey   []byte               // ML-DSA-65 Dilithium3 verification key (server identity)
 }
 
 const (
@@ -97,6 +100,15 @@ func NewServer(config *Config, dagStore DAGStore, licMgr LicenseManager) *Server
 		startTime: time.Now(),
 		version:   "1.0.0",
 		agentMgr:  nil, // To be injected if Gateway is present
+	}
+
+	// Generate persistent ML-DSA-65 signing identity for this server instance
+	pub, priv, err := adinkra.GenerateDilithiumKey()
+	if err != nil {
+		log.Printf("[SERVER] Warning: PQC key generation failed: %v", err)
+	} else {
+		server.sigPrivKey = priv
+		server.sigPubKey = pub
 	}
 
 	// Setup middleware

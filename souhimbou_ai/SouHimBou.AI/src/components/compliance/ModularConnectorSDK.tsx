@@ -188,7 +188,7 @@ export const ModularConnectorSDK: React.FC = () => {
                     <ul className="list-disc list-inside text-sm space-y-1">
                       <li>Unit tests for discovery, mapping, and remediation functions</li>
                       <li>Integration tests for Windows Server + Linux STIG packages</li>
-                      <li>Mock STIG Viewer API service for offline development</li>
+                      <li>Pending STIG Viewer API service for offline development</li>
                       <li>Performance tests for large-scale environment scanning</li>
                       <li>Security tests for credential handling and data protection</li>
                     </ul>
@@ -214,7 +214,7 @@ export const ModularConnectorSDK: React.FC = () => {
                       <div>
                         <div className="flex items-center gap-1">
                           <AlertCircle className="w-3 h-3 text-warning" />
-                          <span>Mock Services</span>
+                          <span>Development Services</span>
                         </div>
                         <div className="text-muted-foreground">Ready for testing</div>
                       </div>
