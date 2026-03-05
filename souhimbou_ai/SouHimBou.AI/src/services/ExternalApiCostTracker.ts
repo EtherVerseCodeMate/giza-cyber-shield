@@ -41,7 +41,7 @@ export class ExternalApiCostTracker {
         apiCall.endpoint,
         'request_limit'
       );
-      
+
       return {
         allowed: false,
         reason: rateLimit.reason || 'Rate limit exceeded'
@@ -77,9 +77,9 @@ export class ExternalApiCostTracker {
         shodan: { requestCost: 0.10, tokenCost: 0 },
         virustotal: { requestCost: 0.05, tokenCost: 0 }
       };
-      
-      const rates = defaultRates[apiCall.apiProvider as keyof typeof defaultRates] || 
-                   { requestCost: 0.001, tokenCost: 0.00001 };
+
+      const rates = defaultRates[apiCall.apiProvider as keyof typeof defaultRates] ||
+        { requestCost: 0.001, tokenCost: 0.00001 };
       const estimatedCost = rates.requestCost + (tokensUsed * rates.tokenCost);
 
       return {
@@ -104,14 +104,12 @@ export class ExternalApiCostTracker {
 
   // Update usage-based billing record
   private async updateUsageBilling(organizationId: string, cost: number) {
-    // Mock implementation until database tables are available
-    console.log('Updating usage billing:', { organizationId, cost });
+    // Awaiting billing tables initialization
   }
 
   // Check if cost alerts should be triggered
   private async checkCostAlerts(organizationId: string, apiProvider: string, newCost: number) {
-    // Mock implementation until database tables are available
-    console.log('Checking cost alerts:', { organizationId, apiProvider, newCost });
+    // Awaiting cost alert monitoring configuration
   }
 
   // Create cost alert
@@ -122,24 +120,15 @@ export class ExternalApiCostTracker {
     currentCost: number,
     thresholdAmount: number
   ) {
-    // Mock implementation until database tables are available
-    console.log('Creating cost alert:', { 
-      organizationId, 
-      apiProvider, 
-      alertType, 
-      currentCost, 
-      thresholdAmount 
-    });
+    // Awaiting cost alert tables mapping
   }
 
   // Get cost analytics for an organization
   async getCostAnalytics(organizationId: string, days: number = 30) {
-    // Mock implementation until database tables are available
-    console.log('Getting cost analytics:', { organizationId, days });
     return {
-      totalCost: 125.30,
-      dailyAverage: 4.18,
-      topProvider: 'openai',
+      totalCost: 0,
+      dailyAverage: 0,
+      topProvider: 'none',
       trends: []
     };
   }
