@@ -86,7 +86,7 @@ export const InfrastructureDiscovery = () => {
   const fetchNetworks = async () => {
     if (!currentOrganization?.id) return;
     const { data, error } = await supabase
-      .from('network_segments')
+      .from('zero_trust_network_segments')
       .select('*')
       .eq('organization_id', currentOrganization.id);
 
