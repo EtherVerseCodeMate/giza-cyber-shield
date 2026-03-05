@@ -10,7 +10,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
-  const { hasAcceptedAll, loading: agreementsLoading, refreshAgreements } = useUserAgreements();
+  const { hasAcceptedAll, loading: agreementsLoading, fetchError, refreshAgreements } = useUserAgreements();
   const navigate = useNavigate();
   const [showTerms, setShowTerms] = useState(false);
 
@@ -22,9 +22,12 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
   useEffect(() => {
     if (!agreementsLoading) {
-      setShowTerms(!hasAcceptedAll);
+      // Only show the terms modal when we successfully fetched AND confirmed the user
+      // hasn't accepted yet. If there was a fetch error (network blip, RLS issue, etc.)
+      // we fail open — don't block the user with a modal they can't resolve.
+      setShowTerms(!fetchError && !hasAcceptedAll);
     }
-  }, [hasAcceptedAll, agreementsLoading]);
+  }, [hasAcceptedAll, agreementsLoading, fetchError]);
 
   if (loading || agreementsLoading) {
     return (
