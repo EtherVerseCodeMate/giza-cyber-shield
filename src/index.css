@@ -138,19 +138,12 @@
     @apply bg-gradient-to-br from-card to-card/80 border border-border/50 backdrop-blur-sm
            shadow-[var(--shadow-elegant)] hover:shadow-[var(--shadow-primary)] 
            transition-[var(--transition-smooth)] rounded-lg;
+  }
+
   /* Tour highlight animation */
   .tour-highlight {
     @apply ring-4 ring-primary ring-offset-2 ring-offset-background;
     animation: tour-pulse 2s ease-in-out infinite;
-  }
-  
-  @keyframes tour-pulse {
-    0%, 100% {
-      @apply ring-opacity-50;
-    }
-    50% {
-      @apply ring-opacity-100;
-    }
   }
   
   /* Tour overlay */
@@ -233,7 +226,6 @@
     will-change: opacity;
     contain: layout style paint;
   }
-}
 
 /* Optimized Keyframes */
 @keyframes float {

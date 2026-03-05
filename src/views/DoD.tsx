@@ -40,16 +40,16 @@ import {
 import { STIGCodexDashboard } from '@/components/stig-codex/STIGCodexDashboard';
 import { STIGConnectorDashboard } from '@/components/discovery/STIGConnectorDashboard';
 import { useSTIGCodex } from '@/hooks/useSTIGCodex';
-import { useOrganization } from '@/hooks/useOrganization';
+import { useOrganizationContext } from '@/components/OrganizationProvider';
 import { useSecurityClearance } from '@/hooks/useSecurityClearance';
 import { AccessControlWrapper } from '@/components/security/AccessControlWrapper';
 import { STIGConnectorService } from '@/services/STIGConnectorService';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { DashboardToggle } from '@/components/DashboardToggle';
 
 export default function DoD() {
   const { toast } = useToast();
-  const { currentOrganization } = useOrganization();
+  const { currentOrganization } = useOrganizationContext();
   const organizationId = currentOrganization?.id || '';
   const { currentClearance, hasAccess } = useSecurityClearance('CONFIDENTIAL');
   

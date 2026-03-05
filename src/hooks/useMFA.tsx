@@ -28,7 +28,7 @@ interface MFAState {
 export const useMFA = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  
+
   const [state, setState] = useState<MFAState>({
     isEnabled: false,
     isLoading: false,
@@ -56,13 +56,13 @@ export const useMFA = () => {
       clearError();
 
       const { data, error } = await supabase.auth.mfa.listFactors();
-      
+
       if (error) throw error;
 
       const factors: MFAFactor[] = data?.totp?.map(factor => ({
         id: factor.id,
-        type: 'totp' as const,
-        status: factor.status as 'verified' | 'unverified',
+        type: 'totp',
+        status: factor.status,
         friendly_name: factor.friendly_name
       })) || [];
 
@@ -88,7 +88,7 @@ export const useMFA = () => {
   const cleanupUnverifiedFactors = useCallback(async () => {
     try {
       const { data } = await supabase.auth.mfa.listFactors();
-      
+
       if (data?.totp) {
         for (const factor of data.totp) {
           if (factor.status === 'unverified') {
@@ -97,7 +97,7 @@ export const useMFA = () => {
           }
         }
       }
-      
+
       // Wait a moment for cleanup to complete
       await new Promise(resolve => setTimeout(resolve, 500));
     } catch (error) {
@@ -179,7 +179,7 @@ export const useMFA = () => {
       console.log('Challenge created:', challengeData.id);
 
       // Verify the code
-      const { data: verifyData, error: verifyError } = await supabase.auth.mfa.verify({
+      const { error: verifyError } = await supabase.auth.mfa.verify({
         factorId: state.enrollmentData.factorId,
         challengeId: challengeData.id,
         code: code.trim()
@@ -240,7 +240,7 @@ export const useMFA = () => {
       clearError();
 
       const { data } = await supabase.auth.mfa.listFactors();
-      
+
       if (data?.totp) {
         for (const factor of data.totp) {
           if (factor.status === 'verified') {
@@ -282,8 +282,11 @@ export const useMFA = () => {
   // Generate backup codes
   const generateBackupCodes = useCallback((): string[] => {
     const codes: string[] = [];
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     for (let i = 0; i < 8; i++) {
-      codes.push(Math.random().toString(36).substring(2, 8).toUpperCase());
+      const array = new Uint8Array(6);
+      crypto.getRandomValues(array);
+      codes.push(Array.from(array).map(b => charset[b % charset.length]).join(''));
     }
     return codes;
   }, []);
@@ -295,7 +298,7 @@ export const useMFA = () => {
     factors: state.factors,
     enrollmentData: state.enrollmentData,
     error: state.error,
-    
+
     // Actions
     checkMFAStatus,
     startEnrollment,
