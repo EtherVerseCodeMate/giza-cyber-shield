@@ -4,15 +4,44 @@ import { Input } from '@/components/ui/input';
 import { Shield, Mail, ChevronRight, Linkedin, Twitter, Github } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export const FooterConversion = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [email, setEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleNewsletterSubmit = (e: React.FormEvent) => {
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Connect to Supabase newsletter table
-    console.log('Newsletter signup:', email);
+    if (!email) return;
+    setSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('newsletter_subscribers')
+        .insert({ email: email.trim().toLowerCase(), subscribed_at: new Date().toISOString() });
+
+      if (error) {
+        // Duplicate email returns a unique constraint error — treat as already subscribed.
+        if (error.code === '23505') {
+          toast({ title: 'Already subscribed', description: 'This email is already on the Intel Briefings list.' });
+        } else {
+          throw error;
+        }
+      } else {
+        toast({ title: 'Subscribed!', description: 'You\'ll receive weekly AI × Defense insights.' });
+        setEmail('');
+      }
+    } catch (err: unknown) {
+      toast({
+        title: 'Subscription failed',
+        description: err instanceof Error ? err.message : 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const footerLinks = {
@@ -82,9 +111,10 @@ export const FooterConversion = () => {
               />
               <Button
                 type="submit"
+                disabled={submitting}
                 className="bg-gradient-to-r from-[#00ffff]/20 to-[#0088ff]/20 hover:from-[#00ffff]/30 hover:to-[#0088ff]/30 text-[#00ffff] border border-[#00ffff]/50"
               >
-                Subscribe
+                {submitting ? 'Subscribing…' : 'Subscribe'}
               </Button>
             </form>
           </motion.div>

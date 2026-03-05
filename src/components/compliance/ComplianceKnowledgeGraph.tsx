@@ -103,12 +103,13 @@ const generateMockGraphData = (): GraphData => {
   const nodes: GraphNode[] = allNodes.map((node, index) => {
     const angle = (index / allNodes.length) * 2 * Math.PI;
     const nodeRadius = node.type === 'framework' ? 50 : node.type === 'control' ? 40 : 30;
-    const distance = node.type === 'framework' ? radius * 0.6 : radius + Math.random() * 100;
-    
+    // Spread leaf nodes at a fixed outer ring to avoid jitter on re-render
+    const distance = node.type === 'framework' ? radius * 0.6 : radius;
+
     return {
       ...node,
-      x: center.x + Math.cos(angle) * distance + (Math.random() - 0.5) * 50,
-      y: center.y + Math.sin(angle) * distance + (Math.random() - 0.5) * 50,
+      x: center.x + Math.cos(angle) * distance,
+      y: center.y + Math.sin(angle) * distance,
       radius: nodeRadius,
       connections: [],
       metadata: {
