@@ -109,65 +109,8 @@ const nodeTypes = {
     event: EventNode,
 };
 
-const mockEvents: BehaviorEvent[] = [
-    {
-        id: '1',
-        timestamp: '2024-01-15T10:00:01Z',
-        pid: 1234,
-        processName: 'cmd.exe',
-        type: 'FILE',
-        action: 'CREATE',
-        target: String.raw`C:\temp\exploit.exe`,
-        cmmcControl: 'SI.L2-3.14.6',
-        complianceStatus: 'VALIDATED'
-    },
-    {
-        id: '2',
-        timestamp: '2024-01-15T10:00:02Z',
-        pid: 1234,
-        processName: 'cmd.exe',
-        type: 'REGISTRY',
-        action: 'SET',
-        target: String.raw`HKLM\Software\Microsoft\Windows\Run`,
-        details: 'Persistence Mechanism',
-        cmmcControl: 'AU.L2-3.3.2',
-        complianceStatus: 'VIOLATION'
-    },
-    {
-        id: '3',
-        timestamp: '2024-01-15T10:00:05Z',
-        pid: 2567,
-        processName: 'exploit.exe',
-        type: 'NETWORK',
-        action: 'CONNECT',
-        target: '45.76.12.188:443',
-        details: 'Potential C2 Exfiltration',
-        cmmcControl: 'AC.L2-3.1.1',
-        complianceStatus: 'PENDING'
-    },
-    {
-        id: '4',
-        timestamp: '2024-01-15T10:00:10Z',
-        pid: 2567,
-        processName: 'exploit.exe',
-        type: 'FILE',
-        action: 'READ',
-        target: String.raw`C:\Users\admin\Documents\secrets.docx`,
-        cmmcControl: 'AU.L2-3.3.1',
-        complianceStatus: 'VIOLATION'
-    },
-    {
-        id: '5',
-        timestamp: '2024-01-15T10:00:15Z',
-        pid: 582,
-        processName: 'lsass.exe',
-        type: 'NETWORK',
-        action: 'LISTEN',
-        target: '0.0.0.0:445',
-        cmmcControl: 'IR.L2-3.6.1',
-        complianceStatus: 'VALIDATED'
-    },
-];
+// Awaiting real telemetry for process behavior events
+const pendingEvents: BehaviorEvent[] = [];
 
 export const ProcessBehaviorTimeline = () => {
     const [autopilotActive, setAutopilotActive] = useState(true);
@@ -176,10 +119,10 @@ export const ProcessBehaviorTimeline = () => {
         const initialNodes: Node[] = [];
         const initialEdges: Edge[] = [];
 
-        const processes = Array.from(new Set(mockEvents.map(e => e.processName)));
+        const processes = Array.from(new Set(pendingEvents.map(e => e.processName)));
 
         processes.forEach((proc, procIdx) => {
-            const procEvents = mockEvents.filter(e => e.processName === proc);
+            const procEvents = pendingEvents.filter(e => e.processName === proc);
 
             initialNodes.push({
                 id: `label-${proc}`,
