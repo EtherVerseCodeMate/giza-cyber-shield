@@ -152,12 +152,13 @@ export const CMMCIntegrationDashboard: React.FC = () => {
       control_id: `AC.${Math.floor(i / 10) + 1}.${(i % 10) + 1}`,
       family: controlFamilies[i % controlFamilies.length],
       title: `Control ${i + 1} - ${controlFamilies[i % controlFamilies.length]}`,
-      level: Math.floor(Math.random() * 3) + 1,
-      implementation_status: ['not_implemented', 'planned', 'implemented', 'validated'][Math.floor(Math.random() * 4)] as any,
-      stig_mappings: mappings.slice(0, Math.floor(Math.random() * 3) + 1).map(m => m.stig_rule_id),
-      nist_mapping: `SP 800-53 ${['AC', 'AU', 'CM', 'IA', 'IR'][Math.floor(Math.random() * 5)]}-${i + 1}`,
-      evidence_count: Math.floor(Math.random() * 5),
-      last_assessed: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString()
+      // Deterministic assignments: cycle through levels/statuses/families by index
+      level: (i % 3) + 1,
+      implementation_status: (['not_implemented', 'planned', 'implemented', 'validated'] as const)[i % 4],
+      stig_mappings: mappings.slice(0, (i % 3) + 1).map(m => m.stig_rule_id),
+      nist_mapping: `SP 800-53 ${['AC', 'AU', 'CM', 'IA', 'IR'][i % 5]}-${i + 1}`,
+      evidence_count: i % 5,
+      last_assessed: new Date(Date.now() - (i % 30) * 24 * 60 * 60 * 1000).toISOString()
     }));
   };
 

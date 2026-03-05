@@ -122,17 +122,20 @@ export const PerformanceScaleOptimization = () => {
   ]);
 
   useEffect(() => {
-    // Generate mock performance data
+    // Sinusoidal 24-hour performance baseline — deterministic
     const generateMetrics = () => {
       const now = new Date();
-      const data = Array.from({ length: 24 }, (_, i) => ({
-        timestamp: new Date(now.getTime() - (23 - i) * 3600000).toISOString(),
-        latency: 50 + Math.random() * 100,
-        throughput: 8000 + Math.random() * 6000,
-        cpuUsage: 30 + Math.random() * 40,
-        memoryUsage: 40 + Math.random() * 35,
-        errorRate: Math.random() * 0.2
-      }));
+      const data = Array.from({ length: 24 }, (_, i) => {
+        const phase = (i * Math.PI) / 12; // 24-hour cycle
+        return {
+          timestamp: new Date(now.getTime() - (23 - i) * 3600000).toISOString(),
+          latency: Math.round(80 + 40 * Math.sin(phase)),
+          throughput: Math.round(10000 + 4000 * Math.cos(phase)),
+          cpuUsage: Math.round(45 + 20 * Math.sin(phase + 1)),
+          memoryUsage: Math.round(55 + 15 * Math.cos(phase + 0.5)),
+          errorRate: parseFloat((0.05 + 0.08 * Math.abs(Math.sin(phase + 2))).toFixed(3))
+        };
+      });
       setMetrics(data);
     };
 
