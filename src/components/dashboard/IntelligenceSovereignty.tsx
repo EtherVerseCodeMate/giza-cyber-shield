@@ -174,7 +174,7 @@ const IntelligenceSovereignty = () => {
                         </div>
 
                         <button
-                            onClick={() => window.location.href = '/threat-hunting'}
+                            onClick={() => globalThis.location.href = '/threat-hunting'}
                             className="w-full p-3 rounded-lg border border-red-500/50 text-red-400 hover:bg-red-500/10 font-medium transition-all flex items-center justify-center gap-2"
                         >
                             <Zap className="w-4 h-4" />
