@@ -240,6 +240,7 @@ export class SecurityValidator {
    */
   static createRateLimiter(maxRequests: number, windowMs: number) {
     const requests = new Map<string, number[]>();
+    let callCount = 0;
 
     return (identifier: string): boolean => {
       const now = Date.now();
@@ -247,10 +248,10 @@ export class SecurityValidator {
 
       // Get or create request history for this identifier
       const userRequests = requests.get(identifier) || [];
-      
+
       // Remove old requests outside the window
       const recentRequests = userRequests.filter(time => time > windowStart);
-      
+
       // Check if limit exceeded
       if (recentRequests.length >= maxRequests) {
         return false;
@@ -260,8 +261,9 @@ export class SecurityValidator {
       recentRequests.push(now);
       requests.set(identifier, recentRequests);
 
-      // Cleanup old entries periodically
-      if (Math.random() < 0.01) { // 1% chance
+      // Cleanup old entries every 100 calls (deterministic, no Math.random)
+      callCount++;
+      if (callCount % 100 === 0) {
         for (const [key, times] of requests.entries()) {
           const recentTimes = times.filter(time => time > windowStart);
           if (recentTimes.length === 0) {

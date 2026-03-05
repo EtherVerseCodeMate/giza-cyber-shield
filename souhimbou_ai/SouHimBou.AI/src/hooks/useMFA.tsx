@@ -279,11 +279,14 @@ export const useMFA = () => {
     }
   }, [user, toast]);
 
-  // Generate backup codes
+  // Generate backup codes using cryptographically secure random values
   const generateBackupCodes = useCallback((): string[] => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     const codes: string[] = [];
     for (let i = 0; i < 8; i++) {
-      codes.push(Math.random().toString(36).substring(2, 8).toUpperCase());
+      const randomBytes = crypto.getRandomValues(new Uint8Array(6));
+      const code = Array.from(randomBytes).map(b => chars[b % chars.length]).join('');
+      codes.push(code);
     }
     return codes;
   }, []);

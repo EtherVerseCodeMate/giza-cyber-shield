@@ -53,101 +53,93 @@ export const AutomatedRemediation = () => {
   const { toast } = useToast();
   const { currentOrganization } = useOrganization();
 
-  // Mock data
+  // Static policy-level automation rules (config, not runtime data)
+  const AUTOMATION_RULES: AutomationRule[] = [
+    {
+      id: 'rule-critical-patch',
+      name: 'Critical Vulnerability Auto-Patch',
+      enabled: true,
+      trigger_condition: 'CVSS >= 9.0',
+      action_type: 'patch',
+      auto_execute: true,
+      approval_required: false,
+      maintenance_window_only: false
+    },
+    {
+      id: 'rule-compliance-drift',
+      name: 'Compliance Drift Auto-Fix',
+      enabled: true,
+      trigger_condition: 'Compliance Score < 90%',
+      action_type: 'configure',
+      auto_execute: false,
+      approval_required: true,
+      maintenance_window_only: true
+    },
+    {
+      id: 'rule-threat-isolate',
+      name: 'Suspicious Activity Isolation',
+      enabled: true,
+      trigger_condition: 'Threat Level = High',
+      action_type: 'isolate',
+      auto_execute: true,
+      approval_required: false,
+      maintenance_window_only: false
+    }
+  ];
+
   useEffect(() => {
-    const mockTasks: RemediationTask[] = [
-      {
-        id: '1',
-        title: 'Critical Windows Security Update',
-        description: 'Install KB5034441 security update to patch CVE-2024-0001',
-        category: 'security_patch',
-        priority: 'critical',
-        status: 'pending',
+    setAutomationRules(AUTOMATION_RULES);
+    if (currentOrganization) {
+      loadRemediationTasks();
+    }
+  }, [currentOrganization]);
+
+  const loadRemediationTasks = async () => {
+    if (!currentOrganization) return;
+    const orgId = currentOrganization.organization_id;
+
+    try {
+      // Derive remediation tasks from unresolved security events
+      const { data: events, error } = await supabase
+        .from('security_events')
+        .select('id, event_type, severity, description, source_system, source_ip, created_at, resolved')
+        .eq('organization_id', orgId)
+        .eq('resolved', false)
+        .order('created_at', { ascending: false })
+        .limit(15);
+
+      if (error) throw error;
+
+      const severityToCategory = (sev: string): RemediationTask['category'] => {
+        if (sev === 'critical') return 'vulnerability_mitigation';
+        if (sev === 'high') return 'security_patch';
+        if (sev === 'medium') return 'config_hardening';
+        return 'compliance_fix';
+      };
+
+      const derivedTasks: RemediationTask[] = (events || []).map(event => ({
+        id: event.id,
+        title: `Remediate: ${(event.event_type || 'Security Event').replace(/_/g, ' ')}`,
+        description: event.description || `Resolve ${event.severity} severity security event from ${event.source_system || 'unknown system'}`,
+        category: severityToCategory(event.severity),
+        priority: event.severity as RemediationTask['priority'],
+        status: 'pending' as const,
         progress: 0,
-        asset_name: 'DC-01',
-        asset_ip: '10.0.1.10',
-        estimated_duration: 15,
-        auto_approved: true,
-        requires_reboot: true,
-        risk_level: 'medium',
-        created_at: '2024-01-13T14:30:00Z',
-        remediation_script: 'powershell -Command "Install-WindowsUpdate -AcceptAll -AutoReboot"'
-      },
-      {
-        id: '2',
-        title: 'Firewall Rule Hardening',
-        description: 'Update firewall rules to block unnecessary ports as per CMMC requirements',
-        category: 'config_hardening',
-        priority: 'high',
-        status: 'completed',
-        progress: 100,
-        asset_name: 'FW-01',
-        asset_ip: '10.0.0.1',
-        estimated_duration: 5,
-        auto_approved: true,
-        requires_reboot: false,
-        risk_level: 'low',
-        created_at: '2024-01-13T13:00:00Z',
-        started_at: '2024-01-13T13:05:00Z',
-        completed_at: '2024-01-13T13:08:00Z',
-        remediation_script: 'config system interface\nedit "wan1"\nset allowaccess ping\nend'
-      },
-      {
-        id: '3',
-        title: 'SSH Configuration Update',
-        description: 'Disable root login and update SSH key algorithms for compliance',
-        category: 'compliance_fix',
-        priority: 'medium',
-        status: 'running',
-        progress: 60,
-        asset_name: 'WEB-01',
-        asset_ip: '10.0.2.15',
-        estimated_duration: 8,
-        auto_approved: true,
-        requires_reboot: false,
-        risk_level: 'low',
-        created_at: '2024-01-13T14:00:00Z',
-        started_at: '2024-01-13T14:15:00Z',
-        remediation_script: 'sed -i "s/#PermitRootLogin yes/PermitRootLogin no/" /etc/ssh/sshd_config'
-      }
-    ];
+        asset_name: event.source_system || 'Unknown Asset',
+        asset_ip: event.source_ip || '0.0.0.0',
+        estimated_duration: event.severity === 'critical' ? 30 : event.severity === 'high' ? 15 : 10,
+        auto_approved: event.severity !== 'critical',
+        requires_reboot: event.severity === 'critical',
+        risk_level: event.severity === 'critical' ? 'high' : event.severity === 'high' ? 'medium' : 'low',
+        created_at: event.created_at,
+        remediation_script: `# Remediate ${event.event_type || 'security event'}\n# Asset: ${event.source_system || 'unknown'}\n# Severity: ${event.severity}`
+      }));
 
-    const mockRules: AutomationRule[] = [
-      {
-        id: '1',
-        name: 'Critical Vulnerability Auto-Patch',
-        enabled: true,
-        trigger_condition: 'CVSS >= 9.0',
-        action_type: 'patch',
-        auto_execute: true,
-        approval_required: false,
-        maintenance_window_only: false
-      },
-      {
-        id: '2',
-        name: 'Compliance Drift Auto-Fix',
-        enabled: true,
-        trigger_condition: 'Compliance Score < 90%',
-        action_type: 'configure',
-        auto_execute: false,
-        approval_required: true,
-        maintenance_window_only: true
-      },
-      {
-        id: '3',
-        name: 'Suspicious Activity Isolation',
-        enabled: true,
-        trigger_condition: 'Threat Level = High',
-        action_type: 'isolate',
-        auto_execute: true,
-        approval_required: false,
-        maintenance_window_only: false
-      }
-    ];
-
-    setTasks(mockTasks);
-    setAutomationRules(mockRules);
-  }, []);
+      setTasks(derivedTasks);
+    } catch (error) {
+      console.error('[AutomatedRemediation] loadRemediationTasks error:', error);
+    }
+  };
 
   const executeTask = async (taskId: string) => {
     const task = tasks.find(t => t.id === taskId);

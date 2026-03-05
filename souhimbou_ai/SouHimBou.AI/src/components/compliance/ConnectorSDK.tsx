@@ -239,20 +239,7 @@ export const ConnectorSDK: React.FC = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Simulate health score updates
-    const interval = setInterval(() => {
-      setConnectors(prev => prev.map(connector => ({
-        ...connector,
-        healthScore: Math.max(60, Math.min(100, connector.healthScore + (Math.random() - 0.5) * 10)),
-        rateLimits: {
-          ...connector.rateLimits,
-          current: Math.max(0, Math.min(connector.rateLimits.requestsPerMinute, 
-            connector.rateLimits.current + Math.floor((Math.random() - 0.5) * 20)))
-        }
-      })));
-    }, 10000);
-
-    return () => clearInterval(interval);
+    // Health score updates require real connector monitoring; interval removed to avoid fabricated data
   }, []);
 
   const testConnection = async (connector: Connector) => {
@@ -272,12 +259,12 @@ export const ConnectorSDK: React.FC = () => {
 
       if (error) throw error;
 
-      // Simulate test results
-      const success = Math.random() > 0.2;
-      
-      setConnectors(prev => prev.map(c => 
-        c.id === connector.id ? { 
-          ...c, 
+      // Use real test result from edge function response
+      const success = data?.success ?? !error;
+
+      setConnectors(prev => prev.map(c =>
+        c.id === connector.id ? {
+          ...c,
           status: success ? 'connected' : 'error',
           healthScore: success ? Math.min(100, c.healthScore + 10) : Math.max(50, c.healthScore - 20),
           lastSync: new Date()

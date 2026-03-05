@@ -142,7 +142,7 @@ export class AWSCloudTrailService {
   }
 
   private generateEventId(): string {
-    return `khepra-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `khepra-${Date.now()}-${crypto.randomUUID().replace(/-/g, '').substr(0, 9)}`;
   }
 
   private async getClientIP(): Promise<string> {

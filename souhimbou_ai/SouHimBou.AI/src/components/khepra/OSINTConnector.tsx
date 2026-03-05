@@ -188,11 +188,7 @@ export const OSINTConnector = () => {
         ...prev.filter(f => f.source !== sourceId),
         {
           source: sourceId,
-          indicators: Array.from({ length: Math.floor(Math.random() * 100) }, (_, i) => ({
-            id: i,
-            type: source.type,
-            value: `indicator-${i}`
-          })),
+          indicators: [], // Real indicators come from the OSINT feed response
           lastUpdate: new Date(),
           khepraFingerprint: fingerprint
         }
@@ -203,7 +199,7 @@ export const OSINTConnector = () => {
           ...s, 
           status: 'active', 
           lastSync: new Date(),
-          records: s.records + Math.floor(Math.random() * 100)
+          records: s.records // Real record count requires feed response metadata
         } : s
       ));
     }
