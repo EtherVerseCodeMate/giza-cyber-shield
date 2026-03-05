@@ -199,7 +199,7 @@ export const useOrganization = () => {
       }
 
       // Create default subscription
-      await supabase
+      const { error: subError } = await supabase
         .from('subscriptions')
         .insert({
           organization_id: orgData.id,
@@ -210,10 +210,19 @@ export const useOrganization = () => {
           trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
         });
 
-      toast({
-        title: "Success",
-        description: "Organization created successfully",
-      });
+      if (subError) {
+        console.error('Failed to create subscription for organization:', subError);
+        toast({
+          title: "Organization Created — Subscription Setup Failed",
+          description: "Organization created but subscription could not be initialized. Contact support if billing is unavailable.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Organization created successfully",
+        });
+      }
 
       await fetchUserOrganizations();
       return orgData;

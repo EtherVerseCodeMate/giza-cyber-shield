@@ -224,6 +224,9 @@ const Auth = () => {
         } else {
           setRegisteredEmail(email);
           setShowEmailVerification(true);
+          setEmail('');
+          setPassword('');
+          setFieldErrors({});
           setActiveTab('login');
         }
       }
