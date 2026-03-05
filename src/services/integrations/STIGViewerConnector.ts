@@ -413,7 +413,7 @@ export class STIGViewerConnector {
             organizationId,
             'stigviewer' as any  // Provider type to be added
         );
-        return credential !== null && credential.is_active;
+        return credential?.is_active ?? false;
     }
 
     /**
