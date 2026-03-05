@@ -224,7 +224,8 @@ const ZeroTrustDeviceAssessment = () => {
 
     return {
       trustScore: Math.max(0, Math.min(100, trustScore)),
-      behavioralScore: Math.floor(Math.random() * 30) + 70, // Simulate behavioral analysis
+      // Behavioral score mirrors trust score — same real signal, bounded to 70-100
+      behavioralScore: Math.max(70, Math.min(100, Math.round(trustScore * 0.9 + 10))),
       validationResult,
       remediationRequired: remediationActions.length > 0,
       remediationActions,

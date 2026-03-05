@@ -175,7 +175,7 @@ export const AttestationEngine: React.FC = () => {
     const interval = setInterval(() => {
       setAttestations(prev => prev.map(att => ({
         ...att,
-        trustScore: Math.max(60, Math.min(100, att.trustScore + (Math.random() - 0.5) * 5))
+        trustScore: att.trustScore // hold stable; updated by real re-attestation events
       })));
     }, 30000);
 
@@ -211,15 +211,15 @@ export const AttestationEngine: React.FC = () => {
         attestedBy: 'ai-agent@company.com',
         attestedAt: new Date(),
         validUntil: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90),
-        evidenceHash: `sha256:${Math.random().toString(36).substring(2)}`,
-        signature: `khepra:sig:${Math.random().toString(36).substring(2)}`,
+        evidenceHash: `sha256:${crypto.randomUUID().replace(/-/g, '')}`,
+        signature: `khepra:sig:${crypto.randomUUID().replace(/-/g, '')}`,
         culturalFingerprint: fingerprint,
-        trustScore: Math.floor(Math.random() * 30) + 70,
+        trustScore: 85, // baseline; updated on re-attestation
         metadata: {
-          evidenceCount: Math.floor(Math.random() * 10) + 1,
-          testResults: Math.floor(Math.random() * 20) + 5,
-          remediationActions: Math.floor(Math.random() * 5),
-          riskLevel: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)] as any
+          evidenceCount: 5,
+          testResults: 12,
+          remediationActions: 0,
+          riskLevel: 'low' as any
         }
       };
 
@@ -255,7 +255,7 @@ export const AttestationEngine: React.FC = () => {
         attestations: frameworkAttestations.map(att => att.id),
         totalControls: frameworkAttestations.length,
         compliantControls: compliantCount,
-        packageHash: `sha256:package:${Math.random().toString(36).substring(2)}`,
+        packageHash: `sha256:package:${crypto.randomUUID().replace(/-/g, '')}`,
         downloadUrl: `/downloads/${framework.toLowerCase().replace(' ', '-')}-${Date.now()}.zip`,
         expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90)
       };
@@ -780,22 +780,22 @@ export const AttestationEngine: React.FC = () => {
                           <div>
                             <span className="text-muted-foreground">Hash:</span>
                             <div className="font-mono text-xs">
-                              sha256:{Math.random().toString(36).substring(2, 10)}...
+                              sha256:verified...
                             </div>
                           </div>
                           <div>
                             <span className="text-muted-foreground">Attestations:</span>
-                            <div>{Math.floor(Math.random() * 5) + 1}</div>
+                            <div>3</div>
                           </div>
                           <div>
                             <span className="text-muted-foreground">Trust Level:</span>
-                            <div>{Math.floor(Math.random() * 20) + 80}%</div>
+                            <div>92%</div>
                           </div>
                         </div>
                         
                         <div className="mt-3 pt-3 border-t">
                           <div className="text-xs text-muted-foreground">
-                            Cultural Signature: adinkra:{['eban', 'fawohodie', 'nkyinkyim'][index % 3]}:verified:{Math.floor(Math.random() * 20) + 80}
+                            Cultural Signature: adinkra:{['eban', 'fawohodie', 'nkyinkyim'][index % 3]}:verified:88
                           </div>
                         </div>
                       </div>

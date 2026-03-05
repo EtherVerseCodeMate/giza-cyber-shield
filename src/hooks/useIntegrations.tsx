@@ -348,7 +348,7 @@ export const useIntegrations = () => {
               int.id === integrationId 
                 ? { 
                     ...int, 
-                    status: Math.random() > 0.2 ? 'CONNECTED' : 'ERROR',
+                    status: 'CONNECTED' as const,
                     last_sync: new Date().toISOString()
                   }
                 : int
