@@ -55,7 +55,7 @@ export class SecurityValidator {
     for (const [field, rule] of Object.entries(schema)) {
       const value = input[field];
       const fieldErrors = this.validateField(field, value, rule);
-      
+
       if (fieldErrors.length > 0) {
         errors.push(...fieldErrors);
       } else {
@@ -138,7 +138,7 @@ export class SecurityValidator {
         }
         break;
       case 'number':
-        if (typeof value !== 'number' || isNaN(value)) {
+        if (typeof value !== 'number' || Number.isNaN(value)) {
           return `${field} must be a valid number`;
         }
         break;
@@ -211,15 +211,15 @@ export class SecurityValidator {
 
     // HTML encode special characters
     sanitized = sanitized
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#x27;')
-      .replace(/\//g, '&#x2F;');
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#x27;')
+      .replaceAll('/', '&#x2F;');
 
     // Remove null bytes
-    sanitized = sanitized.replace(/\0/g, '');
+    sanitized = sanitized.replaceAll('\0', '');
 
     // Normalize unicode
     sanitized = sanitized.normalize('NFKC');
@@ -287,11 +287,11 @@ export class SecurityValidator {
     let result = '';
     const randomArray = new Uint8Array(length);
     crypto.getRandomValues(randomArray);
-    
+
     for (let i = 0; i < length; i++) {
       result += chars[randomArray[i] % chars.length];
     }
-    
+
     return result;
   }
 
@@ -302,15 +302,15 @@ export class SecurityValidator {
     const encoder = new TextEncoder();
     const saltBytes = salt ? encoder.encode(salt) : crypto.getRandomValues(new Uint8Array(16));
     const dataBytes = encoder.encode(data);
-    
+
     const combined = new Uint8Array(saltBytes.length + dataBytes.length);
     combined.set(saltBytes);
     combined.set(dataBytes, saltBytes.length);
-    
+
     const hashBuffer = await crypto.subtle.digest('SHA-256', combined);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    
+
     return hashHex;
   }
 }
@@ -323,7 +323,7 @@ export const commonSchemas = {
     organizationId: { required: true, type: 'uuid' as const },
     userId: { required: true, type: 'uuid' as const }
   },
-  
+
   alertData: {
     title: { required: true, type: 'string' as const, maxLength: 200, sanitize: true },
     description: { type: 'string' as const, maxLength: 2000, sanitize: true },

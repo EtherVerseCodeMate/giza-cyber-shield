@@ -16,12 +16,11 @@ import {
   Search,
   Settings,
   Network,
-  Eye,
   Plus,
   RefreshCw,
   AlertTriangle,
   CheckCircle,
-  Clock,
+
   Server,
   Terminal
 } from 'lucide-react';
@@ -174,7 +173,7 @@ export const EnhancedSTIGConnector: React.FC<EnhancedSTIGConnectorProps> = ({ or
 
     setIsDiscovering(true);
     try {
-      const { data, error } = await supabase.functions.invoke('enhanced-asset-discovery', {
+      const { error } = await supabase.functions.invoke('enhanced-asset-discovery', {
         body: {
           action: 'start_discovery',
           organization_id: organizationId,
@@ -306,7 +305,7 @@ export const EnhancedSTIGConnector: React.FC<EnhancedSTIGConnectorProps> = ({ or
                         value={newTarget}
                         onChange={(e) => setNewTarget(e.target.value)}
                         className="flex-1"
-                        onKeyPress={(e) => e.key === 'Enter' && addTarget()}
+                        onKeyDown={(e) => e.key === 'Enter' && addTarget()}
                       />
                       <Button
                         onClick={addTarget}
@@ -421,13 +420,13 @@ export const EnhancedSTIGConnector: React.FC<EnhancedSTIGConnectorProps> = ({ or
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-300">Security Clearance Level</label>
+                        <label htmlFor="clearance-level" className="text-sm font-medium text-slate-300">Security Clearance Level</label>
                         <Badge variant="outline" className="bg-green-500/20 text-green-400 border-green-500/30">
                           TOP SECRET
                         </Badge>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-300">TRL Compliance</label>
+                        <label htmlFor="trl-compliance" className="text-sm font-medium text-slate-300">TRL Compliance</label>
                         <Badge variant="outline" className="bg-blue-500/20 text-blue-400 border-blue-500/30">
                           TRL-10 OPERATIONAL
                         </Badge>

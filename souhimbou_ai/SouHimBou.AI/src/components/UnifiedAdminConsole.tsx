@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Settings, Play, Pause, RefreshCw, Shield, Brain, Network, Lock, Activity, AlertTriangle, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
-import { useAuth } from "@/hooks/useAuth";
+
 import { useToast } from "@/hooks/use-toast";
 
 export const UnifiedAdminConsole = () => {

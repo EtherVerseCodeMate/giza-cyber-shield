@@ -1,16 +1,13 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Shield,
   AlertTriangle,
   CheckCircle,
-  Clock,
   TrendingUp,
   FileText,
-  Play,
   Settings,
   Eye,
   Wrench,
@@ -52,13 +49,15 @@ const ComplianceScoreCard: React.FC<ComplianceScoreCardProps> = ({
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
             <div className="flex items-center gap-2">
               <p className="text-2xl font-bold text-gray-400">{value}</p>
-              {trend !== undefined && (
-                <div className={`flex items-center gap-1 text-sm ${trend > 0 ? 'text-green-600' : trend < 0 ? 'text-red-600' : 'text-gray-600'
-                  }`}>
-                  <TrendingUp className="h-3 w-3" />
-                  <span>{Math.abs(trend)}%</span>
-                </div>
-              )}
+              {trend !== undefined && (() => {
+                const trendColor = trend > 0 ? 'text-green-600' : trend < 0 ? 'text-red-600' : 'text-gray-600';
+                return (
+                  <div className={`flex items-center gap-1 text-sm ${trendColor}`}>
+                    <TrendingUp className="h-3 w-3" />
+                    <span>{Math.abs(trend)}%</span>
+                  </div>
+                );
+              })()}
             </div>
           </div>
           <Icon className="h-8 w-8 opacity-30" />
@@ -116,6 +115,7 @@ export const STIGFirstComplianceDashboard: React.FC = () => {
         });
       }, 3000);
     } catch (error) {
+      console.error('Failed to load STIG rules:', error);
       toast({
         title: "Rule Loading Failed",
         description: "Failed to fetch STIG rules from OpenControls API. Please verify API connectivity.",
