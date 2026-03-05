@@ -8,26 +8,15 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Bot,
   Shield,
-  Scan,
   Wrench,
   CheckCircle,
-  AlertTriangle,
-  Clock,
   FileText,
   TrendingUp,
-  Zap,
-  Play,
-  Pause,
-  RotateCcw,
   Terminal,
   Monitor,
   Server,
-  Download,
-  Upload,
   Eye,
-  Brain,
   Sparkles,
-  Settings,
   Network,
   Globe
 } from 'lucide-react';
@@ -58,7 +47,6 @@ interface DeploymentTarget {
 }
 
 export const AIAgentDeployment = () => {
-  const { user } = useAuth();
   const { currentOrganization } = useOrganization();
   const [agents, setAgents] = useState<AIAgent[]>([]);
   const [deploymentTargets, setDeploymentTargets] = useState<DeploymentTarget[]>([]);
@@ -344,9 +332,10 @@ export const AIAgentDeployment = () => {
           <CardContent>
             <div className="space-y-3">
               {deploymentTargets.map((target) => (
-                <div
+                <button
+                  type="button"
                   key={target.id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-all ${selectedTarget === target.id
+                  className={`p-4 border rounded-lg cursor-pointer transition-all text-left w-full ${selectedTarget === target.id
                       ? 'border-primary bg-primary/5'
                       : 'border-border hover:border-primary/50'
                     }`}
@@ -369,7 +358,7 @@ export const AIAgentDeployment = () => {
                       </p>
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
 
@@ -509,7 +498,7 @@ export const AIAgentDeployment = () => {
             <ScrollArea className="h-40 font-mono text-xs">
               <div className="space-y-1">
                 {deploymentLog.map((log, index) => (
-                  <div key={index} className="text-green-600">
+                  <div key={`log-${log.substring(0, 20)}-${index}`} className="text-green-600">
                     {log}
                   </div>
                 ))}

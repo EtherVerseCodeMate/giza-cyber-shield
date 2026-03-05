@@ -3,18 +3,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  Zap,
   Play,
   Eye,
   CheckCircle,
   ArrowRight,
   Shield,
-  Scan,
-  Network,
   Brain,
-  Target,
   Clock,
-  AlertTriangle,
   Lock
 } from 'lucide-react';
 import { useUserAgreements } from '@/hooks/useUserAgreements';
@@ -152,8 +147,8 @@ const ExperienceSelector: React.FC<ExperienceSelectorProps> = ({ onExperienceSel
                 <CardContent className="space-y-6 px-8">
                   {/* Features */}
                   <div className="space-y-3 min-h-[120px]">
-                    {experience.features.map((feature, index) => (
-                      <div key={index} className="flex items-center space-x-3 group/item">
+                    {experience.features.map((feature) => (
+                      <div key={feature} className="flex items-center space-x-3 group/item">
                         <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 transition-transform group-hover/item:scale-125" />
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
                           {feature}
