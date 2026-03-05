@@ -46,10 +46,10 @@ function sanitizeError(error: Error): string {
 
   // Remove URLs, tokens, keys from error messages
   return message
-    .replace(/https?:\/\/[^\s]+/g, '[REDACTED_URL]')
-    .replace(/[a-zA-Z0-9]{32,}/g, '[REDACTED_TOKEN]')
-    .replace(/Bearer\s+[^\s]+/g, 'Bearer [REDACTED]')
-    .replace(/token[:\s]+[^\s]+/gi, 'token: [REDACTED]');
+    .replaceAll(/https?:\/\/[^\s]+/g, '[REDACTED_URL]')
+    .replaceAll(/[a-zA-Z0-9]{32,}/g, '[REDACTED_TOKEN]')
+    .replaceAll(/Bearer\s+[^\s]+/g, 'Bearer [REDACTED]')
+    .replaceAll(/token[:\s]+[^\s]+/gi, 'token: [REDACTED]');
 }
 
 function validateInput(request: IntegrationRequest): string | null {
