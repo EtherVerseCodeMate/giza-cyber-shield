@@ -6,7 +6,6 @@ import { Progress } from "@/components/ui/progress";
 import {
   Shield,
   AlertTriangle,
-  CheckCircle,
   Clock,
   FileText,
   TrendingUp,
@@ -61,7 +60,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
 
   const initializeCMMCData = () => {
     const cmmcFramework = frameworks.find(f => f.name.toLowerCase().includes('cmmc'));
-    const cmmcControls = controls.filter(c => c.framework_id === cmmcFramework?.id);
+    void controls.filter(c => c.framework_id === cmmcFramework?.id);
 
     const levels: CMMCLevel[] = [
       {
@@ -151,7 +150,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
     }
   };
 
-  const getDomainIcon = (domain: string) => {
+  const getDomainIcon = (domain: string): React.ElementType => {
     const icons: Record<string, any> = {
       'AC': Users,      // Access Control
       'AU': FileText,   // Audit and Accountability  
@@ -255,7 +254,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
         </Card>
 
         {/* Behavioral Forensic Link */}
-        <Card className="bg-slate-900 border-red-500/20 relative group hover:border-red-500/40 transition-all cursor-pointer" onClick={() => window.location.href = '/threat-hunting'}>
+        <Card className="bg-slate-900 border-red-500/20 relative group hover:border-red-500/40 transition-all cursor-pointer" onClick={() => globalThis.location.href = '/threat-hunting'}>
           <div className="absolute top-0 right-0 p-4">
             <Zap className="h-4 w-4 text-red-500 animate-pulse" />
           </div>

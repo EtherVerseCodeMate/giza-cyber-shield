@@ -38,7 +38,7 @@ export const EnterpriseSecurityDashboard = () => {
   const [scanTarget, setScanTarget] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeScans, setActiveScans] = useState(0);
-  const { user } = useAuth();
+
   const { toast } = useToast();
   const { currentOrganization } = useOrganizationContext();
   const organizationId = currentOrganization?.organization_id;
@@ -158,7 +158,7 @@ export const EnterpriseSecurityDashboard = () => {
   const investigateThreat = async (indicator: string, type: string) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('threat-intelligence-lookup', {
+      const { error } = await supabase.functions.invoke('threat-intelligence-lookup', {
         body: { indicator, type }
       });
 
@@ -338,7 +338,7 @@ export const EnterpriseSecurityDashboard = () => {
                   placeholder="Enter IP range (e.g., 192.168.1.0/24) or hostname"
                   value={scanTarget}
                   onChange={(e) => setScanTarget(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && initiateNetworkScan()}
+                  onKeyDown={(e) => e.key === 'Enter' && initiateNetworkScan()}
                 />
                 <Button onClick={initiateNetworkScan} disabled={loading}>
                   <Search className="h-4 w-4 mr-1" />
@@ -363,7 +363,7 @@ export const EnterpriseSecurityDashboard = () => {
                             <span className="text-sm text-muted-foreground">({asset.hostname})</span>
                           )}
                         </div>
-                        <Badge variant={asset.risk_score > 70 ? 'destructive' : asset.risk_score > 40 ? 'destructive' : 'secondary'}>
+                        <Badge variant={asset.risk_score > 40 ? 'destructive' : 'secondary'}>
                           Risk: {asset.risk_score}
                         </Badge>
                       </div>
