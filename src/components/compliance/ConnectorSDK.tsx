@@ -243,11 +243,12 @@ export const ConnectorSDK: React.FC = () => {
     const interval = setInterval(() => {
       setConnectors(prev => prev.map(connector => ({
         ...connector,
-        healthScore: Math.max(60, Math.min(100, connector.healthScore + (Math.random() - 0.5) * 10)),
+        // Health score holds steady between real polling cycles
+        healthScore: connector.healthScore,
         rateLimits: {
           ...connector.rateLimits,
           current: Math.max(0, Math.min(connector.rateLimits.requestsPerMinute, 
-            connector.rateLimits.current + Math.floor((Math.random() - 0.5) * 20)))
+            connector.rateLimits.current))
         }
       })));
     }, 10000);
@@ -273,7 +274,8 @@ export const ConnectorSDK: React.FC = () => {
       if (error) throw error;
 
       // Simulate test results
-      const success = Math.random() > 0.2;
+      // Derive success from whether the connector has a valid config (non-empty credentials)
+      const success = !!(connector.config && Object.keys(connector.config).length > 0);
       
       setConnectors(prev => prev.map(c => 
         c.id === connector.id ? { 

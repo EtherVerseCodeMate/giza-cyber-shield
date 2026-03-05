@@ -291,7 +291,7 @@ export const EvidenceCollectionEngine: React.FC = () => {
             clearInterval(progressInterval);
             return 100;
           }
-          return prev + Math.random() * 15;
+          return Math.min(prev + 10, 100); // fixed 10% step per 500ms tick
         });
       }, 500);
 
