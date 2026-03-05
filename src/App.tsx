@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { OrganizationProvider } from "@/components/OrganizationProvider";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -18,7 +18,7 @@ import Episode3 from "./views/blog/Episode3";
 import Episode4 from "./views/blog/Episode4";
 import BuildingCyberImmunity from "./views/blog/BuildingCyberImmunity";
 import LaunchingVDP from "./views/blog/LaunchingVDP";
-import VDP from "./views/VDP";
+import VdpPage from "./views/VDP";
 import HallOfFame from "./views/HallOfFame";
 import Auth from "./views/Auth";
 import AuthCallback from "./views/AuthCallback";
@@ -38,7 +38,7 @@ import LegalPage from "./views/LegalPage";
 import ThreatHuntingDashboard from "./views/ThreatHuntingDashboard";
 import IntegrationsPage from "./views/IntegrationsPage";
 import NotFound from "./views/NotFound";
-import { Navigate } from "react-router-dom";
+import { SecurityDashboard } from "./views/SecurityDashboard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,7 +69,7 @@ const App = () => {
                   <Route path="/blog/episode-4-rising-through-ranks" element={<Episode4 />} />
                   <Route path="/blog/building-cyber-immunity-cmmc-stig-database" element={<BuildingCyberImmunity />} />
                   <Route path="/blog/launching-vdp" element={<LaunchingVDP />} />
-                  <Route path="/vdp" element={<VDP />} />
+                  <Route path="/vdp" element={<VdpPage />} />
                   <Route path="/hall-of-fame" element={<HallOfFame />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/auth/callback" element={<AuthCallback />} />
@@ -106,6 +106,9 @@ const App = () => {
                   {/* Khepra Client Portal */}
                   <Route path="/clients/:org_id/overview" element={<ProtectedRoute><ClientPortal /></ProtectedRoute>} />
                   <Route path="/clients/:org_id" element={<ProtectedRoute><ClientPortal /></ProtectedRoute>} />
+
+                  {/* Security & Compliance Dashboard */}
+                  <Route path="/security" element={<ProtectedRoute><SecurityDashboard /></ProtectedRoute>} />
 
                   {/* Settings stub — prevents broken nav link */}
                   <Route path="/settings" element={<ProtectedRoute><Navigate to="/dashboard" replace /></ProtectedRoute>} />
