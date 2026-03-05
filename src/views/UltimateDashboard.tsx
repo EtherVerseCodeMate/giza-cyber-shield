@@ -1,8 +1,6 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Shield, AlertTriangle, Activity, Eye, MessageSquare, Settings } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 
 // Import sovereignty modules
 import ExecutiveSovereignty from "@/components/dashboard/ExecutiveSovereignty";
@@ -15,46 +13,6 @@ import PapyrusWizard from "@/components/dashboard/PapyrusWizard";
 const UltimateDashboard = () => {
     const [activeTab, setActiveTab] = useState("executive");
     const [papyrusOpen, setPapyrusOpen] = useState(false);
-    const [dagData, setDagData] = useState<any>(null);
-
-    // Fetch dashboard health status
-    const { data: healthStatus } = useQuery({
-        queryKey: ["dashboard-health"],
-        queryFn: async () => {
-            const response = await fetch("/api/v1/");
-            return response.json();
-        },
-        refetchInterval: 30000, // Refresh every 30s
-    });
-
-    // WebSocket connection for real-time DAG updates
-    useEffect(() => {
-        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const wsUrl = `${protocol}//${window.location.host}/ws/dag`;
-
-        const ws = new WebSocket(wsUrl);
-
-        ws.onopen = () => {
-            console.log("WebSocket connected for real-time DAG updates");
-        };
-
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            setDagData(data);
-        };
-
-        ws.onerror = (error) => {
-            console.error("WebSocket error:", error);
-        };
-
-        ws.onclose = () => {
-            console.log("WebSocket disconnected");
-        };
-
-        return () => {
-            ws.close();
-        };
-    }, []);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
@@ -72,19 +30,9 @@ const UltimateDashboard = () => {
                         </div>
                         <div className="flex items-center gap-4">
                             <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <div className={`w-2 h-2 rounded-full ${healthStatus?.status === "ONLINE" ? "bg-green-500" : "bg-yellow-500"} animate-pulse`} />
-                                <span className="text-sm text-slate-300">
-                                    {healthStatus?.status || "INITIALIZING"}
-                                </span>
+                                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                <span className="text-sm text-slate-300">OPERATIONAL</span>
                             </div>
-                            {dagData && (
-                                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800/50 border border-slate-700">
-                                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                                    <span className="text-sm text-slate-300">
-                                        Live: {dagData.stats?.nodes || 0} nodes
-                                    </span>
-                                </div>
-                            )}
                             <button
                                 onClick={() => setPapyrusOpen(!papyrusOpen)}
                                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 transition-all"

@@ -15,109 +15,95 @@ const AuthCallback = () => {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        console.log('Processing auth callback...');
-        
-        // Extract hash parameters (tokens from Supabase)
+        // Extract hash parameters (Supabase tokens arrive in the URL hash)
         const hashParams = new URLSearchParams(location.hash.substring(1));
-        
-        // Check if we have auth tokens in the hash
-        const accessToken = hashParams.get('access_token');
+        const accessToken  = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
-        const type = hashParams.get('type');
-        
+        const type         = hashParams.get('type');   // 'signup' | 'recovery' | 'magiclink'
+
         if (accessToken && refreshToken) {
-          console.log('Tokens found in URL, processing securely...');
-          
-          // Call our secure edge function to handle tokens
-          const callbackUrl = new URL(window.location.href);
-          
-          // Convert hash parameters to search parameters for the edge function
-          const params = new URLSearchParams();
-          hashParams.forEach((value, key) => {
-            params.append(key, value);
+          // Directly establish the session from the tokens — do NOT relay through
+          // an edge function that receives an empty body and can't read the hash.
+          const { data, error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
           });
-          
-          const { data, error: callbackError } = await supabase.functions.invoke('auth-callback', {
-            body: {},
-            method: 'GET'
-          });
-          
-          if (callbackError) {
-            console.error('Callback processing error:', callbackError);
+
+          // Clear the URL hash immediately for security (tokens must not linger)
+          window.history.replaceState({}, document.title, window.location.pathname);
+
+          if (sessionError) {
+            console.error('[AuthCallback] setSession error:', sessionError);
             setError('Failed to process authentication securely');
-            
             toast({
-              title: "Authentication Error",
-              description: "Failed to process authentication callback securely",
-              variant: "destructive"
+              title: 'Authentication Error',
+              description: 'Failed to process authentication callback securely',
+              variant: 'destructive',
             });
-            
-            // Clear the URL immediately for security
-            window.history.replaceState({}, document.title, window.location.pathname);
             navigate('/auth?error=callback_failed');
             return;
           }
-          
-          // Clear the URL hash immediately for security
-          window.history.replaceState({}, document.title, window.location.pathname);
-          
-          console.log('Auth callback processed successfully');
-          
+
           toast({
-            title: "Authentication Successful",
-            description: "Your authentication has been processed securely",
-            variant: "default"
+            title: 'Authentication Successful',
+            description: 'Your session has been established securely',
           });
-          
-          // Redirect based on the response
-          const redirectUrl = data?.redirect_url || '/dashboard';
-          navigate(redirectUrl);
-          
+
+          // Route based on token type
+          if (type === 'recovery') {
+            // Password-reset flow: let user set a new password
+            navigate('/auth?mode=reset');
+          } else {
+            navigate('/dashboard');
+          }
         } else {
-          // No tokens found, this might be a direct access or error
-          const urlParams = new URLSearchParams(location.search);
+          // No tokens — check for explicit error param in the query string
+          const urlParams  = new URLSearchParams(location.search);
           const errorParam = urlParams.get('error');
-          
+
+          window.history.replaceState({}, document.title, window.location.pathname);
+
           if (errorParam) {
             setError(`Authentication error: ${errorParam}`);
             toast({
-              title: "Authentication Error",
+              title: 'Authentication Error',
               description: `Authentication failed: ${errorParam}`,
-              variant: "destructive"
+              variant: 'destructive',
             });
           } else {
+            // Possibly a direct visit — check if there's an active session already
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+              navigate('/dashboard');
+              return;
+            }
             setError('No authentication data found');
             toast({
-              title: "Invalid Access",
-              description: "No authentication data found in callback",
-              variant: "destructive"
+              title: 'Invalid Access',
+              description: 'No authentication data found in callback',
+              variant: 'destructive',
             });
           }
-          
+
           navigate('/auth');
         }
-        
-      } catch (error) {
-        console.error('Auth callback error:', error);
+      } catch (err: any) {
+        console.error('[AuthCallback] error:', err);
         setError('Authentication processing failed');
-        
         toast({
-          title: "Authentication Error",
-          description: "Failed to process authentication callback",
-          variant: "destructive"
+          title: 'Authentication Error',
+          description: 'Failed to process authentication callback',
+          variant: 'destructive',
         });
-        
-        // Clear URL for security
         window.history.replaceState({}, document.title, window.location.pathname);
         navigate('/auth?error=callback_exception');
-        
       } finally {
         setLoading(false);
       }
     };
 
     handleAuthCallback();
-  }, [location, navigate, toast]);
+  }, []); // run once on mount — location ref is stable at that point
 
   if (loading) {
     return (
@@ -130,10 +116,10 @@ const AuthCallback = () => {
                 Securing Authentication
               </h2>
               <p className="text-muted-foreground">
-                Processing your authentication securely...
+                Processing your authentication securely…
               </p>
             </div>
-            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </CardContent>
         </Card>
       </div>
@@ -150,9 +136,7 @@ const AuthCallback = () => {
               <h2 className="text-xl font-semibold text-foreground mb-2">
                 Authentication Error
               </h2>
-              <p className="text-muted-foreground mb-4">
-                {error}
-              </p>
+              <p className="text-muted-foreground mb-4">{error}</p>
               <button
                 onClick={() => navigate('/auth')}
                 className="text-primary hover:text-primary-glow transition-colors"
@@ -176,7 +160,7 @@ const AuthCallback = () => {
               Authentication Complete
             </h2>
             <p className="text-muted-foreground">
-              Redirecting you to the dashboard...
+              Redirecting you to the dashboard…
             </p>
           </div>
         </CardContent>
