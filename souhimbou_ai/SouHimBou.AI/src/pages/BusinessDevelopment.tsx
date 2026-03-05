@@ -14,13 +14,11 @@ import {
   CheckCircle,
   AlertCircle,
   BarChart3,
-  PieChart,
   Network
 } from 'lucide-react';
 import { PageLayout } from '@/components/PageLayout';
 
 const BusinessDevelopment = () => {
-  const [activePhase, setActivePhase] = useState('Phase 1');
 
   const phases = [
     {
@@ -196,10 +194,11 @@ const BusinessDevelopment = () => {
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">{phase.title}</CardTitle>
-                      <Badge variant={
-                        phase.status === 'active' ? 'default' :
-                          phase.status === 'upcoming' ? 'secondary' : 'outline'
-                      }>
+                      <Badge variant={(() => {
+                        if (phase.status === 'active') return 'default';
+                        if (phase.status === 'upcoming') return 'secondary';
+                        return 'outline';
+                      })()}>
                         {phase.timeline}
                       </Badge>
                     </div>
@@ -216,7 +215,7 @@ const BusinessDevelopment = () => {
                       <div className="space-y-2">
                         <h4 className="font-medium text-sm">Key Goals:</h4>
                         {phase.goals.map((goal, index) => (
-                          <div key={index} className="flex items-center gap-2 text-sm">
+                          <div key={goal} className="flex items-center gap-2 text-sm">
                             {phase.progress > index * 20 ? (
                               <CheckCircle className="h-4 w-4 text-green-500" />
                             ) : (
@@ -260,8 +259,8 @@ const BusinessDevelopment = () => {
                       <div className="space-y-2">
                         <h4 className="font-medium text-sm">Key Pain Points:</h4>
                         <div className="flex flex-wrap gap-1">
-                          {segment.painPoints.map((pain, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
+                          {segment.painPoints.map((pain) => (
+                            <Badge key={pain} variant="outline" className="text-xs">
                               {pain}
                             </Badge>
                           ))}

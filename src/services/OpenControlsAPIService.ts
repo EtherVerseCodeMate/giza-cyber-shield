@@ -24,8 +24,8 @@ export interface PerformanceMetrics {
 }
 
 export class OpenControlsAPIService {
-  private static baseUrl = 'https://api.disa.mil/stigs'; // Mock URL - will be updated when actual API is available
-  private static cacheTimeout = 3600000; // 1 hour in milliseconds
+  private static readonly baseUrl = 'https://api.disa.mil/stigs'; // Mock URL - will be updated when actual API is available
+  private static readonly cacheTimeout = 3600000; // 1 hour in milliseconds
 
   /**
    * Connect to DISA STIGs API with authentication and rate limiting
