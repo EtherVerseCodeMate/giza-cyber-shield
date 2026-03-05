@@ -7,11 +7,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Plug, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
+import {
+  Plug,
+  CheckCircle,
+  XCircle,
+  Clock,
   AlertTriangle,
   Settings,
   Key,
@@ -78,101 +78,8 @@ interface ConnectorField {
   validation?: string;
 }
 
-const mockConnectors: Connector[] = [
-  {
-    id: 'aws-1',
-    name: 'AWS Production',
-    provider: 'AWS',
-    category: 'cloud',
-    status: 'connected',
-    lastSync: new Date(Date.now() - 1000 * 60 * 15),
-    healthScore: 95,
-    capabilities: [
-      { name: 'Asset Discovery', type: 'discover', enabled: true, lastTested: new Date(), successRate: 98 },
-      { name: 'Configuration Read', type: 'read', enabled: true, lastTested: new Date(), successRate: 96 },
-      { name: 'Policy Write', type: 'write', enabled: true, lastTested: new Date(), successRate: 92 },
-      { name: 'Evidence Collection', type: 'evidence', enabled: true, lastTested: new Date(), successRate: 99 }
-    ],
-    authType: 'service_principal',
-    rateLimits: { requestsPerMinute: 1000, current: 245 },
-    discoveredAssets: 1247,
-    complianceFrameworks: ['SOC2', 'PCI-DSS', 'ISO27001'],
-    configuration: {
-      region: 'us-east-1',
-      roleArn: 'arn:aws:iam::123456789012:role/ComplianceRole',
-      externalId: 'unique-external-id'
-    }
-  },
-  {
-    id: 'okta-1',
-    name: 'Okta Identity',
-    provider: 'Okta',
-    category: 'identity',
-    status: 'connected',
-    lastSync: new Date(Date.now() - 1000 * 60 * 5),
-    healthScore: 88,
-    capabilities: [
-      { name: 'User Discovery', type: 'discover', enabled: true, lastTested: new Date(), successRate: 99 },
-      { name: 'Policy Read', type: 'read', enabled: true, lastTested: new Date(), successRate: 95 },
-      { name: 'MFA Enforcement', type: 'write', enabled: true, lastTested: new Date(), successRate: 87 },
-      { name: 'Auth Evidence', type: 'evidence', enabled: true, lastTested: new Date(), successRate: 98 }
-    ],
-    authType: 'api_key',
-    rateLimits: { requestsPerMinute: 100, current: 34 },
-    discoveredAssets: 456,
-    complianceFrameworks: ['SOC2', 'ISO27001'],
-    configuration: {
-      orgUrl: 'https://company.okta.com',
-      apiToken: '***masked***'
-    }
-  },
-  {
-    id: 'github-1',
-    name: 'GitHub Enterprise',
-    provider: 'GitHub',
-    category: 'devops',
-    status: 'testing',
-    lastSync: new Date(Date.now() - 1000 * 60 * 2),
-    healthScore: 92,
-    capabilities: [
-      { name: 'Repository Discovery', type: 'discover', enabled: true, lastTested: new Date(), successRate: 100 },
-      { name: 'Branch Protection Read', type: 'read', enabled: true, lastTested: new Date(), successRate: 98 },
-      { name: 'Protection Rules Write', type: 'write', enabled: false, lastTested: new Date(), successRate: 0 },
-      { name: 'Code Evidence', type: 'evidence', enabled: true, lastTested: new Date(), successRate: 95 }
-    ],
-    authType: 'oauth2',
-    rateLimits: { requestsPerMinute: 5000, current: 124 },
-    discoveredAssets: 89,
-    complianceFrameworks: ['SOC2', 'ISO27001'],
-    configuration: {
-      baseUrl: 'https://api.github.com',
-      organization: 'company-org'
-    }
-  },
-  {
-    id: 'k8s-1',
-    name: 'Kubernetes Prod Cluster',
-    provider: 'Kubernetes',
-    category: 'cloud',
-    status: 'error',
-    lastSync: new Date(Date.now() - 1000 * 60 * 60),
-    healthScore: 65,
-    capabilities: [
-      { name: 'Resource Discovery', type: 'discover', enabled: true, lastTested: new Date(), successRate: 85 },
-      { name: 'RBAC Read', type: 'read', enabled: true, lastTested: new Date(), successRate: 90 },
-      { name: 'Policy Enforcement', type: 'write', enabled: false, lastTested: new Date(), successRate: 0 },
-      { name: 'Security Evidence', type: 'evidence', enabled: true, lastTested: new Date(), successRate: 78 }
-    ],
-    authType: 'certificate',
-    rateLimits: { requestsPerMinute: 200, current: 0 },
-    discoveredAssets: 234,
-    complianceFrameworks: ['NIST-800-171', 'CIS'],
-    configuration: {
-      endpoint: 'https://k8s-api.company.com',
-      namespace: 'compliance-monitor'
-    }
-  }
-];
+// Awaiting telemetry for real connectors
+const pendingConnectors: Connector[] = [];
 
 const connectorTemplates: ConnectorTemplate[] = [
   {
@@ -230,7 +137,7 @@ const connectorTemplates: ConnectorTemplate[] = [
 ];
 
 export const ConnectorSDK: React.FC = () => {
-  const [connectors, setConnectors] = useState<Connector[]>(mockConnectors);
+  const [connectors, setConnectors] = useState<Connector[]>(pendingConnectors);
   const [templates, setTemplates] = useState<ConnectorTemplate[]>(connectorTemplates);
   const [selectedConnector, setSelectedConnector] = useState<Connector | null>(null);
   const [showAddConnector, setShowAddConnector] = useState(false);
@@ -244,7 +151,7 @@ export const ConnectorSDK: React.FC = () => {
 
   const testConnection = async (connector: Connector) => {
     setIsTestingConnection(true);
-    
+
     try {
       const { data, error } = await supabase.functions.invoke('grok-ai-agent', {
         body: {
@@ -452,8 +359,8 @@ export const ConnectorSDK: React.FC = () => {
                         {connector.name}
                       </CardTitle>
                       <CardDescription>
-                        Last sync: {connector.lastSync.toLocaleString()} • 
-                        {connector.discoveredAssets} assets • 
+                        Last sync: {connector.lastSync.toLocaleString()} •
+                        {connector.discoveredAssets} assets •
                         Health: {connector.healthScore}%
                       </CardDescription>
                     </div>
@@ -493,9 +400,9 @@ export const ConnectorSDK: React.FC = () => {
                         <span>Rate Limit Usage</span>
                         <span>{connector.rateLimits.current}/{connector.rateLimits.requestsPerMinute}</span>
                       </div>
-                      <Progress 
-                        value={(connector.rateLimits.current / connector.rateLimits.requestsPerMinute) * 100} 
-                        className="h-2" 
+                      <Progress
+                        value={(connector.rateLimits.current / connector.rateLimits.requestsPerMinute) * 100}
+                        className="h-2"
                       />
                     </div>
 
