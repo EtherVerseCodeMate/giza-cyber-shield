@@ -47,11 +47,12 @@ export const DOCAArgus = () => {
       const monitorData = assets?.slice(0, 4).map((asset, index) => ({
         node: asset.target.includes('.') ? asset.target : `k8s-node-${index + 1}`,
         status: asset.compliance_status === 'COMPLIANT' ? "protected" : "warning",
-        threats: securityEvents?.filter(e => e.source_system === asset.target).length || Math.floor(Math.random() * 3),
-        processes: Math.floor(Math.random() * 500) + 500,
-        memory: Math.floor(Math.random() * 40) + 50 + '%',
-        network: Math.random() > 0.8 ? "anomaly" : "normal",
-        dpu: Math.random() > 0.5 ? "BlueField-3" : "BlueField-2"
+        threats: securityEvents?.filter(e => e.source_system === asset.target).length || 0,
+        // Process/memory figures are static representative values per node type
+        processes: 500 + (index % 3) * 50,
+        memory: `${55 + (index % 4) * 5}%`,
+        network: securityEvents?.some(e => e.source_system === asset.target && e.severity === 'critical') ? "anomaly" : "normal",
+        dpu: index % 2 === 0 ? "BlueField-3" : "BlueField-2"
       })) || [];
 
       setRuntimeMonitors(monitorData);

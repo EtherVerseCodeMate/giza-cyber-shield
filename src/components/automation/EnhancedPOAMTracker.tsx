@@ -207,7 +207,8 @@ export const EnhancedPOAMTracker = () => {
       // Simulate real-time updates
       setRealTimeMetrics(prev => prev.map(metric => ({
         ...metric,
-        current_value: metric.current_value + Math.floor(Math.random() * 3),
+        // Use the edge function response if it contained updated values; otherwise hold steady
+        current_value: (data as any)?.metrics?.[metric.id]?.current_value ?? metric.current_value,
         last_updated: new Date().toISOString()
       })));
 

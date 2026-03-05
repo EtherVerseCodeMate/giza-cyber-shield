@@ -247,7 +247,7 @@ export const RemediationOrchestrator: React.FC = () => {
     const interval = setInterval(() => {
       setExecutions(prev => prev.map(execution => {
         if (execution.status === 'running' && execution.progress < 100) {
-          const newProgress = Math.min(100, execution.progress + Math.random() * 20);
+          const newProgress = Math.min(100, execution.progress + 10); // fixed 10% step per tick
           const newStatus = newProgress >= 100 ? 'completed' : 'running';
           
           if (newStatus === 'completed') {

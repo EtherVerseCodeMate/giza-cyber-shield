@@ -113,7 +113,8 @@ const InteractiveDemoVideo = () => {
       }
     ];
     
-    return responses[Math.floor(Math.random() * responses.length)];
+    // Cycle through responses deterministically by message count
+    return responses[chatHistory.length % responses.length];
   };
 
   const currentData = demoSteps[currentStep];

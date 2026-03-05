@@ -335,17 +335,17 @@ export const EnterpriseSTIGDashboard: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {['Windows Server', 'Linux', 'Network Devices', 'Database'].map((platform) => (
-                    <div key={platform} className="flex items-center justify-between">
-                      <span className="font-medium">{platform}</span>
+                  {([
+                    { label: 'Windows Server', score: 87 },
+                    { label: 'Linux', score: 92 },
+                    { label: 'Network Devices', score: 79 },
+                    { label: 'Database', score: 84 }
+                  ] as const).map(({ label, score }) => (
+                    <div key={label} className="flex items-center justify-between">
+                      <span className="font-medium">{label}</span>
                       <div className="flex items-center gap-2">
-                        <Progress 
-                          value={Math.random() * 40 + 60} 
-                          className="w-24" 
-                        />
-                        <span className="text-sm text-muted-foreground">
-                          {Math.floor(Math.random() * 40 + 60)}%
-                        </span>
+                        <Progress value={score} className="w-24" />
+                        <span className="text-sm text-muted-foreground">{score}%</span>
                       </div>
                     </div>
                   ))}
