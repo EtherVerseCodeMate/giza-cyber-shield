@@ -35,12 +35,12 @@ export class OpenControlsAPIService {
     client_secret?: string;
   }): Promise<{ success: boolean; message: string; expires_at?: string }> {
     try {
-      // Mock authentication - will integrate with actual DISA API
-      const mockResponse = {
+      // Awaiting actual DISA API integration
+      const authResult = {
         success: true,
-        message: 'Successfully authenticated with DISA STIGs API',
-        expires_at: new Date(Date.now() + 86400000).toISOString(), // 24 hours
-        access_token: 'mock_access_token_ready_for_real_api'
+        message: 'Awaiting DISA STIGs API integration',
+        expires_at: new Date(Date.now() + 86400000).toISOString(),
+        access_token: 'pending_integration'
       };
 
       // Store authentication in enhanced integrations
@@ -54,13 +54,13 @@ export class OpenControlsAPIService {
           sync_status: 'authenticated',
           performance_metrics: {
             last_auth: new Date().toISOString(),
-            auth_expires: mockResponse.expires_at
+            auth_expires: authResult.expires_at
           },
           is_active: true
         });
 
       if (error) throw error;
-      return mockResponse;
+      return authResult;
     } catch (error) {
       console.error('DISA authentication failed:', error);
       throw error;
@@ -94,31 +94,12 @@ export class OpenControlsAPIService {
         };
       }
 
-      // Mock API response - ready for real DISA API integration
+      // Awaiting real DISA API integration
       const startTime = Date.now();
-      const mockData = {
-        stigs: [
-          {
-            stig_id: 'RHEL_8_STIG',
-            title: 'Red Hat Enterprise Linux 8 Security Technical Implementation Guide',
-            version: 'V1R12',
-            release_date: '2024-01-26',
-            platform: 'RHEL 8',
-            severity_levels: ['CAT I', 'CAT II', 'CAT III'],
-            total_controls: 232
-          },
-          {
-            stig_id: 'WIN_SERVER_2022_STIG',
-            title: 'Microsoft Windows Server 2022 Security Technical Implementation Guide',
-            version: 'V1R4',
-            release_date: '2024-01-26',
-            platform: 'Windows Server 2022',
-            severity_levels: ['CAT I', 'CAT II', 'CAT III'],
-            total_controls: 267
-          }
-        ],
+      const emptyCatalog = {
+        stigs: [],
         pagination: {
-          total: 45,
+          total: 0,
           page: 1,
           per_page: 10
         }
@@ -127,7 +108,7 @@ export class OpenControlsAPIService {
       const responseTime = Date.now() - startTime;
 
       // Cache the response
-      await this.cacheData(organizationId, endpoint, cacheKey, mockData);
+      await this.cacheData(organizationId, endpoint, cacheKey, emptyCatalog);
 
       // Record performance metrics
       await this.recordPerformanceMetric(organizationId, 'api_response_time', responseTime, {
@@ -136,7 +117,7 @@ export class OpenControlsAPIService {
       });
 
       return {
-        data: mockData,
+        data: emptyCatalog,
         metadata: {
           response_time_ms: responseTime,
           cached: false,
@@ -159,20 +140,20 @@ export class OpenControlsAPIService {
     high_priority_alerts: number;
   }> {
     try {
-      // Mock vulnerability ingestion - ready for real feeds
-      const mockResult = {
+      // Awaiting real feeds
+      const ingestionResult = {
         vulnerabilities_processed: 0, // Real value requires live vulnerability feed integration
         threat_correlations: 0, // Real value requires live threat correlation engine
         high_priority_alerts: 0 // Real value requires live alert ingestion
       };
 
       // Record performance metrics
-      await this.recordPerformanceMetric(organizationId, 'vulnerability_ingestion', mockResult.vulnerabilities_processed, {
+      await this.recordPerformanceMetric(organizationId, 'vulnerability_ingestion', ingestionResult.vulnerabilities_processed, {
         feed_sources: feedSources,
-        correlation_count: mockResult.threat_correlations
+        correlation_count: ingestionResult.threat_correlations
       });
 
-      return mockResult;
+      return ingestionResult;
     } catch (error) {
       console.error('Vulnerability feed ingestion failed:', error);
       throw error;
@@ -198,20 +179,20 @@ export class OpenControlsAPIService {
 
       // Calculate aggregated metrics
       const responseTimeMetrics = data.filter(m => m.metric_type === 'api_response_time');
-      const averageResponseTime = responseTimeMetrics.length > 0 
+      const averageResponseTime = responseTimeMetrics.length > 0
         ? responseTimeMetrics.reduce((sum, m) => sum + Number(m.metric_value), 0) / responseTimeMetrics.length
         : 0;
 
       const cacheMetrics = data.filter(m => m.metric_type === 'cache_hit_rate');
-      const cacheHitRate = cacheMetrics.length > 0 
+      const cacheHitRate = cacheMetrics.length > 0
         ? cacheMetrics[cacheMetrics.length - 1].metric_value
         : 0;
 
       return {
         average_response_time: Math.round(averageResponseTime),
         cache_hit_rate: Number(cacheHitRate),
-        error_rate: 0.02, // Mock 2% error rate
-        throughput_requests_per_minute: 150 // Mock throughput
+        error_rate: 0, // Awaiting actual telemetry
+        throughput_requests_per_minute: 0 // Awaiting actual telemetry
       };
     } catch (error) {
       console.error('Performance metrics fetch failed:', error);
@@ -233,19 +214,11 @@ export class OpenControlsAPIService {
     configuration_recommendations: any[];
   }> {
     try {
-      // Mock Open Controls sync - ready for real integration
-      const mockResult = {
+      // Awaiting real integration
+      const syncResult = {
         sync_status: 'success' as const,
         intelligence_updates: 0, // Real value requires live Open Controls sync
-        configuration_recommendations: [
-          {
-            recommendation_id: 'OC_REC_001',
-            priority: 'HIGH',
-            category: 'CONFIGURATION',
-            description: 'Update RHEL 8 SSH configuration based on latest DISA guidelines',
-            estimated_impact: 'Reduces attack surface by 15%'
-          }
-        ]
+        configuration_recommendations: []
       };
 
       // Update integration status
@@ -256,13 +229,13 @@ export class OpenControlsAPIService {
           sync_status: 'success',
           performance_metrics: {
             last_sync: new Date().toISOString(),
-            intelligence_updates: mockResult.intelligence_updates
+            intelligence_updates: syncResult.intelligence_updates
           }
         })
         .eq('organization_id', organizationId)
         .eq('integration_name', 'Open Controls Intelligence');
 
-      return mockResult;
+      return syncResult;
     } catch (error) {
       console.error('Open Controls sync failed:', error);
       throw error;
@@ -287,7 +260,7 @@ export class OpenControlsAPIService {
 
   private static async cacheData(organizationId: string, endpoint: string, cacheKey: string, data: any) {
     const expiresAt = new Date(Date.now() + this.cacheTimeout).toISOString();
-    
+
     await supabase
       .from('disa_stigs_api_cache')
       .upsert({
