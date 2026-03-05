@@ -1,0 +1,10 @@
+souhimbou_ai/SouHimBou.AI/src/components/automation/EnhancedPOAMTracker.tsx
+souhimbou_ai/SouHimBou.AI/src/components/billing/ReferralProgram.tsx
+souhimbou_ai/SouHimBou.AI/src/components/business/CustomerDiscoveryTool.tsx
+souhimbou_ai/SouHimBou.AI/src/components/compliance/ComplianceKnowledgeGraph.tsx
+souhimbou_ai/SouHimBou.AI/src/components/ContainerOrchestration.tsx
+souhimbou_ai/SouHimBou.AI/src/components/discovery/TRL10DiscoveryConsole.tsx
+souhimbou_ai/SouHimBou.AI/src/components/DOCAArgus.tsx
+souhimbou_ai/SouHimBou.AI/src/components/InteractiveDemoVideo.tsx
+souhimbou_ai/SouHimBou.AI/src/components/ui/sidebar.tsx
+souhimbou_ai/SouHimBou.AI/src/components/UnifiedAdminConsole.tsx
