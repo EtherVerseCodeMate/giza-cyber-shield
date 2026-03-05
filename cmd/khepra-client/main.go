@@ -27,9 +27,10 @@
 //	CLIENT_PORT           Listen port             (default: 7777)
 //
 // PLATFORM ONE / IRON BANK:
-//   Submit this binary in a UBI9-minimal container image.
-//   Set KHEPRA_API_URL to the in-cluster service endpoint.
-//   No egress rules needed — all traffic stays within the cluster.
+//
+//	Submit this binary in a UBI9-minimal container image.
+//	Set KHEPRA_API_URL to the in-cluster service endpoint.
+//	No egress rules needed — all traffic stays within the cluster.
 package main
 
 import (
@@ -54,12 +55,12 @@ import (
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 type Config struct {
-	Port       string
-	APIBaseURL string
-	OllamaURL  string
+	Port        string
+	APIBaseURL  string
+	OllamaURL   string
 	OllamaModel string
-	PQCToken   string
-	NoBrowser  bool
+	PQCToken    string
+	NoBrowser   bool
 }
 
 func loadConfig() Config {
@@ -381,10 +382,10 @@ function removeThinking() {
 
 function renderMarkdown(text) {
   return text
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/```([\s\S]*?)```/g, (_, c) => '<pre>' + c.trim() + '</pre>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')`+
+		"    .replace(/```([\\\\s\\\\S]*?)```/g, (_, c) => '<pre>' + c.trim() + '</pre>')\n"+
+		"    .replace(/\\x60([^\\x60]+)\\x60/g, '<code>$1</code>')\n"+
+		`    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\n/g, '<br>');
 }
 
@@ -506,10 +507,10 @@ func handleAsk(cfg Config) http.HandlerFunc {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]interface{}{
-				"answer":      answer,
-				"source":      "ollama-direct",
+				"answer":       answer,
+				"source":       "ollama-direct",
 				"tools_called": []string{},
-				"confidence":  0.5,
+				"confidence":   0.5,
 			})
 			return
 		}
@@ -590,12 +591,12 @@ func handleHealth(cfg Config) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":    "ok",
-			"api_ok":    apiOK,
-			"ollama_ok": ollamaOK,
-			"api_url":   cfg.APIBaseURL,
+			"status":     "ok",
+			"api_ok":     apiOK,
+			"ollama_ok":  ollamaOK,
+			"api_url":    cfg.APIBaseURL,
 			"ollama_url": cfg.OllamaURL,
-			"model":     cfg.OllamaModel,
+			"model":      cfg.OllamaModel,
 		})
 	}
 }

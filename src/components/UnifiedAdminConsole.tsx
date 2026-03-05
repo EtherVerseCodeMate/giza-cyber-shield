@@ -33,7 +33,7 @@ export const UnifiedAdminConsole = () => {
       const { data: metrics, error } = await supabase
         .from('performance_metrics')
         .select('*')
-        .eq('organization_id', currentOrganization.id)
+        .eq('organization_id', currentOrganization.organization_id)
         .order('recorded_at', { ascending: false })
         .limit(20);
 
@@ -43,7 +43,7 @@ export const UnifiedAdminConsole = () => {
       const { data: securityEvents } = await supabase
         .from('security_events')
         .select('*')
-        .eq('organization_id', currentOrganization.id)
+        .eq('organization_id', currentOrganization.organization_id)
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -51,7 +51,7 @@ export const UnifiedAdminConsole = () => {
       const { data: assets } = await supabase
         .from('infrastructure_assets')
         .select('*')
-        .eq('organization_id', currentOrganization.id);
+        .eq('organization_id', currentOrganization.organization_id);
 
       // Create module status based on real activity
       const moduleData = [
@@ -60,7 +60,7 @@ export const UnifiedAdminConsole = () => {
           status: securityEvents?.some(e => e.event_type?.includes('morpheus')) ? "operational" : "maintenance",
           version: "v24.03",
           workflows: Math.max(3, Math.floor((securityEvents?.length || 0) / 10)),
-          health: Math.max(90, Math.min(100, 95 + Math.floor(Math.random() * 10))),
+          health: securityEvents?.some(e => e.event_type?.includes('morpheus')) ? 97 : 93,
           actions: ["restart", "configure", "scale"]
         },
         {
@@ -68,7 +68,7 @@ export const UnifiedAdminConsole = () => {
           status: assets?.some(a => a.compliance_status === 'COMPLIANT') ? "operational" : "maintenance",
           version: "v1.15",
           workflows: Math.max(2, Math.floor((assets?.length || 0) / 3)),
-          health: Math.max(85, Math.min(100, 95 + Math.floor(Math.random() * 10))),
+          health: assets?.some(a => a.compliance_status === 'COMPLIANT') ? 96 : 87,
           actions: ["restart", "configure", "monitor"]
         },
         {
@@ -76,7 +76,7 @@ export const UnifiedAdminConsole = () => {
           status: "operational",
           version: "v2.4.1",
           workflows: 4,
-          health: Math.max(90, Math.min(100, 95 + Math.floor(Math.random() * 8))),
+          health: 95,
           actions: ["restart", "configure", "federate"]
         },
         {
@@ -84,7 +84,7 @@ export const UnifiedAdminConsole = () => {
           status: securityEvents?.length > 5 ? "operational" : "idle",
           version: "v3.2",
           workflows: Math.max(5, Math.floor((securityEvents?.length || 0) / 5)),
-          health: Math.max(92, Math.min(100, 96 + Math.floor(Math.random() * 8))),
+          health: securityEvents?.length > 5 ? 98 : 94,
           actions: ["restart", "configure", "analyze"]
         },
         {
@@ -92,7 +92,7 @@ export const UnifiedAdminConsole = () => {
           status: securityEvents?.some(e => e.resolved) ? "operational" : "maintenance",
           version: "v2.8",
           workflows: Math.max(20, Math.floor((securityEvents?.length || 0) * 2)),
-          health: Math.max(80, Math.min(95, 85 + Math.floor(Math.random() * 15))),
+          health: securityEvents?.some(e => e.resolved) ? 91 : 82,
           actions: ["resume", "configure", "playbook"]
         },
         {
@@ -100,48 +100,49 @@ export const UnifiedAdminConsole = () => {
           status: "operational",
           version: "v6.7",
           workflows: Math.max(8, Math.floor((securityEvents?.length || 0) / 3)),
-          health: Math.max(88, Math.min(100, 92 + Math.floor(Math.random() * 12))),
+          health: 96,
           actions: ["restart", "configure", "rules"]
         }
       ];
 
       setModuleStatus(moduleData);
 
-      // Create system resource data based on metrics or defaults
+      // Create system resource data based on real metrics where available
+      const latestMetric = metrics?.[0];
       const resourceData = [
         {
           metric: "CPU Utilization",
-          value: `${Math.floor(Math.random() * 30) + 50}%`,
+          value: latestMetric?.cpu_usage != null ? `${latestMetric.cpu_usage}%` : "—",
           status: "normal",
           limit: "80%"
         },
         {
           metric: "Memory Usage",
-          value: `${Math.floor(Math.random() * 3) + 4}.${Math.floor(Math.random() * 10)}TB`,
+          value: latestMetric?.memory_usage != null ? `${latestMetric.memory_usage}%` : "—",
           status: "normal",
           limit: "8TB"
         },
         {
           metric: "GPU Utilization",
-          value: `${Math.floor(Math.random() * 20) + 70}%`,
-          status: Math.random() > 0.7 ? "high" : "normal",
+          value: latestMetric?.gpu_usage != null ? `${latestMetric.gpu_usage}%` : "—",
+          status: "normal",
           limit: "95%"
         },
         {
           metric: "Network Bandwidth",
-          value: `${Math.floor(Math.random() * 5) + 1}.${Math.floor(Math.random() * 10)}Gbps`,
+          value: latestMetric?.network_throughput != null ? `${latestMetric.network_throughput}Gbps` : "—",
           status: "normal",
           limit: "10Gbps"
         },
         {
           metric: "Storage I/O",
-          value: `${Math.floor(Math.random() * 400) + 200}MB/s`,
+          value: latestMetric?.disk_io != null ? `${latestMetric.disk_io}MB/s` : "—",
           status: "normal",
           limit: "1GB/s"
         },
         {
           metric: "Container Count",
-          value: Math.floor(Math.random() * 200) + 150,
+          value: assets?.length ?? "—",
           status: "normal",
           limit: "500"
         }
