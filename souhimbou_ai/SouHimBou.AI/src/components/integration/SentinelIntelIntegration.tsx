@@ -57,59 +57,19 @@ export const SentinelIntelIntegration = () => {
   }, []);
 
   const initializeFeeds = () => {
-    // Standardized Sentinel Intelligence Feeds
-    const mockFeeds: OSINTFeed[] = [
-      {
-        id: '1',
-        name: 'Sentinel Threat Intel',
-        type: 'THREAT_INTEL',
-        status: 'ACTIVE',
-        lastSync: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-        indicatorCount: 2847,
-        apiEndpoint: 'https://sentinel.api.adin-khepra.io/v1/threat-intel',
-        syncInterval: 15
-      },
-      {
-        id: '2',
-        name: 'OpenSource IOCs',
-        type: 'IOC',
-        status: 'ACTIVE',
-        lastSync: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-        indicatorCount: 1523,
-        apiEndpoint: 'https://sentinel.api.adin-khepra.io/v1/indicators',
-        syncInterval: 5
-      },
-      {
-        id: '3',
-        name: 'Unified Vulnerability Feed',
-        type: 'VULNERABILITY',
-        status: 'ACTIVE',
-        lastSync: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-        indicatorCount: 453,
-        apiEndpoint: 'https://sentinel.api.adin-khepra.io/v1/vulnerabilities',
-        syncInterval: 60
-      },
-      {
-        id: '4',
-        name: 'Global Security Advisories',
-        type: 'ADVISORY',
-        status: 'INACTIVE',
-        lastSync: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-        indicatorCount: 89,
-        apiEndpoint: 'https://sentinel.api.adin-khepra.io/v1/advisories',
-        syncInterval: 1440
-      }
-    ];
+    // Awaiting telemetry for real intelligence feeds
+    const pendingFeeds: OSINTFeed[] = [];
 
-    setFeeds(mockFeeds);
+    setFeeds(pendingFeeds);
   };
 
   const loadMetrics = () => {
+    // Awaiting telemetry for actual metrics
     setMetrics({
-      totalFeeds: 4,
-      activeFeeds: 3,
-      indicatorsToday: 127,
-      threatsBlocked: 23,
+      totalFeeds: 0,
+      activeFeeds: 0,
+      indicatorsToday: 0,
+      threatsBlocked: 0,
       lastUpdate: new Date().toISOString()
     });
   };
