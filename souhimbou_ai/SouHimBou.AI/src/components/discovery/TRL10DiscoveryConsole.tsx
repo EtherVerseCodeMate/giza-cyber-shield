@@ -66,7 +66,7 @@ export const TRL10DiscoveryConsole: React.FC<TRL10DiscoveryConsoleProps> = ({
 
   const addLog = (type: ConsoleLog['type'], content: string, source?: ConsoleLog['source']) => {
     const newLog: ConsoleLog = {
-      id: Date.now().toString() + Math.random(),
+      id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
       type,
       content,

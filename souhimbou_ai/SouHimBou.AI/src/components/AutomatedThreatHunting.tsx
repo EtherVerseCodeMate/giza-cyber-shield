@@ -72,9 +72,9 @@ export const AutomatedThreatHunting = () => {
       iocType: threat.indicator_type,
       splunkQuery: generateSplunkQuery(threat.indicator_value, threat.indicator_type),
       severity: threat.threat_level,
-      lastRun: new Date(Date.now() - Math.random() * 86400000),
-      matchCount: Math.random() > 0.8 ? Math.floor(Math.random() * 5) : 0,
-      status: Math.random() > 0.9 ? 'failed' : 'completed'
+      lastRun: new Date(0), // Real last run time requires Splunk query execution history
+      matchCount: 0, // Real match count requires Splunk query execution
+      status: 'completed' as const
     }));
 
     // Add some recent IOCs
@@ -92,7 +92,7 @@ export const AutomatedThreatHunting = () => {
         splunkQuery: generateSplunkQuery(ioc.value, ioc.type),
         severity: ioc.severity,
         lastRun: new Date(),
-        matchCount: Math.random() > 0.7 ? Math.floor(Math.random() * 3) + 1 : 0,
+        matchCount: 0, // Real match count requires Splunk query execution
         status: 'completed'
       });
     });
@@ -137,16 +137,16 @@ export const AutomatedThreatHunting = () => {
       const date = new Date();
       date.setDate(date.getDate() - i);
       
-      const totalQueries = 45 + Math.floor(Math.random() * 10);
-      const matchedQueries = Math.random() > 0.6 ? Math.floor(Math.random() * 5) : 0;
-      
+      const totalQueries = 0; // Real query count requires Splunk execution history
+      const matchedQueries = 0; // Real match count requires Splunk execution history
+
       mockReports.push({
         id: `report-${i + 1}`,
         date,
         totalQueries,
         matchedQueries,
-        cleanEnvironment: matchedQueries === 0,
-        criticalFindings: matchedQueries > 0 ? Math.floor(Math.random() * 3) : 0,
+        cleanEnvironment: true, // Default clean until real data available
+        criticalFindings: 0, // Real findings require Splunk execution
         emailSent: true,
         reportUrl: `https://splunk.enterprise.local:8000/app/search/threat_hunt_${date.toISOString().split('T')[0]}`
       });
@@ -178,8 +178,8 @@ export const AutomatedThreatHunting = () => {
       // Simulate hunt execution
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Random results simulation
-      const matches = Math.random() > 0.7 ? Math.floor(Math.random() * 5) : 0;
+      // Real results require Splunk query execution response
+      const matches = 0; // Real match count from Splunk API response
       
       setHuntQueries(prev => prev.map(q => 
         q.id === queryId ? { 

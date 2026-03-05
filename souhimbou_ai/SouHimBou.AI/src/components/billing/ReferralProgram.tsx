@@ -50,7 +50,7 @@ const ReferralProgram = () => {
         setReferralCode(existing.referral_code);
       } else {
         // Generate new referral code
-        const code = `${user.email?.split('@')[0] || 'user'}-${Math.random().toString(36).substring(2, 8)}`.toUpperCase();
+        const code = `${user.email?.split('@')[0] || 'user'}-${crypto.randomUUID().substring(0, 6)}`.toUpperCase();
         
         const { data, error: insertError } = await supabase
           .from('referrals')
