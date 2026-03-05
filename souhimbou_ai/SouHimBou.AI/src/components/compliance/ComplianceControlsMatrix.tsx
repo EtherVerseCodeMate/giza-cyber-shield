@@ -3,13 +3,13 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { 
-  Search, 
-  Filter, 
-  Download, 
-  Shield, 
-  CheckCircle, 
-  AlertTriangle, 
+import {
+  Search,
+  Filter,
+  Download,
+  Shield,
+  CheckCircle,
+  AlertTriangle,
   Clock,
   Eye,
   Edit
@@ -37,54 +37,8 @@ export const ComplianceControlsMatrix = () => {
   const [filterFamily, setFilterFamily] = useState("ALL");
   const [filterStatus, setFilterStatus] = useState("ALL");
 
-  // Mock data - would come from Supabase
-  const controls: ComplianceControl[] = [
-    {
-      id: "1",
-      control_id: "AC.L2-3.1.1",
-      title: "Account Management",
-      family: "Access Control",
-      implementation_status: "IMPLEMENTED",
-      test_status: "PASSED",
-      priority: "HIGH",
-      description: "Limit information system access to authorized users, processes acting on behalf of authorized users, or devices.",
-      implementation_guidance: "Implement automated account provisioning and deprovisioning processes.",
-      evidence_required: ["Account management procedures", "User access reviews", "Audit logs"],
-      last_tested: "2024-01-15",
-      next_test_due: "2024-04-15",
-      responsible_party: "IT Security Team"
-    },
-    {
-      id: "2",
-      control_id: "AC.L2-3.1.2",
-      title: "Account Types",
-      family: "Access Control",
-      implementation_status: "PARTIAL",
-      test_status: "NOT_TESTED",
-      priority: "MEDIUM",
-      description: "Manage information system accounts, including establishing, activating, modifying, disabling, and removing accounts.",
-      implementation_guidance: "Document all account types and their intended usage.",
-      evidence_required: ["Account type documentation", "Approval workflows"],
-      last_tested: "2023-10-15",
-      next_test_due: "2024-02-15",
-      responsible_party: "IT Admin Team"
-    },
-    {
-      id: "3",
-      control_id: "AU.L2-3.3.1",
-      title: "Event Logging",
-      family: "Audit and Accountability",
-      implementation_status: "IMPLEMENTED",
-      test_status: "PASSED",
-      priority: "HIGH",
-      description: "Create and retain information system audit logs and records to the extent needed to enable the monitoring, analysis, investigation, and reporting of unlawful or unauthorized information system activity.",
-      implementation_guidance: "Implement centralized logging with appropriate retention periods.",
-      evidence_required: ["Log retention policy", "Log analysis reports", "SIEM configuration"],
-      last_tested: "2024-01-20",
-      next_test_due: "2024-04-20",
-      responsible_party: "SOC Team"
-    }
-  ];
+  // Awaiting telemetry for real data
+  const pendingControls: ComplianceControl[] = [];
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -116,16 +70,16 @@ export const ComplianceControlsMatrix = () => {
     return variants[status as keyof typeof variants] || (type === 'implementation' ? implementationVariants.NOT_APPLICABLE : testVariants.NOT_TESTED);
   };
 
-  const filteredControls = controls.filter(control => {
+  const filteredControls = pendingControls.filter(control => {
     const matchesSearch = control.control_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         control.title.toLowerCase().includes(searchTerm.toLowerCase());
+      control.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFamily = filterFamily === "ALL" || control.family === filterFamily;
     const matchesStatus = filterStatus === "ALL" || control.implementation_status === filterStatus;
-    
+
     return matchesSearch && matchesFamily && matchesStatus;
   });
 
-  const families = [...new Set(controls.map(c => c.family))];
+  const families = [...new Set(pendingControls.map(c => c.family))];
 
   return (
     <div className="space-y-6">
@@ -162,7 +116,7 @@ export const ComplianceControlsMatrix = () => {
                 className="pl-10 bg-slate-800 border-slate-600 text-white"
               />
             </div>
-            
+
             <select
               value={filterFamily}
               onChange={(e) => setFilterFamily(e.target.value)}
@@ -187,7 +141,7 @@ export const ComplianceControlsMatrix = () => {
 
             <div className="flex items-center text-gray-300">
               <Filter className="h-4 w-4 mr-2" />
-              Showing {filteredControls.length} of {controls.length} controls
+              Showing {filteredControls.length} of {pendingControls.length} controls
             </div>
           </div>
         </CardContent>
@@ -205,9 +159,9 @@ export const ComplianceControlsMatrix = () => {
                     <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">
                       {control.control_id}
                     </Badge>
-                    <Badge className={`${control.priority === 'HIGH' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 
-                                     control.priority === 'MEDIUM' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' : 
-                                     'bg-gray-500/20 text-gray-400 border-gray-500/30'}`}>
+                    <Badge className={`${control.priority === 'HIGH' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+                      control.priority === 'MEDIUM' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
+                        'bg-gray-500/20 text-gray-400 border-gray-500/30'}`}>
                       {control.priority}
                     </Badge>
                   </div>
@@ -266,11 +220,11 @@ export const ComplianceControlsMatrix = () => {
                     <TabsTrigger value="guidance">Guidance</TabsTrigger>
                     <TabsTrigger value="evidence">Evidence</TabsTrigger>
                   </TabsList>
-                  
+
                   <TabsContent value="description" className="mt-4">
                     <p className="text-gray-300 text-sm">{control.description}</p>
                   </TabsContent>
-                  
+
                   <TabsContent value="guidance" className="mt-4">
                     <p className="text-gray-300 text-sm">{control.implementation_guidance}</p>
                     <div className="mt-2">
@@ -278,7 +232,7 @@ export const ComplianceControlsMatrix = () => {
                       <span className="text-white text-sm">{control.responsible_party}</span>
                     </div>
                   </TabsContent>
-                  
+
                   <TabsContent value="evidence" className="mt-4">
                     <div className="flex flex-wrap gap-2">
                       {control.evidence_required.map((evidence, index) => (
@@ -304,25 +258,25 @@ export const ComplianceControlsMatrix = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-green-400">
-                {controls.filter(c => c.implementation_status === 'IMPLEMENTED').length}
+                {pendingControls.filter(c => c.implementation_status === 'IMPLEMENTED').length}
               </div>
               <div className="text-sm text-gray-400">Implemented</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-yellow-400">
-                {controls.filter(c => c.implementation_status === 'PARTIAL').length}
+                {pendingControls.filter(c => c.implementation_status === 'PARTIAL').length}
               </div>
               <div className="text-sm text-gray-400">Partial</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-red-400">
-                {controls.filter(c => c.implementation_status === 'NOT_IMPLEMENTED').length}
+                {pendingControls.filter(c => c.implementation_status === 'NOT_IMPLEMENTED').length}
               </div>
               <div className="text-sm text-gray-400">Not Implemented</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-400">
-                {Math.round((controls.filter(c => c.implementation_status === 'IMPLEMENTED').length / controls.length) * 100)}%
+                {pendingControls.length > 0 ? Math.round((pendingControls.filter(c => c.implementation_status === 'IMPLEMENTED').length / pendingControls.length) * 100) : 0}%
               </div>
               <div className="text-sm text-gray-400">Overall Progress</div>
             </div>

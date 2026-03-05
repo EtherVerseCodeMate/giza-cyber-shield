@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  FileText, 
-  Download, 
-  Shield, 
-  AlertTriangle, 
-  CheckCircle, 
+import {
+  FileText,
+  Download,
+  Shield,
+  AlertTriangle,
+  CheckCircle,
   Clock,
   TrendingUp,
   BarChart3
@@ -39,39 +39,18 @@ interface AuditReportData {
 
 export const ComplianceAuditReport = () => {
   const [activeReport, setActiveReport] = useState<string>("executive");
-  
-  // Mock data - would come from Supabase in real implementation
+
+  // Awaiting telemetry for real report data
   const reportData: AuditReportData = {
-    assessment_name: "CMMC Level 2 Assessment",
-    framework: "CMMC 2.0",
-    assessment_date: "2024-01-15",
-    overall_score: 87,
-    compliance_level: "Level 2 Ready",
-    total_controls: 110,
-    implemented_controls: 96,
-    gaps: [
-      {
-        id: "1",
-        control_id: "AC.L2-3.1.1",
-        title: "Account Management",
-        severity: "HIGH",
-        status: "IN_PROGRESS",
-        finding: "Privileged account review process not documented",
-        recommendation: "Implement quarterly privileged account review procedures",
-        target_date: "2024-02-28"
-      },
-      {
-        id: "2",
-        control_id: "SC.L2-3.13.1",
-        title: "Boundary Protection",
-        severity: "MEDIUM",
-        status: "OPEN",
-        finding: "Firewall rules not regularly reviewed",
-        recommendation: "Establish monthly firewall rule review process",
-        target_date: "2024-03-15"
-      }
-    ],
-    executive_summary: "The organization demonstrates strong cybersecurity maturity with 87% compliance across CMMC Level 2 requirements. Key strengths include robust access controls and incident response capabilities. Priority remediation areas focus on documentation and process formalization."
+    assessment_name: "Pending Assessment",
+    framework: "Pending Framework",
+    assessment_date: "Pending",
+    overall_score: 0,
+    compliance_level: "Pending Execution",
+    total_controls: 0,
+    implemented_controls: 0,
+    gaps: [],
+    executive_summary: "Awaiting telemetry to generate executive summary."
   };
 
   const getSeverityIcon = (severity: string) => {
@@ -116,8 +95,8 @@ export const ComplianceAuditReport = () => {
                 <Download className="h-4 w-4 mr-2" />
                 Export PDF
               </Button>
-              <Button 
-                onClick={() => exportReport('xlsx')} 
+              <Button
+                onClick={() => exportReport('xlsx')}
                 variant="outline"
                 className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
               >
@@ -180,18 +159,18 @@ export const ComplianceAuditReport = () => {
               <p className="text-gray-300 leading-relaxed">
                 {reportData.executive_summary}
               </p>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                 <div className="text-center p-4 bg-green-500/10 rounded-lg border border-green-500/20">
-                  <div className="text-2xl font-bold text-green-400">96</div>
+                  <div className="text-2xl font-bold text-green-400">{reportData.implemented_controls}</div>
                   <div className="text-sm text-gray-400">Controls Implemented</div>
                 </div>
                 <div className="text-center p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
-                  <div className="text-2xl font-bold text-yellow-400">14</div>
-                  <div className="text-sm text-gray-400">Gaps to Address</div>
+                  <div className="text-2xl font-bold text-yellow-400">{reportData.total_controls - reportData.implemented_controls}</div>
+                  <div className="text-sm text-gray-400">Gaps To Address</div>
                 </div>
                 <div className="text-center p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                  <div className="text-2xl font-bold text-blue-400">45</div>
+                  <div className="text-2xl font-bold text-blue-400">0</div>
                   <div className="text-sm text-gray-400">Days to Target</div>
                 </div>
               </div>
@@ -213,7 +192,7 @@ export const ComplianceAuditReport = () => {
                           {gap.status.replace('_', ' ')}
                         </Badge>
                       </div>
-                      
+
                       <div className="space-y-2">
                         <div>
                           <span className="text-gray-400 text-sm font-medium">Finding: </span>
@@ -243,21 +222,15 @@ export const ComplianceAuditReport = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {[
-                  { family: 'Access Control (AC)', implemented: 18, total: 20, percentage: 90 },
-                  { family: 'Audit and Accountability (AU)', implemented: 12, total: 12, percentage: 100 },
-                  { family: 'Configuration Management (CM)', implemented: 8, total: 10, percentage: 80 },
-                  { family: 'Identification and Authentication (IA)', implemented: 9, total: 10, percentage: 90 },
-                  { family: 'System and Communications Protection (SC)', implemented: 15, total: 18, percentage: 83 }
-                ].map((family, index) => (
+                {[{ family: 'Pending Families', implemented: 0, total: 0, percentage: 0 }].map((family, index) => (
                   <div key={index} className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-gray-300">{family.family}</span>
                       <span className="text-white">{family.implemented}/{family.total} ({family.percentage}%)</span>
                     </div>
                     <div className="w-full bg-gray-700 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full" 
+                      <div
+                        className="bg-blue-600 h-2 rounded-full"
                         style={{ width: `${family.percentage}%` }}
                       ></div>
                     </div>
@@ -276,29 +249,23 @@ export const ComplianceAuditReport = () => {
             <CardContent>
               <div className="space-y-4">
                 <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-                  <h4 className="text-red-400 font-semibold mb-2">High Priority (Complete within 30 days)</h4>
+                  <h4 className="text-red-400 font-semibold mb-2">High Priority</h4>
                   <ul className="space-y-1 text-gray-300">
-                    <li>• Implement privileged account review procedures</li>
-                    <li>• Document incident response playbooks</li>
-                    <li>• Establish security awareness training program</li>
+                    <li>Pending evaluation</li>
                   </ul>
                 </div>
-                
+
                 <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                  <h4 className="text-yellow-400 font-semibold mb-2">Medium Priority (Complete within 60 days)</h4>
+                  <h4 className="text-yellow-400 font-semibold mb-2">Medium Priority</h4>
                   <ul className="space-y-1 text-gray-300">
-                    <li>• Implement automated firewall rule reviews</li>
-                    <li>• Enhance vulnerability scanning procedures</li>
-                    <li>• Improve system backup documentation</li>
+                    <li>Pending evaluation</li>
                   </ul>
                 </div>
-                
+
                 <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                  <h4 className="text-blue-400 font-semibold mb-2">Low Priority (Complete within 90 days)</h4>
+                  <h4 className="text-blue-400 font-semibold mb-2">Low Priority</h4>
                   <ul className="space-y-1 text-gray-300">
-                    <li>• Enhance physical security controls documentation</li>
-                    <li>• Implement additional monitoring capabilities</li>
-                    <li>• Refine change management procedures</li>
+                    <li>Pending evaluation</li>
                   </ul>
                 </div>
               </div>
