@@ -102,7 +102,8 @@ export const AgenticComplianceArchitect: React.FC = () => {
   const [activeMode, setActiveMode] = useState<string>('observe');
   const [controlGaps, setControlGaps] = useState<ControlGap[]>([]);
   const [capabilities, setCapabilities] = useState<AgentCapability[]>([]);
-  const [overallCompliance, setOverallCompliance] = useState(78);
+  const [overallCompliance, setOverallCompliance] = useState(0);
+  const [agentStats, setAgentStats] = useState({ totalAssets: 0, criticalVulns: 0, autoRemediated: 0 });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -110,93 +111,92 @@ export const AgenticComplianceArchitect: React.FC = () => {
     initializeAgent();
     fetchControlGaps();
     fetchCapabilities();
+    loadAgentStats();
   }, []);
 
   const initializeAgent = async () => {
     try {
-      // Initialize agent with existing KHEPRA components
       const { data: frameworks } = await supabase
         .from('compliance_frameworks')
         .select('*')
         .eq('enabled', true);
-
       const { data: controls } = await supabase
         .from('compliance_controls')
         .select('*');
-
-      console.log('Agent initialized with', frameworks?.length, 'frameworks and', controls?.length, 'controls');
+      console.log('[AgenticComplianceArchitect] Initialized with', frameworks?.length, 'frameworks and', controls?.length, 'controls');
     } catch (error) {
       console.error('Failed to initialize agent:', error);
+    }
+  };
+
+  const loadAgentStats = async () => {
+    try {
+      const [assetsRes, vulnsRes, assessmentRes] = await Promise.all([
+        supabase.from('infrastructure_assets').select('id', { count: 'exact', head: true }),
+        supabase.from('security_events').select('id', { count: 'exact', head: true })
+          .in('severity', ['critical', 'high']).eq('resolved', false),
+        supabase.from('compliance_assessments').select('score')
+          .order('created_at', { ascending: false }).limit(1).maybeSingle()
+      ]);
+
+      // Count resolved security events as proxy for auto-remediated
+      const { count: resolvedCount } = await supabase
+        .from('security_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('resolved', true);
+
+      setAgentStats({
+        totalAssets: assetsRes.count ?? 0,
+        criticalVulns: vulnsRes.count ?? 0,
+        autoRemediated: resolvedCount ?? 0
+      });
+      setOverallCompliance(Math.round(assessmentRes.data?.score ?? 0));
+    } catch (error) {
+      console.error('[AgenticComplianceArchitect] loadAgentStats error:', error);
     }
   };
 
   const fetchControlGaps = async () => {
     setIsLoading(true);
     try {
-      // Simulate fetching control gaps from assessment results
-      const mockGaps: ControlGap[] = [
-        {
-          id: '1',
-          controlId: 'SOC2-CC6.6',
-          framework: 'SOC 2',
-          severity: 'high',
-          status: 'remediation-planned',
-          description: 'Multi-factor authentication not enforced for all users',
-          affectedAssets: 45,
-          estimatedTime: '2 hours',
-          blastRadius: 3,
-          remediationPlan: {
-            tool: 'okta_api',
-            steps: [
-              'Update MFA policy for all users',
-              'Enable enforcement mode',
-              'Notify users of change'
-            ],
-            approvalRequired: true,
-            rollbackPlan: [
-              'Revert to previous MFA policy',
-              'Disable enforcement mode'
-            ]
-          }
-        },
-        {
-          id: '2',
-          controlId: 'PCI-3.4',
-          framework: 'PCI DSS',
-          severity: 'critical',
-          status: 'pending-approval',
-          description: 'S3 buckets without encryption at rest',
-          affectedAssets: 12,
-          estimatedTime: '30 minutes',
-          blastRadius: 2,
-          remediationPlan: {
-            tool: 'terraform',
-            steps: [
-              'Generate Terraform plan for S3 encryption',
-              'Create PR with encryption configuration',
-              'Apply changes after approval'
-            ],
-            approvalRequired: true,
-            rollbackPlan: [
-              'Revert Terraform changes',
-              'Restore previous bucket configuration'
-            ]
-          }
-        },
-        {
-          id: '3',
-          controlId: 'ISO-A.9.2.1',
-          framework: 'ISO 27001',
-          severity: 'medium',
-          status: 'analyzing',
-          description: 'GitHub branch protection rules missing',
-          affectedAssets: 8,
-          estimatedTime: '15 minutes',
-          blastRadius: 1
-        }
-      ];
-      
-      setControlGaps(mockGaps);
+      // Load non-implemented controls from DB as compliance gaps
+      const { data: controls, error } = await supabase
+        .from('compliance_controls')
+        .select('id, control_id, description, implementation_status, created_at')
+        .not('implementation_status', 'eq', 'implemented')
+        .not('implementation_status', 'eq', 'validated')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+
+      const gaps: ControlGap[] = (controls || []).map(control => {
+        const sev = ((control as any).severity || (control as any).risk_level || 'medium') as ControlGap['severity'];
+        const implStatus = control.implementation_status;
+        const status: ControlGap['status'] =
+          implStatus === 'planned' ? 'remediation-planned' :
+          implStatus === 'not_implemented' ? 'detected' : 'analyzing';
+
+        return {
+          id: control.id,
+          controlId: control.control_id || control.id.slice(0, 12).toUpperCase(),
+          framework: (control as any).framework_name || 'CMMC 2.0',
+          severity: sev,
+          status,
+          description: control.description || `Control ${control.control_id || control.id} requires implementation`,
+          affectedAssets: (control as any).affected_assets || 0,
+          estimatedTime: sev === 'critical' ? '30 minutes' : sev === 'high' ? '2 hours' : '1 hour',
+          blastRadius: sev === 'critical' ? 5 : sev === 'high' ? 3 : 1,
+          remediationPlan: implStatus === 'planned' ? {
+            tool: 'KHEPRA Protocol',
+            steps: ['Review control requirements', 'Implement configuration changes', 'Collect evidence', 'Validate implementation'],
+            approvalRequired: sev === 'critical',
+            rollbackPlan: ['Revert configuration changes', 'Restore previous state', 'Document rollback actions']
+          } : undefined
+        };
+      });
+
+      setControlGaps(gaps);
     } catch (error) {
       console.error('Failed to fetch control gaps:', error);
     } finally {
@@ -205,7 +205,8 @@ export const AgenticComplianceArchitect: React.FC = () => {
   };
 
   const fetchCapabilities = async () => {
-    const mockCapabilities: AgentCapability[] = [
+    // Agent capabilities are system-level constants — not runtime DB data
+    const agentCapabilities: AgentCapability[] = [
       {
         name: 'Asset Discovery',
         status: 'active',
@@ -242,8 +243,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
         description: 'Create cryptographically signed compliance attestations'
       }
     ];
-    
-    setCapabilities(mockCapabilities);
+    setCapabilities(agentCapabilities);
   };
 
   const handleAgentToggle = async () => {
@@ -402,23 +402,23 @@ export const AgenticComplianceArchitect: React.FC = () => {
         <CardContent>
           <div className="grid grid-cols-5 gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-primary">{overallCompliance}%</div>
+              <div className="text-2xl font-bold text-primary">{overallCompliance > 0 ? `${overallCompliance}%` : '—'}</div>
               <div className="text-sm text-muted-foreground">CMMC Progress</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-orange-500">{controlGaps.length}</div>
-              <div className="text-sm text-muted-foreground">Critical Gaps</div>
+              <div className="text-sm text-muted-foreground">Control Gaps</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-500">1,247</div>
+              <div className="text-2xl font-bold text-blue-500">{agentStats.totalAssets.toLocaleString()}</div>
               <div className="text-sm text-muted-foreground">Assets Discovered</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-red-500">89</div>
-              <div className="text-sm text-muted-foreground">Vulnerabilities</div>
+              <div className="text-2xl font-bold text-red-500">{agentStats.criticalVulns}</div>
+              <div className="text-sm text-muted-foreground">Open Vulnerabilities</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-500">34</div>
+              <div className="text-2xl font-bold text-green-500">{agentStats.autoRemediated}</div>
               <div className="text-sm text-muted-foreground">Auto-Remediated</div>
             </div>
           </div>

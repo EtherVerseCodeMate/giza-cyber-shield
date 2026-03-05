@@ -78,8 +78,8 @@ export const NVIDIAMorpheus = () => {
           name: "Synthetic Data Gen", 
           status: "active", 
           accuracy: "N/A", 
-          processed: `${Math.floor(Math.random() * 200)}K`, 
-          model: "GPT-Morpheus" 
+          processed: 'N/A',
+          model: "GPT-Morpheus"
         }
       ];
 
@@ -96,25 +96,25 @@ export const NVIDIAMorpheus = () => {
           component: "NGC Workflow Engine", 
           status: workflowData.some(w => w.status === 'active') ? "operational" : "idle", 
           containers: `${Math.max(1, Math.floor((assets?.length || 0) / 2))}/12`, 
-          utilization: `${Math.floor(Math.random() * 30) + 60}%` 
+          utilization: 'N/A'
         },
-        { 
-          component: "Kubernetes Cluster", 
-          status: "operational", 
-          containers: `${Math.max(1, assets?.length || 0)}/20`, 
-          utilization: `${Math.floor(Math.random() * 40) + 50}%` 
+        {
+          component: "Kubernetes Cluster",
+          status: "operational",
+          containers: `${Math.max(1, assets?.length || 0)}/20`,
+          utilization: 'N/A'
         },
-        { 
-          component: "RAPIDS Pipeline", 
-          status: aiChats?.length > 5 ? "operational" : "idle", 
-          containers: `${Math.min(8, Math.max(1, Math.floor((aiChats?.length || 0) / 5)))}/8`, 
-          utilization: `${Math.floor(Math.random() * 50) + 70}%` 
+        {
+          component: "RAPIDS Pipeline",
+          status: aiChats?.length > 5 ? "operational" : "idle",
+          containers: `${Math.min(8, Math.max(1, Math.floor((aiChats?.length || 0) / 5)))}/8`,
+          utilization: 'N/A'
         },
-        { 
-          component: "Helm Deployments", 
-          status: "operational", 
-          containers: "15/15", 
-          utilization: `${Math.floor(Math.random() * 25) + 60}%` 
+        {
+          component: "Helm Deployments",
+          status: "operational",
+          containers: "15/15",
+          utilization: 'N/A'
         }
       ];
 

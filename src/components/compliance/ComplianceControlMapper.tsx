@@ -92,219 +92,93 @@ export const ComplianceControlMapper: React.FC = () => {
     loadFrameworkCoverage();
   }, []);
 
-  const initializeControlMappings = () => {
-    const mockMappings: ControlMapping[] = [
-      {
-        id: 'mapping-1',
-        sourceControl: {
-          id: 'NIST.800-171.3.1.1',
-          title: 'Limit information system access to authorized users',
-          framework: 'NIST 800-171',
-          description: 'Limit information system access to authorized users, processes acting on behalf of authorized users, or devices'
-        },
-        mappedControls: [
-          {
-            id: 'CMMC.AC.1.001',
-            title: 'Limit information system access to authorized users',
-            framework: 'CMMC 2.0',
-            mappingStrength: 98,
-            aiAnalysis: 'Direct NIST 800-171 to CMMC mapping with enhanced verification requirements'
-          },
-          {
-            id: 'STIG.WS19.AC-1',
-            title: 'Windows Server 2019 - Access Control Policy',
-            framework: 'Windows Server 2019 STIG',
-            mappingStrength: 92,
-            aiAnalysis: 'Technical implementation of NIST control with Windows-specific configurations'
-          },
-          {
-            id: 'STIG.UB22.AC-2',
-            title: 'Ubuntu 22.04 - Account Management',
-            framework: 'Ubuntu 22.04 STIG',
-            mappingStrength: 89,
-            aiAnalysis: 'Linux-based implementation with sudo and user management controls'
-          }
-        ],
-        implementation: {
-          tools: ['STIG Viewer API', 'Configuration Scanner', 'Group Policy'],
-          automationLevel: 96,
-          evidenceRequirements: [
-            'STIG rule compliance verification',
-            'Configuration baseline documentation',
-            'Access control matrix',
-            'User privilege audit logs'
-          ],
-          testProcedures: [
-            'STIG rule V-92957 verification',
-            'Account privilege validation',
-            'Configuration drift detection'
-          ],
-          aiRecommendations: [
-            'Implement automated STIG scanning with KHEPRA drift detection',
-            'Deploy continuous configuration monitoring',
-            'Integrate with post-quantum cryptographic signing for evidence integrity'
-          ]
-        },
-        status: 'mapped',
-        riskLevel: 'medium',
-        aiConfidence: 94
-      },
-      {
-        id: 'mapping-2',
-        sourceControl: {
-          id: 'NIST.800-171.3.3.1',
-          title: 'Create and retain audit logs',
-          framework: 'NIST 800-171',
-          description: 'Create and retain audit logs to enable monitoring, analysis, investigation, and reporting'
-        },
-        mappedControls: [
-          {
-            id: 'CMMC.AU.2.041',
-            title: 'Ensure actions can be uniquely traced',
-            framework: 'CMMC 2.0',
-            mappingStrength: 97,
-            aiAnalysis: 'Direct NIST to CMMC traceability mapping with enhanced audit requirements'
-          },
-          {
-            id: 'STIG.WS19.AU-2',
-            title: 'Windows Server 2019 - Audit Events',
-            framework: 'Windows Server 2019 STIG',
-            mappingStrength: 94,
-            aiAnalysis: 'Windows Event Log configuration and audit policy implementation'
-          },
-          {
-            id: 'STIG.IIS10.AU-1',
-            title: 'IIS 10.0 - Web Server Auditing',
-            framework: 'IIS 10.0 STIG',
-            mappingStrength: 91,
-            aiAnalysis: 'IIS-specific audit logging for web server access and modifications'
-          }
-        ],
-        implementation: {
-          tools: ['STIG Viewer API', 'Windows Event Log', 'rsyslog'],
-          automationLevel: 94,
-          evidenceRequirements: [
-            'STIG audit configuration verification',
-            'Event log policy documentation', 
-            'Log retention compliance evidence',
-            'Audit trail integrity verification'
-          ],
-          testProcedures: [
-            'STIG rule audit policy testing',
-            'Event correlation validation',
-            'Log completeness assessment'
-          ],
-          aiRecommendations: [
-            'Enable KHEPRA-powered anomaly detection for audit events',
-            'Implement automated log integrity verification',
-            'Deploy PQC-signed audit trail for tamper-evidence'
-          ]
-        },
-        status: 'mapped',
-        riskLevel: 'high',
-        aiConfidence: 96
-      },
-      {
-        id: 'mapping-3',
-        sourceControl: {
-          id: 'NIST.800-171.3.13.11',
-          title: 'Employ FIPS-validated cryptography',
-          framework: 'NIST 800-171',
-          description: 'Employ FIPS-validated cryptography when used to protect the confidentiality of CUI'
-        },
-        mappedControls: [
-          {
-            id: 'CMMC.SC.3.177',
-            title: 'Employ FIPS-validated cryptography',
-            framework: 'CMMC 2.0',
-            mappingStrength: 99,
-            aiAnalysis: 'Direct NIST to CMMC cryptographic control mapping with identical requirements'
-          },
-          {
-            id: 'STIG.WS19.SC-8',
-            title: 'Windows Server 2019 - Transmission Confidentiality',
-            framework: 'Windows Server 2019 STIG',
-            mappingStrength: 96,
-            aiAnalysis: 'Windows FIPS configuration and TLS/SSL implementation requirements'
-          },
-          {
-            id: 'STIG.AP24.SC-9',
-            title: 'Apache 2.4 - Transmission Protection',
-            framework: 'Apache 2.4 STIG',
-            mappingStrength: 93,
-            aiAnalysis: 'Apache SSL/TLS module configuration with FIPS-validated cipher suites'
-          }
-        ],
-        implementation: {
-          tools: ['STIG Viewer API', 'HSM', 'KHEPRA Protocol'],
-          automationLevel: 89,
-          evidenceRequirements: [
-            'FIPS 140-2 validation certificates',
-            'STIG cryptographic configuration evidence',
-            'Cipher suite compliance verification',
-            'Post-quantum cryptography readiness assessment'
-          ],
-          testProcedures: [
-            'FIPS validation verification',
-            'STIG cryptographic controls testing',
-            'Quantum-safe cipher assessment'
-          ],
-          aiRecommendations: [
-            'Implement automated FIPS compliance monitoring with KHEPRA',
-            'Deploy post-quantum cryptography migration planning',
-            'Integrate culturally-resilient cryptographic frameworks'
-          ]
-        },
-        status: 'partial',
-        riskLevel: 'high',
-        aiConfidence: 82
-      }
-    ];
+  const initializeControlMappings = async () => {
+    try {
+      const { data: controls, error } = await supabase
+        .from('compliance_controls')
+        .select('id, control_id, description, implementation_status, created_at')
+        .order('created_at', { ascending: false })
+        .limit(20);
 
-    setControlMappings(mockMappings);
+      if (error) throw error;
+
+      if (!controls || controls.length === 0) {
+        setControlMappings([]);
+        return;
+      }
+
+      const mappings: ControlMapping[] = controls.map(control => {
+        const implStatus = control.implementation_status;
+        const sev = ((control as any).severity || (control as any).risk_level || 'medium') as ControlMapping['riskLevel'];
+        const automationLevel = implStatus === 'implemented' || implStatus === 'validated' ? 94 :
+                                implStatus === 'planned' ? 55 : 15;
+        return {
+          id: control.id,
+          sourceControl: {
+            id: control.control_id || control.id.slice(0, 16),
+            title: (control as any).title || `Control ${control.control_id || control.id.slice(0, 8)}`,
+            framework: (control as any).framework_name || 'NIST 800-171',
+            description: control.description || ''
+          },
+          mappedControls: [],
+          implementation: {
+            tools: ['KHEPRA Protocol', 'STIG Viewer API'],
+            automationLevel,
+            evidenceRequirements: ['Configuration evidence', 'Audit logs', 'Test results'],
+            testProcedures: ['Automated compliance scan', 'Manual review'],
+            aiRecommendations: ['Enable continuous monitoring', 'Deploy drift detection']
+          },
+          status: implStatus === 'implemented' || implStatus === 'validated' ? 'mapped' :
+                  implStatus === 'planned' ? 'partial' : 'gap',
+          riskLevel: sev,
+          aiConfidence: implStatus === 'implemented' ? 94 : implStatus === 'planned' ? 72 : 55
+        };
+      });
+
+      setControlMappings(mappings);
+    } catch (error) {
+      console.error('[ComplianceControlMapper] initializeControlMappings error:', error);
+    }
   };
 
-  const loadFrameworkCoverage = () => {
-    const mockCoverage: FrameworkCoverage[] = [
-      {
-        framework: 'CMMC 2.0',
-        totalControls: 110,
-        mappedControls: 87,
-        gapControls: 23,
-        coveragePercentage: 79,
-        lastUpdated: new Date(Date.now() - 1000 * 60 * 30),
-        aiAnalyzed: true
-      },
-      {
-        framework: 'SOC 2',
-        totalControls: 64,
-        mappedControls: 58,
-        gapControls: 6,
-        coveragePercentage: 91,
-        lastUpdated: new Date(Date.now() - 1000 * 60 * 45),
-        aiAnalyzed: true
-      },
-      {
-        framework: 'ISO 27001',
-        totalControls: 114,
-        mappedControls: 89,
-        gapControls: 25,
-        coveragePercentage: 78,
-        lastUpdated: new Date(Date.now() - 1000 * 60 * 15),
-        aiAnalyzed: true
-      },
-      {
-        framework: 'PCI DSS',
-        totalControls: 78,
-        mappedControls: 65,
-        gapControls: 13,
-        coveragePercentage: 83,
-        lastUpdated: new Date(Date.now() - 1000 * 60 * 60),
-        aiAnalyzed: false
-      }
-    ];
+  const loadFrameworkCoverage = async () => {
+    try {
+      const { data: frameworks, error } = await supabase
+        .from('compliance_frameworks')
+        .select('id, name, created_at');
 
-    setFrameworkCoverage(mockCoverage);
+      if (error) throw error;
+
+      if (!frameworks || frameworks.length === 0) {
+        setFrameworkCoverage([]);
+        return;
+      }
+
+      const coverageData = await Promise.all(frameworks.map(async (fw) => {
+        const [totalRes, implementedRes] = await Promise.all([
+          supabase.from('compliance_controls').select('id', { count: 'exact', head: true }).eq('framework_id', fw.id),
+          supabase.from('compliance_controls').select('id', { count: 'exact', head: true })
+            .eq('framework_id', fw.id).in('implementation_status', ['implemented', 'validated'])
+        ]);
+        const total = totalRes.count ?? 0;
+        const mapped = implementedRes.count ?? 0;
+        const gap = total - mapped;
+        const pct = total > 0 ? Math.round((mapped / total) * 100) : 0;
+        return {
+          framework: fw.name,
+          totalControls: total,
+          mappedControls: mapped,
+          gapControls: gap,
+          coveragePercentage: pct,
+          lastUpdated: new Date(fw.created_at),
+          aiAnalyzed: true
+        };
+      }));
+
+      setFrameworkCoverage(coverageData);
+    } catch (error) {
+      console.error('[ComplianceControlMapper] loadFrameworkCoverage error:', error);
+    }
   };
 
   const generateAIPoweredMapping = async () => {
@@ -326,19 +200,24 @@ export const ComplianceControlMapper: React.FC = () => {
 
       if (error) throw error;
 
-      // Mock AI analysis result
-      const mockAiAnalysis: AIAnalysisSummary = {
-        overlapPercentage: 82,
-        criticalGaps: 7,
+      // Build AI summary from real response or derive from current coverage data
+      const implementedMapped = frameworkCoverage.reduce((sum, f) => sum + f.mappedControls, 0);
+      const implementedTotal = frameworkCoverage.reduce((sum, f) => sum + f.totalControls, 0);
+      const overlapPct = implementedTotal > 0 ? Math.round((implementedMapped / implementedTotal) * 100) : 0;
+      const gapControls = controlMappings.filter(m => m.status === 'gap').length;
+
+      const derivedAnalysis: AIAnalysisSummary = (data as any)?.analysis ?? {
+        overlapPercentage: overlapPct,
+        criticalGaps: gapControls,
         automationOpportunities: [
-          'Automated evidence collection for 34 controls',
+          `Automated evidence collection for ${implementedMapped} controls`,
           'Cross-framework policy template generation',
           'Real-time compliance monitoring dashboards'
         ],
         riskAssessment: {
-          high: 12,
-          medium: 28,
-          low: 45
+          high: controlMappings.filter(m => m.riskLevel === 'high' || m.riskLevel === 'critical').length,
+          medium: controlMappings.filter(m => m.riskLevel === 'medium').length,
+          low: controlMappings.filter(m => m.riskLevel === 'low').length
         },
         recommendations: [
           'Prioritize implementation of automated audit logging',
@@ -348,12 +227,12 @@ export const ComplianceControlMapper: React.FC = () => {
         ]
       };
 
-      setAiAnalysis(mockAiAnalysis);
+      setAiAnalysis(derivedAnalysis);
       setCrossWalkGenerated(true);
 
       toast({
         title: "AI-Powered Mapping Complete",
-        description: `Comprehensive cross-framework analysis completed with ${mockAiAnalysis.overlapPercentage}% control overlap identified.`,
+        description: `Comprehensive cross-framework analysis completed with ${derivedAnalysis.overlapPercentage}% control overlap identified.`,
       });
 
       // Refresh mappings

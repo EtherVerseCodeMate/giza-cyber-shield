@@ -23,10 +23,10 @@ export const ContainerOrchestration = () => {
 
   const fetchContainerData = async () => {
     if (!currentOrganization) return;
-    
+
     try {
       setLoading(true);
-      
+
       // Fetch infrastructure assets to simulate containers/pods
       const { data: assets, error } = await supabase
         .from('infrastructure_assets')
@@ -39,21 +39,21 @@ export const ContainerOrchestration = () => {
 
       // Create realistic cluster data based on infrastructure
       const clusterData = [
-        { 
-          name: "Production EKS", 
-          nodes: Math.max(3, Math.floor((assets?.length || 0) / 3)), 
-          pods: assets?.filter(a => a.compliance_status === 'COMPLIANT').length || 0, 
-          cpu: Math.floor(Math.random() * 30) + 50, 
-          memory: Math.floor(Math.random() * 40) + 40, 
-          status: "healthy" 
+        {
+          name: "Production EKS",
+          nodes: Math.max(3, Math.floor((assets?.length || 0) / 3)),
+          pods: assets?.filter(a => a.compliance_status === 'COMPLIANT').length || 0,
+          cpu: "--",
+          memory: "--",
+          status: "awaiting telemetry"
         },
-        { 
-          name: "Staging AKS", 
-          nodes: Math.max(2, Math.floor((assets?.length || 0) / 4)), 
-          pods: assets?.filter(a => a.compliance_status !== 'NON_COMPLIANT').length || 0, 
-          cpu: Math.floor(Math.random() * 25) + 30, 
-          memory: Math.floor(Math.random() * 30) + 35, 
-          status: "healthy" 
+        {
+          name: "Staging AKS",
+          nodes: Math.max(2, Math.floor((assets?.length || 0) / 4)),
+          pods: assets?.filter(a => a.compliance_status !== 'NON_COMPLIANT').length || 0,
+          cpu: "--",
+          memory: "--",
+          status: "awaiting telemetry"
         }
       ];
 
@@ -145,11 +145,11 @@ export const ContainerOrchestration = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">CPU</span>
-                  <span className="text-cyan-400">{cluster.cpu}%</span>
+                  <span className="text-cyan-400">{cluster.cpu}{cluster.cpu !== "--" && "%"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">Memory</span>
-                  <span className="text-cyan-400">{cluster.memory}%</span>
+                  <span className="text-cyan-400">{cluster.memory}{cluster.memory !== "--" && "%"}</span>
                 </div>
               </div>
             </div>
