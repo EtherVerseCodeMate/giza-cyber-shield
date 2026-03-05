@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/agi"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/billing"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/config"
@@ -31,11 +33,13 @@ const (
 )
 
 type server struct {
-	cfg    config.Config
-	store  dag.Store
-	agi    *agi.Engine
-	sekhem *sekhem.SekhemTriad
-	licAPI *LicensingAPI
+	cfg     config.Config
+	store   dag.Store
+	agi     *agi.Engine
+	sekhem  *sekhem.SekhemTriad
+	licAPI  *LicensingAPI
+	pubKey  []byte
+	privKey []byte
 }
 
 func main() {
@@ -89,7 +93,11 @@ func initializeAgent(token string) {
 		MachineID:          license.GenerateMachineID(),
 	})
 
-	s := &server{cfg: cfg, store: store, agi: arch, sekhem: triad, licAPI: licAPI}
+	pub, priv, err := adinkra.GenerateDilithiumKey()
+	if err != nil {
+		log.Fatalf("[AGENT] Failed to generate signing identity: %v", err)
+	}
+	s := &server{cfg: cfg, store: store, agi: arch, sekhem: triad, licAPI: licAPI, pubKey: pub, privKey: priv}
 	runServer(s, cfg)
 }
 
@@ -206,15 +214,94 @@ func (s *server) health(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) attestNew(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(map[string]string{"status": "attestation_not_implemented"})
+	var req struct {
+		AgentID string `json:"agent_id"`
+		Action  string `json:"action"`
+		Symbol  string `json:"symbol"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	if req.Action == "" {
+		req.Action = "attest:new"
+	}
+	if req.Symbol == "" {
+		req.Symbol = "Gye_Nyame"
+	}
+
+	// Use an existing DAG node as parent to maintain chain integrity
+	var parents []string
+	if existing := s.store.All(); len(existing) > 0 {
+		parents = []string{existing[len(existing)-1].ID}
+	}
+
+	node := &dag.Node{
+		Action: req.Action,
+		Symbol: req.Symbol,
+		Time:   time.Now().UTC().Format(time.RFC3339),
+		PQC:    map[string]string{"agent_id": req.AgentID, "pub_key_hex": hex.EncodeToString(s.pubKey)},
+	}
+	if err := node.Sign(s.privKey); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "signing failed: " + err.Error()})
+		return
+	}
+	if err := s.store.Add(node, parents); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "dag add failed: " + err.Error()})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":         "attested",
+		"node_id":        node.ID,
+		"signature":      node.Signature,
+		"public_key_hex": hex.EncodeToString(s.pubKey),
+		"algorithm":      "ML-DSA-65",
+		"timestamp":      node.Time,
+	})
 }
 
 func (s *server) dagAdd(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(map[string]string{"status": "dag_add_not_implemented"})
+	var req struct {
+		Symbol  string   `json:"symbol"`
+		Action  string   `json:"action"`
+		Parents []string `json:"parents"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	if req.Action == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "action required"})
+		return
+	}
+	node := &dag.Node{
+		Action: req.Action,
+		Symbol: req.Symbol,
+		Time:   time.Now().UTC().Format(time.RFC3339),
+	}
+	if len(s.privKey) > 0 {
+		_ = node.Sign(s.privKey)
+	}
+	if err := s.store.Add(node, req.Parents); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok", "node_id": node.ID})
 }
 
 func (s *server) dagState(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(map[string]string{"status": "dag_state_not_implemented"})
+	nodes := s.store.All()
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":     "ok",
+		"node_count": len(nodes),
+		"nodes":      nodes,
+	})
 }
 
 func (s *server) agiState(w http.ResponseWriter, r *http.Request) {
@@ -222,11 +309,26 @@ func (s *server) agiState(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) agiChat(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(map[string]string{"status": "chat_not_implemented"})
+	var req struct {
+		Message string `json:"message"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	if req.Message == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "message required"})
+		return
+	}
+	response := s.agi.Chat(req.Message)
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok", "response": response})
 }
 
 func (s *server) agiScan(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(map[string]string{"status": "scan_started"})
+	state := s.agi.GetState()
+	json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "scan": state})
 }
 
 func startTailscale(mux *http.ServeMux, _ config.Config) {
