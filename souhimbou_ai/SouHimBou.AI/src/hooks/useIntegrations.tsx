@@ -33,7 +33,7 @@ export const useIntegrations = () => {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [templates, setTemplates] = useState<IntegrationTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
 
   // Safely get user with error handling - use demo mode if auth fails
   let user = null;
@@ -46,8 +46,8 @@ export const useIntegrations = () => {
     isDemo = true;
   }
 
-  // Mock integration templates for popular security tools
-  const mockTemplates: IntegrationTemplate[] = [
+  // Integration templates catalog
+  const integrationCatalog: IntegrationTemplate[] = [
     {
       id: 'splunk',
       name: 'Splunk SIEM',
@@ -387,29 +387,15 @@ export const useIntegrations = () => {
       setLoading(true);
 
       // Initialize with integration templates
-      setTemplates(mockTemplates);
+      setTemplates(integrationCatalog);
 
       // Check for real configured integrations (if user is available)
       if (user) {
         const realIntegrations = await checkConfiguredIntegrations();
         setIntegrations(realIntegrations);
       } else {
-        // Demo mode - show sample integrations
-        setIntegrations([
-          {
-            id: 'demo-splunk',
-            name: 'Splunk Enterprise SIEM',
-            type: 'SIEM',
-            status: 'CONNECTED',
-            description: 'Enterprise SIEM platform for security monitoring and analytics',
-            api_key_configured: true,
-            last_sync: new Date().toISOString(),
-            sync_frequency: 'REALTIME',
-            data_types: ['logs', 'alerts', 'incidents', 'threats'],
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }
-        ]);
+        // Awaiting authentication
+        setIntegrations([]);
       }
 
       setLoading(false);
