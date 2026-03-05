@@ -77,26 +77,6 @@ export const AutomatedThreatHunting = () => {
       status: 'completed' as const
     }));
 
-    // Add some recent IOCs
-    const recentIOCs = [
-      { value: '185.220.101.42', type: 'ip', severity: 'HIGH' as const },
-      { value: 'evil-domain.com', type: 'domain', severity: 'CRITICAL' as const },
-      { value: 'a4b7c8d9e1f2...', type: 'hash', severity: 'MEDIUM' as const },
-    ];
-
-    recentIOCs.forEach((ioc, index) => {
-      queries.push({
-        id: `recent-${index + 1}`,
-        ioc: ioc.value,
-        iocType: ioc.type,
-        splunkQuery: generateSplunkQuery(ioc.value, ioc.type),
-        severity: ioc.severity,
-        lastRun: new Date(),
-        matchCount: 0, // Real match count requires Splunk query execution
-        status: 'completed'
-      });
-    });
-
     setHuntQueries(queries);
   };
 
@@ -107,19 +87,19 @@ export const AutomatedThreatHunting = () => {
 | eval indicator_type="IP"
 | stats count by _time, src_ip, dest_ip, action, sourcetype
 | where count > 0`,
-      
+
       domain: `index=* ${indicator}
 | eval threat_indicator="${indicator}"
 | eval indicator_type="Domain" 
 | stats count by _time, query, src_ip, dest_ip, sourcetype
 | where count > 0`,
-      
+
       hash: `index=* "${indicator}"
 | eval threat_indicator="${indicator}"
 | eval indicator_type="Hash"
 | stats count by _time, file_name, file_path, process, host, sourcetype
 | where count > 0`,
-      
+
       url: `index=* uri_path="*${indicator}*" OR url="*${indicator}*"
 | eval threat_indicator="${indicator}"
 | eval indicator_type="URL"
@@ -131,28 +111,10 @@ export const AutomatedThreatHunting = () => {
   };
 
   const generateMockReports = () => {
-    const mockReports: HuntReport[] = [];
-    
-    for (let i = 0; i < 7; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      
-      const totalQueries = 0; // Real query count requires Splunk execution history
-      const matchedQueries = 0; // Real match count requires Splunk execution history
+    // Awaiting telemetry for actual reports
+    const pendingReports: HuntReport[] = [];
 
-      mockReports.push({
-        id: `report-${i + 1}`,
-        date,
-        totalQueries,
-        matchedQueries,
-        cleanEnvironment: true, // Default clean until real data available
-        criticalFindings: 0, // Real findings require Splunk execution
-        emailSent: true,
-        reportUrl: `https://splunk.enterprise.local:8000/app/search/threat_hunt_${date.toISOString().split('T')[0]}`
-      });
-    }
-    
-    setReports(mockReports);
+    setReports(pendingReports);
   };
 
   const simulateDailyAutomation = () => {
@@ -168,10 +130,10 @@ export const AutomatedThreatHunting = () => {
 
   const runThreatHunt = async (queryId: string) => {
     setLoading(true);
-    
+
     try {
       // Update query status
-      setHuntQueries(prev => prev.map(q => 
+      setHuntQueries(prev => prev.map(q =>
         q.id === queryId ? { ...q, status: 'running' } : q
       ));
 
@@ -180,10 +142,10 @@ export const AutomatedThreatHunting = () => {
 
       // Real results require Splunk query execution response
       const matches = 0; // Real match count from Splunk API response
-      
-      setHuntQueries(prev => prev.map(q => 
-        q.id === queryId ? { 
-          ...q, 
+
+      setHuntQueries(prev => prev.map(q =>
+        q.id === queryId ? {
+          ...q,
           status: 'completed',
           matchCount: matches,
           lastRun: new Date()
@@ -192,17 +154,17 @@ export const AutomatedThreatHunting = () => {
 
       toast({
         title: "Hunt Complete",
-        description: matches > 0 
+        description: matches > 0
           ? `🚨 ${matches} matches found! Check Splunk for details.`
           : "✅ Clean - no matches found in environment.",
         variant: matches > 0 ? "destructive" : "default"
       });
 
     } catch (error) {
-      setHuntQueries(prev => prev.map(q => 
+      setHuntQueries(prev => prev.map(q =>
         q.id === queryId ? { ...q, status: 'failed' } : q
       ));
-      
+
       toast({
         title: "Hunt Failed",
         description: "Failed to execute threat hunt query",
@@ -215,16 +177,16 @@ export const AutomatedThreatHunting = () => {
 
   const generateDailyReport = async () => {
     setLoading(true);
-    
+
     try {
       // Simulate report generation
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       const todayReport = reports[0];
-      
+
       toast({
         title: "Daily Report Generated",
-        description: todayReport.cleanEnvironment 
+        description: todayReport.cleanEnvironment
           ? "✅ Clean bill of health - no IOC matches found"
           : `🚨 ${todayReport.matchedQueries} IOC matches found - detailed report sent`,
         variant: todayReport.cleanEnvironment ? "default" : "destructive"
@@ -232,11 +194,11 @@ export const AutomatedThreatHunting = () => {
 
       // Simulate email sending
       const emailData = {
-        subject: todayReport.cleanEnvironment 
+        subject: todayReport.cleanEnvironment
           ? "🛡️ Daily Threat Hunt: Clean Environment"
           : `🚨 Daily Threat Hunt: ${todayReport.matchedQueries} IOC Matches Detected`,
-        
-        body: todayReport.cleanEnvironment 
+
+        body: todayReport.cleanEnvironment
           ? `
             Daily Threat Intelligence Report - ${todayReport.date.toDateString()}
             
@@ -397,7 +359,7 @@ export const AutomatedThreatHunting = () => {
                             {query.matchCount} matches
                           </Badge>
                         </div>
-                        
+
                         <details className="text-xs">
                           <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
                             View Splunk Query
@@ -407,7 +369,7 @@ export const AutomatedThreatHunting = () => {
                           </pre>
                         </details>
                       </div>
-                      
+
                       <div className="flex items-center space-x-2 ml-4">
                         <Button
                           size="sm"
@@ -417,7 +379,7 @@ export const AutomatedThreatHunting = () => {
                         >
                           {query.status === 'running' ? 'Running...' : 'Hunt'}
                         </Button>
-                        
+
                         {query.matchCount > 0 && (
                           <Button
                             size="sm"
@@ -432,7 +394,7 @@ export const AutomatedThreatHunting = () => {
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="text-xs text-muted-foreground mt-2">
                       Last run: {query.lastRun.toLocaleString()}
                     </div>
@@ -483,7 +445,7 @@ export const AutomatedThreatHunting = () => {
                       <span className="font-mono">{report.emailSent ? '✓' : '✗'}</span>
                     </div>
                   </div>
-                  
+
                   {!report.cleanEnvironment && (
                     <Button
                       size="sm"

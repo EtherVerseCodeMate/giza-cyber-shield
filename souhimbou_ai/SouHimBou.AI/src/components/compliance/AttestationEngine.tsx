@@ -8,9 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { AdinkraAlgebraicEngine } from '@/khepra/aae/AdinkraEngine';
-import { 
-  Shield, 
-  FileCheck, 
+import {
+  Shield,
+  FileCheck,
   Key,
   CheckCircle,
   XCircle,
@@ -75,95 +75,15 @@ interface AttestationChain {
   verificationStatus: 'verified' | 'pending' | 'failed';
 }
 
-const mockAttestations: AttestationRecord[] = [
-  {
-    id: 'att-1',
-    controlId: 'SOC2-CC6.6',
-    framework: 'SOC 2',
-    status: 'compliant',
-    attestedBy: 'compliance@company.com',
-    attestedAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
-    validUntil: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90),
-    evidenceHash: 'sha256:a1b2c3d4e5f6...',
-    signature: 'khepra:sig:xyz789...',
-    culturalFingerprint: 'adinkra:eban:trust:95',
-    trustScore: 95,
-    metadata: {
-      evidenceCount: 5,
-      testResults: 12,
-      remediationActions: 2,
-      riskLevel: 'low'
-    }
-  },
-  {
-    id: 'att-2',
-    controlId: 'PCI-3.4',
-    framework: 'PCI DSS',
-    status: 'non-compliant',
-    attestedBy: 'security@company.com',
-    attestedAt: new Date(Date.now() - 1000 * 60 * 60 * 12),
-    validUntil: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
-    evidenceHash: 'sha256:f6e5d4c3b2a1...',
-    signature: 'khepra:sig:abc123...',
-    culturalFingerprint: 'adinkra:fawohodie:alert:72',
-    trustScore: 72,
-    metadata: {
-      evidenceCount: 3,
-      testResults: 8,
-      remediationActions: 5,
-      riskLevel: 'high'
-    }
-  },
-  {
-    id: 'att-3',
-    controlId: 'ISO-A.9.2.1',
-    framework: 'ISO 27001',
-    status: 'compliant',
-    attestedBy: 'admin@company.com',
-    attestedAt: new Date(Date.now() - 1000 * 60 * 60 * 6),
-    validUntil: new Date(Date.now() + 1000 * 60 * 60 * 24 * 120),
-    evidenceHash: 'sha256:1a2b3c4d5e6f...',
-    signature: 'khepra:sig:def456...',
-    culturalFingerprint: 'adinkra:nkyinkyim:journey:88',
-    trustScore: 88,
-    metadata: {
-      evidenceCount: 7,
-      testResults: 15,
-      remediationActions: 1,
-      riskLevel: 'medium'
-    }
-  }
-];
+// Awaiting telemetry for real attestations
+const pendingAttestations: AttestationRecord[] = [];
 
-const mockEvidencePackages: EvidencePackage[] = [
-  {
-    id: 'pkg-1',
-    name: 'SOC 2 Type II - Q4 2024',
-    framework: 'SOC 2',
-    generatedAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    attestations: ['att-1', 'att-4', 'att-5'],
-    totalControls: 64,
-    compliantControls: 58,
-    packageHash: 'sha256:package:abc123...',
-    downloadUrl: '/downloads/soc2-q4-2024.zip',
-    expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30)
-  },
-  {
-    id: 'pkg-2',
-    name: 'PCI DSS Level 1 Assessment',
-    framework: 'PCI DSS',
-    generatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
-    attestations: ['att-2', 'att-6'],
-    totalControls: 12,
-    compliantControls: 8,
-    packageHash: 'sha256:package:def456...',
-    expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 60)
-  }
-];
+// Awaiting telemetry for real evidence packages
+const pendingEvidencePackages: EvidencePackage[] = [];
 
 export const AttestationEngine: React.FC = () => {
-  const [attestations, setAttestations] = useState<AttestationRecord[]>(mockAttestations);
-  const [evidencePackages, setEvidencePackages] = useState<EvidencePackage[]>(mockEvidencePackages);
+  const [attestations, setAttestations] = useState<AttestationRecord[]>(pendingAttestations);
+  const [evidencePackages, setEvidencePackages] = useState<EvidencePackage[]>(pendingEvidencePackages);
   const [selectedAttestation, setSelectedAttestation] = useState<AttestationRecord | null>(null);
   const [isGeneratingPackage, setIsGeneratingPackage] = useState(false);
   const [showSignatureDetails, setShowSignatureDetails] = useState(false);
@@ -242,7 +162,7 @@ export const AttestationEngine: React.FC = () => {
 
   const generateEvidencePackage = async (framework: string) => {
     setIsGeneratingPackage(true);
-    
+
     try {
       const frameworkAttestations = attestations.filter(att => att.framework === framework);
       const compliantCount = frameworkAttestations.filter(att => att.status === 'compliant').length;
@@ -292,7 +212,7 @@ export const AttestationEngine: React.FC = () => {
 
       toast({
         title: isValid ? "Attestation Verified" : "Verification Failed",
-        description: isValid 
+        description: isValid
           ? "KHEPRA signature is cryptographically valid"
           : "Attestation signature verification failed",
         variant: isValid ? "default" : "destructive"
@@ -452,8 +372,8 @@ export const AttestationEngine: React.FC = () => {
                         {attestation.controlId}
                       </CardTitle>
                       <CardDescription>
-                        Attested by {attestation.attestedBy} • 
-                        Trust Score: {attestation.trustScore}% • 
+                        Attested by {attestation.attestedBy} •
+                        Trust Score: {attestation.trustScore}% •
                         Valid until {attestation.validUntil.toLocaleDateString()}
                       </CardDescription>
                     </div>
@@ -566,7 +486,7 @@ export const AttestationEngine: React.FC = () => {
                     <div>
                       <CardTitle>{pkg.name}</CardTitle>
                       <CardDescription>
-                        Generated: {pkg.generatedAt.toLocaleString()} • 
+                        Generated: {pkg.generatedAt.toLocaleString()} •
                         Expires: {pkg.expiresAt.toLocaleDateString()}
                       </CardDescription>
                     </div>
@@ -612,9 +532,9 @@ export const AttestationEngine: React.FC = () => {
                         <span>Compliance Progress</span>
                         <span>{Math.round((pkg.compliantControls / pkg.totalControls) * 100)}%</span>
                       </div>
-                      <Progress 
-                        value={(pkg.compliantControls / pkg.totalControls) * 100} 
-                        className="h-2" 
+                      <Progress
+                        value={(pkg.compliantControls / pkg.totalControls) * 100}
+                        className="h-2"
                       />
                     </div>
 
@@ -650,7 +570,7 @@ export const AttestationEngine: React.FC = () => {
                 <Alert>
                   <Shield className="h-4 w-4" />
                   <AlertDescription>
-                    All attestations are protected by KHEPRA's cultural cryptographic protocol, 
+                    All attestations are protected by KHEPRA's cultural cryptographic protocol,
                     ensuring both technical and semantic integrity.
                   </AlertDescription>
                 </Alert>
@@ -658,7 +578,7 @@ export const AttestationEngine: React.FC = () => {
                 {selectedAttestation && (
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Attestation Details</h3>
-                    
+
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <h4 className="font-medium mb-2">Basic Information</h4>
@@ -754,7 +674,7 @@ export const AttestationEngine: React.FC = () => {
                 <Alert>
                   <Key className="h-4 w-4" />
                   <AlertDescription>
-                    The attestation chain provides tamper-evident audit trails using KHEPRA's 
+                    The attestation chain provides tamper-evident audit trails using KHEPRA's
                     Adinkra-based cryptographic signatures and cultural consensus mechanisms.
                   </AlertDescription>
                 </Alert>
@@ -763,7 +683,7 @@ export const AttestationEngine: React.FC = () => {
                   {[...Array(5)].map((_, index) => {
                     const timestamp = new Date(Date.now() - index * 1000 * 60 * 60 * 6);
                     const blockId = `block-${5 - index}`;
-                    
+
                     return (
                       <div key={index} className="border rounded-lg p-4">
                         <div className="flex items-center justify-between mb-3">
@@ -775,7 +695,7 @@ export const AttestationEngine: React.FC = () => {
                             {timestamp.toLocaleString()}
                           </Badge>
                         </div>
-                        
+
                         <div className="grid grid-cols-3 gap-4 text-sm">
                           <div>
                             <span className="text-muted-foreground">Hash:</span>
