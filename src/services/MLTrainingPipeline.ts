@@ -321,23 +321,27 @@ export class MLTrainingPipeline {
     };
   }
 
-  private static async performFeatureEngineering(data: any, config: any) {
-    // Derive features from actual data structure
+  private static async performFeatureEngineering(data: any, _config: any) {
+    // Derive features from actual data structure. Importance scores are 0 until
+    // real feature selection is run against a trained model.
     const features: Array<{ name: string; type: string; importance_score: number }> = [];
 
     if (data.compliance_data?.length > 0) {
-      features.push({ name: 'compliance_score', type: 'numerical', importance_score: 0 });
-      features.push({ name: 'stig_violation_count', type: 'numerical', importance_score: 0 });
+      features.push(
+        { name: 'compliance_score', type: 'numerical', importance_score: 0 },
+        { name: 'stig_violation_count', type: 'numerical', importance_score: 0 },
+      );
     }
     if (data.performance_data?.length > 0) {
-      features.push({ name: 'cpu_usage', type: 'numerical', importance_score: 0 });
-      features.push({ name: 'memory_usage', type: 'numerical', importance_score: 0 });
+      features.push(
+        { name: 'cpu_usage', type: 'numerical', importance_score: 0 },
+        { name: 'memory_usage', type: 'numerical', importance_score: 0 },
+      );
     }
     if (data.threat_data?.length > 0) {
       features.push({ name: 'threat_exposure', type: 'numerical', importance_score: 0 });
     }
 
-    // Importance scores are 0 until actual feature selection is run
     return features;
   }
 
@@ -367,7 +371,7 @@ export class MLTrainingPipeline {
     };
   }
 
-  private static async simulateAdvancedTraining(dataset: any, config: any): Promise<Omit<ModelTrainingResult, 'training_duration_ms'>> {
+  private static async simulateAdvancedTraining(_dataset: any, _config: any): Promise<Omit<ModelTrainingResult, 'training_duration_ms'>> {
     // ML training requires a real backend (TensorFlow Serving, PyTorch, etc.)
     // Return explicit "not trained" state
     console.warn('[MLTrainingPipeline] ML training backend not configured. No model was trained.');

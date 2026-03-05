@@ -642,15 +642,19 @@ const SidebarMenuBadge = React.forwardRef<
 ))
 SidebarMenuBadge.displayName = "SidebarMenuBadge"
 
+// Module-level counter for deterministic skeleton widths
+let sidebarSkeletonCounter = 0;
+const SKELETON_WIDTHS = ['55%', '70%', '85%', '60%', '75%'];
+
 const SidebarMenuSkeleton = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
     showIcon?: boolean
   }
 >(({ className, showIcon = false, ...props }, ref) => {
-  // Random width between 50 to 90%.
   const width = React.useMemo(() => {
-    return `${Math.floor(Math.random() * 40) + 50}%`
+    const idx = sidebarSkeletonCounter++ % SKELETON_WIDTHS.length;
+    return SKELETON_WIDTHS[idx];
   }, [])
 
   return (

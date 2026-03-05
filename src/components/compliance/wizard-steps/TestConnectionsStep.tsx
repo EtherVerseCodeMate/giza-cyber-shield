@@ -65,12 +65,16 @@ export const TestConnectionsStep: React.FC<TestConnectionsStepProps> = ({
 
     // Simulate connection testing
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
-      
-      // Simulate different outcomes
-      const success = Math.random() > 0.2; // 80% success rate
-      const discoveredAssets = success ? Math.floor(Math.random() * 50) + 5 : 0;
-      const responseTime = Math.floor(Math.random() * 500) + 100;
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // Attempt a real lightweight health check via the supabase edge function
+      const { data: healthData, error: healthError } = await (await import('@/integrations/supabase/client')).supabase
+        .functions.invoke('threat-intelligence-lookup', { body: { action: 'health_check', environment: environmentType } })
+        .catch(() => ({ data: null, error: new Error('unavailable') }));
+
+      const success = !healthError && !!healthData;
+      const discoveredAssets = (healthData as any)?.asset_count ?? 0;
+      const responseTime = (healthData as any)?.response_time_ms ?? 200;
 
       setTestResults(prev => ({
         ...prev,

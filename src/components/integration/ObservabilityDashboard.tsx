@@ -34,29 +34,36 @@ export const ObservabilityDashboard = () => {
   ]);
 
   useEffect(() => {
-    // Generate mock real-time metrics
+    // Sinusoidal baseline metrics — deterministic for any given minute
     const generateMetrics = () => {
       const now = new Date();
-      const data = Array.from({ length: 20 }, (_, i) => ({
-        timestamp: new Date(now.getTime() - (19 - i) * 60000).toISOString(),
-        latency: 50 + Math.random() * 100,
-        throughput: 1000 + Math.random() * 500,
-        errorRate: Math.random() * 5,
-        availability: 99 + Math.random() * 1
-      }));
+      const data = Array.from({ length: 20 }, (_, i) => {
+        const phase = (i * Math.PI) / 10;
+        return {
+          timestamp: new Date(now.getTime() - (19 - i) * 60000).toISOString(),
+          latency: Math.round(75 + 25 * Math.sin(phase)),
+          throughput: Math.round(1200 + 300 * Math.cos(phase)),
+          errorRate: parseFloat((1 + Math.sin(phase + 1) * 0.8).toFixed(2)),
+          availability: parseFloat((99.5 + 0.4 * Math.sin(phase + 2)).toFixed(2))
+        };
+      });
       setMetrics(data);
     };
 
-    // Generate mock trace data
+    // Static representative traces — no randomness needed for demo
     const generateTraces = () => {
       const operations = ['auth.login', 'data.query', 'api.process', 'sync.update', 'webhook.handle'];
+      const statuses = ['success', 'success', 'success', 'success', 'warning', 'success', 'success', 'success', 'error', 'success'] as const;
+      const durations = [45, 120, 78, 210, 33, 95, 150, 62, 18, 88];
+      const spanCounts = [4, 7, 5, 12, 3, 6, 9, 4, 3, 5];
+      const now = Date.now();
       const data = Array.from({ length: 10 }, (_, i) => ({
         id: `trace-${i}`,
-        operation: operations[Math.floor(Math.random() * operations.length)],
-        duration: 10 + Math.random() * 200,
-        status: Math.random() > 0.8 ? 'error' : Math.random() > 0.9 ? 'warning' : 'success',
-        spans: 3 + Math.floor(Math.random() * 10),
-        timestamp: new Date(Date.now() - Math.random() * 3600000).toISOString()
+        operation: operations[i % operations.length],
+        duration: durations[i],
+        status: statuses[i],
+        spans: spanCounts[i],
+        timestamp: new Date(now - (i + 1) * 360000).toISOString()
       })) as TraceData[];
       setTraces(data);
     };

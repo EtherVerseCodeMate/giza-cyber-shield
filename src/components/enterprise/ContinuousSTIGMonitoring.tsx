@@ -69,7 +69,7 @@ export const ContinuousSTIGMonitoring: React.FC = () => {
         total_assets: totalAssets,
         monitored_assets: monitoredAssets,
         compliance_percentage: compliancePercentage,
-        active_scans: Math.floor(Math.random() * 5) + 1, // Simulated
+        active_scans: assets?.filter(a => a.compliance_status === 'SCANNING').length || 0,
         recent_findings: implementations?.length || 0,
         drift_events: driftEvents?.length || 0
       });

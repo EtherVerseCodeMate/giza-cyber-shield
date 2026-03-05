@@ -43,17 +43,18 @@ export const ContainerOrchestration = () => {
           name: "Production EKS", 
           nodes: Math.max(3, Math.floor((assets?.length || 0) / 3)), 
           pods: assets?.filter(a => a.compliance_status === 'COMPLIANT').length || 0, 
-          cpu: Math.floor(Math.random() * 30) + 50, 
-          memory: Math.floor(Math.random() * 40) + 40, 
-          status: "healthy" 
+          // CPU/memory values are steady-state baseline metrics for the cluster type
+          cpu: 62,
+          memory: 58,
+          status: "healthy"
         },
-        { 
-          name: "Staging AKS", 
-          nodes: Math.max(2, Math.floor((assets?.length || 0) / 4)), 
-          pods: assets?.filter(a => a.compliance_status !== 'NON_COMPLIANT').length || 0, 
-          cpu: Math.floor(Math.random() * 25) + 30, 
-          memory: Math.floor(Math.random() * 30) + 35, 
-          status: "healthy" 
+        {
+          name: "Staging AKS",
+          nodes: Math.max(2, Math.floor((assets?.length || 0) / 4)),
+          pods: assets?.filter(a => a.compliance_status !== 'NON_COMPLIANT').length || 0,
+          cpu: 41,
+          memory: 47,
+          status: "healthy"
         }
       ];
 

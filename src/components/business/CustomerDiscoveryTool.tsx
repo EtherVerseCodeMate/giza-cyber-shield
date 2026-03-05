@@ -258,7 +258,7 @@ export const CustomerDiscoveryTool = () => {
                 {discoveryMetrics.topPainPoints.map((pain, index) => (
                   <div key={index} className="flex items-center justify-between">
                     <span className="text-sm">{pain}</span>
-                    <Badge variant="secondary">{Math.floor(Math.random() * 20) + 10} mentions</Badge>
+                    <Badge variant="secondary">Market signal</Badge>
                   </div>
                 ))}
               </CardContent>
@@ -271,7 +271,7 @@ export const CustomerDiscoveryTool = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 {segments.map((segment, index) => {
-                  const segmentScore = Math.random() * 4 + 6; // Random score between 6-10
+                  const segmentScore = 8.2; // representative static ICP score
                   return (
                     <div key={index} className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
