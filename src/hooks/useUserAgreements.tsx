@@ -17,6 +17,9 @@ interface UserAgreement {
   updated_at?: string;
 }
 
+/** Increment this when legal documents are updated so existing acceptances are invalidated. */
+const AGREEMENT_VERSION = '3.0';
+
 export const useUserAgreements = () => {
   const [agreements, setAgreements] = useState<UserAgreement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,7 +135,7 @@ export const useUserAgreements = () => {
             .insert({
               user_id: user.id,
               agreement_type: type,
-              agreement_version: '3.0', // Updated to match Khepra LICENSE v3.0
+              agreement_version: AGREEMENT_VERSION,
               user_agent: userAgent,
               metadata
             });

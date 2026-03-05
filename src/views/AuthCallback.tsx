@@ -17,20 +17,20 @@ const AuthCallback = () => {
       try {
         // Extract hash parameters (Supabase tokens arrive in the URL hash)
         const hashParams = new URLSearchParams(location.hash.substring(1));
-        const accessToken  = hashParams.get('access_token');
+        const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
-        const type         = hashParams.get('type');   // 'signup' | 'recovery' | 'magiclink'
+        const type = hashParams.get('type');   // 'signup' | 'recovery' | 'magiclink'
 
         if (accessToken && refreshToken) {
           // Directly establish the session from the tokens — do NOT relay through
           // an edge function that receives an empty body and can't read the hash.
-          const { data, error: sessionError } = await supabase.auth.setSession({
+          const { error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
 
           // Clear the URL hash immediately for security (tokens must not linger)
-          window.history.replaceState({}, document.title, window.location.pathname);
+          globalThis.history.replaceState({}, document.title, globalThis.location.pathname);
 
           if (sessionError) {
             console.error('[AuthCallback] setSession error:', sessionError);
@@ -58,7 +58,7 @@ const AuthCallback = () => {
           }
         } else {
           // No tokens — check for explicit error param in the query string
-          const urlParams  = new URLSearchParams(location.search);
+          const urlParams = new URLSearchParams(location.search);
           const errorParam = urlParams.get('error');
 
           window.history.replaceState({}, document.title, window.location.pathname);
