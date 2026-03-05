@@ -222,8 +222,8 @@ export const ComplianceAuditReport = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {[{ family: 'Pending Families', implemented: 0, total: 0, percentage: 0 }].map((family, index) => (
-                  <div key={index} className="space-y-2">
+                {[{ family: 'Pending Families', implemented: 0, total: 0, percentage: 0 }].map((family) => (
+                  <div key={family.family} className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-gray-300">{family.family}</span>
                       <span className="text-white">{family.implemented}/{family.total} ({family.percentage}%)</span>
