@@ -103,12 +103,15 @@ const generateMockGraphData = (): GraphData => {
   const nodes: GraphNode[] = allNodes.map((node, index) => {
     const angle = (index / allNodes.length) * 2 * Math.PI;
     const nodeRadius = node.type === 'framework' ? 50 : node.type === 'control' ? 40 : 30;
-    const distance = node.type === 'framework' ? radius * 0.6 : radius + Math.random() * 100;
-    
+    const distance = node.type === 'framework' ? radius * 0.6 : radius + (index % 5) * 20;
+    // Deterministic offset based on index to avoid Math.random() for layout jitter
+    const jitterX = ((index * 37) % 50) - 25;
+    const jitterY = ((index * 53) % 50) - 25;
+
     return {
       ...node,
-      x: center.x + Math.cos(angle) * distance + (Math.random() - 0.5) * 50,
-      y: center.y + Math.sin(angle) * distance + (Math.random() - 0.5) * 50,
+      x: center.x + Math.cos(angle) * distance + jitterX,
+      y: center.y + Math.sin(angle) * distance + jitterY,
       radius: nodeRadius,
       connections: [],
       metadata: {

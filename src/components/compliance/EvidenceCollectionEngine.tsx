@@ -291,7 +291,7 @@ export const EvidenceCollectionEngine: React.FC = () => {
             clearInterval(progressInterval);
             return 100;
           }
-          return prev + Math.random() * 15;
+          return prev + 15; // Fixed increment; real progress tracking requires event stream from edge function
         });
       }, 500);
 

@@ -730,7 +730,7 @@ export const SecurityEventsDashboard = () => {
                         {['login_failure', 'suspicious_activity', 'session_timeout'].map((type, index) => (
                           <div key={type} className="flex justify-between items-center">
                             <span className="text-sm">{type.replace('_', ' ')}</span>
-                            <Badge variant="secondary">{Math.floor(Math.random() * 50)}</Badge>
+                            <Badge variant="secondary">{'N/A'}</Badge>
                           </div>
                         ))}
                       </div>

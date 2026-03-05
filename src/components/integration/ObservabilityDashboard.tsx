@@ -34,38 +34,11 @@ export const ObservabilityDashboard = () => {
   ]);
 
   useEffect(() => {
-    // Generate mock real-time metrics
-    const generateMetrics = () => {
-      const now = new Date();
-      const data = Array.from({ length: 20 }, (_, i) => ({
-        timestamp: new Date(now.getTime() - (19 - i) * 60000).toISOString(),
-        latency: 50 + Math.random() * 100,
-        throughput: 1000 + Math.random() * 500,
-        errorRate: Math.random() * 5,
-        availability: 99 + Math.random() * 1
-      }));
-      setMetrics(data);
-    };
-
-    // Generate mock trace data
-    const generateTraces = () => {
-      const operations = ['auth.login', 'data.query', 'api.process', 'sync.update', 'webhook.handle'];
-      const data = Array.from({ length: 10 }, (_, i) => ({
-        id: `trace-${i}`,
-        operation: operations[Math.floor(Math.random() * operations.length)],
-        duration: 10 + Math.random() * 200,
-        status: Math.random() > 0.8 ? 'error' : Math.random() > 0.9 ? 'warning' : 'success',
-        spans: 3 + Math.floor(Math.random() * 10),
-        timestamp: new Date(Date.now() - Math.random() * 3600000).toISOString()
-      })) as TraceData[];
-      setTraces(data);
-    };
-
-    generateMetrics();
-    generateTraces();
-
-    const interval = setInterval(generateMetrics, 30000);
-    return () => clearInterval(interval);
+    // Real-time metrics and trace data require APM integration (Datadog, Jaeger, etc.)
+    // Returning empty arrays until real data sources are connected
+    setMetrics([]);
+    setTraces([]);
+    // No interval needed without real data source
   }, []);
 
   const getStatusIcon = (status: string) => {

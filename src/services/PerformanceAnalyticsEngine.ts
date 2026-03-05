@@ -57,15 +57,15 @@ export class PerformanceAnalyticsEngine {
     sources: string[] = ['application', 'infrastructure', 'database', 'api_gateway']
   ): Promise<PerformanceMetrics> {
     try {
-      // Mock real-time metrics collection - ready for actual monitoring integrations
+      // Real-time metrics require actual monitoring integrations (Datadog, CloudWatch, etc.)
       const mockMetrics: PerformanceMetrics = {
-        cpu_utilization: Math.random() * 100,
-        memory_usage: Math.random() * 100,
-        disk_io: Math.random() * 1000,
-        network_throughput: Math.random() * 10000,
-        response_time_ms: Math.random() * 500 + 50,
-        error_rate: Math.random() * 5,
-        concurrent_users: Math.floor(Math.random() * 1000) + 100
+        cpu_utilization: 0, // Real value requires infrastructure monitoring agent
+        memory_usage: 0, // Real value requires infrastructure monitoring agent
+        disk_io: 0, // Real value requires infrastructure monitoring agent
+        network_throughput: 0, // Real value requires infrastructure monitoring agent
+        response_time_ms: 0, // Real value requires APM integration
+        error_rate: 0, // Real value requires APM integration
+        concurrent_users: 0 // Real value requires session tracking
       };
 
       // Store metrics for trend analysis
@@ -314,10 +314,10 @@ export class PerformanceAnalyticsEngine {
     roi_projections: Record<string, number>;
   }> {
     try {
-      // Mock cost-performance analysis - ready for real cost tracking
+      // Cost-performance analysis requires real cost tracking integration (AWS Cost Explorer, etc.)
       const analysis = {
-        total_cost: Math.random() * 50000 + 10000, // $10k-$60k mock cost
-        cost_per_performance_unit: Math.random() * 100 + 50,
+        total_cost: 0, // Real value requires AWS Cost Explorer or cloud billing API
+        cost_per_performance_unit: 0, // Real value requires cost and performance data
         optimization_opportunities: [
           {
             area: 'Resource Right-sizing',
@@ -368,13 +368,13 @@ export class PerformanceAnalyticsEngine {
    * Private helper methods
    */
   private static async calculateSummaryStatistics(metrics: any[]) {
-    // Mock summary calculation
+    // Summary statistics require real metrics data from monitoring integrations
     return {
-      total_requests: Math.floor(Math.random() * 100000) + 10000,
-      average_response_time: Math.random() * 200 + 100,
-      peak_concurrent_users: Math.floor(Math.random() * 5000) + 1000,
-      uptime_percentage: 99.5 + Math.random() * 0.5,
-      compliance_score: 85 + Math.random() * 10
+      total_requests: 0, // Real value requires APM or API gateway metrics
+      average_response_time: 0, // Real value requires APM integration
+      peak_concurrent_users: 0, // Real value requires session tracking
+      uptime_percentage: 0, // Real value requires uptime monitoring
+      compliance_score: 0 // Real value requires compliance assessment data
     };
   }
 
