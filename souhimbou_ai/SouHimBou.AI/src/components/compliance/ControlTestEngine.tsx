@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -14,7 +12,6 @@ import {
   AlertTriangle,
   FileText,
   Database,
-  Shield,
   Zap
 } from 'lucide-react';
 
@@ -175,15 +172,7 @@ export const ControlTestEngine: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'passed': return 'bg-green-500';
-      case 'failed': return 'bg-red-500';
-      case 'running': return 'bg-blue-500';
-      case 'error': return 'bg-orange-500';
-      default: return 'bg-gray-500';
-    }
-  };
+
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -365,7 +354,7 @@ export const ControlTestEngine: React.FC = () => {
                     Evidence: {test.evidenceTypes.join(', ')}
                   </span>
                 </div>
-                {test.duration && (
+                {Boolean(test.duration) && (
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">
