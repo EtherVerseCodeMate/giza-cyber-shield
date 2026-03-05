@@ -58,7 +58,7 @@ export class PerformanceAnalyticsEngine {
   ): Promise<PerformanceMetrics> {
     try {
       // Real-time metrics require actual monitoring integrations (Datadog, CloudWatch, etc.)
-      const mockMetrics: PerformanceMetrics = {
+      const pendingMetrics: PerformanceMetrics = {
         cpu_utilization: 0, // Real value requires infrastructure monitoring agent
         memory_usage: 0, // Real value requires infrastructure monitoring agent
         disk_io: 0, // Real value requires infrastructure monitoring agent
@@ -75,15 +75,15 @@ export class PerformanceAnalyticsEngine {
           organization_id: organizationId,
           metric_type: 'realtime_performance',
           metric_name: `performance_${Date.now()}`,
-          metric_value: mockMetrics.response_time_ms,
+          metric_value: pendingMetrics.response_time_ms,
           metric_metadata: {
-            full_metrics: mockMetrics as any,
+            full_metrics: pendingMetrics as any,
             sources: sources,
             collected_at: new Date().toISOString()
           } as any
         });
 
-      return mockMetrics;
+      return pendingMetrics;
     } catch (error) {
       console.error('Real-time metrics collection failed:', error);
       throw error;
@@ -112,12 +112,12 @@ export class PerformanceAnalyticsEngine {
 
       // Calculate summary statistics
       const summary = await this.calculateSummaryStatistics(metrics);
-      
+
       // Analyze trends
       const trends = await this.analyzeTrends(metrics);
-      
+
       // Generate recommendations if requested
-      const recommendations = includeRecommendations 
+      const recommendations = includeRecommendations
         ? await this.generateOptimizationRecommendations(organizationId, summary, trends)
         : [];
 
@@ -266,9 +266,9 @@ export class PerformanceAnalyticsEngine {
       ];
 
       const performanceImprovement = optimizations.length * 0.1; // Mock 10% per optimization
-      const costImpact = optimizationLevel === 'aggressive' ? 0.15 : 
-                        optimizationLevel === 'moderate' ? 0.05 : 
-                        -0.05; // Conservative might reduce costs
+      const costImpact = optimizationLevel === 'aggressive' ? 0.15 :
+        optimizationLevel === 'moderate' ? 0.05 :
+          -0.05; // Conservative might reduce costs
 
       // Record optimizations
       await supabase

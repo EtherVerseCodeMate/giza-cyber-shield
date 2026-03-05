@@ -11,44 +11,14 @@ const STIGCheck = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [targetSystem, setTargetSystem] = useState("");
 
-  const mockResults = [
-    {
-      id: "V-220699",
-      title: "Windows Server 2022 must have password complexity enabled",
-      severity: "HIGH",
-      status: "COMPLIANT",
-      category: "Authentication",
-      system: "Windows Server 2022",
-      description: "Password complexity requirements must be configured to ensure strong authentication.",
-      evidence: "Group Policy configured: Computer Configuration\\Windows Settings\\Security Settings\\Account Policies\\Password Policy"
-    },
-    {
-      id: "V-220701",
-      title: "Audit policy for logon events must be configured",
-      severity: "MEDIUM", 
-      status: "NON_COMPLIANT",
-      category: "Auditing",
-      system: "Windows Server 2022",
-      description: "Audit logon events must be enabled to track authentication attempts.",
-      evidence: "Current setting: No Auditing | Required: Success and Failure"
-    },
-    {
-      id: "V-220705",
-      title: "Guest account must be disabled",
-      severity: "HIGH",
-      status: "COMPLIANT", 
-      category: "Access Control",
-      system: "Windows Server 2022",
-      description: "The built-in Guest account must be disabled to prevent unauthorized access.",
-      evidence: "Account Status: Disabled"
-    }
-  ];
+  // Awaiting telemetry for real scan results
+  const emptyResults: any[] = [];
 
   const handleScan = async () => {
     setIsScanning(true);
-    // Simulate scan delay
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    setScanResults(mockResults);
+    // Awaiting STIG scanning agent integration
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setScanResults(emptyResults as any);
     setIsScanning(false);
   };
 
@@ -110,27 +80,27 @@ const STIGCheck = () => {
                 {isScanning ? "Scanning..." : "Start STIG Scan"}
               </Button>
             </div>
-            
+
             {/* Quick Scan Options */}
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => setTargetSystem("Windows Server 2022")}
               >
                 <Server className="h-4 w-4 mr-1" />
                 Windows Server
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => setTargetSystem("Ubuntu 20.04")}
               >
                 <Database className="h-4 w-4 mr-1" />
                 Ubuntu Linux
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => setTargetSystem("Network Infrastructure")}
               >
