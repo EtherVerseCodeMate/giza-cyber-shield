@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AssetNetworkVisualization } from '@/components/AssetNetworkVisualization';
+
 import { TRL10DiscoveryConsole } from './TRL10DiscoveryConsole';
 import { ServiceMapper } from './ServiceMapper';
 import useRealTimeAssetDiscovery from '@/hooks/useRealTimeAssetDiscovery';
@@ -31,24 +31,17 @@ interface EnhancedSTIGConnectorProps {
 
 export const EnhancedSTIGConnector: React.FC<EnhancedSTIGConnectorProps> = ({ organizationId }) => {
   const {
-    discoveredAssets,
-    networkInfo,
     isScanning,
-    lastScanTime,
-    nodes,
-    edges,
     discoverLocalAssets,
-    protectAsset,
-    scanAsset
   } = useRealTimeAssetDiscovery();
 
-  const [discoveryJobs, setDiscoveryJobs] = useState<any[]>([]);
+  const [, setDiscoveryJobs] = useState<any[]>([]);
   const [discoveredAssetsDB, setDiscoveredAssetsDB] = useState<any[]>([]);
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [newTarget, setNewTarget] = useState('');
-  const [selectedCredentials, setSelectedCredentials] = useState<string[]>([]);
+
   const [targets, setTargets] = useState<string[]>([]);
-  const [showConsole, setShowConsole] = useState(true);
+  const [showConsole] = useState(true);
   const [statistics, setStatistics] = useState<any>(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -152,12 +145,12 @@ export const EnhancedSTIGConnector: React.FC<EnhancedSTIGConnectorProps> = ({ or
       return;
     }
 
-    if (!targets.includes(newTarget)) {
+    if (targets.includes(newTarget)) {
+      toast.error('Target already added');
+    } else {
       setTargets([...targets, newTarget]);
       setNewTarget('');
       toast.success('Target added to scan list');
-    } else {
-      toast.error('Target already added');
     }
   };
 
