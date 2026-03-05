@@ -147,18 +147,6 @@ export const STIGFirstComplianceDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 p-6">
-      {/* Critical Warning Banner */}
-      <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4">
-        <div className="flex items-center space-x-3">
-          <AlertTriangle className="h-6 w-6 text-red-400" />
-          <div>
-            <h3 className="font-bold text-red-400 text-lg">⚠️ DEMO MODE - NO REAL DATA CONNECTED</h3>
-            <p className="text-sm text-red-300">
-              This dashboard shows mock data only. Connect your infrastructure and security tools to begin real STIG compliance monitoring.
-            </p>
-          </div>
-        </div>
-      </div>
 
       {/* Header */}
       <div className="flex items-center justify-between">
