@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -63,7 +63,6 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
 
     setIsSubmitting(true);
     try {
-      console.log('Submitting agreements...', acceptedTerms);
       const success = await acceptAllAgreements(acceptedTerms);
       if (success) {
         // Delay slightly to ensure state is propagated

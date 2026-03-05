@@ -38,6 +38,7 @@ import LegalPage from "./views/LegalPage";
 import ThreatHuntingDashboard from "./views/ThreatHuntingDashboard";
 import IntegrationsPage from "./views/IntegrationsPage";
 import NotFound from "./views/NotFound";
+import { Navigate } from "react-router-dom";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -106,15 +107,20 @@ const App = () => {
                   <Route path="/clients/:org_id/overview" element={<ProtectedRoute><ClientPortal /></ProtectedRoute>} />
                   <Route path="/clients/:org_id" element={<ProtectedRoute><ClientPortal /></ProtectedRoute>} />
 
+                  {/* Settings stub — prevents broken nav link */}
+                  <Route path="/settings" element={<ProtectedRoute><Navigate to="/dashboard" replace /></ProtectedRoute>} />
+
                   {/* Catch-all */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
+
+                {/* NLChatPanel needs to be inside BrowserRouter for any future router usage */}
+                <NLChatPanel />
               </OrganizationProvider>
             </TooltipProvider>
           </SecurityHeaders>
         </AuthProvider>
       </QueryClientProvider>
-      <NLChatPanel />
     </BrowserRouter>
   );
 };
