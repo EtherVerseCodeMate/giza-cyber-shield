@@ -134,7 +134,7 @@ export class STIGViewerService {
         description: ruleData.description,
         checkText: ruleData.check_text || 'Refer to documentation',
         fixText: ruleData.fix_text || 'See official STIG guide',
-        severity: ruleData.severity?.toLowerCase()?.replace('_', '') as any || 'cat2',
+        severity: (ruleData.severity?.toLowerCase()?.replace('_', '') ?? 'cat2') as STIGRule['severity'],
         vulnId: ruleData.vuln_id || 'N/A',
         ruleId: ruleData.rule_id,
         version: ruleData.version || '1.0',
