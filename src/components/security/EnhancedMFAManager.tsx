@@ -5,12 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { 
-  Shield, 
-  Smartphone, 
-  Key, 
-  AlertTriangle, 
-  CheckCircle2,
+import {
+  Shield,
+  Key,
+  AlertTriangle,
   Clock,
   MapPin,
   Monitor,
@@ -53,7 +51,7 @@ export const EnhancedMFAManager = () => {
   const [emergencyAccessCodes, setEmergencyAccessCodes] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('setup');
-  
+
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -67,7 +65,7 @@ export const EnhancedMFAManager = () => {
 
   const loadTrustedDevices = async () => {
     if (!user) return;
-    
+
     try {
       const { data, error } = await supabase
         .from('security_devices')
@@ -76,7 +74,7 @@ export const EnhancedMFAManager = () => {
         .eq('is_trusted', true);
 
       if (error) throw error;
-      
+
       // Map security_devices to TrustedDevice format
       const devices: TrustedDevice[] = (data || []).map(device => ({
         id: device.id,
@@ -86,7 +84,7 @@ export const EnhancedMFAManager = () => {
         location: device.location_info || 'Unknown',
         trusted_until: device.trusted_until || new Date().toISOString()
       }));
-      
+
       setTrustedDevices(devices);
     } catch (error) {
       console.error('Error loading trusted devices:', error);
@@ -101,9 +99,9 @@ export const EnhancedMFAManager = () => {
         .eq('user_id', user?.id)
         .limit(1)
         .single();
-        
+
       if (!orgData) return;
-      
+
       const { data, error } = await supabase
         .from('organization_settings')
         .select('mfa_policy')
@@ -111,7 +109,7 @@ export const EnhancedMFAManager = () => {
         .single();
 
       if (error && error.code !== 'PGRST116') throw error;
-      
+
       if (data?.mfa_policy) {
         setMfaPolicy(data.mfa_policy as unknown as MFAPolicy);
       }
@@ -122,7 +120,7 @@ export const EnhancedMFAManager = () => {
 
   const loadEmergencyAccessCodes = async () => {
     if (!user) return;
-    
+
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -131,7 +129,7 @@ export const EnhancedMFAManager = () => {
         .single();
 
       if (error) throw error;
-      
+
       setEmergencyAccessCodes(data?.emergency_access_codes || []);
     } catch (error) {
       console.error('Error loading emergency access codes:', error);
@@ -140,13 +138,13 @@ export const EnhancedMFAManager = () => {
 
   const addTrustedDevice = async () => {
     if (!user) return;
-    
+
     setLoading(true);
     try {
       const deviceFingerprint = generateDeviceFingerprint();
       const newDevice: TrustedDevice = {
         id: crypto.randomUUID(),
-        name: `${navigator.platform} - ${navigator.userAgent.substring(0, 50)}...`,
+        name: `${(navigator as any).userAgentData?.platform || 'Unknown'} - ${navigator.userAgent.substring(0, 50)}...`,
         fingerprint: deviceFingerprint,
         last_used: new Date().toISOString(),
         location: 'Current Location', // Could integrate with geolocation
@@ -166,11 +164,11 @@ export const EnhancedMFAManager = () => {
           trusted_until: newDevice.trusted_until,
           risk_score: 0
         });
-        
+
       if (insertError) throw insertError;
 
       setTrustedDevices([...trustedDevices, newDevice].slice(-mfaPolicy.max_trusted_devices));
-      
+
       // Log security event
       await supabase.from('audit_logs').insert([{
         action: 'device_trusted',
@@ -200,7 +198,7 @@ export const EnhancedMFAManager = () => {
 
   const removeTrustedDevice = async (deviceId: string) => {
     if (!user) return;
-    
+
     setLoading(true);
     try {
       // Delete from security_devices table
@@ -209,11 +207,11 @@ export const EnhancedMFAManager = () => {
         .delete()
         .eq('id', deviceId)
         .eq('user_id', user.id);
-        
+
       if (deleteError) throw deleteError;
 
       setTrustedDevices(trustedDevices.filter(d => d.id !== deviceId));
-      
+
       // Log security event
       await supabase.from('audit_logs').insert([{
         action: 'device_untrusted',
@@ -239,20 +237,23 @@ export const EnhancedMFAManager = () => {
 
   const generateEmergencyAccessCodes = async () => {
     if (!user) return;
-    
+
     setLoading(true);
     try {
-      const codes = Array.from({ length: 5 }, () => 
-        Math.random().toString(36).substring(2, 10).toUpperCase()
-      );
-      
+      const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      const codes = Array.from({ length: 5 }, () => {
+        const bytes = new Uint8Array(8);
+        crypto.getRandomValues(bytes);
+        return Array.from(bytes, b => charset[b % charset.length]).join('');
+      });
+
       await supabase
         .from('profiles')
         .update({ emergency_access_codes: codes })
         .eq('user_id', user.id);
 
       setEmergencyAccessCodes(codes);
-      
+
       // Log security event
       await supabase.from('audit_logs').insert([{
         action: 'emergency_codes_generated',
@@ -285,20 +286,20 @@ export const EnhancedMFAManager = () => {
         .eq('user_id', user?.id)
         .limit(1)
         .single();
-        
+
       if (!orgData) throw new Error('No organization found');
-      
+
       const newPolicy = { ...mfaPolicy, ...updates };
-      
+
       await supabase
         .from('organization_settings')
-        .upsert({ 
+        .upsert({
           organization_id: orgData.organization_id,
-          mfa_policy: newPolicy 
+          mfa_policy: newPolicy
         }, { onConflict: 'organization_id' });
 
       setMfaPolicy(newPolicy);
-      
+
       // Log security event
       await supabase.from('audit_logs').insert([{
         action: 'mfa_policy_updated',
@@ -326,16 +327,16 @@ export const EnhancedMFAManager = () => {
     const fingerprint = {
       userAgent: navigator.userAgent,
       language: navigator.language,
-      platform: navigator.platform,
+      platform: (navigator as any).userAgentData?.platform || 'Unknown',
       cookieEnabled: navigator.cookieEnabled,
       screen: `${screen.width}x${screen.height}`,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
     };
-    
+
     let hash = 0;
     const str = JSON.stringify(fingerprint);
     for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
+      const char = str.codePointAt(i) || 0;
       hash = ((hash << 5) - hash) + char;
       hash = hash & hash;
     }
@@ -368,7 +369,7 @@ export const EnhancedMFAManager = () => {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-semibold">Trusted Devices</h3>
-                  <Button 
+                  <Button
                     onClick={addTrustedDevice}
                     disabled={loading || trustedDevices.length >= mfaPolicy.max_trusted_devices}
                     size="sm"
@@ -377,7 +378,7 @@ export const EnhancedMFAManager = () => {
                     Trust This Device
                   </Button>
                 </div>
-                
+
                 <div className="grid gap-4">
                   {trustedDevices.map((device) => (
                     <Card key={device.id} className="border">
@@ -416,7 +417,7 @@ export const EnhancedMFAManager = () => {
                       </CardContent>
                     </Card>
                   ))}
-                  
+
                   {trustedDevices.length === 0 && (
                     <div className="text-center py-8 text-muted-foreground">
                       <Monitor className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -432,7 +433,7 @@ export const EnhancedMFAManager = () => {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-semibold">Emergency Access Codes</h3>
-                  <Button 
+                  <Button
                     onClick={generateEmergencyAccessCodes}
                     disabled={loading}
                     variant="outline"
@@ -441,7 +442,7 @@ export const EnhancedMFAManager = () => {
                     Generate New Codes
                   </Button>
                 </div>
-                
+
                 {emergencyAccessCodes.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2 mb-2">
@@ -452,14 +453,14 @@ export const EnhancedMFAManager = () => {
                     </div>
                     <div className="grid grid-cols-1 gap-2">
                       {emergencyAccessCodes.map((code, index) => (
-                        <Badge key={index} variant="secondary" className="font-mono p-2 text-center">
+                        <Badge key={code} variant="secondary" className="font-mono p-2 text-center">
                           {code}
                         </Badge>
                       ))}
                     </div>
                   </div>
                 )}
-                
+
                 {emergencyAccessCodes.length === 0 && (
                   <div className="text-center py-8 text-muted-foreground">
                     <Key className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -473,7 +474,7 @@ export const EnhancedMFAManager = () => {
             <TabsContent value="policy" className="mt-6">
               <div className="space-y-6">
                 <h3 className="text-lg font-semibold">MFA Enforcement Policy</h3>
-                
+
                 <div className="grid gap-4">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">

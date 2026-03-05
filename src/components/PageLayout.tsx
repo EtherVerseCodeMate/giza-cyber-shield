@@ -1,4 +1,4 @@
-
+import React from 'react';
 import { BackButton, SideNavigation, Breadcrumb } from '@/components/ui/navigation';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { Card, CardContent } from '@/components/ui/card';

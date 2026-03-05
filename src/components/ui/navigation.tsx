@@ -1,17 +1,12 @@
-import { useState, Fragment } from 'react';
+import React, { Fragment } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { 
-  ArrowLeft, 
-  Home, 
-  Shield, 
-  Settings, 
-  FileText, 
-  Bot,
+import {
+  ArrowLeft,
+  Home,
+  FileText,
   Crown,
-  Zap,
   BarChart3,
-  Users,
   Plug
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -27,10 +22,7 @@ interface NavigationItem {
 
 const navigationItems: NavigationItem[] = [
   { id: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: Home, requiresAuth: true },
-  { id: 'security', label: 'Security', path: '/security', icon: Shield, requiresAuth: true },
   { id: 'integrations', label: 'Integrations', path: '/integrations', icon: Plug, requiresAuth: true },
-  { id: 'automation', label: 'Automation', path: '/automation', icon: Bot, requiresAuth: true },
-  { id: 'khepra', label: 'KHEPRA Protocol', path: '/khepra', icon: Zap, requiresAuth: true },
   { id: 'billing', label: 'Billing', path: '/billing', icon: BarChart3, requiresAuth: true },
   { id: 'admin', label: 'Admin', path: '/admin', icon: Crown, requiresAuth: true, requiresAdmin: true },
   { id: 'legal', label: 'Legal', path: '/legal', icon: FileText, requiresAuth: true },
