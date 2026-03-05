@@ -22,9 +22,13 @@ import (
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/agi"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/supabase"
 )
 
 // ─── Global Security Components ───────────────────────────────────────────────
+
+// bootstrapBanner is the border printed during bootstrap logging.
+const bootstrapBanner = "═══════════════════════════════════════════════════════════"
 
 // SecureDB is the global encrypted Supabase client.
 // Use this instead of direct Supabase calls for automatic encryption.
@@ -79,9 +83,9 @@ func Bootstrap() error {
 func BootstrapWithConfig(config *BootstrapConfig) error {
 	startTime := time.Now()
 
-	log.Println("═══════════════════════════════════════════════════════════")
+	log.Println(bootstrapBanner)
 	log.Println("🔐 KHEPRA PROTOCOL - PQC SECURITY BOOTSTRAP")
-	log.Println("═══════════════════════════════════════════════════════════")
+	log.Println(bootstrapBanner)
 
 	// ─── Step 1: Initialize PQC Keys ──────────────────────────────────────
 	log.Println("\n[1/4] Initializing PQC keys...")
@@ -92,8 +96,10 @@ func BootstrapWithConfig(config *BootstrapConfig) error {
 	// ─── Step 2: Initialize Secure Supabase Client ───────────────────────
 	log.Println("\n[2/4] Initializing secure Supabase client...")
 	SecureDB = NewSecureSupabaseClient(
-		config.SupabaseURL,
-		config.SupabaseKey,
+		supabase.Config{
+			ProjectURL:     config.SupabaseURL,
+			ServiceRoleKey: config.SupabaseKey,
+		},
 		GlobalKeys,
 	)
 	log.Println("✅ Supabase client ready (auto-encryption enabled)")
@@ -124,9 +130,9 @@ func BootstrapWithConfig(config *BootstrapConfig) error {
 
 	// ─── Bootstrap Complete ───────────────────────────────────────────────
 	elapsed := time.Since(startTime)
-	log.Println("\n═══════════════════════════════════════════════════════════")
+	log.Println("\n" + bootstrapBanner)
 	log.Printf("✅ PQC SECURITY BOOTSTRAP COMPLETE (%.2fs)", elapsed.Seconds())
-	log.Println("═══════════════════════════════════════════════════════════")
+	log.Println(bootstrapBanner)
 	log.Println()
 	log.Println("Security Status:")
 	log.Println("  ✅ 4-Layer PQC Encryption: ACTIVE")
