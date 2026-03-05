@@ -6,9 +6,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Network, 
-  Shield, 
+import {
+  Network,
+  Shield,
   AlertTriangle,
   CheckCircle,
   XCircle,
@@ -63,94 +63,14 @@ interface GraphData {
   };
 }
 
-const generateMockGraphData = (): GraphData => {
-  const frameworks = [
-    { id: 'soc2', label: 'SOC 2', type: 'framework', color: '#3b82f6' },
-    { id: 'iso27001', label: 'ISO 27001', type: 'framework', color: '#10b981' },
-    { id: 'pci', label: 'PCI DSS', type: 'framework', color: '#f59e0b' }
-  ];
-
-  const controls = [
-    { id: 'cc6.1', label: 'CC6.1 - Logical Access', type: 'control', color: '#8b5cf6', framework: 'soc2' },
-    { id: 'cc6.6', label: 'CC6.6 - MFA', type: 'control', color: '#8b5cf6', framework: 'soc2' },
-    { id: 'a9.2.1', label: 'A.9.2.1 - User Registration', type: 'control', color: '#10b981', framework: 'iso27001' },
-    { id: 'pci3.4', label: 'PCI 3.4 - Encryption', type: 'control', color: '#f59e0b', framework: 'pci' }
-  ];
-
-  const assets = [
-    { id: 'aws-prod', label: 'AWS Production', type: 'asset', color: '#ef4444', status: 'compliant' as const },
-    { id: 'okta', label: 'Okta Identity', type: 'asset', color: '#06b6d4', status: 'non-compliant' as const },
-    { id: 'github', label: 'GitHub Repos', type: 'asset', color: '#6366f1', status: 'compliant' as const },
-    { id: 'k8s-cluster', label: 'K8s Production', type: 'asset', color: '#f97316', status: 'unknown' as const }
-  ];
-
-  const evidence = [
-    { id: 'mfa-audit', label: 'MFA Audit Log', type: 'evidence', color: '#84cc16' },
-    { id: 's3-encryption', label: 'S3 Encryption Config', type: 'evidence', color: '#84cc16' },
-    { id: 'rbac-report', label: 'RBAC Report', type: 'evidence', color: '#84cc16' }
-  ];
-
-  const remediations = [
-    { id: 'fix-mfa', label: 'Enforce MFA', type: 'remediation', color: '#ec4899' },
-    { id: 'encrypt-s3', label: 'Enable S3 Encryption', type: 'remediation', color: '#ec4899' }
-  ];
-
-  // Position nodes in a circular layout with some randomization
-  const allNodes = [...frameworks, ...controls, ...assets, ...evidence, ...remediations];
-  const center = { x: 400, y: 300 };
-  const radius = 200;
-
-  const nodes: GraphNode[] = allNodes.map((node, index) => {
-    const angle = (index / allNodes.length) * 2 * Math.PI;
-    const nodeRadius = node.type === 'framework' ? 50 : node.type === 'control' ? 40 : 30;
-    const distance = node.type === 'framework' ? radius * 0.6 : radius + (index % 5) * 20;
-    // Deterministic offset based on index to avoid Math.random() for layout jitter
-    const jitterX = ((index * 37) % 50) - 25;
-    const jitterY = ((index * 53) % 50) - 25;
-
-    return {
-      ...node,
-      x: center.x + Math.cos(angle) * distance + jitterX,
-      y: center.y + Math.sin(angle) * distance + jitterY,
-      radius: nodeRadius,
-      connections: [],
-      metadata: {
-        lastUpdated: new Date(),
-        complianceStatus: (node as any).status || 'unknown'
-      }
-    } as GraphNode;
-  });
-
-  // Create meaningful edges
-  const edges: GraphEdge[] = [
-    // Framework to control relationships
-    { from: 'soc2', to: 'cc6.1', type: 'requires', strength: 1, color: '#3b82f6' },
-    { from: 'soc2', to: 'cc6.6', type: 'requires', strength: 1, color: '#3b82f6' },
-    { from: 'iso27001', to: 'a9.2.1', type: 'requires', strength: 1, color: '#10b981' },
-    { from: 'pci', to: 'pci3.4', type: 'requires', strength: 1, color: '#f59e0b' },
-
-    // Control to asset relationships
-    { from: 'cc6.6', to: 'okta', type: 'affects', strength: 0.8, color: '#8b5cf6' },
-    { from: 'pci3.4', to: 'aws-prod', type: 'affects', strength: 0.9, color: '#f59e0b' },
-    { from: 'a9.2.1', to: 'github', type: 'affects', strength: 0.7, color: '#10b981' },
-
-    // Evidence relationships
-    { from: 'cc6.6', to: 'mfa-audit', type: 'evidences', strength: 0.9, color: '#84cc16' },
-    { from: 'pci3.4', to: 's3-encryption', type: 'evidences', strength: 0.8, color: '#84cc16' },
-    { from: 'a9.2.1', to: 'rbac-report', type: 'evidences', strength: 0.7, color: '#84cc16' },
-
-    // Remediation relationships
-    { from: 'fix-mfa', to: 'cc6.6', type: 'remediates', strength: 1, color: '#ec4899', animated: true },
-    { from: 'encrypt-s3', to: 'pci3.4', type: 'remediates', strength: 1, color: '#ec4899', animated: true }
-  ];
-
+const generatePendingGraphData = (): GraphData => {
   return {
-    nodes,
-    edges,
+    nodes: [],
+    edges: [],
     metadata: {
-      totalNodes: nodes.length,
-      totalEdges: edges.length,
-      complianceScore: 78,
+      totalNodes: 0,
+      totalEdges: 0,
+      complianceScore: 0,
       lastUpdated: new Date()
     }
   };
@@ -158,7 +78,7 @@ const generateMockGraphData = (): GraphData => {
 
 export const ComplianceKnowledgeGraph: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [graphData, setGraphData] = useState<GraphData>(generateMockGraphData());
+  const [graphData, setGraphData] = useState<GraphData>(generatePendingGraphData());
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -190,14 +110,14 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
 
     // Apply filters
     const filteredNodes = graphData.nodes.filter(node => {
-      const matchesSearch = searchTerm === '' || 
+      const matchesSearch = searchTerm === '' ||
         node.label.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesType = filterType === 'all' || node.type === filterType;
       return matchesSearch && matchesType;
     });
 
     const filteredNodeIds = new Set(filteredNodes.map(n => n.id));
-    const filteredEdges = graphData.edges.filter(edge => 
+    const filteredEdges = graphData.edges.filter(edge =>
       filteredNodeIds.has(edge.from) && filteredNodeIds.has(edge.to)
     );
 
@@ -205,12 +125,12 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
     filteredEdges.forEach(edge => {
       const fromNode = filteredNodes.find(n => n.id === edge.from);
       const toNode = filteredNodes.find(n => n.id === edge.to);
-      
+
       if (!fromNode || !toNode) return;
 
       ctx.strokeStyle = edge.color;
       ctx.lineWidth = edge.strength * 2;
-      
+
       if (edge.animated) {
         ctx.setLineDash([5, 5]);
         ctx.lineDashOffset = -animationFrame * 0.1;
@@ -248,7 +168,7 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
     filteredNodes.forEach(node => {
       const isSelected = selectedNode?.id === node.id;
       const isHovered = hoveredNode?.id === node.id;
-      
+
       // Node circle with glow effect for selection
       if (isSelected || isHovered) {
         ctx.shadowColor = node.color;
@@ -264,8 +184,8 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
 
       // Status indicator for assets
       if (node.type === 'asset' && node.status) {
-        const statusColor = node.status === 'compliant' ? '#10b981' : 
-                          node.status === 'non-compliant' ? '#ef4444' : '#6b7280';
+        const statusColor = node.status === 'compliant' ? '#10b981' :
+          node.status === 'non-compliant' ? '#ef4444' : '#6b7280';
         ctx.fillStyle = statusColor;
         ctx.beginPath();
         ctx.arc(node.x + node.radius - 10, node.y - node.radius + 10, 8, 0, 2 * Math.PI);
@@ -283,7 +203,7 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
       ctx.font = `${node.radius > 35 ? '12' : '10'}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      
+
       // Multi-line text for larger nodes
       if (node.radius > 35) {
         const words = node.label.split(' ');
@@ -356,9 +276,9 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
 
       if (error) throw error;
 
-      // For now, regenerate mock data with some variations
-      setGraphData(generateMockGraphData());
-      
+      // For now, regenerate pending data
+      setGraphData(generatePendingGraphData());
+
       toast({
         title: "Graph Updated",
         description: "Knowledge graph has been refreshed with latest data",
@@ -415,9 +335,9 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
                     <Target className="h-4 w-4 mr-2" />
                     Refresh
                   </Button>
-                  <Button 
-                    onClick={() => setIsFullscreen(!isFullscreen)} 
-                    variant="outline" 
+                  <Button
+                    onClick={() => setIsFullscreen(!isFullscreen)}
+                    variant="outline"
                     size="sm"
                   >
                     {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
@@ -495,15 +415,14 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
                         {getTypeIcon(selectedNode.type)}
                         <span className="font-medium">{selectedNode.label}</span>
                       </div>
-                      
+
                       <div>
                         <Badge variant="outline">{selectedNode.type}</Badge>
                         {selectedNode.status && (
-                          <Badge 
-                            className={`ml-2 ${
-                              selectedNode.status === 'compliant' ? 'bg-green-500' :
-                              selectedNode.status === 'non-compliant' ? 'bg-red-500' : 'bg-gray-500'
-                            }`}
+                          <Badge
+                            className={`ml-2 ${selectedNode.status === 'compliant' ? 'bg-green-500' :
+                                selectedNode.status === 'non-compliant' ? 'bg-red-500' : 'bg-gray-500'
+                              }`}
                           >
                             {selectedNode.status}
                           </Badge>
@@ -590,7 +509,7 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
                 {graphData.edges.map((edge, index) => {
                   const fromNode = graphData.nodes.find(n => n.id === edge.from);
                   const toNode = graphData.nodes.find(n => n.id === edge.to);
-                  
+
                   return (
                     <div key={index} className="flex items-center justify-between p-3 border rounded">
                       <div className="flex items-center gap-4">
@@ -662,7 +581,7 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
                     {nodeTypes.slice(1).map(type => {
                       const count = graphData.nodes.filter(n => n.type === type).length;
                       const percentage = (count / graphData.nodes.length) * 100;
-                      
+
                       return (
                         <div key={type} className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -672,8 +591,8 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
                           <div className="flex items-center gap-2">
                             <span className="text-sm">{count}</span>
                             <div className="w-20 bg-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-blue-500 h-2 rounded-full" 
+                              <div
+                                className="bg-blue-500 h-2 rounded-full"
                                 style={{ width: `${percentage}%` }}
                               ></div>
                             </div>
@@ -690,15 +609,15 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
                     {['requires', 'affects', 'evidences', 'remediates'].map(type => {
                       const count = graphData.edges.filter(e => e.type === type).length;
                       const percentage = (count / graphData.edges.length) * 100;
-                      
+
                       return (
                         <div key={type} className="flex items-center justify-between">
                           <span className="capitalize">{type}</span>
                           <div className="flex items-center gap-2">
                             <span className="text-sm">{count}</span>
                             <div className="w-20 bg-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-green-500 h-2 rounded-full" 
+                              <div
+                                className="bg-green-500 h-2 rounded-full"
                                 style={{ width: `${percentage}%` }}
                               ></div>
                             </div>

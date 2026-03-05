@@ -7,15 +7,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Brain, 
-  Shield, 
-  CheckCircle, 
-  AlertTriangle, 
-  Clock, 
-  GitBranch, 
-  Eye, 
-  Play, 
+import {
+  Brain,
+  Shield,
+  CheckCircle,
+  AlertTriangle,
+  Clock,
+  GitBranch,
+  Eye,
+  Play,
   Pause,
   Settings,
   FileCheck,
@@ -133,70 +133,10 @@ export const AgenticComplianceArchitect: React.FC = () => {
   const fetchControlGaps = async () => {
     setIsLoading(true);
     try {
-      // Simulate fetching control gaps from assessment results
-      const mockGaps: ControlGap[] = [
-        {
-          id: '1',
-          controlId: 'SOC2-CC6.6',
-          framework: 'SOC 2',
-          severity: 'high',
-          status: 'remediation-planned',
-          description: 'Multi-factor authentication not enforced for all users',
-          affectedAssets: 45,
-          estimatedTime: '2 hours',
-          blastRadius: 3,
-          remediationPlan: {
-            tool: 'okta_api',
-            steps: [
-              'Update MFA policy for all users',
-              'Enable enforcement mode',
-              'Notify users of change'
-            ],
-            approvalRequired: true,
-            rollbackPlan: [
-              'Revert to previous MFA policy',
-              'Disable enforcement mode'
-            ]
-          }
-        },
-        {
-          id: '2',
-          controlId: 'PCI-3.4',
-          framework: 'PCI DSS',
-          severity: 'critical',
-          status: 'pending-approval',
-          description: 'S3 buckets without encryption at rest',
-          affectedAssets: 12,
-          estimatedTime: '30 minutes',
-          blastRadius: 2,
-          remediationPlan: {
-            tool: 'terraform',
-            steps: [
-              'Generate Terraform plan for S3 encryption',
-              'Create PR with encryption configuration',
-              'Apply changes after approval'
-            ],
-            approvalRequired: true,
-            rollbackPlan: [
-              'Revert Terraform changes',
-              'Restore previous bucket configuration'
-            ]
-          }
-        },
-        {
-          id: '3',
-          controlId: 'ISO-A.9.2.1',
-          framework: 'ISO 27001',
-          severity: 'medium',
-          status: 'analyzing',
-          description: 'GitHub branch protection rules missing',
-          affectedAssets: 8,
-          estimatedTime: '15 minutes',
-          blastRadius: 1
-        }
-      ];
-      
-      setControlGaps(mockGaps);
+      // Awaiting telemetry for real control gaps
+      const pendingGaps: ControlGap[] = [];
+
+      setControlGaps(pendingGaps);
     } catch (error) {
       console.error('Failed to fetch control gaps:', error);
     } finally {
@@ -205,45 +145,9 @@ export const AgenticComplianceArchitect: React.FC = () => {
   };
 
   const fetchCapabilities = async () => {
-    const mockCapabilities: AgentCapability[] = [
-      {
-        name: 'Asset Discovery',
-        status: 'active',
-        lastRun: new Date(Date.now() - 1000 * 60 * 30),
-        successRate: 95,
-        description: 'Discover and catalog assets across cloud, SaaS, and on-premises'
-      },
-      {
-        name: 'Control Testing',
-        status: 'active',
-        lastRun: new Date(Date.now() - 1000 * 60 * 15),
-        successRate: 88,
-        description: 'Continuously test compliance controls and collect evidence'
-      },
-      {
-        name: 'Evidence Collection',
-        status: 'active',
-        lastRun: new Date(Date.now() - 1000 * 60 * 5),
-        successRate: 92,
-        description: 'Gather and store immutable compliance evidence'
-      },
-      {
-        name: 'Remediation Planning',
-        status: 'active',
-        lastRun: new Date(Date.now() - 1000 * 60 * 45),
-        successRate: 85,
-        description: 'Generate safe, reversible remediation plans'
-      },
-      {
-        name: 'KHEPRA Attestation',
-        status: 'active',
-        lastRun: new Date(Date.now() - 1000 * 60 * 10),
-        successRate: 98,
-        description: 'Create cryptographically signed compliance attestations'
-      }
-    ];
-    
-    setCapabilities(mockCapabilities);
+    const pendingCapabilities: AgentCapability[] = [];
+
+    setCapabilities(pendingCapabilities);
   };
 
   const handleAgentToggle = async () => {
@@ -259,7 +163,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
         title: "Agent Started",
         description: `SouHimBou AI agent is now running in ${activeMode} mode`,
       });
-      
+
       // Trigger initial scan
       await triggerComplianceScan();
     }
@@ -303,7 +207,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
     if (!gap.remediationPlan) return;
 
     try {
-      setControlGaps(prev => prev.map(g => 
+      setControlGaps(prev => prev.map(g =>
         g.id === gap.id ? { ...g, status: 'remediating' } : g
       ));
 
@@ -325,7 +229,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
 
       // Update status after execution
       setTimeout(() => {
-        setControlGaps(prev => prev.map(g => 
+        setControlGaps(prev => prev.map(g =>
           g.id === gap.id ? { ...g, status: 'verified' } : g
         ));
       }, 2000);
@@ -441,11 +345,11 @@ export const AgenticComplianceArchitect: React.FC = () => {
           <Alert className="border-blue-200 bg-blue-50">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              <strong>CMMC Certification Goal:</strong> 78% complete - On track to achieve Level 2 certification within 90 days. 
+              <strong>CMMC Certification Goal:</strong> 78% complete - On track to achieve Level 2 certification within 90 days.
               AI engine has automated 89% of remediation tasks, reducing manual effort by 340 hours.
             </AlertDescription>
           </Alert>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <Card>
               <CardHeader>
@@ -556,7 +460,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                   <div className="text-sm text-muted-foreground">New This Week</div>
                 </div>
               </div>
-              
+
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 border rounded-lg">
@@ -580,7 +484,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="p-4 border rounded-lg">
                     <h4 className="font-medium mb-2">Identity Systems</h4>
                     <div className="space-y-2 text-sm">
@@ -603,7 +507,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <Button className="w-full">
                   <Play className="h-4 w-4 mr-2" />
                   Run Full Infrastructure Discovery
@@ -643,7 +547,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                   <div className="text-sm text-muted-foreground">Auto-Fixed</div>
                 </div>
               </div>
-              
+
               <div className="space-y-4">
                 <div className="p-4 border rounded-lg border-red-200 bg-red-50">
                   <div className="flex items-center justify-between mb-2">
@@ -662,7 +566,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                     </Button>
                   </div>
                 </div>
-                
+
                 <div className="p-4 border rounded-lg border-orange-200 bg-orange-50">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-medium text-orange-800">High: Missing MFA Enforcement</h4>
@@ -680,7 +584,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                     </Button>
                   </div>
                 </div>
-                
+
                 <Button className="w-full">
                   <Play className="h-4 w-4 mr-2" />
                   Start Comprehensive Security Scan
@@ -733,7 +637,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
               {isLoading ? 'Scanning...' : 'Refresh'}
             </Button>
           </div>
-          
+
           <div className="space-y-4">
             {controlGaps.map((gap) => (
               <Card key={gap.id}>
@@ -768,7 +672,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                       <div className="text-sm text-muted-foreground">Blast Radius</div>
                     </div>
                   </div>
-                  
+
                   {gap.remediationPlan && (
                     <div className="space-y-3">
                       <h5 className="font-medium">Remediation Plan ({gap.remediationPlan.tool})</h5>
@@ -779,7 +683,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                           </div>
                         ))}
                       </div>
-                      
+
                       {gap.remediationPlan.approvalRequired && gap.status === 'remediation-planned' && (
                         <Alert>
                           <AlertTriangle className="h-4 w-4" />
@@ -788,10 +692,10 @@ export const AgenticComplianceArchitect: React.FC = () => {
                           </AlertDescription>
                         </Alert>
                       )}
-                      
+
                       <div className="flex gap-2">
                         {gap.status === 'pending-approval' && (
-                          <Button 
+                          <Button
                             onClick={() => executeRemediation(gap)}
                             size="sm"
                           >
@@ -799,7 +703,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                           </Button>
                         )}
                         {gap.status === 'remediation-planned' && (
-                          <Button 
+                          <Button
                             onClick={() => executeRemediation(gap)}
                             size="sm"
                             variant="outline"
@@ -921,7 +825,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                     </CardContent>
                   </Card>
                 </div>
-                
+
                 <Alert>
                   <Shield className="h-4 w-4" />
                   <AlertDescription>

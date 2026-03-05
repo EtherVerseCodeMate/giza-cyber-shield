@@ -7,10 +7,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  GitBranch, 
-  CheckCircle, 
-  Clock, 
+import {
+  GitBranch,
+  CheckCircle,
+  Clock,
   AlertTriangle,
   Settings,
   Shield,
@@ -73,170 +73,11 @@ interface ExecutionLog {
   metadata?: Record<string, any>;
 }
 
-const mockPlaybooks: RemediationPlaybook[] = [
-  {
-    id: 'pb-1',
-    name: 'Enforce S3 Bucket Encryption',
-    description: 'Enable server-side encryption for all S3 buckets using KMS',
-    controlId: 'PCI-3.4-S3-SSE',
-    framework: 'PCI DSS',
-    tool: 'terraform',
-    riskLevel: 'medium',
-    estimatedTime: '15 minutes',
-    blastRadius: 3,
-    approvalRequired: true,
-    steps: [
-      {
-        id: 'step-1',
-        name: 'Scan for unencrypted buckets',
-        action: 'scan',
-        tool: 'aws-cli',
-        params: { service: 's3', resource: 'buckets' },
-        timeout: 300,
-        retryable: true,
-        critical: false
-      },
-      {
-        id: 'step-2',
-        name: 'Generate Terraform plan',
-        action: 'terraform_plan',
-        tool: 'terraform',
-        params: { workspace: 'production', target: 's3-encryption' },
-        timeout: 600,
-        retryable: true,
-        critical: true
-      },
-      {
-        id: 'step-3',
-        name: 'Apply encryption configuration',
-        action: 'terraform_apply',
-        tool: 'terraform',
-        params: { auto_approve: false },
-        timeout: 900,
-        retryable: false,
-        critical: true
-      }
-    ],
-    guardrails: [
-      'Verify no data loss during encryption',
-      'Ensure application access remains intact',
-      'Validate KMS key permissions'
-    ],
-    rollbackPlan: [
-      'Revert Terraform state',
-      'Restore original bucket policies',
-      'Verify application functionality'
-    ],
-    dependencies: ['AWS credentials', 'Terraform state access', 'KMS key availability']
-  },
-  {
-    id: 'pb-2',
-    name: 'Enforce Okta MFA for All Users',
-    description: 'Enable multi-factor authentication requirement for all users',
-    controlId: 'SOC2-CC6.6-OKTA-MFA',
-    framework: 'SOC 2',
-    tool: 'api',
-    riskLevel: 'high',
-    estimatedTime: '10 minutes',
-    blastRadius: 8,
-    approvalRequired: true,
-    steps: [
-      {
-        id: 'step-1',
-        name: 'Audit current MFA status',
-        action: 'get_users_mfa_status',
-        tool: 'okta-api',
-        params: { include_inactive: false },
-        timeout: 120,
-        retryable: true,
-        critical: false
-      },
-      {
-        id: 'step-2',
-        name: 'Update MFA policy',
-        action: 'update_mfa_policy',
-        tool: 'okta-api',
-        params: { enforce_mfa: true, grace_period: '48h' },
-        timeout: 300,
-        retryable: true,
-        critical: true
-      },
-      {
-        id: 'step-3',
-        name: 'Notify affected users',
-        action: 'send_notification',
-        tool: 'okta-api',
-        params: { template: 'mfa_enforcement', delay: '24h' },
-        timeout: 60,
-        retryable: true,
-        critical: false
-      }
-    ],
-    guardrails: [
-      'Ensure admin users have backup factors',
-      'Verify user notification system is working',
-      'Confirm 24h grace period before enforcement'
-    ],
-    rollbackPlan: [
-      'Disable MFA enforcement',
-      'Restore previous authentication policy',
-      'Notify users of policy rollback'
-    ],
-    dependencies: ['Okta admin API access', 'Email notification system', 'Admin MFA factors configured']
-  },
-  {
-    id: 'pb-3',
-    name: 'GitHub Branch Protection Rules',
-    description: 'Enforce branch protection rules for all repositories',
-    controlId: 'ISO-A.9.2.1-GITHUB-BRANCH',
-    framework: 'ISO 27001',
-    tool: 'api',
-    riskLevel: 'low',
-    estimatedTime: '5 minutes',
-    blastRadius: 2,
-    approvalRequired: false,
-    steps: [
-      {
-        id: 'step-1',
-        name: 'List organization repositories',
-        action: 'list_repos',
-        tool: 'github-api',
-        params: { org: 'organization', type: 'all' },
-        timeout: 60,
-        retryable: true,
-        critical: false
-      },
-      {
-        id: 'step-2',
-        name: 'Apply branch protection rules',
-        action: 'update_branch_protection',
-        tool: 'github-api',
-        params: { 
-          branch: 'main',
-          required_reviews: 2,
-          dismiss_stale_reviews: true,
-          require_code_owner_reviews: true
-        },
-        timeout: 300,
-        retryable: true,
-        critical: true
-      }
-    ],
-    guardrails: [
-      'Verify repository permissions',
-      'Ensure CI/CD workflows are not broken',
-      'Validate team access levels'
-    ],
-    rollbackPlan: [
-      'Remove branch protection rules',
-      'Restore original branch settings'
-    ],
-    dependencies: ['GitHub organization admin access', 'Repository list access']
-  }
-];
+// Awaiting telemetry for real remediation playbooks
+const pendingPlaybooks: RemediationPlaybook[] = [];
 
 export const RemediationOrchestrator: React.FC = () => {
-  const [playbooks, setPlaybooks] = useState<RemediationPlaybook[]>(mockPlaybooks);
+  const [playbooks, setPlaybooks] = useState<RemediationPlaybook[]>(pendingPlaybooks);
   const [executions, setExecutions] = useState<RemediationExecution[]>([]);
   const [selectedPlaybook, setSelectedPlaybook] = useState<RemediationPlaybook | null>(null);
   const [approvalQueue, setApprovalQueue] = useState<RemediationExecution[]>([]);
@@ -249,7 +90,7 @@ export const RemediationOrchestrator: React.FC = () => {
         if (execution.status === 'running' && execution.progress < 100) {
           const newProgress = Math.min(100, execution.progress + 10); // Fixed increment; real progress requires event stream from remediation engine
           const newStatus = newProgress >= 100 ? 'completed' : 'running';
-          
+
           if (newStatus === 'completed') {
             return {
               ...execution,
@@ -267,7 +108,7 @@ export const RemediationOrchestrator: React.FC = () => {
               ]
             };
           }
-          
+
           return {
             ...execution,
             progress: newProgress,
@@ -292,7 +133,7 @@ export const RemediationOrchestrator: React.FC = () => {
 
   const executePlaybook = async (playbook: RemediationPlaybook) => {
     const executionId = `exec-${Date.now()}`;
-    
+
     const execution: RemediationExecution = {
       id: executionId,
       playbookId: playbook.id,
@@ -314,10 +155,10 @@ export const RemediationOrchestrator: React.FC = () => {
     };
 
     setExecutions(prev => [...prev, execution]);
-    
+
     if (playbook.approvalRequired) {
       setApprovalQueue(prev => [...prev, execution]);
-      
+
       toast({
         title: "Approval Required",
         description: `Remediation ${playbook.name} is waiting for approval`,
@@ -344,10 +185,10 @@ export const RemediationOrchestrator: React.FC = () => {
         });
       } catch (error) {
         console.error('Failed to execute remediation:', error);
-        setExecutions(prev => prev.map(exec => 
+        setExecutions(prev => prev.map(exec =>
           exec.id === executionId ? { ...exec, status: 'failed' } : exec
         ));
-        
+
         toast({
           title: "Execution Failed",
           description: "Failed to start remediation execution",
@@ -358,9 +199,9 @@ export const RemediationOrchestrator: React.FC = () => {
   };
 
   const approveExecution = async (execution: RemediationExecution) => {
-    setExecutions(prev => prev.map(exec => 
-      exec.id === execution.id ? { 
-        ...exec, 
+    setExecutions(prev => prev.map(exec =>
+      exec.id === execution.id ? {
+        ...exec,
         status: 'running',
         approvedBy: 'current-user',
         logs: [
@@ -374,9 +215,9 @@ export const RemediationOrchestrator: React.FC = () => {
         ]
       } : exec
     ));
-    
+
     setApprovalQueue(prev => prev.filter(exec => exec.id !== execution.id));
-    
+
     toast({
       title: "Remediation Approved",
       description: "Execution has been approved and started",
@@ -387,9 +228,9 @@ export const RemediationOrchestrator: React.FC = () => {
     const playbook = playbooks.find(pb => pb.id === execution.playbookId);
     if (!playbook) return;
 
-    setExecutions(prev => prev.map(exec => 
-      exec.id === execution.id ? { 
-        ...exec, 
+    setExecutions(prev => prev.map(exec =>
+      exec.id === execution.id ? {
+        ...exec,
         status: 'rolled-back',
         logs: [
           ...exec.logs,
