@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { useKhepraDeployment } from '@/hooks/useKhepraDeployment';
+
 import { useKhepraAPI } from '@/hooks/useKhepraAPI';
 import {
     Server,
@@ -156,7 +156,7 @@ export function KhepraVPSIntegration({ config, updateConfig, isUpdating }: Khepr
                             variant="link"
                             size="sm"
                             className="text-[10px] uppercase font-black tracking-widest text-primary/60 hover:text-primary p-0 h-auto"
-                            onClick={() => window.open(`${url}/health`, '_blank')}
+                            onClick={() => globalThis.open(`${url}/health`, '_blank')}
                         >
                             <ExternalLink className="h-3 w-3 mr-2" /> Raw Telemetry Stream
                         </Button>

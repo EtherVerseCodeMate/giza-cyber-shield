@@ -78,7 +78,7 @@ export function KhepraLicenseWidget({ deploymentUrl, apiKey }: KhepraLicenseWidg
             LICENSE ERROR
           </CardTitle>
         </CardHeader>
-        <CardContent className>
+        <CardContent>
           <p className="text-sm text-red-400">
             Failed to retrieve license status. Node sync interrupted.
           </p>
@@ -240,7 +240,7 @@ export function KhepraLicenseWidget({ deploymentUrl, apiKey }: KhepraLicenseWidg
               >
                 {FEATURE_ICONS[feature] || <CheckCircle className="h-3 w-3 text-primary/60" />}
                 <span className="truncate">
-                  {feature.replace(/-/g, ' ')}
+                  {feature.replaceAll('-', ' ')}
                 </span>
               </div>
             ))}
