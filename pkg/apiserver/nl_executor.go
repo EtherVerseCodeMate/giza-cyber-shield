@@ -238,11 +238,19 @@ func (e *serverToolExecutor) dispatch(_ context.Context, toolName string, params
 
 	// ── Analytics & Reporting ──────────────────────────────────────────────────
 	case "khepra_get_risk_dashboard":
+		compScore := e.server.dagComplianceScore()
+		riskLevel := "LOW"
+		if compScore < 50.0 {
+			riskLevel = "CRITICAL"
+		} else if compScore < 75.0 {
+			riskLevel = "HIGH"
+		} else if compScore < 90.0 {
+			riskLevel = "MEDIUM"
+		}
 		return result(map[string]interface{}{
-			"overall_risk": "LOW", "compliance_score": 0.0,
+			"overall_risk": riskLevel, "compliance_score": compScore,
 			"active_incidents": 0, "critical_alerts": 0, "open_vulns": 0,
 			"dag_node_id": dagNodeID,
-			"note":        "Wire security_incidents + Supabase RPC for live risk posture",
 		})
 	case "khepra_generate_report":
 		reportType := str(p["report_type"])
@@ -273,7 +281,7 @@ func (e *serverToolExecutor) dispatch(_ context.Context, toolName string, params
 			framework = "CMMC_L2"
 		}
 		return result(map[string]interface{}{
-			"org_id": orgID, "framework": framework, "score": 0.0,
+			"org_id": orgID, "framework": framework, "score": e.server.dagComplianceScore(),
 			"controls": []interface{}{}, "dag_node_id": dagNodeID,
 		})
 	case "khepra_run_compliance_scan":
@@ -297,9 +305,14 @@ func (e *serverToolExecutor) dispatch(_ context.Context, toolName string, params
 			"nodes": nodes, "dag_node_id": dagNodeID,
 		})
 	case "khepra_export_attestation":
+		sigHex, pubHex, signed := e.server.signPayload(map[string]string{
+			"attestation_id": dagNodeID,
+			"format":        "C3PAO_EVIDENCE_PACKAGE",
+		})
 		return result(map[string]interface{}{
-			"attestation_id": dagNodeID, "pqc_signed": true,
+			"attestation_id": dagNodeID, "pqc_signed": signed,
 			"format": "C3PAO_EVIDENCE_PACKAGE", "dag_node_id": dagNodeID,
+			"sig": sigHex, "pub_key": pubHex,
 		})
 	case "khepra_get_anomaly_score":
 		return result(map[string]interface{}{

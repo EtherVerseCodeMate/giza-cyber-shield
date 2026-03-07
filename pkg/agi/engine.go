@@ -743,7 +743,7 @@ func (e *Engine) RunScan(target string) error {
 			Symbol: symbol,
 			Time:   lorentz.StampNow(),
 			PQC: map[string]string{
-				"crypto_agility_score": "0.0",
+				"crypto_agility_score": e.cryptoAgilityScore(r.Banner),
 				"signature_scheme":     "Dilithium-Mode3",
 				"risk_horizon":         "Y2Q-Critical",
 				"target":               r.Target,
@@ -797,6 +797,27 @@ func (e *Engine) getAGIIntuition(target string, results []scanner.Result) *apise
 		return nil
 	}
 	return pred
+}
+
+// cryptoAgilityScore derives a PQC readiness score from a service banner.
+// TLS 1.3 = 100 (quantum-ready handshake), TLS 1.2 = 75 (acceptable),
+// TLS 1.0/1.1 = 25 (deprecated), no TLS indicator = 0 (plaintext/unknown).
+func (e *Engine) cryptoAgilityScore(banner string) string {
+	b := strings.ToLower(banner)
+	switch {
+	case strings.Contains(b, "tlsv1.3") || strings.Contains(b, "tls 1.3") || strings.Contains(b, "tls/1.3"):
+		return "100.0"
+	case strings.Contains(b, "tlsv1.2") || strings.Contains(b, "tls 1.2") || strings.Contains(b, "tls/1.2"):
+		return "75.0"
+	case strings.Contains(b, "tlsv1.1") || strings.Contains(b, "tls 1.1") || strings.Contains(b, "tls/1.1"):
+		return "25.0"
+	case strings.Contains(b, "tlsv1.0") || strings.Contains(b, "tls 1.0") || strings.Contains(b, "tls/1.0"):
+		return "25.0"
+	case strings.Contains(b, "tls") || strings.Contains(b, "ssl"):
+		return "50.0"
+	default:
+		return "0.0"
+	}
 }
 
 func (e *Engine) formatIntuitionScore(intuition *apiserver.PredictResponse) string {
