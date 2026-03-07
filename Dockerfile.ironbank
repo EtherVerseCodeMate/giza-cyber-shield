@@ -5,40 +5,33 @@
 # Maintained by: NouchiX SecRed Knowledge Inc.
 # Iron Bank Compliance: RHEL-09-STIG-V1R3
 
-# Build arguments for Iron Bank base image
+# Build arguments for Iron Bank base images
 ARG BASE_REGISTRY=registry1.dso.mil
+# Builder uses IronBank Go toolchain image (no microdnf golang install needed)
+ARG BUILDER_IMAGE=ironbank/google/golang/golang
+ARG BUILDER_TAG=1.23
+# Runtime uses minimal UBI9 (attack surface reduction)
 ARG BASE_IMAGE=ironbank/redhat/ubi/ubi9-minimal
-ARG BASE_TAG=9.3
+ARG BASE_TAG=9.5
 
 # ============================================================================
 # STAGE 1: Builder (Offline Build Environment)
 # ============================================================================
-FROM ${BASE_REGISTRY}/${BASE_IMAGE}:${BASE_TAG} AS builder
+FROM ${BASE_REGISTRY}/${BUILDER_IMAGE}:${BUILDER_TAG} AS builder
 
 # Metadata for builder stage
 LABEL stage="builder"
 LABEL maintainer="Souhimbou D. Kone <souhimbou.d.kone.mil@army.mil>"
 LABEL description="ADINKHEPRA Protocol - Builder Stage"
 
-# Build arguments
+# Build arguments — no secret keys baked into build args (Trufflehog compliance)
 ARG VERSION=1.0.0
 ARG BUILD_DATE
 ARG VCS_REF
-ARG TELEMETRY_PRIVATE_KEY=""
 
-# Switch to root for package installation
+# IronBank Go builder image already has Go installed — no microdnf install needed.
+# Set Go environment for reproducible static binary compilation.
 USER root
-
-# Install build dependencies from Registry1 repos only
-# Note: No external network calls allowed in Iron Bank builds
-RUN microdnf install -y \
-    ca-certificates \
-    git \
-    golang \
-    && microdnf clean all \
-    && rm -rf /var/cache/yum
-
-# Set Go environment for static binary compilation
 ENV GOPATH=/go \
     GOCACHE=/go/cache \
     GOMODCACHE=/go/pkg/mod \
@@ -47,7 +40,7 @@ ENV GOPATH=/go \
     GOARCH=amd64 \
     GO111MODULE=on
 
-# Create non-root build user (security requirement)
+# Create non-root build user (security requirement, UID >= 1000)
 RUN useradd -m -u 1001 -g 0 -s /sbin/nologin builder && \
     mkdir -p /go /build && \
     chown -R 1001:0 /go /build
@@ -87,7 +80,6 @@ RUN go build \
     -X main.VERSION=${VERSION} \
     -X main.BUILD_DATE=${BUILD_DATE} \
     -X main.VCS_REF=${VCS_REF} \
-    -X main.telemetryPrivateKey=${TELEMETRY_PRIVATE_KEY} \
     -extldflags '-static'" \
     -tags=netgo \
     -o sonar \
@@ -248,6 +240,7 @@ RUN chmod +x \
     /usr/local/bin/khepra-daemon \
     /usr/local/bin/gateway \
     /usr/local/bin/agent \
+    /usr/local/bin/apiserver \
     /usr/local/bin/functional-test \
     /usr/local/bin/fips-test
 

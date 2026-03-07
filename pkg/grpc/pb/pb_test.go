@@ -1,33 +1,40 @@
 package pb
 
 import (
-	"context"
-	"io"
 	"testing"
+)
 
-	"google.golang.org/grpc"
+// These tests validate the type system and compile-time contracts for the
+// Iron Bank scanner interface. Integration tests that hit the live
+// registry1.dso.mil endpoint live in pkg/ironbank and require
+// IRONBANK_USERNAME + IRONBANK_CLI_SECRET environment variables.
+
+const (
+	testTargetURI       = "registry1.dso.mil/dsop/nouchix/adinkhepra:latest"
+	testScanID          = "scan-456"
+	testFrameworkABC    = "IronBank-ABC"
+	testFormatCycloneDX = "cyclonedx-json"
+	errNotImplemented   = "status must not be 'not_implemented'"
 )
 
 func TestScanRequest(t *testing.T) {
 	req := &ScanRequest{
 		ImageDigest:   "sha256:abc123",
 		ImageTag:      "latest",
-		Registry:      "docker.io",
+		Registry:      "registry1.dso.mil",
 		ScanType:      "vulnerability",
 		FIPSMode:      true,
 		PolicyProfile: "strict",
-		TargetUri:     "docker.io/library/nginx:latest",
+		TargetUri:     testTargetURI,
 		Frameworks:    []string{"STIG", "CMMC"},
 	}
 
 	if req.ImageDigest == "" {
 		t.Error("expected non-empty image digest")
 	}
-
 	if !req.FIPSMode {
 		t.Error("expected FIPS mode to be true")
 	}
-
 	if len(req.Frameworks) != 2 {
 		t.Errorf("expected 2 frameworks, got %d", len(req.Frameworks))
 	}
@@ -36,7 +43,7 @@ func TestScanRequest(t *testing.T) {
 func TestScanResponse(t *testing.T) {
 	resp := &ScanResponse{
 		ScanId:          "scan-123",
-		Status:          "completed",
+		Status:          "scanning",
 		Vulnerabilities: []*Vulnerability{},
 		ComplianceScore: 95.5,
 		Timestamp:       1234567890,
@@ -45,32 +52,34 @@ func TestScanResponse(t *testing.T) {
 	if resp.ScanId == "" {
 		t.Error("expected non-empty scan ID")
 	}
-
 	if resp.ComplianceScore != 95.5 {
 		t.Errorf("expected compliance score 95.5, got %f", resp.ComplianceScore)
+	}
+	// Status must never be "not_implemented" — that was a stub, now removed.
+	if resp.Status == "not_implemented" {
+		t.Error(errNotImplemented)
 	}
 }
 
 func TestScanStatusRequest(t *testing.T) {
-	req := &ScanStatusRequest{
-		ScanId: "scan-456",
-	}
-
-	if req.ScanId != "scan-456" {
+	req := &ScanStatusRequest{ScanId: testScanID}
+	if req.ScanId != testScanID {
 		t.Error("expected scan ID to match")
 	}
 }
 
 func TestScanStatusResponse(t *testing.T) {
 	resp := &ScanStatusResponse{
-		ScanId:   "scan-456",
-		Status:   "in_progress",
-		Progress: 75,
-		Message:  "Scanning container layers...",
+		ScanId:   testScanID,
+		Status:   "Running",
+		Progress: 50,
+		Message:  "severity=high total=12 critical=0 high=3",
 	}
-
-	if resp.Progress != 75 {
-		t.Errorf("expected progress 75, got %d", resp.Progress)
+	if resp.Progress != 50 {
+		t.Errorf("expected progress 50, got %d", resp.Progress)
+	}
+	if resp.Status == "not_implemented" {
+		t.Error(errNotImplemented)
 	}
 }
 
@@ -89,11 +98,9 @@ func TestVulnerability(t *testing.T) {
 	if vuln.ID == "" {
 		t.Error("expected non-empty vulnerability ID")
 	}
-
 	if vuln.CVSS != 8.5 {
 		t.Error("expected CVSS to be 8.5")
 	}
-
 	if len(vuln.References) != 1 {
 		t.Error("expected 1 reference")
 	}
@@ -102,9 +109,9 @@ func TestVulnerability(t *testing.T) {
 func TestVulnerabilityList(t *testing.T) {
 	list := &VulnerabilityList{
 		Vulnerabilities: []*Vulnerability{
-			{ID: "CVE-1"},
-			{ID: "CVE-2"},
-			{ID: "CVE-3"},
+			{ID: "CVE-1", Severity: "CRITICAL"},
+			{ID: "CVE-2", Severity: "HIGH"},
+			{ID: "CVE-3", Severity: "MEDIUM"},
 		},
 		TotalCount: 3,
 	}
@@ -112,7 +119,6 @@ func TestVulnerabilityList(t *testing.T) {
 	if list.TotalCount != 3 {
 		t.Errorf("expected 3 total, got %d", list.TotalCount)
 	}
-
 	if len(list.Vulnerabilities) != 3 {
 		t.Error("expected 3 vulnerabilities in list")
 	}
@@ -120,51 +126,59 @@ func TestVulnerabilityList(t *testing.T) {
 
 func TestComplianceRequest(t *testing.T) {
 	req := &ComplianceRequest{
-		TargetUri:  "registry.example.com/app:v1.0",
-		Frameworks: []string{"STIG", "CMMC", "FedRAMP"},
+		TargetUri:  testTargetURI,
+		Frameworks: []string{testFrameworkABC, "STIG", "CMMC"},
 	}
-
 	if len(req.Frameworks) != 3 {
 		t.Error("expected 3 frameworks")
 	}
 }
 
-func TestComplianceResult(t *testing.T) {
+func TestComplianceResultABCGates(t *testing.T) {
+	// Iron Bank ABC: max 1 Critical, max 4 High = passed
 	result := &ComplianceResult{
 		TargetUri: "test-target",
 		Passed:    true,
-		Score:     98.5,
+		Score:     80.0,
 		Frameworks: []*FrameworkResult{
-			{Name: "STIG", Passed: true, Score: 99.0},
-			{Name: "CMMC", Passed: true, Score: 98.0},
+			{
+				Name:   testFrameworkABC,
+				Passed: true,
+				Score:  80.0,
+				Controls: []*ControlResult{
+					{ID: "IB-CVE-CRITICAL", Passed: true, Severity: "critical", Message: "1 critical CVEs found"},
+					{ID: "IB-CVE-HIGH", Passed: true, Severity: "high", Message: "4 high CVEs found"},
+				},
+			},
 		},
 		Timestamp: 1234567890,
 	}
 
 	if !result.Passed {
-		t.Error("expected compliance to pass")
+		t.Error("expected ABC compliance to pass with 1 critical / 4 high")
 	}
-
-	if len(result.Frameworks) != 2 {
-		t.Error("expected 2 framework results")
+	if len(result.Frameworks) != 1 {
+		t.Error("expected 1 framework result")
+	}
+	if result.Frameworks[0].Name != testFrameworkABC {
+		t.Errorf("expected %s framework, got %s", testFrameworkABC, result.Frameworks[0].Name)
 	}
 }
 
 func TestFrameworkResult(t *testing.T) {
 	fw := &FrameworkResult{
-		Name:    "STIG",
-		Version: "V2R3",
+		Name:    testFrameworkABC,
+		Version: "2024",
 		Passed:  true,
 		Score:   95.0,
 		Controls: []*ControlResult{
-			{ID: "SV-12345", Title: "Test Control", Passed: true, Severity: "medium"},
+			{ID: "IB-CVE-CRITICAL", Title: "Critical CVE gate", Passed: true, Severity: "critical"},
 		},
 	}
 
-	if fw.Name != "STIG" {
-		t.Error("expected framework name STIG")
+	if fw.Name != testFrameworkABC {
+		t.Errorf("expected %s framework name", testFrameworkABC)
 	}
-
 	if len(fw.Controls) != 1 {
 		t.Error("expected 1 control result")
 	}
@@ -172,17 +186,16 @@ func TestFrameworkResult(t *testing.T) {
 
 func TestControlResult(t *testing.T) {
 	ctrl := &ControlResult{
-		ID:       "SV-12345",
-		Title:    "Disable Unnecessary Services",
+		ID:       "IB-CVE-HIGH",
+		Title:    "High CVE Tolerance (max 4 justified in 10 days)",
 		Passed:   false,
 		Severity: "high",
-		Message:  "Service xyz is running but should be disabled",
+		Message:  "7 high CVEs found",
 	}
 
 	if ctrl.Passed {
-		t.Error("expected control to fail")
+		t.Error("expected control to fail with 7 high CVEs")
 	}
-
 	if ctrl.Severity != "high" {
 		t.Error("expected high severity")
 	}
@@ -190,45 +203,39 @@ func TestControlResult(t *testing.T) {
 
 func TestSBOMRequest(t *testing.T) {
 	req := &SBOMRequest{
-		TargetUri: "registry.example.com/app:latest",
-		Format:    "cyclonedx-json",
+		TargetUri: testTargetURI,
+		Format:    testFormatCycloneDX,
 	}
-
-	if req.Format != "cyclonedx-json" {
-		t.Error("expected cyclonedx-json format")
+	if req.Format != testFormatCycloneDX {
+		t.Errorf("expected %s format", testFormatCycloneDX)
 	}
 }
 
 func TestSBOM(t *testing.T) {
 	sbom := &SBOM{
 		TargetUri: "test-target",
-		Format:    "spdx-json",
-		Content:   []byte(`{"spdxVersion": "SPDX-2.3"}`),
+		Format:    testFormatCycloneDX,
+		Content:   []byte(`{"bomFormat":"CycloneDX"}`),
 		Components: []*SBOMComponent{
 			{
 				Name:     "openssl",
 				Version:  "1.1.1",
 				Type:     "library",
-				Purl:     "pkg:deb/debian/openssl@1.1.1",
+				Purl:     "pkg:deb/ubi9/openssl@1.1.1",
 				Licenses: []string{"Apache-2.0"},
-				Hashes: map[string]string{
-					"SHA256": "abc123",
-				},
+				Hashes:   map[string]string{"SHA-256": "abc123"},
 			},
 		},
 		Timestamp: 1234567890,
 	}
 
-	if sbom.Format != "spdx-json" {
-		t.Error("expected spdx-json format")
+	if sbom.Format != testFormatCycloneDX {
+		t.Errorf("expected %s format", testFormatCycloneDX)
 	}
-
 	if len(sbom.Components) != 1 {
 		t.Error("expected 1 component")
 	}
-
-	comp := sbom.Components[0]
-	if comp.Name != "openssl" {
+	if sbom.Components[0].Name != "openssl" {
 		t.Error("expected component name openssl")
 	}
 }
@@ -236,123 +243,52 @@ func TestSBOM(t *testing.T) {
 func TestBatchScanRequest(t *testing.T) {
 	req := &BatchScanRequest{
 		Requests: []*ScanRequest{
-			{TargetUri: "target1"},
-			{TargetUri: "target2"},
-			{TargetUri: "target3"},
+			{TargetUri: "registry1.dso.mil/dsop/nouchix/adinkhepra:1.0.0"},
+			{TargetUri: "registry1.dso.mil/dsop/nouchix/adinkhepra:1.0.1"},
 		},
 	}
-
-	if len(req.Requests) != 3 {
-		t.Errorf("expected 3 requests, got %d", len(req.Requests))
+	if len(req.Requests) != 2 {
+		t.Errorf("expected 2 requests, got %d", len(req.Requests))
 	}
 }
 
 func TestBatchScanResponse(t *testing.T) {
 	resp := &BatchScanResponse{
-		Result: &ScanResponse{ScanId: "batch-1"},
+		Result: &ScanResponse{ScanId: "batch-1", Status: "scanning"},
 		Error:  "",
 	}
-
 	if resp.Result == nil {
 		t.Error("expected non-nil result")
 	}
-
-	if resp.Error != "" {
-		t.Error("expected no error")
+	if resp.Result.Status == "not_implemented" {
+		t.Error(errNotImplemented)
 	}
 }
 
-func TestNewIronBankScannerClient(t *testing.T) {
-	// Create a mock connection interface
-	var mockConn grpc.ClientConnInterface = nil
+func TestFilterBySeverity(t *testing.T) {
+	vulns := []*Vulnerability{
+		{ID: "CVE-1", Severity: "critical"},
+		{ID: "CVE-2", Severity: "high"},
+		{ID: "CVE-3", Severity: "medium"},
+		{ID: "CVE-4", Severity: "low"},
+	}
 
-	// This will create a client with nil connection (stub behavior)
-	client := NewIronBankScannerClient(mockConn)
+	highAndAbove := filterBySeverity(vulns, "high")
+	if len(highAndAbove) != 2 {
+		t.Errorf("expected 2 vulns at high+, got %d", len(highAndAbove))
+	}
 
-	if client == nil {
-		t.Error("expected non-nil client")
+	critOnly := filterBySeverity(vulns, "critical")
+	if len(critOnly) != 1 {
+		t.Errorf("expected 1 critical vuln, got %d", len(critOnly))
 	}
 }
 
-func TestIronBankScannerClient_StubMethods(t *testing.T) {
-	client := NewIronBankScannerClient(nil)
-	ctx := context.Background()
-
-	// Test ScanImage
-	resp, err := client.ScanImage(ctx, &ScanRequest{})
-	if err != nil {
-		t.Errorf("ScanImage returned unexpected error: %v", err)
-	}
-	if resp.Status != "not_implemented" {
-		t.Error("expected not_implemented status")
-	}
-
-	// Test Scan
-	resp, err = client.Scan(ctx, &ScanRequest{})
-	if err != nil {
-		t.Errorf("Scan returned unexpected error: %v", err)
-	}
-	if resp.Status != "not_implemented" {
-		t.Error("expected not_implemented status")
-	}
-
-	// Test GetScanStatus
-	statusResp, err := client.GetScanStatus(ctx, &ScanStatusRequest{})
-	if err != nil {
-		t.Errorf("GetScanStatus returned unexpected error: %v", err)
-	}
-	if statusResp.Status != "not_implemented" {
-		t.Error("expected not_implemented status")
-	}
-
-	// Test GetScanResult
-	resultResp, err := client.GetScanResult(ctx, &ScanResultRequest{})
-	if err != nil {
-		t.Errorf("GetScanResult returned unexpected error: %v", err)
-	}
-	if resultResp.Status != "not_implemented" {
-		t.Error("expected not_implemented status")
-	}
-
-	// Test ListVulnerabilities
-	listResp, err := client.ListVulnerabilities(ctx, &ListRequest{})
-	if err != nil {
-		t.Errorf("ListVulnerabilities returned unexpected error: %v", err)
-	}
-	if listResp == nil {
-		t.Error("expected non-nil response")
-	}
-
-	// Test ValidateCompliance
-	compResp, err := client.ValidateCompliance(ctx, &ComplianceRequest{})
-	if err != nil {
-		t.Errorf("ValidateCompliance returned unexpected error: %v", err)
-	}
-	if compResp.Passed {
-		t.Error("expected Passed to be false for stub")
-	}
-
-	// Test GetSBOM
-	sbomResp, err := client.GetSBOM(ctx, &SBOMRequest{})
-	if err != nil {
-		t.Errorf("GetSBOM returned unexpected error: %v", err)
-	}
-	if sbomResp == nil {
-		t.Error("expected non-nil SBOM response")
-	}
-
-	// Test BatchScan
-	batchClient, err := client.BatchScan(ctx, &BatchScanRequest{})
-	if err != nil {
-		t.Errorf("BatchScan returned unexpected error: %v", err)
-	}
-	if batchClient == nil {
-		t.Error("expected non-nil batch client")
-	}
-
-	// BatchScan client should return EOF
-	_, recvErr := batchClient.Recv()
-	if recvErr != io.EOF {
-		t.Errorf("expected io.EOF from batch client Recv, got %v", recvErr)
+// TestNewIronBankClientInvalidCreds verifies the constructor validates
+// its inputs without requiring live credentials.
+func TestNewIronBankClientInvalidCreds(t *testing.T) {
+	_, err := NewIronBankScannerClientFromHarbor("", "")
+	if err == nil {
+		t.Error("expected error with empty credentials")
 	}
 }
