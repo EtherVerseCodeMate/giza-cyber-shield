@@ -14,6 +14,8 @@ import (
 )
 
 // Control families for navigation
+const headerSeparator = "─────────────────────────────────────────"
+
 var controlFamilies = []string{"AC", "AU", "AT", "CM", "IA", "IR", "MA", "MP", "PE", "PS", "RA", "CA", "SC", "SI", "PM"}
 var currentFamilyIndex = 0
 var currentControlIndex = 0
@@ -201,7 +203,7 @@ func remediateControl(id string) {
 
 	fmt.Printf("\n[REMEDIATION] Control %s: %s\n", id, ctrl.Name)
 	fmt.Printf("  Family: %s\n", ctrl.Family)
-	fmt.Println("  ─────────────────────────────────────────")
+	fmt.Println("  " + headerSeparator)
 
 	// Platform-specific remediation scripts
 	switch id {
@@ -321,7 +323,7 @@ func setFamily(family string) {
 func listControls() {
 	family := controlFamilies[currentFamilyIndex]
 	fmt.Printf("\n[%s FAMILY CONTROLS]\n", family)
-	fmt.Println("─────────────────────────────────────────")
+	fmt.Println(headerSeparator)
 
 	for id, ctrl := range controlDB {
 		if ctrl.Family == family {
@@ -335,7 +337,7 @@ func listControls() {
 func focusFramework(framework string) {
 	fw := strings.ToLower(framework)
 	fmt.Printf("\n[FOCUS] Filtering controls for %s\n", framework)
-	fmt.Println("─────────────────────────────────────────")
+	fmt.Println(headerSeparator)
 
 	switch fw {
 	case "800-172", "nist-800-172", "enhanced":
@@ -377,7 +379,7 @@ func collectEvidence(id string) {
 	}
 
 	fmt.Printf("\n[EVIDENCE COLLECTION] Control %s: %s\n", id, ctrl.Name)
-	fmt.Println("─────────────────────────────────────────")
+	fmt.Println(headerSeparator)
 
 	evidenceDir := fmt.Sprintf("evidence/%s", id)
 	fmt.Printf("  📁 Evidence directory: %s\n", evidenceDir)
