@@ -54,6 +54,9 @@ import (
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
+const contentTypeHeader = "Content-Type"
+const contentTypeJSON = "application/json"
+
 type Config struct {
 	Port        string
 	APIBaseURL  string
@@ -160,7 +163,7 @@ func openBrowser(url string) {
 func serveUI(cfg Config) http.HandlerFunc {
 	html := buildHTML(cfg)
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set(contentTypeHeader, "text/html; charset=utf-8")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';")
@@ -491,7 +494,7 @@ func handleAsk(cfg Config) http.HandlerFunc {
 			jsonErr(w, "build request: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-		apiReq.Header.Set("Content-Type", "application/json")
+		apiReq.Header.Set(contentTypeHeader, contentTypeJSON)
 		if cfg.PQCToken != "" {
 			apiReq.Header.Set("X-Khepra-PQC-Token", cfg.PQCToken)
 		}
@@ -505,7 +508,7 @@ func handleAsk(cfg Config) http.HandlerFunc {
 				jsonErr(w, fmt.Sprintf("DEMARC offline, Ollama also failed: %v", ollamaErr), http.StatusServiceUnavailable)
 				return
 			}
-			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set(contentTypeHeader, contentTypeJSON)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"answer":       answer,
 				"source":       "ollama-direct",
@@ -517,7 +520,7 @@ func handleAsk(cfg Config) http.HandlerFunc {
 		defer resp.Body.Close()
 
 		// Stream response back to browser
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(contentTypeHeader, contentTypeJSON)
 		w.WriteHeader(resp.StatusCode)
 		io.Copy(w, resp.Body)
 	}
@@ -546,7 +549,7 @@ func queryOllamaDirect(ctx context.Context, client *http.Client, cfg Config, que
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(contentTypeHeader, contentTypeJSON)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -589,7 +592,7 @@ func handleHealth(cfg Config) http.HandlerFunc {
 			ollamaOK = resp.StatusCode == http.StatusOK
 		}
 
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(contentTypeHeader, contentTypeJSON)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":     "ok",
 			"api_ok":     apiOK,
@@ -623,7 +626,7 @@ func handleTools(cfg Config) http.HandlerFunc {
 		}
 		defer resp.Body.Close()
 
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(contentTypeHeader, contentTypeJSON)
 		w.WriteHeader(resp.StatusCode)
 		io.Copy(w, resp.Body)
 	}
@@ -632,7 +635,7 @@ func handleTools(cfg Config) http.HandlerFunc {
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 func jsonErr(w http.ResponseWriter, msg string, status int) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(contentTypeHeader, contentTypeJSON)
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
