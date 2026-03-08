@@ -33,18 +33,14 @@ RUN apt-get update && apt-get install -y \
 # Copy Python requirements
 COPY services/ml_anomaly/requirements.txt /app/requirements.txt
 
-# Install PyTorch CPU from dedicated index
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
-
-# Install remaining Python dependencies from PyPI
-RUN pip install --no-cache-dir \
+# Install PyTorch CPU from dedicated index and other dependencies
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir \
     -r requirements.txt \
     reportlab \
     websockets \
-    pydantic-settings
-
-# Create necessary directories
-RUN mkdir -p /app/data/cyber_brain /app/models /app/top_secret_intel
+    pydantic-settings && \
+    mkdir -p /app/data/cyber_brain /app/models /app/top_secret_intel
 
 # Copy Khepra binaries from builder
 COPY --from=builder /usr/local/bin/khepra /usr/local/bin/khepra

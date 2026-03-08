@@ -30,6 +30,9 @@ import (
 // CONFIGURATION
 // =============================================================================
 
+const contentTypeHeader = "Content-Type"
+const contentTypeJSON = "application/json"
+
 type PhantomConfig struct {
 	Symbol                string
 	NetworkMode           string
@@ -283,7 +286,7 @@ func (n *PhantomNode) getKeyID() string {
 // =============================================================================
 
 func (n *PhantomNode) handleHealth(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(contentTypeHeader, contentTypeJSON)
 	json.NewEncoder(w).Encode(HealthResponse{
 		Status:    "healthy",
 		Symbol:    n.config.Symbol,
@@ -297,7 +300,7 @@ func (n *PhantomNode) handleAddress(w http.ResponseWriter, r *http.Request) {
 	n.mutex.RLock()
 	defer n.mutex.RUnlock()
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(contentTypeHeader, contentTypeJSON)
 
 	windowSeconds := int64(n.config.RotationPeriod.Seconds())
 	if windowSeconds == 0 {
@@ -316,7 +319,7 @@ func (n *PhantomNode) handleStatus(w http.ResponseWriter, r *http.Request) {
 	n.mutex.RLock()
 	defer n.mutex.RUnlock()
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(contentTypeHeader, contentTypeJSON)
 
 	compliance := adinkra.MapSymbolToCompliance(n.config.Symbol)
 
@@ -346,7 +349,7 @@ func (n *PhantomNode) handlePeers(w http.ResponseWriter, r *http.Request) {
 	n.mutex.RLock()
 	defer n.mutex.RUnlock()
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(contentTypeHeader, contentTypeJSON)
 	json.NewEncoder(w).Encode(PeersResponse{
 		Peers: n.peers,
 		Count: len(n.peers),
@@ -383,7 +386,7 @@ func (n *PhantomNode) handleSign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(contentTypeHeader, contentTypeJSON)
 	json.NewEncoder(w).Encode(SignResponse{
 		MessageHash: hex.EncodeToString(msgHash[:]),
 		Signature:   hex.EncodeToString(signature),
@@ -401,7 +404,7 @@ func (n *PhantomNode) handleRoot(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			content, err := fs.ReadFile(staticFS, "index.html")
 			if err == nil {
-				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.Header().Set(contentTypeHeader, "text/html; charset=utf-8")
 				w.Write(content)
 				return
 			}
@@ -409,7 +412,7 @@ func (n *PhantomNode) handleRoot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fallback to JSON API response
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(contentTypeHeader, contentTypeJSON)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"name":    "Phantom Network Node",
 		"symbol":  n.config.Symbol,
