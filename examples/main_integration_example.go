@@ -15,6 +15,11 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const (
+	contentTypeHeader = "Content-Type"
+	contentTypeJSON   = "application/json"
+)
+
 func main() {
 	// ═══════════════════════════════════════════════════════════════════════
 	// STEP 1: Bootstrap PQC Security (CRITICAL - Must be first!)
@@ -70,7 +75,7 @@ func main() {
 func HealthHandler(w http.ResponseWriter, r *http.Request) {
 	health := security.HealthCheck()
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(contentTypeHeader, contentTypeJSON)
 	json.NewEncoder(w).Encode(health)
 }
 
@@ -78,7 +83,7 @@ func HealthHandler(w http.ResponseWriter, r *http.Request) {
 func SecurityMetricsHandler(w http.ResponseWriter, r *http.Request) {
 	metrics := security.GetSecurityMetrics()
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(contentTypeHeader, contentTypeJSON)
 	json.NewEncoder(w).Encode(metrics)
 }
 
@@ -99,7 +104,7 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(contentTypeHeader, contentTypeJSON)
 	json.NewEncoder(w).Encode(users)
 }
 
@@ -144,7 +149,7 @@ func GetLicensesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(contentTypeHeader, contentTypeJSON)
 	json.NewEncoder(w).Encode(hashes)
 }
 
