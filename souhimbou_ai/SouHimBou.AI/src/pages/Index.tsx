@@ -377,7 +377,7 @@ const Index = () => {
                     </div>
                     <div className="flex space-x-2">
                       <Button
-                        onClick={() => window.open('/security', '_blank')}
+                        onClick={() => globalThis.open('/security', '_blank')}
                         className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
                       >
                         <Shield className="h-4 w-4 mr-2" />

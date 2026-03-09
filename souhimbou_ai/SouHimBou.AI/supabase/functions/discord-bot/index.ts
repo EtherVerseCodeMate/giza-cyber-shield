@@ -73,7 +73,7 @@ async function verifyDiscordSignature(
 function hexToUint8Array(hex: string): Uint8Array {
     const bytes = new Uint8Array(hex.length / 2);
     for (let i = 0; i < hex.length; i += 2) {
-        bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+        bytes[i / 2] = Number.parseInt(hex.substring(i, i + 2), 16);
     }
     return bytes;
 }
@@ -135,7 +135,12 @@ async function handleScan(options: any[]) {
 
         const data = await res.json();
         const riskScore = data.risk_score || data.anomaly_score || 0;
-        const color = riskScore > 70 ? 0xFF0000 : riskScore > 40 ? 0xFF6B00 : 0x00CC66;
+        let color = 0x00CC66;
+        if (riskScore > 70) {
+            color = 0xFF0000;
+        } else if (riskScore > 40) {
+            color = 0xFF6B00;
+        }
 
         return {
             embeds: [infoEmbed(
@@ -160,7 +165,12 @@ async function handleCompliance() {
         const data = await res.json();
 
         const score = data.score || 0;
-        const color = score >= 80 ? 0x00CC66 : score >= 50 ? 0xFFD700 : 0xFF0000;
+        let color = 0xFF0000;
+        if (score >= 80) {
+            color = 0x00CC66;
+        } else if (score >= 50) {
+            color = 0xFFD700;
+        }
         const controls = data.controls || { total: 110, passing: 0, failing: 0 };
 
         return {
@@ -363,7 +373,7 @@ async function handleFirewall(options: any[]) {
             }
             case "block": {
                 if (!ip) return { embeds: [errorEmbed("Provide an IP: `/firewall block ip:1.2.3.4`")] };
-                const res = await khepraFetch("/api/v1/firewall/block", {
+                await khepraFetch("/api/v1/firewall/block", {
                     method: "POST",
                     body: JSON.stringify({ ip, reason: "Blocked via Discord bot" }),
                 });
@@ -489,52 +499,58 @@ async function handleStig(options: any[]) {
     }
 }
 
+async function handleDeployLast() {
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+        .from("deployment_log")
+        .select("*")
+        .order("deployed_at", { ascending: false })
+        .limit(1)
+        .single();
+    if (error || !data) return { embeds: [infoEmbed("🚀 Last Deployment", "No deployment records found.", [], 0x808080)] };
+    const time = `<t:${Math.floor(new Date(data.deployed_at).getTime() / 1000)}:R>`;
+    const depColor = data.status === "success" ? 0x00CC66 : 0xFF0000;
+    return {
+        embeds: [infoEmbed("🚀 Last Deployment", `Deployed ${time}`, [
+            { name: "📦 Service", value: `\`${data.service || "all"}\``, inline: true },
+            { name: "📍 Status", value: `\`${data.status || "unknown"}\``, inline: true },
+            { name: "👤 By", value: data.deployed_by || "system", inline: true },
+        ], depColor)],
+    };
+}
+
+async function handleDeployServices() {
+    const services = [
+        { name: "Fly.io (ML API)", endpoint: "/" },
+    ];
+    const checks = [];
+    for (const svc of services) {
+        try {
+            const res = await khepraFetch(svc.endpoint, { signal: AbortSignal.timeout(5000) });
+            checks.push({ name: `📦 ${svc.name}`, value: res.ok ? "`ONLINE`" : `\`ERROR ${res.status}\``, inline: true });
+        } catch {
+            checks.push({ name: `📦 ${svc.name}`, value: "`OFFLINE`", inline: true });
+        }
+    }
+    try {
+        const supabase = getSupabase();
+        const { error } = await supabase.from("profiles").select("id").limit(1);
+        checks.push({ name: "🗄️ Supabase", value: error ? "`ERROR`" : "`ONLINE`", inline: true });
+    } catch {
+        checks.push({ name: "🗄️ Supabase", value: "`OFFLINE`", inline: true });
+    }
+    return { embeds: [infoEmbed("🚀 Service Status", "Current deployment health:", checks, 0x00BFFF)] };
+}
+
 async function handleDeploy(options: any[]) {
     const action = options?.find((o: any) => o.name === "action")?.value;
 
     try {
         switch (action) {
-            case "last": {
-                const supabase = getSupabase();
-                const { data, error } = await supabase
-                    .from("deployment_log")
-                    .select("*")
-                    .order("deployed_at", { ascending: false })
-                    .limit(1)
-                    .single();
-                if (error || !data) return { embeds: [infoEmbed("🚀 Last Deployment", "No deployment records found.", [], 0x808080)] };
-                const time = `<t:${Math.floor(new Date(data.deployed_at).getTime() / 1000)}:R>`;
-                return {
-                    embeds: [infoEmbed("🚀 Last Deployment", `Deployed ${time}`, [
-                        { name: "📦 Service", value: `\`${data.service || "all"}\``, inline: true },
-                        { name: "📍 Status", value: `\`${data.status || "unknown"}\``, inline: true },
-                        { name: "👤 By", value: data.deployed_by || "system", inline: true },
-                    ], data.status === "success" ? 0x00CC66 : 0xFF0000)],
-                };
-            }
-            case "services": {
-                const services = [
-                    { name: "Fly.io (ML API)", endpoint: "/" },
-                ];
-                const checks = [];
-                for (const svc of services) {
-                    try {
-                        const res = await khepraFetch(svc.endpoint, { signal: AbortSignal.timeout(5000) });
-                        checks.push({ name: `📦 ${svc.name}`, value: res.ok ? "`ONLINE`" : `\`ERROR ${res.status}\``, inline: true });
-                    } catch {
-                        checks.push({ name: `📦 ${svc.name}`, value: "`OFFLINE`", inline: true });
-                    }
-                }
-                // Add Supabase
-                try {
-                    const supabase = getSupabase();
-                    const { error } = await supabase.from("profiles").select("id").limit(1);
-                    checks.push({ name: "🗄️ Supabase", value: error ? "`ERROR`" : "`ONLINE`", inline: true });
-                } catch {
-                    checks.push({ name: "🗄️ Supabase", value: "`OFFLINE`", inline: true });
-                }
-                return { embeds: [infoEmbed("🚀 Service Status", "Current deployment health:", checks, 0x00BFFF)] };
-            }
+            case "last":
+                return await handleDeployLast();
+            case "services":
+                return await handleDeployServices();
             default:
                 return { embeds: [errorEmbed(`Unknown deploy action: ${action}`)] };
         }

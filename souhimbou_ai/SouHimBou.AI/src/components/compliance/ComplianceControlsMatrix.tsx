@@ -179,7 +179,7 @@ export const ComplianceControlsMatrix = () => {
                   <div className="flex items-center space-x-2">
                     {getStatusIcon(control.implementation_status)}
                     <Badge className={getStatusBadge(control.implementation_status, 'implementation')}>
-                      {control.implementation_status.replace('_', ' ')}
+                      {control.implementation_status.replaceAll('_', ' ')}
                     </Badge>
                   </div>
                 </div>
@@ -190,7 +190,7 @@ export const ComplianceControlsMatrix = () => {
                   <div className="flex items-center space-x-2">
                     {getStatusIcon(control.test_status)}
                     <Badge className={getStatusBadge(control.test_status, 'test')}>
-                      {control.test_status.replace('_', ' ')}
+                      {control.test_status.replaceAll('_', ' ')}
                     </Badge>
                   </div>
                 </div>

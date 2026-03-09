@@ -312,7 +312,7 @@ export const POAMGenerator = () => {
                         {item.control_id}
                       </Badge>
                       <Badge className={getStatusColor(item.status)}>
-                        {item.status.replace('_', ' ')}
+                        {item.status.replaceAll('_', ' ')}
                       </Badge>
                       <Badge
                         variant="outline"

@@ -253,7 +253,7 @@ const EnterpriseEvidenceCollectionPage = () => {
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge className={getEvidenceTypeColor(item.evidence_type)}>
-                            {item.evidence_type.replace('_', ' ').toUpperCase()}
+                            {item.evidence_type.replaceAll('_', ' ').toUpperCase()}
                           </Badge>
                         </div>
                       </div>
