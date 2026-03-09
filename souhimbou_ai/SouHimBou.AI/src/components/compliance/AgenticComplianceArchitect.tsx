@@ -130,6 +130,23 @@ export const AgenticComplianceArchitect: React.FC = () => {
     }
   };
 
+  const updateGapStatus = (gapId: string, status: ControlGap['status']) => {
+    setControlGaps(prev => prev.map(g => g.id === gapId ? { ...g, status } : g));
+  };
+
+  const mapToControlGap = (d: any): ControlGap => ({
+    id: d.id,
+    controlId: d.control_id,
+    framework: 'SOC2 / TBD',
+    severity: d.severity as any || 'medium',
+    status: d.status as any || 'detected',
+    description: d.description || '',
+    affectedAssets: d.affected_assets || 0,
+    estimatedTime: '4h',
+    blastRadius: d.blast_radius || 5,
+    remediationPlan: d.remediation_plan ? (typeof d.remediation_plan === 'string' ? JSON.parse(d.remediation_plan) : d.remediation_plan) : undefined
+  });
+
   const fetchControlGaps = async () => {
     setIsLoading(true);
     try {
@@ -137,19 +154,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
       if (error) throw error;
 
       if (data && data.length > 0) {
-        const mappedGaps: ControlGap[] = data.map((d: any) => ({
-          id: d.id,
-          controlId: d.control_id,
-          framework: 'SOC2 / TBD',
-          severity: d.severity as any || 'medium',
-          status: d.status as any || 'detected',
-          description: d.description || '',
-          affectedAssets: d.affected_assets || 0,
-          estimatedTime: '4h',
-          blastRadius: d.blast_radius || 5,
-          remediationPlan: d.remediation_plan ? (typeof d.remediation_plan === 'string' ? JSON.parse(d.remediation_plan) : d.remediation_plan) : undefined
-        }));
-        setControlGaps(mappedGaps);
+        setControlGaps(data.map(mapToControlGap));
       } else {
         setControlGaps([]);
       }
@@ -225,9 +230,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
     try {
       await supabase.from('compliance_control_gaps').update({ status: 'remediating' }).eq('id', gap.id);
 
-      setControlGaps(prev => prev.map(g =>
-        g.id === gap.id ? { ...g, status: 'remediating' } : g
-      ));
+      updateGapStatus(gap.id, 'remediating');
 
       const { data, error } = await supabase.functions.invoke('grok-ai-agent', {
         body: {
@@ -247,9 +250,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
 
       await supabase.from('compliance_control_gaps').update({ status: 'verified' }).eq('id', gap.id);
 
-      setControlGaps(prev => prev.map(g =>
-        g.id === gap.id ? { ...g, status: 'verified' } : g
-      ));
+      updateGapStatus(gap.id, 'verified');
     } catch (error) {
       console.error('Failed to execute remediation:', error);
       toast({

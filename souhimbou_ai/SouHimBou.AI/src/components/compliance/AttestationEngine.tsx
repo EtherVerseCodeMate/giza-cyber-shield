@@ -90,14 +90,16 @@ export const AttestationEngine: React.FC = () => {
   const [adinkraEngine] = useState(new AdinkraAlgebraicEngine());
   const { toast } = useToast();
 
+  const refreshAttestations = () => {
+    setAttestations(prev => prev.map(att => ({
+      ...att,
+      trustScore: att.trustScore // Trust score is static until re-attested; real updates require re-running attestation
+    })));
+  };
+
   useEffect(() => {
     // Simulate real-time attestation updates
-    const interval = setInterval(() => {
-      setAttestations(prev => prev.map(att => ({
-        ...att,
-        trustScore: att.trustScore // Trust score is static until re-attested; real updates require re-running attestation
-      })));
-    }, 30000);
+    const interval = setInterval(refreshAttestations, 30000);
 
     return () => clearInterval(interval);
   }, []);
@@ -680,7 +682,7 @@ export const AttestationEngine: React.FC = () => {
                 </Alert>
 
                 <div className="space-y-3">
-                  {[...new Array(5)].map((_, index) => {
+                  {Array.from({ length: 5 }).map((_, index) => {
                     const timestamp = new Date(Date.now() - index * 1000 * 60 * 60 * 6);
                     const blockId = `block-${5 - index}`;
 
