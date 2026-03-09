@@ -65,10 +65,10 @@ export const KipIntegrationSettings = () => {
         .order('created_at', { ascending: false })
         .limit(1);
 
-      if (data && data.length > 0 && data[0].context) {
-        const savedSettings = data[0].context as Record<string, any>;
-        setSettings(prev => ({ 
-          ...prev, 
+      if (data && data.length > 0 && (data[0] as any).context) {
+        const savedSettings = (data[0] as any).context as Record<string, any>;
+        setSettings(prev => ({
+          ...prev,
           ...Object.fromEntries(
             Object.entries(savedSettings).filter(([key]) => key in prev)
           )
@@ -247,7 +247,7 @@ export const KipIntegrationSettings = () => {
               onCheckedChange={(checked) => setSettings(prev => ({ ...prev, enableWebhooks: checked }))}
             />
           </div>
-          
+
           {settings.enableWebhooks && (
             <>
               <div className="space-y-2">
@@ -265,7 +265,7 @@ export const KipIntegrationSettings = () => {
                   </Button>
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label>Webhook Endpoints</Label>
                 <div className="bg-muted p-3 rounded-lg text-sm font-mono space-y-1">
@@ -311,11 +311,10 @@ export const KipIntegrationSettings = () => {
                   {AVAILABLE_SYMBOLS.map((symbol) => (
                     <div
                       key={symbol.value}
-                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                        settings.adinkraSymbols.includes(symbol.value)
+                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${settings.adinkraSymbols.includes(symbol.value)
                           ? 'border-primary bg-primary/5'
                           : 'border-border'
-                      }`}
+                        }`}
                       onClick={() => handleSymbolToggle(symbol.value)}
                     >
                       <div className="flex items-center justify-between">

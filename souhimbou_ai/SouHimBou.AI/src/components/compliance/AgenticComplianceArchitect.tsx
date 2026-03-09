@@ -141,9 +141,9 @@ export const AgenticComplianceArchitect: React.FC = () => {
     severity: d.severity as any || 'medium',
     status: d.status as any || 'detected',
     description: d.description || '',
-    affectedAssets: d.affected_assets || 0,
+    affectedAssets: 0,
     estimatedTime: '4h',
-    blastRadius: d.blast_radius || 5,
+    blastRadius: 5,
     remediationPlan: d.remediation_plan ? (typeof d.remediation_plan === 'string' ? JSON.parse(d.remediation_plan) : d.remediation_plan) : undefined
   });
 
