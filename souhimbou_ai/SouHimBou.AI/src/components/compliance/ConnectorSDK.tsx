@@ -145,6 +145,12 @@ export const ConnectorSDK: React.FC = () => {
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const { toast } = useToast();
 
+  const calculateHealthScore = (status: string) => {
+    if (status === 'connected') return 100;
+    if (status === 'error') return 0;
+    return 50;
+  };
+
   useEffect(() => {
     const fetchConnectors = async () => {
       try {
@@ -162,11 +168,7 @@ export const ConnectorSDK: React.FC = () => {
             category: d.config?.category || 'cloud',
             status: d.status || 'disconnected',
             lastSync: d.last_sync ? new Date(d.last_sync) : new Date(),
-            healthScore: (() => {
-              if (d.status === 'connected') return 100;
-              if (d.status === 'error') return 0;
-              return 50;
-            })(),
+            healthScore: calculateHealthScore(d.status || 'disconnected'),
             capabilities: Array.isArray(d.capabilities) && d.capabilities.length > 0 ? d.capabilities : [
               { name: 'Discovery', type: 'discover', enabled: true, lastTested: new Date(), successRate: 100 }
             ],
