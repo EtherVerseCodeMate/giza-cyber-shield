@@ -165,9 +165,7 @@ func (am *AuthManager) Close() error {
 
 // BaseAuthProvider provides common functionality for auth adapters.
 type BaseAuthProvider struct {
-	name     string
-	endpoint string
-	timeout  time.Duration
+	name string
 }
 
 // GetName returns the provider name.

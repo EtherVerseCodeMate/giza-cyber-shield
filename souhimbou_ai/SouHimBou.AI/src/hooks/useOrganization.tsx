@@ -67,7 +67,7 @@ export const useOrganization = () => {
 
   const handleFetchError = async (error: any) => {
     // Detailed logging for debugging
-    console.warn('Organization fetch status:', { code: error.code, message: error.message, path: window.location.pathname });
+    console.warn('Organization fetch status:', { code: error.code, message: error.message, path: globalThis.location.pathname });
 
     // If JWT expired, sign out user - this is a critical state transition
     if (error.code === 'PGRST301') {
@@ -81,7 +81,7 @@ export const useOrganization = () => {
       console.error('Critical organization load failure:', error);
 
       // Suppress error toast on public landing page to prevent bad UX for unauthenticated/stale sessions
-      if (window.location.pathname === '/') {
+      if (globalThis.location.pathname === '/') {
         return;
       }
 

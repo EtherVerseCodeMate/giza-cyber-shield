@@ -101,7 +101,7 @@ const ReferralProgram = () => {
   };
 
   const copyReferralLink = () => {
-    const referralLink = `${window.location.origin}/signup?ref=${referralCode}`;
+    const referralLink = `${globalThis.location.origin}/signup?ref=${referralCode}`;
     navigator.clipboard.writeText(referralLink);
     toast({
       title: "Link copied!",
