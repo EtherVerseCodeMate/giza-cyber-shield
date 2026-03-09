@@ -29,8 +29,8 @@ const UltimateDashboard = () => {
 
     // WebSocket connection for real-time DAG updates
     useEffect(() => {
-        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const wsUrl = `${protocol}//${window.location.host}/ws/dag`;
+        const protocol = globalThis.location.protocol === "https:" ? "wss:" : "ws:";
+        const wsUrl = `${protocol}//${globalThis.location.host}/ws/dag`;
 
         const ws = new WebSocket(wsUrl);
 

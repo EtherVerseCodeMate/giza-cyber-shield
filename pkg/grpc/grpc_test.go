@@ -7,18 +7,9 @@ import (
 
 func TestBridgeConfig(t *testing.T) {
 	config := &BridgeConfig{
-		RegistryURL:     "ironbank.dso.mil",
-		ScannerEndpoint: "scanner.example.com:443",
-		ClientID:        "test-client",
-		ClientSecret:    "test-secret",
-		CertPath:        "/path/to/cert.pem",
-		KeyPath:         "/path/to/key.pem",
-		CACertPath:      "/path/to/ca.pem",
-		FIPSEnforced:    true,
-		AirGapped:       false,
-		Timeout:         5 * time.Minute,
-		MaxRetries:      3,
-		CacheTTL:        1 * time.Hour,
+		RegistryURL:  "ironbank.dso.mil",
+		FIPSEnforced: true,
+		MaxRetries:   3,
 	}
 
 	if config.RegistryURL != "ironbank.dso.mil" {
@@ -37,8 +28,6 @@ func TestBridgeConfig(t *testing.T) {
 func TestRetryPolicy(t *testing.T) {
 	policy := RetryPolicy{
 		MaxRetries:        5,
-		InitialBackoff:    100 * time.Millisecond,
-		MaxBackoff:        30 * time.Second,
 		BackoffMultiplier: 2.0,
 	}
 
@@ -53,7 +42,6 @@ func TestRetryPolicy(t *testing.T) {
 
 func TestScanCacheEntry(t *testing.T) {
 	entry := &ScanCacheEntry{
-		Result:    nil, // Would be a pb.ScanResponse in real usage
 		ExpiresAt: time.Now().Add(1 * time.Hour),
 	}
 

@@ -406,7 +406,7 @@ export const PapyrusChecklist: React.FC<PapyrusChecklistProps> = ({
                             variant="ghost"
                             size="sm"
                             className="h-6 px-2 text-xs"
-                            onClick={() => window.location.href = item.actionUrl!}
+                            onClick={() => globalThis.location.href = item.actionUrl!}
                           >
                             Take Action
                           </Button>

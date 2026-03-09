@@ -162,73 +162,13 @@ func main() {
 	server := apiserver.NewServer(config, dagAdapter, licAdapter)
 
 	// ── PQC Auth Gateway (ML-DSA-65 / NIST FIPS 204) ─────────────────────────
-	// Supports: Supabase JWT (email/Google/GitHub), SAML 2.0 (Claude Enterprise
-	// WorkOS), and native PQC tokens. Issues ML-DSA-65 signed JWTs for every
-	// authenticated session — zero-day proof at NIST Level 3.
-	pqcGateway, pqcErr := auth.NewPQCAuthGateway(nil, nil, auth.PQCAuthGatewayConfig{
-		Symbol:   "Eban", // Fortress — security gateway symbol
-		Issuer:   "khepra-pqc-gateway",
-		TokenTTL: time.Hour,
-	})
-	if pqcErr != nil {
-		log.Printf("WARNING: PQC auth gateway initialization failed: %v", pqcErr)
-		log.Println("  Falling back to legacy API key authentication")
-	} else {
-		server.WithPQCAuthGateway(pqcGateway)
-		log.Println("PQC auth gateway: ML-DSA-65 (NIST FIPS 204) — active")
-		log.Println("  Supported: Supabase JWT, SAML 2.0 (WorkOS/Claude Enterprise), PQC tokens")
-		if os.Getenv("SUPABASE_JWT_SECRET") == "" {
-			log.Println("  NOTE: SUPABASE_JWT_SECRET not set — Supabase Auth login disabled")
-		}
-	}
+	initPQCAuthGateway(server)
 
 	// ── Supabase MCP Persistence Layer ───────────────────────────────────────
-	supabaseURL := os.Getenv("SUPABASE_URL")
-	supabaseKey := os.Getenv("SUPABASE_SERVICE_ROLE_KEY")
-	if supabaseURL != "" && supabaseKey != "" {
-		sbClient := supabase.NewClient(supabase.Config{
-			ProjectURL:     supabaseURL,
-			ServiceRoleKey: supabaseKey,
-		})
-		mcpStore := supabase.NewMCPStore(sbClient)
-		server.WithMCPStore(mcpStore)
-		log.Printf("Supabase MCP store: connected (%s)", supabaseURL)
-	} else {
-		log.Println("Supabase MCP store: disabled (set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY)")
-	}
+	initSupabaseMCPStore(server)
 
 	// ── Natural Language Security Engine ─────────────────────────────────────
-	// Converts plain English security questions → tool chains → plain English answers.
-	// "Is my network compromised?" → IDS alerts + threat hunt → synthesized report.
-	llmProvider := os.Getenv("LLM_PROVIDER")
-	if llmProvider == "" {
-		llmProvider = "ollama" // default: local Ollama (phi4, llama3, etc.)
-	}
-	if llmProvider != "none" {
-		llmURL := os.Getenv("LLM_URL")
-		if llmURL == "" {
-			llmURL = "http://localhost:11434"
-		}
-		llmModel := os.Getenv("LLM_MODEL")
-		if llmModel == "" {
-			llmModel = "phi4"
-		}
-		llmAPIKey := os.Getenv("LLM_API_KEY")
-
-		ollamaClient := ollama.NewClient(llmURL, llmModel, llmAPIKey)
-		executor := apiserver.NewServerToolExecutor(server)
-		nlProc := mcp.NewNLProcessor(ollamaClient, executor)
-		server.WithNLProcessor(nlProc)
-
-		llmStatus := "offline (keyword routing active)"
-		if ollamaClient.CheckHealth() {
-			llmStatus = "online — full NL synthesis enabled"
-		}
-		log.Printf("NL security engine: provider=%s model=%s url=%s [%s]",
-			llmProvider, llmModel, llmURL, llmStatus)
-	} else {
-		log.Println("NL security engine: disabled (LLM_PROVIDER=none) — keyword routing active")
-	}
+	initNLProcessor(server)
 
 	// Start server in background
 	go func() {
@@ -291,6 +231,73 @@ func main() {
 	licMgr.Stop()
 
 	log.Println("DEMARC server exited gracefully. The Scarab rests.")
+}
+
+func initPQCAuthGateway(server *apiserver.Server) {
+	pqcGateway, pqcErr := auth.NewPQCAuthGateway(nil, nil, auth.PQCAuthGatewayConfig{
+		Symbol:   "Eban",
+		Issuer:   "khepra-pqc-gateway",
+		TokenTTL: time.Hour,
+	})
+	if pqcErr != nil {
+		log.Printf("WARNING: PQC auth gateway initialization failed: %v", pqcErr)
+		log.Println("  Falling back to legacy API key authentication")
+	} else {
+		server.WithPQCAuthGateway(pqcGateway)
+		log.Println("PQC auth gateway: ML-DSA-65 (NIST FIPS 204) — active")
+		log.Println("  Supported: Supabase JWT, SAML 2.0 (WorkOS/Claude Enterprise), PQC tokens")
+		if os.Getenv("SUPABASE_JWT_SECRET") == "" {
+			log.Println("  NOTE: SUPABASE_JWT_SECRET not set — Supabase Auth login disabled")
+		}
+	}
+}
+
+func initSupabaseMCPStore(server *apiserver.Server) {
+	supabaseURL := os.Getenv("SUPABASE_URL")
+	supabaseKey := os.Getenv("SUPABASE_SERVICE_ROLE_KEY")
+	if supabaseURL != "" && supabaseKey != "" {
+		sbClient := supabase.NewClient(supabase.Config{
+			ProjectURL:     supabaseURL,
+			ServiceRoleKey: supabaseKey,
+		})
+		mcpStore := supabase.NewMCPStore(sbClient)
+		server.WithMCPStore(mcpStore)
+		log.Printf("Supabase MCP store: connected (%s)", supabaseURL)
+	} else {
+		log.Println("Supabase MCP store: disabled (set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY)")
+	}
+}
+
+func initNLProcessor(server *apiserver.Server) {
+	llmProvider := os.Getenv("LLM_PROVIDER")
+	if llmProvider == "" {
+		llmProvider = "ollama"
+	}
+	if llmProvider != "none" {
+		llmURL := os.Getenv("LLM_URL")
+		if llmURL == "" {
+			llmURL = "http://localhost:11434"
+		}
+		llmModel := os.Getenv("LLM_MODEL")
+		if llmModel == "" {
+			llmModel = "phi4"
+		}
+		llmAPIKey := os.Getenv("LLM_API_KEY")
+
+		ollamaClient := ollama.NewClient(llmURL, llmModel, llmAPIKey)
+		executor := apiserver.NewServerToolExecutor(server)
+		nlProc := mcp.NewNLProcessor(ollamaClient, executor)
+		server.WithNLProcessor(nlProc)
+
+		llmStatus := "offline (keyword routing active)"
+		if ollamaClient.CheckHealth() {
+			llmStatus = "online — full NL synthesis enabled"
+		}
+		log.Printf("NL security engine: provider=%s model=%s url=%s [%s]",
+			llmProvider, llmModel, llmURL, llmStatus)
+	} else {
+		log.Println("NL security engine: disabled (LLM_PROVIDER=none) — keyword routing active")
+	}
 }
 
 func getSecretStatus() string {

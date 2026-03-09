@@ -185,7 +185,7 @@ export class OpenControlsAPIService {
 
       const cacheMetrics = data.filter(m => m.metric_type === 'cache_hit_rate');
       const cacheHitRate = cacheMetrics.length > 0
-        ? cacheMetrics[cacheMetrics.length - 1].metric_value
+        ? cacheMetrics.at(-1).metric_value
         : 0;
 
       return {

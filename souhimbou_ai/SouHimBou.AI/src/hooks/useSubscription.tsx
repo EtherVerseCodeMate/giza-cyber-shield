@@ -68,7 +68,7 @@ export const useSubscription = () => {
       if (error) throw error;
 
       // Open Stripe checkout in a new tab
-      window.open(data.url, '_blank');
+      globalThis.open(data.url, '_blank');
       
       return data;
     } catch (error: any) {
@@ -90,7 +90,7 @@ export const useSubscription = () => {
       if (error) throw error;
 
       // Open customer portal in a new tab
-      window.open(data.url, '_blank');
+      globalThis.open(data.url, '_blank');
       
       return data;
     } catch (error: any) {
