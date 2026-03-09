@@ -9,6 +9,16 @@ import (
 	"time"
 )
 
+const (
+	FrameworkRHEL09STIG = "RHEL-09-STIG-V1R3"
+	FrameworkCISL1      = "CIS-RHEL-9-L1"
+	FrameworkCISL2      = "CIS-RHEL-9-L2"
+	FrameworkNIST53     = "NIST-800-53-Rev5"
+	FrameworkNIST171    = "NIST-800-171-Rev2"
+	FrameworkCMMC       = "CMMC-3.0-L3"
+	FrameworkPQC        = "PQC-Readiness"
+)
+
 // Validator performs comprehensive STIG validation
 type Validator struct {
 	targetPath        string
@@ -21,13 +31,13 @@ func NewValidator(targetPath string) *Validator {
 	return &Validator{
 		targetPath: targetPath,
 		enabledFrameworks: []string{
-			"RHEL-09-STIG-V1R3",
-			"CIS-RHEL-9-L1",
-			"CIS-RHEL-9-L2",
-			"NIST-800-53-Rev5",
-			"NIST-800-171-Rev2",
-			"CMMC-3.0-L3",
-			"PQC-Readiness",
+			FrameworkRHEL09STIG,
+			FrameworkCISL1,
+			FrameworkCISL2,
+			FrameworkNIST53,
+			FrameworkNIST171,
+			FrameworkCMMC,
+			FrameworkPQC,
 		},
 		report: &ComprehensiveReport{
 			Results:         make(map[string]*ValidationResult),
@@ -133,19 +143,19 @@ func (v *Validator) validateFramework(framework string) error {
 	// Dispatch to framework-specific validator
 	var err error
 	switch framework {
-	case "RHEL-09-STIG-V1R3":
+	case FrameworkRHEL09STIG:
 		err = v.validateRHEL09STIG(result)
-	case "CIS-RHEL-9-L1":
+	case FrameworkCISL1:
 		err = v.validateCISBenchmarkL1(result)
-	case "CIS-RHEL-9-L2":
+	case FrameworkCISL2:
 		err = v.validateCISBenchmarkL2(result)
-	case "NIST-800-53-Rev5":
+	case FrameworkNIST53:
 		err = v.validateNIST80053(result)
-	case "NIST-800-171-Rev2":
+	case FrameworkNIST171:
 		err = v.validateNIST800171(result)
-	case "CMMC-3.0-L3":
+	case FrameworkCMMC:
 		err = v.validateCMMC(result)
-	case "PQC-Readiness":
+	case FrameworkPQC:
 		err = v.validatePQCReadiness(result)
 	default:
 		return fmt.Errorf("unknown framework: %s", framework)
@@ -323,24 +333,37 @@ func (v *Validator) generatePOAM() {
 func (v *Validator) generateExecutiveSummary() {
 	summary := ExecutiveSummary{}
 
-	// Calculate framework-specific compliance
-	if stig, ok := v.report.Results["RHEL-09-STIG-V1R3"]; ok {
+	v.calculateFrameworkCompliance(&summary)
+	v.calculateOverallCompliance(&summary)
+	v.countFindings(&summary)
+
+	// Risk assessment
+	summary.OverallRisk = RiskLevel(summary.CAT1Findings, summary.CAT2Findings, summary.CAT3Findings)
+
+	v.updatePQCAndRisks(&summary)
+
+	v.report.ExecutiveSummary = summary
+}
+
+func (v *Validator) calculateFrameworkCompliance(summary *ExecutiveSummary) {
+	if stig, ok := v.report.Results[FrameworkRHEL09STIG]; ok {
 		summary.STIGCompliance = stig.ComplianceScore()
 	}
-	if cis, ok := v.report.Results["CIS-RHEL-9-L2"]; ok {
+	if cis, ok := v.report.Results[FrameworkCISL2]; ok {
 		summary.CISCompliance = cis.ComplianceScore()
 	}
-	if nist53, ok := v.report.Results["NIST-800-53-Rev5"]; ok {
+	if nist53, ok := v.report.Results[FrameworkNIST53]; ok {
 		summary.NIST80053Compliance = nist53.ComplianceScore()
 	}
-	if nist171, ok := v.report.Results["NIST-800-171-Rev2"]; ok {
+	if nist171, ok := v.report.Results[FrameworkNIST171]; ok {
 		summary.NIST800171Compliance = nist171.ComplianceScore()
 	}
-	if cmmc, ok := v.report.Results["CMMC-3.0-L3"]; ok {
+	if cmmc, ok := v.report.Results[FrameworkCMMC]; ok {
 		summary.CMMCCompliance = cmmc.ComplianceScore()
 	}
+}
 
-	// Calculate overall compliance (average)
+func (v *Validator) calculateOverallCompliance(summary *ExecutiveSummary) {
 	total := 0.0
 	count := 0
 	for _, result := range v.report.Results {
@@ -353,8 +376,9 @@ func (v *Validator) generateExecutiveSummary() {
 		summary.OverallCompliance = total / float64(count)
 	}
 	summary.ComplianceGrade = ComplianceGrade(summary.OverallCompliance)
+}
 
-	// Count critical findings
+func (v *Validator) countFindings(summary *ExecutiveSummary) {
 	for _, result := range v.report.Results {
 		for _, finding := range result.Findings {
 			if finding.Status == "Fail" {
@@ -369,36 +393,29 @@ func (v *Validator) generateExecutiveSummary() {
 			}
 		}
 	}
+}
 
-	// Risk assessment
-	summary.OverallRisk = RiskLevel(summary.CAT1Findings, summary.CAT2Findings, summary.CAT3Findings)
-
-	// PQC readiness
+func (v *Validator) updatePQCAndRisks(summary *ExecutiveSummary) {
 	if v.report.PQCBlastRadius != nil {
 		summary.PQCReadinessGrade = ComplianceGrade(v.report.PQCBlastRadius.PQCReadinessScore)
 		summary.PQCMigrationRequired = v.report.PQCBlastRadius.PQCReadinessScore < 95.0
 	}
 
-	// Top risks
 	summary.TopRisks = []string{
 		fmt.Sprintf("%d CAT I/Critical findings requiring immediate remediation", summary.CAT1Findings),
 		fmt.Sprintf("%d CAT II/High findings requiring attention", summary.CAT2Findings),
 	}
-	if summary.PQCMigrationRequired {
-		summary.TopRisks = append(summary.TopRisks, "Post-quantum cryptography migration required")
-	}
 
-	// Executive recommendations
 	summary.ExecutiveRecommendations = []string{
 		fmt.Sprintf("Address %d critical findings within 30 days", summary.CAT1Findings),
 		fmt.Sprintf("Implement Plan of Action & Milestones for %d open items", len(v.report.POAMItems)),
 	}
+
 	if summary.PQCMigrationRequired {
+		summary.TopRisks = append(summary.TopRisks, "Post-quantum cryptography migration required")
 		summary.ExecutiveRecommendations = append(summary.ExecutiveRecommendations,
 			"Initiate post-quantum cryptography migration planning")
 	}
-
-	v.report.ExecutiveSummary = summary
 }
 
 // GetReport returns the generated compliance report
