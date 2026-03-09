@@ -390,7 +390,7 @@ async function processControl(
 
   if (existing) {
     // Update existing record based on task type
-    let updateData: any = { updated_at: now };
+    const updateData: any = { updated_at: now };
     
     switch (taskType) {
       case 'assessment':

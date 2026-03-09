@@ -78,7 +78,7 @@ serve(async (req: Request) => {
 async function investigateSpecificIP(ip: string) {
   console.log(`Performing detailed investigation of ${ip}`);
 
-  let results = {
+  const results = {
     indicator: ip,
     type: 'ip',
     is_real: false,
