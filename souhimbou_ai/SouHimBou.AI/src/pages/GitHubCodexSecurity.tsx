@@ -317,7 +317,7 @@ export default function GitHubCodexSecurity() {
                         ) : (
                           <AlertTriangle className="h-5 w-5 text-destructive" />
                         )}
-                        <span>{check.type.replace('_', ' ').toUpperCase()}</span>
+                        <span>{check.type.replaceAll('_', ' ').toUpperCase()}</span>
                       </span>
                       <Badge className={
                         check.status === 'pass' ? 'bg-success text-success-foreground' :

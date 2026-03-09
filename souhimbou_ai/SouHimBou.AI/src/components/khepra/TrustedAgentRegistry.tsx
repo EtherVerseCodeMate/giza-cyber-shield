@@ -571,7 +571,7 @@ export const TrustedAgentRegistryComponent = () => {
                   {selectedAgent.credentials.map((cred, idx) => (
                     <div key={idx} className="p-2 bg-muted rounded text-sm">
                       <div className="flex items-center justify-between">
-                        <span className="font-medium">{cred.credentialType.replace('_', ' ')}</span>
+                        <span className="font-medium">{cred.credentialType.replaceAll('_', ' ')}</span>
                         <Badge variant="outline" className="text-xs">
                           Valid until {cred.validUntil.toLocaleDateString()}
                         </Badge>

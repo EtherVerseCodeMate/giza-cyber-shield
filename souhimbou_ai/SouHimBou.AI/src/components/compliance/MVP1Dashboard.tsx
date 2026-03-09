@@ -291,7 +291,7 @@ export const MVP1Dashboard = () => {
                       </Button>
                       <Button
                         variant="outline"
-                        onClick={() => window.open('mailto:pilot@stigfirst.com', '_blank')}
+                        onClick={() => globalThis.open('mailto:pilot@stigfirst.com', '_blank')}
                       >
                         Contact Sales
                       </Button>

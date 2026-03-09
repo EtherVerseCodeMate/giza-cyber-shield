@@ -78,7 +78,7 @@ export const ValueDemonstrator = () => {
     // Animate values on mount
     const timers = metrics.map((metric, index) => {
       return setTimeout(() => {
-        const finalValue = parseFloat(metric.value.replace(/[^\d.]/g, ''));
+        const finalValue = Number.parseFloat(metric.value.replace(/[^\d.]/g, ''));
         let current = 0;
         const increment = finalValue / 30;
         
