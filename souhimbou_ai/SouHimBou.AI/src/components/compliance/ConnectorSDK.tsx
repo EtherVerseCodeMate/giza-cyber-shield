@@ -7,6 +7,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useConnectorLearning } from '@/hooks/useConnectorLearning';
+import { writeDAGNode } from '@/services/ConnectorDAG';
 import {
   Plug,
   CheckCircle,
@@ -24,7 +26,9 @@ import {
   Trash,
   TestTube,
   FileText,
-  Github
+  Github,
+  Brain,
+  Loader2
 } from 'lucide-react';
 
 interface Connector {
@@ -143,6 +147,15 @@ export const ConnectorSDK: React.FC = () => {
   const [showAddConnector, setShowAddConnector] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ConnectorTemplate | null>(null);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
+  // Learning Mode: shown when a test fails for connectors that allow it
+  const [learningConnectorId, setLearningConnectorId] = useState<string | null>(null);
+  const {
+    status: learningStatus,
+    analysis: learningAnalysis,
+    error: learningError,
+    trigger: triggerLearning,
+    reset: resetLearning,
+  } = useConnectorLearning();
   const { toast } = useToast();
 
   const calculateHealthScore = (status: string) => {
@@ -190,23 +203,59 @@ export const ConnectorSDK: React.FC = () => {
 
   const testConnection = async (connector: Connector) => {
     setIsTestingConnection(true);
+    resetLearning();
+    setLearningConnectorId(null);
+
+    // Resolve org from auth
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user?.id) {
+      toast({ title: 'Not authenticated', variant: 'destructive' });
+      setIsTestingConnection(false);
+      return;
+    }
+    const orgId = userData.user.id;
+
+    // DAG: record test start
+    const testNodeHash = await writeDAGNode({
+      action: 'connector.test',
+      symbol: 'connector-sdk',
+      organizationId: orgId,
+      connectorId: connector.id,
+      pqcMetadata: { provider: connector.provider, threatLevel: 'green' },
+    });
 
     try {
-      const { data, error } = await supabase.functions.invoke('grok-ai-agent', {
+      // Route through mitochondrial-proxy (PQC-OAuth gateway)
+      const { data, error } = await supabase.functions.invoke('mitochondrial-proxy', {
         body: {
-          action: 'test_connector',
-          connector: {
-            id: connector.id,
-            provider: connector.provider,
-            configuration: connector.configuration
-          }
-        }
+          action: 'test',
+          connector_id: connector.id,
+          organization_id: orgId,
+          provider: connector.provider,
+          configuration: connector.configuration,
+          dag_node_hash: testNodeHash,
+        },
       });
 
       if (error) throw error;
       const success = data?.success === true;
+      const httpStatus: number | undefined = data?.http_status;
 
-      // Update DB
+      // DAG: record outcome
+      await writeDAGNode({
+        action: success ? 'connector.test.pass' : 'connector.test.fail',
+        symbol: 'connector-sdk',
+        organizationId: orgId,
+        connectorId: connector.id,
+        parentHashes: testNodeHash ? [testNodeHash] : [],
+        pqcMetadata: {
+          provider: connector.provider,
+          httpStatus,
+          threatLevel: success ? 'green' : 'yellow',
+        },
+      });
+
+      // Update DB status
       const newStatus = success ? 'connected' : 'error';
       await supabase
         .from('compliance_connectors')
@@ -218,22 +267,38 @@ export const ConnectorSDK: React.FC = () => {
           ...c,
           status: newStatus,
           healthScore: success ? Math.min(100, c.healthScore + 10) : Math.max(50, c.healthScore - 20),
-          lastSync: new Date()
+          lastSync: new Date(),
         } : c
       ));
 
+      if (!success) {
+        // Offer Learning Mode for the failed connector
+        setLearningConnectorId(connector.id);
+      }
+
       toast({
-        title: success ? "Connection Test Successful" : "Connection Test Failed",
-        description: success ? `${connector.name} is working properly.` : `${connector.name} failed connectivity test.`,
-        variant: success ? "default" : "destructive"
+        title: success ? 'Connection Test Successful' : 'Connection Test Failed',
+        description: success
+          ? `${connector.name} is working properly.`
+          : `${connector.name} failed. Learning Mode available below.`,
+        variant: success ? 'default' : 'destructive',
       });
-    } catch (error) {
-      console.error('Failed to test connection:', error);
-      toast({
-        title: "Test Failed",
-        description: "Unable to test connector connection",
-        variant: "destructive"
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('Failed to test connection:', err);
+
+      // DAG: record failure
+      await writeDAGNode({
+        action: 'connector.test.fail',
+        symbol: 'connector-sdk',
+        organizationId: orgId,
+        connectorId: connector.id,
+        parentHashes: testNodeHash ? [testNodeHash] : [],
+        pqcMetadata: { provider: connector.provider, errorCode: msg, threatLevel: 'yellow' },
       });
+
+      setLearningConnectorId(connector.id);
+      toast({ title: 'Test Failed', description: msg, variant: 'destructive' });
     } finally {
       setIsTestingConnection(false);
     }
@@ -292,6 +357,15 @@ export const ConnectorSDK: React.FC = () => {
         };
 
         setConnectors(prev => [...prev, c]);
+
+        // DAG: record connector add
+        await writeDAGNode({
+          action: 'connector.add',
+          symbol: 'connector-sdk',
+          organizationId: orgId,
+          connectorId: data.id,
+          pqcMetadata: { provider: template.provider, tier: 'community', threatLevel: 'green' },
+        });
 
         // Auto-test the new connection
         setTimeout(() => testConnection(c), 1000);
@@ -459,6 +533,30 @@ export const ConnectorSDK: React.FC = () => {
                         <TestTube className="h-4 w-4 mr-1" />
                         Test
                       </Button>
+                      {learningConnectorId === connector.id && (
+                        <Button
+                          onClick={async () => {
+                            const { data: userData } = await supabase.auth.getUser();
+                            if (!userData?.user?.id) return;
+                            await triggerLearning({
+                              connectorId: connector.id,
+                              organizationId: userData.user.id,
+                              provider: connector.provider,
+                            });
+                          }}
+                          disabled={learningStatus === 'analyzing' || learningStatus === 'updating_model' || learningStatus === 'checking_cost'}
+                          size="sm"
+                          variant="outline"
+                          className="border-amber-500 text-amber-600 hover:bg-amber-50"
+                        >
+                          {(learningStatus === 'analyzing' || learningStatus === 'updating_model' || learningStatus === 'checking_cost')
+                            ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            : <Brain className="h-4 w-4 mr-1" />}
+                          {learningStatus === 'idle' || learningStatus === 'complete' || learningStatus === 'error'
+                            ? 'Analyze Failure'
+                            : 'Analyzing…'}
+                        </Button>
+                      )}
                       <Button
                         onClick={() => setSelectedConnector(connector)}
                         size="sm"
@@ -522,6 +620,66 @@ export const ConnectorSDK: React.FC = () => {
                         </div>
                       </div>
                     </div>
+
+                    {/* Learning Mode panel — shown after analysis completes */}
+                    {learningConnectorId === connector.id && learningStatus !== 'idle' && (
+                      <div className="border-t pt-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Brain className="h-4 w-4 text-amber-500" />
+                          <span className="font-medium text-sm">AI Learning Mode</span>
+                          {learningStatus === 'complete' && learningAnalysis && (
+                            <Badge variant="outline" className="text-xs">
+                              {learningAnalysis.confidencePercent}% confidence
+                            </Badge>
+                          )}
+                          {learningAnalysis?.dagNodeHash && (
+                            <Badge variant="outline" className="text-xs font-mono">
+                              DAG: {learningAnalysis.dagNodeHash.slice(0, 8)}
+                            </Badge>
+                          )}
+                        </div>
+
+                        {(learningStatus === 'checking_cost' || learningStatus === 'analyzing' || learningStatus === 'updating_model') && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            {learningStatus === 'checking_cost' && 'Checking API budget…'}
+                            {learningStatus === 'analyzing' && 'Analyzing failure with Grok AI…'}
+                            {learningStatus === 'updating_model' && 'Updating learning model…'}
+                          </div>
+                        )}
+
+                        {learningStatus === 'error' && learningError && (
+                          <Alert variant="destructive" className="py-2">
+                            <AlertDescription className="text-xs">{learningError}</AlertDescription>
+                          </Alert>
+                        )}
+
+                        {learningStatus === 'complete' && learningAnalysis && (
+                          <div className="space-y-3">
+                            <div>
+                              <span className="text-xs font-medium text-muted-foreground">Root Cause</span>
+                              <p className="text-sm mt-0.5">{learningAnalysis.rootCause}</p>
+                            </div>
+                            <div className="bg-muted/50 rounded p-3 text-xs text-muted-foreground whitespace-pre-wrap max-h-40 overflow-y-auto">
+                              {learningAnalysis.response}
+                            </div>
+                            {learningAnalysis.recommendations.length > 0 && (
+                              <div>
+                                <span className="text-xs font-medium">Recommended Actions (operator approval required)</span>
+                                <div className="mt-1 space-y-1">
+                                  {learningAnalysis.recommendations.map((rec, i) => (
+                                    <div key={i} className="flex items-start gap-2 text-xs">
+                                      <Badge variant="outline" className="shrink-0 text-[10px]">{rec.riskLevel}</Badge>
+                                      <span>{rec.text}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
