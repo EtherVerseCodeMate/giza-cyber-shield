@@ -227,15 +227,7 @@ func (pe *PermissionEvaluator) Evaluate(userRoles []string, resource string, act
 		}
 
 		for _, perm := range role.Permissions {
-			if perm.Resource == resource && perm.Action == action {
-				return true
-			}
-			// Wildcard resource match
-			if perm.Resource == "*" && perm.Action == action {
-				return true
-			}
-			// Wildcard action match
-			if perm.Resource == resource && perm.Action == "*" {
+			if (perm.Resource == resource || perm.Resource == "*") && (perm.Action == action || perm.Action == "*") {
 				return true
 			}
 		}
