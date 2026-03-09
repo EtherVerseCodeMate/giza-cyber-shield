@@ -89,22 +89,32 @@ export const RemediationOrchestrator: React.FC = () => {
         const { data: pbData, error: pbError } = await supabase.from('remediation_playbooks').select('*');
         if (pbError) throw pbError;
         if (pbData && pbData.length > 0) {
-          const mappedPb: RemediationPlaybook[] = pbData.map((d: any) => ({
-            id: d.id,
-            name: d.name,
-            description: d.description || '',
-            controlId: Array.isArray(d.tags) ? d.tags[0] : 'Unknown',
-            framework: 'Custom',
-            tool: (d.type as any) || 'manual',
-            riskLevel: 'medium',
-            estimatedTime: '5m',
-            blastRadius: 5,
-            approvalRequired: !!d.requires_approval,
-            steps: Array.isArray(d.steps) ? d.steps : [],
-            guardrails: [],
-            rollbackPlan: Array.isArray(d.rollback_steps) ? d.rollback_steps : [],
-            dependencies: []
-          }));
+          const mappedPb: RemediationPlaybook[] = pbData.map((d: any) => {
+            const controlIdVal = d.tags;
+            let finalControlId = 'Unknown';
+            if (Array.isArray(controlIdVal)) {
+              finalControlId = controlIdVal[0];
+            } else if (controlIdVal) {
+              finalControlId = String(controlIdVal);
+            }
+
+            return {
+              id: d.id,
+              name: d.name,
+              description: d.description || '',
+              controlId: finalControlId,
+              framework: 'Custom',
+              tool: d.type || 'manual',
+              riskLevel: 'medium',
+              estimatedTime: '5m',
+              blastRadius: 5,
+              approvalRequired: !!d.requires_approval,
+              steps: Array.isArray(d.steps) ? d.steps : [],
+              guardrails: [],
+              rollbackPlan: Array.isArray(d.rollback_steps) ? d.rollback_steps : [],
+              dependencies: []
+            };
+          });
           setPlaybooks([...pendingPlaybooks, ...mappedPb]);
         }
 
@@ -114,7 +124,7 @@ export const RemediationOrchestrator: React.FC = () => {
           const mappedEx: RemediationExecution[] = exData.map((d: any) => ({
             id: d.id,
             playbookId: d.playbook_id,
-            status: d.status as any || 'failed',
+            status: d.status || 'failed',
             progress: d.status === 'completed' ? 100 : 50,
             startTime: new Date(d.start_time || d.created_at),
             endTime: d.end_time ? new Date(d.end_time) : undefined,
@@ -204,7 +214,7 @@ export const RemediationOrchestrator: React.FC = () => {
           status: playbook.approvalRequired ? 'waiting-approval' : 'running',
           organization_id: orgId,
           triggered_by: 'current-user',
-          logs: [initialLog]
+          logs: [initialLog] as any
         })
         .select()
         .single();
@@ -279,7 +289,7 @@ export const RemediationOrchestrator: React.FC = () => {
 
       const { error } = await supabase
         .from('remediation_executions')
-        .update({ status: 'running', logs: newLogs })
+        .update({ status: 'running', logs: newLogs as any })
         .eq('id', execution.id);
 
       if (error) throw error;
@@ -333,7 +343,7 @@ export const RemediationOrchestrator: React.FC = () => {
 
       const { error: updateError } = await supabase
         .from('remediation_executions')
-        .update({ status: 'rolled-back', logs: newLogs })
+        .update({ status: 'rolled-back', logs: newLogs as any })
         .eq('id', execution.id);
 
       if (updateError) throw updateError;
@@ -491,8 +501,8 @@ export const RemediationOrchestrator: React.FC = () => {
                     <div>
                       <h5 className="font-medium mb-2">Guardrails</h5>
                       <div className="bg-muted p-2 rounded text-sm">
-                        {playbook.guardrails.map((guardrail, index) => (
-                          <div key={index}>• {guardrail}</div>
+                        {playbook.guardrails.map((guardrail) => (
+                          <div key={guardrail}>• {guardrail}</div>
                         ))}
                       </div>
                     </div>
@@ -569,8 +579,8 @@ export const RemediationOrchestrator: React.FC = () => {
                       <div className="space-y-2">
                         <h5 className="font-medium">Recent Logs</h5>
                         <div className="bg-black text-green-400 p-3 rounded font-mono text-xs max-h-32 overflow-y-auto">
-                          {execution.logs.slice(-5).map((log, index) => (
-                            <div key={index}>
+                          {execution.logs.slice(-5).map((log) => (
+                            <div key={log.timestamp.toISOString() + log.step}>
                               [{log.timestamp.toLocaleTimeString()}] {log.level.toUpperCase()}: {log.message}
                             </div>
                           ))}
@@ -657,8 +667,8 @@ export const RemediationOrchestrator: React.FC = () => {
                           <div>
                             <h5 className="font-medium mb-2">Rollback Plan</h5>
                             <div className="bg-muted p-2 rounded text-sm">
-                              {playbook.rollbackPlan.map((step, index) => (
-                                <div key={index}>• {step}</div>
+                              {playbook.rollbackPlan.map((step) => (
+                                <div key={step}>• {step}</div>
                               ))}
                             </div>
                           </div>
@@ -683,8 +693,8 @@ export const RemediationOrchestrator: React.FC = () => {
                 {executions.flatMap(execution => execution.logs)
                   .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
                   .slice(0, 50)
-                  .map((log, index) => (
-                    <div key={index} className="mb-1">
+                  .map((log) => (
+                    <div key={log.timestamp.toISOString() + log.step} className="mb-1">
                       [{log.timestamp.toLocaleString()}] {log.step}: {log.level.toUpperCase()}: {log.message}
                     </div>
                   ))}
