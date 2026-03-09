@@ -9,7 +9,7 @@
     },
     "dependencies": {
         "@noble/post-quantum": "^0.2.0",
-        "bcryptjs": "^2.4.3"
+        "bcryptjs": "^3.0.3"
     },
     "devDependencies": {
         "wrangler": "^4.59.1"
