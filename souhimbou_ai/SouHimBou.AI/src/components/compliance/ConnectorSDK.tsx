@@ -159,18 +159,22 @@ export const ConnectorSDK: React.FC = () => {
             id: d.id,
             name: d.name,
             provider: d.type,
-            category: (d.config as any)?.category || 'cloud',
-            status: d.status as any || 'disconnected',
+            category: d.config?.category || 'cloud',
+            status: d.status || 'disconnected',
             lastSync: d.last_sync ? new Date(d.last_sync) : new Date(),
-            healthScore: d.status === 'connected' ? 100 : (d.status === 'error' ? 0 : 50),
+            healthScore: (() => {
+              if (d.status === 'connected') return 100;
+              if (d.status === 'error') return 0;
+              return 50;
+            })(),
             capabilities: Array.isArray(d.capabilities) && d.capabilities.length > 0 ? d.capabilities : [
               { name: 'Discovery', type: 'discover', enabled: true, lastTested: new Date(), successRate: 100 }
             ],
-            authType: (d.config as any)?.authType || 'api_key',
+            authType: d.config?.authType || 'api_key',
             rateLimits: { requestsPerMinute: 100, current: 0 },
-            discoveredAssets: Math.floor(Math.random() * 50),
-            complianceFrameworks: (d.config as any)?.frameworks || ['SOC2'],
-            configuration: (d.config as any) || {}
+            discoveredAssets: typeof d.discovered_assets === 'number' ? d.discovered_assets : 0,
+            complianceFrameworks: d.config?.frameworks || ['SOC2'],
+            configuration: d.config || {}
           }));
           setConnectors(mappedConnectors);
         }
@@ -197,8 +201,8 @@ export const ConnectorSDK: React.FC = () => {
         }
       });
 
-      // We handle the function error but still ensure we update the status locally for demo purposes if the function is missing
-      const success = !error && data?.success !== false;
+      if (error) throw error;
+      const success = data?.success === true;
 
       // Update DB
       const newStatus = success ? 'connected' : 'error';
@@ -243,10 +247,9 @@ export const ConnectorSDK: React.FC = () => {
         frameworks: template.supportedFrameworks
       };
 
-      // Since we don't have user's org ready here, we insert without it if RLS allows, 
-      // or we query the user's active org first
       const { data: userData } = await supabase.auth.getUser();
-      const orgId = userData?.user?.id || '00000000-0000-0000-0000-000000000000'; // fallback for demo purposes
+      if (!userData?.user?.id) throw new Error('User must be authenticated to add a connector');
+      const orgId = userData.user.id;
 
       const newConnectorData = {
         name: `${template.name} - ${config.name || 'New'}`,
@@ -342,7 +345,7 @@ export const ConnectorSDK: React.FC = () => {
     total: connectors.length,
     connected: connectors.filter(c => c.status === 'connected').length,
     errors: connectors.filter(c => c.status === 'error').length,
-    avgHealth: Math.round(connectors.reduce((acc, c) => acc + c.healthScore, 0) / connectors.length),
+    avgHealth: connectors.length > 0 ? Math.round(connectors.reduce((acc, c) => acc + c.healthScore, 0) / connectors.length) : 0,
     totalAssets: connectors.reduce((acc, c) => acc + c.discoveredAssets, 0)
   };
 

@@ -316,7 +316,7 @@ const EvidenceCollection = () => {
                     <div>
                       <span className="text-muted-foreground">Status:</span>
                       <Badge variant={getStatusColor(item.status)}>
-                        {item.status.replace("_", " ")}
+                        {item.status.replaceAll("_", " ")}
                       </Badge>
                     </div>
                   </div>
@@ -367,7 +367,7 @@ const EvidenceCollection = () => {
                       </CardDescription>
                     </div>
                     <Badge variant={getStatusColor(pkg.status)}>
-                      {pkg.status.replace("_", " ")}
+                      {pkg.status.replaceAll("_", " ")}
                     </Badge>
                   </div>
                 </CardHeader>

@@ -370,7 +370,7 @@ export const OSINTConnector = () => {
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
                           <p className="text-muted-foreground">Type</p>
-                          <p className="capitalize">{source.type.replace('_', ' ')}</p>
+                          <p className="capitalize">{source.type.replaceAll('_', ' ')}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground">Records</p>
@@ -429,7 +429,7 @@ export const OSINTConnector = () => {
                         <Button 
                           size="sm" 
                           variant="ghost"
-                          onClick={() => window.open(source.url, '_blank')}
+                          onClick={() => globalThis.open(source.url, '_blank')}
                         >
                           <Globe className="h-3 w-3" />
                         </Button>

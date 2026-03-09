@@ -199,7 +199,7 @@ const IntegrationRecommendations = ({ setActiveTab }: { setActiveTab: (tab: stri
         });
         break;
       case 'learn':
-        window.open('/integration-guide/custom-api', '_blank');
+        globalThis.open('/integration-guide/custom-api', '_blank');
         break;
       case 'explore':
         setActiveTab('marketplace');

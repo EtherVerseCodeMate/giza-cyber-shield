@@ -115,8 +115,8 @@ export const AgenticComplianceArchitect: React.FC = () => {
   const initializeAgent = async () => {
     try {
       // Initialize agent with existing KHEPRA components
-      const { data: frameworks } = await supabase
-        .from('compliance_frameworks')
+      const { data: frameworks } = await (supabase
+        .from('compliance_frameworks') as any)
         .select('*')
         .eq('enabled', true);
 
@@ -133,10 +133,26 @@ export const AgenticComplianceArchitect: React.FC = () => {
   const fetchControlGaps = async () => {
     setIsLoading(true);
     try {
-      // Awaiting telemetry for real control gaps
-      const pendingGaps: ControlGap[] = [];
+      const { data, error } = await supabase.from('compliance_control_gaps').select('*');
+      if (error) throw error;
 
-      setControlGaps(pendingGaps);
+      if (data && data.length > 0) {
+        const mappedGaps: ControlGap[] = data.map((d: any) => ({
+          id: d.id,
+          controlId: d.control_id,
+          framework: 'SOC2 / TBD',
+          severity: d.severity as any || 'medium',
+          status: d.status as any || 'detected',
+          description: d.description || '',
+          affectedAssets: d.affected_assets || 0,
+          estimatedTime: '4h',
+          blastRadius: d.blast_radius || 5,
+          remediationPlan: d.remediation_plan ? (typeof d.remediation_plan === 'string' ? JSON.parse(d.remediation_plan) : d.remediation_plan) : undefined
+        }));
+        setControlGaps(mappedGaps);
+      } else {
+        setControlGaps([]);
+      }
     } catch (error) {
       console.error('Failed to fetch control gaps:', error);
     } finally {
@@ -207,6 +223,8 @@ export const AgenticComplianceArchitect: React.FC = () => {
     if (!gap.remediationPlan) return;
 
     try {
+      await supabase.from('compliance_control_gaps').update({ status: 'remediating' }).eq('id', gap.id);
+
       setControlGaps(prev => prev.map(g =>
         g.id === gap.id ? { ...g, status: 'remediating' } : g
       ));
@@ -227,12 +245,11 @@ export const AgenticComplianceArchitect: React.FC = () => {
         description: `Successfully executed remediation for ${gap.controlId}`,
       });
 
-      // Update status after execution
-      setTimeout(() => {
-        setControlGaps(prev => prev.map(g =>
-          g.id === gap.id ? { ...g, status: 'verified' } : g
-        ));
-      }, 2000);
+      await supabase.from('compliance_control_gaps').update({ status: 'verified' }).eq('id', gap.id);
+
+      setControlGaps(prev => prev.map(g =>
+        g.id === gap.id ? { ...g, status: 'verified' } : g
+      ));
     } catch (error) {
       console.error('Failed to execute remediation:', error);
       toast({
@@ -653,7 +670,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                       <CardDescription>{gap.description}</CardDescription>
                     </div>
                     <Badge variant="outline" className={getStatusColor(gap.status)}>
-                      {gap.status.replace('-', ' ').toUpperCase()}
+                      {gap.status.replaceAll('-', ' ').toUpperCase()}
                     </Badge>
                   </div>
                 </CardHeader>

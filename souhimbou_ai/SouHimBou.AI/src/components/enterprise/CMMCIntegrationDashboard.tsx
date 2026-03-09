@@ -346,7 +346,7 @@ export const CMMCIntegrationDashboard: React.FC = () => {
 
                 <div className="flex items-center justify-between">
                   <Badge variant={getStatusColor(level.certification_status) as any}>
-                    {level.certification_status.replace('_', ' ').toUpperCase()}
+                    {level.certification_status.replaceAll('_', ' ').toUpperCase()}
                   </Badge>
                   {level.expiration_date && (
                     <span className="text-xs text-muted-foreground">
@@ -429,7 +429,7 @@ export const CMMCIntegrationDashboard: React.FC = () => {
                           </Badge>
                           {getStatusIcon(control.implementation_status)}
                           <Badge variant={getStatusColor(control.implementation_status) as any}>
-                            {control.implementation_status.replace('_', ' ').toUpperCase()}
+                            {control.implementation_status.replaceAll('_', ' ').toUpperCase()}
                           </Badge>
                         </div>
                       </div>
@@ -509,7 +509,7 @@ export const CMMCIntegrationDashboard: React.FC = () => {
                         </Badge>
                         {getStatusIcon(req.compliance_status)}
                         <Badge variant={getStatusColor(req.compliance_status) as any}>
-                          {req.compliance_status.replace('_', ' ').toUpperCase()}
+                          {req.compliance_status.replaceAll('_', ' ').toUpperCase()}
                         </Badge>
                       </div>
                     </div>
