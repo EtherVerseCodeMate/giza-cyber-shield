@@ -51,7 +51,7 @@ export const useWorkflowAnalytics = () => {
       action,
       timestamp: Date.now(),
       coordinates,
-      context: window.location.pathname,
+      context: globalThis.location.pathname,
       sessionId,
       metadata
     };
@@ -152,7 +152,7 @@ export const useWorkflowAnalytics = () => {
     return {
       averageInterval: avgInterval,
       rapidActionPercentage: (fastActions / intervals.length) * 100,
-      sessionDuration: events[events.length - 1].timestamp - events[0].timestamp
+      sessionDuration: events.at(-1).timestamp - events[0].timestamp
     };
   };
 

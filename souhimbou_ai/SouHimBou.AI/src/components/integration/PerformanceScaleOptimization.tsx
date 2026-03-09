@@ -160,7 +160,7 @@ export const PerformanceScaleOptimization = () => {
     }
   };
 
-  const currentMetrics = metrics[metrics.length - 1];
+  const currentMetrics = metrics.at(-1);
 
   return (
     <div className="space-y-6">

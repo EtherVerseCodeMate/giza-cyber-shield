@@ -196,7 +196,7 @@ export const PolymorphicIngestionEngine: React.FC<PolymorphicIngestionEngineProp
                                 <div className="relative space-y-4">
                                     {Object.entries(transformationPreview).map(([key, val]: [string, any]) => (
                                         <div key={key} className="flex flex-col gap-1">
-                                            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-tighter">{key.replace('_', ' ')}</span>
+                                            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-tighter">{key.replaceAll('_', ' ')}</span>
                                             <div className="flex items-center gap-2">
                                                 <span className="text-xs font-bold text-white">{Array.isArray(val) ? val.join(', ') : String(val)}</span>
                                                 <CheckCircle className="h-3 w-3 text-emerald-500/50" />

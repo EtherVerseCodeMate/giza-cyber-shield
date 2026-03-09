@@ -457,7 +457,7 @@ export const ComplianceDriftMonitor: React.FC = () => {
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-3 text-sm">
                       <div>
                         <span className="text-muted-foreground">Drift Type:</span>
-                        <p className="font-medium">{event.drift_type.replace('_', ' ')}</p>
+                        <p className="font-medium">{event.drift_type.replaceAll('_', ' ')}</p>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Detection Method:</span>

@@ -161,7 +161,7 @@ export const STIGTestingSuite: React.FC = () => {
                         <div className="flex items-center gap-1">
                           {getStatusIcon(suite.status)}
                           <Badge variant={getStatusColor(suite.status)}>
-                            {suite.status.replace('_', ' ').toUpperCase()}
+                            {suite.status.replaceAll('_', ' ').toUpperCase()}
                           </Badge>
                         </div>
 

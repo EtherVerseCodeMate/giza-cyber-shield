@@ -108,7 +108,7 @@ export function useOrganizationOnboarding(organizationId: string | undefined) {
 
       toast({
         title: 'Phase Updated',
-        description: `Moved to ${phase.replace('_', ' ')} phase`,
+        description: `Moved to ${phase.replaceAll('_', ' ')} phase`,
       });
     } catch (error) {
       console.error('Error updating phase:', error);

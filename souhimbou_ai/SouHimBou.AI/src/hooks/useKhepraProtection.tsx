@@ -95,7 +95,7 @@ export const useKhepraProtection = () => {
       }));
       
       // Step 8: Trigger asset refresh event for CLI
-      window.dispatchEvent(new CustomEvent('khepra-protection-changed'));
+      globalThis.dispatchEvent(new CustomEvent('khepra-protection-changed'));
 
       // Step 7: Log activation to audit trail
       await supabase.rpc('log_user_action', {

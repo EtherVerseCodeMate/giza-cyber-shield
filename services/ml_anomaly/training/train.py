@@ -35,7 +35,7 @@ class SoulBiasedTrainer:
             latent_dim=settings.latent_dim
         ).to(self.device)
         
-        self.optimizer = optim.Adam(self.model.parameters(), lr=settings.learning_rate)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=settings.learning_rate, weight_decay=1e-5)
         
         # Initialize Data Loader
         self.loader = SouHimBouLoader(

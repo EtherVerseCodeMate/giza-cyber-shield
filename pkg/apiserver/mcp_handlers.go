@@ -228,13 +228,13 @@ func (s *Server) handleMCPToolCall(c *gin.Context) {
 
 	sigHex, pubKeyHex, signed := s.signPayload(result)
 	c.JSON(http.StatusOK, gin.H{
-		"result":          result,
-		"dag_node_id":     dagNodeID,
-		"duration_ms":     durationMS,
-		"pqc_signed":      signed,
-		"pqc_signature":   sigHex,
-		"pqc_public_key":  pubKeyHex,
-		"pqc_algorithm":   "ML-DSA-65",
+		"result":         result,
+		"dag_node_id":    dagNodeID,
+		"duration_ms":    durationMS,
+		"pqc_signed":     signed,
+		"pqc_signature":  sigHex,
+		"pqc_public_key": pubKeyHex,
+		"pqc_algorithm":  "ML-DSA-65",
 	})
 }
 
@@ -515,7 +515,7 @@ func (s *Server) handleMCPNaturalLanguageQuery(c *gin.Context) {
 }
 
 // keywordRouteQuery provides fast keyword-based tool routing.
-func keywordRouteQuery(query string, ctx map[string]string) []gin.H {
+func keywordRouteQuery(query string, _ map[string]string) []gin.H {
 	import_lower := func(s string) string {
 		result := make([]byte, len(s))
 		for i, c := range s {

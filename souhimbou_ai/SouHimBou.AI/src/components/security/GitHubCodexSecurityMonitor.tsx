@@ -325,7 +325,7 @@ export const GitHubCodexSecurityMonitor = () => {
                     <div className="flex items-center space-x-3">
                       <FileText className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <p className="text-sm font-medium">{activity.action.replace('_', ' ')}</p>
+                        <p className="text-sm font-medium">{activity.action.replaceAll('_', ' ')}</p>
                         <p className="text-xs text-muted-foreground">{activity.repository}</p>
                       </div>
                     </div>
@@ -447,7 +447,7 @@ export const GitHubCodexSecurityMonitor = () => {
                                 {violation.severity.toUpperCase()}
                               </Badge>
                               <Badge variant="outline">
-                                {violation.type.replace('_', ' ').toUpperCase()}
+                                {violation.type.replaceAll('_', ' ').toUpperCase()}
                               </Badge>
                               {violation.auto_blocked && (
                                 <Badge variant="destructive" className="text-xs">
@@ -507,7 +507,7 @@ export const GitHubCodexSecurityMonitor = () => {
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-2">
                             <Badge variant="outline">
-                              {activity.action.replace('_', ' ').toUpperCase()}
+                              {activity.action.replaceAll('_', ' ').toUpperCase()}
                             </Badge>
                             {activity.sensitive_data_detected && (
                               <Badge variant="destructive" className="text-xs">

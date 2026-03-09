@@ -76,9 +76,7 @@ func NewKeycloakProvider(config *KeycloakConfig) (*KeycloakProvider, error) {
 
 	return &KeycloakProvider{
 		BaseAuthProvider: BaseAuthProvider{
-			name:     string(ProviderKeycloak),
-			endpoint: config.RealmURL,
-			timeout:  timeout,
+			name: string(ProviderKeycloak),
 		},
 		realmURL:     config.RealmURL,
 		clientID:     config.ClientID,
@@ -465,9 +463,7 @@ func NewCACProvider(config *CACConfig) (*CACProvider, error) {
 
 	return &CACProvider{
 		BaseAuthProvider: BaseAuthProvider{
-			name:     string(ProviderCAC),
-			endpoint: "DoD CAC",
-			timeout:  timeout,
+			name: string(ProviderCAC),
 		},
 		trustedCertPath: config.TrustedCertPath,
 		crlURL:          config.CRLURL,
@@ -670,8 +666,7 @@ type LocalProvider struct {
 func NewLocalProvider() *LocalProvider {
 	return &LocalProvider{
 		BaseAuthProvider: BaseAuthProvider{
-			name:     string(ProviderLocal),
-			endpoint: "localhost",
+			name: string(ProviderLocal),
 		},
 		users: make(map[string]*User),
 	}

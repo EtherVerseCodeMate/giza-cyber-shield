@@ -178,7 +178,7 @@ export const DeploymentDashboard: React.FC<DeploymentDashboardProps> = ({
   if (isLoading) {
     return (
       <div className="space-y-6">
-        {[...Array(3)].map((_, i) => (
+        {[...new Array(3)].map((_, i) => (
           <Card key={i} className="border-border">
             <CardContent className="p-6">
               <div className="animate-pulse space-y-4">
