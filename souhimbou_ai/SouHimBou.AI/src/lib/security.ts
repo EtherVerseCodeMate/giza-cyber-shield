@@ -17,7 +17,7 @@ export interface ValidationSchema {
 export class SecurityValidator {
   private static readonly SQL_INJECTION_PATTERNS = [
     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE|UNION|SCRIPT)\b)/gi,
-    /(;|\-\-|\*|\/\*|\*\/)/g,
+    /(;|--|\*|\/\*|\*\/)/g,
     /(\b(OR|AND)\s+\d+\s*=\s*\d+)/gi,
     /(\b(OR|AND)\s+['"]?\w+['"]?\s*=\s*['"]?\w+['"]?)/gi,
     /(WAITFOR|DELAY|BENCHMARK|SLEEP)/gi,
@@ -36,7 +36,7 @@ export class SecurityValidator {
   ];
 
   private static readonly COMMAND_INJECTION_PATTERNS = [
-    /(\||&|;|\$\(|\`)/g,
+    /(\||&|;|\$\(|`)/g,
     /(wget|curl|nc|netcat|bash|sh|cmd|powershell)/gi,
     /(\.\.|\/etc\/|\/bin\/|\/usr\/)/gi
   ];
@@ -55,7 +55,7 @@ export class SecurityValidator {
     for (const [field, rule] of Object.entries(schema)) {
       const value = input[field];
       const fieldErrors = this.validateField(field, value, rule);
-      
+
       if (fieldErrors.length > 0) {
         errors.push(...fieldErrors);
       } else {
@@ -286,11 +286,11 @@ export class SecurityValidator {
     let result = '';
     const randomArray = new Uint8Array(length);
     crypto.getRandomValues(randomArray);
-    
+
     for (let i = 0; i < length; i++) {
       result += chars[randomArray[i] % chars.length];
     }
-    
+
     return result;
   }
 
@@ -301,15 +301,15 @@ export class SecurityValidator {
     const encoder = new TextEncoder();
     const saltBytes = salt ? encoder.encode(salt) : crypto.getRandomValues(new Uint8Array(16));
     const dataBytes = encoder.encode(data);
-    
+
     const combined = new Uint8Array(saltBytes.length + dataBytes.length);
     combined.set(saltBytes);
     combined.set(dataBytes, saltBytes.length);
-    
+
     const hashBuffer = await crypto.subtle.digest('SHA-256', combined);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    
+
     return hashHex;
   }
 }
@@ -322,7 +322,7 @@ export const commonSchemas = {
     organizationId: { required: true, type: 'uuid' as const },
     userId: { required: true, type: 'uuid' as const }
   },
-  
+
   alertData: {
     title: { required: true, type: 'string' as const, maxLength: 200, sanitize: true },
     description: { type: 'string' as const, maxLength: 2000, sanitize: true },
