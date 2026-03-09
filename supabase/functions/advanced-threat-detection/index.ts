@@ -807,7 +807,7 @@ async function performCloudSecurityScan(target: string, supabase: any) {
 async function performEmailSecurityAnalysis(target: string) {
   console.log(`Performing email security analysis for: ${target}`);
   
-  let findings = [];
+  const findings = [];
   let threatLevel = 'low';
 
   // Check for email-related threats
