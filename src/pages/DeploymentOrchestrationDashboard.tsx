@@ -102,8 +102,8 @@ const DeploymentOrchestrationDashboard = () => {
       discoverLocalAssets();
     };
     
-    window.addEventListener('khepra-protection-changed', handleProtectionChange);
-    return () => window.removeEventListener('khepra-protection-changed', handleProtectionChange);
+    globalThis.addEventListener('khepra-protection-changed', handleProtectionChange);
+    return () => globalThis.removeEventListener('khepra-protection-changed', handleProtectionChange);
   }, [discoverLocalAssets]);
 
   const executeCommand = (command: string) => {
