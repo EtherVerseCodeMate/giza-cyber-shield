@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
     });
 
     // Additional validation based on payment type
-    let validationResult = { valid: true, warnings: [] as string[] };
+    const validationResult = { valid: true, warnings: [] as string[] };
 
     if (payment_type === 'beta_subscription' && amount !== 1900) { // $19.00 in cents
       validationResult.warnings.push('Beta subscription amount does not match expected price');
