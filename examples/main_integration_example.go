@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -12,7 +13,6 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/agi"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/security"
-	"github.com/gorilla/mux"
 )
 
 const (
@@ -36,22 +36,22 @@ func main() {
 	// ═══════════════════════════════════════════════════════════════════════
 	// STEP 2: Set up API server with PQC middleware
 	// ═══════════════════════════════════════════════════════════════════════
-	router := mux.NewRouter()
+	router := http.NewServeMux()
 
 	// Add PQC encryption middleware (optional - encrypts API responses)
 	// router.Use(security.PQCEncryptionMiddleware)
 
 	// Health endpoint (includes security metrics)
-	router.HandleFunc("/health", HealthHandler).Methods("GET")
+	router.HandleFunc("GET /health", HealthHandler)
 
 	// Security metrics endpoint
-	router.HandleFunc("/security/metrics", SecurityMetricsHandler).Methods("GET")
+	router.HandleFunc("GET /security/metrics", SecurityMetricsHandler)
 
 	// Your application routes
-	router.HandleFunc("/api/users", GetUsersHandler).Methods("GET")
-	router.HandleFunc("/api/users", CreateUserHandler).Methods("POST")
-	router.HandleFunc("/api/licenses", GetLicensesHandler).Methods("GET")
-	router.HandleFunc("/api/licenses", CreateLicenseHandler).Methods("POST")
+	router.HandleFunc("GET /api/users", GetUsersHandler)
+	router.HandleFunc("POST /api/users", CreateUserHandler)
+	router.HandleFunc("GET /api/licenses", GetLicensesHandler)
+	router.HandleFunc("POST /api/licenses", CreateLicenseHandler)
 
 	// ═══════════════════════════════════════════════════════════════════════
 	// STEP 3: Start server
@@ -98,7 +98,7 @@ type UserProfile struct {
 
 func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 	// AUTOMATIC DECRYPTION - transparent to handler
-	users, err := security.SecureDB.Select("users", "active", true)
+	users, err := security.SecureDB.Select(context.Background(), "users", "active", true)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -113,7 +113,7 @@ func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewDecoder(r.Body).Decode(&user)
 
 	// AUTOMATIC ENCRYPTION - transparent to handler
-	userID, err := security.SecureDB.Insert("users", user)
+	userID, err := security.SecureDB.Insert(context.Background(), "users", user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -143,7 +143,7 @@ func GetLicensesHandler(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user_id")
 
 	// AUTOMATIC DECRYPTION
-	hashes, err := security.SecureDB.Select("licenses", "user_id", userID)
+	hashes, err := security.SecureDB.Select(context.Background(), "licenses", "user_id", userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -158,7 +158,7 @@ func CreateLicenseHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewDecoder(r.Body).Decode(&lic)
 
 	// AUTOMATIC ENCRYPTION
-	licenseID, err := security.SecureDB.Insert("licenses", lic)
+	licenseID, err := security.SecureDB.Insert(context.Background(), "licenses", lic)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -175,7 +175,7 @@ func CreateLicenseHandler(w http.ResponseWriter, r *http.Request) {
 
 	// AUTOMATIC AUDIT LOG ENCRYPTION
 	protectedAudit, _ := license.ProtectAuditLog(auditEvent, security.GlobalKeys)
-	security.SecureDB.Insert("audit_trail", protectedAudit)
+	security.SecureDB.Insert(context.Background(), "audit_trail", protectedAudit)
 
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{"id": licenseID})
