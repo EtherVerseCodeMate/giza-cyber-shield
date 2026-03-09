@@ -177,7 +177,7 @@ export const SecurityDashboard = () => {
         <TabsContent value="overview" className="mt-6">
           {metricsLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
+              {[...new Array(6)].map((_, i) => (
                 <Card key={i} className="card-cyber">
                   <CardContent className="p-6">
                     <div className="animate-pulse">
@@ -213,7 +213,7 @@ export const SecurityDashboard = () => {
                 {
                   label: "MFA Documentation",
                   description: "Learn about MFA best practices",
-                  action: () => window.open('/docs/mfa', '_blank'),
+                  action: () => globalThis.open('/docs/mfa', '_blank'),
                   icon: <BookOpen className="h-3 w-3" />,
                   type: 'link'
                 }
@@ -261,7 +261,7 @@ export const SecurityDashboard = () => {
                 {
                   label: "Session Policies",
                   description: "Configure session timeout settings",
-                  action: () => window.open('/docs/sessions', '_blank'),
+                  action: () => globalThis.open('/docs/sessions', '_blank'),
                   icon: <Settings className="h-3 w-3" />,
                   type: 'link'
                 }
@@ -470,7 +470,7 @@ export const SecurityDashboard = () => {
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div 
                     className="p-4 border rounded-lg hover:bg-muted/20 transition-colors cursor-pointer"
-                    onClick={() => window.open('/enterprise/stig-dashboard', '_blank')}
+                    onClick={() => globalThis.open('/enterprise/stig-dashboard', '_blank')}
                   >
                     <div className="flex items-center space-x-3">
                       <CheckCircle2 className="h-5 w-5 text-success" />
@@ -482,7 +482,7 @@ export const SecurityDashboard = () => {
                   </div>
                   <div 
                     className="p-4 border rounded-lg hover:bg-muted/20 transition-colors cursor-pointer"
-                    onClick={() => window.open('/enterprise/remediation-engine', '_blank')}
+                    onClick={() => globalThis.open('/enterprise/remediation-engine', '_blank')}
                   >
                     <div className="flex items-center space-x-3">
                       <Activity className="h-5 w-5 text-primary" />
@@ -494,7 +494,7 @@ export const SecurityDashboard = () => {
                   </div>
                   <div 
                     className="p-4 border rounded-lg hover:bg-muted/20 transition-colors cursor-pointer"
-                    onClick={() => window.open('/enterprise/evidence-collection', '_blank')}
+                    onClick={() => globalThis.open('/enterprise/evidence-collection', '_blank')}
                   >
                     <div className="flex items-center space-x-3">
                       <FileText className="h-5 w-5 text-info" />
@@ -512,7 +512,7 @@ export const SecurityDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card 
                 className="card-cyber cursor-pointer hover:shadow-lg transition-all duration-300"
-                onClick={() => window.open('/enterprise/stig-dashboard', '_blank')}
+                onClick={() => globalThis.open('/enterprise/stig-dashboard', '_blank')}
               >
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
@@ -534,7 +534,7 @@ export const SecurityDashboard = () => {
 
               <Card 
                 className="card-cyber cursor-pointer hover:shadow-lg transition-all duration-300"
-                onClick={() => window.open('/enterprise/cmmc-dashboard', '_blank')}
+                onClick={() => globalThis.open('/enterprise/cmmc-dashboard', '_blank')}
               >
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">

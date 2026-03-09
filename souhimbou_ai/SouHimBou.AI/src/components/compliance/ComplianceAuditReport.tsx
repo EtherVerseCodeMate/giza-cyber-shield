@@ -189,7 +189,7 @@ export const ComplianceAuditReport = () => {
                         {getSeverityIcon(gap.severity)}
                         <h3 className="text-white font-semibold">{gap.control_id}: {gap.title}</h3>
                         <Badge className={getStatusBadge(gap.status)}>
-                          {gap.status.replace('_', ' ')}
+                          {gap.status.replaceAll('_', ' ')}
                         </Badge>
                       </div>
 

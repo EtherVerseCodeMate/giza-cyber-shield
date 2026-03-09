@@ -678,17 +678,6 @@ async function scheduleEscalation(alert: any) {
 async function testNotification(data: any) {
   const { channel, recipient } = data;
 
-  const testAlert = {
-    id: 'test_alert',
-    title: 'Test Alert - System Check',
-    description: 'This is a test notification to verify the alerting system is working correctly.',
-    severity: 'LOW',
-    alert_type: 'test',
-    risk_score: 25,
-    created_at: new Date().toISOString(),
-    sla_deadline: new Date(Date.now() + 60 * 60 * 1000).toISOString()
-  };
-
   return await sendNotification({
     alert_id: 'test_alert',
     channel,

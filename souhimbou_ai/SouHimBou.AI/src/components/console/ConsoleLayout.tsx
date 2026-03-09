@@ -272,7 +272,7 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => window.location.reload()}
+                    onClick={() => globalThis.location.reload()}
                   >
                     <Activity className="h-4 w-4 mr-2" />
                     Refresh

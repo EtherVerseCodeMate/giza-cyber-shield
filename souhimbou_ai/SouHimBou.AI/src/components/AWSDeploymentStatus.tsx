@@ -187,7 +187,7 @@ export const AWSDeploymentStatus = () => {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => window.location.reload()}
+                onClick={() => globalThis.location.reload()}
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
@@ -427,13 +427,13 @@ export const AWSDeploymentStatus = () => {
                 <CardContent className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span>Application URL</span>
-                    <Button variant="outline" size="sm" onClick={() => window.open('https://khepra-alb-123456789.us-east-1.elb.amazonaws.com', '_blank')}>
+                    <Button variant="outline" size="sm" onClick={() => globalThis.open('https://khepra-alb-123456789.us-east-1.elb.amazonaws.com', '_blank')}>
                       Open Application
                     </Button>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>AWS Console</span>
-                    <Button variant="outline" size="sm" onClick={() => window.open('https://console.aws.amazon.com/ecs/home?region=us-east-1', '_blank')}>
+                    <Button variant="outline" size="sm" onClick={() => globalThis.open('https://console.aws.amazon.com/ecs/home?region=us-east-1', '_blank')}>
                       View in AWS
                     </Button>
                   </div>

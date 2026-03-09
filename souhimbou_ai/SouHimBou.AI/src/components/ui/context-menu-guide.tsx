@@ -93,8 +93,8 @@ export const ContextMenuGuide: React.FC<ContextMenuGuideProps> = ({
           ref={menuRef}
           className="fixed z-50 animate-scale-in"
           style={{
-            left: Math.min(position.x, window.innerWidth - 320),
-            top: Math.min(position.y, window.innerHeight - 200)
+            left: Math.min(position.x, globalThis.innerWidth - 320),
+            top: Math.min(position.y, globalThis.innerHeight - 200)
           }}
         >
           <Card className="w-80 shadow-lg border-primary/20 bg-card/95 backdrop-blur-sm">

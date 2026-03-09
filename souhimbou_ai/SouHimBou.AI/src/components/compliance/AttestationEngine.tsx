@@ -176,7 +176,7 @@ export const AttestationEngine: React.FC = () => {
         totalControls: frameworkAttestations.length,
         compliantControls: compliantCount,
         packageHash: `sha256:package:${crypto.randomUUID().replace(/-/g, '')}`,
-        downloadUrl: `/downloads/${framework.toLowerCase().replace(' ', '-')}-${Date.now()}.zip`,
+        downloadUrl: `/downloads/${framework.toLowerCase().replaceAll(' ', '-')}-${Date.now()}.zip`,
         expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90)
       };
 
@@ -680,7 +680,7 @@ export const AttestationEngine: React.FC = () => {
                 </Alert>
 
                 <div className="space-y-3">
-                  {[...Array(5)].map((_, index) => {
+                  {[...new Array(5)].map((_, index) => {
                     const timestamp = new Date(Date.now() - index * 1000 * 60 * 60 * 6);
                     const blockId = `block-${5 - index}`;
 

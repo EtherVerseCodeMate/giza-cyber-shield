@@ -269,8 +269,8 @@ export const KipIntegrationSettings = () => {
               <div className="space-y-2">
                 <Label>Webhook Endpoints</Label>
                 <div className="bg-muted p-3 rounded-lg text-sm font-mono space-y-1">
-                  <div>Handler: https://{window.location.hostname}/functions/v1/kip-webhook-handler</div>
-                  <div>Matcher: https://{window.location.hostname}/functions/v1/cultural-fingerprint-matcher</div>
+                  <div>Handler: https://{globalThis.location.hostname}/functions/v1/kip-webhook-handler</div>
+                  <div>Matcher: https://{globalThis.location.hostname}/functions/v1/cultural-fingerprint-matcher</div>
                 </div>
               </div>
             </>
@@ -341,7 +341,7 @@ export const KipIntegrationSettings = () => {
                     min="0"
                     max="100"
                     value={settings.trustScoreThreshold}
-                    onChange={(e) => setSettings(prev => ({ ...prev, trustScoreThreshold: parseInt(e.target.value) }))}
+                    onChange={(e) => setSettings(prev => ({ ...prev, trustScoreThreshold: Number.parseInt(e.target.value) }))}
                     className="w-20"
                   />
                   <span className="text-sm text-muted-foreground">

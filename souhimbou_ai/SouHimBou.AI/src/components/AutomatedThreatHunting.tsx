@@ -384,7 +384,7 @@ export const AutomatedThreatHunting = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => window.open(
+                            onClick={() => globalThis.open(
                               `${splunkIntegration.baseUrl}/app/search/search?q=${encodeURIComponent(query.splunkQuery)}`,
                               '_blank'
                             )}
@@ -451,7 +451,7 @@ export const AutomatedThreatHunting = () => {
                       size="sm"
                       variant="outline"
                       className="w-full mt-3"
-                      onClick={() => window.open(report.reportUrl, '_blank')}
+                      onClick={() => globalThis.open(report.reportUrl, '_blank')}
                     >
                       <ExternalLink className="h-4 w-4 mr-2" />
                       View in Splunk

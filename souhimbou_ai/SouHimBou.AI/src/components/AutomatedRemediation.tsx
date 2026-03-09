@@ -63,17 +63,19 @@ export const AutomatedRemediation = () => {
     setAutomationRules(activeRules);
   }, []);
 
+  const updateTaskStatus = (taskId: string, updates: Partial<RemediationTask>) => {
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
+  };
+
+  const toggleRule = (ruleId: string, checked: boolean) => {
+    setAutomationRules(prev => prev.map(r => r.id === ruleId ? { ...r, enabled: checked } : r));
+  };
+
   const executeTask = async (taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
-    setTasks(prev =>
-      prev.map(t =>
-        t.id === taskId
-          ? { ...t, status: 'running', progress: 0, started_at: new Date().toISOString() }
-          : t
-      )
-    );
+    updateTaskStatus(taskId, { status: 'running', progress: 0, started_at: new Date().toISOString() });
 
     toast({
       title: "Remediation Started",
@@ -111,13 +113,7 @@ export const AutomatedRemediation = () => {
 
       if (error) {
         console.error('Remediation error:', error);
-        setTasks(prev =>
-          prev.map(t =>
-            t.id === taskId
-              ? { ...t, status: 'failed', completed_at: new Date().toISOString() }
-              : t
-          )
-        );
+        updateTaskStatus(taskId, { status: 'failed', completed_at: new Date().toISOString() });
         toast({
           title: "Remediation Failed",
           description: `Failed to execute: ${task.title}`,
@@ -127,18 +123,11 @@ export const AutomatedRemediation = () => {
       }
 
       // Update task with real results
-      setTasks(prev =>
-        prev.map(t =>
-          t.id === taskId
-            ? {
-              ...t,
-              status: 'completed',
-              progress: 100,
-              completed_at: new Date().toISOString()
-            }
-            : t
-        )
-      );
+      updateTaskStatus(taskId, {
+        status: 'completed',
+        progress: 100,
+        completed_at: new Date().toISOString()
+      });
 
       toast({
         title: "Remediation Complete",
@@ -148,13 +137,7 @@ export const AutomatedRemediation = () => {
 
     } catch (error) {
       console.error('Remediation error:', error);
-      setTasks(prev =>
-        prev.map(t =>
-          t.id === taskId
-            ? { ...t, status: 'failed', completed_at: new Date().toISOString() }
-            : t
-        )
-      );
+      updateTaskStatus(taskId, { status: 'failed', completed_at: new Date().toISOString() });
       toast({
         title: "Remediation Failed",
         description: `An unexpected error occurred while executing: ${task.title}`,
@@ -440,13 +423,7 @@ export const AutomatedRemediation = () => {
                       <div className="flex items-center space-x-2">
                         <Switch
                           checked={rule.enabled}
-                          onCheckedChange={(checked) =>
-                            setAutomationRules(prev =>
-                              prev.map(r =>
-                                r.id === rule.id ? { ...r, enabled: checked } : r
-                              )
-                            )
-                          }
+                          onCheckedChange={(checked) => toggleRule(rule.id, checked)}
                         />
                         <Button variant="outline" size="sm">
                           <Settings className="h-3 w-3 mr-1" />

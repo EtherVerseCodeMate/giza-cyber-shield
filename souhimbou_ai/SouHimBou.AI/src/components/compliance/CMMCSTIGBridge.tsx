@@ -229,7 +229,7 @@ export const CMMCSTIGBridge: React.FC<CMMCSTIGBridgeProps> = ({ organizationId }
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Target CMMC Level</label>
-                  <Select value={selectedLevel.toString()} onValueChange={(value) => setSelectedLevel(parseInt(value))}>
+                  <Select value={selectedLevel.toString()} onValueChange={(value) => setSelectedLevel(Number.parseInt(value))}>
                     <SelectTrigger className="bg-slate-900 border-slate-800 text-white">
                       <SelectValue />
                     </SelectTrigger>

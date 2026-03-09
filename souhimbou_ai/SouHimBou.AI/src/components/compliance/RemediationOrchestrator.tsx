@@ -529,7 +529,7 @@ export const RemediationOrchestrator: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge className={getStatusColor(execution.status)}>
-                          {execution.status.replace('-', ' ').toUpperCase()}
+                          {execution.status.replaceAll('-', ' ').toUpperCase()}
                         </Badge>
                         {execution.status === 'completed' && execution.rollbackAvailable && (
                           <Button

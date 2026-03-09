@@ -61,7 +61,7 @@ const TrailblazerExpirationManager = () => {
           <div className="flex items-center space-x-2">
             <span className="font-medium">{status.title}</span>
             <Badge variant="outline" className="text-xs">
-              {trialStatus.planType?.replace('_', ' ').toUpperCase()}
+              {trialStatus.planType?.replaceAll('_', ' ').toUpperCase()}
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">

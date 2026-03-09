@@ -329,7 +329,7 @@ const AdminRoleManager = () => {
                   
                   <div className="flex items-center space-x-2">
                     <Badge className={getRoleColor(role.role_type)}>
-                      {role.role_type.replace('_', ' ')}
+                      {role.role_type.replaceAll('_', ' ')}
                     </Badge>
                     
                     {role.is_active ? (
