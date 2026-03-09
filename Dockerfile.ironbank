@@ -188,12 +188,8 @@ RUN microdnf install -y \
     tzdata \
     shadow-utils \
     && microdnf clean all \
-    && rm -rf /var/cache/yum
-
-# Create non-root runtime user and required directories
-# UID 1001 is standard for OpenShift compatibility
-# GID 0 (root group) for OpenShift arbitrary UID support
-RUN useradd -r -u 1001 -g 0 -s /sbin/nologin -c "KHEPRA Runtime User" khepra && \
+    && rm -rf /var/cache/yum \
+    && useradd -r -u 1001 -g 0 -s /sbin/nologin -c "KHEPRA Runtime User" khepra && \
     mkdir -p \
     /var/lib/khepra \
     /var/log/khepra \
@@ -242,25 +238,16 @@ RUN chmod +x \
     /usr/local/bin/agent \
     /usr/local/bin/apiserver \
     /usr/local/bin/functional-test \
-    /usr/local/bin/fips-test
-
-# Verify binaries can execute
-RUN /usr/local/bin/sonar --help || echo "Sonar ready" && \
+    /usr/local/bin/fips-test \
+    && /usr/local/bin/sonar --help || echo "Sonar ready" && \
     /usr/local/bin/adinkhepra --help || echo "AdinKhepra ready" && \
     /usr/local/bin/khepra-daemon --version || echo "Daemon ready" && \
     /usr/local/bin/gateway --version || echo "Gateway ready" && \
     /usr/local/bin/agent --version || echo "Agent ready" && \
-    /usr/local/bin/apiserver --version || echo "Apiserver ready"
-
-# Security hardening: Remove setuid/setgid bits from entire filesystem
-# This is a DISA STIG requirement (RHEL-09-STIG-V1R3)
-RUN find / -xdev -perm /6000 -type f -exec chmod a-s {} \; 2>/dev/null || true
-
-# Security hardening: Remove world-writable files
-RUN find / -xdev -type f -perm -0002 -exec chmod o-w {} \; 2>/dev/null || true
-
-# Security hardening: Remove unnecessary setuid/setgid programs
-RUN find /usr/bin /usr/sbin /bin /sbin -type f \( -perm -4000 -o -perm -2000 \) -delete 2>/dev/null || true
+    /usr/local/bin/apiserver --version || echo "Apiserver ready" \
+    && find / -xdev -perm /6000 -type f -exec chmod a-s {} \; 2>/dev/null || true \
+    && find / -xdev -type f -perm -0002 -exec chmod o-w {} \; 2>/dev/null || true \
+    && find /usr/bin /usr/sbin /bin /sbin -type f \( -perm -4000 -o -perm -2000 \) -delete 2>/dev/null || true
 
 # Switch to non-root user for runtime (OpenShift requirement)
 USER 1001

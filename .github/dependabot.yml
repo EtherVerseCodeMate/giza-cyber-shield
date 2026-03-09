@@ -1,0 +1,206 @@
+# Khepra Protocol — Dependabot Dependency Security Configuration
+#
+# Monitors all package ecosystems in the monorepo for CVEs and version updates.
+# Dependabot PRs are the CI-layer complement to khepra_scan_dependencies (runtime SCA).
+#
+# Ecosystems covered:
+#   go       — adinkhepra-asaf-ironbank, ironbank-upload, root Go module
+#   npm      — SouHimBou.AI React UI, telemetry server, n8n nodes
+#   pip      — ML anomaly service, pentest tools, spiderfoot
+#   github-actions — CI/CD workflow dependencies
+#
+# Reference: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+
+updates:
+
+  # ── Go: Iron Bank API server (primary backend) ──────────────────────────────
+  - package-ecosystem: gomod
+    directory: /adinkhepra-asaf-ironbank
+    schedule:
+      interval: daily
+      time: "04:00"
+      timezone: "America/New_York"
+    labels:
+      - dependencies
+      - security
+      - go
+    commit-message:
+      prefix: "chore(deps/go)"
+    reviewers:
+      - nouchix
+    open-pull-requests-limit: 10
+    groups:
+      go-patch-updates:
+        update-types:
+          - patch
+      go-minor-updates:
+        update-types:
+          - minor
+
+  # ── Go: Iron Bank upload module ─────────────────────────────────────────────
+  - package-ecosystem: gomod
+    directory: /ironbank-upload
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+      timezone: "America/New_York"
+    labels:
+      - dependencies
+      - security
+      - go
+    commit-message:
+      prefix: "chore(deps/go-upload)"
+    open-pull-requests-limit: 5
+
+  # ── Go: Root module ──────────────────────────────────────────────────────────
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+      timezone: "America/New_York"
+    labels:
+      - dependencies
+      - go
+    commit-message:
+      prefix: "chore(deps/go-root)"
+    open-pull-requests-limit: 5
+
+  # ── NPM: SouHimBou.AI React frontend ────────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /souhimbou_ai/SouHimBou.AI
+    schedule:
+      interval: daily
+      time: "04:30"
+      timezone: "America/New_York"
+    labels:
+      - dependencies
+      - security
+      - frontend
+    commit-message:
+      prefix: "chore(deps/npm-ui)"
+    open-pull-requests-limit: 10
+    groups:
+      react-ecosystem:
+        patterns:
+          - "react*"
+          - "@types/react*"
+      vite-ecosystem:
+        patterns:
+          - "vite*"
+          - "@vitejs/*"
+      supabase-sdk:
+        patterns:
+          - "@supabase/*"
+
+  # ── NPM: Root package (Next.js / Vercel deployment) ─────────────────────────
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: tuesday
+      time: "04:00"
+      timezone: "America/New_York"
+    labels:
+      - dependencies
+      - frontend
+    commit-message:
+      prefix: "chore(deps/npm-root)"
+    open-pull-requests-limit: 5
+
+  # ── NPM: Telemetry server ────────────────────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /adinkhepra-telemetry-server
+    schedule:
+      interval: weekly
+      day: tuesday
+      time: "04:30"
+      timezone: "America/New_York"
+    labels:
+      - dependencies
+      - security
+    commit-message:
+      prefix: "chore(deps/npm-telemetry)"
+    open-pull-requests-limit: 5
+
+  # ── NPM: n8n Khepra nodes ────────────────────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /n8n-nodes/khepra
+    schedule:
+      interval: weekly
+      day: wednesday
+      time: "04:00"
+      timezone: "America/New_York"
+    labels:
+      - dependencies
+      - integrations
+    commit-message:
+      prefix: "chore(deps/npm-n8n)"
+    open-pull-requests-limit: 3
+
+  # ── pip: ML anomaly detection service ───────────────────────────────────────
+  - package-ecosystem: pip
+    directory: /services/ml_anomaly
+    schedule:
+      interval: weekly
+      day: thursday
+      time: "04:00"
+      timezone: "America/New_York"
+    labels:
+      - dependencies
+      - security
+      - ml
+    commit-message:
+      prefix: "chore(deps/pip-ml)"
+    open-pull-requests-limit: 5
+
+  # ── pip: Python pentest tools ────────────────────────────────────────────────
+  - package-ecosystem: pip
+    directory: /tools/python4pentesters
+    schedule:
+      interval: weekly
+      day: thursday
+      time: "04:30"
+      timezone: "America/New_York"
+    labels:
+      - dependencies
+      - security
+      - pentest
+    commit-message:
+      prefix: "chore(deps/pip-pentest)"
+    open-pull-requests-limit: 5
+
+  # ── pip: SpiderFoot OSINT ────────────────────────────────────────────────────
+  - package-ecosystem: pip
+    directory: /tools/spiderfoot
+    schedule:
+      interval: weekly
+      day: friday
+      time: "04:00"
+      timezone: "America/New_York"
+    labels:
+      - dependencies
+      - security
+      - osint
+    commit-message:
+      prefix: "chore(deps/pip-spiderfoot)"
+    open-pull-requests-limit: 3
+
+  # ── GitHub Actions: CI/CD workflows ─────────────────────────────────────────
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:00"
+      timezone: "America/New_York"
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: "chore(deps/actions)"
+    open-pull-requests-limit: 5
