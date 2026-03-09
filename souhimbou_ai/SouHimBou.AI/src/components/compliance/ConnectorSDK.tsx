@@ -174,7 +174,7 @@ export const ConnectorSDK: React.FC = () => {
             ],
             authType: d.config?.authType || 'api_key',
             rateLimits: { requestsPerMinute: 100, current: 0 },
-            discoveredAssets: typeof d.discovered_assets === 'number' ? d.discovered_assets : 0,
+            discoveredAssets: 0,
             complianceFrameworks: d.config?.frameworks || ['SOC2'],
             configuration: d.config || {}
           }));
@@ -262,7 +262,7 @@ export const ConnectorSDK: React.FC = () => {
         capabilities: [
           { name: 'Discovery', type: 'discover', enabled: true, lastTested: new Date().toISOString(), successRate: 100 },
           { name: 'Read', type: 'read', enabled: true, lastTested: new Date().toISOString(), successRate: 100 }
-        ]
+        ] as any
       };
 
       const { data, error } = await supabase
