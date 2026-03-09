@@ -14,7 +14,7 @@ require (
 	github.com/mikesmitty/edkey v0.0.0-20170222072505-3356ea4e686a
 	github.com/xuri/excelize/v2 v2.10.0
 	golang.org/x/crypto v0.46.0
-	golang.org/x/sys v0.39.0
+	golang.org/x/sys v0.42.0
 	google.golang.org/grpc v1.59.0
 	modernc.org/sqlite v1.44.3
 	tailscale.com v1.88.1
