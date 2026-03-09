@@ -88,7 +88,7 @@ export const KipIntegrationSettings = () => {
       // Save settings to ai_agent_chats table
       const { error } = await supabase.from('ai_agent_chats').insert({
         user_id: user.id,
-        organization_id: user.user_metadata?.organization_id || '00000000-0000-0000-0000-000000000000',
+        organization_id: user.user_metadata?.organization_id || user.id,
         message_type: 'kip_integration_settings',
         message: 'KIP Integration Settings Updated',
         response: JSON.stringify(settings),
