@@ -12,14 +12,9 @@ import {
   CheckCircle,
   Clock,
   AlertTriangle,
-  Settings,
   Shield,
   Undo,
-  Play,
-  Pause,
-  FileText,
-  User,
-  Calendar
+  User
 } from 'lucide-react';
 
 interface RemediationPlaybook {
@@ -83,6 +78,11 @@ export const RemediationOrchestrator: React.FC = () => {
   const [approvalQueue, setApprovalQueue] = useState<RemediationExecution[]>([]);
   const { toast } = useToast();
 
+  const mapExecutionLog = (l: any): ExecutionLog => ({
+    ...l,
+    timestamp: l.timestamp ? new Date(l.timestamp) : new Date()
+  });
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -120,10 +120,7 @@ export const RemediationOrchestrator: React.FC = () => {
             endTime: d.end_time ? new Date(d.end_time) : undefined,
             executedBy: d.triggered_by || 'system',
             approvalRequired: d.status === 'waiting-approval',
-            logs: Array.isArray(d.logs) ? d.logs.map((l: any) => ({
-              ...l,
-              timestamp: l.timestamp ? new Date(l.timestamp) : new Date()
-            })) : [],
+            logs: Array.isArray(d.logs) ? d.logs.map(mapExecutionLog) : [],
             rollbackAvailable: d.status === 'completed'
           }));
           setExecutions(mappedEx);
@@ -136,55 +133,58 @@ export const RemediationOrchestrator: React.FC = () => {
     fetchData();
   }, []);
 
+  const processExecutionProgress = (prev: RemediationExecution[]) => prev.map(execution => {
+    if (execution.status === 'running' && execution.progress < 100) {
+      const newProgress = Math.min(100, execution.progress + 10); // Fixed increment; real progress requires event stream from remediation engine
+      const newStatus = newProgress >= 100 ? 'completed' : 'running';
+
+      if (newStatus === 'completed') {
+        return {
+          ...execution,
+          status: newStatus as any,
+          progress: 100,
+          endTime: new Date(),
+          logs: [
+            ...execution.logs,
+            {
+              timestamp: new Date(),
+              step: 'completion',
+              level: 'info' as any,
+              message: 'Remediation completed successfully'
+            }
+          ]
+        };
+      }
+
+      return {
+        ...execution,
+        progress: newProgress,
+        currentStep: Math.floor((newProgress / 100) * (selectedPlaybook?.steps.length || 3)),
+        logs: execution.progress < 50 && newProgress >= 50 ? [
+          ...execution.logs,
+          {
+            timestamp: new Date(),
+            step: `step-${Math.floor(newProgress / 33) + 1}`,
+            level: 'info' as any,
+            message: `Executing step ${Math.floor(newProgress / 33) + 1}...`
+          }
+        ] : execution.logs
+      };
+    }
+    return execution;
+  });
+
   useEffect(() => {
     // Simulate execution progress updates
     const interval = setInterval(() => {
-      setExecutions(prev => prev.map(execution => {
-        if (execution.status === 'running' && execution.progress < 100) {
-          const newProgress = Math.min(100, execution.progress + 10); // Fixed increment; real progress requires event stream from remediation engine
-          const newStatus = newProgress >= 100 ? 'completed' : 'running';
-
-          if (newStatus === 'completed') {
-            return {
-              ...execution,
-              status: newStatus,
-              progress: 100,
-              endTime: new Date(),
-              logs: [
-                ...execution.logs,
-                {
-                  timestamp: new Date(),
-                  step: 'completion',
-                  level: 'info',
-                  message: 'Remediation completed successfully'
-                }
-              ]
-            };
-          }
-
-          return {
-            ...execution,
-            progress: newProgress,
-            currentStep: Math.floor((newProgress / 100) * (selectedPlaybook?.steps.length || 3)),
-            logs: execution.progress < 50 && newProgress >= 50 ? [
-              ...execution.logs,
-              {
-                timestamp: new Date(),
-                step: `step-${Math.floor(newProgress / 33) + 1}`,
-                level: 'info',
-                message: `Executing step ${Math.floor(newProgress / 33) + 1}...`
-              }
-            ] : execution.logs
-          };
-        }
-        return execution;
-      }));
+      setExecutions(processExecutionProgress);
     }, 3000);
 
     return () => clearInterval(interval);
   }, [selectedPlaybook]);
 
   const executePlaybook = async (playbook: RemediationPlaybook) => {
+    setSelectedPlaybook(playbook);
     try {
       const { data: userData } = await supabase.auth.getUser();
       const orgId = userData?.user?.id || '00000000-0000-0000-0000-000000000000';
