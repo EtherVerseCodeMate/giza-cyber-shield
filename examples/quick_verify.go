@@ -11,9 +11,10 @@ import (
 
 // Quick test program to verify Khepra Protocol deployment
 func main() {
-	fmt.Println("========================================")
+	const printSeparator = "========================================"
+	fmt.Println(printSeparator)
 	fmt.Println("Khepra Protocol - Quick Test")
-	fmt.Println("========================================")
+	fmt.Println(printSeparator)
 	fmt.Println()
 
 	// Test 1: Generate Hybrid Keys
@@ -75,9 +76,9 @@ func main() {
 	fmt.Println()
 
 	// Summary
-	fmt.Println("========================================")
+	fmt.Println(printSeparator)
 	fmt.Println("ALL TESTS PASSED!")
-	fmt.Println("========================================")
+	fmt.Println(printSeparator)
 	fmt.Println()
 	fmt.Println("Khepra Protocol is working correctly on your laptop!")
 	fmt.Println()

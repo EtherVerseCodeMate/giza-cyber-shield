@@ -233,24 +233,110 @@ def start_telemetry_server() -> Optional[subprocess.Popen]:
 # VALIDATION SUITE
 # ============================================================================
 
+def _run_unit_tests() -> bool:
+    print_step("Unit Tests", 4, 1, "Running Unit Tests")
+    try:
+        result = subprocess.call(["go", "test", "-count=1", MOD_VENDOR, "./pkg/...", "./cmd/..."])
+        if result != 0:
+            print_error("Unit tests failed")
+            return False
+        print_success("Unit tests passed")
+        return True
+    except FileNotFoundError:
+        print_error("'go' command not found. Please install Go 1.22+")
+        return False
+
+def _test_pqc_key_gen() -> bool:
+    print_step("PQC Key Generation", 4, 2, "Testing PQC Key Generation (CLI)")
+    if not build("adinkhepra"):
+        return False
+    cli_bin = get_binary_name("adinkhepra")
+    try:
+        subprocess.check_output([cli_bin, "keygen", "-out", "test_key", "-comment", "validation-test"], stderr=subprocess.STDOUT)
+        expected_files = ["test_key_dilithium", "test_key_dilithium.pub", "test_key_dilithium.pub.adinkhepra.json", "test_key_kyber", "test_key_kyber.pub"]
+        missing_files = [f for f in expected_files if not os.path.exists(f)]
+        if missing_files:
+            print_error(f"PQC key generation failed: missing files {missing_files}")
+            return False
+        print_success("PQC key generation successful")
+        for f in expected_files:
+            try:
+                os.remove(f)
+            except OSError:
+                pass
+        return True
+    except subprocess.CalledProcessError as e:
+        print_error(f"CLI execution failed: {e.output.decode()}")
+        return False
+
+def _test_agent_api() -> bool:
+    print_step("Agent API", 4, 3, "Testing Agent API (Integration)")
+    if not build("adinkhepra-agent"):
+        return False
+    agent_bin = get_binary_name("adinkhepra-agent")
+    telemetry_proc = start_telemetry_server()
+    if not check_port_available(AGENT_PORT):
+        print_warning(f"Port {AGENT_PORT} is in use, attempting to free it...")
+        if platform.system().lower() == "windows":
+            subprocess.call(["taskkill", "/F", "/IM", AGENT_EXE], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(2)
+    print_info(f"Starting Agent on port {AGENT_PORT}...")
+    agent_proc = subprocess.Popen([agent_bin], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        attempts = AGENT_STARTUP_TIMEOUT * 2
+        conn = None
+        while attempts > 0:
+            try:
+                conn = http.client.HTTPConnection("127.0.0.1", AGENT_PORT, timeout=1)
+                conn.request("GET", "/healthz")
+                res = conn.getresponse()
+                if res.status == 200:
+                    data = json.load(res)
+                    if data.get("ok"):
+                        print_success("Agent health check passed")
+                        break
+            except Exception:
+                time.sleep(0.5)
+                attempts -= 1
+        if attempts == 0:
+            print_error(f"Agent failed to start or is unreachable (Timeout {AGENT_STARTUP_TIMEOUT}s)")
+            return False
+        print_step("Polymorphic API", 4, 4, "Validating Polymorphic API (Mitochondreal-Scarab)")
+        try:
+            subprocess.check_call([sys.executable, "-c", "import torch; import fastapi; import uvicorn"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            print_success("Python ML dependencies verified")
+        except subprocess.CalledProcessError:
+            print_warning("Missing Python ML dependencies (torch, fastapi, uvicorn)")
+            print_info("Install with: pip install torch fastapi uvicorn")
+        if os.path.exists("services/ml_anomaly/api.py"):
+            print_success("SouHimBou Service found")
+        else:
+            print_warning("SouHimBou Service missing (services/ml_anomaly/api.py)")
+        print_info("Testing DAG attestation...")
+        payload = json.dumps({"action": "validate-deployment", "symbol": "Adinkra-Validation", "parent_ids": []})
+        conn.request("POST", "/dag/add", body=payload, headers={"Content-Type": "application/json"})
+        res = conn.getresponse()
+        if res.status == 200:
+            print_success("DAG write successful")
+        else:
+            print_error(f"DAG write failed: {res.status}")
+            return False
+        return True
+    finally:
+        print_step("Teardown", 4, 4, "Cleaning up test processes")
+        if platform.system().lower() == "windows":
+            subprocess.call(["taskkill", "/F", "/IM", AGENT_EXE], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:
+            agent_proc.terminate()
+            agent_proc.wait()
+        if telemetry_proc:
+            telemetry_proc.terminate()
+
 def validate() -> bool:
     """
     Run the complete ADINKHEPRA validation suite.
-    
-    This is the comprehensive test suite that validates:
-    1. Unit tests (Go packages)
-    2. PQC key generation (CLI)
-    3. Agent API integration
-    4. DAG attestation
-    
-    Returns:
-        True if all validations pass, False otherwise
     """
     print_header("ADINKHEPRA VALIDATION SUITE")
-    
-    # ========================================================================
-    # STEP 0: SUNSUM / Sacred Vessel Harmonization (Akoko Nan)
-    # ========================================================================
     print_step("Harmonization Ritual", 5, 1, "Running Akoko Nan Sacred Balance Check")
     if os.path.exists(get_binary_name("adinkhepra")):
         try:
@@ -260,199 +346,12 @@ def validate() -> bool:
         except subprocess.CalledProcessError:
             print_warning("Akoko Nan Simulation skipped (Nsohia Flow not initiated)")
     
-    # ========================================================================
-    # STEP 1: Unit Tests
-    # ========================================================================
-    print_step("Unit Tests", 4, 1, "Running Unit Tests")
-    
-    try:
-        result = subprocess.call([
-            "go", "test", "-count=1", MOD_VENDOR, 
-            "./pkg/...", "./cmd/..."
-        ])
-        
-        if result != 0:
-            print_error("Unit tests failed")
-            return False
-        
-        print_success("Unit tests passed")
-        
-    except FileNotFoundError:
-        print_error("'go' command not found. Please install Go 1.22+")
+    if not _run_unit_tests():
         return False
-    
-    # ========================================================================
-    # STEP 2: PQC Key Generation
-    # ========================================================================
-    print_step("PQC Key Generation", 4, 2, "Testing PQC Key Generation (CLI)")
-    
-    # Build CLI if needed
-    if not build("adinkhepra"):
+    if not _test_pqc_key_gen():
         return False
-    
-    cli_bin = get_binary_name("adinkhepra")
-    
-    try:
-        # Generate test keys
-        subprocess.check_output(
-            [cli_bin, "keygen", "-out", "test_key", "-comment", "validation-test"],
-            stderr=subprocess.STDOUT
-        )
-        
-        # Verify key files were created
-        expected_files = [
-            "test_key_dilithium",
-            "test_key_dilithium.pub",
-            "test_key_dilithium.pub.adinkhepra.json",
-            "test_key_kyber",
-            "test_key_kyber.pub"
-        ]
-        
-        missing_files = [f for f in expected_files if not os.path.exists(f)]
-        
-        if missing_files:
-            print_error(f"PQC key generation failed: missing files {missing_files}")
-            return False
-        
-        print_success("PQC key generation successful")
-        
-        # Cleanup
-        for f in expected_files:
-            try:
-                os.remove(f)
-            except OSError:
-                pass
-                
-    except subprocess.CalledProcessError as e:
-        print_error(f"CLI execution failed: {e.output.decode()}")
+    if not _test_agent_api():
         return False
-    
-    # ========================================================================
-    # STEP 3: Agent API Integration
-    # ========================================================================
-    print_step("Agent API", 4, 3, "Testing Agent API (Integration)")
-    
-    # Build agent if needed
-    if not build("adinkhepra-agent"):
-        return False
-    
-    agent_bin = get_binary_name("adinkhepra-agent")
-    
-    # Start telemetry server first
-    telemetry_proc = start_telemetry_server()
-    
-    # Check if port is available
-    if not check_port_available(AGENT_PORT):
-        print_warning(f"Port {AGENT_PORT} is in use, attempting to free it...")
-        if platform.system().lower() == "windows":
-            subprocess.call(
-                ["taskkill", "/F", "/IM", AGENT_EXE],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
-        time.sleep(2)
-    
-    # Start agent
-    print_info(f"Starting Agent on port {AGENT_PORT}...")
-    agent_proc = subprocess.Popen(
-        [agent_bin],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
-    )
-    
-    try:
-        # Wait for agent to start
-        attempts = AGENT_STARTUP_TIMEOUT * 2  # Check every 0.5s
-        conn = None
-        
-        while attempts > 0:
-            try:
-                conn = http.client.HTTPConnection("127.0.0.1", AGENT_PORT, timeout=1)
-                conn.request("GET", "/healthz")
-                res = conn.getresponse()
-                
-                if res.status == 200:
-                    data = json.load(res)
-                    if data.get("ok"):
-                        print_success("Agent health check passed")
-                        break
-                        
-            except Exception:
-                time.sleep(0.5)
-                attempts -= 1
-        
-        if attempts == 0:
-            print_error(f"Agent failed to start or is unreachable (Timeout {AGENT_STARTUP_TIMEOUT}s)")
-            return False
-        
-        # ====================================================================
-        # STEP 3b: Polymorphic API Validation
-        # ====================================================================
-        print_step("Polymorphic API", 4, 4, "Validating Polymorphic API (Mitochondreal-Scarab)")
-        
-        # Check Python dependencies
-        try:
-            subprocess.check_call(
-                [sys.executable, "-c", "import torch; import fastapi; import uvicorn"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
-            print_success("Python ML dependencies verified")
-        except subprocess.CalledProcessError:
-            print_warning("Missing Python ML dependencies (torch, fastapi, uvicorn)")
-            print_info("Install with: pip install torch fastapi uvicorn")
-        
-        # Check service file
-        if os.path.exists("services/ml_anomaly/api.py"):
-            print_success("SouHimBou Service found")
-        else:
-            print_warning("SouHimBou Service missing (services/ml_anomaly/api.py)")
-        
-        # ====================================================================
-        # STEP 3c: DAG Attestation Test
-        # ====================================================================
-        print_info("Testing DAG attestation...")
-        
-        payload = json.dumps({
-            "action": "validate-deployment",
-            "symbol": "Adinkra-Validation",
-            "parent_ids": []
-        })
-        
-        conn.request(
-            "POST", "/dag/add",
-            body=payload,
-            headers={"Content-Type": "application/json"}
-        )
-        
-        res = conn.getresponse()
-        
-        if res.status == 200:
-            print_success("DAG write successful")
-        else:
-            print_error(f"DAG write failed: {res.status}")
-            return False
-        
-    finally:
-        # ====================================================================
-        # STEP 4: Teardown
-        # ====================================================================
-        print_step("Teardown", 4, 4, "Cleaning up test processes")
-        
-        # Stop agent
-        if platform.system().lower() == "windows":
-            subprocess.call(
-                ["taskkill", "/F", "/IM", AGENT_EXE],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
-        else:
-            agent_proc.terminate()
-            agent_proc.wait()
-        
-        # Stop telemetry server
-        if telemetry_proc:
-            telemetry_proc.terminate()
     
     # ========================================================================
     # VALIDATION COMPLETE
@@ -502,10 +401,9 @@ def launch(args: List[str] = None) -> None:
     
     # Build and start agent
     agent_bin = get_binary_name("adinkhepra-agent")
-    if not os.path.exists(agent_bin):
-        if not build("adinkhepra-agent"):
-            print_error("Failed to build agent")
-            sys.exit(1)
+    if not os.path.exists(agent_bin) and not build("adinkhepra-agent"):
+        print_error("Failed to build agent")
+        sys.exit(1)
     
     print_info(f"Starting Backend: {agent_bin} (Port {AGENT_PORT})")
     agent_proc = subprocess.Popen([agent_bin], cwd=".")
