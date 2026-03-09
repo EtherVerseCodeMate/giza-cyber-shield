@@ -708,8 +708,8 @@ async function handleExecuteWorkflow(supabase: any, payload: any) {
   // Execute actual workflow steps
   try {
     // Execute workflow steps (in production, this coordinates actual remediation)
-    let success = true;
-    let errorMessage: string | null = null;
+    const success = true;
+    const errorMessage: string | null = null;
 
     // Check if workflow has defined steps and execute them
     const workflowSteps = workflow.workflow_steps || [];
