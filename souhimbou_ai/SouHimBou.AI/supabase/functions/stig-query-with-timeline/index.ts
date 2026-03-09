@@ -350,7 +350,7 @@ serve(async (req) => {
     }
 
     // 7. Build response
-    let rawData: STIGQueryResponse = {
+    const rawData: STIGQueryResponse = {
       stigId: stigRule.rule_id,
       title: stigRule.title,
       severity: stigRule.severity,
