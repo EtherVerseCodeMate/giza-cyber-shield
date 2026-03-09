@@ -187,7 +187,8 @@ export const RemediationOrchestrator: React.FC = () => {
     setSelectedPlaybook(playbook);
     try {
       const { data: userData } = await supabase.auth.getUser();
-      const orgId = userData?.user?.id || '00000000-0000-0000-0000-000000000000';
+      if (!userData?.user?.id) throw new Error('User must be authenticated to execute a playbook');
+      const orgId = userData.user.id;
 
       const initialLog = {
         timestamp: new Date().toISOString(),
