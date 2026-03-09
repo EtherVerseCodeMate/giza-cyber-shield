@@ -298,6 +298,10 @@ func (kp *KeycloakProvider) getPublicKeyFromJWKS(kid string) (interface{}, error
 		}
 	}
 
+	return kp.fetchAndParseJWKS(kid)
+}
+
+func (kp *KeycloakProvider) fetchAndParseJWKS(kid string) (interface{}, error) {
 	// Fetch JWKS from Keycloak
 	certsURL := fmt.Sprintf("%s/protocol/openid-connect/certs", kp.realmURL)
 	resp, err := kp.httpClient.Get(certsURL)
@@ -323,22 +327,7 @@ func (kp *KeycloakProvider) getPublicKeyFromJWKS(kid string) (interface{}, error
 	}
 
 	// Parse keys
-	newKeys := make(map[string]interface{})
-	for _, key := range jwks.Keys {
-		if key.Kty == "RSA" && (key.Use == "sig" || key.Use == "") {
-			if len(key.X5c) > 0 {
-				certDER, err := base64.StdEncoding.DecodeString(key.X5c[0])
-				if err == nil {
-					cert, err := x509.ParseCertificate(certDER)
-					if err == nil {
-						newKeys[key.Kid] = cert.PublicKey
-					}
-				}
-			}
-		}
-	}
-
-	kp.jwks = newKeys
+	kp.jwks = kp.parseJWKSKeys(jwks.Keys)
 	kp.jwksExpiry = time.Now().Add(1 * time.Hour) // Cache for 1 hour
 
 	if key, exists := kp.jwks[kid]; exists {
@@ -346,6 +335,34 @@ func (kp *KeycloakProvider) getPublicKeyFromJWKS(kid string) (interface{}, error
 	}
 
 	return nil, fmt.Errorf("key %s not found in JWKS", kid)
+}
+
+func (kp *KeycloakProvider) parseJWKSKeys(keys []struct {
+	Kid string   "json:\"kid\""
+	Kty string   "json:\"kty\""
+	Alg string   "json:\"alg\""
+	Use string   "json:\"use\""
+	N   string   "json:\"n\""
+	E   string   "json:\"e\""
+	X5c []string "json:\"x5c\""
+}) map[string]interface{} {
+	newKeys := make(map[string]interface{})
+	for _, key := range keys {
+		if key.Kty != "RSA" || (key.Use != "sig" && key.Use != "") || len(key.X5c) == 0 {
+			continue
+		}
+
+		certDER, err := base64.StdEncoding.DecodeString(key.X5c[0])
+		if err != nil {
+			continue
+		}
+
+		cert, err := x509.ParseCertificate(certDER)
+		if err == nil {
+			newKeys[key.Kid] = cert.PublicKey
+		}
+	}
+	return newKeys
 }
 
 func (kp *KeycloakProvider) verifyClaims(claims *jwt.RegisteredClaims) (bool, error) {
