@@ -269,6 +269,25 @@ def _test_pqc_key_gen() -> bool:
         print_error(f"CLI execution failed: {e.output.decode()}")
         return False
 
+def _wait_for_agent() -> http.client.HTTPConnection:
+    attempts = AGENT_STARTUP_TIMEOUT * 2
+    conn = None
+    while attempts > 0:
+        try:
+            conn = http.client.HTTPConnection("127.0.0.1", AGENT_PORT, timeout=1)
+            conn.request("GET", "/healthz")
+            res = conn.getresponse()
+            if res.status == 200:
+                data = json.load(res)
+                if data.get("ok"):
+                    print_success("Agent health check passed")
+                    return conn
+        except Exception:
+            pass
+        time.sleep(0.5)
+        attempts -= 1
+    return None
+
 def _test_agent_api() -> bool:
     print_step("Agent API", 4, 3, "Testing Agent API (Integration)")
     if not build("adinkhepra-agent"):
@@ -283,22 +302,8 @@ def _test_agent_api() -> bool:
     print_info(f"Starting Agent on port {AGENT_PORT}...")
     agent_proc = subprocess.Popen([agent_bin], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
-        attempts = AGENT_STARTUP_TIMEOUT * 2
-        conn = None
-        while attempts > 0:
-            try:
-                conn = http.client.HTTPConnection("127.0.0.1", AGENT_PORT, timeout=1)
-                conn.request("GET", "/healthz")
-                res = conn.getresponse()
-                if res.status == 200:
-                    data = json.load(res)
-                    if data.get("ok"):
-                        print_success("Agent health check passed")
-                        break
-            except Exception:
-                time.sleep(0.5)
-                attempts -= 1
-        if attempts == 0:
+        conn = _wait_for_agent()
+        if not conn:
             print_error(f"Agent failed to start or is unreachable (Timeout {AGENT_STARTUP_TIMEOUT}s)")
             return False
         print_step("Polymorphic API", 4, 4, "Validating Polymorphic API (Mitochondreal-Scarab)")
