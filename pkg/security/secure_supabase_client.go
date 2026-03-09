@@ -253,50 +253,64 @@ func (sc *SecureSupabaseClient) RotateKeys(ctx context.Context, newSymbol string
 	}
 
 	for _, table := range tables {
-		offset := 0
-		for {
-			filter := fmt.Sprintf("limit=%d&offset=%d", pageSize, offset)
-			body, err := sc.client.Select(ctx, table, filter, "*")
-			if err != nil {
-				return fmt.Errorf("fetch page offset=%d from %s: %w", offset, table, err)
-			}
-
-			var encryptedRows []license.SupabaseEncryptedRow
-			if err := json.Unmarshal(body, &encryptedRows); err != nil {
-				return fmt.Errorf("unmarshal page from %s: %w", table, err)
-			}
-			if len(encryptedRows) == 0 {
-				break // No more pages.
-			}
-
-			for i := range encryptedRows {
-				row := &encryptedRows[i]
-
-				plaintext, err := license.UnprotectSupabaseRecord(row, sc.keys)
-				if err != nil {
-					return fmt.Errorf("decrypt row %s in %s: %w", row.ID, table, err)
-				}
-
-				reencrypted, err := license.ProtectSupabaseRecord(plaintext, table, newKeys, row.ExpiresAt)
-				if err != nil {
-					return fmt.Errorf("re-encrypt row %s in %s: %w", row.ID, table, err)
-				}
-				// Preserve the original ID so the UPDATE filter matches.
-				reencrypted.ID = row.ID
-
-				if err := sc.Update(ctx, table, row.ID, reencrypted); err != nil {
-					return fmt.Errorf("update row %s in %s: %w", row.ID, table, err)
-				}
-			}
-
-			if len(encryptedRows) < pageSize {
-				break // Last page.
-			}
-			offset += pageSize
+		if err := sc.rotateKeysForTable(ctx, table, newKeys, pageSize); err != nil {
+			return err
 		}
 	}
 
 	sc.keys = newKeys
+	return nil
+}
+
+func (sc *SecureSupabaseClient) rotateKeysForTable(ctx context.Context, table string, newKeys *license.ProtectionKeys, pageSize int) error {
+	offset := 0
+	for {
+		filter := fmt.Sprintf("limit=%d&offset=%d", pageSize, offset)
+		body, err := sc.client.Select(ctx, table, filter, "*")
+		if err != nil {
+			return fmt.Errorf("fetch page offset=%d from %s: %w", offset, table, err)
+		}
+
+		var encryptedRows []license.SupabaseEncryptedRow
+		if err := json.Unmarshal(body, &encryptedRows); err != nil {
+			return fmt.Errorf("unmarshal page from %s: %w", table, err)
+		}
+		if len(encryptedRows) == 0 {
+			break // No more pages.
+		}
+
+		if err := sc.processEncryptedRows(ctx, table, encryptedRows, newKeys); err != nil {
+			return err
+		}
+
+		if len(encryptedRows) < pageSize {
+			break // Last page.
+		}
+		offset += pageSize
+	}
+	return nil
+}
+
+func (sc *SecureSupabaseClient) processEncryptedRows(ctx context.Context, table string, encryptedRows []license.SupabaseEncryptedRow, newKeys *license.ProtectionKeys) error {
+	for i := range encryptedRows {
+		row := &encryptedRows[i]
+
+		plaintext, err := license.UnprotectSupabaseRecord(row, sc.keys)
+		if err != nil {
+			return fmt.Errorf("decrypt row %s in %s: %w", row.ID, table, err)
+		}
+
+		reencrypted, err := license.ProtectSupabaseRecord(plaintext, table, newKeys, row.ExpiresAt)
+		if err != nil {
+			return fmt.Errorf("re-encrypt row %s in %s: %w", row.ID, table, err)
+		}
+		// Preserve the original ID so the UPDATE filter matches.
+		reencrypted.ID = row.ID
+
+		if err := sc.Update(ctx, table, row.ID, reencrypted); err != nil {
+			return fmt.Errorf("update row %s in %s: %w", row.ID, table, err)
+		}
+	}
 	return nil
 }
 
