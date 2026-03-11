@@ -51,26 +51,9 @@ export const PerformanceMonitor = () => {
   const [monitoring, setMonitoring] = useState(true);
 
   useEffect(() => {
-    // Initialize with stable baseline metrics (updated by real Supabase poll below)
-    const generateBaselineMetrics = (): SystemMetrics[] => {
-      const now = new Date();
-      // Stable sinusoidal pattern — no randomness, deterministic for a given minute
-      return Array.from({ length: 31 }, (_, i) => {
-        const minutesAgo = 30 - i;
-        const timestamp = new Date(now.getTime() - minutesAgo * 60000).toISOString();
-        const phase = (minutesAgo * Math.PI) / 15; // 30-min cycle
-        return {
-          timestamp,
-          cpu: Math.round(35 + 15 * Math.sin(phase)),
-          memory: Math.round(62 + 8 * Math.cos(phase)),
-          disk: Math.round(67 + 5 * Math.sin(phase * 0.5)),
-          network: Math.round(40 + 20 * Math.sin(phase + 1)),
-          responseTime: Math.round(75 + 25 * Math.cos(phase)),
-          throughput: Math.round(800 + 200 * Math.sin(phase + 0.5)),
-          errors: 0
-        };
-      });
-    };
+    // Initialize with sample data
+    // Real system metrics require infrastructure monitoring agent integration
+    const generateMetrics = (): SystemMetrics[] => [];
 
     const sampleServices: ServiceHealth[] = [
       {
@@ -146,33 +129,12 @@ export const PerformanceMonitor = () => {
       }
     ];
 
-    setMetrics(generateBaselineMetrics());
+    setMetrics(generateMetrics());
     setServices(sampleServices);
     setAlerts(sampleAlerts);
     setLoading(false);
 
-    // Append a new stable data point every 30 s derived from sinusoidal baseline
-    const interval = setInterval(() => {
-      if (monitoring) {
-        setMetrics(prev => {
-          const minuteIndex = Math.floor(Date.now() / 60000) % 30;
-          const phase = (minuteIndex * Math.PI) / 15;
-          const newMetric: SystemMetrics = {
-            timestamp: new Date().toISOString(),
-            cpu: Math.round(35 + 15 * Math.sin(phase)),
-            memory: Math.round(62 + 8 * Math.cos(phase)),
-            disk: Math.round(67 + 5 * Math.sin(phase * 0.5)),
-            network: Math.round(40 + 20 * Math.sin(phase + 1)),
-            responseTime: Math.round(75 + 25 * Math.cos(phase)),
-            throughput: Math.round(800 + 200 * Math.sin(phase + 0.5)),
-            errors: 0
-          };
-          return [...prev.slice(-29), newMetric];
-        });
-      }
-    }, 30000);
-
-    return () => clearInterval(interval);
+    // Real-time metric updates require infrastructure monitoring agent; interval removed to avoid fabricated data
   }, [monitoring]);
 
   const getStatusColor = (status: string) => {
@@ -198,7 +160,7 @@ export const PerformanceMonitor = () => {
     return format(new Date(timestamp), 'HH:mm');
   };
 
-  const currentMetrics = metrics[metrics.length - 1];
+  const currentMetrics = metrics.at(-1);
 
   if (loading) {
     return (

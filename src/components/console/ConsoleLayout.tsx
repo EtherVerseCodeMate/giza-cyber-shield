@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useOrganizationContext } from '@/components/OrganizationProvider';
@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import {
   Shield,
   Activity,
-  LogOut,
   Search,
   Bell,
   User,
@@ -16,9 +15,12 @@ import {
   X,
   Globe,
   Lock,
-  Brain
+  Brain,
+  HelpCircle
 } from 'lucide-react';
 import { AdinkraSymbolDisplay } from '@/components/khepra/AdinkraSymbolDisplay';
+import HeaderClock from '@/components/console/HeaderClock';
+import SignOutDialog from '@/components/SignOutDialog';
 import { FloatingAIAssistant } from '@/components/FloatingAIAssistant';
 import { useNavigate } from 'react-router-dom';
 import { BrowserNavigation } from '@/components/ui/browser-navigation';
@@ -41,19 +43,11 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
   browserNav
 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { profile } = useUserProfile();
   const { currentOrganization } = useOrganizationContext();
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   const navigationItems = [
     { id: 'stig-dashboard', label: 'STIG Dashboard', icon: Shield, path: '/stig-dashboard', symbol: 'Eban' },
@@ -61,30 +55,29 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
     { id: 'compliance-reports', label: 'Reports', icon: Globe, path: '/compliance-reports', symbol: 'Duafe' },
     { id: 'evidence-collection', label: 'Evidence', icon: Lock, path: '/evidence-collection', symbol: 'Nkyinkyim' },
     { id: 'billing', label: 'Billing', icon: Brain, path: '/billing', symbol: 'Fawohodie' },
+    { id: 'help', label: 'Help & Support', icon: HelpCircle, path: '/vdp', symbol: 'Akoma' },
   ];
+
+  const filteredNavItems = searchQuery
+    ? navigationItems.filter(item =>
+      item.label.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    : navigationItems;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Top Navigation Bar */}
-      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6 sticky top-0 z-50 backdrop-blur-sm">
+      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6 sticky top-0 z-50 backdrop-blur-sm" role="banner">
         <div className="flex items-center space-x-4">
-          {/* Mobile sidebar toggle */}
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="lg:hidden"
+            aria-label={isSidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+            aria-expanded={isSidebarOpen}
           >
             {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
-          {/* Desktop sidebar toggle */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsDesktopSidebarOpen(!isDesktopSidebarOpen)}
-            className="hidden lg:flex"
-          >
-            <Menu className="h-5 w-5" />
           </Button>
 
           {/* Logo with Adinkra Animation */}
@@ -101,7 +94,7 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
               </h1>
               <div className="flex items-center space-x-2">
                 <Badge variant="secondary" className="text-xs">
-                  {currentOrganization?.organization?.name ?? 'No Organization'}
+                  {currentOrganization?.organization?.name || 'Default Organization'}
                 </Badge>
                 <Badge variant="outline" className="text-xs text-primary">
                   STIG Compliance
@@ -118,6 +111,9 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
             <input
               type="text"
               placeholder="Search services, resources..."
+              aria-label="Search services and resources"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
           </div>
@@ -134,15 +130,11 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
               <Globe className="h-4 w-4 text-primary" />
               <span>Region: US-East-1</span>
             </div>
-            <div className="text-right">
-              <div>{currentTime.toLocaleTimeString()}</div>
-              <div className="text-xs">UTC {currentTime.toISOString().slice(0, 10)}</div>
-            </div>
+            <HeaderClock />
           </div>
 
-          <Button variant="ghost" size="sm" className="relative">
+          <Button variant="ghost" size="sm" className="relative" aria-label="Notifications">
             <Bell className="h-5 w-5" />
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full"></div>
           </Button>
 
           <div className="flex items-center space-x-2">
@@ -155,23 +147,22 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
             </div>
           </div>
 
-          <Button variant="ghost" size="sm" onClick={() => signOut()}>
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <SignOutDialog onConfirm={() => signOut()} />
         </div>
       </header>
 
       <div className="flex h-[calc(100vh-4rem)]">
         {/* Sidebar */}
-        <aside
+        <nav
+          aria-label="Main navigation"
           className={`
-            ${isSidebarOpen ? 'w-64' : 'w-0'} 
-            ${isDesktopSidebarOpen ? 'lg:w-64' : 'lg:w-16'}
-            bg-card border-r border-border transition-all duration-300 overflow-hidden flex-shrink-0
+            ${isSidebarOpen ? 'w-64' : 'w-16'} 
+            bg-card border-r border-border transition-all duration-300 overflow-hidden
+            ${isSidebarOpen ? 'lg:w-64' : 'lg:w-16'}
           `}
         >
           <div className="p-4 space-y-2">
-            {navigationItems.map((item) => {
+            {filteredNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentSection === item.id;
 
@@ -184,10 +175,10 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
                     className={`
                       w-full justify-start relative overflow-hidden
                       ${isActive ? 'bg-primary/10 text-primary border border-primary/20' : ''}
-                      ${isSidebarOpen ? '' : 'px-3'}
+                      ${!isSidebarOpen ? 'px-3' : ''}
                     `}
                   >
-                    <Icon className={`h-5 w-5 flex-shrink-0 ${isSidebarOpen || isDesktopSidebarOpen ? 'mr-3' : ''}`} />
+                    <Icon className="h-5 w-5 mr-3 flex-shrink-0" />
                     {isSidebarOpen && (
                       <span className="transition-opacity duration-200">
                         {item.label}
@@ -245,10 +236,10 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
               </Card>
             </div>
           )}
-        </aside>
+        </nav>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto bg-gradient-to-br from-background to-muted/20">
+        <main className="flex-1 overflow-auto bg-gradient-to-br from-background to-muted/20" role="main">
           {browserNav && (
             <BrowserNavigation
               tabs={browserNav.tabs}
@@ -278,12 +269,16 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
                   </Badge>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <Button variant="outline" size="sm" onClick={() => globalThis.location.reload()}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => globalThis.location.reload()}
+                  >
                     <Activity className="h-4 w-4 mr-2" />
                     Refresh
                   </Button>
                   <Button
-                    onClick={() => navigate('/asset-scanning')}
+                    onClick={() => navigate('/asset-scanning?runScan=true')}
                     className="bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80 text-white font-semibold"
                   >
                     <Shield className="h-4 w-4 mr-2" />

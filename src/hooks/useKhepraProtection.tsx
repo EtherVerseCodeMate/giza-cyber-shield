@@ -95,7 +95,7 @@ export const useKhepraProtection = () => {
       }));
       
       // Step 8: Trigger asset refresh event for CLI
-      window.dispatchEvent(new CustomEvent('khepra-protection-changed'));
+      globalThis.dispatchEvent(new CustomEvent('khepra-protection-changed'));
 
       // Step 7: Log activation to audit trail
       await supabase.rpc('log_user_action', {
@@ -224,18 +224,18 @@ async function initializeProtectionLayers(deploymentVector: string): Promise<voi
 }
 
 async function performSecurityScan(): Promise<number> {
-  await new Promise(resolve => setTimeout(resolve, 1500));
-
-  // Count open (unresolved) security events as a proxy for active vulnerabilities
+  // Simulate security scanning
   try {
-    const { count } = await import('@/integrations/supabase/client').then(
-      ({ supabase }) => supabase
-        .from('security_events')
-        .select('*', { count: 'exact', head: true })
-        .eq('resolved', false)
-    );
-    return count ?? 0;
-  } catch {
-    return 0;
+    // Query real vulnerability count from threat intelligence
+    const { count } = await supabase
+      .from('threat_intelligence')
+      .select('*', { count: 'exact', head: true })
+      .eq('indicator_type', 'vulnerability')
+      .in('threat_level', ['HIGH', 'CRITICAL']);
+
+    return count || 0;
+  } catch (error) {
+    console.error('Failed to fetch vulnerability count:', error);
+    throw new Error('Vulnerability scan failed - unable to query threat intelligence database');
   }
 }

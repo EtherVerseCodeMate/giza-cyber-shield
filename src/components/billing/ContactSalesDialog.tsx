@@ -20,7 +20,7 @@ const ContactSalesDialog = ({ open, onOpenChange }: ContactSalesDialogProps) => 
   const submit = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.functions.invoke('contact-sales', {
+      const { error } = await supabase.functions.invoke('contact-sales', {
         body: { company, message },
       });
       if (error) throw error;

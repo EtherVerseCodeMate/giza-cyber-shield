@@ -294,7 +294,7 @@ export const IntegrationTestingDashboard = () => {
                   </Badge>
                 </CardTitle>
                 <CardDescription>
-                  {integration.provider} • {integration.integration_type.replace('_', ' ')}
+                  {integration.provider} • {integration.integration_type.replaceAll('_', ' ')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -337,7 +337,7 @@ export const IntegrationTestingDashboard = () => {
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       {Object.entries(integration.test_results).map(([test, result]) => (
                         <div key={test} className="flex items-center justify-between">
-                          <span className="capitalize">{test.replace('_', ' ')}</span>
+                          <span className="capitalize">{test.replaceAll('_', ' ')}</span>
                           <div className="flex items-center space-x-1">
                             {getStatusIcon(result)}
                             <Badge className={getTestStatusColor(result)} variant="outline">

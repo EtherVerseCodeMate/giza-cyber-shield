@@ -34,45 +34,11 @@ export const ObservabilityDashboard = () => {
   ]);
 
   useEffect(() => {
-    // Sinusoidal baseline metrics — deterministic for any given minute
-    const generateMetrics = () => {
-      const now = new Date();
-      const data = Array.from({ length: 20 }, (_, i) => {
-        const phase = (i * Math.PI) / 10;
-        return {
-          timestamp: new Date(now.getTime() - (19 - i) * 60000).toISOString(),
-          latency: Math.round(75 + 25 * Math.sin(phase)),
-          throughput: Math.round(1200 + 300 * Math.cos(phase)),
-          errorRate: parseFloat((1 + Math.sin(phase + 1) * 0.8).toFixed(2)),
-          availability: parseFloat((99.5 + 0.4 * Math.sin(phase + 2)).toFixed(2))
-        };
-      });
-      setMetrics(data);
-    };
-
-    // Static representative traces — no randomness needed for demo
-    const generateTraces = () => {
-      const operations = ['auth.login', 'data.query', 'api.process', 'sync.update', 'webhook.handle'];
-      const statuses = ['success', 'success', 'success', 'success', 'warning', 'success', 'success', 'success', 'error', 'success'] as const;
-      const durations = [45, 120, 78, 210, 33, 95, 150, 62, 18, 88];
-      const spanCounts = [4, 7, 5, 12, 3, 6, 9, 4, 3, 5];
-      const now = Date.now();
-      const data = Array.from({ length: 10 }, (_, i) => ({
-        id: `trace-${i}`,
-        operation: operations[i % operations.length],
-        duration: durations[i],
-        status: statuses[i],
-        spans: spanCounts[i],
-        timestamp: new Date(now - (i + 1) * 360000).toISOString()
-      })) as TraceData[];
-      setTraces(data);
-    };
-
-    generateMetrics();
-    generateTraces();
-
-    const interval = setInterval(generateMetrics, 30000);
-    return () => clearInterval(interval);
+    // Real-time metrics and trace data require APM integration (Datadog, Jaeger, etc.)
+    // Returning empty arrays until real data sources are connected
+    setMetrics([]);
+    setTraces([]);
+    // No interval needed without real data source
   }, []);
 
   const getStatusIcon = (status: string) => {
@@ -93,7 +59,7 @@ export const ObservabilityDashboard = () => {
     }
   };
 
-  const currentMetrics = metrics[metrics.length - 1];
+  const currentMetrics = metrics.at(-1);
 
   return (
     <div className="space-y-6">

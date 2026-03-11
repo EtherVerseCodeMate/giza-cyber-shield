@@ -13,6 +13,7 @@ import {
   Clock,
   Zap
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { WizardData } from '../DataSourcesWizard';
 
 interface TestResult {
@@ -63,18 +64,16 @@ export const TestConnectionsStep: React.FC<TestConnectionsStepProps> = ({
       }
     }));
 
-    // Simulate connection testing
+    // Test real connection via Supabase edge function
     try {
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      const startTime = Date.now();
+      const { data, error } = await supabase.functions.invoke('test-environment-connection', {
+        body: { environment_type: environmentType }
+      });
+      const responseTime = Date.now() - startTime;
 
-      // Attempt a real lightweight health check via the supabase edge function
-      const { data: healthData, error: healthError } = await (await import('@/integrations/supabase/client')).supabase
-        .functions.invoke('threat-intelligence-lookup', { body: { action: 'health_check', environment: environmentType } })
-        .catch(() => ({ data: null, error: new Error('unavailable') }));
-
-      const success = !healthError && !!healthData;
-      const discoveredAssets = (healthData as any)?.asset_count ?? 0;
-      const responseTime = (healthData as any)?.response_time_ms ?? 200;
+      const success = !error && data?.success;
+      const discoveredAssets = data?.discovered_assets || 0;
 
       setTestResults(prev => ({
         ...prev,

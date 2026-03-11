@@ -25,18 +25,16 @@ export interface ComplianceCheckResult {
   remediationSuccess?: boolean;
 }
 
-type DriftSeverity = 'CAT_I' | 'CAT_II' | 'CAT_III';
-
 export interface DriftFinding {
   stigRuleId: string;
   expectedState: any;
   actualState: any;
-  severity: DriftSeverity;
+  severity: 'CAT_I' | 'CAT_II' | 'CAT_III';
   autoRemediable: boolean;
 }
 
 export class ContinuousComplianceMonitor {
-  private readonly monitoringIntervals: Map<string, NodeJS.Timeout> = new Map();
+  private monitoringIntervals: Map<string, NodeJS.Timeout> = new Map();
 
   /**
    * Start continuous monitoring for an asset
@@ -114,7 +112,7 @@ export class ContinuousComplianceMonitor {
     // Detect drift
     const currentConfig = currentSnapshot?.configuration_data as Record<string, any> | null;
     const baselineConfig = baseline?.configuration as Record<string, any> | null;
-
+    
     const findings = await this.detectDrift(
       currentConfig,
       baselineConfig,
@@ -271,45 +269,16 @@ export class ContinuousComplianceMonitor {
    * Get severity for a STIG rule
    */
   private getSeverityForRule(ruleId: string): 'CAT_I' | 'CAT_II' | 'CAT_III' {
-    // Default to CAT_II when severity cannot be determined.
-    // In production, call getAsyncSeverityForRule() which queries the database.
-    // This synchronous fallback exists because detectDrift() is called within a loop.
+    // In production, fetch from database
     return 'CAT_II';
-  }
-
-  /**
-   * Async version that queries the database for actual severity.
-   * Use this when per-rule lookup latency is acceptable.
-   */
-  private async getAsyncSeverityForRule(ruleId: string): Promise<'CAT_I' | 'CAT_II' | 'CAT_III'> {
-    try {
-      const { data } = await supabase
-        .from('stig_applicability_rules')
-        .select('priority')
-        .eq('stig_id', ruleId)
-        .maybeSingle();
-
-      if (data?.priority !== undefined) {
-        // Map priority to CAT level (lower priority = more severe)
-        if (data.priority <= 1) return 'CAT_I';
-        if (data.priority <= 5) return 'CAT_II';
-        return 'CAT_III';
-      }
-      return 'CAT_II'; // Default when rule not found in database
-    } catch {
-      return 'CAT_II'; // Default on error
-    }
   }
 
   /**
    * Check if a rule is auto-remediable
    */
   private isAutoRemediable(ruleId: string): boolean {
-    // Default to false (safe). Auto-remediation should only be enabled
-    // for rules that have verified, tested remediation playbooks.
-    // In production, check against remediation playbook library via:
-    //   supabase.from('remediation_playbooks').select('auto_executable').eq('stig_rule_id', ruleId)
-    return false;
+    // In production, check against remediation playbook library
+    return true;
   }
 
   /**
