@@ -95,11 +95,9 @@ export const ComplianceDriftMonitor: React.FC = () => {
       const transformedEvents: DriftEvent[] = (eventsData || []).map(event => ({
         ...event,
         asset_name: `Asset-${event.asset_id.slice(-4)}`,
-        // Derive asset type from stored metadata when available; fall back to event_type hint
-        asset_type: (event as any).asset_type || (['server', 'network', 'database', 'workstation'][event.asset_id.charCodeAt(event.asset_id.length - 1) % 4]),
-        // Confidence derived from severity: critical→0.95, high→0.85, medium→0.75, else 0.65
-        confidence_score: event.severity === 'critical' ? 0.95 : event.severity === 'high' ? 0.85 : event.severity === 'medium' ? 0.75 : 0.65,
-        risk_impact: event.severity === 'critical' ? 'HIGH' : event.severity === 'high' ? 'HIGH' : event.severity === 'medium' ? 'MEDIUM' : 'LOW'
+        asset_type: (asset as any).asset_type || 'unknown', // Real value from discovered_assets
+        confidence_score: 0, // Real confidence score requires drift analysis engine
+        risk_impact: (asset as any).risk_level || 'UNKNOWN' // Real value from infrastructure_assets
       }));
 
       // Filter by asset type if specified
@@ -459,7 +457,7 @@ export const ComplianceDriftMonitor: React.FC = () => {
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-3 text-sm">
                       <div>
                         <span className="text-muted-foreground">Drift Type:</span>
-                        <p className="font-medium">{event.drift_type.replace('_', ' ')}</p>
+                        <p className="font-medium">{event.drift_type.replaceAll('_', ' ')}</p>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Detection Method:</span>

@@ -61,13 +61,13 @@ export const useSecurityHardening = () => {
   const validateInput = (input: string, type: 'email' | 'password' | 'username' | 'text'): { isValid: boolean; error?: string } => {
     // Basic sanitization
     const sanitized = input.trim().replace(/[<>]/g, '');
-    
+
     if (input !== sanitized) {
       return { isValid: false, error: 'Invalid characters detected' };
     }
 
     switch (type) {
-      case 'email':
+      case 'email': {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(input)) {
           return { isValid: false, error: 'Invalid email format' };
@@ -76,6 +76,7 @@ export const useSecurityHardening = () => {
           return { isValid: false, error: 'Email too long' };
         }
         break;
+      }
 
       case 'password':
         if (input.length < 8) {
@@ -136,9 +137,9 @@ export const useSecurityHardening = () => {
 
       await logSecurityEvent({
         type: 'login_success',
-        details: { 
+        details: {
           email: email.substring(0, 3) + '***', // Obscure email for privacy
-          ...additionalData 
+          ...additionalData
         }
       });
     } else {
@@ -157,11 +158,11 @@ export const useSecurityHardening = () => {
 
         await logSecurityEvent({
           type: 'account_locked',
-          details: { 
-            email, 
-            attempts: newFailedAttempts, 
+          details: {
+            email,
+            attempts: newFailedAttempts,
             lockDuration,
-            ...additionalData 
+            ...additionalData
           }
         });
       }
@@ -169,11 +170,11 @@ export const useSecurityHardening = () => {
       if (isSuspicious) {
         await logSecurityEvent({
           type: 'suspicious_activity',
-          details: { 
-            email, 
-            attempts: newFailedAttempts, 
+          details: {
+            email,
+            attempts: newFailedAttempts,
             timeWindow,
-            ...additionalData 
+            ...additionalData
           }
         });
       }
@@ -188,10 +189,10 @@ export const useSecurityHardening = () => {
 
       await logSecurityEvent({
         type: 'login_failure',
-        details: { 
+        details: {
           email: email.substring(0, 3) + '***', // Obscure email for privacy
-          attempts: newFailedAttempts, 
-          ...additionalData 
+          attempts: newFailedAttempts,
+          ...additionalData
         }
       });
     }

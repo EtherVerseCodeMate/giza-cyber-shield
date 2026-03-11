@@ -236,7 +236,7 @@ export const BusinessModelCanvas = () => {
             {canvasData.costStructure.map((cost, index) => (
               <div key={index} className="flex items-center justify-between">
                 <span className="text-sm">{cost.split(' (')[0]}</span>
-                <Badge variant="destructive">{cost.split(' (')[1]?.replace(')', '') || ''}</Badge>
+                <Badge variant="destructive">{cost.split(' (')[1]?.replaceAll(')', '') || ''}</Badge>
               </div>
             ))}
             <div className="mt-4 p-3 bg-muted rounded-lg">
@@ -259,7 +259,7 @@ export const BusinessModelCanvas = () => {
             {canvasData.revenueStreams.map((revenue, index) => (
               <div key={index} className="flex items-center justify-between">
                 <span className="text-sm">{revenue.split(' (')[0]}</span>
-                <Badge variant="default">{revenue.split(' (')[1]?.replace(')', '') || ''}</Badge>
+                <Badge variant="default">{revenue.split(' (')[1]?.replaceAll(')', '') || ''}</Badge>
               </div>
             ))}
             

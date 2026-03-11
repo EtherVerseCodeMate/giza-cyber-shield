@@ -2,6 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   Global Focus & Accessibility Styles
+   ============================================ */
+*:focus-visible {
+  outline: 2px solid hsl(194 100% 50%);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Shimmer animation for loading states */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(400%);
+  }
+}
+
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. */
 
 @layer base {
@@ -27,7 +47,7 @@
     --secondary-foreground: 0 0% 90%;
 
     --muted: 220 13% 10%;
-    --muted-foreground: 220 9% 55%;
+    --muted-foreground: 220 9% 65%;
 
     /* Accent - Purple */
     --accent: 280 100% 70%;
@@ -48,7 +68,7 @@
     --input: 220 13% 12%;
     --ring: 194 100% 50%;
 
-  /* Enhanced Design Tokens */
+    /* Enhanced Design Tokens */
     --gradient-primary: linear-gradient(135deg, hsl(194 100% 50%), hsl(194 100% 70%));
     --gradient-cyber: linear-gradient(135deg, hsl(194 100% 50%), hsl(280 100% 70%));
     --gradient-dark: linear-gradient(180deg, hsl(220 15% 6%), hsl(220 13% 8%));
@@ -58,13 +78,32 @@
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     /* Adinkra-inspired animations */
-    --adinkra-glow: 0 0 20px hsl(194 100% 50% / 0.6);
-    --cultural-pulse: 0 0 15px hsl(280 100% 70% / 0.5);
-
-    /* Giza color tokens — referenced by tailwind.config.ts giza.* colors */
-    /* NOTE: canonical values are the second block below; kept for reference only */
+    --adinkra-glow: 0 0 25px hsl(194 100% 50% / 0.4);
+    --cultural-pulse: 0 0 20px hsl(280 100% 70% / 0.3);
 
     --radius: 0.75rem;
+
+    .bg-cyber-mesh {
+      background-image:
+        radial-gradient(circle at 2px 2px, rgba(0, 255, 255, 0.05) 1px, transparent 0);
+      background-size: 40px 40px;
+      background-position: center;
+    }
+
+    .bg-cyber-grid {
+      background:
+        linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 0),
+        linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 0);
+      background-size: 20px 20px;
+    }
+
+    .glass-card {
+      @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl;
+    }
+
+    .glow-text {
+      text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+    }
 
     /* Sidebar - Enhanced for dark theme */
     --sidebar-background: 220 13% 8%;
@@ -75,13 +114,6 @@
     --sidebar-accent-foreground: 0 0% 90%;
     --sidebar-border: 220 13% 15%;
     --sidebar-ring: 194 100% 50%;
-
-    /* Giza custom color palette */
-    --void-black: 220 20% 4%;
-    --gunmetal: 220 13% 16%;
-    --quantum-cyan: 194 100% 50%;
-    --khepra-gold: 45 96% 58%;
-    --canary-red: 0 84% 60%;
   }
 
   .dark {
@@ -128,26 +160,23 @@
 }
 
 @layer components {
+
   /* Enhanced Button Styles */
   .btn-cyber {
-    @apply relative bg-gradient-to-r from-primary to-primary-glow text-primary-foreground border border-primary/20 
-           hover:shadow-[var(--shadow-primary)] transition-[var(--transition-smooth)] rounded-lg;
+    @apply relative bg-gradient-to-r from-primary to-primary-glow text-primary-foreground border border-primary/20 hover:shadow-[var(--shadow-primary)] transition-[var(--transition-smooth)] rounded-lg;
   }
-  
+
   .btn-cyber::before {
-    @apply absolute inset-0 rounded-lg bg-gradient-to-r from-primary to-primary-glow opacity-0 
-           transition-opacity duration-300 content-[''];
+    @apply absolute inset-0 rounded-lg bg-gradient-to-r from-primary to-primary-glow opacity-0 transition-opacity duration-300 content-[''];
   }
-  
+
   .btn-cyber:hover::before {
     @apply opacity-20;
   }
 
   /* Enhanced Card Styles */
   .card-cyber {
-    @apply bg-gradient-to-br from-card to-card/80 border border-border/50 backdrop-blur-sm
-           shadow-[var(--shadow-elegant)] hover:shadow-[var(--shadow-primary)] 
-           transition-[var(--transition-smooth)] rounded-lg;
+    @apply bg-gradient-to-br from-card to-card/80 border border-border/50 backdrop-blur-sm shadow-[var(--shadow-elegant)] hover:shadow-[var(--shadow-primary)] transition-[var(--transition-smooth)] rounded-lg;
   }
 
   /* Tour highlight animation */
@@ -155,118 +184,122 @@
     @apply ring-4 ring-primary ring-offset-2 ring-offset-background;
     animation: tour-pulse 2s ease-in-out infinite;
   }
-  
+
+  @keyframes tour-pulse {
+
+    0%,
+    100% {
+      @apply ring-opacity-50;
+    }
+
+    50% {
+      @apply ring-opacity-100;
+    }
+  }
+
   /* Tour overlay */
   .tour-overlay {
     background: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(2px);
   }
 
-  /* Gradient utilities — CSS variables are defined in :root above.
-     Tailwind cannot resolve linear-gradient() CSS vars as bg-* classes,
-     so we define them explicitly here. */
-  .bg-gradient-primary {
-    background: var(--gradient-primary);
-  }
-
-  .bg-gradient-cyber {
-    background: var(--gradient-cyber);
-  }
-
-  .bg-gradient-dark {
-    background: var(--gradient-dark);
-  }
-}
-
   /* Glow Effects */
   .glow-primary {
     @apply shadow-[var(--shadow-primary)];
   }
-  
+
   .glow-accent {
     @apply shadow-[var(--shadow-accent)];
   }
+}
 
-  /* Reduced Performance-Optimized Animations */
+/* Reduced Performance-Optimized Animations */
+.animate-float {
+  animation: float 8s ease-in-out infinite;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  contain: layout style paint;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+  will-change: box-shadow;
+  transform: translate3d(0, 0, 0);
+  contain: layout style paint;
+}
+
+.animate-adinkra-spin {
+  animation: adinkra-spin 12s linear infinite;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  contain: layout style paint;
+}
+
+.animate-cultural-pulse {
+  animation: cultural-pulse 4s ease-in-out infinite;
+  will-change: transform, box-shadow;
+  transform: translate3d(0, 0, 0);
+  contain: layout style paint;
+}
+
+/* Text Animation Fixes */
+.animate-text-fade {
+  animation: text-fade 0.3s ease-out;
+  will-change: opacity;
+  contain: layout style paint;
+}
+
+.animate-slide-in {
+  animation: slide-in 0.4s ease-out;
+  will-change: transform, opacity;
+  transform: translate3d(0, 0, 0);
+  contain: layout style paint;
+}
+
+/* Prevent animation conflicts */
+[class*="animate-"]:hover {
+  animation-play-state: running;
+}
+
+/* Container queries for responsive animations */
+@container (max-width: 768px) {
   .animate-float {
-    animation: float 8s ease-in-out infinite;
-    will-change: transform;
-    transform: translate3d(0, 0, 0);
-    contain: layout style paint;
+    animation-duration: 6s;
   }
-  
+
   .animate-pulse-glow {
-    animation: pulse-glow 3s ease-in-out infinite;
-    will-change: box-shadow;
-    transform: translate3d(0, 0, 0);
-    contain: layout style paint;
+    animation-duration: 2s;
   }
+}
 
-  .animate-adinkra-spin {
-    animation: adinkra-spin 12s linear infinite;
-    will-change: transform;
-    transform: translate3d(0, 0, 0);
-    contain: layout style paint;
-  }
-
-  .animate-cultural-pulse {
-    animation: cultural-pulse 4s ease-in-out infinite;
-    will-change: transform, box-shadow;
-    transform: translate3d(0, 0, 0);
-    contain: layout style paint;
-  }
-
-  /* Text Animation Fixes */
-  .animate-text-fade {
-    animation: text-fade 0.3s ease-out;
-    will-change: opacity;
-    contain: layout style paint;
-  }
-
-  .animate-slide-in {
-    animation: slide-in 0.4s ease-out;
-    will-change: transform, opacity;
-    transform: translate3d(0, 0, 0);
-    contain: layout style paint;
-  }
-
-  /* Prevent animation conflicts */
-  [class*="animate-"]:hover {
-    animation-play-state: running;
-  }
-
-  /* Container queries for responsive animations */
-  @container (max-width: 768px) {
-    .animate-float {
-      animation-duration: 6s;
-    }
-    .animate-pulse-glow {
-      animation-duration: 2s;
-    }
-  }
-
-  /* Fade animation for progressive disclosure */
-  .animate-fade-in {
-    animation: fade-in 0.3s ease-out;
-    will-change: opacity;
-    contain: layout style paint;
-  }
+/* Fade animation for progressive disclosure */
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+  will-change: opacity;
+  contain: layout style paint;
+}
 
 /* Optimized Keyframes */
 @keyframes float {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translate3d(0, 0px, 0);
   }
+
   50% {
     transform: translate3d(0, -10px, 0);
   }
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: var(--shadow-primary);
     filter: brightness(1);
   }
+
   50% {
     box-shadow: var(--shadow-accent);
     filter: brightness(1.1);
@@ -278,18 +311,22 @@
     transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
     filter: hue-rotate(0deg);
   }
+
   25% {
     transform: translate3d(0, 0, 0) rotate(90deg) scale(1.05);
     filter: hue-rotate(90deg);
   }
+
   50% {
     transform: translate3d(0, 0, 0) rotate(180deg) scale(1);
     filter: hue-rotate(180deg);
   }
+
   75% {
     transform: translate3d(0, 0, 0) rotate(270deg) scale(1.05);
     filter: hue-rotate(270deg);
   }
+
   100% {
     transform: translate3d(0, 0, 0) rotate(360deg) scale(1);
     filter: hue-rotate(360deg);
@@ -297,10 +334,13 @@
 }
 
 @keyframes cultural-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translate3d(0, 0, 0) scale(1);
     box-shadow: var(--shadow-primary);
   }
+
   50% {
     transform: translate3d(0, 0, 0) scale(1.03);
     box-shadow: var(--shadow-accent);
@@ -312,6 +352,7 @@
     opacity: 0;
     transform: translate3d(0, 5px, 0);
   }
+
   100% {
     opacity: 1;
     transform: translate3d(0, 0, 0);
@@ -323,6 +364,7 @@
     opacity: 0;
     transform: translate3d(-20px, 0, 0);
   }
+
   100% {
     opacity: 1;
     transform: translate3d(0, 0, 0);
@@ -334,6 +376,7 @@
     opacity: 0;
     transform: translate3d(0, 5px, 0);
   }
+
   100% {
     opacity: 1;
     transform: translate3d(0, 0, 0);

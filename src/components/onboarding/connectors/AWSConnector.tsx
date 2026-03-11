@@ -205,7 +205,7 @@ export default function AWSConnector({ organizationId, onSuccess, onError }: AWS
                 Download Template
               </Button>
               <Button
-                onClick={() => window.open(cloudFormationUrl(), '_blank')}
+                onClick={() => globalThis.open(cloudFormationUrl(), '_blank')}
                 size="lg"
               >
                 <ExternalLink className="mr-2 h-4 w-4" />
