@@ -69,7 +69,7 @@ export const ContinuousSTIGMonitoring: React.FC = () => {
         total_assets: totalAssets,
         monitored_assets: monitoredAssets,
         compliance_percentage: compliancePercentage,
-        active_scans: assets?.filter(a => a.compliance_status === 'SCANNING').length || 0,
+        active_scans: 0, // Real value requires scan orchestration engine
         recent_findings: implementations?.length || 0,
         drift_events: driftEvents?.length || 0
       });

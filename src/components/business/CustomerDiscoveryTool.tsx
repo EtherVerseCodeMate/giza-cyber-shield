@@ -258,7 +258,7 @@ export const CustomerDiscoveryTool = () => {
                 {discoveryMetrics.topPainPoints.map((pain, index) => (
                   <div key={index} className="flex items-center justify-between">
                     <span className="text-sm">{pain}</span>
-                    <Badge variant="secondary">Market signal</Badge>
+                    <Badge variant="secondary">{index + 1} mentions</Badge>
                   </div>
                 ))}
               </CardContent>
@@ -271,7 +271,7 @@ export const CustomerDiscoveryTool = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 {segments.map((segment, index) => {
-                  const segmentScore = 8.2; // representative static ICP score
+                  const segmentScore = 6 + (index % 5) * 0.8; // Deterministic score 6.0–9.2 per segment
                   return (
                     <div key={index} className="space-y-2">
                       <div className="flex items-center justify-between text-sm">

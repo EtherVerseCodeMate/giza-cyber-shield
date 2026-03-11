@@ -2,43 +2,61 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/hooks/useAuth";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { OrganizationProvider } from "@/components/OrganizationProvider";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import SecurityHeaders from "@/components/security/SecurityHeaders";
-import NLChatPanel from "@/components/NLChatPanel";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import CommandPalette from "@/components/CommandPalette";
 
 // Core MVP Pages
-import NewHomepage from "./views/NewHomepage";
-import BlogList from "./views/Blog";
-import Episode1 from "./views/blog/Episode1";
-import Episode2 from "./views/blog/Episode2";
-import Episode3 from "./views/blog/Episode3";
-import Episode4 from "./views/blog/Episode4";
-import BuildingCyberImmunity from "./views/blog/BuildingCyberImmunity";
-import LaunchingVDP from "./views/blog/LaunchingVDP";
-import VdpPage from "./views/VDP";
-import HallOfFame from "./views/HallOfFame";
-import Auth from "./views/Auth";
-import AuthCallback from "./views/AuthCallback";
-import ResetPassword from "./views/ResetPassword";
-import Onboarding from "./views/Onboarding";
-import STIGDashboard from "./views/STIGDashboard";
-import AssetScanning from "./views/AssetScanning";
-import ComplianceReports from "./views/ComplianceReports";
-import EvidenceCollectionMVP from "./views/EvidenceCollectionMVP";
-import SimpleBilling from "./views/SimpleBilling";
-import DoD from "./views/DoD";
-import MasterAdmin from "./views/MasterAdmin";
-import ClientPortal from "./views/ClientPortal";
-import UltimateDashboard from "./views/UltimateDashboard";
-import CommandCenter from "./views/CommandCenter";
-import LegalPage from "./views/LegalPage";
-import ThreatHuntingDashboard from "./views/ThreatHuntingDashboard";
-import IntegrationsPage from "./views/IntegrationsPage";
-import NotFound from "./views/NotFound";
-import { SecurityDashboard } from "./views/SecurityDashboard";
+import NewHomepage from "./pages/NewHomepage";
+import BlogList from "./pages/Blog";
+import Episode1 from "./pages/blog/Episode1";
+import Episode2 from "./pages/blog/Episode2";
+import Episode3 from "./pages/blog/Episode3";
+import Episode4 from "./pages/blog/Episode4";
+import BuildingCyberImmunity from "./pages/blog/BuildingCyberImmunity";
+import LaunchingVDP from "./pages/blog/LaunchingVDP";
+import VDP from "./pages/VDP";
+import HallOfFame from "./pages/HallOfFame";
+import Auth from "./pages/Auth";
+import AuthCallback from "./pages/AuthCallback";
+import ResetPassword from "./pages/ResetPassword";
+import Onboarding from "./pages/Onboarding";
+import STIGDashboard from "./pages/STIGDashboard";
+import AssetScanning from "./pages/AssetScanning";
+import ComplianceReports from "./pages/ComplianceReports";
+import EvidenceCollectionMVP from "./pages/EvidenceCollectionMVP";
+import SimpleBilling from "./pages/SimpleBilling";
+import DoD from "./pages/DoD";
+import MasterAdmin from "./pages/MasterAdmin";
+import ClientPortal from "./pages/ClientPortal";
+import UltimateDashboard from "./pages/UltimateDashboard";
+import CommandCenter from "./pages/CommandCenter";
+import NotFound from "./pages/NotFound";
+import LegalPage from "./pages/LegalPage";
+import { ThreatHuntingDashboard } from "./pages/ThreatHuntingDashboard";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import NLChatPanel from "@/components/NLChatPanel";
+
+/**
+ * Invisible component that sets document.title per route.
+ * Must be inside <BrowserRouter> to access useLocation.
+ */
+const DocumentTitle = () => {
+  useDocumentTitle();
+  return null;
+};
+
+/**
+ * CommandPalette wrapper that reads auth state.
+ */
+const AuthAwareCommandPalette = () => {
+  const { user } = useAuth();
+  return <CommandPalette isAuthenticated={!!user} />;
+};
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,73 +75,65 @@ const App = () => {
           <SecurityHeaders>
             <TooltipProvider>
               <OrganizationProvider>
-                <Toaster />
-                <Sonner />
-                <Routes>
-                  {/* Public Routes */}
-                  <Route path="/" element={<NewHomepage />} />
-                  <Route path="/blog" element={<BlogList />} />
-                  <Route path="/blog/episode-1-blood-moon-philosopher-api" element={<Episode1 />} />
-                  <Route path="/blog/episode-2-autonomous-ai-deepfakes-leadership" element={<Episode2 />} />
-                  <Route path="/blog/episode-3-founder-inception-story" element={<Episode3 />} />
-                  <Route path="/blog/episode-4-rising-through-ranks" element={<Episode4 />} />
-                  <Route path="/blog/building-cyber-immunity-cmmc-stig-database" element={<BuildingCyberImmunity />} />
-                  <Route path="/blog/launching-vdp" element={<LaunchingVDP />} />
-                  <Route path="/vdp" element={<VdpPage />} />
-                  <Route path="/hall-of-fame" element={<HallOfFame />} />
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/auth/callback" element={<AuthCallback />} />
-                  <Route path="/auth/reset-password" element={<ResetPassword />} />
-                  <Route path="/onboarding" element={<Onboarding />} />
+                <ErrorBoundary>
+                  <DocumentTitle />
+                  <AuthAwareCommandPalette />
+                  <Toaster />
+                  <Sonner />
+                  <Routes>
+                    {/* Public Routes */}
+                    <Route path="/" element={<NewHomepage />} />
+                    <Route path="/blog" element={<BlogList />} />
+                    <Route path="/blog/episode-1-blood-moon-philosopher-api" element={<Episode1 />} />
+                    <Route path="/blog/episode-2-autonomous-ai-deepfakes-leadership" element={<Episode2 />} />
+                    <Route path="/blog/episode-3-founder-inception-story" element={<Episode3 />} />
+                    <Route path="/blog/episode-4-rising-through-ranks" element={<Episode4 />} />
+                    <Route path="/blog/building-cyber-immunity-cmmc-stig-database" element={<BuildingCyberImmunity />} />
+                    <Route path="/blog/launching-vdp" element={<LaunchingVDP />} />
+                    <Route path="/vdp" element={<VDP />} />
+                    <Route path="/hall-of-fame" element={<HallOfFame />} />
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/auth/callback" element={<AuthCallback />} />
+                    <Route path="/auth/reset-password" element={<ResetPassword />} />
+                    <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
 
-                  {/* STIG-First MVP Routes */}
-                  <Route path="/stig-dashboard" element={<ProtectedRoute><STIGDashboard /></ProtectedRoute>} />
-                  <Route path="/dashboard" element={<ProtectedRoute><STIGDashboard /></ProtectedRoute>} />
-                  <Route path="/asset-scanning" element={<ProtectedRoute><AssetScanning /></ProtectedRoute>} />
-                  <Route path="/compliance-reports" element={<ProtectedRoute><ComplianceReports /></ProtectedRoute>} />
-                  <Route path="/evidence-collection" element={<ProtectedRoute><EvidenceCollectionMVP /></ProtectedRoute>} />
-                  <Route path="/billing" element={<ProtectedRoute><SimpleBilling /></ProtectedRoute>} />
-                  <Route path="/ultimate" element={<ProtectedRoute><UltimateDashboard /></ProtectedRoute>} />
-                  <Route path="/command-center" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
+                    {/* Legal Pages */}
+                    <Route path="/privacy" element={<LegalPage />} />
+                    <Route path="/terms" element={<LegalPage />} />
+                    <Route path="/security" element={<LegalPage />} />
+                    <Route path="/compliance" element={<LegalPage />} />
 
-                  {/* DoD STIG-Codex Center */}
-                  <Route path="/dod" element={<ProtectedRoute><DoD /></ProtectedRoute>} />
+                    {/* STIG-First MVP Routes */}
+                    <Route path="/stig-dashboard" element={<ProtectedRoute><STIGDashboard /></ProtectedRoute>} />
+                    <Route path="/dashboard" element={<ProtectedRoute><STIGDashboard /></ProtectedRoute>} />
+                    <Route path="/asset-scanning" element={<ProtectedRoute><AssetScanning /></ProtectedRoute>} />
+                    <Route path="/compliance-reports" element={<ProtectedRoute><ComplianceReports /></ProtectedRoute>} />
+                    <Route path="/evidence-collection" element={<ProtectedRoute><EvidenceCollectionMVP /></ProtectedRoute>} />
+                    <Route path="/billing" element={<ProtectedRoute><SimpleBilling /></ProtectedRoute>} />
+                    <Route path="/ultimate" element={<ProtectedRoute><UltimateDashboard /></ProtectedRoute>} />
+                    <Route path="/command-center" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
+                    <Route path="/threat-hunting" element={<ProtectedRoute><ThreatHuntingDashboard /></ProtectedRoute>} />
 
-                  {/* Admin Routes */}
-                  <Route path="/admin" element={<ProtectedRoute><MasterAdmin /></ProtectedRoute>} />
+                    {/* DoD Solutions (public marketing page) */}
+                    <Route path="/dod" element={<DoD />} />
 
-                  {/* Legal Pages */}
-                  <Route path="/legal" element={<LegalPage />} />
-                  <Route path="/privacy" element={<LegalPage />} />
-                  <Route path="/terms" element={<LegalPage />} />
+                    {/* Admin Routes */}
+                    <Route path="/admin" element={<ProtectedRoute><MasterAdmin /></ProtectedRoute>} />
 
-                  {/* Threat Hunting */}
-                  <Route path="/threat-hunting" element={<ProtectedRoute><ThreatHuntingDashboard /></ProtectedRoute>} />
+                    {/* Khepra Client Portal */}
+                    <Route path="/clients/:org_id/overview" element={<ProtectedRoute><ClientPortal /></ProtectedRoute>} />
+                    <Route path="/clients/:org_id" element={<ProtectedRoute><ClientPortal /></ProtectedRoute>} />
 
-                  {/* Integrations */}
-                  <Route path="/integrations" element={<ProtectedRoute><IntegrationsPage /></ProtectedRoute>} />
-
-                  {/* Khepra Client Portal */}
-                  <Route path="/clients/:org_id/overview" element={<ProtectedRoute><ClientPortal /></ProtectedRoute>} />
-                  <Route path="/clients/:org_id" element={<ProtectedRoute><ClientPortal /></ProtectedRoute>} />
-
-                  {/* Security & Compliance Dashboard */}
-                  <Route path="/security" element={<ProtectedRoute><SecurityDashboard /></ProtectedRoute>} />
-
-                  {/* Settings stub — prevents broken nav link */}
-                  <Route path="/settings" element={<ProtectedRoute><Navigate to="/dashboard" replace /></ProtectedRoute>} />
-
-                  {/* Catch-all */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-
-                {/* NLChatPanel needs to be inside BrowserRouter for any future router usage */}
-                <NLChatPanel />
+                    {/* Catch-all */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </ErrorBoundary>
               </OrganizationProvider>
             </TooltipProvider>
           </SecurityHeaders>
         </AuthProvider>
       </QueryClientProvider>
+      <NLChatPanel />
     </BrowserRouter>
   );
 };

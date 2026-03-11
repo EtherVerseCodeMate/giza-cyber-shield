@@ -749,7 +749,7 @@ export const DeploymentConfigurationWizard: React.FC<DeploymentConfigurationWiza
                           onChange={(e) => updateConfiguration({
                             resource_limits: {
                               ...configuration.resource_limits,
-                              cpu_cores: parseInt(e.target.value) || 1
+                              cpu_cores: Number.parseInt(e.target.value) || 1
                             }
                           })}
                         />
@@ -766,7 +766,7 @@ export const DeploymentConfigurationWizard: React.FC<DeploymentConfigurationWiza
                           onChange={(e) => updateConfiguration({
                             resource_limits: {
                               ...configuration.resource_limits,
-                              memory_gb: parseInt(e.target.value) || 1
+                              memory_gb: Number.parseInt(e.target.value) || 1
                             }
                           })}
                         />
@@ -785,7 +785,7 @@ export const DeploymentConfigurationWizard: React.FC<DeploymentConfigurationWiza
                           onChange={(e) => updateConfiguration({
                             resource_limits: {
                               ...configuration.resource_limits,
-                              storage_gb: parseInt(e.target.value) || 10
+                              storage_gb: Number.parseInt(e.target.value) || 10
                             }
                           })}
                         />
@@ -802,7 +802,7 @@ export const DeploymentConfigurationWizard: React.FC<DeploymentConfigurationWiza
                           onChange={(e) => updateConfiguration({
                             resource_limits: {
                               ...configuration.resource_limits,
-                              network_mbps: parseInt(e.target.value) || 10
+                              network_mbps: Number.parseInt(e.target.value) || 10
                             }
                           })}
                         />

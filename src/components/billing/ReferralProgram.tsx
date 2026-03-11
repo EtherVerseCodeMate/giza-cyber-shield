@@ -50,7 +50,7 @@ const ReferralProgram = () => {
         setReferralCode(existing.referral_code);
       } else {
         // Generate new referral code
-        const code = `${user.email?.split('@')[0] || 'user'}-${crypto.randomUUID().replace(/-/g, '').slice(0, 6).toUpperCase()}`;
+        const code = `${user.email?.split('@')[0] || 'user'}-${crypto.randomUUID().substring(0, 6)}`.toUpperCase();
         
         const { data, error: insertError } = await supabase
           .from('referrals')
@@ -101,7 +101,7 @@ const ReferralProgram = () => {
   };
 
   const copyReferralLink = () => {
-    const referralLink = `${window.location.origin}/signup?ref=${referralCode}`;
+    const referralLink = `${globalThis.location.origin}/signup?ref=${referralCode}`;
     navigator.clipboard.writeText(referralLink);
     toast({
       title: "Link copied!",

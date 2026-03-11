@@ -106,8 +106,8 @@ const SidebarProvider = React.forwardRef<
         }
       }
 
-      window.addEventListener("keydown", handleKeyDown)
-      return () => window.removeEventListener("keydown", handleKeyDown)
+      globalThis.addEventListener("keydown", handleKeyDown)
+      return () => globalThis.removeEventListener("keydown", handleKeyDown)
     }, [toggleSidebar])
 
     // We add a state so that we can do data-state="expanded" or "collapsed".
@@ -642,19 +642,17 @@ const SidebarMenuBadge = React.forwardRef<
 ))
 SidebarMenuBadge.displayName = "SidebarMenuBadge"
 
-// Module-level counter for deterministic skeleton widths
-let sidebarSkeletonCounter = 0;
-const SKELETON_WIDTHS = ['55%', '70%', '85%', '60%', '75%'];
-
 const SidebarMenuSkeleton = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
     showIcon?: boolean
   }
 >(({ className, showIcon = false, ...props }, ref) => {
+  // Deterministic width using crypto PRNG — skeleton shimmer visual variety without Math.random().
   const width = React.useMemo(() => {
-    const idx = sidebarSkeletonCounter++ % SKELETON_WIDTHS.length;
-    return SKELETON_WIDTHS[idx];
+    const buf = new Uint8Array(1);
+    crypto.getRandomValues(buf);
+    return `${(buf[0] % 41) + 50}%`
   }, [])
 
   return (

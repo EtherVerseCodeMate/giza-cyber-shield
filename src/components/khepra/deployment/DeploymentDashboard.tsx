@@ -5,11 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Shield, 
-  Activity, 
-  AlertTriangle, 
-  CheckCircle, 
+import {
+  Shield,
+  Activity,
+  AlertTriangle,
+  CheckCircle,
   Clock,
   Eye,
   Zap,
@@ -93,102 +93,31 @@ export const DeploymentDashboard: React.FC<DeploymentDashboardProps> = ({
   // Simulate real-time data
   useEffect(() => {
     const loadDashboardData = () => {
-      const mockStatus: DeploymentStatus = {
-        id: deploymentId || 'khepra-001',
-        name: 'KHEPRA Production Deployment',
-        status: 'active',
-        health_score: 94,
+      const pendingStatus: DeploymentStatus = {
+        id: deploymentId || 'pending-deployment',
+        name: 'Pending Deployment Telemetry',
+        status: 'deploying',
+        health_score: 0,
         last_updated: new Date().toISOString(),
-        protected_assets: 127,
-        active_agents: 8,
-        cultural_symbols: ['Sankofa', 'Gye_Nyame', 'Eban', 'Nkyinkyim'],
+        protected_assets: 0,
+        active_agents: 0,
+        cultural_symbols: [],
         metrics: {
-          cpu_usage: 45,
-          memory_usage: 62,
-          storage_usage: 38,
-          network_throughput: 847,
-          threat_blocked: 23,
-          anomalies_detected: 3
+          cpu_usage: 0,
+          memory_usage: 0,
+          storage_usage: 0,
+          network_throughput: 0,
+          threat_blocked: 0,
+          anomalies_detected: 0
         }
       };
 
-      const mockThreats: ThreatEvent[] = [
-        {
-          id: 'threat-001',
-          type: 'blocked',
-          severity: 'high',
-          description: 'SQL injection attempt blocked by Eban guardian',
-          source: '192.168.1.45',
-          target: 'api.company.com',
-          timestamp: new Date(Date.now() - 5 * 60000).toISOString(),
-          cultural_pattern: 'Colonial extraction pattern detected'
-        },
-        {
-          id: 'threat-002',
-          type: 'mitigated',
-          severity: 'medium',
-          description: 'Anomalous data flow redirected by Nkyinkyim agent',
-          source: 'internal-app-01',
-          target: 'database-cluster',
-          timestamp: new Date(Date.now() - 12 * 60000).toISOString()
-        },
-        {
-          id: 'threat-003',
-          type: 'detected',
-          severity: 'low',
-          description: 'Unusual access pattern identified',
-          source: 'user-session-847',
-          target: 'admin-portal',
-          timestamp: new Date(Date.now() - 18 * 60000).toISOString()
-        }
-      ];
+      const pendingThreats: ThreatEvent[] = [];
+      const pendingAgents: AgentInfo[] = [];
 
-      const mockAgents: AgentInfo[] = [
-        {
-          id: 'agent-sankofa-01',
-          name: 'Sankofa Guardian',
-          type: 'guardian',
-          status: 'active',
-          location: 'Web Application Tier',
-          cultural_symbol: 'Sankofa',
-          tasks_completed: 142,
-          uptime: '7d 12h'
-        },
-        {
-          id: 'agent-eban-01',
-          name: 'Eban Fortress',
-          type: 'guardian',
-          status: 'active',
-          location: 'Database Layer',
-          cultural_symbol: 'Eban',
-          tasks_completed: 89,
-          uptime: '7d 12h'
-        },
-        {
-          id: 'agent-nkyinkyim-01',
-          name: 'Nkyinkyim Scout',
-          type: 'scout',
-          status: 'busy',
-          location: 'Network Perimeter',
-          cultural_symbol: 'Nkyinkyim',
-          tasks_completed: 203,
-          uptime: '7d 12h'
-        },
-        {
-          id: 'agent-gye-01',
-          name: 'Gye Nyame Orchestrator',
-          type: 'orchestrator',
-          status: 'active',
-          location: 'Control Plane',
-          cultural_symbol: 'Gye_Nyame',
-          tasks_completed: 67,
-          uptime: '7d 12h'
-        }
-      ];
-
-      setDeploymentStatus(mockStatus);
-      setRecentThreats(mockThreats);
-      setActiveAgents(mockAgents);
+      setDeploymentStatus(pendingStatus);
+      setRecentThreats(pendingThreats);
+      setActiveAgents(pendingAgents);
       setIsLoading(false);
     };
 
@@ -249,7 +178,7 @@ export const DeploymentDashboard: React.FC<DeploymentDashboardProps> = ({
   if (isLoading) {
     return (
       <div className="space-y-6">
-        {[...Array(3)].map((_, i) => (
+        {[...new Array(3)].map((_, i) => (
           <Card key={i} className="border-border">
             <CardContent className="p-6">
               <div className="animate-pulse space-y-4">
@@ -296,10 +225,10 @@ export const DeploymentDashboard: React.FC<DeploymentDashboardProps> = ({
                 </div>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => setAutoRefresh(!autoRefresh)}
               >
@@ -313,7 +242,7 @@ export const DeploymentDashboard: React.FC<DeploymentDashboardProps> = ({
             </div>
           </div>
         </CardHeader>
-        
+
         <CardContent className="space-y-4">
           {/* Key Metrics */}
           <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
@@ -349,9 +278,9 @@ export const DeploymentDashboard: React.FC<DeploymentDashboardProps> = ({
             <div className="flex items-center space-x-2">
               {deploymentStatus.cultural_symbols.map(symbol => (
                 <div key={symbol} className="w-6 h-6">
-                  <AdinkraSymbolDisplay 
-                    symbolName={symbol} 
-                    size="small" 
+                  <AdinkraSymbolDisplay
+                    symbolName={symbol}
+                    size="small"
                     showMatrix={false}
                     className="animate-cultural-pulse"
                   />
@@ -394,7 +323,7 @@ export const DeploymentDashboard: React.FC<DeploymentDashboardProps> = ({
                         </div>
                         <Progress value={deploymentStatus.metrics.cpu_usage} className="h-2" />
                       </div>
-                      
+
                       <div>
                         <div className="flex justify-between text-sm mb-1">
                           <span>Memory Usage</span>
@@ -402,7 +331,7 @@ export const DeploymentDashboard: React.FC<DeploymentDashboardProps> = ({
                         </div>
                         <Progress value={deploymentStatus.metrics.memory_usage} className="h-2" />
                       </div>
-                      
+
                       <div>
                         <div className="flex justify-between text-sm mb-1">
                           <span>Storage Usage</span>
@@ -436,7 +365,7 @@ export const DeploymentDashboard: React.FC<DeploymentDashboardProps> = ({
                         <div className="text-sm text-muted-foreground">Anomalies Detected</div>
                       </div>
                     </div>
-                    
+
                     <div className="text-center">
                       <div className="text-sm text-muted-foreground mb-2">Overall Security Health</div>
                       <div className="flex items-center justify-center space-x-2">
@@ -540,9 +469,9 @@ export const DeploymentDashboard: React.FC<DeploymentDashboardProps> = ({
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8">
-                            <AdinkraSymbolDisplay 
-                              symbolName={agent.cultural_symbol} 
-                              size="small" 
+                            <AdinkraSymbolDisplay
+                              symbolName={agent.cultural_symbol}
+                              size="small"
                               showMatrix={false}
                             />
                           </div>

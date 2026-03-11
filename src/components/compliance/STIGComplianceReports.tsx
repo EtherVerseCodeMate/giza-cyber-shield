@@ -470,7 +470,7 @@ export const STIGComplianceReports: React.FC<STIGComplianceReportsProps> = ({
                       <div className="flex-1">
                         <h3 className="font-medium">{report.report_name}</h3>
                         <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline">{report.report_type.replace('_', ' ')}</Badge>
+                          <Badge variant="outline">{report.report_type.replaceAll('_', ' ')}</Badge>
                           <Badge className={`${getComplianceColor(report.compliance_percentage)} bg-transparent border`}>
                             {report.compliance_percentage}% compliant
                           </Badge>

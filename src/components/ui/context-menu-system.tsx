@@ -73,7 +73,7 @@ export const ContextMenuSystem: React.FC<ContextMenuProps> = ({
       action,
       timestamp: Date.now(),
       coordinates: { x, y },
-      context: window.location.pathname,
+      context: globalThis.location.pathname,
       frequency: 1
     };
 
@@ -260,8 +260,8 @@ export const ContextMenuSystem: React.FC<ContextMenuProps> = ({
   useEffect(() => {
     if (isVisible && menuRef.current) {
       const menuRect = menuRef.current.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
+      const viewportWidth = globalThis.innerWidth;
+      const viewportHeight = globalThis.innerHeight;
 
       let newX = x;
       let newY = y;

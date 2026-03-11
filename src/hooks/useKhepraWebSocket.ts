@@ -114,13 +114,13 @@ export function useKhepraWebSocket({
           // Route message to appropriate state
           switch (message.type) {
             case 'scan_update':
-              setScanUpdates(prev => [...prev.slice(-99), message.data as unknown as ScanUpdate]);
+              setScanUpdates(prev => [...prev.slice(-99), message.data as ScanUpdate]);
               break;
             case 'dag_update':
-              setDagUpdates(prev => [...prev.slice(-99), message.data as unknown as DAGUpdate]);
+              setDagUpdates(prev => [...prev.slice(-99), message.data as DAGUpdate]);
               break;
             case 'license_update':
-              setLicenseUpdates(prev => [...prev.slice(-9), message.data as unknown as LicenseUpdate]);
+              setLicenseUpdates(prev => [...prev.slice(-9), message.data as LicenseUpdate]);
               break;
           }
         } catch (err) {

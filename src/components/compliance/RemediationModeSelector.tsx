@@ -33,43 +33,12 @@ export const RemediationModeSelector: React.FC<RemediationModeSelectorProps> = (
   const [selectedActions, setSelectedActions] = useState<string[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
 
-  // Mock remediation actions - in real implementation, these would be generated based on STIG rules
-  const mockActions: RemediationAction[] = [
-    {
-      id: "rem-001",
-      stig_rule_id: "WN22-SO-000010",
-      description: "Configure password complexity requirements",
-      command: "Set-ADDefaultDomainPasswordPolicy -ComplexityEnabled $true -MinPasswordLength 14",
-      risk_level: "low",
-      requires_approval: false,
-      rollback_available: true,
-      estimated_duration: "30 seconds"
-    },
-    {
-      id: "rem-002", 
-      stig_rule_id: "WN22-AU-000030",
-      description: "Enable advanced audit logging",
-      command: "auditpol /set /category:\"Account Logon\" /success:enable /failure:enable",
-      risk_level: "medium",
-      requires_approval: true,
-      rollback_available: true,
-      estimated_duration: "2 minutes"
-    },
-    {
-      id: "rem-003",
-      stig_rule_id: "UBTU-22-010001", 
-      description: "Disable unnecessary services",
-      command: "systemctl disable --now avahi-daemon bluetooth cups",
-      risk_level: "high",
-      requires_approval: true,
-      rollback_available: false,
-      estimated_duration: "5 minutes"
-    }
-  ];
+  // Awaiting telemetry for real remediation actions
+  const pendingActions: RemediationAction[] = [];
 
   const handleModeChange = (mode: RemediationMode) => {
     setSelectedMode(mode);
-    onModeSelect(mode, mockActions);
+    onModeSelect(mode, pendingActions);
   };
 
   const handleExecute = async () => {
@@ -197,11 +166,11 @@ export const RemediationModeSelector: React.FC<RemediationModeSelectorProps> = (
 
       <Card>
         <CardHeader>
-          <CardTitle>Remediation Actions ({mockActions.length})</CardTitle>
+          <CardTitle>Remediation Actions ({pendingActions.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {mockActions.map((action) => (
+            {pendingActions.map((action) => (
               <div key={action.id} className="p-4 border rounded-lg space-y-3">
                 <div className="flex items-start justify-between">
                   <div className="space-y-2">
@@ -243,7 +212,7 @@ export const RemediationModeSelector: React.FC<RemediationModeSelectorProps> = (
           </div>
 
           <div className="flex items-center gap-4 mt-6 pt-4 border-t">
-            <Button 
+            <Button
               onClick={handleExecute}
               disabled={selectedActions.length === 0 || isExecuting}
               className="flex items-center gap-2"
@@ -266,7 +235,7 @@ export const RemediationModeSelector: React.FC<RemediationModeSelectorProps> = (
               )}
             </Button>
             <div className="text-sm text-muted-foreground">
-              {selectedActions.length} of {mockActions.length} actions selected
+              {selectedActions.length} of {pendingActions.length} actions selected
             </div>
           </div>
         </CardContent>

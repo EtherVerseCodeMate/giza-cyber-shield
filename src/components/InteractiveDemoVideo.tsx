@@ -113,8 +113,8 @@ const InteractiveDemoVideo = () => {
       }
     ];
     
-    // Cycle through responses deterministically by message count
-    return responses[chatHistory.length % responses.length];
+    // Deterministic selection based on input length — no random fabrication
+    return responses[input.length % responses.length];
   };
 
   const currentData = demoSteps[currentStep];
@@ -210,7 +210,7 @@ const InteractiveDemoVideo = () => {
                                 key={actionIndex}
                                 className="text-xs bg-purple-600/30 text-purple-300 px-2 py-1 rounded border border-purple-500/30"
                               >
-                                {action.replace('_', ' ')}
+                                {action.replaceAll('_', ' ')}
                               </span>
                             ))}
                           </div>
@@ -246,7 +246,7 @@ const InteractiveDemoVideo = () => {
                             key={action}
                             className="text-xs bg-purple-600/30 text-purple-300 px-2 py-1 rounded border border-purple-500/30"
                           >
-                            {action.replace('_', ' ')}
+                            {action.replaceAll('_', ' ')}
                           </span>
                         ))}
                       </div>

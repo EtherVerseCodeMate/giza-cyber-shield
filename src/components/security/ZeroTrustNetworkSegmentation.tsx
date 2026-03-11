@@ -478,7 +478,7 @@ const ZeroTrustNetworkSegmentation = () => {
                         <div>
                           <h3 className="font-semibold">{segment.segment_name}</h3>
                           <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                            <span className="capitalize">{segment.segment_type.replace('_', ' ')}</span>
+                            <span className="capitalize">{segment.segment_type.replaceAll('_', ' ')}</span>
                             <span>•</span>
                             <span>{segment.network_ranges.length} ranges</span>
                             {segment.micro_segmentation_enabled && (

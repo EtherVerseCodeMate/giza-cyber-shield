@@ -48,7 +48,7 @@ export const useExternalApiTracking = () => {
 
     try {
       setLoading(true);
-      
+
       const { data, error } = await supabase.functions.invoke('track-external-api-usage', {
         body: {
           organizationId: currentOrganization.id,
@@ -105,71 +105,16 @@ export const useExternalApiTracking = () => {
   ) => {
     if (!currentOrganization?.id) return [];
 
-    try {
-      // Return mock data for now since tables don't exist yet
-      const mockUsageData = [
-        {
-          id: '1',
-          api_provider: 'openai',
-          api_endpoint: 'chat/completions',
-          tokens_used: 1500,
-          estimated_cost: 0.75,
-          created_at: new Date().toISOString(),
-          request_metadata: { analysis_type: 'security' }
-        },
-        {
-          id: '2',
-          api_provider: 'grok',
-          api_endpoint: 'v1/chat/completions',
-          tokens_used: 800,
-          estimated_cost: 0.40,
-          created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          request_metadata: { analysis_type: 'threat_analysis' }
-        }
-      ];
-      
-      return mockUsageData;
-    } catch (error: any) {
-      console.error('Error fetching usage stats:', error);
-      return [];
-    }
+    // Awaiting API usage telemetry integration
+    return [];
   }, [currentOrganization?.id]);
 
   // Get current month's costs by provider
   const getCostBreakdown = useCallback(async () => {
     if (!currentOrganization?.id) return [];
 
-    try {
-      // Return mock data for now since tables don't exist yet
-      const mockCostData = [
-        {
-          api_provider: 'openai',
-          total_cost: 45.50,
-          request_count: 1250,
-          token_count: 187500,
-          avg_cost_per_request: 0.036
-        },
-        {
-          api_provider: 'grok',
-          total_cost: 23.80,
-          request_count: 680,
-          token_count: 95000,
-          avg_cost_per_request: 0.035
-        },
-        {
-          api_provider: 'shodan',
-          total_cost: 15.00,
-          request_count: 150,
-          token_count: 0,
-          avg_cost_per_request: 0.10
-        }
-      ];
-      
-      return mockCostData;
-    } catch (error: any) {
-      console.error('Error fetching cost breakdown:', error);
-      return [];
-    }
+    // Awaiting API cost analytics integration
+    return [];
   }, [currentOrganization?.id]);
 
   // Update API cost configurations (admin only)
@@ -178,14 +123,14 @@ export const useExternalApiTracking = () => {
     costConfig: Partial<ApiCostConfig>
   ) => {
     try {
-      // Mock implementation until tables are created
-      console.log('Updating API costs:', { apiProvider, costConfig });
-      
+      // Awaiting external API tables configuration
+      console.log('Update API Costs config:', { apiProvider, costConfig });
+
       toast({
         title: "API Costs Updated",
         description: `Updated cost configuration for ${apiProvider}`,
       });
-      
+
       return { api_provider: apiProvider, ...costConfig };
     } catch (error: any) {
       console.error('Error updating API costs:', error);

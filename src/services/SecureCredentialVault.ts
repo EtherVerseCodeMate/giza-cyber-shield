@@ -357,7 +357,7 @@ export class SecureCredentialVault {
    * Generate credential fingerprint for integrity verification
    */
   private static async generateCredentialFingerprint(credentials: any): Promise<string> {
-    const credentialString = JSON.stringify(credentials, Object.keys(credentials).sort((a, b) => a.localeCompare(b)));
+    const credentialString = JSON.stringify(credentials, Object.keys(credentials).sort());
     const encoder = new TextEncoder();
     const data = encoder.encode(credentialString);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -461,28 +461,61 @@ export class SecureCredentialVault {
   }
 
   /**
-   * Test credential connectivity via the credential-connectivity-test edge function.
-   * Performs real network probes: HTTP auth (api_token/cloud/password), TLS (cert),
-   * or HTTP reachability (ssh_key). All results are written to the audit trail.
+   * Test credential connectivity
    */
   static async testCredential(
     credentialId: string,
     testTarget: string
-  ): Promise<{ success: boolean; probe_type?: string; status_code?: number; latency_ms?: number; details: string }> {
-    const { data, error } = await supabase.functions.invoke('credential-connectivity-test', {
-      body: { credential_id: credentialId, test_target: testTarget },
-    });
+  ): Promise<{ success: boolean; details: string }> {
+    try {
+      await this.logCredentialEvent('credential_test_initiated', credentialId, '', {
+        test_target: testTarget,
+        test_timestamp: new Date().toISOString()
+      });
 
-    if (error) {
-      throw new Error(`Connectivity test failed: ${error.message}`);
+      // Call the real credential connectivity test via Edge Function
+      const { data, error } = await supabase.functions.invoke('credential-connectivity-test', {
+        body: {
+          credential_id: credentialId,
+          test_target: testTarget,
+        },
+      });
+
+      if (error) {
+        await this.logCredentialEvent('credential_test_failed', credentialId, '', {
+          test_target: testTarget,
+          test_result: 'edge_function_error',
+          error_message: error.message,
+        }, 'WARN');
+
+        return {
+          success: false,
+          details: `Connectivity test failed: ${error.message}`,
+        };
+      }
+
+      const success = data?.success === true;
+
+      await this.logCredentialEvent(
+        success ? 'credential_test_successful' : 'credential_test_failed',
+        credentialId,
+        '',
+        {
+          test_target: testTarget,
+          test_result: success ? 'connectivity_verified' : (data?.error || 'connection_failed'),
+        },
+        success ? 'INFO' : 'WARN'
+      );
+
+      return {
+        success,
+        details: success
+          ? 'Credential connectivity verified successfully'
+          : `Failed to establish connection: ${data?.error || 'unknown error'}`,
+      };
+    } catch (error) {
+      console.error('Test credential failed:', error);
+      throw error;
     }
-
-    return {
-      success: data.success,
-      probe_type: data.probe_type,
-      status_code: data.status_code,
-      latency_ms: data.latency_ms,
-      details: data.details,
-    };
   }
 }

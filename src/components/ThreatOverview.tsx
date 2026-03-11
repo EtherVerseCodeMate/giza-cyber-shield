@@ -78,7 +78,7 @@ export const ThreatOverview = () => {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
+          {[...new Array(4)].map((_, i) => (
             <Card key={i} className="bg-slate-900/20 border-slate-500/30 backdrop-blur-lg animate-pulse">
               <CardContent className="p-4">
                 <div className="h-16 bg-slate-700/50 rounded"></div>

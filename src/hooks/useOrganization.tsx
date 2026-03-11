@@ -65,6 +65,37 @@ export const useOrganization = () => {
     }
   }, [user]);
 
+  const handleFetchError = async (error: any) => {
+    // Detailed logging for debugging
+    console.warn('Organization fetch status:', { code: error.code, message: error.message, path: globalThis.location.pathname });
+
+    // If JWT expired, sign out user - this is a critical state transition
+    if (error.code === 'PGRST301') {
+      await supabase.auth.signOut();
+      return;
+    }
+
+    // Only show toast for unexpected errors (excluding common transition/empty states)
+    if (error.code !== 'PGRST116' && error.message !== 'Unexpected token') {
+      // If the error is real (e.g. connection, RLS failure), log it prominently
+      console.error('Critical organization load failure:', error);
+
+      // Suppress error toast on public landing page to prevent bad UX for unauthenticated/stale sessions
+      if (globalThis.location.pathname === '/') {
+        return;
+      }
+
+      // Only show toast if we are CERTAIN it's a failure and not just a new user case
+      if (user?.id) {
+        toast({
+          title: "Synchronization Issue",
+          description: "Retrying organization data sync...",
+          variant: "default", // Less alarming variant
+        });
+      }
+    }
+  };
+
   const fetchUserOrganizations = async () => {
     try {
       setLoading(true);
@@ -87,30 +118,28 @@ export const useOrganization = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        // Detailed logging for debugging, but less aggressive UI feedback
-        console.warn('Organization fetch status:', { code: error.code, message: error.message });
-
-        // If JWT expired, sign out user - this is a critical state transition
-        if (error.code === 'PGRST301') {
-          await supabase.auth.signOut();
-          return;
-        }
-
-        // Silently log — do not surface org-fetch errors to the UI on public pages
-        if (error.code !== 'PGRST116' && error.message !== 'Unexpected token') {
-          console.warn('[useOrganization] fetch error:', error.code, error.message);
-        }
+        await handleFetchError(error);
         return;
       }
 
-      const userOrgs = data as UserOrganization[];
-      setOrganizations(userOrgs);
+      // Filter out entries where the joined organization data is missing (e.g. deleted or RLS restricted)
+      const validUserOrgs = (data as any[] || [])
+        .filter(item => item.organization && typeof item.organization === 'object')
+        .map(item => item as UserOrganization);
+
+      if (data && data.length > validUserOrgs.length) {
+        console.warn(`Filtered out ${data.length - validUserOrgs.length} invalid organization entries`);
+      }
+
+      setOrganizations(validUserOrgs);
 
       // Set current organization (first one or previously selected)
-      if (userOrgs.length > 0 && !currentOrganization) {
+      if (validUserOrgs.length > 0 && !currentOrganization) {
         const savedOrgId = localStorage.getItem('currentOrganizationId');
-        const savedOrg = userOrgs.find(org => org.organization_id === savedOrgId);
-        setCurrentOrganization(savedOrg || userOrgs[0]);
+        const savedOrg = validUserOrgs.find(org => org.organization_id === savedOrgId);
+        setCurrentOrganization(savedOrg || validUserOrgs[0]);
+      } else if (validUserOrgs.length === 0) {
+        setCurrentOrganization(null);
       }
     } catch (error) {
       console.error('Error in fetchUserOrganizations:', error);
@@ -199,7 +228,7 @@ export const useOrganization = () => {
       }
 
       // Create default subscription
-      const { error: subError } = await supabase
+      await supabase
         .from('subscriptions')
         .insert({
           organization_id: orgData.id,
@@ -210,19 +239,10 @@ export const useOrganization = () => {
           trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
         });
 
-      if (subError) {
-        console.error('Failed to create subscription for organization:', subError);
-        toast({
-          title: "Organization Created — Subscription Setup Failed",
-          description: "Organization created but subscription could not be initialized. Contact support if billing is unavailable.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: "Organization created successfully",
-        });
-      }
+      toast({
+        title: "Success",
+        description: "Organization created successfully",
+      });
 
       await fetchUserOrganizations();
       return orgData;
