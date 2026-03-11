@@ -46,12 +46,10 @@ RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/wh
 COPY --from=builder /usr/local/bin/khepra /usr/local/bin/khepra
 COPY --from=builder /usr/local/bin/khepra-gateway /usr/local/bin/khepra-gateway
 
-# Copy entrypoint script
+# Copy entrypoint script, set permissions, and create non-root user
 COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
-
-# Create non-root user and directories
-RUN useradd -m -u 1000 khepra && \
+RUN chmod +x /app/entrypoint.sh && \
+    useradd -m -u 1000 khepra && \
     mkdir -p models && touch models/.keep && \
     mkdir -p top_secret_intel && touch top_secret_intel/.keep && \
     chown -R khepra:khepra /app
