@@ -3,11 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { 
-  TestTube, 
-  Play, 
-  CheckCircle, 
-  XCircle, 
+import {
+  TestTube,
+  Play,
+  CheckCircle,
+  XCircle,
   Clock,
   Download,
   FileText,
@@ -33,149 +33,11 @@ export const STIGTestingSuite: React.FC = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [selectedSuite, setSelectedSuite] = useState<string | null>(null);
 
-  const testSuites: TestSuite[] = [
-    {
-      id: 'unit-discovery',
-      name: 'STIG Discovery Engine Tests',
-      category: 'unit',
-      platform: 'All',
-      status: 'passed',
-      tests_count: 45,
-      passed_count: 45,
-      failed_count: 0,
-      duration_ms: 2340,
-      last_run: '2024-01-15T10:30:00Z',
-      coverage_percentage: 98
-    },
-    {
-      id: 'unit-mapping',
-      name: 'Control Mapping Engine Tests',
-      category: 'unit', 
-      platform: 'All',
-      status: 'passed',
-      tests_count: 78,
-      passed_count: 76,
-      failed_count: 2,
-      duration_ms: 4120,
-      last_run: '2024-01-15T10:32:00Z',
-      coverage_percentage: 94
-    },
-    {
-      id: 'unit-remediation',
-      name: 'Remediation Generator Tests',
-      category: 'unit',
-      platform: 'All', 
-      status: 'failed',
-      tests_count: 122,
-      passed_count: 115,
-      failed_count: 7,
-      duration_ms: 8950,
-      last_run: '2024-01-15T10:35:00Z',
-      coverage_percentage: 89
-    },
-    {
-      id: 'integration-windows-2019',
-      name: 'Windows Server 2019 STIG Integration',
-      category: 'integration',
-      platform: 'Windows Server 2019',
-      status: 'passed',
-      tests_count: 156,
-      passed_count: 152,
-      failed_count: 4,
-      duration_ms: 45600,
-      last_run: '2024-01-15T11:00:00Z',
-      coverage_percentage: 85
-    },
-    {
-      id: 'integration-windows-2022',
-      name: 'Windows Server 2022 STIG Integration',
-      category: 'integration',
-      platform: 'Windows Server 2022',
-      status: 'passed',
-      tests_count: 189,
-      passed_count: 186,
-      failed_count: 3,
-      duration_ms: 52300,
-      last_run: '2024-01-15T11:15:00Z',
-      coverage_percentage: 91
-    },
-    {
-      id: 'integration-ubuntu-2204',
-      name: 'Ubuntu 22.04 STIG Integration',
-      category: 'integration',
-      platform: 'Ubuntu 22.04',
-      status: 'running',
-      tests_count: 134,
-      passed_count: 98,
-      failed_count: 2,
-      duration_ms: 0,
-      coverage_percentage: 88
-    },
-    {
-      id: 'integration-rhel-9',
-      name: 'RHEL 9 STIG Integration',
-      category: 'integration',
-      platform: 'RHEL 9',
-      status: 'not_run',
-      tests_count: 145,
-      passed_count: 0,
-      failed_count: 0,
-      coverage_percentage: 0
-    },
-    {
-      id: 'performance-large-scale',
-      name: 'Large Scale Environment Performance',
-      category: 'performance',
-      platform: 'All',
-      status: 'passed',
-      tests_count: 12,
-      passed_count: 10,
-      failed_count: 2,
-      duration_ms: 180000,
-      last_run: '2024-01-14T15:00:00Z',
-      coverage_percentage: 75
-    },
-    {
-      id: 'security-credential-handling',
-      name: 'Security Credential Handling Tests',
-      category: 'security',
-      platform: 'All',
-      status: 'passed',
-      tests_count: 28,
-      passed_count: 28,
-      failed_count: 0,
-      duration_ms: 5600,
-      last_run: '2024-01-15T09:00:00Z',
-      coverage_percentage: 100
-    }
-  ];
+  // Awaiting telemetry for real test suites
+  const testSuites: TestSuite[] = [];
 
-  const mockServices = [
-    {
-      id: 'stig-viewer-mock',
-      name: 'Mock STIG Viewer API',
-      status: 'running',
-      port: 3001,
-      endpoints: 8,
-      requests_served: 1247
-    },
-    {
-      id: 'nist-controls-mock',
-      name: 'Mock NIST Controls Service',
-      status: 'running',
-      port: 3002,
-      endpoints: 5,
-      requests_served: 892
-    },
-    {
-      id: 'evidence-storage-mock',
-      name: 'Mock Evidence Storage',
-      status: 'stopped',
-      port: 3003,
-      endpoints: 12,
-      requests_served: 0
-    }
-  ];
+  // Awaiting telemetry for real services
+  const pendingServices: any[] = [];
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -231,7 +93,7 @@ export const STIGTestingSuite: React.FC = () => {
       total_failed: testSuites.reduce((sum, s) => sum + s.failed_count, 0),
       suites: testSuites
     };
-    
+
     const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -277,11 +139,10 @@ export const STIGTestingSuite: React.FC = () => {
         <CardContent>
           <div className="space-y-4">
             {testSuites.map((suite) => (
-              <Card 
+              <Card
                 key={suite.id}
-                className={`cursor-pointer transition-colors ${
-                  selectedSuite === suite.id ? 'ring-2 ring-primary' : ''
-                }`}
+                className={`cursor-pointer transition-colors ${selectedSuite === suite.id ? 'ring-2 ring-primary' : ''
+                  }`}
                 onClick={() => setSelectedSuite(selectedSuite === suite.id ? null : suite.id)}
               >
                 <CardContent className="p-4">
@@ -295,32 +156,32 @@ export const STIGTestingSuite: React.FC = () => {
                         </Badge>
                         <Badge variant="outline">{suite.platform}</Badge>
                       </div>
-                      
+
                       <div className="flex items-center gap-4 text-sm">
                         <div className="flex items-center gap-1">
                           {getStatusIcon(suite.status)}
                           <Badge variant={getStatusColor(suite.status)}>
-                            {suite.status.replace('_', ' ').toUpperCase()}
+                            {suite.status.replaceAll('_', ' ').toUpperCase()}
                           </Badge>
                         </div>
-                        
+
                         <span>
                           Tests: {suite.passed_count}/{suite.tests_count}
                         </span>
-                        
-                        {suite.coverage_percentage && (
+
+                        {suite.coverage_percentage != null && (
                           <span>Coverage: {suite.coverage_percentage}%</span>
                         )}
-                        
-                        {suite.duration_ms && (
+
+                        {suite.duration_ms != null && (
                           <span>Duration: {(suite.duration_ms / 1000).toFixed(1)}s</span>
                         )}
                       </div>
 
                       {suite.tests_count > 0 && (
                         <div className="w-64">
-                          <Progress 
-                            value={(suite.passed_count / suite.tests_count) * 100} 
+                          <Progress
+                            value={(suite.passed_count / suite.tests_count) * 100}
                             className="h-2"
                           />
                         </div>
@@ -356,12 +217,12 @@ export const STIGTestingSuite: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Server className="w-5 h-5" />
-            Mock Services for Offline Development
+            Services for Offline Development
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {mockServices.map((service) => (
+            {pendingServices.map((service: any) => (
               <div key={service.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -375,8 +236,8 @@ export const STIGTestingSuite: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     variant={service.status === 'running' ? 'destructive' : 'default'}
                   >
                     {service.status === 'running' ? 'Stop' : 'Start'}

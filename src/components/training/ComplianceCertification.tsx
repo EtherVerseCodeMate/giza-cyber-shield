@@ -423,7 +423,7 @@ export const ComplianceCertification = () => {
                       <CardTitle className="text-lg">{cert.name}</CardTitle>
                     </div>
                     <Badge variant={getStatusColor(cert.status)} className="capitalize">
-                      {cert.status.replace('_', ' ')}
+                      {cert.status.replaceAll('_', ' ')}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -511,13 +511,13 @@ export const ComplianceCertification = () => {
                         <p className="text-sm text-muted-foreground">
                           {cert.status === 'completed' ? 
                             `Expires ${new Date(cert.expiryDate!).toLocaleDateString()}` :
-                            cert.status.replace('_', ' ')
+                            cert.status.replaceAll('_', ' ')
                           }
                         </p>
                       </div>
                       <Badge variant={getStatusColor(cert.status)}>
                         {cert.status === 'completed' && <CheckCircle className="h-3 w-3 mr-1" />}
-                        {cert.status.replace('_', ' ')}
+                        {cert.status.replaceAll('_', ' ')}
                       </Badge>
                     </div>
                   ))}

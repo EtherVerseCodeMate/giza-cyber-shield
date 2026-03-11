@@ -142,14 +142,16 @@ export class AWSCloudTrailService {
   }
 
   private generateEventId(): string {
-    return `khepra-${crypto.randomUUID()}`;
+    return `khepra-${Date.now()}-${crypto.randomUUID().replace(/-/g, '').substr(0, 9)}`;
   }
 
   private async getClientIP(): Promise<string> {
-    // Client IP cannot be reliably detected from the browser.
-    // Must be provided by the server-side API gateway or reverse proxy
-    // via X-Forwarded-For or X-Real-IP headers.
-    return 'unknown';
+    try {
+      // In a real app, you might use a service to get the actual IP
+      return '127.0.0.1';
+    } catch {
+      return '127.0.0.1';
+    }
   }
 
   private async sendToBackend(event: any): Promise<void> {

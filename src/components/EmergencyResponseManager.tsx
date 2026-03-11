@@ -317,7 +317,7 @@ export const EmergencyResponseManager = () => {
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-2">
                             {getActionIcon(action.action_type)}
-                            <h4 className="font-medium text-foreground">{action.action_type.replace('_', ' ').toUpperCase()}</h4>
+                            <h4 className="font-medium text-foreground">{action.action_type.replaceAll('_', ' ').toUpperCase()}</h4>
                             <Badge className={getActionStatusBadge(action.execution_status)}>
                               {action.execution_status}
                             </Badge>

@@ -261,7 +261,7 @@ export const useDeploymentProfiles = (organizationId: string) => {
     
     toast({
       title: 'Automation Upgraded',
-      description: `Successfully upgraded to ${nextLevel.replace('_', ' ')} automation level`
+      description: `Successfully upgraded to ${nextLevel.replaceAll('_', ' ')} automation level`
     });
   };
 

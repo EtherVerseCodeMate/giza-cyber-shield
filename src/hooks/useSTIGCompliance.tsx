@@ -94,29 +94,11 @@ export const useSTIGCompliance = (organizationId: string) => {
     }
   };
 
-  // Fetch STIG scans - using mock data until schema is ready
+  // Awaiting telemetry for real scan data
   const fetchScans = async () => {
     try {
-      // Mock scan data for demo
-      const mockScans = [
-        {
-          id: '1',
-          organization_id: organizationId,
-          asset_id: 'asset-1',
-          scan_type: 'automated',
-          scan_status: 'completed' as const,
-          initiated_at: new Date().toISOString(),
-          completed_at: new Date().toISOString(),
-          total_rules: 100,
-          passed_rules: 75,
-          failed_rules: 25,
-          cat_i_open: 5,
-          cat_ii_open: 10,
-          cat_iii_open: 10,
-          overall_score: 75
-        }
-      ];
-      setScans(mockScans);
+      const emptyScans: STIGScan[] = [];
+      setScans(emptyScans);
     } catch (err) {
       console.error('Error fetching scans:', err);
       setError('Failed to fetch scans');

@@ -362,7 +362,7 @@ export const CustomerJourneyAuditDashboard = () => {
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-semibold">{step.step_name}</h4>
                         <Badge className={getStatusColor(step.status)}>
-                          {step.status.replace('_', ' ')}
+                          {step.status.replaceAll('_', ' ')}
                         </Badge>
                       </div>
                       <div className="grid grid-cols-3 gap-4 text-sm">
@@ -418,7 +418,7 @@ export const CustomerJourneyAuditDashboard = () => {
                       </Badge>
                     )}
                     <Badge className={getStatusColor(step.status)}>
-                      {step.status.replace('_', ' ')}
+                      {step.status.replaceAll('_', ' ')}
                     </Badge>
                   </div>
                 </CardTitle>

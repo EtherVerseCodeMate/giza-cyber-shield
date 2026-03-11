@@ -33,7 +33,7 @@ export class CacheManager {
         // Listen for service worker messages
         navigator.serviceWorker.addEventListener('message', (event) => {
           if (event.data && event.data.type === 'RELOAD_PAGE') {
-            window.location.reload();
+            globalThis.location.reload();
           }
         });
 
@@ -84,7 +84,7 @@ export class CacheManager {
       }
       
       // Force reload with cache bypass
-      window.location.reload();
+      globalThis.location.reload();
     }
   }
 
