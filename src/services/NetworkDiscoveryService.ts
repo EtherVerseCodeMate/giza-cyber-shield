@@ -83,7 +83,7 @@ export class NetworkDiscoveryService {
     let detected = false;
 
     // Check for domain-joined indicators
-    const hostname = window.location.hostname;
+    const hostname = globalThis.location.hostname;
     
     // Corporate domain patterns
     const corporateDomainPatterns = [

@@ -27,13 +27,13 @@ export const DashboardToggle: React.FC<DashboardToggleProps> = ({ className }) =
     <div className={`flex items-center space-x-3 ${className}`}>
       <div className="flex items-center space-x-2">
         <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
-        <Label htmlFor="dashboard-mode-switch" className="text-sm font-medium cursor-pointer">
+        <Label htmlFor="dashboard-mode" className="text-sm font-medium">
           Console
         </Label>
       </div>
       
       <Switch
-        id="dashboard-mode-switch"
+        id="dashboard-mode"
         checked={isDOD}
         onCheckedChange={handleToggle}
         className="data-[state=checked]:bg-primary"
@@ -41,7 +41,7 @@ export const DashboardToggle: React.FC<DashboardToggleProps> = ({ className }) =
       
       <div className="flex items-center space-x-2">
         <GitBranch className="h-4 w-4 text-muted-foreground" />
-        <Label htmlFor="dashboard-mode-dod" className="text-sm font-medium cursor-pointer" onClick={() => handleToggle(true)}>
+        <Label htmlFor="dashboard-mode" className="text-sm font-medium">
           DOD
         </Label>
       </div>

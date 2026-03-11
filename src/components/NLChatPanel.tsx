@@ -1,5 +1,3 @@
-'use client';
-
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { Sparkles, X, Send, Bot, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';

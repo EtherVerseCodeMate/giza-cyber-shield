@@ -111,9 +111,7 @@ export const SessionSecurityManager = () => {
               started_at: log.created_at,
               last_activity: log.created_at,
               is_current: false,
-              // Derive a low, deterministic risk score (0–25) from session index.
-              // suspicious_activity is false so we stay in the "low-risk" band.
-              risk_score: Math.min(25, (index + 1) * 5),
+              risk_score: 0, // Real risk score requires session risk analysis engine
               suspicious_activity: false
             });
           }
