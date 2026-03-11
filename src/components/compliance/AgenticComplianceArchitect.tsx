@@ -7,15 +7,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Brain, 
-  Shield, 
-  CheckCircle, 
-  AlertTriangle, 
-  Clock, 
-  GitBranch, 
-  Eye, 
-  Play, 
+import {
+  Brain,
+  Shield,
+  CheckCircle,
+  AlertTriangle,
+  Clock,
+  GitBranch,
+  Eye,
+  Play,
   Pause,
   Settings,
   FileCheck,
@@ -135,7 +135,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
         supabase.from('infrastructure_assets').select('id', { count: 'exact', head: true }),
         supabase.from('security_events').select('id', { count: 'exact', head: true })
           .in('severity', ['critical', 'high']).eq('resolved', false),
-        supabase.from('compliance_assessments').select('score')
+        supabase.from('compliance_assessments').select('overall_score')
           .order('created_at', { ascending: false }).limit(1).maybeSingle()
       ]);
 
@@ -150,7 +150,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
         criticalVulns: vulnsRes.count ?? 0,
         autoRemediated: resolvedCount ?? 0
       });
-      setOverallCompliance(Math.round(assessmentRes.data?.score ?? 0));
+      setOverallCompliance(Math.round(assessmentRes.data?.overall_score ?? 0));
     } catch (error) {
       console.error('[AgenticComplianceArchitect] loadAgentStats error:', error);
     }
@@ -162,9 +162,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
       // Load non-implemented controls from DB as compliance gaps
       const { data: controls, error } = await supabase
         .from('compliance_controls')
-        .select('id, control_id, description, implementation_status, created_at')
-        .not('implementation_status', 'eq', 'implemented')
-        .not('implementation_status', 'eq', 'validated')
+        .select('id, control_id, description, created_at')
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -172,10 +170,10 @@ export const AgenticComplianceArchitect: React.FC = () => {
 
       const gaps: ControlGap[] = (controls || []).map(control => {
         const sev = ((control as any).severity || (control as any).risk_level || 'medium') as ControlGap['severity'];
-        const implStatus = control.implementation_status;
+        const implStatus = (control as any).implementation_status || 'not_implemented';
         const status: ControlGap['status'] =
           implStatus === 'planned' ? 'remediation-planned' :
-          implStatus === 'not_implemented' ? 'detected' : 'analyzing';
+            implStatus === 'not_implemented' ? 'detected' : 'analyzing';
 
         return {
           id: control.id,
@@ -259,7 +257,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
         title: "Agent Started",
         description: `SouHimBou AI agent is now running in ${activeMode} mode`,
       });
-      
+
       // Trigger initial scan
       await triggerComplianceScan();
     }
@@ -303,7 +301,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
     if (!gap.remediationPlan) return;
 
     try {
-      setControlGaps(prev => prev.map(g => 
+      setControlGaps(prev => prev.map(g =>
         g.id === gap.id ? { ...g, status: 'remediating' } : g
       ));
 
@@ -325,7 +323,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
 
       // Update status after execution
       setTimeout(() => {
-        setControlGaps(prev => prev.map(g => 
+        setControlGaps(prev => prev.map(g =>
           g.id === gap.id ? { ...g, status: 'verified' } : g
         ));
       }, 2000);
@@ -441,11 +439,11 @@ export const AgenticComplianceArchitect: React.FC = () => {
           <Alert className="border-blue-200 bg-blue-50">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              <strong>CMMC Certification Goal:</strong> 78% complete - On track to achieve Level 2 certification within 90 days. 
+              <strong>CMMC Certification Goal:</strong> 78% complete - On track to achieve Level 2 certification within 90 days.
               AI engine has automated 89% of remediation tasks, reducing manual effort by 340 hours.
             </AlertDescription>
           </Alert>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <Card>
               <CardHeader>
@@ -556,7 +554,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                   <div className="text-sm text-muted-foreground">New This Week</div>
                 </div>
               </div>
-              
+
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 border rounded-lg">
@@ -580,7 +578,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="p-4 border rounded-lg">
                     <h4 className="font-medium mb-2">Identity Systems</h4>
                     <div className="space-y-2 text-sm">
@@ -603,7 +601,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <Button className="w-full">
                   <Play className="h-4 w-4 mr-2" />
                   Run Full Infrastructure Discovery
@@ -643,7 +641,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                   <div className="text-sm text-muted-foreground">Auto-Fixed</div>
                 </div>
               </div>
-              
+
               <div className="space-y-4">
                 <div className="p-4 border rounded-lg border-red-200 bg-red-50">
                   <div className="flex items-center justify-between mb-2">
@@ -662,7 +660,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                     </Button>
                   </div>
                 </div>
-                
+
                 <div className="p-4 border rounded-lg border-orange-200 bg-orange-50">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-medium text-orange-800">High: Missing MFA Enforcement</h4>
@@ -680,7 +678,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                     </Button>
                   </div>
                 </div>
-                
+
                 <Button className="w-full">
                   <Play className="h-4 w-4 mr-2" />
                   Start Comprehensive Security Scan
@@ -733,7 +731,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
               {isLoading ? 'Scanning...' : 'Refresh'}
             </Button>
           </div>
-          
+
           <div className="space-y-4">
             {controlGaps.map((gap) => (
               <Card key={gap.id}>
@@ -768,7 +766,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                       <div className="text-sm text-muted-foreground">Blast Radius</div>
                     </div>
                   </div>
-                  
+
                   {gap.remediationPlan && (
                     <div className="space-y-3">
                       <h5 className="font-medium">Remediation Plan ({gap.remediationPlan.tool})</h5>
@@ -779,7 +777,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                           </div>
                         ))}
                       </div>
-                      
+
                       {gap.remediationPlan.approvalRequired && gap.status === 'remediation-planned' && (
                         <Alert>
                           <AlertTriangle className="h-4 w-4" />
@@ -788,10 +786,10 @@ export const AgenticComplianceArchitect: React.FC = () => {
                           </AlertDescription>
                         </Alert>
                       )}
-                      
+
                       <div className="flex gap-2">
                         {gap.status === 'pending-approval' && (
-                          <Button 
+                          <Button
                             onClick={() => executeRemediation(gap)}
                             size="sm"
                           >
@@ -799,7 +797,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                           </Button>
                         )}
                         {gap.status === 'remediation-planned' && (
-                          <Button 
+                          <Button
                             onClick={() => executeRemediation(gap)}
                             size="sm"
                             variant="outline"
@@ -921,7 +919,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                     </CardContent>
                   </Card>
                 </div>
-                
+
                 <Alert>
                   <Shield className="h-4 w-4" />
                   <AlertDescription>
