@@ -16,7 +16,7 @@ func TestNewAuthManager(t *testing.T) {
 	}
 }
 
-func TestAuthManager_RegisterProvider(t *testing.T) {
+func TestAuthManagerRegisterProvider(t *testing.T) {
 	am := NewAuthManager()
 	provider := NewLocalProvider()
 
@@ -32,7 +32,7 @@ func TestAuthManager_RegisterProvider(t *testing.T) {
 	}
 }
 
-func TestAuthManager_SetDefault(t *testing.T) {
+func TestAuthManagerSetDefault(t *testing.T) {
 	am := NewAuthManager()
 	provider := NewLocalProvider()
 
@@ -80,7 +80,7 @@ func TestPermissionEvaluator(t *testing.T) {
 	}
 }
 
-func TestPermissionEvaluator_Wildcards(t *testing.T) {
+func TestPermissionEvaluatorWildcards(t *testing.T) {
 	pe := NewPermissionEvaluator()
 
 	// Role with wildcard resource
@@ -165,7 +165,7 @@ func TestSessionManager(t *testing.T) {
 	}
 }
 
-func TestSession_IsValid(t *testing.T) {
+func TestSessionIsValid(t *testing.T) {
 	// Valid session
 	validSession := &Session{
 		ExpiresAt: time.Now().Add(1 * time.Hour),
@@ -312,9 +312,7 @@ func TestPredefinedRoles(t *testing.T) {
 
 func TestBaseAuthProvider(t *testing.T) {
 	base := &BaseAuthProvider{
-		name:     "test-provider",
-		endpoint: "https://test.example.com",
-		timeout:  10 * time.Second,
+		name: "test-provider",
 	}
 
 	if base.GetName() != "test-provider" {
