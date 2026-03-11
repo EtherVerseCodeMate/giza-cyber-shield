@@ -168,7 +168,8 @@ export async function writeDAGNode(input: WriteNodeInput): Promise<string> {
       created_at: time,
     };
 
-    const { error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any)
       .from('connector_dag_nodes')
       .insert(row)
       .select('node_hash')
@@ -200,7 +201,8 @@ export async function logConnectorFailure(params: {
   dagNodeHash?: string;
 }): Promise<void> {
   try {
-    const { error } = await supabase.from('connector_failure_log').insert({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any).from('connector_failure_log').insert({
       organization_id: params.organizationId,
       connector_id: params.connectorId,
       provider: params.provider,
@@ -230,7 +232,8 @@ export async function recordUsageEvent(params: {
   sessionId?: string;
 }): Promise<void> {
   try {
-    const { error } = await supabase.from('connector_usage_events').insert({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any).from('connector_usage_events').insert({
       organization_id: params.organizationId,
       license_id: params.licenseId ?? null,
       session_id: params.sessionId ?? null,
@@ -253,7 +256,8 @@ export async function getConnectorDAGChain(
   connectorId: string,
   limit = 50
 ): Promise<DAGNode[]> {
-  const { data, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
     .from('connector_dag_nodes')
     .select('*')
     .eq('connector_id', connectorId)
@@ -262,7 +266,8 @@ export async function getConnectorDAGChain(
 
   if (error) throw new Error(`DAG chain fetch failed: ${error.message}`);
 
-  return (data ?? []).map(row => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data as any[]) ?? []).map((row: any) => ({
     nodeHash: row.node_hash,
     parentHashes: row.parent_hashes ?? [],
     action: row.action as ConnectorAction,
