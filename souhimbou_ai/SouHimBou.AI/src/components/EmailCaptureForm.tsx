@@ -66,7 +66,7 @@ const EmailCaptureForm = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="h-12 text-lg bg-white/10 border-blue-500/30 text-white placeholder:text-gray-400 focus:border-blue-400"
-            onKeyPress={(e) => {
+            onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 handleSubmit('trial');
               }
