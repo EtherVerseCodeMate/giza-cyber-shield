@@ -145,6 +145,7 @@ export const OrganizationSetup = () => {
           name: orgData.name,
           slug: orgData.slug,
           domain: orgData.domain || null,
+          primary_contact_email: '',
           settings: {
             description: orgData.description,
             industry: orgData.industry,
@@ -153,7 +154,7 @@ export const OrganizationSetup = () => {
             setupCompleted: true,
             createdAt: new Date().toISOString()
           }
-        })
+        } as any)
         .select()
         .single();
 
