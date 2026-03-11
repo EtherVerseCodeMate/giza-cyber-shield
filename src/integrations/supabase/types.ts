@@ -165,23 +165,285 @@ export type Database = {
         Update: any
         Relationships: []
       }
-      connector_dag_nodes: {
-        Row: any
-        Insert: any
-        Update: any
+      connector_api_licenses: {
+        Row: {
+          id: string
+          organization_id: string
+          api_key_hash: string
+          tier: 'community' | 'professional' | 'enterprise' | 'partner'
+          rate_limit_rpm: number
+          rate_limit_daily: number
+          allowed_actions: string[]
+          pqc_public_key: string | null
+          issued_at: string
+          expires_at: string | null
+          revoked: boolean
+          revoked_at: string | null
+          metadata: Json
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          api_key_hash: string
+          tier?: 'community' | 'professional' | 'enterprise' | 'partner'
+          rate_limit_rpm?: number
+          rate_limit_daily?: number
+          allowed_actions?: string[]
+          pqc_public_key?: string | null
+          issued_at?: string
+          expires_at?: string | null
+          revoked?: boolean
+          revoked_at?: string | null
+          metadata?: Json
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          api_key_hash?: string
+          tier?: 'community' | 'professional' | 'enterprise' | 'partner'
+          rate_limit_rpm?: number
+          rate_limit_daily?: number
+          allowed_actions?: string[]
+          pqc_public_key?: string | null
+          issued_at?: string
+          expires_at?: string | null
+          revoked?: boolean
+          revoked_at?: string | null
+          metadata?: Json
+        }
         Relationships: []
+      }
+      connector_dag_nodes: {
+        Row: {
+          id: string
+          node_hash: string
+          parent_hashes: string[]
+          action: string
+          symbol: string
+          actor_id: string | null
+          organization_id: string
+          connector_id: string | null
+          pqc_metadata: Json
+          hmac_signature: string | null
+          ml_dsa_signature: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          node_hash: string
+          parent_hashes?: string[]
+          action: string
+          symbol: string
+          actor_id?: string | null
+          organization_id: string
+          connector_id?: string | null
+          pqc_metadata?: Json
+          hmac_signature?: string | null
+          ml_dsa_signature?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          node_hash?: string
+          parent_hashes?: string[]
+          action?: string
+          symbol?: string
+          actor_id?: string | null
+          organization_id?: string
+          connector_id?: string | null
+          pqc_metadata?: Json
+          hmac_signature?: string | null
+          ml_dsa_signature?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connector_dag_nodes_actor_id_fkey"
+            columns: ["actor_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connector_dag_nodes_connector_id_fkey"
+            columns: ["connector_id"]
+            referencedRelation: "compliance_connectors"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       connector_failure_log: {
-        Row: any
-        Insert: any
-        Update: any
-        Relationships: []
+        Row: {
+          id: string
+          organization_id: string
+          connector_id: string | null
+          provider: string
+          error_code: string | null
+          error_body: Json
+          http_status: number | null
+          attempted_at: string
+          dag_node_hash: string | null
+          pattern_generated: boolean
+          pattern_id: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          connector_id?: string | null
+          provider: string
+          error_code?: string | null
+          error_body?: Json
+          http_status?: number | null
+          attempted_at?: string
+          dag_node_hash?: string | null
+          pattern_generated?: boolean
+          pattern_id?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          connector_id?: string | null
+          provider?: string
+          error_code?: string | null
+          error_body?: Json
+          http_status?: number | null
+          attempted_at?: string
+          dag_node_hash?: string | null
+          pattern_generated?: boolean
+          pattern_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connector_failure_log_connector_id_fkey"
+            columns: ["connector_id"]
+            referencedRelation: "compliance_connectors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connector_failure_log_dag_node_hash_fkey"
+            columns: ["dag_node_hash"]
+            referencedRelation: "connector_dag_nodes"
+            referencedColumns: ["node_hash"]
+          }
+        ]
       }
       connector_usage_events: {
-        Row: any
-        Insert: any
-        Update: any
-        Relationships: []
+        Row: {
+          id: string
+          organization_id: string
+          license_id: string | null
+          session_id: string | null
+          dag_node_hash: string | null
+          action: string
+          provider: string | null
+          billable: boolean
+          cost_units: number
+          occurred_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          license_id?: string | null
+          session_id?: string | null
+          dag_node_hash?: string | null
+          action: string
+          provider?: string | null
+          billable?: boolean
+          cost_units?: number
+          occurred_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          license_id?: string | null
+          session_id?: string | null
+          dag_node_hash?: string | null
+          action?: string
+          provider?: string | null
+          billable?: boolean
+          cost_units?: number
+          occurred_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connector_usage_events_license_id_fkey"
+            columns: ["license_id"]
+            referencedRelation: "connector_api_licenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connector_usage_events_session_id_fkey"
+            columns: ["session_id"]
+            referencedRelation: "pqc_oauth_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connector_usage_events_dag_node_hash_fkey"
+            columns: ["dag_node_hash"]
+            referencedRelation: "connector_dag_nodes"
+            referencedColumns: ["node_hash"]
+          }
+        ]
+      }
+      pqc_oauth_sessions: {
+        Row: {
+          id: string
+          user_id: string
+          organization_id: string
+          license_id: string | null
+          tier: string
+          threat_level: 'green' | 'yellow' | 'orange' | 'red'
+          allowed_scopes: string[]
+          token_hash: string
+          ml_dsa_signature: string | null
+          issued_at: string
+          expires_at: string
+          last_used_at: string | null
+          revoked: boolean
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          organization_id: string
+          license_id?: string | null
+          tier?: string
+          threat_level?: 'green' | 'yellow' | 'orange' | 'red'
+          allowed_scopes?: string[]
+          token_hash: string
+          ml_dsa_signature?: string | null
+          issued_at?: string
+          expires_at?: string
+          last_used_at?: string | null
+          revoked?: boolean
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          organization_id?: string
+          license_id?: string | null
+          tier?: string
+          threat_level?: 'green' | 'yellow' | 'orange' | 'red'
+          allowed_scopes?: string[]
+          token_hash?: string
+          ml_dsa_signature?: string | null
+          issued_at?: string
+          expires_at?: string
+          last_used_at?: string | null
+          revoked?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pqc_oauth_sessions_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pqc_oauth_sessions_license_id_fkey"
+            columns: ["license_id"]
+            referencedRelation: "connector_api_licenses"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       data_source_configurations: {
         Row: any
