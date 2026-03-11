@@ -237,3 +237,5 @@ export const ThreatHuntingDashboard = () => {
     </div>
   );
 };
+
+export default ThreatHuntingDashboard;
