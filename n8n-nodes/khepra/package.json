@@ -35,7 +35,7 @@
     "nodes": ["dist/nodes/KhepraNode.node.js"]
   },
   "devDependencies": {
-    "@types/node": "^18.0.0",
+    "@types/node": "^25.4.0",
     "n8n-workflow": "*",
     "typescript": "^5.0.0"
   },
