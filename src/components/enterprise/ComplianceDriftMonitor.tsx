@@ -95,9 +95,9 @@ export const ComplianceDriftMonitor: React.FC = () => {
       const transformedEvents: DriftEvent[] = (eventsData || []).map(event => ({
         ...event,
         asset_name: `Asset-${event.asset_id.slice(-4)}`,
-        asset_type: (asset as any).asset_type || 'unknown', // Real value from discovered_assets
-        confidence_score: 0, // Real confidence score requires drift analysis engine
-        risk_impact: (asset as any).risk_level || 'UNKNOWN' // Real value from infrastructure_assets
+        asset_type: (event as any).asset_type || 'unknown',
+        confidence_score: 0,
+        risk_impact: (event as any).risk_level || 'UNKNOWN'
       }));
 
       // Filter by asset type if specified
