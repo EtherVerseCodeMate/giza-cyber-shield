@@ -74,10 +74,8 @@ export function useConnectorLearning() {
 
     const costCheck = await apiCostTracker.preCallCheck({
       organizationId: params.organizationId,
-      userId: userData.user.id,
       apiProvider: 'grok-ai',
       endpoint: 'connector-learning',
-      estimatedCost: 0.02,
     });
 
     if (!costCheck.allowed) {
