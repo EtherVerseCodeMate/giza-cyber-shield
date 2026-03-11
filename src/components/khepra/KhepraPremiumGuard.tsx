@@ -33,7 +33,7 @@ export const KhepraPremiumGuard: React.FC<KhepraPremiumGuardProps> = ({
     'osiris': 4
   };
 
-  const currentTier = data?.license_tier || 'community';
+  const currentTier = data?.tier || 'community';
   const hasAccess = data?.is_valid && (tierWeights[currentTier] >= tierWeights[requiredTier]);
 
   if (isLoading) {
