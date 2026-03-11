@@ -52,6 +52,7 @@ export function useOrganizationOnboarding(organizationId: string | undefined) {
           .from('organization_onboarding')
           .insert({
             organization_id: organizationId,
+            user_id: organizationId,
             current_phase: 'pre_onboarding',
           })
           .select()
