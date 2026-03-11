@@ -9,13 +9,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { 
-  Play, 
-  Pause, 
-  Square, 
-  AlertTriangle, 
-  CheckCircle, 
-  Clock, 
+import {
+  Play,
+  Pause,
+  Square,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
   Zap,
   Settings,
   RefreshCw,
@@ -101,43 +101,10 @@ export const STIGRemediationOrchestrator: React.FC = () => {
   };
 
   const fetchActiveJobs = async () => {
-    // Simulate active remediation jobs
-    const mockJobs: RemediationJob[] = [
-      {
-        id: '1',
-        asset_id: 'asset-1',
-        asset_name: 'WIN-SERVER-01',
-        stig_rule_id: 'WINSERVER-2019-001',
-        playbook_name: 'Windows Server Password Policy',
-        status: 'running',
-        progress: 65,
-        started_at: new Date(Date.now() - 2 * 60 * 1000).toISOString()
-      },
-      {
-        id: '2',
-        asset_id: 'asset-2',
-        asset_name: 'UBUNTU-SRV-02',
-        stig_rule_id: 'UBUNTU-20-004',
-        playbook_name: 'Ubuntu SSH Configuration',
-        status: 'completed',
-        progress: 100,
-        started_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-        completed_at: new Date(Date.now() - 5 * 60 * 1000).toISOString()
-      },
-      {
-        id: '3',
-        asset_id: 'asset-3',
-        asset_name: 'CISCO-SW-01',
-        stig_rule_id: 'CISCO-IOS-001',
-        playbook_name: 'Cisco IOS Access Control',
-        status: 'failed',
-        progress: 45,
-        started_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-        error_message: 'Authentication failed to target device'
-      }
-    ];
-    
-    setActiveJobs(mockJobs);
+    // Awaiting telemetry for real active remediation jobs
+    const pendingJobs: RemediationJob[] = [];
+
+    setActiveJobs(pendingJobs);
   };
 
   const executeRemediation = async (assetIds: string[], playbookId: string, mode: 'validate' | 'execute') => {
@@ -292,7 +259,7 @@ export const STIGRemediationOrchestrator: React.FC = () => {
                   Configure and execute automated STIG remediation on selected assets
                 </DialogDescription>
               </DialogHeader>
-              
+
               <div className="space-y-6">
                 <div className="space-y-4">
                   <div>
@@ -340,7 +307,7 @@ export const STIGRemediationOrchestrator: React.FC = () => {
                   <Button variant="outline">
                     Cancel
                   </Button>
-                  <Button 
+                  <Button
                     onClick={() => executeRemediation(['asset-1', 'asset-2'], selectedPlaybook, executionMode)}
                     disabled={executing || !selectedPlaybook}
                   >
@@ -483,7 +450,7 @@ export const STIGRemediationOrchestrator: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span>Success Rate: {playbook.success_rate}%</span>
@@ -527,7 +494,7 @@ export const STIGRemediationOrchestrator: React.FC = () => {
                     </div>
                     <Switch defaultChecked />
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="font-medium">Require rollback confirmation</h3>
@@ -537,7 +504,7 @@ export const STIGRemediationOrchestrator: React.FC = () => {
                     </div>
                     <Switch defaultChecked />
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="font-medium">Enable drift auto-remediation</h3>
@@ -565,7 +532,7 @@ export const STIGRemediationOrchestrator: React.FC = () => {
               <Alert>
                 <FileText className="h-4 w-4" />
                 <AlertDescription>
-                  Execution history and audit trails will be displayed here, showing all past 
+                  Execution history and audit trails will be displayed here, showing all past
                   remediation activities with full traceability for compliance audits.
                 </AlertDescription>
               </Alert>

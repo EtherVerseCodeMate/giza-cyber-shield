@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+
 
 export interface RateLimitConfig {
   apiProvider: string;
@@ -19,7 +19,7 @@ export interface RateLimitResult {
 
 class RateLimitingService {
   private static instance: RateLimitingService;
-  private limitConfigs: Map<string, RateLimitConfig> = new Map();
+  private readonly limitConfigs: Map<string, RateLimitConfig> = new Map();
 
   static getInstance(): RateLimitingService {
     if (!RateLimitingService.instance) {
@@ -86,28 +86,23 @@ class RateLimitingService {
     }
 
     try {
-      // Mock usage data for now since tables don't exist yet
-      const mockUsageData = [
-        { tokens_used: 100, created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString() },
-        { tokens_used: 150, created_at: new Date(Date.now() - 45 * 60 * 1000).toISOString() }
-      ];
+      const usageData: any[] = [];
 
       const now = new Date();
       const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-      const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
       // Calculate usage in current hour and day
-      const hourlyRequests = mockUsageData.filter((u: any) => 
+      const hourlyRequests = usageData.filter((u: any) =>
         new Date(u.created_at) > hourAgo
       ).length;
 
-      const dailyRequests = mockUsageData.length;
+      const dailyRequests = usageData.length;
 
-      const hourlyTokens = mockUsageData
+      const hourlyTokens = usageData
         .filter((u: any) => new Date(u.created_at) > hourAgo)
         .reduce((sum: number, u: any) => sum + (u.tokens_used || 0), 0);
 
-      const dailyTokens = mockUsageData
+      const dailyTokens = usageData
         .reduce((sum: number, u: any) => sum + (u.tokens_used || 0), 0);
 
       // Check request limits
@@ -150,7 +145,7 @@ class RateLimitingService {
           config.maxRequestsPerHour - hourlyRequests,
           config.maxRequestsPerDay - dailyRequests
         ),
-        remainingTokens: config.maxTokensPerHour ? 
+        remainingTokens: config.maxTokensPerHour ?
           Math.min(
             config.maxTokensPerHour - hourlyTokens,
             (config.maxTokensPerDay || Infinity) - dailyTokens

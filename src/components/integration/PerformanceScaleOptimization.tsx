@@ -122,26 +122,10 @@ export const PerformanceScaleOptimization = () => {
   ]);
 
   useEffect(() => {
-    // Sinusoidal 24-hour performance baseline — deterministic
-    const generateMetrics = () => {
-      const now = new Date();
-      const data = Array.from({ length: 24 }, (_, i) => {
-        const phase = (i * Math.PI) / 12; // 24-hour cycle
-        return {
-          timestamp: new Date(now.getTime() - (23 - i) * 3600000).toISOString(),
-          latency: Math.round(80 + 40 * Math.sin(phase)),
-          throughput: Math.round(10000 + 4000 * Math.cos(phase)),
-          cpuUsage: Math.round(45 + 20 * Math.sin(phase + 1)),
-          memoryUsage: Math.round(55 + 15 * Math.cos(phase + 0.5)),
-          errorRate: parseFloat((0.05 + 0.08 * Math.abs(Math.sin(phase + 2))).toFixed(3))
-        };
-      });
-      setMetrics(data);
-    };
-
-    generateMetrics();
-    const interval = setInterval(generateMetrics, 60000);
-    return () => clearInterval(interval);
+    // Performance metrics require real monitoring integration (Datadog, CloudWatch, etc.)
+    // Returning empty array until real data source is connected
+    setMetrics([]);
+    // No interval needed without real data source
   }, []);
 
   const toggleScalingRule = (id: string) => {
@@ -176,7 +160,7 @@ export const PerformanceScaleOptimization = () => {
     }
   };
 
-  const currentMetrics = metrics[metrics.length - 1];
+  const currentMetrics = metrics.at(-1);
 
   return (
     <div className="space-y-6">
