@@ -83,7 +83,7 @@ export class ProductionSecurityService {
     }
 
     // Check browser security features
-    if (!window.isSecureContext) {
+    if (!globalThis.isSecureContext) {
       vulnerabilities.push({
         id: 'insecure_context',
         severity: 'high',
@@ -259,7 +259,7 @@ export class ProductionSecurityService {
       protectionLevel,
       metadata: {
         enabledAPIs: enabledSensitiveAPIs.map(([api]) => api),
-        secureContext: window.isSecureContext,
+        secureContext: globalThis.isSecureContext,
         userAgent: navigator.userAgent
       }
     });
@@ -492,7 +492,7 @@ export class ProductionSecurityService {
     const vulns: SecurityVulnerability[] = [];
 
     // Check browser security
-    if (!window.isSecureContext) {
+    if (!globalThis.isSecureContext) {
       vulns.push({
         id: 'insecure_context',
         severity: 'high',

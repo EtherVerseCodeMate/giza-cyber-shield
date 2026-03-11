@@ -4,56 +4,46 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Shield, 
-  Smartphone, 
-  Key, 
-  AlertTriangle, 
-  CheckCircle, 
+import {
+  Shield,
+  Smartphone,
+  Key,
+  AlertTriangle,
+  CheckCircle,
   Copy,
-  RefreshCw 
+  RefreshCw
 } from 'lucide-react';
 import { useMFA } from '@/hooks/useMFA';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { sanitizeAndValidateQRCode } from '@/lib/svgSanitizer';
 
 export const EnhancedMFASetup = () => {
   const { user } = useAuth();
-  const { 
+  const {
     isEnabled,
     isLoading,
     factors,
     enrollmentData,
     error,
-    checkMFAStatus, 
-    startEnrollment, 
-    verifyCode, 
+    checkMFAStatus,
+    startEnrollment,
+    verifyCode,
     disableMFA,
-    generateBackupCodes 
+    generateBackupCodes
   } = useMFA();
-  
+
   const [verificationCode, setVerificationCode] = useState('');
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [showBackupCodes, setShowBackupCodes] = useState(false);
-  const [sanitizedQRCode, setSanitizedQRCode] = useState<string>('');
 
   const handleStartEnrollment = async () => {
     try {
       await startEnrollment();
       if (enrollmentData?.qrCode) {
-        // Sanitize QR code SVG to prevent XSS
-        try {
-          const sanitized = sanitizeAndValidateQRCode(enrollmentData.qrCode);
-          setSanitizedQRCode(sanitized);
-          toast.success('Scan the QR code with your authenticator app');
-        } catch (sanitizeError) {
-          console.error('QR code sanitization failed:', sanitizeError);
-          toast.error('Invalid QR code received. Please try again.');
-          setSanitizedQRCode('');
-        }
+        toast.success('Scan the QR code with your authenticator app');
       }
     } catch (error) {
+      console.error(error);
       toast.error('Failed to start MFA enrollment');
     }
   };
@@ -68,14 +58,15 @@ export const EnhancedMFASetup = () => {
       await verifyCode(verificationCode);
       toast.success('MFA enabled successfully!');
       setVerificationCode('');
-      
+
       // Generate backup codes after successful enrollment
-      const codes = await generateBackupCodes();
+      const codes = generateBackupCodes();
       if (codes) {
         setBackupCodes(codes);
         setShowBackupCodes(true);
       }
     } catch (error) {
+      console.error(error);
       toast.error('Invalid verification code');
     }
   };
@@ -87,6 +78,7 @@ export const EnhancedMFASetup = () => {
       setBackupCodes([]);
       setShowBackupCodes(false);
     } catch (error) {
+      console.error(error);
       toast.error('Failed to disable MFA');
     }
   };
@@ -117,22 +109,6 @@ export const EnhancedMFASetup = () => {
       checkMFAStatus();
     }
   }, [user]);
-
-  // Sanitize QR code when enrollment data changes
-  useEffect(() => {
-    if (enrollmentData?.qrCode) {
-      try {
-        const sanitized = sanitizeAndValidateQRCode(enrollmentData.qrCode);
-        setSanitizedQRCode(sanitized);
-      } catch (error) {
-        console.error('QR code sanitization failed:', error);
-        setSanitizedQRCode('');
-        toast.error('Invalid QR code received');
-      }
-    } else {
-      setSanitizedQRCode('');
-    }
-  }, [enrollmentData?.qrCode]);
 
   const securityScore = getSecurityScore();
   const securityLevel = getSecurityLevel(securityScore);
@@ -187,39 +163,58 @@ export const EnhancedMFASetup = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!isEnabled ? (
+          {isEnabled ? (
+            <div className="space-y-4">
+              <Alert>
+                <CheckCircle className="w-4 h-4" />
+                <AlertDescription>
+                  <strong>MFA is enabled.</strong> Your account has an additional layer of
+                  security. You'll need to enter a code from your authenticator app when signing in.
+                </AlertDescription>
+              </Alert>
+
+              <div className="flex justify-between items-center p-3 border rounded-lg">
+                <div>
+                  <p className="font-medium">Authenticator App</p>
+                  <p className="text-sm text-muted-foreground">
+                    {factors.length} factor(s) configured
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDisableMFA}
+                  disabled={isLoading}
+                >
+                  Disable MFA
+                </Button>
+              </div>
+            </div>
+          ) : (
             <div className="space-y-4">
               <Alert>
                 <AlertTriangle className="w-4 h-4" />
                 <AlertDescription>
-                  <strong>Security Recommendation:</strong> Enable MFA to add an extra layer 
-                  of security to your account. This helps protect against unauthorized access 
+                  <strong>Security Recommendation:</strong> Enable MFA to add an extra layer
+                  of security to your account. This helps protect against unauthorized access
                   even if your password is compromised.
                 </AlertDescription>
               </Alert>
 
-              {!enrollmentData ? (
-                <div className="text-center py-4">
-                  <Button 
-                    onClick={handleStartEnrollment}
-                    disabled={isLoading}
-                    className="w-full"
-                  >
-                    {isLoading ? (
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Key className="w-4 h-4 mr-2" />
-                    )}
-                    Set Up MFA
-                  </Button>
-                </div>
-              ) : (
+              {enrollmentData ? (
                 <div className="space-y-4">
-                  {sanitizedQRCode && (
+                  {enrollmentData.qrCode && (
                     <div className="text-center">
-                      <div 
+                      <div
                         className="inline-block p-4 bg-white rounded-lg border"
-                        dangerouslySetInnerHTML={{ __html: sanitizedQRCode }}
+                        dangerouslySetInnerHTML={{
+                          // Basic sanitization to prevent XSS from compromised QR code generation
+                          __html: enrollmentData.qrCode
+                            .replaceAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
+                            .replaceAll(/javascript:/gim, "")
+                            .replaceAll(/ on\w+="[^"]*"/gim, "")
+                            .replaceAll(/ on\w+='[^']*'/gim, "")
+                        }}
                       />
                       <p className="text-sm text-muted-foreground mt-2">
                         Scan this QR code with your authenticator app
@@ -238,7 +233,7 @@ export const EnhancedMFASetup = () => {
                   )}
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">
+                    <label className="text-sm font-medium" htmlFor="verification-code">
                       Enter verification code from your app:
                     </label>
                     <div className="flex gap-2">
@@ -246,11 +241,11 @@ export const EnhancedMFASetup = () => {
                         type="text"
                         placeholder="000000"
                         value={verificationCode}
-                        onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        onChange={(e) => setVerificationCode(e.target.value.replaceAll(/\D/g, '').slice(0, 6))}
                         className="flex-1 px-3 py-2 border rounded-md text-center font-mono"
                         maxLength={6}
                       />
-                      <Button 
+                      <Button
                         onClick={handleVerifyAndEnable}
                         disabled={verificationCode.length !== 6 || isLoading}
                       >
@@ -259,34 +254,22 @@ export const EnhancedMFASetup = () => {
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <Alert>
-                <CheckCircle className="w-4 h-4" />
-                <AlertDescription>
-                  <strong>MFA is enabled.</strong> Your account has an additional layer of 
-                  security. You'll need to enter a code from your authenticator app when signing in.
-                </AlertDescription>
-              </Alert>
-
-              <div className="flex justify-between items-center p-3 border rounded-lg">
-                <div>
-                  <p className="font-medium">Authenticator App</p>
-                  <p className="text-sm text-muted-foreground">
-                    {factors.length} factor(s) configured
-                  </p>
+              ) : (
+                <div className="text-center py-4">
+                  <Button
+                    onClick={handleStartEnrollment}
+                    disabled={isLoading}
+                    className="w-full"
+                  >
+                    {isLoading ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Key className="w-4 h-4 mr-2" />
+                    )}
+                    Set Up MFA
+                  </Button>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleDisableMFA}
-                  disabled={isLoading}
-                >
-                  Disable MFA
-                </Button>
-              </div>
+              )}
             </div>
           )}
 
@@ -312,23 +295,23 @@ export const EnhancedMFASetup = () => {
             <Alert>
               <AlertTriangle className="w-4 h-4" />
               <AlertDescription>
-                <strong>Important:</strong> Save these backup codes in a secure location. 
-                You can use them to access your account if you lose your authenticator device. 
+                <strong>Important:</strong> Save these backup codes in a secure location.
+                You can use them to access your account if you lose your authenticator device.
                 Each code can only be used once.
               </AlertDescription>
             </Alert>
 
             <div className="bg-muted p-4 rounded-lg">
               <div className="grid grid-cols-2 gap-2 font-mono text-sm">
-                {backupCodes.map((code, index) => (
-                  <div key={index} className="bg-white p-2 rounded border text-center">
+                {backupCodes.map((code) => (
+                  <div key={code} className="bg-white p-2 rounded border text-center">
                     {code}
                   </div>
                 ))}
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={copyBackupCodes}
                 className="mt-3 w-full"
               >

@@ -29,7 +29,7 @@ export const useOneTimePayment = () => {
       if (error) throw error;
 
       // Open Stripe checkout in a new tab
-      window.open(data.url, '_blank');
+      globalThis.open(data.url, '_blank');
       
       toast({
         title: "Redirecting to checkout",

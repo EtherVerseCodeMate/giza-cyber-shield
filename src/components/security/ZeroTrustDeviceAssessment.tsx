@@ -150,7 +150,7 @@ const ZeroTrustDeviceAssessment = () => {
 
     // Browser security checks
     const browserChecks = {
-      secure_context: window.isSecureContext,
+      secure_context: globalThis.isSecureContext,
       private_browsing: false, // Would need more advanced detection
       extensions_detected: navigator.plugins?.length > 3,
       cookies_enabled: navigator.cookieEnabled,
@@ -224,8 +224,7 @@ const ZeroTrustDeviceAssessment = () => {
 
     return {
       trustScore: Math.max(0, Math.min(100, trustScore)),
-      // Behavioral score mirrors trust score — same real signal, bounded to 70-100
-      behavioralScore: Math.max(70, Math.min(100, Math.round(trustScore * 0.9 + 10))),
+      behavioralScore: Math.max(0, Math.min(100, trustScore)), // Derived from browser security checks above
       validationResult,
       remediationRequired: remediationActions.length > 0,
       remediationActions,
