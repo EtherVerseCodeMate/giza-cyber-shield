@@ -174,7 +174,7 @@ end
         remediation_script: playbook.code,
         validation_script: '# Auto-generated validation',
         description: `${playbook.automationType} playbook for ${playbook.stigRuleId}`,
-      })
+      } as any)
       .select()
       .single();
 
