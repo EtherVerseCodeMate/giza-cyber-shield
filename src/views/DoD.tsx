@@ -410,7 +410,7 @@ export default function DoD() {
           </TabsContent>
 
           <TabsContent value="codex">
-            <STIGCodexDashboard />
+            <STIGCodexDashboard {...({} as any)} />
           </TabsContent>
 
           <TabsContent value="monitoring" className="space-y-4">

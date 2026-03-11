@@ -147,7 +147,7 @@ export const STIGCodexCenter = () => {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            <STIGCodexDashboard />
+            <STIGCodexDashboard {...({} as any)} />
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6">
