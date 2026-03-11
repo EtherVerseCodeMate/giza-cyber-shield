@@ -6,7 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import {
-  Zap, Settings, CheckCircle, Clock, AlertTriangle,
+  Zap, Settings, CheckCircle, Clock,
   Play, Pause, RotateCcw, Shield, Cpu, Database
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -85,9 +85,10 @@ export const AutomatedRemediation = () => {
 
     try {
       // Map task category to remediation action
-      let action = 'patch_management';
+      let action: string;
       switch (task.category) {
         case 'security_patch':
+        default:
           action = 'patch_management';
           break;
         case 'config_hardening':
