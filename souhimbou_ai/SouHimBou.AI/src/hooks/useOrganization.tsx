@@ -194,7 +194,8 @@ export const useOrganization = () => {
         .insert({
           name,
           slug,
-          subscription_tier: 'trial'
+          license_tier: 'trial',
+          primary_contact_email: ''
         })
         .select()
         .single();
