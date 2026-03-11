@@ -7,11 +7,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Plug, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
+import {
+  Plug,
+  CheckCircle,
+  XCircle,
+  Clock,
   AlertTriangle,
   Settings,
   Key,
@@ -247,7 +247,7 @@ export const ConnectorSDK: React.FC = () => {
         healthScore: connector.healthScore,
         rateLimits: {
           ...connector.rateLimits,
-          current: Math.max(0, Math.min(connector.rateLimits.requestsPerMinute, 
+          current: Math.max(0, Math.min(connector.rateLimits.requestsPerMinute,
             connector.rateLimits.current))
         }
       })));
@@ -258,7 +258,26 @@ export const ConnectorSDK: React.FC = () => {
 
   const testConnection = async (connector: Connector) => {
     setIsTestingConnection(true);
-    
+
+    try {
+      const { data, error } = await supabase.functions.invoke('grok-ai-agent', {
+        body: {
+          action: 'test_connector',
+          connector: {
+            id: connector.id,
+            provider: connector.provider,
+            configuration: connector.configuration
+          }
+        }
+      })));
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const testConnection = async (connector: Connector) => {
+    setIsTestingConnection(true);
+
     try {
       const { data, error } = await supabase.functions.invoke('grok-ai-agent', {
         body: {
@@ -275,333 +294,263 @@ export const ConnectorSDK: React.FC = () => {
 
       // Simulate test results
       // Derive success from whether the connector has a valid config (non-empty credentials)
-      const success = !!(connector.config && Object.keys(connector.config).length > 0);
-      
-      setConnectors(prev => prev.map(c => 
-        c.id === connector.id ? { 
-          ...c, 
-          status: success ? 'connected' : 'error',
-          healthScore: success ? Math.min(100, c.healthScore + 10) : Math.max(50, c.healthScore - 20),
-          lastSync: new Date()
-        } : c
+      healthScore: success ? Math.min(100, c.healthScore + 10) : Math.max(50, c.healthScore - 20),
+        lastSync: new Date()
+    } : c
       ));
 
-      toast({
-        title: success ? "Connection Test Successful" : "Connection Test Failed",
-        description: success ? `${connector.name} is working properly` : `${connector.name} failed connectivity test`,
-        variant: success ? "default" : "destructive"
-      });
+toast({
+  title: success ? "Connection Test Successful" : "Connection Test Failed",
+  description: success ? `${connector.name} is working properly` : `${connector.name} failed connectivity test`,
+  variant: success ? "default" : "destructive"
+});
     } catch (error) {
-      console.error('Failed to test connection:', error);
-      toast({
-        title: "Test Failed",
-        description: "Unable to test connector connection",
-        variant: "destructive"
-      });
-    } finally {
-      setIsTestingConnection(false);
-    }
+  console.error('Failed to test connection:', error);
+  toast({
+    title: "Test Failed",
+    description: "Unable to test connector connection",
+    variant: "destructive"
+  });
+} finally {
+  setIsTestingConnection(false);
+}
   };
 
-  const addConnector = async (template: ConnectorTemplate, config: Record<string, any>) => {
-    const newConnector: Connector = {
-      id: `${template.provider.toLowerCase()}-${Date.now()}`,
-      name: `${template.name} - ${config.name || 'New'}`,
-      provider: template.provider,
-      category: template.category as any,
-      status: 'testing',
-      lastSync: new Date(),
-      healthScore: 0,
-      capabilities: [
-        { name: 'Discovery', type: 'discover', enabled: true, lastTested: new Date(), successRate: 0 },
-        { name: 'Read', type: 'read', enabled: true, lastTested: new Date(), successRate: 0 },
-        { name: 'Evidence', type: 'evidence', enabled: true, lastTested: new Date(), successRate: 0 }
-      ],
-      authType: template.authType as any,
-      rateLimits: { requestsPerMinute: 100, current: 0 },
-      discoveredAssets: 0,
-      complianceFrameworks: template.supportedFrameworks,
-      configuration: config
-    };
-
-    setConnectors(prev => [...prev, newConnector]);
-    setShowAddConnector(false);
-    setSelectedTemplate(null);
-
-    // Auto-test the new connection
-    setTimeout(() => testConnection(newConnector), 1000);
-
-    toast({
-      title: "Connector Added",
-      description: `${template.name} connector has been added and is being tested`,
-    });
+const addConnector = async (template: ConnectorTemplate, config: Record<string, any>) => {
+  const newConnector: Connector = {
+    id: `${template.provider.toLowerCase()}-${Date.now()}`,
+    name: `${template.name} - ${config.name || 'New'}`,
+    provider: template.provider,
+    category: template.category as any,
+    status: 'testing',
+    lastSync: new Date(),
+    healthScore: 0,
+    capabilities: [
+      { name: 'Discovery', type: 'discover', enabled: true, lastTested: new Date(), successRate: 0 },
+      { name: 'Read', type: 'read', enabled: true, lastTested: new Date(), successRate: 0 },
+      { name: 'Evidence', type: 'evidence', enabled: true, lastTested: new Date(), successRate: 0 }
+    ],
+    authType: template.authType as any,
+    rateLimits: { requestsPerMinute: 100, current: 0 },
+    discoveredAssets: 0,
+    complianceFrameworks: template.supportedFrameworks,
+    configuration: config
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'connected': return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'error': return <XCircle className="h-4 w-4 text-red-500" />;
-      case 'testing': return <Clock className="h-4 w-4 text-blue-500 animate-spin" />;
-      default: return <AlertTriangle className="h-4 w-4 text-gray-500" />;
-    }
-  };
+  setConnectors(prev => [...prev, newConnector]);
+  setShowAddConnector(false);
+  setSelectedTemplate(null);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'connected': return 'bg-green-500';
-      case 'error': return 'bg-red-500';
-      case 'testing': return 'bg-blue-500';
-      default: return 'bg-gray-500';
-    }
-  };
+  // Auto-test the new connection
+  setTimeout(() => testConnection(newConnector), 1000);
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'cloud': return <Globe className="h-4 w-4" />;
-      case 'identity': return <Key className="h-4 w-4" />;
-      case 'security': return <Shield className="h-4 w-4" />;
-      case 'devops': return <Settings className="h-4 w-4" />;
-      case 'ot': return <Database className="h-4 w-4" />;
-      default: return <Plug className="h-4 w-4" />;
-    }
-  };
+  toast({
+    title: "Connector Added",
+    description: `${template.name} connector has been added and is being tested`,
+  });
+};
 
-  const overallStats = {
-    total: connectors.length,
-    connected: connectors.filter(c => c.status === 'connected').length,
-    errors: connectors.filter(c => c.status === 'error').length,
-    avgHealth: Math.round(connectors.reduce((acc, c) => acc + c.healthScore, 0) / connectors.length),
-    totalAssets: connectors.reduce((acc, c) => acc + c.discoveredAssets, 0)
-  };
+const getStatusIcon = (status: string) => {
+  switch (status) {
+    case 'connected': return <CheckCircle className="h-4 w-4 text-green-500" />;
+    case 'error': return <XCircle className="h-4 w-4 text-red-500" />;
+    case 'testing': return <Clock className="h-4 w-4 text-blue-500 animate-spin" />;
+    default: return <AlertTriangle className="h-4 w-4 text-gray-500" />;
+  }
+};
 
-  return (
-    <div className="space-y-6">
-      {/* Stats Overview */}
-      <div className="grid grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold">{overallStats.total}</div>
-              <div className="text-sm text-muted-foreground">Total Connectors</div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-500">{overallStats.connected}</div>
-              <div className="text-sm text-muted-foreground">Connected</div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-red-500">{overallStats.errors}</div>
-              <div className="text-sm text-muted-foreground">Errors</div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-500">{overallStats.avgHealth}%</div>
-              <div className="text-sm text-muted-foreground">Avg Health</div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-500">{overallStats.totalAssets.toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Assets</div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'connected': return 'bg-green-500';
+    case 'error': return 'bg-red-500';
+    case 'testing': return 'bg-blue-500';
+    default: return 'bg-gray-500';
+  }
+};
 
-      <Tabs defaultValue="connectors" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="connectors">Active Connectors</TabsTrigger>
-          <TabsTrigger value="templates">Available Integrations</TabsTrigger>
-          <TabsTrigger value="sdk">Developer SDK</TabsTrigger>
-        </TabsList>
+const getCategoryIcon = (category: string) => {
+  switch (category) {
+    case 'cloud': return <Globe className="h-4 w-4" />;
+    case 'identity': return <Key className="h-4 w-4" />;
+    case 'security': return <Shield className="h-4 w-4" />;
+    case 'devops': return <Settings className="h-4 w-4" />;
+    case 'ot': return <Database className="h-4 w-4" />;
+    default: return <Plug className="h-4 w-4" />;
+  }
+};
 
-        <TabsContent value="connectors" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Plug className="h-5 w-5" />
-                    Connector Management
-                  </CardTitle>
-                  <CardDescription>
-                    Manage active connectors for compliance data collection and remediation
-                  </CardDescription>
-                </div>
-                <Button onClick={() => setShowAddConnector(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Connector
-                </Button>
-              </div>
-            </CardHeader>
-          </Card>
+const overallStats = {
+  total: connectors.length,
+  connected: connectors.filter(c => c.status === 'connected').length,
+  errors: connectors.filter(c => c.status === 'error').length,
+  avgHealth: Math.round(connectors.reduce((acc, c) => acc + c.healthScore, 0) / connectors.length),
+  totalAssets: connectors.reduce((acc, c) => acc + c.discoveredAssets, 0)
+};
 
-          <div className="grid gap-4">
-            {connectors.map((connector) => (
-              <Card key={connector.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        {getCategoryIcon(connector.category)}
-                        <Badge className={getStatusColor(connector.status)}>
-                          {connector.status.toUpperCase()}
-                        </Badge>
-                        <Badge variant="outline">{connector.provider}</Badge>
-                        <Badge variant="secondary">{connector.authType}</Badge>
-                      </div>
-                      <CardTitle className="flex items-center gap-2">
-                        {getStatusIcon(connector.status)}
-                        {connector.name}
-                      </CardTitle>
-                      <CardDescription>
-                        Last sync: {connector.lastSync.toLocaleString()} • 
-                        {connector.discoveredAssets} assets • 
-                        Health: {connector.healthScore}%
-                      </CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        onClick={() => testConnection(connector)}
-                        disabled={isTestingConnection || connector.status === 'testing'}
-                        size="sm"
-                        variant="outline"
-                      >
-                        <TestTube className="h-4 w-4 mr-1" />
-                        Test
-                      </Button>
-                      <Button
-                        onClick={() => setSelectedConnector(connector)}
-                        size="sm"
-                        variant="outline"
-                      >
-                        <Settings className="h-4 w-4 mr-1" />
-                        Configure
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>Health Score</span>
-                        <span>{connector.healthScore}%</span>
-                      </div>
-                      <Progress value={connector.healthScore} className="h-2" />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>Rate Limit Usage</span>
-                        <span>{connector.rateLimits.current}/{connector.rateLimits.requestsPerMinute}</span>
-                      </div>
-                      <Progress 
-                        value={(connector.rateLimits.current / connector.rateLimits.requestsPerMinute) * 100} 
-                        className="h-2" 
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <h5 className="font-medium mb-2">Capabilities</h5>
-                        <div className="space-y-1">
-                          {connector.capabilities.map((capability, index) => (
-                            <div key={index} className="flex items-center justify-between text-sm">
-                              <div className="flex items-center gap-2">
-                                {capability.enabled ? (
-                                  <CheckCircle className="h-3 w-3 text-green-500" />
-                                ) : (
-                                  <XCircle className="h-3 w-3 text-red-500" />
-                                )}
-                                <span>{capability.name}</span>
-                              </div>
-                              <span className="text-muted-foreground">{capability.successRate}%</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div>
-                        <h5 className="font-medium mb-2">Compliance Frameworks</h5>
-                        <div className="flex flex-wrap gap-1">
-                          {connector.complianceFrameworks.map((framework, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {framework}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+return (
+  <div className="space-y-6">
+    {/* Stats Overview */}
+    <div className="grid grid-cols-5 gap-4">
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center">
+            <div className="text-2xl font-bold">{overallStats.total}</div>
+            <div className="text-sm text-muted-foreground">Total Connectors</div>
           </div>
-        </TabsContent>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-green-500">{overallStats.connected}</div>
+            <div className="text-sm text-muted-foreground">Connected</div>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-red-500">{overallStats.errors}</div>
+            <div className="text-sm text-muted-foreground">Errors</div>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-blue-500">{overallStats.avgHealth}%</div>
+            <div className="text-sm text-muted-foreground">Avg Health</div>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-purple-500">{overallStats.totalAssets.toLocaleString()}</div>
+            <div className="text-sm text-muted-foreground">Assets</div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
 
-        <TabsContent value="templates" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Available Integrations</CardTitle>
-              <CardDescription>
-                Pre-built connectors for popular compliance and security platforms
-              </CardDescription>
-            </CardHeader>
-          </Card>
+    <Tabs defaultValue="connectors" className="w-full">
+      <TabsList className="grid w-full grid-cols-3">
+        <TabsTrigger value="connectors">Active Connectors</TabsTrigger>
+        <TabsTrigger value="templates">Available Integrations</TabsTrigger>
+        <TabsTrigger value="sdk">Developer SDK</TabsTrigger>
+      </TabsList>
 
-          <div className="grid gap-4">
-            {templates.map((template) => (
-              <Card key={template.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        {getCategoryIcon(template.category)}
-                        <Badge variant="outline">{template.provider}</Badge>
-                        {template.isPopular && (
-                          <Badge variant="secondary">Popular</Badge>
-                        )}
-                        {template.isDodApproved && (
-                          <Badge className="bg-blue-500">DoD Approved</Badge>
-                        )}
-                      </div>
-                      <CardTitle>{template.name}</CardTitle>
-                      <CardDescription>{template.description}</CardDescription>
+      <TabsContent value="connectors" className="space-y-4">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Plug className="h-5 w-5" />
+                  Connector Management
+                </CardTitle>
+                <CardDescription>
+                  Manage active connectors for compliance data collection and remediation
+                </CardDescription>
+              </div>
+              <Button onClick={() => setShowAddConnector(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Connector
+              </Button>
+            </div>
+          </CardHeader>
+        </Card>
+
+        <div className="grid gap-4">
+          {connectors.map((connector) => (
+            <Card key={connector.id}>
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      {getCategoryIcon(connector.category)}
+                      <Badge className={getStatusColor(connector.status)}>
+                        {connector.status.toUpperCase()}
+                      </Badge>
+                      <Badge variant="outline">{connector.provider}</Badge>
+                      <Badge variant="secondary">{connector.authType}</Badge>
                     </div>
+                    <CardTitle className="flex items-center gap-2">
+                      {getStatusIcon(connector.status)}
+                      {connector.name}
+                    </CardTitle>
+                    <CardDescription>
+                      Last sync: {connector.lastSync.toLocaleString()} •
+                      {connector.discoveredAssets} assets •
+                      Health: {connector.healthScore}%
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <Button
-                      onClick={() => {
-                        setSelectedTemplate(template);
-                        setShowAddConnector(true);
-                      }}
+                      onClick={() => testConnection(connector)}
+                      disabled={isTestingConnection || connector.status === 'testing'}
+                      size="sm"
+                      variant="outline"
                     >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add
+                      <TestTube className="h-4 w-4 mr-1" />
+                      Test
+                    </Button>
+                    <Button
+                      onClick={() => setSelectedConnector(connector)}
+                      size="sm"
+                      variant="outline"
+                    >
+                      <Settings className="h-4 w-4 mr-1" />
+                      Configure
                     </Button>
                   </div>
-                </CardHeader>
-                <CardContent>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Health Score</span>
+                      <span>{connector.healthScore}%</span>
+                    </div>
+                    <Progress value={connector.healthScore} className="h-2" />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Rate Limit Usage</span>
+                      <span>{connector.rateLimits.current}/{connector.rateLimits.requestsPerMinute}</span>
+                    </div>
+                    <Progress
+                      value={(connector.rateLimits.current / connector.rateLimits.requestsPerMinute) * 100}
+                      className="h-2"
+                    />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <h5 className="font-medium mb-2">Authentication</h5>
-                      <Badge variant="outline">{template.authType}</Badge>
+                      <h5 className="font-medium mb-2">Capabilities</h5>
+                      <div className="space-y-1">
+                        {connector.capabilities.map((capability, index) => (
+                          <div key={index} className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              {capability.enabled ? (
+                                <CheckCircle className="h-3 w-3 text-green-500" />
+                              ) : (
+                                <XCircle className="h-3 w-3 text-red-500" />
+                              )}
+                              <span>{capability.name}</span>
+                            </div>
+                            <span className="text-muted-foreground">{capability.successRate}%</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
+
                     <div>
-                      <h5 className="font-medium mb-2">Supported Frameworks</h5>
+                      <h5 className="font-medium mb-2">Compliance Frameworks</h5>
                       <div className="flex flex-wrap gap-1">
-                        {template.supportedFrameworks.map((framework, index) => (
+                        {connector.complianceFrameworks.map((framework, index) => (
                           <Badge key={index} variant="outline" className="text-xs">
                             {framework}
                           </Badge>
@@ -609,43 +558,107 @@ export const ConnectorSDK: React.FC = () => {
                       </div>
                     </div>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </TabsContent>
 
-                  <div className="mt-4">
-                    <h5 className="font-medium mb-2">Required Configuration</h5>
-                    <div className="text-sm text-muted-foreground">
-                      {template.requiredFields.map(field => field.label).join(', ')}
+      <TabsContent value="templates" className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Available Integrations</CardTitle>
+            <CardDescription>
+              Pre-built connectors for popular compliance and security platforms
+            </CardDescription>
+          </CardHeader>
+        </Card>
+
+        <div className="grid gap-4">
+          {templates.map((template) => (
+            <Card key={template.id}>
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      {getCategoryIcon(template.category)}
+                      <Badge variant="outline">{template.provider}</Badge>
+                      {template.isPopular && (
+                        <Badge variant="secondary">Popular</Badge>
+                      )}
+                      {template.isDodApproved && (
+                        <Badge className="bg-blue-500">DoD Approved</Badge>
+                      )}
+                    </div>
+                    <CardTitle>{template.name}</CardTitle>
+                    <CardDescription>{template.description}</CardDescription>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      setSelectedTemplate(template);
+                      setShowAddConnector(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h5 className="font-medium mb-2">Authentication</h5>
+                    <Badge variant="outline">{template.authType}</Badge>
+                  </div>
+                  <div>
+                    <h5 className="font-medium mb-2">Supported Frameworks</h5>
+                    <div className="flex flex-wrap gap-1">
+                      {template.supportedFrameworks.map((framework, index) => (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          {framework}
+                        </Badge>
+                      ))}
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
+                </div>
 
-        <TabsContent value="sdk" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="h-5 w-5" />
-                Connector SDK Documentation
-              </CardTitle>
-              <CardDescription>
-                Build custom connectors for proprietary systems and specialized compliance requirements
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <Alert>
-                  <Shield className="h-4 w-4" />
-                  <AlertDescription>
-                    All custom connectors are automatically sandboxed and require security review before deployment.
-                  </AlertDescription>
-                </Alert>
+                <div className="mt-4">
+                  <h5 className="font-medium mb-2">Required Configuration</h5>
+                  <div className="text-sm text-muted-foreground">
+                    {template.requiredFields.map(field => field.label).join(', ')}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </TabsContent>
 
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">TypeScript Connector Interface</h3>
-                  <div className="bg-black text-green-400 p-4 rounded font-mono text-sm overflow-x-auto">
-                    <pre>{`export interface Connector {
+      <TabsContent value="sdk" className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5" />
+              Connector SDK Documentation
+            </CardTitle>
+            <CardDescription>
+              Build custom connectors for proprietary systems and specialized compliance requirements
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <Alert>
+                <Shield className="h-4 w-4" />
+                <AlertDescription>
+                  All custom connectors are automatically sandboxed and require security review before deployment.
+                </AlertDescription>
+              </Alert>
+
+              <div>
+                <h3 className="text-lg font-semibold mb-3">TypeScript Connector Interface</h3>
+                <div className="bg-black text-green-400 p-4 rounded font-mono text-sm overflow-x-auto">
+                  <pre>{`export interface Connector {
   name: string;
   capabilities: ("discover" | "read" | "write" | "evidence")[];
   auth: OAuth2 | APIKey | ServicePrincipal;
@@ -676,24 +689,24 @@ export class MyCustomConnector implements Connector {
     return await this.gatherControlEvidence(controlId);
   }
 }`}</pre>
-                  </div>
                 </div>
+              </div>
 
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">Security Requirements</h3>
-                  <div className="space-y-2 text-sm">
-                    <div>• All credentials must be encrypted using KHEPRA key management</div>
-                    <div>• Rate limiting and retry logic are mandatory</div>
-                    <div>• Evidence must include cryptographic signatures</div>
-                    <div>• All API calls must be logged for audit purposes</div>
-                    <div>• Connector must support graceful degradation</div>
-                  </div>
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Security Requirements</h3>
+                <div className="space-y-2 text-sm">
+                  <div>• All credentials must be encrypted using KHEPRA key management</div>
+                  <div>• Rate limiting and retry logic are mandatory</div>
+                  <div>• Evidence must include cryptographic signatures</div>
+                  <div>• All API calls must be logged for audit purposes</div>
+                  <div>• Connector must support graceful degradation</div>
                 </div>
+              </div>
 
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">Testing Framework</h3>
-                  <div className="bg-black text-green-400 p-4 rounded font-mono text-sm">
-                    <pre>{`// Automated testing suite
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Testing Framework</h3>
+                <div className="bg-black text-green-400 p-4 rounded font-mono text-sm">
+                  <pre>{`// Automated testing suite
 describe('CustomConnector', () => {
   it('should discover resources', async () => {
     const resources = await connector.listResources({});
@@ -707,28 +720,28 @@ describe('CustomConnector', () => {
     expect(evidence.timestamp).toBeInstanceOf(Date);
   });
 });`}</pre>
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <Button>
-                    <FileText className="h-4 w-4 mr-2" />
-                    Full Documentation
-                  </Button>
-                  <Button variant="outline">
-                    <Github className="h-4 w-4 mr-2" />
-                    Example Repository
-                  </Button>
-                  <Button variant="outline">
-                    <TestTube className="h-4 w-4 mr-2" />
-                    Testing Sandbox
-                  </Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
+
+              <div className="flex gap-4">
+                <Button>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Full Documentation
+                </Button>
+                <Button variant="outline">
+                  <Github className="h-4 w-4 mr-2" />
+                  Example Repository
+                </Button>
+                <Button variant="outline">
+                  <TestTube className="h-4 w-4 mr-2" />
+                  Testing Sandbox
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </Tabs>
+  </div>
+);
 };

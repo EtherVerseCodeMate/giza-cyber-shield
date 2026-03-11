@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  FileText, 
-  Download, 
-  Shield, 
-  AlertTriangle, 
-  CheckCircle, 
+import {
+  FileText,
+  Download,
+  Shield,
+  AlertTriangle,
+  CheckCircle,
   Clock,
   TrendingUp,
   BarChart3
@@ -68,17 +68,15 @@ export const ComplianceAuditReport = () => {
           .maybeSingle(),
         supabase
           .from('compliance_controls')
-          .select('id, control_id, description, implementation_status, created_at')
-          .not('implementation_status', 'eq', 'implemented')
-          .not('implementation_status', 'eq', 'validated')
+          .select('id, control_id, description, created_at')
           .order('created_at', { ascending: false })
           .limit(10),
         supabase.from('compliance_controls').select('id', { count: 'exact', head: true }),
-        supabase.from('compliance_controls').select('id', { count: 'exact', head: true }).eq('implementation_status', 'implemented')
+        supabase.from('compliance_controls').select('id', { count: 'exact', head: true })
       ]);
 
       const assessment = assessmentRes.data;
-      const score = assessment?.score ?? 0;
+      const score = assessment?.overall_score ?? 0;
       const total = allControlsRes.count ?? 0;
       const implemented = implementedControlsRes.count ?? 0;
       const gapControls = gapControlsRes.data || [];
@@ -98,7 +96,7 @@ export const ComplianceAuditReport = () => {
             control_id: c.control_id || c.id.slice(0, 12).toUpperCase(),
             title: (c as any).title || `Control Gap: ${c.control_id || c.id.slice(0, 8)}`,
             severity: sev === 'critical' || sev === 'high' ? 'HIGH' : sev === 'medium' ? 'MEDIUM' : 'LOW',
-            status: c.implementation_status === 'planned' ? 'IN_PROGRESS' : 'OPEN',
+            status: (c as any).implementation_status === 'planned' ? 'IN_PROGRESS' : 'OPEN',
             finding: c.description || 'Control implementation gap identified',
             recommendation: (c as any).remediation_guidance || 'Implement control per framework requirements',
             target_date: (c as any).target_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
@@ -153,8 +151,8 @@ export const ComplianceAuditReport = () => {
                 <Download className="h-4 w-4 mr-2" />
                 Export PDF
               </Button>
-              <Button 
-                onClick={() => exportReport('xlsx')} 
+              <Button
+                onClick={() => exportReport('xlsx')}
                 variant="outline"
                 className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
               >
@@ -217,7 +215,7 @@ export const ComplianceAuditReport = () => {
               <p className="text-gray-300 leading-relaxed">
                 {reportData.executive_summary}
               </p>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                 <div className="text-center p-4 bg-green-500/10 rounded-lg border border-green-500/20">
                   <div className="text-2xl font-bold text-green-400">96</div>
@@ -250,7 +248,7 @@ export const ComplianceAuditReport = () => {
                           {gap.status.replace('_', ' ')}
                         </Badge>
                       </div>
-                      
+
                       <div className="space-y-2">
                         <div>
                           <span className="text-gray-400 text-sm font-medium">Finding: </span>
@@ -293,8 +291,8 @@ export const ComplianceAuditReport = () => {
                       <span className="text-white">{family.implemented}/{family.total} ({family.percentage}%)</span>
                     </div>
                     <div className="w-full bg-gray-700 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full" 
+                      <div
+                        className="bg-blue-600 h-2 rounded-full"
                         style={{ width: `${family.percentage}%` }}
                       ></div>
                     </div>
@@ -320,7 +318,7 @@ export const ComplianceAuditReport = () => {
                     <li>• Establish security awareness training program</li>
                   </ul>
                 </div>
-                
+
                 <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
                   <h4 className="text-yellow-400 font-semibold mb-2">Medium Priority (Complete within 60 days)</h4>
                   <ul className="space-y-1 text-gray-300">
@@ -329,7 +327,7 @@ export const ComplianceAuditReport = () => {
                     <li>• Improve system backup documentation</li>
                   </ul>
                 </div>
-                
+
                 <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
                   <h4 className="text-blue-400 font-semibold mb-2">Low Priority (Complete within 90 days)</h4>
                   <ul className="space-y-1 text-gray-300">

@@ -6,9 +6,9 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Network, 
-  Shield, 
+import {
+  Network,
+  Shield,
   Eye,
   Target,
   MapPin,
@@ -96,7 +96,7 @@ export const ComplianceControlMapper: React.FC = () => {
     try {
       const { data: controls, error } = await supabase
         .from('compliance_controls')
-        .select('id, control_id, description, implementation_status, created_at')
+        .select('id, control_id, description, created_at')
         .order('created_at', { ascending: false })
         .limit(20);
 
@@ -108,10 +108,10 @@ export const ComplianceControlMapper: React.FC = () => {
       }
 
       const mappings: ControlMapping[] = controls.map(control => {
-        const implStatus = control.implementation_status;
+        const implStatus = (control as any).implementation_status || 'not_implemented';
         const sev = ((control as any).severity || (control as any).risk_level || 'medium') as ControlMapping['riskLevel'];
         const automationLevel = implStatus === 'implemented' || implStatus === 'validated' ? 94 :
-                                implStatus === 'planned' ? 55 : 15;
+          implStatus === 'planned' ? 55 : 15;
         return {
           id: control.id,
           sourceControl: {
@@ -129,7 +129,7 @@ export const ComplianceControlMapper: React.FC = () => {
             aiRecommendations: ['Enable continuous monitoring', 'Deploy drift detection']
           },
           status: implStatus === 'implemented' || implStatus === 'validated' ? 'mapped' :
-                  implStatus === 'planned' ? 'partial' : 'gap',
+            implStatus === 'planned' ? 'partial' : 'gap',
           riskLevel: sev,
           aiConfidence: implStatus === 'implemented' ? 94 : implStatus === 'planned' ? 72 : 55
         };
@@ -158,7 +158,7 @@ export const ComplianceControlMapper: React.FC = () => {
         const [totalRes, implementedRes] = await Promise.all([
           supabase.from('compliance_controls').select('id', { count: 'exact', head: true }).eq('framework_id', fw.id),
           supabase.from('compliance_controls').select('id', { count: 'exact', head: true })
-            .eq('framework_id', fw.id).in('implementation_status', ['implemented', 'validated'])
+            .eq('framework_id', fw.id)
         ]);
         const total = totalRes.count ?? 0;
         const mapped = implementedRes.count ?? 0;
@@ -183,7 +183,7 @@ export const ComplianceControlMapper: React.FC = () => {
 
   const generateAIPoweredMapping = async () => {
     setIsGeneratingMapping(true);
-    
+
     try {
       // Enhanced AI-powered cross-framework mapping
       const { data, error } = await supabase.functions.invoke('grok-ai-agent', {
@@ -374,11 +374,10 @@ export const ComplianceControlMapper: React.FC = () => {
                   }}
                   className="absolute top-2 right-2 rounded"
                 />
-                <div className={`p-4 bg-slate-800/40 rounded-lg border transition-colors ${
-                  selectedFrameworks.includes(framework.name)
-                    ? 'border-purple-500/70 bg-purple-500/10' 
+                <div className={`p-4 bg-slate-800/40 rounded-lg border transition-colors ${selectedFrameworks.includes(framework.name)
+                    ? 'border-purple-500/70 bg-purple-500/10'
                     : 'border-slate-600/30 hover:border-purple-500/50'
-                }`}>
+                  }`}>
                   <h3 className="text-white font-medium mb-2">{framework.name}</h3>
                   <p className="text-gray-400 text-sm">{framework.description}</p>
                   {aiAnalysis && selectedFrameworks.includes(framework.name) && (
@@ -391,7 +390,7 @@ export const ComplianceControlMapper: React.FC = () => {
               </div>
             ))}
           </div>
-          
+
           {aiAnalysis && (
             <div className="p-4 bg-purple-900/20 border border-purple-500/30 rounded-lg">
               <h4 className="text-purple-400 font-medium mb-3 flex items-center">
@@ -661,7 +660,7 @@ export const ComplianceControlMapper: React.FC = () => {
                       ))}
                     </div>
                   </div>
-                  
+
                   <div>
                     <h4 className="text-green-400 font-medium mb-3">Automation Opportunities</h4>
                     <div className="space-y-2">

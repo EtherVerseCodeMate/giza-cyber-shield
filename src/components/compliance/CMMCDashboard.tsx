@@ -3,12 +3,12 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { 
-  Shield, 
-  AlertTriangle, 
-  CheckCircle, 
-  Clock, 
-  FileText, 
+import {
+  Shield,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  FileText,
   TrendingUp,
   Users,
   Database,
@@ -72,7 +72,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
       },
       {
         level: 2,
-        name: "Intermediate Cyber Hygiene", 
+        name: "Intermediate Cyber Hygiene",
         description: "Protect Controlled Unclassified Information (CUI)",
         controls: 110,
         implemented: 78,
@@ -89,7 +89,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
     ];
 
     setCmmcLevels(levels);
-    
+
     const totalControls = levels.reduce((sum, level) => sum + level.controls, 0);
     const totalImplemented = levels.reduce((sum, level) => sum + level.implemented, 0);
     setOverallScore(Math.round((totalImplemented / totalControls) * 100));
@@ -100,9 +100,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
       // Load non-implemented controls as POAM items
       const { data: controls, error } = await supabase
         .from('compliance_controls')
-        .select('id, control_id, description, implementation_status, created_at')
-        .not('implementation_status', 'eq', 'implemented')
-        .not('implementation_status', 'eq', 'validated')
+        .select('id, control_id, description, created_at')
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -115,7 +113,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
           control_id: control.control_id || control.id.slice(0, 10).toUpperCase(),
           weakness: control.description || 'Control implementation gap identified',
           remediation: (control as any).remediation_guidance || 'Implement control per CMMC requirements and document evidence',
-          status: control.implementation_status === 'planned' ? 'IN_PROGRESS' : 'OPEN',
+          status: (control as any).implementation_status === 'planned' ? 'IN_PROGRESS' : 'OPEN',
           due_date: (control as any).target_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           priority: sev === 'critical' || sev === 'high' ? 'HIGH' : sev === 'medium' ? 'MEDIUM' : 'LOW',
           responsible_party: (control as any).owner || 'Security Team'
@@ -135,7 +133,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
         .select('name')
         .limit(1)
         .single();
-      
+
       if (orgs?.name) {
         setOrganizationName(orgs.name);
       }
@@ -162,7 +160,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
       'SC': Wifi,       // System and Communications Protection
       'SI': Shield,     // System and Information Integrity
     };
-    
+
     return icons[domain] || Shield;
   };
 
@@ -229,7 +227,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
                 </div>
               </div>
             </div>
-            
+
             <div className="space-y-4">
               <div className="text-center p-4 bg-green-900/40 rounded-lg border border-green-500/30">
                 <CheckCircle className="h-8 w-8 text-green-400 mx-auto mb-2" />
@@ -237,7 +235,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
                 <div className="text-xs text-green-200">Controls Implemented</div>
               </div>
             </div>
-            
+
             <div className="space-y-4">
               <div className="text-center p-4 bg-red-900/40 rounded-lg border border-red-500/30">
                 <AlertTriangle className="h-8 w-8 text-red-400 mx-auto mb-2" />
@@ -311,8 +309,8 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
                       <Badge variant="outline" className="text-blue-400 border-blue-400">
                         {item.control_id}
                       </Badge>
-                      <Badge 
-                        variant="outline" 
+                      <Badge
+                        variant="outline"
                         className={`${getPriorityColor(item.priority)} border-current`}
                       >
                         {item.priority}
