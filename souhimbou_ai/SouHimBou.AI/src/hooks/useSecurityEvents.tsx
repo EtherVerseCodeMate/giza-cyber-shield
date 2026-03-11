@@ -81,7 +81,7 @@ export const useSecurityEvents = () => {
     try {
       const { data, error } = await supabase
         .from('security_events')
-        .insert([event])
+        .insert([event as any])
         .select()
         .single();
 
