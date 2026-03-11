@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { 
+import {
   Zap, Settings, CheckCircle, Clock, AlertTriangle,
   Play, Pause, RotateCcw, Shield, Cpu, Database
 } from 'lucide-react';
@@ -102,7 +102,7 @@ export const AutomatedRemediation = () => {
       // Derive remediation tasks from unresolved security events
       const { data: events, error } = await supabase
         .from('security_events')
-        .select('id, event_type, severity, description, source_system, source_ip, created_at, resolved')
+        .select('id, event_type, severity, source_system, source_ip, created_at, resolved')
         .eq('organization_id', orgId)
         .eq('resolved', false)
         .order('created_at', { ascending: false })
@@ -120,13 +120,13 @@ export const AutomatedRemediation = () => {
       const derivedTasks: RemediationTask[] = (events || []).map(event => ({
         id: event.id,
         title: `Remediate: ${(event.event_type || 'Security Event').replace(/_/g, ' ')}`,
-        description: event.description || `Resolve ${event.severity} severity security event from ${event.source_system || 'unknown system'}`,
-        category: severityToCategory(event.severity),
+        description: `Resolve ${event.severity} severity security event from ${event.source_system || 'unknown system'}`,
+        category: severityToCategory(event.severity!),
         priority: event.severity as RemediationTask['priority'],
         status: 'pending' as const,
         progress: 0,
         asset_name: event.source_system || 'Unknown Asset',
-        asset_ip: event.source_ip || '0.0.0.0',
+        asset_ip: String(event.source_ip || '0.0.0.0'),
         estimated_duration: event.severity === 'critical' ? 30 : event.severity === 'high' ? 15 : 10,
         auto_approved: event.severity !== 'critical',
         requires_reboot: event.severity === 'critical',
@@ -145,9 +145,9 @@ export const AutomatedRemediation = () => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
-    setTasks(prev => 
-      prev.map(t => 
-        t.id === taskId 
+    setTasks(prev =>
+      prev.map(t =>
+        t.id === taskId
           ? { ...t, status: 'running', progress: 0, started_at: new Date().toISOString() }
           : t
       )
@@ -189,9 +189,9 @@ export const AutomatedRemediation = () => {
 
       if (error) {
         console.error('Remediation error:', error);
-        setTasks(prev => 
-          prev.map(t => 
-            t.id === taskId 
+        setTasks(prev =>
+          prev.map(t =>
+            t.id === taskId
               ? { ...t, status: 'failed', completed_at: new Date().toISOString() }
               : t
           )
@@ -205,15 +205,15 @@ export const AutomatedRemediation = () => {
       }
 
       // Update task with real results
-      setTasks(prev => 
-        prev.map(t => 
-          t.id === taskId 
-            ? { 
-                ...t, 
-                status: 'completed', 
-                progress: 100, 
-                completed_at: new Date().toISOString() 
-              }
+      setTasks(prev =>
+        prev.map(t =>
+          t.id === taskId
+            ? {
+              ...t,
+              status: 'completed',
+              progress: 100,
+              completed_at: new Date().toISOString()
+            }
             : t
         )
       );
@@ -226,9 +226,9 @@ export const AutomatedRemediation = () => {
 
     } catch (error) {
       console.error('Remediation error:', error);
-      setTasks(prev => 
-        prev.map(t => 
-          t.id === taskId 
+      setTasks(prev =>
+        prev.map(t =>
+          t.id === taskId
             ? { ...t, status: 'failed', completed_at: new Date().toISOString() }
             : t
         )
@@ -243,7 +243,7 @@ export const AutomatedRemediation = () => {
 
   const executeAllPending = async () => {
     const pendingTasks = tasks.filter(t => t.status === 'pending' && t.auto_approved);
-    
+
     for (const task of pendingTasks) {
       if (task.requires_reboot && !maintenanceWindow) {
         toast({
@@ -308,7 +308,7 @@ export const AutomatedRemediation = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="card-cyber">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -320,7 +320,7 @@ export const AutomatedRemediation = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="card-cyber">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -332,7 +332,7 @@ export const AutomatedRemediation = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="card-cyber">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -361,21 +361,21 @@ export const AutomatedRemediation = () => {
             </div>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <Switch 
-                  checked={maintenanceWindow} 
+                <Switch
+                  checked={maintenanceWindow}
                   onCheckedChange={setMaintenanceWindow}
                 />
                 <span className="text-sm">Maintenance Window</span>
               </div>
               <div className="flex items-center space-x-2">
-                <Switch 
-                  checked={autoMode} 
+                <Switch
+                  checked={autoMode}
                   onCheckedChange={setAutoMode}
                 />
                 <span className="text-sm">Auto Mode</span>
               </div>
-              <Button 
-                variant="cyber" 
+              <Button
+                variant="cyber"
                 onClick={executeAllPending}
                 disabled={pendingTasks === 0}
               >
@@ -424,11 +424,11 @@ export const AutomatedRemediation = () => {
                             <Badge variant="outline">REBOOT REQUIRED</Badge>
                           )}
                         </div>
-                        
+
                         <p className="text-sm text-muted-foreground mb-3">
                           {task.description}
                         </p>
-                        
+
                         {task.status === 'running' && (
                           <div className="mb-3">
                             <div className="flex justify-between text-sm mb-1">
@@ -438,7 +438,7 @@ export const AutomatedRemediation = () => {
                             <Progress value={task.progress} className="w-full" />
                           </div>
                         )}
-                        
+
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-muted-foreground">
                           <span>Asset: {task.asset_name}</span>
                           <span>Duration: {task.estimated_duration}min</span>
@@ -446,11 +446,11 @@ export const AutomatedRemediation = () => {
                           <span>Created: {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}</span>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center space-x-2 ml-4">
                         {task.status === 'pending' && (
-                          <Button 
-                            variant="cyber" 
+                          <Button
+                            variant="cyber"
                             size="sm"
                             onClick={() => executeTask(task.id)}
                           >
@@ -465,8 +465,8 @@ export const AutomatedRemediation = () => {
                           </Button>
                         )}
                         {task.status === 'failed' && (
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => executeTask(task.id)}
                           >
@@ -507,20 +507,20 @@ export const AutomatedRemediation = () => {
                           </Badge>
                           <Badge variant="outline">{rule.action_type.toUpperCase()}</Badge>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
                           <span>Trigger: {rule.trigger_condition}</span>
                           <span>Auto-Execute: {rule.auto_execute ? 'Yes' : 'No'}</span>
                           <span>Approval: {rule.approval_required ? 'Required' : 'Not Required'}</span>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center space-x-2">
-                        <Switch 
-                          checked={rule.enabled} 
-                          onCheckedChange={(checked) => 
-                            setAutomationRules(prev => 
-                              prev.map(r => 
+                        <Switch
+                          checked={rule.enabled}
+                          onCheckedChange={(checked) =>
+                            setAutomationRules(prev =>
+                              prev.map(r =>
                                 r.id === rule.id ? { ...r, enabled: checked } : r
                               )
                             )
