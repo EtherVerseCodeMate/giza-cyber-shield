@@ -740,6 +740,7 @@ export type Database = {
           category: string | null
           created_at: string
           description: string | null
+          enabled: boolean | null
           id: string
           metadata: Json | null
           name: string
@@ -752,6 +753,7 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          enabled?: boolean | null
           id?: string
           metadata?: Json | null
           name: string
@@ -764,6 +766,7 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          enabled?: boolean | null
           id?: string
           metadata?: Json | null
           name?: string
@@ -1769,6 +1772,7 @@ export type Database = {
           id: string
           intake_data: Json | null
           integration_config: Json | null
+          organization_id: string | null
           step: string
           updated_at: string
           user_id: string
@@ -1783,6 +1787,7 @@ export type Database = {
           id?: string
           intake_data?: Json | null
           integration_config?: Json | null
+          organization_id?: string | null
           step?: string
           updated_at?: string
           user_id: string
@@ -1797,6 +1802,7 @@ export type Database = {
           id?: string
           intake_data?: Json | null
           integration_config?: Json | null
+          organization_id?: string | null
           step?: string
           updated_at?: string
           user_id?: string
@@ -2576,6 +2582,8 @@ export type Database = {
       log_session_security_event: { Args: { [key: string]: Json } | Record<string, never>; Returns: Json }
       log_system_audit: { Args: { [key: string]: Json } | Record<string, never>; Returns: Json }
       track_resource_usage: { Args: { [key: string]: Json } | Record<string, never>; Returns: Json }
+      decrypt_credential_data: { Args: { [key: string]: Json } | Record<string, never>; Returns: Json }
+      encrypt_credential_data: { Args: { [key: string]: Json } | Record<string, never>; Returns: Json }
     }
     Enums: {
       adinkra_category:

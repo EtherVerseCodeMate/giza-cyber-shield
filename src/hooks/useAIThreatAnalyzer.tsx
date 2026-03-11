@@ -240,7 +240,7 @@ function groupIPRanges(ips: string[]): string[] {
 
 function analyzeTemporalPatterns(data: any[]): string[] {
   const patterns = [];
-  const hourCounts = new new Array(24).fill(0);
+  const hourCounts = new Array(24).fill(0);
   
   data.forEach(item => {
     const hour = new Date(item.created_at).getHours();
