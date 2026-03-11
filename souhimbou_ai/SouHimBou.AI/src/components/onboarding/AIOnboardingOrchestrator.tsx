@@ -353,7 +353,7 @@ const AIOnboardingOrchestrator: React.FC<AIOnboardingOrchestratorProps> = ({ onC
                 <Input
                   value={userInput}
                   onChange={(e) => setUserInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
+                  onKeyDown={handleKeyPress}
                   placeholder="Type your response..."
                   disabled={isProcessing}
                 />

@@ -371,7 +371,7 @@ What specific aspect would you like me to explore further?`,
             <Input
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
               placeholder="Ask Papyrus about KHEPRA..."
               className="flex-1"
             />
