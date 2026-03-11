@@ -343,7 +343,7 @@ export default function IntegrationsPage() {
                   <Shield className="h-5 w-5 text-primary" />
                   Private Infrastructure (Hybrid Model)
                 </h3>
-                <KhepraVPSIntegration />
+                <KhepraVPSIntegration {...({} as any)} />
               </div>
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
