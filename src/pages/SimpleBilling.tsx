@@ -4,23 +4,52 @@ import { DashboardToggle } from '@/components/DashboardToggle';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CreditCard, TrendingUp, Download, Clock } from 'lucide-react';
+import { CreditCard, TrendingUp, Download, Clock, Shield, Award } from 'lucide-react';
+
+const PLANS = [
+  {
+    name: 'Free',
+    price: '$0',
+    description: 'Scan any AI agent deployment. Get your exposure report.',
+    features: ['Unlimited scans', 'Exposure report', 'Basic risk score', 'Community support'],
+    cta: 'Current Plan',
+    ctaVariant: 'outline' as const,
+    highlight: false,
+  },
+  {
+    name: 'Certify',
+    price: '$99',
+    description: 'Full compliance audit + ADINKHEPRA certification badge.',
+    features: ['Everything in Free', 'Full NIST/STIG audit', 'ADINKHEPRA badge (PDF + API)', 'Shareable attestation report', 'Email support'],
+    cta: 'Upgrade to Certify',
+    ctaVariant: 'default' as const,
+    highlight: true,
+    stripeLink: '#stripe-certify',
+  },
+  {
+    name: 'Enterprise',
+    price: '$499',
+    description: 'Continuous monitoring + attestation API + team seats.',
+    features: ['Everything in Certify', 'Continuous monitoring', 'Attestation API access', 'Up to 10 team seats', 'Priority support', 'Custom compliance frameworks'],
+    cta: 'Contact Sales',
+    ctaVariant: 'outline' as const,
+    highlight: false,
+  },
+];
 
 const SimpleBilling = () => {
   const tabs = [
-    { id: 'stig-dashboard', title: 'STIG Dashboard', path: '/stig-dashboard' },
-    { id: 'asset-scanning', title: 'Asset Scanning', path: '/asset-scanning' },
+    { id: 'asset-scanning', title: 'Scan', path: '/asset-scanning' },
     { id: 'compliance-reports', title: 'Reports', path: '/compliance-reports' },
-    { id: 'evidence-collection', title: 'Evidence', path: '/evidence-collection' },
     { id: 'billing', title: 'Billing', path: '/billing', isActive: true },
   ];
 
   return (
-    <ConsoleLayout 
+    <ConsoleLayout
       currentSection="billing"
       browserNav={{
-        title: 'Billing & Usage',
-        subtitle: 'Simple usage-based billing for STIG compliance automation',
+        title: 'Plans & Billing',
+        subtitle: 'ASAF by NouchiX — Agentic Security Attestation Framework',
         tabs,
         showAddTab: false,
         rightContent: <DashboardToggle />
@@ -30,8 +59,8 @@ const SimpleBilling = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Billing & Usage</h1>
-            <p className="text-muted-foreground">Track usage and manage billing for STIG compliance services</p>
+            <h1 className="text-2xl font-bold text-foreground">Plans & Billing</h1>
+            <p className="text-muted-foreground">One price. One sell point. Earn your ADINKHEPRA certification.</p>
           </div>
           <Button variant="outline" className="flex items-center space-x-2">
             <Download className="h-4 w-4" />
@@ -39,33 +68,53 @@ const SimpleBilling = () => {
           </Button>
         </div>
 
-        {/* Current Plan */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Current Plan</span>
-              <Badge variant="outline" className="bg-primary/20 text-primary border-primary/30">
-                STIG Professional
-              </Badge>
-            </CardTitle>
-            <CardDescription>
-              Professional STIG compliance automation with unlimited assets
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-foreground">$299</div>
-                <div className="text-sm text-muted-foreground">per month</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary">Unlimited</div>
-                <div className="text-sm text-muted-foreground">assets scanned</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-400">Active</div>
-                <div className="text-sm text-muted-foreground">next billing: Jan 15</div>
-              </div>
+        {/* Pricing Plans */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {PLANS.map((plan) => (
+            <Card key={plan.name} className={plan.highlight ? 'border-primary ring-1 ring-primary' : ''}>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>{plan.name}</span>
+                  {plan.highlight && (
+                    <Badge className="bg-primary/20 text-primary border-primary/30">
+                      Most Popular
+                    </Badge>
+                  )}
+                </CardTitle>
+                <div className="text-3xl font-bold">{plan.price}<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
+                <CardDescription>{plan.description}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <ul className="space-y-2 text-sm">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-center gap-2 text-muted-foreground">
+                      <Shield className="h-3.5 w-3.5 text-primary shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  variant={plan.ctaVariant}
+                  className="w-full"
+                  onClick={() => plan.stripeLink && window.open(plan.stripeLink, '_blank')}
+                >
+                  {plan.cta}
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* ADINKHEPRA badge callout */}
+        <Card className="border-yellow-500/30 bg-yellow-950/10">
+          <CardContent className="p-6 flex items-center gap-4">
+            <Award className="h-10 w-10 text-yellow-400 shrink-0" />
+            <div>
+              <div className="font-semibold text-yellow-400">What is the ADINKHEPRA badge?</div>
+              <p className="text-sm text-muted-foreground">
+                A post-quantum cryptographic attestation seal issued by ASAF. Tamper-proof, timestamped, and verifiable by auditors, customers, and insurers.
+                Think SOC2 — but automated, continuous, and built for agentic AI.
+              </p>
             </div>
           </CardContent>
         </Card>
