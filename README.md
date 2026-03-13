@@ -1,111 +1,148 @@
-# ADINKHEPRA Protocol (ASAF) — Advisory Attestation Engine
-[![Patent Pending](https://img.shields.io/badge/PATENT-PENDING-blue?style=for-the-badge)](docs/PATENT_APPLICATION_UPDATED.md) [![Status: PROPRIETARY](https://img.shields.io/badge/STATUS-PROPRIETARY_INTERNAL_TOOL-red?style=for-the-badge)](docs/ENTERPRISE_OFFER_STRATEGY.md)
+# ASAF — Agentic Security Attestation Framework
 
-**Agentic Security Attestation Framework** | *Adinkra-Based Post-Quantum Cryptography*
+[![Patent Pending](https://img.shields.io/badge/PATENT-PENDING-blue?style=for-the-badge)](docs/PATENT_APPLICATION_UPDATED.md)
+[![NouchiX / Sacred Knowledge Inc](https://img.shields.io/badge/BY-NouchiX-gold?style=for-the-badge)](https://nouchix.com)
+[![ADINKHEPRA Certified](https://img.shields.io/badge/ADINKHEPRA-POST--QUANTUM_CERTIFIED-cyan?style=for-the-badge)](#certification)
 
-## From Compliance Theater to Causal Reality
+**By NouchiX (Sacred Knowledge Inc) — We build agents that secure other agents.**
 
-> **Philosophy:** Most security assessments rely on checklists and "best practices"—subjective frameworks that often miss the structural reality of your system. Khepra moves from **opinion to mathematical proof**, using post-quantum cryptography, directed acyclic graphs (DAGs), and threat intelligence fusion to create **verifiable security postures** instead of compliance theater.
-# ADINKHEPRA Protocol (ASAF) — Advisory Attestation Engine
+---
 
-[![Patent Pending](https://img.shields.io/badge/PATENT-PENDING-blue?style=for-the-badge)](docs/PATENT_APPLICATION_UPDATED.md) [![Status: PROPRIETARY](https://img.shields.io/badge/STATUS-PROPRIETARY_INTERNAL_TOOL-red?style=for-the-badge)](docs/ENTERPRISE_OFFER_STRATEGY.md)
+## The Problem
 
-**Agentic Security Attestation Framework** — Adinkra-based post-quantum attestation and causal risk modeling.
+AI agent platforms are being deployed at extraordinary speed — and with extraordinary recklessness.
 
-Overview
---------
+OpenClaw, the fastest-growing AI agent platform in recent memory, had **30,000+ instances exposed to the open internet** within 12 days of launch. Researchers confirmed remote code execution and full credential dumping against exposed deployments. Gartner called it "a dangerous preview of agentic AI — insecure by default."
 
-ADINKHEPRA (Khepra) is a proprietary advisory-grade attestation engine built to move security assessments from checklist-driven "compliance theater" to verifiable, causality-aware proofs. It combines post-quantum cryptography, DAG-based causal graphs, threat-intel fusion, and native compliance automation to produce client-verifiable evidence of security posture and event lineage.
+This is not an OpenClaw problem. It is a **category problem**.
 
-Key capabilities
-----------------
-- Post-Quantum Cryptography: NIST-aligned schemes (Dilithium/Kyber via Cloudflare CIRCL) for quantum-safe attestations.
-- Causal Risk Graphs: Directed acyclic graphs (DAGs) model causes, propagations, and remediation paths instead of isolated findings.
-- Threat Intelligence Fusion: Correlates CISA KEV, MITRE ATT&CK, and external scan sources (Shodan/Censys) for context-aware risk scoring.
-- Native Compliance Engine: STIG-style enforcement and mapping without external agents.
-- Disaster Recovery & Archival (DRBC): Cryptographically-bound recovery and archival workflows.
+Every AI agent platform — OpenClaw, custom MCP deployments, internal AI assistants with system access — carries the same structural risk: broad permissions, minimal guardrails, and no cryptographic proof of what it was doing or why.
 
-Project structure & languages
-----------------------------
-- Backend & tooling: Go (core binaries under `cmd/`, see `go.mod` and `Makefile`).
-- Frontend / Dashboard: Next.js / React / TypeScript + Tailwind (see `package.json`).
-- Orchestration: Python helper runner `adinkhepra.py` for local validation and convenience commands.
-- Docs & demos: Extensive materials under `docs/` and `demo/` for pilots and executive briefings.
+Your CISO will ask: *"Is our AI agent deployment safe?"*
 
-Build & run (quick)
--------------------
-Build Go binaries:
+Without ASAF, you cannot answer that question with evidence.
 
-```bash
-make build
+---
+
+## What ASAF Does
+
+ASAF is the security layer for agentic AI. It scans, audits, and cryptographically certifies AI agent deployments so enterprises can say yes to agentic productivity without saying yes to unacceptable risk.
+
+```
+asaf scan --target <host>
 ```
 
-Secure, static builds (recommended for distribution):
+Three outputs, every time:
 
+| Output | What It Means |
+|--------|---------------|
+| **Exposure Report** | Is this agent gateway accessible? Auth mode? Integrations? Attack surface. |
+| **Compliance Audit** | Does it meet enterprise security baselines? NIST, STIG, configuration hardening. |
+| **ADINKHEPRA Certificate** | Cryptographic attestation. A verifiable, tamper-proof proof of security posture. |
+
+The certificate is the product. Enterprises earn it. They display it. They renew it.
+
+---
+
+## Pricing
+
+| Plan | Price | What You Get |
+|------|-------|-------------|
+| **Free** | $0 | Scan any target. Get exposure report. |
+| **Certify** | $99/mo | Full compliance audit + ADINKHEPRA badge. Shareable PDF. |
+| **Enterprise** | $499/mo | Continuous monitoring + attestation API + team seats. |
+
+[Start free — no credit card required →](https://app.nouchix.com)
+
+---
+
+## Quick Start
+
+**Install:**
 ```bash
-make secure-build
+curl -sSL https://get.nouchix.com/asaf | sh
 ```
 
-Run the agent locally (default port 45444):
-
+**Scan an AI agent deployment:**
 ```bash
-make run-agent
-# or using the Python runner
-python adinkhepra.py agent
+asaf scan --target 192.168.1.100
+asaf scan --target mycompany.internal --port 18789
 ```
 
-Frontend (development):
-
+**Get certified:**
 ```bash
-cd web || true
-npm i
-npm run dev
+asaf certify --target mycompany.internal --out report.pdf
 ```
 
-Smoke test / validate full stack (unit tests + CLI PQC + agent API):
-
+**Run the dashboard:**
 ```bash
-python adinkhepra.py validate
+make build && make run-agent
+# Dashboard: http://localhost:3000
+# API: http://localhost:45444
 ```
 
-API examples
-------------
-Replace `127.0.0.1` with your server IP as appropriate:
+---
+
+## Why It Works
+
+ASAF uses three technical layers under the hood:
+
+- **Scanner** — Detects exposed agent gateways, fingerprints auth modes, maps integrations and blast radius
+- **Compliance Engine** — 36,000+ STIG/NIST/CMMC control mappings applied automatically, no manual checklist
+- **ADINKHEPRA Attestation** — Post-quantum cryptographic signatures (NIST Dilithium/Kyber) bind findings to a tamper-proof certificate — mathematical proof, not a PDF checklist
+
+The certificate is the moat. Any scanner can find a vulnerability. Only ASAF can issue a verifiable, quantum-safe proof that an AI deployment is enterprise-grade.
+
+---
+
+## Certification
+
+The **ADINKHEPRA badge** is the standard enterprises earn by passing an ASAF audit.
+
+It is:
+- Cryptographically signed (post-quantum, NIST-aligned)
+- Timestamped and immutable
+- Revocable if posture degrades
+- Shareable with auditors, customers, and insurers
+
+Think SOC2 — but automated, continuous, and specific to agentic AI.
+
+---
+
+## Tech Stack
+
+- **Go** — Core engine, CLI, attestation
+- **Next.js / React / TypeScript** — Dashboard
+- **Cloudflare CIRCL** — Post-quantum cryptography (Dilithium, Kyber)
+- **SQLite** — Attestation store
+- **Supabase** — Auth and org management
+
+---
+
+## Build
 
 ```bash
-curl -s http://127.0.0.1:45444/healthz | jq
-curl -s -X POST http://127.0.0.1:45444/attest/new | jq
-curl -s -X POST http://127.0.0.1:45444/dag/add -d '{"action":"Initialize perimeter","symbol":"Eban"}' | jq
-curl -s http://127.0.0.1:45444/dag/state | jq
+make build          # Standard build
+make secure-build   # Hardened static binaries (recommended)
+npm install && npm run dev  # Frontend
 ```
 
-Documentation highlights
------------------------
-- Architecture: `docs/architecture/CAUSAL_REALITY_ANALYSIS.md` and `docs/architecture/IMPLEMENTATION_ROADMAP.md`.
-- Executive materials & pilots: `docs/consulting/` (pilot summary, demo scripts, deployment playbook).
-- Patent & research: `docs/PATENT_APPLICATION_UPDATED.md` and `docs/internal/` (intel reports).
+---
 
-Security & sensitive artifacts
-------------------------------
-This repository contains generated keys, snapshots, and sealed artifacts (for example: `khepra_master.pub`, `master_seed.sealed`, `khepra_v0.0_genesis.kpkg`). Treat these as sensitive — do not expose them publicly. Use the secure-build targets and FIPS mode (`make fips-build`) when producing production binaries.
+## API
 
-Who is this for
-----------------
-This codebase is designed for internal advisory teams and pilot customers who require cryptographic, auditable evidence of security posture and remediation causality. It is not currently packaged or licensed for general resale.
+```bash
+curl http://localhost:45444/healthz
+curl -X POST http://localhost:45444/attest/new
+curl http://localhost:45444/dag/state
+```
 
-Contact & authorship
---------------------
-Author: Souhimbou Doh Kone — skone@alumni.albany.edu
-Repository: git@github.com:EtherVerseCodeMate/giza-cyber-shield.git
+---
 
-Next steps (suggested)
------------------------
-- Run `make build` and `python adinkhepra.py validate` to verify local environment.
-- Inspect `cmd/` entry points: `cmd/adinkhepra`, `cmd/agent`, `cmd/khepra-daemon`, `cmd/sonar` for service responsibilities.
-- Review `docs/consulting/` for demo choreography and deployment playbooks.
+## About
 
-License & status
-----------------
-This project is proprietary internal tooling. See `docs/ENTERPRISE_OFFER_STRATEGY.md` for the licensing and deployment model.
+Built by **Souhimbou Doh Kone** (skone@alumni.albany.edu)
+Company: **NouchiX / Sacred Knowledge Inc**
+Patent: Pending
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+> "The agentic AI era is here. The security layer for it wasn't — until now."
