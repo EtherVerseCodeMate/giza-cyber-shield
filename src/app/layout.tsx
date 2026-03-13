@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "../index.css";
 
 export const metadata: Metadata = {
-  title: "KHEPRA Protocol - Master Operator Console",
-  description: "Sovereign Security Operations Center",
+  title: "ASAF by NouchiX — Agentic Security Attestation Framework",
+  description: "Scan, audit, and certify your AI agent deployments. Get your ADINKHEPRA badge — the enterprise security standard for agentic AI.",
 };
 
 export default function RootLayout({
