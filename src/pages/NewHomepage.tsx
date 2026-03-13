@@ -34,9 +34,9 @@ const NewHomepage = () => {
                 className="h-10 w-auto"
               />
               <div className="flex items-center gap-2">
-                <span className="text-xl font-bold text-white">SouHimBou AI</span>
-                <span className="text-xs bg-yellow-600/20 text-yellow-400 px-2 py-1 rounded border border-yellow-500/30">
-                  IN DEVELOPMENT
+                <span className="text-xl font-bold text-white">ASAF</span>
+                <span className="text-xs bg-cyan-900/30 text-cyan-400 px-2 py-1 rounded border border-cyan-500/30 font-mono">
+                  by NouchiX
                 </span>
               </div>
             </div>
@@ -47,7 +47,7 @@ const NewHomepage = () => {
                 How It Works
               </a>
               <a href="#founder" className="text-gray-300 hover:text-[#00ffff] transition-colors">
-                Founder
+                About
               </a>
               <button onClick={() => navigate('/blog')} className="text-gray-300 hover:text-[#00ffff] transition-colors">
                 Blog
@@ -57,20 +57,19 @@ const NewHomepage = () => {
                 Sign In
               </button>
               <Button
-                onClick={() => navigate('/dod')}
+                onClick={() => navigate('/billing')}
                 variant="outline"
                 size="sm"
                 className="border-[#00ffff]/50 text-[#00ffff] hover:bg-[#00ffff]/10"
               >
-                <Shield className="h-4 w-4 mr-2" />
-                DoD Center
+                Pricing
               </Button>
               <Button
                 onClick={() => navigate('/onboarding')}
                 size="sm"
                 className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] hover:from-[#c49b2d] hover:to-[#9d7509] text-black font-semibold"
               >
-                Apply for Pilot
+                Scan Free
               </Button>
             </nav>
 
