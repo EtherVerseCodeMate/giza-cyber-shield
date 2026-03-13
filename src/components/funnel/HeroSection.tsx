@@ -42,21 +42,22 @@ export const HeroSection = () => {
           >
             {/* Main Headline */}
             <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 bg-red-950/40 border border-red-500/30 rounded-full px-4 py-1.5 text-sm text-red-400 font-medium mb-2">
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                30,000+ AI agent instances exposed. Is yours one of them?
+              </div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
-                <span className="text-[#00ffff]">AI-Powered</span>{' '}
-                <span className="text-white">STIG & CMMC</span>
+                <span className="text-white">We build agents</span>
                 <br />
-                <span className="text-white">Automation —</span>{' '}
-                <span className="bg-gradient-to-r from-[#d4af37] to-[#ffd700] bg-clip-text text-transparent">
-                  Built for Defense
-                </span>
+                <span className="text-[#00ffff]">that secure</span>{' '}
+                <span className="text-white">other agents.</span>
               </h1>
 
               {/* Subheadline */}
               <p className="text-lg md:text-xl text-gray-300 leading-relaxed max-w-xl">
-                SouHimBou AI helps defense-focused organizations automate STIG compliance workflows, 
-                validate configurations, and prepare audit-ready evidence — currently in active development 
-                and available for early pilot partners.
+                ASAF scans, audits, and cryptographically certifies AI agent deployments —
+                so your enterprise can say yes to agentic AI without saying yes to unacceptable risk.
+                Earn your <span className="text-[#d4af37] font-semibold">ADINKHEPRA badge</span>: the security standard for the agentic era.
               </p>
             </div>
 
@@ -64,18 +65,18 @@ export const HeroSection = () => {
             <div className="flex flex-col sm:flex-row gap-4">
               <Button
                 size="lg"
-                onClick={scrollToSystemOverview}
+                onClick={() => navigate('/onboarding')}
                 className="bg-gradient-to-r from-[#00ffff] to-[#0088ff] hover:from-[#00dddd] hover:to-[#0066dd] text-black font-bold text-lg px-8 py-6 rounded-lg shadow-[0_0_25px_rgba(0,255,255,0.4)] hover:shadow-[0_0_40px_rgba(0,255,255,0.6)] transition-all duration-300"
               >
-                See How It Works
+                Scan Free — No Card Required
               </Button>
               <Button
                 size="lg"
                 variant="outline"
-                onClick={() => navigate('/onboarding')}
+                onClick={scrollToSystemOverview}
                 className="border-[#d4af37]/60 text-[#d4af37] hover:bg-[#d4af37]/10 font-semibold text-lg px-8 py-6 rounded-lg"
               >
-                Apply for Pilot Access
+                See How It Works
               </Button>
             </div>
 
