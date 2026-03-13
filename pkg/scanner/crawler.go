@@ -81,8 +81,21 @@ func RunCrawler(target, jsonPath string) error {
 	}
 
 	// 3. Execute Crawler
-	// Command: python tools/spiderfoot/sf.py -s <target> -q -o json
-	// We handle output file by redirecting stdout.
+	// Restrict to approved ADINKHEPRA module set (see docs/spiderfoot-module-manifest.md).
+	// This prevents unapproved outbound API calls and satisfies IronBank connection
+	// authorization requirements. Set SF_EXTRA_MODULES env var to append additional
+	// modules for opt-in use cases.
+	approvedModules := "sfp_dns,sfp_dnsbrute,sfp_dnsraw,sfp_dnsdumpster,sfp_crt," +
+		"sfp_sublist3r,sfp_ripe,sfp_arin,sfp_bgpview,sfp_portscan_tcp,sfp_networksdb," +
+		"sfp_ssl,sfp_certspotter,sfp_spider,sfp_webserver,sfp_pageinfo," +
+		"sfp_strangeheader,sfp_webframework,sfp_filemeta,sfp_interessingfiles," +
+		"sfp_alienvault,sfp_threatcrowd,sfp_threatfox,sfp_greynoise," +
+		"sfp_phishtank,sfp_openphish,sfp_hackertarget,sfp_urlscan," +
+		"sfp_leakix,sfp_whois,sfp_viewdns"
+	if extra := os.Getenv("SF_EXTRA_MODULES"); extra != "" {
+		approvedModules += "," + extra
+	}
+
 	fmt.Printf("[CRAWLER] Targeting %s -> Output: %s\n", target, jsonPath)
 
 	absOut, _ := filepath.Abs(jsonPath)
@@ -92,7 +105,7 @@ func RunCrawler(target, jsonPath string) error {
 	}
 	defer outFile.Close()
 
-	cmd := exec.Command("python", crawlerScript, "-s", target, "-o", "json")
+	cmd := exec.Command("python", crawlerScript, "-s", target, "-m", approvedModules, "-o", "json")
 	cmd.Stdout = outFile // Redirect stdout to file
 	cmd.Stderr = os.Stderr
 

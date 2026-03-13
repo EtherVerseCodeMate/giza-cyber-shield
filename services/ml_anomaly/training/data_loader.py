@@ -178,10 +178,13 @@ class SouHimBouLoader:
         return normalized
 
 if __name__ == "__main__":
+    import os
     logging.basicConfig(level=logging.INFO)
-    loader = SouHimBouLoader(
-        secret_path=r"c:\Users\intel\blackbox\khepra protocol\docs\top-secret",
-        cyber_brain_path=r"c:\Users\intel\blackbox\khepra protocol\docs\cyber-brain"
-    )
+    soul_path = os.environ.get("ADINKHEPRA_ML_CLASSIFIED_DOCS_PATH", "")
+    brain_path = os.environ.get("ADINKHEPRA_ML_CYBER_BRAIN_PATH", "")
+    if not soul_path and not brain_path:
+        print("Usage: ADINKHEPRA_ML_CLASSIFIED_DOCS_PATH=<path> ADINKHEPRA_ML_CYBER_BRAIN_PATH=<path> python data_loader.py")
+        raise SystemExit(1)
+    loader = SouHimBouLoader(secret_path=soul_path, cyber_brain_path=brain_path)
     loader.load_unified_corpus()
     print("\nUnified Consciousness Embedding:", loader.get_unified_embedding())

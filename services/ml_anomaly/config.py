@@ -45,9 +45,14 @@ class Settings(BaseSettings):
     enable_metrics: bool = True
     metrics_port: int = Field(default=9090, ge=1, le=65535)
 
-    # Data Source (The "Soul") - Use Path for better handling
-    classified_docs_path: Path = Path(r"c:\Users\intel\blackbox\khepra protocol\docs\top-secret")
-    cyber_brain_path: Path = Path(r"c:\Users\intel\blackbox\khepra protocol\docs\cyber-brain")
+    # Data Source (The "Soul") - Optional paths to local training corpora.
+    # When unset, SouHimBou initializes without personal-context embeddings,
+    # which is the correct default for container deployments.
+    # Override via env:
+    #   ADINKHEPRA_ML_CLASSIFIED_DOCS_PATH=/mnt/soul/patents
+    #   ADINKHEPRA_ML_CYBER_BRAIN_PATH=/mnt/soul/cyber-brain
+    classified_docs_path: Optional[Path] = None
+    cyber_brain_path: Optional[Path] = None
 
     # Access Token for external API calls (if any)
     internal_api_key: Optional[SecretStr] = None

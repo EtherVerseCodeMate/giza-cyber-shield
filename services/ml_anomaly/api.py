@@ -183,18 +183,21 @@ async def lifespan(app: FastAPI):
     global model_instance, loader_instance, model_state
     logger.info("SouHimBou API Awakening...")
     
-    # 1. Load Soul
-    try:
-        loader_instance = SouHimBouLoader(
-            secret_path=settings.classified_docs_path,
-            cyber_brain_path=settings.cyber_brain_path
-        )
-        loader_instance.load_unified_corpus()
-        model_state["soul_embedding"] = loader_instance.get_unified_embedding()
-        logger.info(f"Soul Loaded. Dominant: {max(model_state['soul_embedding'], key=model_state['soul_embedding'].get)}")
-    except Exception as e:
-        logger.error(f"Failed to load Soul: {e}")
-        model_state["status"] = "SOUL_FRAGMENTED"
+    # 1. Load Soul (optional — only if training corpus paths are configured)
+    if settings.classified_docs_path or settings.cyber_brain_path:
+        try:
+            loader_instance = SouHimBouLoader(
+                secret_path=str(settings.classified_docs_path or ""),
+                cyber_brain_path=str(settings.cyber_brain_path or "")
+            )
+            loader_instance.load_unified_corpus()
+            model_state["soul_embedding"] = loader_instance.get_unified_embedding()
+            logger.info(f"Soul Loaded. Dominant: {max(model_state['soul_embedding'], key=model_state['soul_embedding'].get)}")
+        except Exception as e:
+            logger.error(f"Failed to load Soul: {e}")
+            model_state["status"] = "SOUL_FRAGMENTED"
+    else:
+        logger.info("Soul corpus paths not configured — running without personal-context embeddings.")
 
     # 2. Load Model
     try:
