@@ -40,35 +40,33 @@ const (
 )
 
 func usage() {
-	fmt.Println(`adinkhepra CLI
+	fmt.Println(`asaf — Agentic Security Attestation Framework
+By NouchiX (Sacred Knowledge Inc) | https://nouchix.com
+
 Usage:
-  adinkhepra keygen [-out /path/to/id_dilithium] [-tenant value]
-  adinkhepra crack        [path/to/public_key]    # attempts quantum brute-force simulation
-  adinkhepra kuntinkantan [path/to/pubkey] [file] # Bends reality (Encrypt)
-  adinkhepra sankofa      [path/to/privkey] [file.adinkhepra] # Retrieves the past (Decrypt)
-  adinkhepra git-remote
-  adinkhepra validate                             # Component smoke tests & health check
-  adinkhepra serve        [-port 8080]            # Start DAG Viewer (Living Trust Constellation)
-  adinkhepra compliance   <subcommand>            # Unified CMMC/STIG/NIST Attestation Suite
-  adinkhepra scada        <subcommand>            # HMADS/ARC Cyber-Physical Resilience Suite
+  asaf scan       --target <host|ip>   # Scan an AI agent deployment for exposure & risk
+  asaf certify    --target <host|ip>   # Full audit + generate ADINKHEPRA certificate (paid)
+  asaf report     --target <host|ip>   # Export PDF compliance report
+  asaf validate                        # Component health check
+  asaf serve      [-port 8080]         # Start local dashboard
 
-  Executive Roundtable (ERT) Analysis:
-  adinkhepra ert          <subcommand>            # Integrated ERT Intelligence Engine
-  adinkhepra ert-readiness [dir]                  # Strategic Weapons System (Mission Assurance)
-  adinkhepra ert-architect [dir]                  # Operational Weapons System (Digital Twin)
-  adinkhepra ert-crypto    [dir]                  # Tactical Weapons System (PQC Analysis)
-  adinkhepra ert-godfather [dir]                  # The Godfather Report (Executive Synthesis)
+  Compliance & Attestation:
+  asaf compliance <subcommand>         # CMMC/STIG/NIST 800-171 audit suite
+  asaf network    <subcommand>         # Network topology & attack path analysis
+  asaf sbom       <subcommand>         # Software Bill of Materials
+  asaf fim        <subcommand>         # File Integrity Monitoring
 
-  Additional Commands:
-  adinkhepra compliance   <subcommand>            # CMMC/NIST 800-171/172 & GSA Readiness
-  adinkhepra drbc         <subcommand>            # Disaster Recovery & Business Continuity (v0.0)
-  adinkhepra fim          <subcommand>            # File Integrity Monitoring
-  adinkhepra network      <subcommand>            # Network Topology & Attack Paths
-  adinkhepra sbom         <subcommand>            # Software Bill of Materials
-  adinkhepra engine       <subcommand>            # DAG Visualization Engine
-  adinkhepra report       <subcommand>            # PDF Report Generation
-  adinkhepra run                                  # [Iron Bank] Run Agent (Foreground)
-  adinkhepra health                               # [Iron Bank] Healthcheck`)
+  Agent Service:
+  asaf run                             # Run attestation agent (port 45444)
+  asaf health                          # Healthcheck
+
+  Key Management (internal):
+  asaf keygen     [-out /path/to/key] [-tenant value]
+  asaf encrypt    [path/to/pubkey] [file]
+  asaf decrypt    [path/to/privkey] [file.adinkhepra]
+
+Free scan at https://app.nouchix.com — no account required.
+Earn your ADINKHEPRA certification badge for $99/mo.`)
 }
 
 func main() {
