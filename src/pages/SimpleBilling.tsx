@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CreditCard, TrendingUp, Download, Clock, Shield, Award } from 'lucide-react';
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 const PLANS = [
   {
@@ -15,6 +17,7 @@ const PLANS = [
     cta: 'Current Plan',
     ctaVariant: 'outline' as const,
     highlight: false,
+    action: 'free' as const,
   },
   {
     name: 'Certify',
@@ -24,7 +27,7 @@ const PLANS = [
     cta: 'Upgrade to Certify',
     ctaVariant: 'default' as const,
     highlight: true,
-    stripeLink: '#stripe-certify',
+    action: 'checkout' as const,
   },
   {
     name: 'Enterprise',
@@ -34,10 +37,33 @@ const PLANS = [
     cta: 'Contact Sales',
     ctaVariant: 'outline' as const,
     highlight: false,
+    action: 'contact' as const,
   },
 ];
 
 const SimpleBilling = () => {
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleCheckout = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || 'Checkout unavailable');
+      }
+    } catch (e: any) {
+      toast({ title: 'Checkout error', description: e.message, variant: 'destructive' });
+      setLoading(false);
+    }
+  };
   const tabs = [
     { id: 'asset-scanning', title: 'Scan', path: '/asset-scanning' },
     { id: 'compliance-reports', title: 'Reports', path: '/compliance-reports' },
@@ -96,9 +122,13 @@ const SimpleBilling = () => {
                 <Button
                   variant={plan.ctaVariant}
                   className="w-full"
-                  onClick={() => plan.stripeLink && window.open(plan.stripeLink, '_blank')}
+                  disabled={plan.action === 'checkout' && loading}
+                  onClick={() => {
+                    if (plan.action === 'checkout') handleCheckout();
+                    if (plan.action === 'contact') window.location.href = 'mailto:skone@alumni.albany.edu?subject=ASAF Enterprise';
+                  }}
                 >
-                  {plan.cta}
+                  {plan.action === 'checkout' && loading ? 'Redirecting...' : plan.cta}
                 </Button>
               </CardContent>
             </Card>
