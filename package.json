@@ -1,7 +1,8 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "asaf-nouchix",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "ASAF — Agentic Security Attestation Framework by NouchiX",
   "type": "module",
   "scripts": {
     "dev": "next dev",
