@@ -240,6 +240,7 @@ func (s *Server) setupRoutes() {
 		// Telemetry analytics (read-only, requires user auth)
 		v1.GET("/telemetry/stats", s.handleTelemetryStats)
 		v1.GET("/telemetry/dark-crypto-moat", s.handleDarkCryptoMoat)
+		v1.GET("/metrics/system", s.handleSystemMetrics)
 
 		// MCP (Model Context Protocol) endpoints — Supabase bridge + AI tool integration
 		s.setupMCPRoutes(v1)
