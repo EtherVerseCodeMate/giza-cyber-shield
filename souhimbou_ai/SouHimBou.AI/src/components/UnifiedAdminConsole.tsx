@@ -29,14 +29,14 @@ export const UnifiedAdminConsole = () => {
       setLoading(true);
 
       // Fetch performance metrics to determine system health
-      const { error } = await supabase
+      const { error: perfError } = await supabase
         .from('performance_metrics')
         .select('*')
         .eq('organization_id', currentOrganization.organization_id)
         .order('recorded_at', { ascending: false })
         .limit(20);
 
-      if (error) throw error;
+      if (perfError) throw perfError;
 
       // Fetch security events to determine module activity
       const { data: securityEvents } = await supabase

@@ -28,7 +28,7 @@ interface KhepraScansWidgetProps {
   apiKey: string;
 }
 
-export function KhepraScansWidget({ deploymentUrl, apiKey }: KhepraScansWidgetProps) {
+export function KhepraScansWidget({ deploymentUrl, apiKey }: Readonly<KhepraScansWidgetProps>) {
   const [targetUrl, setTargetUrl] = useState('');
   const [scanType, setScanType] = useState<string>('basic');
 
