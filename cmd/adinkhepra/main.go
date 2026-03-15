@@ -2,8 +2,11 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"flag"
 	"fmt"
@@ -27,6 +30,7 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scorpion"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/util"
+	"golang.org/x/crypto/ssh"
 )
 
 const (
@@ -743,51 +747,59 @@ func crackCmd(args []string) {
 func keygenCmd(args []string) {
 	cfg := config.Load()
 	fs := flag.NewFlagSet("keygen", flag.ExitOnError)
-	out := fs.String("out", filepath.Join(util.HomeDir(), ".ssh", "id_dilithium"), "private key output path")
+	out := fs.String("out", filepath.Join(util.HomeDir(), ".ssh", "id_hybrid"), "private key output path")
 	tenant := fs.String("tenant", cfg.Tenant, "boundary semantics (Eban)")
 	comment := fs.String("comment", cfg.Comment, "OpenSSH comment")
 	rotateDays := fs.Int("rotate", cfg.RotateDays, "rotation after N days")
 	fs.Parse(args)
 
-	// [PQC]: Generate Dilithium Keypair (Quantum Resistant Identity)
-	signPub, signPriv, err := adinkra.GenerateDilithiumKey()
+	fmt.Println("[PQC] INITIATING SPECTRAL HYBRID KEY CEREMONY...")
+
+	// [PQC]: Generate Hybrid Keypair (Triple-Layer Defense)
+	// Passes rotateDays/30 as expiration in months
+	kp, err := adinkra.GenerateHybridKeyPair("pqc-auth", *tenant, *rotateDays/30)
 	if err != nil {
-		fatal("generate identity (dilithium)", err)
+		fatal("generate hybrid keypair", err)
 	}
 
-	// [PQC]: Generate Kyber Keypair (Quantum Resistant Encryption)
-	encPub, encPriv, err := adinkra.GenerateKyberKey()
-	if err != nil {
-		fatal("generate encryption (kyber)", err)
-	}
-
-	// Write Identity Keys (Signing)
+	// 1. Identity Keys (Dilithium / ML-DSA)
 	signPrivPath := *out + "_dilithium"
 	signPubPath := *out + "_dilithium.pub"
-
 	if err := util.EnsureDir(filepath.Dir(signPrivPath), 0o700); err != nil {
 		fatal("mkdir", err)
 	}
+	os.WriteFile(signPrivPath, kp.DilithiumPrivate, 0600)
+	os.WriteFile(signPubPath, kp.DilithiumPublic, 0644)
 
-	if err := os.WriteFile(signPrivPath, signPriv, 0600); err != nil {
-		fatal("write identity private", err)
-	}
-	if err := os.WriteFile(signPubPath, signPub, 0644); err != nil {
-		fatal("write identity public", err)
-	}
-
-	// Write Encryption Keys (KEM)
+	// 2. Encryption Keys (Kyber / ML-KEM)
 	encPrivPath := *out + "_kyber"
 	encPubPath := *out + "_kyber.pub"
-
-	if err := os.WriteFile(encPrivPath, encPriv, 0600); err != nil {
-		fatal("write encryption private", err)
+	os.WriteFile(encPrivPath, kp.KyberPrivate, 0600)
+	os.WriteFile(encPubPath, kp.KyberPublic, 0644)	// 3. Standard Compatibility Keys (ECDSA P-384)
+	stdPrivPath := *out + "_ecdsa"
+	stdPubPath := *out + "_ecdsa.pub"
+	
+	// Write ECDSA Private Key (PKCS8)
+	ecPrivBytes, err := x509.MarshalPKCS8PrivateKey(kp.ECDSAPrivate)
+	if err == nil {
+		block := &pem.Block{Type: "PRIVATE KEY", Bytes: ecPrivBytes}
+		os.WriteFile(stdPrivPath, pem.EncodeToMemory(block), 0600)
 	}
-	if err := os.WriteFile(encPubPath, encPub, 0644); err != nil {
-		fatal("write encryption public", err)
+
+	// Marshall ECDSA to OpenSSH format
+	sshPub, err := ssh.NewPublicKey(kp.ECDSAPublic)
+	if err == nil {
+		pubLine := ssh.MarshalAuthorizedKey(sshPub)
+		pubLine = bytes.TrimSpace(pubLine)
+		if *comment != "" {
+			pubLine = append(pubLine, ' ')
+			pubLine = append(pubLine, []byte(*comment)...)
+		}
+		pubLine = append(pubLine, '\n')
+		os.WriteFile(stdPubPath, pubLine, 0644)
 	}
 
-	binding := util.SHA256Hex(signPub)
+	binding := util.SHA256Hex(kp.DilithiumPublic)
 
 	ka := attest.Assertion{
 		Schema: "https://adinkhepra.dev/attest/v2-pqc",
@@ -817,6 +829,10 @@ func keygenCmd(args []string) {
 	fmt.Printf(" [ENCRYPTION] (Kyber-1024 / ML-KEM-1024)\n")
 	fmt.Printf("   - Private: %s\n   - Public : %s\n", encPrivPath, encPubPath)
 	fmt.Println("   - Symbol : Kuntinkantan (The Riddle) - Unbreakable Privacy")
+	fmt.Println(separator)
+	fmt.Printf(" [COMPAT]     (ECDSA P-384 - Standard OpenSSH)\n")
+	fmt.Printf("   - Public : %s (For Hostinger Panel)\n", stdPubPath)
+	fmt.Println("   - Symbol : Nkyinkyim (Twisting) - Adaptable Compatibility")
 	fmt.Println(separator)
 	fmt.Printf(" [ASSERTION]  (JSON provenance)\n")
 	fmt.Printf("   - Path   : %s\n", assertPath)
