@@ -90,6 +90,7 @@
   "overrides": {
     "lodash": "4.17.23",
     "lodash-es": "4.17.23",
-    "minimatch": ">=9.0.5"
+    "minimatch": ">=9.0.5",
+    "flatted": ">=3.4.0"
   }
 }

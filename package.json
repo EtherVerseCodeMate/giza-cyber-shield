@@ -2,7 +2,7 @@
   "name": "asaf-nouchix",
   "private": true,
   "version": "1.0.0",
-  "description": "ASAF — Agentic Security Attestation Framework by NouchiX",
+  "description": "ASAF \u2014 Agentic Security Attestation Framework by NouchiX",
   "type": "module",
   "scripts": {
     "dev": "next dev",
@@ -96,6 +96,7 @@
     "lodash": "4.17.23",
     "rollup": ">=4.30.1",
     "minimatch": ">=9.0.5",
-    "ajv": ">=8.17.1"
+    "ajv": ">=8.17.1",
+    "flatted": ">=3.4.0"
   }
 }
