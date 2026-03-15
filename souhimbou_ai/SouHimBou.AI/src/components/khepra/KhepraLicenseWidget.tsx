@@ -4,7 +4,6 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { useKhepraAPI } from '@/hooks/useKhepraAPI';
-import { useKhepraLicenseUpdates } from '@/hooks/useKhepraWebSocket';
 import {
   Key,
   CheckCircle,
@@ -38,11 +37,9 @@ const FEATURE_ICONS: Record<string, React.ReactNode> = {
   'auto-remediation': <Zap className="h-4 w-4 text-emerald-400" />,
 };
 
-export function KhepraLicenseWidget({ deploymentUrl, apiKey }: KhepraLicenseWidgetProps) {
+export function KhepraLicenseWidget({ deploymentUrl, apiKey }: Readonly<KhepraLicenseWidgetProps>) {
   const { license, heartbeat } = useKhepraAPI(deploymentUrl, apiKey);
-  const { licenseUpdates } = useKhepraLicenseUpdates(deploymentUrl);
 
-  const latestUpdate = licenseUpdates.at(-1);
   const data = license.data;
 
   const handleHeartbeat = async () => {

@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Shield, Network, Search, AlertTriangle, Eye, Globe, Mail, Cloud } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useOrganizationContext } from '@/components/OrganizationProvider';
 
@@ -60,12 +59,12 @@ export const EnterpriseSecurityDashboard = () => {
       const formattedDetections: ThreatDetection[] = (data || []).map(item => ({
         id: item.id,
         detection_type: item.indicator_type.toUpperCase(),
-        threat_level: item.threat_level?.toUpperCase() as any || 'UNKNOWN',
+        threat_level: item.threat_level?.toUpperCase() || 'UNKNOWN',
         indicator: item.threat_indicator,
         source: 'THREAT_INTELLIGENCE',
         details: item.external_references || {},
         detected_at: item.created_at,
-        status: item.investigation_status?.toUpperCase() as any || 'ACTIVE'
+        status: item.investigation_status?.toUpperCase() || 'ACTIVE'
       }));
 
       setThreatDetections(formattedDetections);
@@ -89,7 +88,7 @@ export const EnterpriseSecurityDashboard = () => {
       if (error) throw error;
 
       const formattedAssets: NetworkAsset[] = (data || []).map(asset => {
-        const results = asset.discovery_results as any || {};
+        const results = asset.discovery_results || {};
         return {
           id: asset.id,
           ip_address: asset.target,
