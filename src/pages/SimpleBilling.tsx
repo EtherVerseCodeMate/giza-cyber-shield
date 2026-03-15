@@ -1,12 +1,19 @@
 
+import { useEffect, useState } from 'react';
 import { ConsoleLayout } from '@/components/console/ConsoleLayout';
 import { DashboardToggle } from '@/components/DashboardToggle';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CreditCard, TrendingUp, Download, Clock, Shield, Award } from 'lucide-react';
-import { useState } from 'react';
+import { CreditCard, TrendingUp, Download, Clock, Shield, Award, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+const ASAF_API = (import.meta as any).env?.VITE_ASAF_API_URL
+  ?? process.env.NEXT_PUBLIC_ASAF_API_URL
+  ?? '';
+const ASAF_KEY = (import.meta as any).env?.VITE_ASAF_API_KEY
+  ?? process.env.NEXT_PUBLIC_ASAF_API_KEY
+  ?? '';
 
 const PLANS = [
   {
@@ -41,9 +48,53 @@ const PLANS = [
   },
 ];
 
+interface UsageStats {
+  scansTotal: number | null;
+  dagNodes: number | null;
+  licenseScore: number | null;
+  loading: boolean;
+  error: string | null;
+}
+
+async function fetchUsageStats(): Promise<{ scansTotal: number; dagNodes: number; licenseScore: number | null }> {
+  if (!ASAF_API) throw new Error('NEXT_PUBLIC_ASAF_API_URL is not configured');
+
+  const headers: HeadersInit = ASAF_KEY ? { Authorization: ASAF_KEY } : {};
+
+  const [scansRes, healthRes] = await Promise.all([
+    fetch(`${ASAF_API}/api/v1/scans?page=1&page_size=1`, { headers }),
+    fetch(`${ASAF_API}/health`, { headers }),
+  ]);
+
+  if (!scansRes.ok) throw new Error(`Scans API ${scansRes.status}`);
+  if (!healthRes.ok) throw new Error(`Health API ${healthRes.status}`);
+
+  const scansData = await scansRes.json();
+  const healthData = await healthRes.json();
+
+  return {
+    scansTotal: scansData.total ?? 0,
+    dagNodes: healthData.dag_nodes ?? 0,
+    licenseScore: null, // No score endpoint yet — hide until available
+  };
+}
+
 const SimpleBilling = () => {
   const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState<UsageStats>({
+    scansTotal: null,
+    dagNodes: null,
+    licenseScore: null,
+    loading: true,
+    error: null,
+  });
   const { toast } = useToast();
+
+  useEffect(() => {
+    fetchUsageStats()
+      .then(data => setStats({ scansTotal: data.scansTotal, dagNodes: data.dagNodes, licenseScore: data.licenseScore, loading: false, error: null }))
+      .catch(err => setStats(s => ({ ...s, loading: false, error: err.message })));
+  }, []);
 
   const handleCheckout = async () => {
     setLoading(true);
@@ -64,11 +115,18 @@ const SimpleBilling = () => {
       setLoading(false);
     }
   };
+
   const tabs = [
     { id: 'asset-scanning', title: 'Scan', path: '/asset-scanning' },
     { id: 'compliance-reports', title: 'Reports', path: '/compliance-reports' },
     { id: 'billing', title: 'Billing', path: '/billing', isActive: true },
   ];
+
+  const statCell = (value: number | null, suffix = '') => {
+    if (stats.loading) return <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />;
+    if (value === null || stats.error) return <span className="text-2xl font-bold text-muted-foreground">—</span>;
+    return <p className="text-2xl font-bold text-foreground">{value.toLocaleString()}{suffix}</p>;
+  };
 
   return (
     <ConsoleLayout
@@ -88,10 +146,6 @@ const SimpleBilling = () => {
             <h1 className="text-2xl font-bold text-foreground">Plans & Billing</h1>
             <p className="text-muted-foreground">One price. One sell point. Earn your ADINKHEPRA certification.</p>
           </div>
-          <Button variant="outline" className="flex items-center space-x-2">
-            <Download className="h-4 w-4" />
-            <span>Download Invoice</span>
-          </Button>
         </div>
 
         {/* Pricing Plans */}
@@ -149,97 +203,55 @@ const SimpleBilling = () => {
           </CardContent>
         </Card>
 
-        {/* Usage Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {/* Usage Summary — live from backend */}
+        {stats.error && (
+          <p className="text-xs text-red-400 font-mono">Usage stats unavailable: {stats.error}</p>
+        )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Assets Scanned</p>
-                  <p className="text-2xl font-bold text-foreground">42</p>
-                  <p className="text-xs text-green-400">+8 this month</p>
+                  <p className="text-sm font-medium text-muted-foreground">Scans Run</p>
+                  {statCell(stats.scansTotal)}
+                  <p className="text-xs text-muted-foreground mt-1">total in your org</p>
                 </div>
                 <TrendingUp className="h-8 w-8 text-primary" />
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">STIG Rules Checked</p>
-                  <p className="text-2xl font-bold text-foreground">1,247</p>
-                  <p className="text-xs text-blue-400">automated</p>
+                  <p className="text-sm font-medium text-muted-foreground">DAG Audit Nodes</p>
+                  {statCell(stats.dagNodes)}
+                  <p className="text-xs text-muted-foreground mt-1">immutable audit records</p>
                 </div>
                 <Clock className="h-8 w-8 text-blue-400" />
               </div>
             </CardContent>
           </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Reports Generated</p>
-                  <p className="text-2xl font-bold text-foreground">15</p>
-                  <p className="text-xs text-purple-400">this month</p>
-                </div>
-                <Download className="h-8 w-8 text-purple-400" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Compliance Score</p>
-                  <p className="text-2xl font-bold text-green-400">87%</p>
-                  <p className="text-xs text-green-400">improving</p>
-                </div>
-                <CreditCard className="h-8 w-8 text-green-400" />
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
-        {/* Billing History */}
+        {/* Billing History — empty state until Stripe webhooks populate real invoices */}
         <Card>
           <CardHeader>
             <CardTitle>Billing History</CardTitle>
-            <CardDescription>
-              Recent invoices and payment history
-            </CardDescription>
+            <CardDescription>Invoices issued after your first payment will appear here.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {[
-                { date: '2024-01-01', amount: '$299.00', status: 'paid', period: 'Jan 2024' },
-                { date: '2023-12-01', amount: '$299.00', status: 'paid', period: 'Dec 2023' },
-                { date: '2023-11-01', amount: '$299.00', status: 'paid', period: 'Nov 2023' },
-              ].map((invoice, index) => (
-                <div key={index} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3">
-                      <span className="font-medium text-foreground">Invoice for {invoice.period}</span>
-                      <Badge 
-                        variant="outline" 
-                        className="bg-green-500/20 text-green-400 border-green-500/30"
-                      >
-                        {invoice.status}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">Billed on {invoice.date}</p>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <span className="font-medium text-foreground">{invoice.amount}</span>
-                    <Button variant="outline" size="sm">
-                      <Download className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+            <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+              <CreditCard className="h-10 w-10 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">No invoices yet.</p>
+              <p className="text-xs text-muted-foreground/60">
+                Upgrade to Certify to generate your first invoice. Invoices are delivered by Stripe and stored here automatically.
+              </p>
+              <Button variant="outline" size="sm" onClick={handleCheckout} disabled={loading}>
+                <Download className="h-3.5 w-3.5 mr-2" />
+                {loading ? 'Redirecting...' : 'Get Certify Plan'}
+              </Button>
             </div>
           </CardContent>
         </Card>
