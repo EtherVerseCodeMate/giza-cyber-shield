@@ -2,8 +2,7 @@
  * STIGViewer Connector — Frontend Service
  * ════════════════════════════════════════
  *
- * Replaces Tenable.io (INT-002, INT-014) with STIGViewer API for compliance
- * scoring and STIG catalog enrichment.
+ * Uses STIGViewer API for compliance scoring and STIG catalog enrichment.
  *
  * Architecture (per STIGVIEWER_STRATEGY_MITOCHONDRIA.md):
  *
@@ -194,7 +193,6 @@ export class STIGViewerConnector {
 
     /**
      * Fetch the STIG catalog (list of available STIGs).
-     * Replaces INT-014: hardcoded 2-STIG catalog.
      */
     static async fetchCatalog(
         organizationId: string
@@ -245,7 +243,6 @@ export class STIGViewerConnector {
 
     /**
      * Compute compliance score from actual STIG assessment results.
-     * Replaces INT-002: Math.random() * 10 + 85 for compliance_score.
      *
      * When STIGViewer API is available, enriches scoring with decomposed
      * rule complexity and role mapping data.
@@ -280,35 +277,10 @@ export class STIGViewerConnector {
                 };
             }
 
-            // 2. Categorize results
-            let catI = 0, catII = 0, catIII = 0;
-            let passed = 0, failed = 0, notApplicable = 0;
-            const stigBreakdown = new Map<string, { total: number; passed: number }>();
-
-            for (const result of assessments) {
-                const status = result.status as string;
-                const severity = result.severity as string;
-                const stigId = result.stig_id as string;
-
-                if (status === 'pass' || status === 'passed') {
-                    passed++;
-                } else if (status === 'not_applicable' || status === 'na') {
-                    notApplicable++;
-                } else {
-                    failed++;
-                    if (severity === 'CAT_I' || severity === 'high') catI++;
-                    else if (severity === 'CAT_II' || severity === 'medium') catII++;
-                    else if (severity === 'CAT_III' || severity === 'low') catIII++;
-                }
-
-                // Track per-STIG breakdown
-                if (stigId) {
-                    const existing = stigBreakdown.get(stigId) || { total: 0, passed: 0 };
-                    existing.total++;
-                    if (status === 'pass' || status === 'passed') existing.passed++;
-                    stigBreakdown.set(stigId, existing);
-                }
-            }
+            // 2. Aggregate results
+            const {
+                catI, catII, catIII, passed, failed, notApplicable, stigBreakdown
+            } = this.aggregateAssessments(assessments);
 
             const totalChecks = passed + failed + notApplicable;
             const applicableChecks = passed + failed;
@@ -487,5 +459,40 @@ export class STIGViewerConnector {
         } catch (error) {
             console.error('[STIGViewerConnector] Catalog persistence failed:', error);
         }
+    }
+
+    /**
+     * Aggregates assessment results into categories and stats.
+     */
+    private static aggregateAssessments(assessments: any[]) {
+        let catI = 0, catII = 0, catIII = 0;
+        let passed = 0, failed = 0, notApplicable = 0;
+        const stigBreakdown = new Map<string, { total: number; passed: number }>();
+
+        for (const result of assessments) {
+            const status = result.status as string;
+            const severity = result.severity as string;
+            const stigId = result.stig_id as string;
+
+            if (status === 'pass' || status === 'passed') {
+                passed++;
+            } else if (status === 'not_applicable' || status === 'na') {
+                notApplicable++;
+            } else {
+                failed++;
+                if (severity === 'CAT_I' || severity === 'high') catI++;
+                else if (severity === 'CAT_II' || severity === 'medium') catII++;
+                else if (severity === 'CAT_III' || severity === 'low') catIII++;
+            }
+
+            if (stigId) {
+                const existing = stigBreakdown.get(stigId) || { total: 0, passed: 0 };
+                existing.total++;
+                if (status === 'pass' || status === 'passed') existing.passed++;
+                stigBreakdown.set(stigId, existing);
+            }
+        }
+
+        return { catI, catII, catIII, passed, failed, notApplicable, stigBreakdown };
     }
 }
