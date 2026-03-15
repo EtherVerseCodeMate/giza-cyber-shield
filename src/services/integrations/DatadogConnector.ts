@@ -2,8 +2,7 @@
  * Datadog Metrics Connector
  * ═════════════════════════
  *
- * Replaces INT-001 (Math.random() CPU/Memory/Disk) and INT-003 (random request volume)
- * with real-time system metrics from the Datadog Metrics API v1.
+ * Real-time system metrics from the Datadog Metrics API v1.
  *
  * Supported Metrics:
  *   - system.cpu.user / system.cpu.idle
@@ -68,7 +67,6 @@ export class DatadogConnector {
 
     /**
      * Collect real-time system metrics from Datadog.
-     * Replaces INT-001: Math.random() * 100 for CPU/Memory/Disk/Network.
      */
     static async collectRealTimeMetrics(
         organizationId: string,
@@ -152,15 +150,15 @@ export class DatadogConnector {
 
             return {
                 cpu_utilization: cpu,
-                memory_usage: mem !== null ? (1 - mem) * 100 : null, // pct_usable → pct_used
-                disk_io: disk !== null ? disk * 100 : null, // fraction → percentage
+                memory_usage: mem === null ? null : (1 - mem) * 100, // pct_usable → pct_used
+                disk_io: disk === null ? null : disk * 100, // fraction → percentage
                 network_throughput: net,
-                response_time_ms: null, // Requires APM traces — separate query
-                error_rate: null,       // Requires APM traces — separate query
-                concurrent_users: null, // Requires RUM — separate integration
+                response_time_ms: null, 
+                error_rate: null,       
+                concurrent_users: null, 
                 data_available: cpu !== null || mem !== null || disk !== null,
                 data_source: 'datadog',
-                raw_series: [cpuResult, memResult, diskResult, netResult].filter(Boolean) as DatadogTimeseriesResult[],
+                raw_series: [cpuResult, memResult, diskResult, netResult].filter(Boolean),
             };
         } catch (error) {
             console.error('[DatadogConnector] Metrics collection failed:', error);
@@ -181,7 +179,6 @@ export class DatadogConnector {
 
     /**
      * Get request volume/throughput from Datadog APM.
-     * Replaces INT-003: Math.floor(Math.random() * 100000) + 10000 for total_requests.
      */
     static async getRequestVolume(
         organizationId: string,
