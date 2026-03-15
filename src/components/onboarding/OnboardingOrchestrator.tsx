@@ -111,6 +111,8 @@ const OnboardingOrchestrator: React.FC = () => {
   const handleScan = async () => {
     if (!target.trim()) return;
     setError(null);
+    setResult(null);
+    setScanId(null);
     setStep('scanning');
     setPhase(0);
     setProgress(5);
@@ -118,26 +120,11 @@ const OnboardingOrchestrator: React.FC = () => {
       const id = await triggerScan(target.trim());
       setScanId(id);
     } catch (e: any) {
-      // Backend unreachable — show mock result for demo purposes
-      setTimeout(() => {
-        setProgress(100);
-        setResult({
-          scan_id: 'demo-' + Date.now(),
-          risk_score: 74,
-          exposed: true,
-          auth_weakness: true,
-          open_integrations: 3,
-          certified: false,
-          findings: [
-            { severity: 'critical', text: 'Gateway bound to 0.0.0.0 — publicly reachable' },
-            { severity: 'critical', text: 'Auth token complexity not enforced (single-char tokens accepted)' },
-            { severity: 'high', text: '3 integrations exposed: Gmail, GitHub, Slack' },
-            { severity: 'medium', text: 'No TLS — traffic transmitted in plaintext' },
-            { severity: 'low', text: 'Default port 18789 in use — easily discoverable' },
-          ],
-        });
-        setStep('results');
-      }, SCAN_PHASES.length * 1400 + 800);
+      setError(
+        `Scan failed: ${e.message}. ` +
+        `Ensure NEXT_PUBLIC_ASAF_API_URL points to your running ASAF backend (currently: ${API_BASE}).`
+      );
+      setStep('input');
     }
   };
 
@@ -175,6 +162,12 @@ const OnboardingOrchestrator: React.FC = () => {
             <h1 className="text-3xl font-bold text-white">Scan your AI agent deployment</h1>
             <p className="text-gray-400">Enter any IP, domain, or hostname. We'll check it for exposure in under 60 seconds — free, no account needed.</p>
           </div>
+
+          {error && (
+            <div className="bg-red-950/40 border border-red-500/30 rounded-xl p-4 text-sm text-red-400 font-mono break-all">
+              {error}
+            </div>
+          )}
 
           <div className="space-y-4 bg-[#111] border border-gray-800 rounded-xl p-6">
             <div className="space-y-2">
