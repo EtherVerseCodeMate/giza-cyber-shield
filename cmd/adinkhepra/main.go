@@ -3,6 +3,8 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
@@ -10,7 +12,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -775,28 +776,42 @@ func keygenCmd(args []string) {
 	encPrivPath := *out + "_kyber"
 	encPubPath := *out + "_kyber.pub"
 	os.WriteFile(encPrivPath, kp.KyberPrivate, 0600)
-	os.WriteFile(encPubPath, kp.KyberPublic, 0644)	// 3. Standard Compatibility Keys (ECDSA P-384)
-	stdPrivPath := *out + "_ecdsa"
-	stdPubPath := *out + "_ecdsa.pub"
-	
-	// Write ECDSA Private Key (PKCS8)
-	ecPrivBytes, err := x509.MarshalPKCS8PrivateKey(kp.ECDSAPrivate)
-	if err == nil {
-		block := &pem.Block{Type: "PRIVATE KEY", Bytes: ecPrivBytes}
-		os.WriteFile(stdPrivPath, pem.EncodeToMemory(block), 0600)
-	}
+	os.WriteFile(encPubPath, kp.KyberPublic, 0644)
 
-	// Marshall ECDSA to OpenSSH format
-	sshPub, err := ssh.NewPublicKey(kp.ECDSAPublic)
+	// 3. Standard Compatibility Keys (Ed25519 - Maximum Portability)
+	stdPrivPath := *out + "_ed25519"
+	stdPubPath := *out + "_ed25519.pub"
+	
+	// Generate Ed25519 Keypair
+	edPub, edPriv, err := ed25519.GenerateKey(rand.Reader)
 	if err == nil {
-		pubLine := ssh.MarshalAuthorizedKey(sshPub)
-		pubLine = bytes.TrimSpace(pubLine)
-		if *comment != "" {
-			pubLine = append(pubLine, ' ')
-			pubLine = append(pubLine, []byte(*comment)...)
+		// Write Private Key (OpenSSH Format)
+		// We use the util.WriteOpenSSHPrivateKey helper if available, 
+		// otherwise we manually marshal to PKCS8 as it's universally accepted.
+		edPrivBytes, _ := x509.MarshalPKCS8PrivateKey(edPriv)
+		block := &pem.Block{Type: "PRIVATE KEY", Bytes: edPrivBytes}
+		os.WriteFile(stdPrivPath, pem.EncodeToMemory(block), 0600)
+
+		// Marshall Public Key to OpenSSH format
+		sshPub, err := ssh.NewPublicKey(edPub)
+		if err == nil {
+			pubLine := ssh.MarshalAuthorizedKey(sshPub)
+			pubLine = bytes.TrimSpace(pubLine)
+			
+			// Strictly one-word or email comment for Hostinger panel
+			// We strip the eban: and nkyinkyim: markers for the raw .pub file
+			cleanComment := *comment
+			if i := strings.Index(cleanComment, " "); i != -1 {
+				cleanComment = cleanComment[:i]
+			}
+
+			if cleanComment != "" {
+				pubLine = append(pubLine, ' ')
+				pubLine = append(pubLine, []byte(cleanComment)...)
+			}
+			pubLine = append(pubLine, '\n')
+			os.WriteFile(stdPubPath, pubLine, 0644)
 		}
-		pubLine = append(pubLine, '\n')
-		os.WriteFile(stdPubPath, pubLine, 0644)
 	}
 
 	binding := util.SHA256Hex(kp.DilithiumPublic)
@@ -830,9 +845,9 @@ func keygenCmd(args []string) {
 	fmt.Printf("   - Private: %s\n   - Public : %s\n", encPrivPath, encPubPath)
 	fmt.Println("   - Symbol : Kuntinkantan (The Riddle) - Unbreakable Privacy")
 	fmt.Println(separator)
-	fmt.Printf(" [COMPAT]     (ECDSA P-384 - Standard OpenSSH)\n")
+	fmt.Printf(" [COMPAT]     (Ed25519 - Standard OpenSSH)\n")
+	fmt.Printf("   - Private: %s\n", stdPrivPath)
 	fmt.Printf("   - Public : %s (For Hostinger Panel)\n", stdPubPath)
-	fmt.Println("   - Symbol : Nkyinkyim (Twisting) - Adaptable Compatibility")
 	fmt.Println(separator)
 	fmt.Printf(" [ASSERTION]  (JSON provenance)\n")
 	fmt.Printf("   - Path   : %s\n", assertPath)
