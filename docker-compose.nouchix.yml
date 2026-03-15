@@ -1,0 +1,156 @@
+version: '3.8'
+
+services:
+  # ═══════════════════════════════════════════════════════════════════
+  # 1. PHANTOM CORE - Invisible Mesh Networking (PQC)
+  # ═══════════════════════════════════════════════════════════════════
+  phantom:
+    build:
+      context: .
+      dockerfile: Dockerfile.phantom
+    container_name: nouchix-phantom
+    restart: always
+    environment:
+      - PHANTOM_SYMBOL=Eban
+      - PHANTOM_NETWORK_MODE=stealth
+      - PHANTOM_CARRIER=JPEG
+    networks:
+      - nouchix-tactical
+    volumes:
+      - phantom-keys:/root/.khepra/keys
+
+  # ═══════════════════════════════════════════════════════════════════
+  # 2. MOTHERBOARD - Polymorphic API & AGI Node
+  # ═══════════════════════════════════════════════════════════════════
+  motherboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nouchix-motherboard
+    restart: always
+    environment:
+      - DATABASE_URL=postgres://nouchix:${POSTGRES_PASSWORD}@postgres:5432/nouchix
+      - REDIS_URL=redis://redis:6379
+      - PHANTOM_NODE_URL=http://phantom:8080
+      - SUPABASE_URL=${VITE_SUPABASE_URL}
+      - SUPABASE_KEY=${VITE_SUPABASE_PUBLISHABLE_KEY}
+    volumes:
+      - ./data/agi:/app/data
+      - ./models:/app/models
+    networks:
+      - nouchix-tactical
+      - nouchix-dmz
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      phantom: { condition: service_started }
+
+  # ═══════════════════════════════════════════════════════════════════
+  # 3. SECURITY ARSENAL - Offensive & Defensive XDR
+  # ═══════════════════════════════════════════════════════════════════
+  suricata:
+    image: jasonish/suricata:latest
+    container_name: nouchix-suricata
+    network_mode: host # For direct packet inspection
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_NICE
+    volumes:
+      - ./data/suricata:/var/log/suricata
+    restart: always
+
+  crowdsec:
+    image: crowdsecurity/crowdsec:latest
+    container_name: nouchix-crowdsec
+    environment:
+      - COLLECTIONS=crowdsecurity/linux crowdsecurity/sshd crowdsecurity/nginx-proxy-manager
+    volumes:
+      - /var/log/auth.log:/var/log/auth.log:ro
+      - ./data/crowdsec/config:/etc/crowdsec
+      - ./data/crowdsec/data:/var/lib/crowdsec/data
+    networks:
+      - nouchix-dmz
+    restart: always
+
+  # ═══════════════════════════════════════════════════════════════════
+  # 4. SOAR ENGINE - n8n Automation
+  # ═══════════════════════════════════════════════════════════════════
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: nouchix-n8n
+    restart: always
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_USER=nouchix
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+      - N8N_HOST=n8n.adinkhepra.com
+      - N8N_PROTOCOL=https
+    volumes:
+      - ./data/n8n:/home/node/.n8n
+    networks:
+      - nouchix-dmz
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  # ═══════════════════════════════════════════════════════════════════
+  # 5. PERSISTENCE & CACHE
+  # ═══════════════════════════════════════════════════════════════════
+  postgres:
+    image: postgres:16-alpine
+    container_name: nouchix-postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=nouchix
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - nouchix-tactical
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nouchix"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: nouchix-redis
+    restart: always
+    networks:
+      - nouchix-tactical
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ═══════════════════════════════════════════════════════════════════
+  # 6. EDGE GATEWAY - Nginx Proxy Manager
+  # ═══════════════════════════════════════════════════════════════════
+  npm:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: nouchix-npm
+    restart: always
+    ports:
+      - '80:80'
+      - '81:81'
+      - '443:443'
+    volumes:
+      - ./data/npm/config:/data
+      - ./data/npm/letsencrypt:/etc/letsencrypt
+    networks:
+      - nouchix-dmz
+
+networks:
+  nouchix-tactical:
+    driver: bridge
+    internal: true # PQC Backend Mesh
+  nouchix-dmz:
+    driver: bridge
+
+volumes:
+  phantom-keys:
