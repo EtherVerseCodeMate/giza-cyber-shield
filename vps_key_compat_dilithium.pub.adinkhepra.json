@@ -1,0 +1,18 @@
+{
+  "schema": "https://adinkhepra.dev/attest/v2-pqc",
+  "symbol": "Eban",
+  "semantics": {
+    "boundary": "adinkhepra://edge-node-1",
+    "purpose": "pqc-auth",
+    "least_privilege": true
+  },
+  "lifecycle": {
+    "journey": "Nkyinkyim",
+    "created_at": "2026-03-15T07:37:28.4886233Z",
+    "rotation_after_days": 90
+  },
+  "binding": {
+    "openssh_pub_sha256": "ce25f05e46bfcf01608b1fc0dc84e53c0e95e8b65facf9828db671782080112e",
+    "comment": "skone@alumni.albany.edu eban:prod nkyinkyim:v1"
+  }
+}
