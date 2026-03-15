@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -368,10 +369,22 @@ func (s *Server) handleGenerateERT(c *gin.Context) {
 		return
 	}
 
+	// 4. Generate Real Dilithium3 Signature (TRL10)
+	msg := []byte(fmt.Sprintf("%s:%s:%s", tokenID, req.EventType, dagNodeID))
+	sig, err := adinkra.Sign(s.sigPrivKey, msg)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "signing_failed",
+			Message: "PQC signing failed: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
 	response := ERTResponse{
 		TokenID:      tokenID,
 		EventType:    req.EventType,
-		PQCSignature: "pqc_sig_" + uuid.New().String(), // In production, signed with Dilithium
+		PQCSignature: fmt.Sprintf("%x", sig), // Hex encoded Dilithium3 signature
 		DAGNodeID:    dagNodeID,
 		IssuedAt:     time.Now(),
 		VerifyURL:    fmt.Sprintf("https://%s/api/v1/ert/verify/%s", c.Request.Host, tokenID),
