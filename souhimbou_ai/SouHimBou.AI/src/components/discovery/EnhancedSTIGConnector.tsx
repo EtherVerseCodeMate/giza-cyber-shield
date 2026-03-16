@@ -35,7 +35,7 @@ export const EnhancedSTIGConnector: React.FC<EnhancedSTIGConnectorProps> = ({ or
     discoverLocalAssets,
   } = useRealTimeAssetDiscovery();
 
-  const [discoveryJobs, setDiscoveryJobs] = useState<any[]>([]);
+
   const [discoveredAssetsDB, setDiscoveredAssetsDB] = useState<any[]>([]);
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [newTarget, setNewTarget] = useState('');
@@ -67,14 +67,14 @@ export const EnhancedSTIGConnector: React.FC<EnhancedSTIGConnectorProps> = ({ or
 
   const fetchDiscoveryJobs = async () => {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('discovery_jobs')
         .select('*')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setDiscoveryJobs(data || []);
+
     } catch (error) {
       console.error('Failed to fetch discovery jobs:', error);
     }
