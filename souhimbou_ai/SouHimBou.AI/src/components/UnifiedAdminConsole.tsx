@@ -12,7 +12,7 @@ export const UnifiedAdminConsole = () => {
   const [moduleStatus, setModuleStatus] = useState<any[]>([]);
   const [systemResources, setSystemResources] = useState<any[]>([]);
   const [securityPolicies, setSecurityPolicies] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+
   const { currentOrganization } = useOrganization();
   const { toast } = useToast();
 
@@ -26,7 +26,6 @@ export const UnifiedAdminConsole = () => {
     if (!currentOrganization) return;
 
     try {
-      setLoading(true);
 
       // Fetch performance metrics to determine system health
       const { error: perfError } = await supabase
@@ -205,8 +204,6 @@ export const UnifiedAdminConsole = () => {
         description: "Failed to fetch admin console data.",
         variant: "destructive"
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -223,18 +220,6 @@ export const UnifiedAdminConsole = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "operational":
-        return "text-green-400";
-      case "maintenance":
-        return "text-yellow-400";
-      case "error":
-        return "text-red-400";
-      default:
-        return "text-gray-400";
-    }
-  };
 
   const getHealthColor = (health: number) => {
     if (health >= 95) return "text-green-400";
