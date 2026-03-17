@@ -192,7 +192,7 @@ func (s *Scanner) scanPort(host string, port int) *Result {
 func (s *Scanner) grabBanner(conn net.Conn, port int, host string) string {
 	// Protocol-Specific Probes
 	switch port {
-	case 80, 443, 8080, 8443:
+	case 80, 443, 8080, 8443, 11434, 18789:
 		return s.httpBanner(conn, host)
 	default:
 		return s.genericBanner(conn)
@@ -297,6 +297,10 @@ func identifyService(port int) string {
 		return "HTTP-Alt"
 	case 8443:
 		return "HTTPS-Alt"
+	case 11434:
+		return "Ollama-LLM"
+	case 18789:
+		return "OpenClaw-NemoClaw" // NVIDIA NemoClaw / OpenClaw agent gateway default port
 	default:
 		return "Unknown"
 	}
@@ -304,5 +308,5 @@ func identifyService(port int) string {
 
 var commonPorts = []int{
 	20, 21, 22, 23, 25, 53, 80, 110, 111, 135, 139, 143, 443, 445, 993, 995,
-	1433, 1723, 3306, 3389, 5432, 5900, 6379, 8080, 8443, 27017,
+	1433, 1723, 3306, 3389, 5432, 5900, 6379, 8080, 8443, 11434, 18789, 27017,
 }
