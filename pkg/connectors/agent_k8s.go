@@ -208,6 +208,7 @@ func NewDefaultRegistry() *ConnectorRegistry {
 	reg.Register(&GenericConnector{
 		ScanPaths: []string{".", "/etc", "/var/config"},
 	})
+	reg.Register(NewNemoClawConnector())
 	return reg
 }
 
