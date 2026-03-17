@@ -3,6 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "description": "ASAF — Agentic Security Attestation Framework by NouchiX",
+  "packageManager": "bun@1.3.9",
   "type": "module",
   "scripts": {
     "dev": "next dev",
