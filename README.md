@@ -16,11 +16,13 @@ OpenClaw, the fastest-growing AI agent platform in recent memory, had **30,000+ 
 
 This is not an OpenClaw problem. It is a **category problem**.
 
-Every AI agent platform — OpenClaw, custom MCP deployments, internal AI assistants with system access — carries the same structural risk: broad permissions, minimal guardrails, and no cryptographic proof of what it was doing or why.
+Every AI agent platform — OpenClaw, NVIDIA NemoClaw, custom MCP deployments, internal AI assistants with system access — carries the same structural risk: broad permissions, minimal guardrails, and no cryptographic proof of what it was doing or why.
+
+**NVIDIA NemoClaw** (launched at GTC 2026) adds OpenShell sandboxing and YAML-based policy guardrails to OpenClaw deployments — a meaningful improvement. But NemoClaw is **alpha software**, and NVIDIA's own documentation states it "should not yet be considered production-ready." OpenShell enforces sandboxing; it does not issue proof that a deployment is correctly configured. That is ASAF's role.
 
 Your CISO will ask: *"Is our AI agent deployment safe?"*
 
-Without ASAF, you cannot answer that question with evidence.
+Without ASAF, you cannot answer that question with evidence — even if you've deployed NemoClaw.
 
 ---
 
@@ -92,6 +94,36 @@ ASAF uses three technical layers under the hood:
 - **ADINKHEPRA Attestation** — Post-quantum cryptographic signatures (NIST Dilithium/Kyber) bind findings to a tamper-proof certificate — mathematical proof, not a PDF checklist
 
 The certificate is the moat. Any scanner can find a vulnerability. Only ASAF can issue a verifiable, quantum-safe proof that an AI deployment is enterprise-grade.
+
+---
+
+## NVIDIA NemoClaw Support
+
+ASAF natively scans and certifies **NVIDIA NemoClaw** deployments — the OpenShell-powered enterprise stack for OpenClaw AI agents.
+
+```bash
+# Discover and audit a NemoClaw deployment
+asaf scan --target <host> --port 18789
+
+# Certify a NemoClaw deployment with ADINKHEPRA attestation
+asaf certify --target <host> --profile nemoclaw --out nemoclaw-cert.pdf
+```
+
+ASAF's NemoClaw audit checks all four OpenShell policy domains:
+
+| Check | Domain | What ASAF Verifies |
+|-------|--------|-------------------|
+| NMC-001 | Inference | `blueprint.yaml` present with inference profiles |
+| NMC-002 | Filesystem | OpenShell sandbox policy file exists |
+| NMC-003 | Filesystem | Policy restricted to `/sandbox` and `/tmp` only |
+| NMC-004 | Network | No wildcard allow-all egress rules |
+| NMC-005 | Process | Privilege escalation and syscall hardening configured |
+| NMC-006 | Inference | Inference provider configured (nvidia-nim / vllm) |
+| NMC-007 | Credentials | NVIDIA API key not stored in plaintext |
+| NMC-008 | Filesystem | Config directory not world-readable |
+| NMC-009 | Process | Static policy domains not marked hot-reloadable |
+
+**Why NemoClaw needs ASAF:** OpenShell enforces runtime guardrails. ASAF issues the cryptographic proof — a quantum-safe ADINKHEPRA certificate — that those guardrails are correctly configured. NemoClaw tells the agent what it can do. ASAF tells your CISO that the agent is safe to deploy.
 
 ---
 
