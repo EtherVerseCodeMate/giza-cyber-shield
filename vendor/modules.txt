@@ -121,10 +121,6 @@ github.com/aws/smithy-go/waiter
 ## explicit
 # github.com/bodgit/windows v1.0.1
 ## explicit
-# github.com/bytedance/sonic v1.11.6
-## explicit
-# github.com/bytedance/sonic/loader v0.1.1
-## explicit
 # github.com/cloudflare/circl v1.6.3
 ## explicit; go 1.24
 github.com/cloudflare/circl/internal/sha3
@@ -141,10 +137,6 @@ github.com/cloudflare/circl/sign/dilithium/mode3/internal
 github.com/cloudflare/circl/sign/internal/dilithium
 github.com/cloudflare/circl/sign/internal/dilithium/params
 github.com/cloudflare/circl/simd/keccakf1600
-# github.com/cloudwego/base64x v0.1.4
-## explicit
-# github.com/cloudwego/iasm v0.2.0
-## explicit
 # github.com/coder/websocket v1.8.12
 ## explicit
 github.com/coder/websocket
