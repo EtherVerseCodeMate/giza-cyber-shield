@@ -20,6 +20,7 @@ interface ScanResult {
   open_integrations: number;
   findings: { severity: 'critical' | 'high' | 'medium' | 'low'; text: string }[];
   certified: boolean;
+  platform?: string;
 }
 
 const SCAN_PHASES = [
@@ -251,10 +252,15 @@ const OnboardingOrchestrator: React.FC = () => {
           {/* Risk score */}
           <div className="text-center space-y-2">
             <h2 className="text-2xl font-bold text-white">Scan complete — <span className="font-mono text-[#00ffff]">{target}</span></h2>
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex items-center justify-center gap-3 flex-wrap">
               <span className="text-gray-400 text-sm">Risk Score</span>
               <span className={`text-4xl font-black ${riskColor}`}>{result.risk_score}<span className="text-lg">/100</span></span>
               {result.exposed && <Badge className="bg-red-950/40 text-red-400 border-red-500/30">Exposed</Badge>}
+              {result.platform === 'nemoclaw' && (
+                <Badge className="bg-cyan-950/40 text-cyan-300 border-cyan-500/30 ml-2">
+                  NVIDIA NemoClaw / OpenShell profile
+                </Badge>
+              )}
             </div>
           </div>
 
