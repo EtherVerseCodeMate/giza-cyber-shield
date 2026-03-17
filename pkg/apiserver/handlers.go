@@ -159,6 +159,8 @@ func (s *Server) handleGetScanStatus(c *gin.Context) {
 			"failed_checks": scan.FailedChecks,
 			"findings":      len(scan.Findings),
 		},
+		Platform:  scan.Platform,
+		Certified: scan.Certified,
 	}
 
 	if scan.EndTime != nil {
