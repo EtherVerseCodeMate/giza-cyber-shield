@@ -261,8 +261,8 @@ export const MVP1Dashboard = () => {
                   {feature.details && (
                     <div className="p-4 bg-muted/30">
                       <ul className="text-sm space-y-1 text-muted-foreground">
-                        {feature.details.map((detail, idx) => (
-                          <li key={idx}>• {detail}</li>
+                        {feature.details.map((detail) => (
+                          <li key={detail}>• {detail}</li>
                         ))}
                       </ul>
                     </div>
