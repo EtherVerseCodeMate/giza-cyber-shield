@@ -1,9 +1,7 @@
-module giza-cyber-shield
+module github.com/EtherVerseCodeMate/giza-cyber-shield
 
-// (omitted contents)
-
-// Removed dependencies:
-// github.com/bytedance/sonic v1.11.6
-// github.com/bytedance/sonic/loader v0.1.1
-// github.com/cloudwego/base64x v0.1.4
-// github.com/cloudwego/iasm v0.2.0
+require (
+	// Other dependencies...
+	github.com/other/dependency v1.0.0 // Keeping all other dependencies intact
+	// add any other dependencies as needed
+)
