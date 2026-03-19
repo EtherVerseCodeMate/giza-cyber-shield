@@ -7,7 +7,7 @@ const corsHeaders = {
 
 const GATEWAY_URL = 'https://souhimbou-ai.fly.dev/api/stigs';
 
-serve(async (req) => {
+serve(async (req: Request) => {
     if (req.method === 'OPTIONS') {
         return new Response(null, { headers: corsHeaders });
     }
@@ -59,7 +59,7 @@ serve(async (req) => {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('STIG Relay Error:', error);
         return new Response(JSON.stringify({
             success: false,

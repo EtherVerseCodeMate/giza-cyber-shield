@@ -1,0 +1,30 @@
+name: "tnok"
+services:
+  client:
+    image: registry.gitlab.com/ainfosec-official/tnok/tester:latest
+    hostname: tnok-client
+    tty: true
+    privileged: true
+    user: root
+    networks:
+      internal:
+        ipv4_address: 192.168.123.3
+    volumes:
+      - ../:/source
+  server:
+    image: registry.gitlab.com/ainfosec-official/tnok/tester:latest
+    tty: true
+    privileged: true
+    user: root
+    networks:
+      internal:
+        ipv4_address: 192.168.123.2
+    hostname: tnok-server
+    volumes:
+      - ../:/source
+
+networks:
+  internal:
+    ipam:
+      config:
+        - subnet: 192.168.123.0/24
