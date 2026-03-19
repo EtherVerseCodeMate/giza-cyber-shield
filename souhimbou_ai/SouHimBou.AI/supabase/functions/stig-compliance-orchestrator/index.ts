@@ -78,7 +78,7 @@ serve(async (req) => {
 });
 
 async function handleSTIGScan(req: Request, supabase: any) {
-  const { asset_id, organization_id, scan_type, benchmark_ids }: ScanRequest = await req.json();
+  const { asset_id, organization_id, scan_type }: ScanRequest = await req.json();
 
   console.log(`Initiating STIG scan for asset ${asset_id}`);
 
@@ -211,6 +211,12 @@ function mapAssetTypeToPlatform(assetType: string, assetOs?: string): string {
   return 'Generic';
 }
 
+function getRuleWeight(severity: string): number {
+  if (severity === 'CAT_I') return 90;
+  if (severity === 'CAT_II') return 70;
+  return 50;
+}
+
 async function performComplianceChecks(asset: any, rules: STIGRule[], scanId: string, orgId: string) {
   const findings = [];
 
@@ -218,7 +224,7 @@ async function performComplianceChecks(asset: any, rules: STIGRule[], scanId: st
     // Deterministic compliance check based on asset and rule properties
     // In production, this would query actual asset configuration
     const assetScore = asset.compliance_score || 75;
-    const ruleWeight = rule.severity === 'CAT_I' ? 90 : rule.severity === 'CAT_II' ? 70 : 50;
+    const ruleWeight = getRuleWeight(rule.severity);
     const isCompliant = assetScore >= ruleWeight;
     const status = isCompliant ? 'NotAFinding' : 'Open';
 
@@ -235,7 +241,7 @@ async function performComplianceChecks(asset: any, rules: STIGRule[], scanId: st
         check_result: isCompliant ? 'PASS' : 'FAIL',
         check_timestamp: new Date().toISOString()
       },
-      remediation_priority: rule.severity === 'CAT_I' ? 90 : rule.severity === 'CAT_II' ? 70 : 50
+      remediation_priority: getRuleWeight(rule.severity)
     };
 
     findings.push(finding);
@@ -492,7 +498,7 @@ async function generateComplianceReport(req: Request, supabase: any) {
 }
 
 async function calculateCompliance(req: Request, supabase: any) {
-  const { organization_id, scope_filter } = await req.json();
+  const { organization_id } = await req.json();
 
   const { data: findings, error } = await supabase
     .from('stig_findings')
@@ -545,7 +551,7 @@ async function calculateCompliance(req: Request, supabase: any) {
 }
 
 async function getRemediationActions(req: Request, supabase: any) {
-  const { organization_id } = await req.json();
+  await req.json();
 
   // In production, these would be fetched from a stig_remediation_actions table
   // For now, we return standard actions for common STIG rules
