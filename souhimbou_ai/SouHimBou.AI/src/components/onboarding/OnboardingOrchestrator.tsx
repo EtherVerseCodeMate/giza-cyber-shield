@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, Search, CheckCircle, AlertTriangle, XCircle, ArrowRight, Lock } from 'lucide-react';
+import { Shield, Search, CheckCircle, AlertTriangle, XCircle, ArrowRight, Lock, Loader2 } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_ASAF_API_URL || 'http://localhost:45444';
 const API_KEY = process.env.NEXT_PUBLIC_ASAF_API_KEY || '';
@@ -20,29 +20,69 @@ interface ScanResult {
   open_integrations: number;
   findings: { severity: 'critical' | 'high' | 'medium' | 'low'; text: string }[];
   certified: boolean;
+  platform?: string;
+}
+
+/** Raw ASAF API scan status (see pkg/apiserver ScanStatus). */
+interface ScanStatusPayload {
+  scan_id: string;
+  status: string;
+  progress?: number;
+  risk_score?: number;
+  exposed?: boolean;
+  auth_weakness?: boolean;
+  open_integrations?: number;
+  findings?: { severity: string; text: string }[];
+  certified?: boolean;
+  platform?: string;
+}
+
+function normalizeScanResult(scanId: string, raw: ScanStatusPayload): ScanResult {
+  const sev = (s: string): 'critical' | 'high' | 'medium' | 'low' => {
+    if (s === 'critical' || s === 'high' || s === 'medium' || s === 'low') return s;
+    return 'medium';
+  };
+  return {
+    scan_id: scanId,
+    risk_score: raw.risk_score ?? 0,
+    exposed: raw.exposed ?? false,
+    auth_weakness: raw.auth_weakness ?? false,
+    open_integrations: raw.open_integrations ?? 0,
+    findings: (raw.findings ?? []).map(f => ({ severity: sev(f.severity), text: f.text })),
+    certified: raw.certified ?? false,
+    platform: raw.platform,
+  };
 }
 
 const SCAN_PHASES = [
-  'Checking port exposure...',
-  'Fingerprinting gateway...',
-  'Auditing auth configuration...',
-  'Mapping integration blast radius...',
-  'Running NIST/STIG controls...',
-  'Generating risk score...',
+  'Probing exposed surfaces (agent gateway / HTTPS)...',
+  'Mapping CMMC & STIG evidence expectations...',
+  'Correlating findings with audit readiness...',
+  'Building assessor-ready finding list...',
+  'Scoring organizational risk...',
+  'Finalizing report...',
 ];
 
 async function triggerScan(target: string): Promise<string> {
+  const body: Record<string, unknown> = {
+    target_url: target,
+    scan_type: 'eval',
+    metadata: { source: 'onboarding', product: 'asaf' },
+  };
+  const profile = (import.meta as { env?: { VITE_ASAF_SCAN_PROFILE?: string } }).env?.VITE_ASAF_SCAN_PROFILE;
+  if (profile) body.profile = profile;
+
   const res = await fetch(`${API_BASE}/api/v1/scans/trigger`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': API_KEY },
-    body: JSON.stringify({ target_url: target, scan_type: 'full' }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`Scan failed: ${res.status}`);
   const data = await res.json();
   return data.scan_id;
 }
 
-async function pollScan(scanId: string): Promise<ScanResult> {
+async function pollScan(scanId: string): Promise<ScanStatusPayload> {
   const res = await fetch(`${API_BASE}/api/v1/scans/${scanId}`, {
     headers: { 'Authorization': API_KEY },
   });
@@ -60,6 +100,7 @@ const OnboardingOrchestrator: React.FC = () => {
   const [result, setResult] = useState<ScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -92,14 +133,16 @@ const OnboardingOrchestrator: React.FC = () => {
     if (!scanId || step !== 'scanning') return;
     pollRef.current = setInterval(async () => {
       try {
-        const data = await pollScan(scanId);
-        if (data.certified !== undefined) {
+        const raw = await pollScan(scanId);
+        const done = raw.status === 'completed' || raw.status === 'failed';
+        if (done) {
           clearInterval(pollRef.current!);
           setProgress(100);
+          setIsScanning(false);
           setTimeout(() => {
-            setResult(data);
+            setResult(normalizeScanResult(scanId, raw));
             setStep('results');
-          }, 600);
+          }, 400);
         }
       } catch {
         // keep polling, transient error
@@ -109,22 +152,25 @@ const OnboardingOrchestrator: React.FC = () => {
   }, [scanId, step]);
 
   const handleScan = async () => {
-    if (!target.trim()) return;
+    if (!target.trim() || isScanning) return;
     setError(null);
     setResult(null);
     setScanId(null);
+    setIsScanning(true);
     setStep('scanning');
     setPhase(0);
     setProgress(5);
     try {
       const id = await triggerScan(target.trim());
       setScanId(id);
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
       setError(
-        `Scan failed: ${e.message}. ` +
+        `Scan failed: ${msg}. ` +
         `Ensure NEXT_PUBLIC_ASAF_API_URL points to your running ASAF backend (currently: ${API_BASE}).`
       );
       setStep('input');
+      setIsScanning(false);
     }
   };
 
@@ -159,8 +205,10 @@ const OnboardingOrchestrator: React.FC = () => {
                 <Search className="h-8 w-8 text-[#00ffff]" />
               </div>
             </div>
-            <h1 className="text-3xl font-bold text-white">Scan your AI agent deployment</h1>
-            <p className="text-gray-400">Enter any IP, domain, or hostname. We'll check it for exposure in under 60 seconds — free, no account needed.</p>
+            <h1 className="text-3xl font-bold text-white">CMMC & audit readiness scan</h1>
+            <p className="text-gray-400">
+              Free surface check plus assessor-oriented findings. Enter a hostname or IP — we probe from this scanner&apos;s network (e.g. agent gateway 18789, HTTPS). Optional: NemoClaw NMC checks when config exists on the ASAF host.
+            </p>
           </div>
 
           {error && (
@@ -179,7 +227,7 @@ const OnboardingOrchestrator: React.FC = () => {
                 onKeyDown={e => e.key === 'Enter' && handleScan()}
                 className="bg-[#0a0a0a] border-gray-700 text-white placeholder:text-gray-600 font-mono"
               />
-              <p className="text-xs text-gray-600">OpenClaw default port (18789) checked automatically. Custom ports also supported.</p>
+              <p className="text-xs text-gray-600">Default probes include 18789 (common agent gateway) and 443. Use https://host:port for a specific URL.</p>
             </div>
             <div className="space-y-2">
               <label className="text-sm text-gray-400 font-medium">Email <span className="text-gray-600">(optional — to receive your report)</span></label>
@@ -193,11 +241,15 @@ const OnboardingOrchestrator: React.FC = () => {
             </div>
             <Button
               onClick={handleScan}
-              disabled={!target.trim()}
+              disabled={!target.trim() || isScanning}
               className="w-full bg-gradient-to-r from-[#00ffff] to-[#0088ff] text-black font-bold py-5"
             >
-              <Shield className="h-4 w-4 mr-2" />
-              Start Free Scan
+              {isScanning ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Shield className="h-4 w-4 mr-2" />
+              )}
+              {isScanning ? 'Starting scan…' : 'Start free scan'}
             </Button>
             <p className="text-xs text-center text-gray-600">No account required. No credit card. Results in ~60s.</p>
           </div>
@@ -242,6 +294,7 @@ const OnboardingOrchestrator: React.FC = () => {
     const severityIcon = (s: string) => {
       if (s === 'critical') return <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />;
       if (s === 'high') return <AlertTriangle className="h-3.5 w-3.5 text-orange-400 shrink-0" />;
+      if (s === 'low') return <CheckCircle className="h-3.5 w-3.5 text-emerald-400 shrink-0" />;
       return <AlertTriangle className="h-3.5 w-3.5 text-yellow-400 shrink-0" />;
     };
 
@@ -251,10 +304,13 @@ const OnboardingOrchestrator: React.FC = () => {
           {/* Risk score */}
           <div className="text-center space-y-2">
             <h2 className="text-2xl font-bold text-white">Scan complete — <span className="font-mono text-[#00ffff]">{target}</span></h2>
-            <div className="flex items-center justify-center gap-3">
-              <span className="text-gray-400 text-sm">Risk Score</span>
+            <div className="flex items-center justify-center gap-3 flex-wrap">
+              <span className="text-gray-400 text-sm">Risk score</span>
               <span className={`text-4xl font-black ${riskColor}`}>{result.risk_score}<span className="text-lg">/100</span></span>
-              {result.exposed && <Badge className="bg-red-950/40 text-red-400 border-red-500/30">Exposed</Badge>}
+              {result.exposed && <Badge className="bg-red-950/40 text-red-400 border-red-500/30">Surface exposed</Badge>}
+              {result.platform === 'nemoclaw' && (
+                <Badge className="bg-cyan-950/40 text-cyan-300 border-cyan-500/30">NemoClaw / OpenShell (local config)</Badge>
+              )}
             </div>
           </div>
 
@@ -268,6 +324,7 @@ const OnboardingOrchestrator: React.FC = () => {
                 <Badge className={`ml-auto shrink-0 text-xs ${
                   f.severity === 'critical' ? 'bg-red-950/40 text-red-400 border-red-500/30' :
                   f.severity === 'high' ? 'bg-orange-950/40 text-orange-400 border-orange-500/30' :
+                  f.severity === 'low' ? 'bg-emerald-950/40 text-emerald-400 border-emerald-500/30' :
                   'bg-yellow-950/40 text-yellow-400 border-yellow-500/30'
                 }`}>{f.severity}</Badge>
               </div>
@@ -319,7 +376,7 @@ const OnboardingOrchestrator: React.FC = () => {
           </div>
 
           <div className="flex gap-3">
-            <Button variant="outline" className="flex-1 border-gray-700 text-gray-400" onClick={() => { setStep('input'); setTarget(''); setResult(null); }}>
+            <Button variant="outline" className="flex-1 border-gray-700 text-gray-400" onClick={() => { setStep('input'); setTarget(''); setResult(null); setIsScanning(false); }}>
               Scan another target
             </Button>
             <Button variant="outline" className="flex-1 border-gray-700 text-gray-400" onClick={() => navigate('/compliance-reports')}>
