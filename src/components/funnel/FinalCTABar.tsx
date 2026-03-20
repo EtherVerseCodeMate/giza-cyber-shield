@@ -30,12 +30,12 @@ export const FinalCTABar = () => {
           className="max-w-3xl mx-auto text-center space-y-8"
         >
           <h2 className="text-3xl md:text-4xl font-bold text-white">
-            Is your AI agent deployment{' '}
-            <span className="text-[#00ffff]">enterprise-safe</span>?
+            Ready for{' '}
+            <span className="text-[#00ffff]">CMMC evidence</span>?
           </h2>
           <p className="text-gray-400 text-lg max-w-xl mx-auto">
-            Scan free. Get your exposure report in minutes. Upgrade to earn your
-            <span className="text-[#d4af37] font-semibold"> ADINKHEPRA certification badge</span> — the proof your CISO needs.
+            Scan free. Get surface + readiness findings in minutes. Upgrade to earn your
+            <span className="text-[#d4af37] font-semibold"> ADINKHEPRA seal</span> — tamper-evident attestation for assessors.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

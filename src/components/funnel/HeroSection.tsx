@@ -42,22 +42,21 @@ export const HeroSection = () => {
           >
             {/* Main Headline */}
             <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 bg-red-950/40 border border-red-500/30 rounded-full px-4 py-1.5 text-sm text-red-400 font-medium mb-2">
-                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                30,000+ AI agent instances exposed. Is yours one of them?
+              <div className="inline-flex items-center gap-2 bg-amber-950/40 border border-amber-500/30 rounded-full px-4 py-1.5 text-sm text-amber-400 font-medium mb-2">
+                <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                CMMC &amp; NIST 800-171 — evidence packages assessors actually use
               </div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
-                <span className="text-white">We build agents</span>
+                <span className="text-white">Audit-ready</span>
                 <br />
-                <span className="text-[#00ffff]">that secure</span>{' '}
-                <span className="text-white">other agents.</span>
+                <span className="text-[#00ffff]">compliance</span>{' '}
+                <span className="text-white">for regulated teams.</span>
               </h1>
 
               {/* Subheadline */}
               <p className="text-lg md:text-xl text-gray-300 leading-relaxed max-w-xl">
-                ASAF scans, audits, and cryptographically certifies AI agent deployments —
-                so your enterprise can say yes to agentic AI without saying yes to unacceptable risk.
-                Earn your <span className="text-[#d4af37] font-semibold">ADINKHEPRA badge</span>: the security standard for the agentic era.
+                ASAF runs readiness scans and maps findings to control-oriented evidence — so ISSMs and C3PAO prep teams get traceable outputs, not slide decks.
+                Earn your <span className="text-[#d4af37] font-semibold">ADINKHEPRA seal</span> when you certify. Agent gateways (e.g. NemoClaw profile) supported where in scope.
               </p>
             </div>
 
