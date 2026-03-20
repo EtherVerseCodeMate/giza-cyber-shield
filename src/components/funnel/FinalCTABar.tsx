@@ -5,10 +5,6 @@ import { useNavigate } from 'react-router-dom';
 export const FinalCTABar = () => {
   const navigate = useNavigate();
 
-  const scrollToSystemOverview = () => {
-    document.getElementById('system-overview')?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   return (
     <section className="py-24 bg-gradient-to-r from-[#0d1421] via-[#0a0a0a] to-[#0d1421] relative overflow-hidden">
       {/* Background glow */}
@@ -49,10 +45,10 @@ export const FinalCTABar = () => {
             <Button
               size="lg"
               variant="outline"
-              onClick={() => navigate('/billing')}
-              className="border-[#d4af37]/60 text-[#d4af37] hover:bg-[#d4af37]/10 font-semibold text-lg px-10 py-6 rounded-lg"
+              onClick={() => navigate('/advisory')}
+              className="border-[#00ffff]/40 text-[#00ffff] hover:bg-[#00ffff]/10 font-semibold text-lg px-10 py-6 rounded-lg"
             >
-              Get Certified — $99/mo
+              Book Advisory Call
             </Button>
           </div>
 

@@ -44,10 +44,10 @@ export const TrustAnchors = () => {
           className="text-center mb-16"
         >
           <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">
-            Trust Anchors & <span className="text-[#00ffff]">Industry Collaborations</span>
+            Evidence & <span className="text-[#00ffff]">Attestation</span> Trust
           </h2>
           <p className="text-xl text-gray-400">
-            Built With Real STIG Expertise
+            Built for C3PAO / ISSM intake: traceable findings and optional ADINKHEPRA seal.
           </p>
         </motion.div>
 
