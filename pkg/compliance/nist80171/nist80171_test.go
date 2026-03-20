@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestValidator_ValidateACFamily(t *testing.T) {
+func TestValidatorValidateACFamily(t *testing.T) {
 	v := &Validator{}
 	results := v.ValidateACFamily()
 
@@ -39,7 +39,7 @@ func TestValidator_ValidateACFamily(t *testing.T) {
 	}
 }
 
-func TestValidator_Placeholder(t *testing.T) {
+func TestValidatorPlaceholder(t *testing.T) {
 	v := &Validator{}
 	res := v.placeholder("test-id")
 

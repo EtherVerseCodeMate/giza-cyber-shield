@@ -10,6 +10,10 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 )
 
+const (
+	testAgentID = "test-agent"
+)
+
 func TestPolymorphicEngine(t *testing.T) {
 	engine, err := NewPolymorphicEngine("Eban", 12)
 	if err != nil {
@@ -17,7 +21,7 @@ func TestPolymorphicEngine(t *testing.T) {
 	}
 
 	payload := []byte("test-payload")
-	agentID := "test-agent"
+	agentID := testAgentID
 
 	// Test WrapRequest
 	signed, err := engine.WrapRequest(payload, agentID)
@@ -47,11 +51,11 @@ func TestPolymorphicEngine(t *testing.T) {
 	}
 }
 
-func TestDEMARCGateway_Authenticate(t *testing.T) {
+func TestDEMARCGatewayAuthenticate(t *testing.T) {
 	engine, _ := NewPolymorphicEngine("Eban", 12)
 	gateway := NewDEMARCGateway(engine)
 
-	agentID := "test-agent"
+	agentID := testAgentID
 	symbol := "Eban"
 	
 	// Create a private key for issuing (simulating the caller)
@@ -78,11 +82,11 @@ func TestDEMARCGateway_Authenticate(t *testing.T) {
 	}
 }
 
-func TestDEMARCGateway_HTTPHandler(t *testing.T) {
+func TestDEMARCGatewayHTTPHandler(t *testing.T) {
 	engine, _ := NewPolymorphicEngine("Eban", 12)
 	gateway := NewDEMARCGateway(engine)
 
-	agentID := "test-agent"
+	agentID := testAgentID
 	symbol := "Eban"
 	_, priv, _ := adinkra.GenerateAdinkhepraPQCKeyPair(make([]byte, 32), symbol)
 	cred, _ := gateway.Issue(agentID, symbol, priv)
