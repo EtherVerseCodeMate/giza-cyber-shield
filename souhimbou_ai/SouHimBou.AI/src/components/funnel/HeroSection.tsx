@@ -42,6 +42,10 @@ export const HeroSection = () => {
           >
             {/* Main Headline */}
             <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 bg-amber-950/40 border border-amber-500/30 rounded-full px-4 py-1.5 text-sm text-amber-400 font-medium mb-2">
+                <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                Evidence-first — NIST 800-171 &amp; CMMC intake
+              </div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
                 <span className="text-[#00ffff]">AI-Powered</span>{' '}
                 <span className="text-white">STIG & CMMC</span>
@@ -54,9 +58,9 @@ export const HeroSection = () => {
 
               {/* Subheadline */}
               <p className="text-lg md:text-xl text-gray-300 leading-relaxed max-w-xl">
-                SouHimBou AI helps defense-focused organizations automate STIG compliance workflows, 
-                validate configurations, and prepare audit-ready evidence — currently in active development 
-                and available for early pilot partners.
+                SouHimBou AI helps defense-focused teams automate STIG workflows and package assessor-ready evidence.
+                ASAF-backed scans surface exposure and readiness signals; agent profiles (e.g. NemoClaw) are optional when in scope.
+                Active development — pilot partners welcome.
               </p>
             </div>
 
