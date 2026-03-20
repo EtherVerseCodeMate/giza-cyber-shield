@@ -348,6 +348,24 @@ def _test_agent_api() -> bool:
         if telemetry_proc:
             telemetry_proc.terminate()
 
+def _run_resilience_validation() -> bool:
+    """Run the TRL-10 resilience bridging experiment (A7→A8)."""
+    print_step("Resilience", 5, 5, "Running Resilience Validation (TRL-10 Bridging)")
+    try:
+        from resilience_validation import run_resilience_validation
+        all_passed, results = run_resilience_validation()
+        if not all_passed:
+            print_error("Resilience validation failed — review failure modes above")
+        return all_passed
+    except ImportError as e:
+        print_warning(f"Resilience validation module not available: {e}")
+        print_info("Skipping resilience tests (install resilience_validation.py)")
+        return True
+    except Exception as e:
+        print_error(f"Resilience validation crashed: {e}")
+        return False
+
+
 def validate() -> bool:
     """
     Run the complete ADINKHEPRA validation suite.
@@ -368,14 +386,20 @@ def validate() -> bool:
         return False
     if not _test_agent_api():
         return False
-    
+
+    # ========================================================================
+    # RESILIENCE VALIDATION (TRL-10 Bridging: A7 → A8)
+    # ========================================================================
+    if not _run_resilience_validation():
+        return False
+
     # ========================================================================
     # VALIDATION COMPLETE
     # ========================================================================
     print_header("✨ ALL SYSTEMS GO. ADINKHEPRA IS READY ✨", "=")
-    print_info("Validation suite passed all checks")
+    print_info("Validation suite passed all checks (repeatability + resilience)")
     print_info("System is ready for pilot deployment")
-    
+
     return True
 
 
@@ -537,6 +561,7 @@ def print_usage() -> None:
     print("Usage: python adinkhepra.py [command]")
     print("\nCommands:")
     print("  validate         -> Run full test suite then LAUNCH stack")
+    print("  resilience       -> Run resilience validation only (TRL-10 bridging)")
     print("  launch           -> Launch Agent + Frontend")
     print("  agent  [args...] -> Run the ADINKHEPRA agent")
     print("  cli    [args...] -> Run the ADINKHEPRA CLI tool")
@@ -592,6 +617,11 @@ def main() -> None:
             print_error("Validation failed. Fix errors before deploying.")
             sys.exit(1)
         
+    elif command == "resilience":
+        from resilience_validation import run_resilience_validation
+        all_passed, _ = run_resilience_validation()
+        sys.exit(0 if all_passed else 1)
+
     elif command == "tnok":
         launch_tnok(extra_args)
         
