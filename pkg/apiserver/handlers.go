@@ -90,6 +90,26 @@ func (s *Server) handleTriggerScan(c *gin.Context) {
 	queuedAt := time.Now()
 	estimatedCompletion := queuedAt.Add(5 * time.Minute)
 
+	// Register scan in Command Center and run async onboarding assessment (TCP + optional local NemoClaw).
+	now := time.Now()
+	scan := &ScanResult{
+		ID:         scanID,
+		StartTime:  now,
+		Status:     StatusRunning,
+		Framework:  req.ScanType,
+		Profile:    req.Profile,
+		Platform:   "generic",
+		Certified:  false,
+		TargetURL:  req.TargetURL,
+		Findings:   []Finding{},
+		Remediations: []Remediation{},
+	}
+	commandCenter.mu.Lock()
+	commandCenter.scans[scanID] = scan
+	commandCenter.mu.Unlock()
+
+	go runASAFOnboardingScan(scanID, req)
+
 	response := ScanResponse{
 		ScanID:       scanID,
 		Status:       "queued",
@@ -159,8 +179,13 @@ func (s *Server) handleGetScanStatus(c *gin.Context) {
 			"failed_checks": scan.FailedChecks,
 			"findings":      len(scan.Findings),
 		},
-		Platform:  scan.Platform,
-		Certified: scan.Certified,
+		Platform:           scan.Platform,
+		Certified:        scan.Certified,
+		RiskScore:          scan.RiskScore,
+		Exposed:            scan.GatewayExposed,
+		AuthWeakness:       scan.AuthWeaknessHeuristic,
+		OpenIntegrations:   scan.OpenIntegrations,
+		Findings:           scan.PresentationFindings,
 	}
 
 	if scan.EndTime != nil {
