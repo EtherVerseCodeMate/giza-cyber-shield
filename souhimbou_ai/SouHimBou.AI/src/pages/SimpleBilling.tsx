@@ -19,7 +19,7 @@ const PLANS = [
   {
     name: 'Free',
     price: '$0',
-    description: 'Scan any AI agent deployment. Get your exposure report.',
+    description: "Scan any AI agent deployment. See what’s exposed.",
     features: ['Unlimited scans', 'Exposure report', 'Basic risk score', 'Community support'],
     cta: 'Current Plan',
     ctaVariant: 'outline' as const,
@@ -29,7 +29,7 @@ const PLANS = [
   {
     name: 'Certify',
     price: '$99',
-    description: 'Full compliance audit + ADINKHEPRA certification badge.',
+    description: 'Full NIST 800-171 / STIG readiness audit + ADINKHEPRA certification seal.',
     features: ['Everything in Free', 'Full NIST/STIG audit', 'ADINKHEPRA badge (PDF + API)', 'Shareable attestation report', 'Email support'],
     cta: 'Upgrade to Certify',
     ctaVariant: 'default' as const,
@@ -39,9 +39,9 @@ const PLANS = [
   {
     name: 'Enterprise',
     price: '$499',
-    description: 'Continuous monitoring + attestation API + team seats.',
-    features: ['Everything in Certify', 'Continuous monitoring', 'Attestation API access', 'Up to 10 team seats', 'Priority support', 'Custom compliance frameworks'],
-    cta: 'Contact Sales',
+    description: 'Evidence-first scope alignment + readiness advisory for regulated programs.',
+    features: ['Everything in Certify', 'Evidence advisory sessions', 'Attestation API access', 'Up to 10 team seats', 'Priority support', 'Custom compliance frameworks'],
+    cta: 'Book Advisory Call',
     ctaVariant: 'outline' as const,
     highlight: false,
     action: 'contact' as const,
@@ -179,7 +179,7 @@ const SimpleBilling = () => {
                   disabled={plan.action === 'checkout' && loading}
                   onClick={() => {
                     if (plan.action === 'checkout') handleCheckout();
-                    if (plan.action === 'contact') window.location.href = 'mailto:skone@alumni.albany.edu?subject=ASAF Enterprise';
+                    if (plan.action === 'contact') window.location.href = '/advisory';
                   }}
                 >
                   {plan.action === 'checkout' && loading ? 'Redirecting...' : plan.cta}
