@@ -3,7 +3,7 @@
 **Date:** 2026-03-20
 **Status:** Active Execution Plan
 **Author:** Sprint 28 GTM Synthesis
-**Builds on:** Sprint 27 NLP/NemoClaw Pivot, Sprint 28 Post-Mortem, Gemini Market Research
+**Builds on:** Sprint 27 NLP/NemoClaw Pivot, Sprint 27 Viability Test, Sprint 28 Post-Mortem, Gemini Market Research
 **Classification:** Founder-Eyes-Only Strategy Document
 
 ---
@@ -39,54 +39,90 @@ Everything else in this document fails if you have not proven someone will hand 
 
 ### The Revenue Strike (Next 7 Days)
 
-**Offer — not SaaS:**
+**Why $500 was wrong — the DIB buyer psychology problem:**
 
-> **"CMMC Readiness Strike — $500 to $2,000 fixed fee"**
+The Sprint 27 Viability Test ran the $500 offer against 11 KHEPRI sign-ups and real
+outreach. Result: 0 conversions. Root cause analysis:
+
+- $500 signals "cheap tool" to a DoD procurement officer accustomed to $20k–$80k C3PAO
+  assessment fees and $150k/year compliance consulting retainers
+- Low price creates distrust in high-stakes environments — if it is this cheap, it cannot
+  be serious enough for an audit that determines contract eligibility
+- DIB buyers do not impulse-buy. They justify spend to contracting officers and program
+  managers. A $500 line item looks like a software subscription, not a professional service
+
+**The buyer psychology rule for DIB:** Premium price = premium credibility. The floor
+for entry into this procurement environment is no less than $5,000.
+
+---
+
+**Offer — not SaaS, not low-ticket:**
+
+> **"CMMC Readiness Diagnostic — $5,000 fixed fee"**
 
 Includes:
-- 1 system scan (KHEPRA engine, live)
-- STIG gap mapping against NIST SP 800-171 controls
-- Evidence package structured for C3PAO submission
-- Written "C3PAO readiness" report with remediation priorities
+- Full KHEPRA system scan (live, not a demo)
+- STIG gap mapping against all applicable NIST SP 800-171 controls
+- Evidence package structured for C3PAO submission (DAG-anchored, PQC-signed)
+- Written C3PAO readiness report with prioritized remediation plan
+- Optional ADINKHEPRA seal preview on the evidence artifact
+- 30-day follow-up call to verify remediation progress
+
+**Why $5,000 — anchored to what it displaces:**
+
+| What they currently spend | ASAF displacement |
+|--------------------------|-------------------|
+| $20k–$80k C3PAO assessment fee | Evidence package cuts prep time by 50% |
+| $150k/year compliance consultant | Diagnostic replaces 2–3 weeks of consulting work |
+| $500–$5k failed assessment rework | Avoids one failed assessment entirely |
+| **ASAF price: $5,000** | **10–15x ROI on first engagement** |
+
+A buyer who cannot justify $5,000 to avoid a failed CMMC assessment that costs them
+a DoD contract is not yet in the market. Do not discount to chase unqualified leads.
 
 **Why fixed-fee, not subscription:**
-- Removes procurement friction — no approval cycle for a one-time service fee
-- Matches how buyers already think about compliance consulting spend
-- Immediately tests willingness-to-pay at a price point they can authorize unilaterally
+- Matches the consulting spend model DoD contractors already have budget approval for
+- Bypasses SaaS procurement approval cycles (often 90+ days at this buyer size)
+- A single line item service fee can be authorized by a compliance officer or ISSM
+  without a formal procurement action below the micropurchase threshold ($10k)
 
-**Why it works — what buyers actually want:**
-Market research and discovery interviews confirm buyers ask about:
-- Evidence collection integrity ("will my logs hold up?")
-- Audit packaging format ("what does the C3PAO want to see?")
-- What breaks during validation ("where do companies typically fail?")
+**What buyers actually want (validated by Sprint 27 research):**
+- Evidence collection integrity: "will my logs hold up under assessor review?"
+- Audit packaging format: "what does the C3PAO want to see, exactly?"
+- Failure prediction: "where do companies like us typically fail the assessment?"
 
-They do not ask about:
-- AI, PQC, NemoClaw, DAG architecture, or Dilithium-3
+They do not ask about AI, PQC, NemoClaw, DAG architecture, or Dilithium-3.
 
-**You sell pain removal, not architecture.**
+**You sell audit survival, not architecture.**
 
-**The outreach script (11 KHEPRI sign-ups):**
+**The outreach script (11 KHEPRI sign-ups — repriced):**
 
 ```
 Subject: Your KHEPRI access — one question
 
 [Name],
 
-You signed up for KHEPRI during our pilot. We're running a limited
-CMMC Readiness Strike — fixed-fee scan + C3PAO evidence package.
-$500 flat. Delivered in 5 business days.
+You signed up for KHEPRI during our pilot. I want to ask one direct
+question before we talk about the platform:
 
-You're on my list of 11. I have capacity for 2 this month.
+During your last CMMC review, how long did evidence packaging take —
+and what broke when the assessor actually looked at it?
 
-Worth a 15-minute call this week?
+I'm running a limited CMMC Readiness Diagnostic. Fixed scope, fixed
+price ($5,000), delivered in 10 business days. Output is a C3PAO-ready
+evidence package your assessor can verify on the spot.
+
+I have capacity for 2 engagements this month. You're on my list.
+
+Worth a 20-minute call this week?
 
 [Name]
 ```
 
 **Success metric:**
-- 2/11 conversions = A10 validated (willingness-to-pay confirmed)
-- 1/11 = partial signal, test pricing and positioning
-- 0/11 = pricing or positioning failure — run root cause before any other GTM move
+- 2/11 conversions at $5,000 = $10,000 collected, A10 validated
+- 1/11 = $5,000 collected, partial signal — test positioning before scaling
+- 0/11 = positioning failure (not pricing) — run root cause on value framing
 
 ---
 
@@ -119,7 +155,7 @@ readiness. Every failed assessment is lost revenue for the assessor and reputati
 - C3PAO adds ASAF to their standard pre-assessment checklist
 - Clients on the waitlist receive: "You cannot book your assessment slot until ASAF
   validation is complete"
-- Client pays ASAF ($500 Readiness Strike or $299/mo platform fee) to keep their spot
+- Client pays ASAF ($5,000 Readiness Diagnostic) to keep their spot
 - C3PAO gets cleaner assessments; ASAF gets a trusted referral channel
 
 **What you give the C3PAO:**
@@ -265,9 +301,13 @@ into a feature. Your offer is explicitly designed for the scenario where the buy
 out of time. You have war-gamed this scenario. They have not.
 
 **Pricing under deadline pressure:**
-- Standard: $500–$2,000 (Readiness Strike)
-- Deadline premium (< 30 days to assessment): $3,500–$5,000
-- Emergency (< 14 days): $7,500 (matches C3PAO emergency assessment surcharge)
+- Standard (> 60 days to assessment): $5,000 (Readiness Diagnostic)
+- Deadline premium (< 30 days to assessment): $8,500
+- Emergency (< 14 days): $15,000 (matches C3PAO emergency assessment surcharge rate)
+
+Premium pricing is not greed — it is credibility signaling in a procurement environment
+where low-cost tools are assumed to be unserious. A CISO who is 14 days from an
+assessment that determines a $2M DoD contract will pay $15,000 without negotiating.
 
 **The message shift by quarter:**
 
@@ -325,7 +365,7 @@ Drop vanity metrics. Track only revenue signals and channel leverage.
 | Metric | Current | Sprint 29 Target | Sprint 30 Target |
 |--------|---------|-----------------|-----------------|
 | Paid pilots closed | 0 | **2** (A10 gate) | 5 |
-| Revenue collected (not promised) | $0 | **$1,000+** | $5,000+ |
+| Revenue collected (not promised) | $0 | **$10,000+** | $40,000+ |
 | C3PAOs engaged | 0 | **1** (relationship) | 3 |
 | C3PAO referrals received | 0 | 0 (early) | 10+ |
 | Prime contractor conversations | 0 | **1** (qualified) | 1 term sheet |
@@ -338,7 +378,7 @@ Drop vanity metrics. Track only revenue signals and channel leverage.
 ## The Master Sequencing (Do Not Reorder)
 
 ```
-Week 1–2:  Close 2 paid Readiness Strike pilots → validate A10
+Week 1–2:  Close 2 paid Readiness Diagnostics ($5k each) → validate A10
            ↓
 Week 3–4:  Land 1 C3PAO relationship → unlock referral distribution
            ↓
