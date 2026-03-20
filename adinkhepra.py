@@ -50,9 +50,9 @@ def should_use_shell() -> bool:
 def print_header(title: str, char: str = "=") -> None:
     """Print a formatted header."""
     width = 60
-    print(f"\n{char * width}")
-    print(f"{title:^{width}}")
-    print(f"{char * width}\n")
+    safe_print(f"\n{char * width}")
+    safe_print(f"{title:^{width}}")
+    safe_print(f"{char * width}\n")
 
 
 def print_step(step: str, total: int, current: int, message: str) -> None:
@@ -60,19 +60,30 @@ def print_step(step: str, total: int, current: int, message: str) -> None:
     print(f"\n[{current}/{total}] {message}...")
 
 
+def safe_print(message: str, fallback: str = None) -> None:
+    """Print message with UTF-8 support or fallback to ASCII."""
+    try:
+        print(message)
+    except UnicodeEncodeError:
+        if fallback:
+            print(fallback)
+        else:
+            print(message.encode('ascii', 'replace').decode('ascii'))
+
+
 def print_success(message: str) -> None:
     """Print a success message."""
-    print(f"✅ {message}")
+    safe_print(f"✅ {message}", fallback=f"[OK] {message}")
 
 
 def print_error(message: str) -> None:
     """Print an error message."""
-    print(f"❌ {message}")
+    safe_print(f"❌ {message}", fallback=f"[FAIL] {message}")
 
 
 def print_warning(message: str) -> None:
     """Print a warning message."""
-    print(f"⚠️  {message}")
+    safe_print(f"⚠️  {message}", fallback=f"[WARN] {message}")
 
 
 def print_info(message: str) -> None:
@@ -279,7 +290,7 @@ def _wait_for_agent() -> http.client.HTTPConnection:
             res = conn.getresponse()
             if res.status == 200:
                 data = json.load(res)
-                if data.get("ok"):
+                if data.get("status") == "ok":
                     print_success("Agent health check passed")
                     return conn
         except Exception:

@@ -1,0 +1,44 @@
+[ADINKHEPRA] Running the Sunsum Harmonization Audit (TRL-10)...
+
+[PHASE 1] RECON: Verifying proactive state awareness...
+   - Kotoko (Distributed) Defense: PREPARED
+   - Mpuanum (Guidance) Defense: PREPARED
+
+[PHASE 2] RESIST: Stress testing Sacred Hardening (Sunsum Resilience)...
+   ✅ Vessel gate-alpha: Sunsum Attestation Verified | Force: 0.95
+   ✅ Vessel messenger-alpha: Sunsum Attestation Verified | Force: 0.85
+   ✅ Vessel oracle-prime: Sunsum Attestation Verified | Force: 0.90
+   ✅ Vessel scribe-central: Sunsum Attestation Verified | Force: 0.75
+
+[PHASE 3] RESPOND: Measuring Nkyinkyim (Dynamism) against simulated Jitter...
+   - Calculated System Dynamism: 0.94 (Threshold: >0.80)
+
+===============================================================
+ FINAL VERDICT: HARMONIOUS & RESILIENT
+===============================================================
+ The Akoko Nan Pod preserves its Sunsum above the Sacred Threshold.
+ Nsohia Automated Response Control (ARC) is FULLY ALIGNED.
+===============================================================
+
+============================================================
+                ADINKHEPRA VALIDATION SUITE                 
+============================================================
+
+
+[1/5] Running Akoko Nan Sacred Balance Check...
+Traceback (most recent call last):
+  File "C:\Users\intel\blackbox\khepra protocol\adinkhepra.py", line 593, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\intel\blackbox\khepra protocol\adinkhepra.py", line 576, in main
+    success = validate()
+  File "C:\Users\intel\blackbox\khepra protocol\adinkhepra.py", line 350, in validate
+    print_success("Sunsum Vitality baseline verified (TRL-10)")
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\intel\blackbox\khepra protocol\adinkhepra.py", line 65, in print_success
+    print(f"\u2705 {message}")
+    ~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2705' in position 0: character maps to <undefined>

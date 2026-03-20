@@ -9,6 +9,13 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
+const (
+	testRoleName    = "test-role"
+	superReaderName = "super-reader"
+	dagAdminName    = "dag-admin"
+	testUserID      = "user-123"
+)
+
 func TestNewAuthManager(t *testing.T) {
 	am := NewAuthManager()
 	if am == nil {
@@ -60,7 +67,7 @@ func TestPermissionEvaluator(t *testing.T) {
 
 	// Define test role
 	role := &Role{
-		Name: "test-role",
+		Name: testRoleName,
 		Permissions: []Permission{
 			{Resource: "dag", Action: "read"},
 			{Resource: "scan", Action: "write"},
@@ -73,12 +80,12 @@ func TestPermissionEvaluator(t *testing.T) {
 	}
 
 	// Test valid permission
-	if !pe.Evaluate([]string{"test-role"}, "dag", "read") {
+	if !pe.Evaluate([]string{testRoleName}, "dag", "read") {
 		t.Error("expected permission to be granted for dag:read")
 	}
 
 	// Test invalid permission
-	if pe.Evaluate([]string{"test-role"}, "dag", "delete") {
+	if pe.Evaluate([]string{testRoleName}, "dag", "delete") {
 		t.Error("expected permission to be denied for dag:delete")
 	}
 }
@@ -88,7 +95,7 @@ func TestPermissionEvaluatorWildcards(t *testing.T) {
 
 	// Role with wildcard resource
 	superReaderRole := &Role{
-		Name: "super-reader",
+		Name: superReaderName,
 		Permissions: []Permission{
 			{Resource: "*", Action: "read"},
 		},
@@ -96,21 +103,21 @@ func TestPermissionEvaluatorWildcards(t *testing.T) {
 	pe.DefineRole(superReaderRole)
 
 	// Should match any resource with read action
-	if !pe.Evaluate([]string{"super-reader"}, "dag", "read") {
+	if !pe.Evaluate([]string{superReaderName}, "dag", "read") {
 		t.Error("expected wildcard resource permission to match dag:read")
 	}
-	if !pe.Evaluate([]string{"super-reader"}, "scan", "read") {
+	if !pe.Evaluate([]string{superReaderName}, "scan", "read") {
 		t.Error("expected wildcard resource permission to match scan:read")
 	}
 
 	// Should NOT match write action
-	if pe.Evaluate([]string{"super-reader"}, "dag", "write") {
+	if pe.Evaluate([]string{superReaderName}, "dag", "write") {
 		t.Error("expected wildcard resource permission to NOT match dag:write")
 	}
 
 	// Role with wildcard action
 	dagAdminRole := &Role{
-		Name: "dag-admin",
+		Name: dagAdminName,
 		Permissions: []Permission{
 			{Resource: "dag", Action: "*"},
 		},
@@ -118,15 +125,15 @@ func TestPermissionEvaluatorWildcards(t *testing.T) {
 	pe.DefineRole(dagAdminRole)
 
 	// Should match any action on dag resource
-	if !pe.Evaluate([]string{"dag-admin"}, "dag", "read") {
+	if !pe.Evaluate([]string{dagAdminName}, "dag", "read") {
 		t.Error("expected wildcard action permission to match dag:read")
 	}
-	if !pe.Evaluate([]string{"dag-admin"}, "dag", "delete") {
+	if !pe.Evaluate([]string{dagAdminName}, "dag", "delete") {
 		t.Error("expected wildcard action permission to match dag:delete")
 	}
 
 	// Should NOT match other resources
-	if pe.Evaluate([]string{"dag-admin"}, "scan", "read") {
+	if pe.Evaluate([]string{dagAdminName}, "scan", "read") {
 		t.Error("expected wildcard action permission to NOT match scan:read")
 	}
 }
@@ -135,7 +142,7 @@ func TestSessionManager(t *testing.T) {
 	sm := NewSessionManager()
 
 	user := &User{
-		ID:       "user-123",
+		ID:       testUserID,
 		Username: "testuser",
 		Email:    "test@example.com",
 	}
@@ -146,8 +153,8 @@ func TestSessionManager(t *testing.T) {
 		t.Fatalf("CreateSession failed: %v", err)
 	}
 
-	if session.UserID != user.ID {
-		t.Errorf("expected UserID %s, got %s", user.ID, session.UserID)
+	if session.UserID != testUserID {
+		t.Errorf("expected UserID %s, got %s", testUserID, session.UserID)
 	}
 
 	// Get session
