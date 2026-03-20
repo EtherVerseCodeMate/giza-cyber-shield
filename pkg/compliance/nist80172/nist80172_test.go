@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestEnhancedValidator_ValidateACFamily(t *testing.T) {
+func TestEnhancedValidatorValidateACFamily(t *testing.T) {
 	v := NewEnhancedValidator()
 	results := v.ValidateACFamily()
 
