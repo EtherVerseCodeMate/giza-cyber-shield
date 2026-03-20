@@ -2,8 +2,11 @@ package auth
 
 import (
 	"context"
+	"encoding/hex"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/argon2"
 )
 
 func TestNewAuthManager(t *testing.T) {
@@ -221,10 +224,18 @@ func TestLocalProvider(t *testing.T) {
 	ctx := context.Background()
 
 	// Create user
+	// For local provider, we compute the hash dynamically to ensure it matches
+	salt := "khepra-local-salt"
+	computed := argon2.IDKey([]byte("password123"), []byte(salt), 1, 64*1024, 4, 32)
+	passwordHash := hex.EncodeToString(computed)
+
 	user := &User{
-		ID:       "password123",
+		ID:       "user-123",
 		Username: "testuser",
 		Email:    "test@example.com",
+		Attributes: map[string]interface{}{
+			"password_hash": passwordHash,
+		},
 	}
 
 	err := lp.CreateUser(ctx, user)
