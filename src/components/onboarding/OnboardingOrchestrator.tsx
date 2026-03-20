@@ -8,7 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Shield, Search, CheckCircle, AlertTriangle, XCircle, ArrowRight, Lock, Loader2 } from 'lucide-react';
 
 // Vite: VITE_*; Next-style builds may inject NEXT_PUBLIC_* via host
-const env = import.meta.env;
+// Next.js/Turbopack may not populate `import.meta.env`, so default safely.
+const env = (import.meta as any)?.env ?? {};
 const API_BASE =
   env.VITE_ASAF_API_URL || env.NEXT_PUBLIC_ASAF_API_URL || 'http://localhost:45444';
 const API_KEY = env.VITE_ASAF_API_KEY || env.NEXT_PUBLIC_ASAF_API_KEY || '';
