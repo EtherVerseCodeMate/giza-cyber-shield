@@ -40,6 +40,7 @@ import LegalPage from "./pages/LegalPage";
 import { ThreatHuntingDashboard } from "./pages/ThreatHuntingDashboard";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import NLChatPanel from "@/components/NLChatPanel";
+import Advisory from "./pages/Advisory";
 
 /**
  * Invisible component that sets document.title per route.
@@ -83,6 +84,8 @@ const App = () => {
                   <Routes>
                     {/* Public Routes */}
                     <Route path="/" element={<NewHomepage />} />
+                    <Route path="/advisory" element={<Advisory />} />
+                    <Route path="/contact-sales" element={<Advisory />} />
                     <Route path="/blog" element={<BlogList />} />
                     <Route path="/blog/episode-1-blood-moon-philosopher-api" element={<Episode1 />} />
                     <Route path="/blog/episode-2-autonomous-ai-deepfakes-leadership" element={<Episode2 />} />

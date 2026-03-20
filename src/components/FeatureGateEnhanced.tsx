@@ -79,8 +79,8 @@ export const FeatureGateEnhanced = ({
         };
       case 'enterprise':
         return {
-          value: "Enterprise-grade compliance automation and dedicated support",
-          upgrade: "Contact us for Enterprise features including custom integrations and dedicated support"
+          value: "Enterprise readiness advisory + evidence packaging scope alignment",
+          upgrade: "Book an advisory call for enterprise readiness scope and pricing"
         };
       default:
         return {
@@ -97,8 +97,7 @@ export const FeatureGateEnhanced = ({
   const handleUpgradeClick = () => {
     trackUpgradePrompt(featureName, 'clicked');
     if (featureType === 'enterprise') {
-      // Could open contact form or external link
-      globalThis.open('mailto:sales@example.com?subject=Enterprise Inquiry', '_blank');
+      navigate('/advisory');
     } else {
       navigate('/billing');
     }
@@ -179,7 +178,7 @@ export const FeatureGateEnhanced = ({
                 </>
               ) : featureType === 'enterprise' ? (
                 <>
-                  Contact Sales
+                  Book Advisory Call
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </>
               ) : (
