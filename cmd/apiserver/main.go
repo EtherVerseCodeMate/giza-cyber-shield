@@ -17,6 +17,8 @@
 //   DEBUG                     - Enable debug mode (default: false)
 //   TELEMETRY_URL             - Telemetry server URL (default: https://telemetry.souhimbou.org)
 //
+//   ASAF_ALLOW_EVAL_WITHOUT_LICENSE - If "true", allow scan_type eval/basic when license invalid (public funnel; set on Fly with care)
+//
 //   PQC Auth (ML-DSA-65 / NIST FIPS 204):
 //   SUPABASE_JWT_SECRET       - Supabase project JWT secret (enables Supabase Auth login)
 //
