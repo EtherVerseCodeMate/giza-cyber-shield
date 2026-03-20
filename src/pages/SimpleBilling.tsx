@@ -55,6 +55,7 @@ const SELF_SERVE = [
     features: ['Unlimited scans', 'Exposure report', 'Basic risk score', 'Community support'],
     cta: 'Run Free Scan',
     ctaAction: 'scan',
+    highlight: false,
   },
   {
     id: 'certify',
@@ -370,12 +371,12 @@ export default function SimpleBilling() {
       {/* Enterprise CTA */}
       <section style={styles.bottomCta}>
         <p style={styles.bottomCtaText}>Prime contractor? C3PAO looking to reduce failed assessments?</p>
-        <button
+          <button
           style={{ ...styles.ctaButton, ...styles.ctaPrimary, maxWidth: 320 }}
           onClick={handleAdvisory}
           type="button"
         >
-          Schedule a Briefing
+          Book Advisory Call
           <ArrowIcon />
         </button>
       </section>

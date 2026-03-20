@@ -5,10 +5,6 @@ import { useNavigate } from 'react-router-dom';
 
 export const HeroSection = () => {
   const navigate = useNavigate();
-  
-  const scrollToSystemOverview = () => {
-    document.getElementById('system-overview')?.scrollIntoView({ behavior: 'smooth' });
-  };
 
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden">
@@ -47,20 +43,16 @@ export const HeroSection = () => {
                 Evidence-first — NIST 800-171 &amp; CMMC intake
               </div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
-                <span className="text-[#00ffff]">AI-Powered</span>{' '}
-                <span className="text-white">STIG & CMMC</span>
+                <span className="text-white">Audit-ready</span>
                 <br />
-                <span className="text-white">Automation —</span>{' '}
-                <span className="bg-gradient-to-r from-[#d4af37] to-[#ffd700] bg-clip-text text-transparent">
-                  Built for Defense
-                </span>
+                <span className="text-[#00ffff]">compliance</span>{' '}
+                <span className="text-white">for regulated teams.</span>
               </h1>
 
               {/* Subheadline */}
               <p className="text-lg md:text-xl text-gray-300 leading-relaxed max-w-xl">
-                SouHimBou AI helps defense-focused teams automate STIG workflows and package assessor-ready evidence.
-                ASAF-backed scans surface exposure and readiness signals; agent profiles (e.g. NemoClaw) are optional when in scope.
-                Active development — pilot partners welcome.
+                ASAF runs readiness scans and maps findings to control-oriented evidence — so ISSMs and C3PAO prep teams get traceable outputs, not slide decks.
+                Earn your <span className="text-[#d4af37] font-semibold">ADINKHEPRA seal</span> when you certify. Agent gateways (e.g. NemoClaw profile) supported where in scope.
               </p>
             </div>
 
@@ -68,18 +60,18 @@ export const HeroSection = () => {
             <div className="flex flex-col sm:flex-row gap-4">
               <Button
                 size="lg"
-                onClick={scrollToSystemOverview}
+                onClick={() => navigate('/onboarding')}
                 className="bg-gradient-to-r from-[#00ffff] to-[#0088ff] hover:from-[#00dddd] hover:to-[#0066dd] text-black font-bold text-lg px-8 py-6 rounded-lg shadow-[0_0_25px_rgba(0,255,255,0.4)] hover:shadow-[0_0_40px_rgba(0,255,255,0.6)] transition-all duration-300"
               >
-                See How It Works
+                Run Free Scan — No Card Required
               </Button>
               <Button
                 size="lg"
                 variant="outline"
-                onClick={() => navigate('/onboarding')}
+                onClick={() => navigate('/advisory')}
                 className="border-[#d4af37]/60 text-[#d4af37] hover:bg-[#d4af37]/10 font-semibold text-lg px-8 py-6 rounded-lg"
               >
-                Apply for Pilot Access
+                Book Advisory Call
               </Button>
             </div>
 
