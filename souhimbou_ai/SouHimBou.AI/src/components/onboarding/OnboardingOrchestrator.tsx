@@ -7,7 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, Search, CheckCircle, AlertTriangle, XCircle, ArrowRight, Lock, Loader2 } from 'lucide-react';
 
-const env = import.meta.env;
+const env = (import.meta as any)?.env ?? {};
 const API_BASE =
   env.VITE_ASAF_API_URL || env.NEXT_PUBLIC_ASAF_API_URL || 'http://localhost:45444';
 const API_KEY = env.VITE_ASAF_API_KEY || env.NEXT_PUBLIC_ASAF_API_KEY || '';
