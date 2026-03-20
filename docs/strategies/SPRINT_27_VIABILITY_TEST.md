@@ -130,6 +130,17 @@ Root causes:
    review that a "professional services" line item would not
 4. **Price signaled low credibility** — in a procurement environment where C3PAO
    assessments cost $20k–$80k, a $500 offer reads as unserious or underpowered
+5. **Delivery mechanism was invalid for the ICP** — the offer promised a live KHEPRA
+   scan against the customer's environment. DIB contractors handling CUI operate in
+   environments that require FedRAMP/IL4/IL5-authorized infrastructure (GovCloud).
+   ASAF's current platform runs on commercial cloud. Any offer that implies live
+   scanning of a CUI-scoped environment before GovCloud deployment is complete is
+   not just mispriced — it is undeliverable without a compliance violation. The $500
+   offer would have created a scoping problem even if a customer had paid. **The
+   correct offer for the current infrastructure state is artifact-based:** the
+   customer uploads their own scan exports, SPRS responses, and topology
+   documentation; ASAF produces a gap map and DAG-signed evidence package labeled
+   "based on provided artifacts." No live CUI environment access required.
 
 ### Finding 4 — Sales Motion is WRONG (❌)
 Attempted motion: SaaS-style conversion ($50/month KHEPRI tier → $500 upsell)
@@ -174,9 +185,26 @@ Based on viability test results:
 
 ### New Offer
 
-> **"CMMC Readiness Diagnostic + Evidence Package"**
+> **"CMMC Evidence Scaffolding Pack"**
+> *Artifact-based gap analysis + C3PAO-ready evidence package — no live CUI environment access required*
 
-**Price:** $5,000 flat (floor — no less than)
+**Price:** $3,500–$5,000 flat (floor — no less than)
+
+**Why artifact-based, not live scan:**
+
+Until GovCloud deployment is complete (target Q2 2026), ASAF cannot legally scan
+CUI-scoped environments. The correct delivery mechanism is artifact-based:
+- Customer uploads their existing scan exports, SPRS/CMMC SSP responses, and topology docs
+- ASAF produces: gap map, remediation priorities, NIST SP 800-171 control traceability,
+  DAG-signed evidence package clearly labeled "based on provided artifacts"
+- No FedRAMP/IL4 requirement; no CUI access; fully deliverable today
+
+This is not a limitation — it is the correct product for the current infrastructure state.
+The customer does the scanning (they already have tools). ASAF does the analysis, packaging,
+and cryptographic attestation. This maps to "professional services" procurement, not
+"software," and it is deliverable from day one.
+
+**Price:** $3,500–$5,000 flat (floor — no less than)
 
 **Why $5,000 minimum, not $500:**
 
@@ -223,7 +251,7 @@ Price is revealed on the discovery call where context and ROI can be established
 | ID | Status | Update |
 |----|--------|--------|
 | V1 | ⚠️ Partial | Value recognized — urgency to pay not established at $500 |
-| V2 | ❌ INVALIDATED | $500 reads as "tool" not "service" — floor is $5,000 |
+| V2 | ❌ INVALIDATED (doubly) | $500 reads as "tool" not "service" — floor is $5,000; AND live scan was undeliverable in CUI environments without GovCloud |
 | V3 | ⚠️ Unknown | CAC not optimized; no paid close to calculate against |
 | V4 | ❌ INVALIDATED | Conversion was 0%; offer and price must change before retest |
 | V5 | ⚠️ Partial | "Evidence packaging" resonates but framing needs outcome language |

@@ -56,17 +56,51 @@ for entry into this procurement environment is no less than $5,000.
 
 ---
 
-**Offer — not SaaS, not low-ticket:**
+**The GovCloud constraint — what you cannot promise yet:**
 
-> **"CMMC Readiness Diagnostic — $5,000 fixed fee"**
+Live scanning of CUI-scoped environments requires FedRAMP-authorized infrastructure
+(GovCloud). The commercial ASAF deployment cannot touch CUI. Any paid DIB offer that
+promises "we will scan your environment" against a CUI scope is an offer you cannot
+legally or technically deliver today.
 
-Includes:
-- Full KHEPRA system scan (live, not a demo)
-- STIG gap mapping against all applicable NIST SP 800-171 controls
-- Evidence package structured for C3PAO submission (DAG-anchored, PQC-signed)
-- Written C3PAO readiness report with prioritized remediation plan
-- Optional ADINKHEPRA seal preview on the evidence artifact
-- 30-day follow-up call to verify remediation progress
+This rules out: live KHEPRA scans against contractor networks, "full system scan" language
+in the offer copy, and any CTA implying real-time assessment of their environment.
+
+**The decision check (apply before any offer ships):**
+> "Does this promise require accessing or scanning a CUI-scoped environment before GovCloud?"
+> - Yes → invalid until Q2 GovCloud milestone
+> - No → valid now
+
+---
+
+**Offer — not SaaS, not consulting, not live-scan:**
+
+> **"CMMC Evidence Scaffolding Pack — $3,500–$5,000 fixed fee"**
+
+**What it is:** A productized, automated workflow that ingests the contractor's existing
+compliance artifacts and produces a first-pass, assessor-oriented evidence package.
+No live scan of their environment. No CUI access. No human advisory hours.
+
+**What the contractor provides (inputs):**
+- System topology description (structured form or document upload)
+- Existing scan exports from tools they already run (Nessus, Tenable, Qualys outputs)
+- SPRS self-assessment responses (guided questionnaire)
+- Any existing incident response or configuration documentation
+- Boundary narrative: "what systems handle CUI in your environment?"
+
+**What the platform produces (output):**
+- Scope boundary analysis with confidence labels (likely in-scope / out-of-scope / unclear)
+- Control-to-evidence gap map: which NIST SP 800-171 controls have evidence, which are missing
+- Remediation priority list: the 5–10 items most likely to cause C3PAO failure
+- Specialized assets wizard output: scoped justification narrative for non-standard assets
+- Assessor-ready package: DAG-anchored, PQC-signed, explicitly labeled "based on provided artifacts"
+
+**Critical copy requirement:** Every deliverable carries the label:
+*"This assessment is based on contractor-provided artifacts. It does not represent
+a live scan of CUI-scoped infrastructure."*
+
+This is not a limitation — it is the standard framing that every Big 4 audit uses.
+The contractor attests to accuracy; the platform structures and certifies the chain.
 
 **Why $5,000 — anchored to what it displaces:**
 
@@ -108,9 +142,13 @@ question before we talk about the platform:
 During your last CMMC review, how long did evidence packaging take —
 and what broke when the assessor actually looked at it?
 
-I'm running a limited CMMC Readiness Diagnostic. Fixed scope, fixed
-price ($5,000), delivered in 10 business days. Output is a C3PAO-ready
-evidence package your assessor can verify on the spot.
+I'm running a limited CMMC Evidence Scaffolding engagement. You upload
+your existing scan exports and system docs. We structure them into a
+C3PAO-ready evidence package — gap map, remediation priorities, and a
+signed artifact your assessor can verify on the spot. No new scanning
+of your environment required.
+
+Fixed scope. $3,500–$5,000. Delivered in 10 business days.
 
 I have capacity for 2 engagements this month. You're on my list.
 
@@ -123,6 +161,65 @@ Worth a 20-minute call this week?
 - 2/11 conversions at $5,000 = $10,000 collected, A10 validated
 - 1/11 = $5,000 collected, partial signal — test positioning before scaling
 - 0/11 = positioning failure (not pricing) — run root cause on value framing
+
+---
+
+## Two-Track GTM Model
+
+The war-game established that two markets, two motions, and two product tiers can coexist
+on the same backend — but only if they are sequenced correctly and their offer promises
+are kept internally consistent.
+
+### Track 1 — AI Agent Certification (PLG, Live Now)
+
+| Property | Value |
+|----------|-------|
+| Market | NemoClaw early adopters, AI-deploying enterprises, SMB founders on Claude |
+| Infrastructure | Commercial (no CUI, no GovCloud dependency) |
+| Entry | Free scan → $99/mo Certify |
+| GTM motion | Product-led growth, self-serve, GitHub/HN/NVIDIA forums |
+| Founder bandwidth | Near-zero after funnel is built |
+| A10 test | Volume of $99 Certify upgrades |
+| CTA | "Scan your agent deployment" — zero friction |
+
+### Track 2A — DIB Warmup (Live Now, No Paid Offer)
+
+| Property | Value |
+|----------|-------|
+| Market | DoD contractors, ISSMs, C3PAO referral pipeline |
+| Infrastructure | No infrastructure required |
+| Entry | Briefing request / waitlist only |
+| GTM motion | Email warmup, C3PAO relationship-building |
+| Founder bandwidth | 1 email sequence + 1 BD call/week |
+| A10 test | Not the goal — this is pipeline building |
+| CTA | "Request GovCloud Evidence Demo (Q2)" — not a service commitment |
+
+### Track 2B — DIB Evidence Scaffolding (Live Now, Paid)
+
+| Property | Value |
+|----------|-------|
+| Market | CMMC Level 2 candidates, pre-assessment prep |
+| Infrastructure | Commercial (artifact-based, no CUI live scan) |
+| Entry | $3,500–$5,000 Evidence Scaffolding Pack |
+| GTM motion | C3PAO referral channel, direct outreach to 11 KHEPRI leads |
+| Founder bandwidth | 1 onboarding call per engagement; platform delivers |
+| A10 test | Primary: 2 paying customers = A10 validated |
+| CTA | Problem-first outreach, price on discovery call |
+
+### Track 2C — Full DIB Live Diagnostic (Q2, GovCloud Required)
+
+| Property | Value |
+|----------|-------|
+| Market | Same as 2B + CUI-scoped environments |
+| Infrastructure | GovCloud (FedRAMP authorized) |
+| Entry | $5,000–$15,000 live scan + evidence package |
+| GTM motion | C3PAO channel, Prime flowdown mandate, SDVOSB sole-source |
+| Founder bandwidth | Moderate (live scan is automated; report interpretation is not) |
+| A10 test | Upsell from 2B customers who need live scan confirmation |
+| CTA | "Schedule GovCloud Assessment" |
+
+**The discipline:** Tracks 1 and 2B run now. Track 2A builds the pipeline for 2C.
+Track 2C unlocks when GovCloud is live. Do not promise 2C deliverables on a 2B engagement.
 
 ---
 
@@ -155,7 +252,7 @@ readiness. Every failed assessment is lost revenue for the assessor and reputati
 - C3PAO adds ASAF to their standard pre-assessment checklist
 - Clients on the waitlist receive: "You cannot book your assessment slot until ASAF
   validation is complete"
-- Client pays ASAF ($5,000 Readiness Diagnostic) to keep their spot
+- Client pays ASAF ($3,500–$5,000 Evidence Scaffolding Pack) to keep their spot
 - C3PAO gets cleaner assessments; ASAF gets a trusted referral channel
 
 **What you give the C3PAO:**
@@ -290,18 +387,20 @@ is not linear — it is exponential as deadlines approach.
 
 **Your GTM asset for this phase:**
 
-> **"14-Day CMMC Readiness Sprint"**
+> **"14-Day CMMC Evidence Sprint"**
 >
-> Fixed scope. Fixed price. Guaranteed output. Delivered before your assessment deadline.
+> Fixed scope. Fixed price. Guaranteed output. No environment access required.
+> Delivered before your assessment deadline from your existing artifacts.
 
 Positioning: *"Fastest path to audit readiness under deadline pressure."*
 
-This directly converts the A8 failure mode (deployment under pressure) from a weakness
-into a feature. Your offer is explicitly designed for the scenario where the buyer is
-out of time. You have war-gamed this scenario. They have not.
+This converts the A8 failure mode (deployment under pressure) from a weakness into a
+feature. The evidence scaffolding model is explicitly designed for the contractor who
+is out of time and cannot wait for a full live-scan engagement. They upload what they
+have. The platform does the rest.
 
-**Pricing under deadline pressure:**
-- Standard (> 60 days to assessment): $5,000 (Readiness Diagnostic)
+**Pricing under deadline pressure (artifact-based; GovCloud live-scan rates apply Q2+):**
+- Standard (> 60 days to assessment): $3,500–$5,000 (Evidence Scaffolding Pack)
 - Deadline premium (< 30 days to assessment): $8,500
 - Emergency (< 14 days): $15,000 (matches C3PAO emergency assessment surcharge rate)
 
@@ -326,6 +425,8 @@ You must actively stop doing these things:
 
 | What to stop | Why |
 |-------------|-----|
+| Promising "live scan of your environment" before GovCloud | You cannot deliver it; one broken promise ends the company |
+| CTA: "Book Advisory Call" | Reads as professional services / consulting — violates no-consulting constraint |
 | Broad SaaS marketing and cold email at scale | Solo founder cannot sustain volume |
 | "Book a demo" funnels | CMMC buyers need consultative trust, not self-serve |
 | Feature-based selling (AI, PQC, NemoClaw, DAG) | Buyers don't care about architecture |
@@ -378,18 +479,25 @@ Drop vanity metrics. Track only revenue signals and channel leverage.
 ## The Master Sequencing (Do Not Reorder)
 
 ```
-Week 1–2:  Close 2 paid Readiness Diagnostics ($5k each) → validate A10
-           ↓
-Week 3–4:  Land 1 C3PAO relationship → unlock referral distribution
-           ↓
+NOW — PARALLEL TRACKS:
+  Track 1:   PLG free scan → $99 Certify live (AI agent market, self-serve)
+  Track 2A:  DIB warmup — briefing/waitlist CTA only, no paid offer
+  Track 2B:  Evidence Scaffolding Pack ($3.5k–$5k) outreach → 11 KHEPRI leads
+             ↓
+Week 1–2:  Close 2 Track 2B engagements → $7k–$10k collected → A10 validated
+             ↓
+Week 3–4:  Land 1 C3PAO relationship (Track 2B referral channel) → scale
+             ↓
 Sprint 29: Land 1 Prime conversation → build toward forced adoption
-           ↓
-Sprint 29: Submit 1 SDVOSB sole-source justification packet
-           ↓
-Sprint 30: Use October 2026 deadline pressure → close emergency deals
-           ↓
+  Sprint 29: Submit 1 SDVOSB sole-source justification packet
+             ↓
+Q2 2026:   GovCloud live → Track 2C unlocks (live CUI scan, $5k–$15k)
+  Q2:        Track 2A waitlist converts to Track 2C paid customers
+  Q2:        C3PAO channel, Prime flowdown, SDVOSB enforcement all accelerate
+             ↓
+Q3–Q4:     October 2026 Phase 2 enforcement → emergency pricing, full heist runs
+             ↓
 Post-A10:  Apply to NVIDIA Inception → subsidize infrastructure
-           ↓
 Post-A10:  Gate NemoClaw feature sprint (per Sprint 28 post-mortem)
 ```
 
