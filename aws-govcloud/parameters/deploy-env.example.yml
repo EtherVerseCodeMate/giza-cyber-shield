@@ -1,0 +1,38 @@
+aws:
+  profile: govcloud
+  region: us-gov-west-1
+  partition: aws-us-gov
+  account_id: "483774310865"
+  organization_id: o-3zz5j5d5bt
+
+deployment:
+  project_name: khepra-protocol
+  environment: production
+  infra_stack_name: khepra-protocol-infrastructure
+  services_stack_name: khepra-protocol-services
+  compliance_tag: CMMC-L2
+
+identity_center:
+  instance_id: ssoins-7907091dd7d987a2
+  identity_store_id: d-98676a2943
+  permission_set_name: CUIWorkloadAccess
+  permission_set_arn: arn:aws-us-gov:sso:::permissionSet/ssoins-7907091dd7d987a2/ps-5325bb5a5aab246e
+  permission_set_required_tag_key: usPerson
+  permission_set_required_tag_value: "true"
+
+security_controls:
+  enforce_fips_endpoints: true
+  enforce_vpc_flow_logs: true
+  restrict_alb_ingress_to_admin_cidr: true
+  admin_ingress_cidr: 203.0.113.10/32
+
+secrets_manager:
+  api_secret_name_hint: khepra-protocol-production-api-secrets
+  required_secret_keys:
+    - SUPABASE_URL
+    - SUPABASE_ANON_KEY
+    - OPENAI_API_KEY
+    - XAI_API_KEY
+    - STRIPE_SECRET_KEY
+
+notes: "Template only. Never commit real secrets, keys, tokens, or private cert material."
