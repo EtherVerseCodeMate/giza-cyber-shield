@@ -1,18 +1,29 @@
 """
-govcloud_validation — GovCloud Deployment Runbook v2.1 Validator
+GovCloud / sovereign-cloud deployment validation (Runbook v2.1–aligned stages).
 
-CLI and library for incremental SKIP / WARN / PASS / FAIL checks aligned with:
-  - CMMC Level 2 & 3
-  - FedRAMP High (NIST 800-53 Rev.5)
-  - NIST SP 800-171 Rev.2 / 800-172
-  - IL4 / IL5 (DoD CC SRG)
-  - SOC-2 Type II
-  - ISO 27001:2022 / 27003
+Usage (from repo root):
+    python -m govcloud_validation --help
 
-SecRed Knowledge Inc. (NouchiX) — us-gov-west-1
+Requires boto3 for AWS GovCloud checks: pip install boto3
 """
 
-__version__ = "2.1.0"
+from govcloud_validation.base import (
+    CheckResult,
+    CheckStatus,
+    GovCloudValidator,
+    StageResult,
+    ValidationContext,
+    ValidationReport,
+)
 
-from govcloud_validation.base import CheckStatus, CheckResult, StageValidator  # noqa: F401
-from govcloud_validation.registry import STAGE_REGISTRY, get_all_stages       # noqa: F401
+# Register providers
+import govcloud_validation.validators  # noqa: F401, E402
+
+__all__ = [
+    "CheckResult",
+    "CheckStatus",
+    "GovCloudValidator",
+    "StageResult",
+    "ValidationContext",
+    "ValidationReport",
+]

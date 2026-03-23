@@ -1,185 +1,147 @@
 """
-CLI entrypoint: python -m govcloud_validation
-
-Usage:
-    python -m govcloud_validation --help
-    python -m govcloud_validation --list-stages
-    python -m govcloud_validation --provider aws-govcloud --region us-gov-west-1
-    python -m govcloud_validation --only step_02_root_guardrails
-    python -m govcloud_validation --json
-    python -m govcloud_validation --framework cmmc-l2
+CLI: python -m govcloud_validation [options]
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 import sys
+from pathlib import Path
 
-from govcloud_validation import __version__
-from govcloud_validation.base import CheckStatus
-from govcloud_validation.registry import get_all_stages, STAGE_REGISTRY
-
-# Force-import validators so they register themselves
-import govcloud_validation.validators  # noqa: F401
+from govcloud_validation.base import ValidationContext, ValidationReport, utc_now_iso
+from govcloud_validation.registry import get_validator, list_providers
 
 
-# ---------------------------------------------------------------------------
-# ANSI helpers
-# ---------------------------------------------------------------------------
-
-_COLORS = {
-    CheckStatus.PASS: "\033[92m",   # green
-    CheckStatus.FAIL: "\033[91m",   # red
-    CheckStatus.WARN: "\033[93m",   # yellow
-    CheckStatus.SKIP: "\033[90m",   # grey
-}
-_RESET = "\033[0m"
-
-
-def _colored(status: CheckStatus, text: str) -> str:
-    if not sys.stdout.isatty():
-        return text
-    return f"{_COLORS.get(status, '')}{text}{_RESET}"
+def _parse_skip(raw: list[str] | None) -> set[str]:
+    if not raw:
+        return set()
+    out: set[str] = set()
+    for item in raw:
+        for part in item.replace(",", " ").split():
+            p = part.strip()
+            if p:
+                out.add(p)
+    return out
 
 
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
-
-def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(
-        prog="govcloud_validation",
-        description=(
-            "GovCloud Deployment Runbook v2.1 validator — "
-            "CMMC L2/L3 · FedRAMP High · NIST 800-171/172 · "
-            "IL4/IL5 · SOC-2 · ISO 27001/27003"
-        ),
+def run_validation(
+    provider: str,
+    region: str,
+    skip: set[str],
+    stages_filter: set[str] | None,
+    output_dir: Path | None,
+    evidence_binder: Path | None,
+    quiet: bool,
+) -> ValidationReport:
+    validator = get_validator(provider)
+    ctx = ValidationContext(
+        region=region,
+        output_dir=output_dir,
+        evidence_binder_path=evidence_binder,
     )
-    p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
-    p.add_argument("--provider", default="aws-govcloud",
-                   help="Cloud provider (default: aws-govcloud)")
-    p.add_argument("--region", default="us-gov-west-1",
-                   help="AWS region (default: us-gov-west-1)")
-    p.add_argument("--list-stages", action="store_true",
-                   help="List available stages and exit")
-    p.add_argument("--only", metavar="STAGE_ID",
-                   help="Run only the specified stage (comma-separated for multiple)")
-    p.add_argument("--skip", metavar="STAGE_ID",
-                   help="Skip specified stages (comma-separated)")
-    p.add_argument("--json", dest="json_output", action="store_true",
-                   help="Output results as JSON")
-    p.add_argument("--framework", metavar="NAME",
-                   help="Filter checks to a compliance framework "
-                        "(cmmc-l2, cmmc-l3, fedramp-high, nist-171, nist-172, "
-                        "soc2, iso-27001, il4, il5)")
-    p.add_argument("--fail-on-warn", action="store_true",
-                   help="Exit non-zero on WARN (default: only on FAIL)")
-    return p
+    skipped: list[str] = []
+    results = []
+    for stage_id, title in validator.get_stages():
+        if stages_filter is not None and stage_id not in stages_filter:
+            continue
+        if stage_id in skip:
+            skipped.append(stage_id)
+            if not quiet:
+                print(f"[SKIP] {stage_id} — excluded via --skip")
+            continue
+        if not quiet:
+            print(f"\n=== {stage_id}: {title} ===")
+        sr = validator.validate_stage(stage_id, ctx)
+        results.append(sr)
+        if not quiet:
+            for c in sr.checks:
+                sym = {"PASS": "✓", "FAIL": "✗", "WARN": "!", "SKIP": "-"}.get(c.status.value, "?")
+                print(f"  [{c.status.value}] {sym} {c.check_id}: {c.name}")
+                if c.detail:
+                    print(f"       {c.detail}")
+    report = ValidationReport(
+        provider=provider,
+        region=region,
+        generated_at=utc_now_iso(),
+        stages=results,
+        skipped_stages=skipped,
+    )
+    if output_dir:
+        report.write_json(output_dir / "govcloud_validation_report.json")
+        if not quiet:
+            print(f"\nWrote {output_dir / 'govcloud_validation_report.json'}")
+    return report
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = build_parser()
-    args = parser.parse_args(argv)
+    p = argparse.ArgumentParser(
+        description="Validate GovCloud / sovereign deployment runbook stages (AWS GovCloud first).",
+    )
+    p.add_argument(
+        "--provider",
+        default="aws-govcloud",
+        choices=list_providers(),
+        help="Validator provider (default: aws-govcloud)",
+    )
+    p.add_argument(
+        "--region",
+        default="us-gov-west-1",
+        help="AWS region for GovCloud session (default: us-gov-west-1)",
+    )
+    p.add_argument(
+        "--skip",
+        action="append",
+        default=[],
+        metavar="STAGE_ID",
+        help="Stage id to skip (repeat or comma-separated). Example: --skip step_05_aurora step_06_compute",
+    )
+    p.add_argument(
+        "--only",
+        action="append",
+        default=[],
+        metavar="STAGE_ID",
+        help="Run only these stage ids (if set, --skip still applies within that set)",
+    )
+    p.add_argument(
+        "--output",
+        "-o",
+        type=Path,
+        default=None,
+        help="Directory to write govcloud_validation_report.json",
+    )
+    p.add_argument(
+        "--evidence-binder",
+        type=Path,
+        default=None,
+        help="Local directory with Step 12 binder artifacts (optional)",
+    )
+    p.add_argument("--quiet", "-q", action="store_true", help="Minimal stdout")
+    p.add_argument("--list-stages", action="store_true", help="Print stage ids and exit")
+    args = p.parse_args(argv)
 
-    # -- List stages --------------------------------------------------------
+    validator = get_validator(args.provider)
     if args.list_stages:
-        stages = get_all_stages(region=args.region)
-        for s in stages:
-            print(f"  {s.stage_id:30s}  {s.title}")
+        for sid, title in validator.get_stages():
+            print(f"{sid}\t{title}")
         return 0
 
-    # -- Determine stages to run --------------------------------------------
-    only_set = set()
-    if args.only:
-        only_set = {s.strip() for s in args.only.split(",")}
-    skip_set = set()
-    if args.skip:
-        skip_set = {s.strip() for s in args.skip.split(",")}
+    skip = _parse_skip(args.skip)
+    only = _parse_skip(args.only) if args.only else None
 
-    stages = get_all_stages(region=args.region)
-    if only_set:
-        stages = [s for s in stages if s.stage_id in only_set]
-    if skip_set:
-        stages = [s for s in stages if s.stage_id not in skip_set]
+    report = run_validation(
+        provider=args.provider,
+        region=args.region,
+        skip=skip,
+        stages_filter=only,
+        output_dir=args.output,
+        evidence_binder=args.evidence_binder,
+        quiet=args.quiet,
+    )
 
-    if not stages:
-        print("No stages matched. Use --list-stages to see available stages.",
-              file=sys.stderr)
-        return 1
-
-    # -- Run ----------------------------------------------------------------
-    all_results = []
-    counts = {s: 0 for s in CheckStatus}
-
-    for stage in stages:
-        results = stage.run()
-
-        # Optional framework filter
-        if args.framework:
-            from govcloud_validation.compliance import controls_for_framework
-            filtered = []
-            for r in results:
-                matched = controls_for_framework(args.framework, r.controls)
-                if matched or not r.controls:
-                    filtered.append(r)
-            results = filtered
-
-        for r in results:
-            counts[r.status] += 1
-
-        all_results.append({
-            "stage_id": stage.stage_id,
-            "title": stage.title,
-            "results": results,
-        })
-
-    # -- Output -------------------------------------------------------------
-    if args.json_output:
-        payload = {
-            "version": __version__,
-            "provider": args.provider,
-            "region": args.region,
-            "framework_filter": args.framework,
-            "summary": {s.value: counts[s] for s in CheckStatus},
-            "stages": [
-                {
-                    "stage_id": s["stage_id"],
-                    "title": s["title"],
-                    "checks": [r.to_dict() for r in s["results"]],
-                }
-                for s in all_results
-            ],
-        }
-        json.dump(payload, sys.stdout, indent=2)
-        print()
-    else:
-        for entry in all_results:
-            header = f"=== {entry['stage_id']}: {entry['title']} ==="
-            print(header)
-            for r in entry["results"]:
-                tag = _colored(r.status, f"[{r.status.value:4s}]")
-                print(f"  {tag} {r.check_id}: {r.message}")
-                if r.detail:
-                    for line in r.detail.split("\n"):
-                        print(f"       {line}")
-                if r.controls:
-                    ctrl_str = ", ".join(r.controls)
-                    print(f"       Controls: {ctrl_str}")
-            print()
-
-        # Summary
-        total = sum(counts.values())
-        summary_parts = []
-        for s in (CheckStatus.PASS, CheckStatus.WARN, CheckStatus.FAIL, CheckStatus.SKIP):
-            summary_parts.append(f"{s.value}={counts[s]}")
-        print(f"--- Summary: {' / '.join(summary_parts)} (total={total}) ---")
-
-    # -- Exit code ----------------------------------------------------------
-    if counts[CheckStatus.FAIL] > 0:
-        return 2
-    if args.fail_on_warn and counts[CheckStatus.WARN] > 0:
-        return 1
+    # Exit 1 if any non-skipped stage has FAIL
+    for s in report.stages:
+        if s.worst_status().value == "FAIL":
+            return 1
     return 0
 
 
