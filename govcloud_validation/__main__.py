@@ -1,5 +1,5 @@
 """
-CLI: python -m govcloud_validation [options]
+CLI: i [options]
 """
 
 from __future__ import annotations
