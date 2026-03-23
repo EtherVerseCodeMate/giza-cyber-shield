@@ -421,7 +421,12 @@ class AWSGovCloudValidator(GovCloudValidator):
         checks.extend(self._permission_set_checks(s))
         return checks
 
-    def _permission_set_abac_tag_checks(self, admin: Any, ps_arn: Optional[str]) -> List[CheckResult]:
+    def _permission_set_abac_tag_checks(
+        self,
+        admin: Any,
+        ps_arn: Optional[str],
+        instance_arn: Optional[str] = None,
+    ) -> List[CheckResult]:
         """
         Optional ABAC tag on the **permission set** (sso-admin:ListTagsForResource).
 
@@ -481,7 +486,11 @@ class AWSGovCloudValidator(GovCloudValidator):
             )
             return out
         try:
-            resp = admin.list_tags_for_resource(ResourceArn=ps_arn)
+            kwargs = {"ResourceArn": ps_arn}
+            # sso-admin in GovCloud commonly requires InstanceArn for this API.
+            if instance_arn:
+                kwargs["InstanceArn"] = instance_arn
+            resp = admin.list_tags_for_resource(**kwargs)
             tags = {str(t.get("Key", "")): str(t.get("Value", "")) for t in resp.get("Tags") or []}
             actual = tags.get(key)
             if actual == val:
@@ -537,7 +546,7 @@ class AWSGovCloudValidator(GovCloudValidator):
                 )
             )
             tag_admin = s.client("sso-admin") if HAS_BOTO3 else None
-            out.extend(self._permission_set_abac_tag_checks(tag_admin, None))
+            out.extend(self._permission_set_abac_tag_checks(tag_admin, None, None))
             return out
         try:
             admin = s.client("sso-admin")
@@ -552,7 +561,7 @@ class AWSGovCloudValidator(GovCloudValidator):
                         control_hints=["AC-2", "IA-2"],
                     )
                 )
-                out.extend(self._permission_set_abac_tag_checks(admin, None))
+                out.extend(self._permission_set_abac_tag_checks(admin, None, None))
                 return out
             instance_arn = insts[0].get("InstanceArn") or ""
             if not instance_arn:
@@ -565,7 +574,7 @@ class AWSGovCloudValidator(GovCloudValidator):
                         control_hints=["AC-2", "IA-2"],
                     )
                 )
-                out.extend(self._permission_set_abac_tag_checks(admin, None))
+                out.extend(self._permission_set_abac_tag_checks(admin, None, instance_arn))
                 return out
             ps_arns: List[str] = []
             paginator = admin.get_paginator("list_permission_sets")
@@ -681,7 +690,7 @@ class AWSGovCloudValidator(GovCloudValidator):
                     )
                 )
 
-            out.extend(self._permission_set_abac_tag_checks(admin, resolved_ps_arn))
+            out.extend(self._permission_set_abac_tag_checks(admin, resolved_ps_arn, instance_arn))
 
         except (BotoCoreError, ClientError) as e:
             code = getattr(e, "response", {}).get("Error", {}).get("Code", "")
@@ -696,7 +705,7 @@ class AWSGovCloudValidator(GovCloudValidator):
                 )
             )
             try:
-                out.extend(self._permission_set_abac_tag_checks(s.client("sso-admin"), None))
+                out.extend(self._permission_set_abac_tag_checks(s.client("sso-admin"), None, None))
             except Exception:  # noqa: BLE001
                 pass
         return out
