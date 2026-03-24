@@ -177,6 +177,50 @@ def _check_identity_center_drift(instances_response: dict) -> List[CheckResult]:
     return checks
 
 
+def _policy_names_on_target(s: Any, target_id: str, policy_filter: str) -> set[str]:
+    """Return policy Names attached to an Organizations target (root or OU)."""
+    c = s.client("organizations")
+    names: set[str] = set()
+    paginator = c.get_paginator("list_policies_for_target")
+    for page in paginator.paginate(TargetId=target_id, Filter=policy_filter):
+        for p in page.get("Policies") or []:
+            n = p.get("Name")
+            if n:
+                names.add(str(n))
+    return names
+
+
+def _check_expected_policy_names_on_target(
+    check_id: str,
+    title: str,
+    target_id: str,
+    policy_filter: str,
+    expected: set[str],
+    actual: set[str],
+    *,
+    control_hints: Optional[List[str]] = None,
+) -> CheckResult:
+    hints = control_hints or []
+    missing = expected - actual
+    if not missing:
+        return CheckResult(
+            check_id,
+            title,
+            CheckStatus.PASS,
+            f"All {len(expected)} expected name(s) found on {target_id!r}",
+            evidence={"target_id": target_id, "filter": policy_filter},
+            control_hints=hints,
+        )
+    return CheckResult(
+        check_id,
+        title,
+        CheckStatus.FAIL,
+        f"Missing on {target_id!r}: {sorted(missing)}",
+        evidence={"target_id": target_id, "filter": policy_filter, "sample_actual": sorted(actual)[:25]},
+        control_hints=hints,
+    )
+
+
 def _parse_comma_ids(env_name: str) -> set[str]:
     raw = _env_strip(env_name)
     if not raw:
@@ -1000,6 +1044,103 @@ class AWSGovCloudValidator(GovCloudValidator):
                     "Optional: set GOVCLOUD_EXPECTED_SCP_NAMES (comma-separated) after you name your SCPs.",
                 )
             )
+
+        # Optional: SCPs on Workloads (or other) OU — e.g. DenyNonApprovedServices
+        w_ou = _env_strip("GOVCLOUD_EXPECTED_WORKLOADS_OU_ID")
+        w_scp = _parse_comma_ids("GOVCLOUD_EXPECTED_SCP_NAMES_WORKLOADS_OU")
+        if w_ou and w_scp:
+            try:
+                actual_w = _policy_names_on_target(s, w_ou, "SERVICE_CONTROL_POLICY")
+                checks.append(
+                    _check_expected_policy_names_on_target(
+                        "expected_scp_names_workloads_ou",
+                        "Expected SCP names on Workloads OU",
+                        w_ou,
+                        "SERVICE_CONTROL_POLICY",
+                        w_scp,
+                        actual_w,
+                        control_hints=["AC-2", "SC-7", "CM-2"],
+                    )
+                )
+            except (BotoCoreError, ClientError) as e:
+                checks.append(
+                    CheckResult(
+                        "expected_scp_names_workloads_ou",
+                        "Expected SCP names on Workloads OU",
+                        CheckStatus.WARN,
+                        _aws_error_detail(e),
+                        control_hints=["AC-2", "SC-7"],
+                    )
+                )
+        elif w_ou or w_scp:
+            checks.append(
+                CheckResult(
+                    "expected_scp_names_workloads_ou",
+                    "Expected SCP names on Workloads OU",
+                    CheckStatus.SKIP,
+                    "Set both GOVCLOUD_EXPECTED_WORKLOADS_OU_ID and GOVCLOUD_EXPECTED_SCP_NAMES_WORKLOADS_OU.",
+                    control_hints=["AC-2", "SC-7"],
+                )
+            )
+        else:
+            checks.append(
+                CheckResult(
+                    "expected_scp_names_workloads_ou",
+                    "Expected SCP names on Workloads OU",
+                    CheckStatus.SKIP,
+                    "Optional: set GOVCLOUD_EXPECTED_WORKLOADS_OU_ID and GOVCLOUD_EXPECTED_SCP_NAMES_WORKLOADS_OU.",
+                    control_hints=["AC-2", "SC-7"],
+                )
+            )
+
+        # Optional: Resource Control Policies (RCP) on Security OU — GovCloud Organizations feature
+        sec_ou = _env_strip("GOVCLOUD_EXPECTED_SECURITY_OU_ID")
+        rcp_names = _parse_comma_ids("GOVCLOUD_EXPECTED_RCP_NAMES")
+        if sec_ou and rcp_names:
+            try:
+                actual_r = _policy_names_on_target(s, sec_ou, "RESOURCE_CONTROL_POLICY")
+                checks.append(
+                    _check_expected_policy_names_on_target(
+                        "expected_rcp_names_security_ou",
+                        "Expected RCP names on Security OU",
+                        sec_ou,
+                        "RESOURCE_CONTROL_POLICY",
+                        rcp_names,
+                        actual_r,
+                        control_hints=["AC-3", "SC-7", "CM-2"],
+                    )
+                )
+            except (BotoCoreError, ClientError) as e:
+                checks.append(
+                    CheckResult(
+                        "expected_rcp_names_security_ou",
+                        "Expected RCP names on Security OU",
+                        CheckStatus.WARN,
+                        _aws_error_detail(e),
+                        control_hints=["AC-3", "SC-7"],
+                    )
+                )
+        elif sec_ou or rcp_names:
+            checks.append(
+                CheckResult(
+                    "expected_rcp_names_security_ou",
+                    "Expected RCP names on Security OU",
+                    CheckStatus.SKIP,
+                    "Set both GOVCLOUD_EXPECTED_SECURITY_OU_ID and GOVCLOUD_EXPECTED_RCP_NAMES.",
+                    control_hints=["AC-3", "SC-7"],
+                )
+            )
+        else:
+            checks.append(
+                CheckResult(
+                    "expected_rcp_names_security_ou",
+                    "Expected RCP names on Security OU",
+                    CheckStatus.SKIP,
+                    "Optional: set GOVCLOUD_EXPECTED_SECURITY_OU_ID and GOVCLOUD_EXPECTED_RCP_NAMES.",
+                    control_hints=["AC-3", "SC-7"],
+                )
+            )
+
         return checks
 
     def _step_03(self, ctx: ValidationContext) -> List[CheckResult]:
@@ -1031,23 +1172,427 @@ class AWSGovCloudValidator(GovCloudValidator):
                 control_hints=["SI-4"],
             )
         )
+
+        trail_name = _env_strip("GOVCLOUD_EXPECTED_CLOUDTRAIL_NAME")
+        if trail_name:
+
+            def trail_detail():
+                return s.client("cloudtrail").get_trail(Name=trail_name)
+
+            checks.append(
+                self._safe_call(
+                    "cloudtrail_named_trail",
+                    f"CloudTrail trail {trail_name!r} exists",
+                    trail_detail,
+                    control_hints=["AU-2", "AU-3", "SI-4"],
+                )
+            )
+            try:
+                st = s.client("cloudtrail").get_trail_status(Name=trail_name)
+                logging_on = bool(st.get("IsLogging"))
+                checks.append(
+                    CheckResult(
+                        "cloudtrail_logging_enabled",
+                        f"CloudTrail trail {trail_name!r} logging",
+                        CheckStatus.PASS if logging_on else CheckStatus.WARN,
+                        "Logging enabled" if logging_on else "Trail exists but IsLogging is false",
+                        evidence={"IsLogging": st.get("IsLogging"), "LatestDeliveryError": st.get("LatestDeliveryError")},
+                        control_hints=["AU-2", "AU-3"],
+                    )
+                )
+                lv = st.get("LogFileValidationEnabled")
+                if lv is not None:
+                    checks.append(
+                        CheckResult(
+                            "cloudtrail_log_file_validation",
+                            f"CloudTrail log file validation ({trail_name})",
+                            CheckStatus.PASS if lv else CheckStatus.WARN,
+                            "Enabled" if lv else "Log file validation not enabled",
+                            control_hints=["AU-2", "SI-7"],
+                        )
+                    )
+            except (BotoCoreError, ClientError) as e:
+                checks.append(
+                    CheckResult(
+                        "cloudtrail_logging_enabled",
+                        f"CloudTrail trail {trail_name!r} status",
+                        CheckStatus.WARN,
+                        _aws_error_detail(e),
+                        control_hints=["AU-2"],
+                    )
+                )
+        else:
+            checks.append(
+                CheckResult(
+                    "cloudtrail_named_trail",
+                    "Named CloudTrail trail (drift)",
+                    CheckStatus.SKIP,
+                    "Set GOVCLOUD_EXPECTED_CLOUDTRAIL_NAME to enforce a specific trail.",
+                    control_hints=["AU-2", "AU-3"],
+                )
+            )
+
+        cfg_name = _env_strip("GOVCLOUD_EXPECTED_CONFIG_RECORDER_NAME")
+        if not cfg_name and _env_strip("GOVCLOUD_CHECK_CONFIG_RECORDER").lower() in ("1", "true", "yes"):
+            cfg_name = "default"
+        if cfg_name:
+
+            def cfg_status():
+                return s.client("config").describe_configuration_recorder_status(
+                    ConfigurationRecorderNames=[cfg_name]
+                )
+
+            chk = self._safe_call(
+                "config_recorder_status",
+                f"AWS Config recorder {cfg_name!r}",
+                cfg_status,
+                control_hints=["CM-2", "CM-6", "AU-2"],
+            )
+            checks.append(chk)
+            if chk.status == CheckStatus.PASS:
+                try:
+                    rows = (
+                        s.client("config")
+                        .describe_configuration_recorder_status(ConfigurationRecorderNames=[cfg_name])
+                        .get("ConfigurationRecordersStatus")
+                        or []
+                    )
+                    rec = rows[0] if rows else {}
+                    recording = rec.get("recording")
+                    checks.append(
+                        CheckResult(
+                            "config_recorder_recording",
+                            f"AWS Config recording ({cfg_name})",
+                            CheckStatus.PASS if recording else CheckStatus.WARN,
+                            "recording=true" if recording else "recording=false or unknown",
+                            evidence={"recording": recording, "last_status": rec.get("lastStatus")},
+                            control_hints=["CM-2", "AU-2"],
+                        )
+                    )
+                except (BotoCoreError, ClientError) as e:
+                    checks.append(
+                        CheckResult(
+                            "config_recorder_recording",
+                            f"AWS Config recording ({cfg_name})",
+                            CheckStatus.WARN,
+                            _aws_error_detail(e),
+                            control_hints=["CM-2"],
+                        )
+                    )
+        else:
+            checks.append(
+                CheckResult(
+                    "config_recorder_status",
+                    "AWS Config recorder",
+                    CheckStatus.SKIP,
+                    "Set GOVCLOUD_EXPECTED_CONFIG_RECORDER_NAME or GOVCLOUD_CHECK_CONFIG_RECORDER=1 (uses name default).",
+                    control_hints=["CM-2", "AU-2"],
+                )
+            )
+
+        ev_bucket = _env_strip("GOVCLOUD_EXPECTED_EVIDENCE_BUCKET")
+        if ev_bucket:
+            s3c = s.client("s3")
+            try:
+                s3c.head_bucket(Bucket=ev_bucket)
+                checks.append(
+                    CheckResult(
+                        "evidence_bucket_exists",
+                        "CUI evidence bucket exists",
+                        CheckStatus.PASS,
+                        f"HeadBucket OK for {ev_bucket!r}",
+                        control_hints=["AU-2", "SI-12", "SC-13"],
+                    )
+                )
+            except (BotoCoreError, ClientError) as e:
+                checks.append(
+                    CheckResult(
+                        "evidence_bucket_exists",
+                        "CUI evidence bucket exists",
+                        CheckStatus.FAIL,
+                        _aws_error_detail(e),
+                        control_hints=["AU-2", "SI-12"],
+                    )
+                )
+            try:
+                enc = s3c.get_bucket_encryption(Bucket=ev_bucket)
+                rules = (enc.get("ServerSideEncryptionConfiguration") or {}).get("Rules") or []
+                checks.append(
+                    CheckResult(
+                        "evidence_bucket_encryption",
+                        "Evidence bucket default encryption",
+                        CheckStatus.PASS if rules else CheckStatus.WARN,
+                        "SSE configured" if rules else "No default encryption rules returned",
+                        control_hints=["SC-13", "SI-12"],
+                    )
+                )
+            except (BotoCoreError, ClientError) as e:
+                code = getattr(e, "response", {}).get("Error", {}).get("Code", "")
+                if code == "ServerSideEncryptionConfigurationNotFoundError":
+                    checks.append(
+                        CheckResult(
+                            "evidence_bucket_encryption",
+                            "Evidence bucket default encryption",
+                            CheckStatus.WARN,
+                            "No default bucket encryption configuration",
+                            control_hints=["SC-13"],
+                        )
+                    )
+                else:
+                    checks.append(
+                        CheckResult(
+                            "evidence_bucket_encryption",
+                            "Evidence bucket default encryption",
+                            CheckStatus.WARN,
+                            _aws_error_detail(e),
+                            control_hints=["SC-13"],
+                        )
+                    )
+            want_lock = _env_strip("GOVCLOUD_EXPECT_EVIDENCE_OBJECT_LOCK").lower() in ("1", "true", "yes")
+            try:
+                ol = s3c.get_object_lock_configuration(Bucket=ev_bucket)
+                olc = ol.get("ObjectLockConfiguration") or {}
+                enabled = (olc.get("ObjectLockEnabled") or "") == "Enabled"
+                mode = ((olc.get("Rule") or {}).get("DefaultRetention") or {}).get("Mode")
+                days = ((olc.get("Rule") or {}).get("DefaultRetention") or {}).get("Days")
+                exp_days = _env_strip("GOVCLOUD_EXPECT_EVIDENCE_OBJECT_LOCK_RETENTION_DAYS")
+                if want_lock and enabled and mode == "COMPLIANCE" and exp_days:
+                    try:
+                        need = int(exp_days)
+                        ok = days is not None and int(days) >= need
+                        checks.append(
+                            CheckResult(
+                                "evidence_bucket_object_lock",
+                                "Evidence bucket Object Lock (COMPLIANCE)",
+                                CheckStatus.PASS if ok else CheckStatus.WARN,
+                                f"Retention days={days} (expected >= {need})" if days is not None else "Retention days unknown",
+                                evidence={"mode": mode, "days": days},
+                                control_hints=["AU-9", "SI-12"],
+                            )
+                        )
+                    except ValueError:
+                        checks.append(
+                            CheckResult(
+                                "evidence_bucket_object_lock",
+                                "Evidence bucket Object Lock (COMPLIANCE)",
+                                CheckStatus.WARN,
+                                "GOVCLOUD_EXPECT_EVIDENCE_OBJECT_LOCK_RETENTION_DAYS must be an integer",
+                                control_hints=["AU-9"],
+                            )
+                        )
+                elif want_lock:
+                    checks.append(
+                        CheckResult(
+                            "evidence_bucket_object_lock",
+                            "Evidence bucket Object Lock",
+                            CheckStatus.PASS if enabled else CheckStatus.WARN,
+                            "Object Lock enabled" if enabled else "Object Lock not enabled or mode/days not verified",
+                            evidence={"ObjectLockEnabled": olc.get("ObjectLockEnabled"), "mode": mode, "days": days},
+                            control_hints=["AU-9", "SI-12"],
+                        )
+                    )
+                else:
+                    checks.append(
+                        CheckResult(
+                            "evidence_bucket_object_lock",
+                            "Evidence bucket Object Lock",
+                            CheckStatus.SKIP,
+                            "Set GOVCLOUD_EXPECT_EVIDENCE_OBJECT_LOCK=1 (and optional retention days) to enforce.",
+                            evidence={"ObjectLockEnabled": olc.get("ObjectLockEnabled"), "mode": mode, "days": days},
+                            control_hints=["AU-9"],
+                        )
+                    )
+            except (BotoCoreError, ClientError) as e:
+                code = getattr(e, "response", {}).get("Error", {}).get("Code", "")
+                if code in ("ObjectLockConfigurationNotFoundError", "NoSuchBucket"):
+                    msg = "No object lock configuration" if code != "NoSuchBucket" else "Bucket not found"
+                    checks.append(
+                        CheckResult(
+                            "evidence_bucket_object_lock",
+                            "Evidence bucket Object Lock",
+                            CheckStatus.WARN if want_lock else CheckStatus.SKIP,
+                            msg,
+                            control_hints=["AU-9", "SI-12"],
+                        )
+                    )
+                else:
+                    checks.append(
+                        CheckResult(
+                            "evidence_bucket_object_lock",
+                            "Evidence bucket Object Lock",
+                            CheckStatus.WARN,
+                            _aws_error_detail(e),
+                            control_hints=["AU-9"],
+                        )
+                    )
+        else:
+            checks.append(
+                CheckResult(
+                    "evidence_bucket_exists",
+                    "CUI evidence bucket",
+                    CheckStatus.SKIP,
+                    "Set GOVCLOUD_EXPECTED_EVIDENCE_BUCKET (e.g. secred-evidence-<account>).",
+                    control_hints=["AU-2", "SI-12"],
+                )
+            )
+
+        min_standards = _env_strip("GOVCLOUD_MIN_ENABLED_SECURITY_HUB_STANDARDS")
+        if min_standards:
+            try:
+                need_n = int(min_standards)
+                sh = s.client("securityhub")
+                subs: List[dict] = []
+                token: Optional[str] = None
+                while True:
+                    kwargs: dict[str, Any] = {}
+                    if token:
+                        kwargs["NextToken"] = token
+                    page = sh.get_enabled_standards(**kwargs)
+                    subs.extend(page.get("StandardsSubscriptions") or [])
+                    token = page.get("NextToken")
+                    if not token:
+                        break
+                n = len(subs)
+                checks.append(
+                    CheckResult(
+                        "securityhub_enabled_standards_count",
+                        "Security Hub enabled standards count",
+                        CheckStatus.PASS if n >= need_n else CheckStatus.WARN,
+                        f"{n} enabled (minimum {need_n})",
+                        evidence={"count": n},
+                        control_hints=["SI-4", "RA-5"],
+                    )
+                )
+            except ValueError:
+                checks.append(
+                    CheckResult(
+                        "securityhub_enabled_standards_count",
+                        "Security Hub enabled standards count",
+                        CheckStatus.SKIP,
+                        "GOVCLOUD_MIN_ENABLED_SECURITY_HUB_STANDARDS must be an integer",
+                        control_hints=["SI-4"],
+                    )
+                )
+            except (BotoCoreError, ClientError) as e:
+                checks.append(
+                    CheckResult(
+                        "securityhub_enabled_standards_count",
+                        "Security Hub enabled standards count",
+                        CheckStatus.WARN,
+                        _aws_error_detail(e),
+                        control_hints=["SI-4"],
+                    )
+                )
+        else:
+            checks.append(
+                CheckResult(
+                    "securityhub_enabled_standards_count",
+                    "Security Hub enabled standards count",
+                    CheckStatus.SKIP,
+                    "Set GOVCLOUD_MIN_ENABLED_SECURITY_HUB_STANDARDS (e.g. 7) to enforce.",
+                    control_hints=["SI-4"],
+                )
+            )
+
         return checks
 
     def _step_04(self, ctx: ValidationContext) -> List[CheckResult]:
         s = self._session(ctx)
+        checks: List[CheckResult] = []
 
         def vpcs():
             c = s.client("ec2")
             return c.describe_vpcs()
 
-        return [
+        checks.append(
             self._safe_call(
                 "ec2_vpcs",
                 "EC2 VPCs listed in region",
                 vpcs,
                 control_hints=["SC-7"],
-            ),
-        ]
+            )
+        )
+
+        vpc_id = _env_strip("GOVCLOUD_EXPECTED_VPC_ID")
+        if vpc_id:
+
+            def one_vpc():
+                return s.client("ec2").describe_vpcs(VpcIds=[vpc_id])
+
+            checks.append(
+                self._safe_call(
+                    "expected_vpc_id",
+                    f"Expected VPC {vpc_id!r} exists",
+                    one_vpc,
+                    control_hints=["SC-7", "AC-4"],
+                )
+            )
+        else:
+            checks.append(
+                CheckResult(
+                    "expected_vpc_id",
+                    "Expected workload VPC id",
+                    CheckStatus.SKIP,
+                    "Set GOVCLOUD_EXPECTED_VPC_ID to enforce (e.g. vpc-… from deployment inventory).",
+                    control_hints=["SC-7"],
+                )
+            )
+
+        min_subnets = _env_strip("GOVCLOUD_EXPECTED_VPC_SUBNET_COUNT")
+        if vpc_id and min_subnets:
+            try:
+                need = int(min_subnets)
+
+                def subs():
+                    return s.client("ec2").describe_subnets(
+                        Filters=[{"Name": "vpc-id", "Values": [vpc_id]}]
+                    )
+
+                out = subs()
+                sn = out.get("Subnets") or []
+                n = len(sn)
+                checks.append(
+                    CheckResult(
+                        "expected_vpc_subnet_count",
+                        f"Subnet count for VPC {vpc_id}",
+                        CheckStatus.PASS if n >= need else CheckStatus.WARN,
+                        f"{n} subnet(s) (expected >= {need})",
+                        evidence={"count": n},
+                        control_hints=["SC-7"],
+                    )
+                )
+            except ValueError:
+                checks.append(
+                    CheckResult(
+                        "expected_vpc_subnet_count",
+                        "Subnet count for expected VPC",
+                        CheckStatus.SKIP,
+                        "GOVCLOUD_EXPECTED_VPC_SUBNET_COUNT must be an integer",
+                        control_hints=["SC-7"],
+                    )
+                )
+        elif min_subnets and not vpc_id:
+            checks.append(
+                CheckResult(
+                    "expected_vpc_subnet_count",
+                    "Subnet count for expected VPC",
+                    CheckStatus.SKIP,
+                    "Set GOVCLOUD_EXPECTED_VPC_ID together with GOVCLOUD_EXPECTED_VPC_SUBNET_COUNT.",
+                    control_hints=["SC-7"],
+                )
+            )
+        else:
+            checks.append(
+                CheckResult(
+                    "expected_vpc_subnet_count",
+                    "Subnet count for expected VPC",
+                    CheckStatus.SKIP,
+                    "Optional: set GOVCLOUD_EXPECTED_VPC_SUBNET_COUNT with GOVCLOUD_EXPECTED_VPC_ID.",
+                    control_hints=["SC-7"],
+                )
+            )
+
+        return checks
 
     def _step_05(self, ctx: ValidationContext) -> List[CheckResult]:
         s = self._session(ctx)
@@ -1099,19 +1644,71 @@ class AWSGovCloudValidator(GovCloudValidator):
 
     def _step_08(self, ctx: ValidationContext) -> List[CheckResult]:
         s = self._session(ctx)
+        checks: List[CheckResult] = []
 
         def keys():
             c = s.client("kms")
             return c.list_keys(Limit=20)
 
-        return [
+        checks.append(
             self._safe_call(
                 "kms_list_keys",
                 "KMS keys visible",
                 keys,
                 control_hints=["SC-13"],
-            ),
-        ]
+            )
+        )
+
+        raw_aliases = _parse_comma_ids("GOVCLOUD_EXPECTED_KMS_ALIASES")
+        if raw_aliases:
+            want = set()
+            for a in raw_aliases:
+                a = a.strip()
+                if not a.startswith("alias/"):
+                    a = f"alias/{a}"
+                want.add(a)
+            try:
+                kms = s.client("kms")
+                have: set[str] = set()
+                paginator = kms.get_paginator("list_aliases")
+                for page in paginator.paginate():
+                    for row in page.get("Aliases") or []:
+                        an = row.get("AliasName")
+                        if an:
+                            have.add(str(an))
+                missing = want - have
+                checks.append(
+                    CheckResult(
+                        "expected_kms_aliases",
+                        "Expected KMS key aliases present",
+                        CheckStatus.PASS if not missing else CheckStatus.FAIL,
+                        "All expected alias(es) found" if not missing else f"Missing aliases: {sorted(missing)}",
+                        evidence={"expected": sorted(want), "sample_have": sorted(have)[:30]},
+                        control_hints=["SC-13", "SI-12"],
+                    )
+                )
+            except (BotoCoreError, ClientError) as e:
+                checks.append(
+                    CheckResult(
+                        "expected_kms_aliases",
+                        "Expected KMS key aliases present",
+                        CheckStatus.WARN,
+                        _aws_error_detail(e),
+                        control_hints=["SC-13"],
+                    )
+                )
+        else:
+            checks.append(
+                CheckResult(
+                    "expected_kms_aliases",
+                    "Expected KMS key aliases present",
+                    CheckStatus.SKIP,
+                    "Set GOVCLOUD_EXPECTED_KMS_ALIASES (comma-separated, with or without alias/ prefix).",
+                    control_hints=["SC-13"],
+                )
+            )
+
+        return checks
 
     def _step_09(self, ctx: ValidationContext) -> List[CheckResult]:
         s = self._session(ctx)
