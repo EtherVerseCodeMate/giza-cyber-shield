@@ -9,7 +9,7 @@
   },
   {
     "ParameterKey": "VPCCidr",
-    "ParameterValue": "10.40.0.0/16"
+    "ParameterValue": "10.0.0.0/16"
   },
   {
     "ParameterKey": "EnableFlowLogs",

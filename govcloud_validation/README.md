@@ -2,6 +2,8 @@
 
 CLI and library for incremental **SKIP / WARN / PASS** checks aligned with **GovCloud Deployment Runbook v2.1** (SecRed Knowledge Inc. / NouchiX — `us-gov-west-1`).
 
+**Live inventory & env template:** [SecRed GovCloud deployment reference](../docs/govcloud/SECRED_GOVCLOUD_DEPLOYMENT_REFERENCE.md) · `examples/secred-govcloud.env.example.sh`
+
 ```bash
 pip install boto3
 python -m govcloud_validation --help
@@ -34,14 +36,14 @@ Root (r-u7nb)
 ├── Security (ou-u7nb-uvf0mgwa)
 │   ├── Audit (ou-u7nb-5ziwfsio)
 │   └── Log-Archive (ou-u7nb-qy1f21e7)
-└── Workloads (ou-u7nb-n6kqi2ww)
+└── Workloads (ou-u7nb-n6kql2ww)
     ├── Non-Prod (ou-u7nb-6kwa4aiv)
     └── Prod (ou-u7nb-by022kuw)
 ```
 
 **Comma-separated OU ids** (same order not required):
 
-`ou-u7nb-uvf0mgwa,ou-u7nb-5ziwfsio,ou-u7nb-qy1f21e7,ou-u7nb-n6kqi2ww,ou-u7nb-6kwa4aiv,ou-u7nb-by022kuw`
+`ou-u7nb-uvf0mgwa,ou-u7nb-5ziwfsio,ou-u7nb-qy1f21e7,ou-u7nb-n6kql2ww,ou-u7nb-6kwa4aiv,ou-u7nb-by022kuw`
 
 ## Optional drift checks (environment variables)
 
@@ -60,6 +62,19 @@ When set, the AWS validator compares **live API results** to your expected value
 | `GOVCLOUD_EXPECTED_PS_TAG_KEY` / `GOVCLOUD_EXPECTED_PS_TAG_VALUE` | ABAC tag on that permission set (via `ListTagsForResource` on the PS ARN). |
 | `GOVCLOUD_EXPECT_PS_ABAC_USPERSON` | Set to `1` / `true` / `yes` to expect **`usPerson`=`true`** on the permission set (shorthand if key/value omitted). |
 | `GOVCLOUD_EXPECTED_SCP_NAMES` | Optional: comma-separated **names** of SCPs you expect **attached at root**. |
+| `GOVCLOUD_EXPECTED_WORKLOADS_OU_ID` | Workloads OU id (e.g. `ou-u7nb-n6kql2ww`). |
+| `GOVCLOUD_EXPECTED_SCP_NAMES_WORKLOADS_OU` | SCP **names** expected **on that OU** (comma-separated). |
+| `GOVCLOUD_EXPECTED_SECURITY_OU_ID` | Security OU id (RCP checks). |
+| `GOVCLOUD_EXPECTED_RCP_NAMES` | Resource Control Policy **names** on that OU (comma-separated; GovCloud Organizations). |
+| `GOVCLOUD_EXPECTED_CLOUDTRAIL_NAME` | Named trail: exists, logging, log file validation when returned by API. |
+| `GOVCLOUD_EXPECTED_CONFIG_RECORDER_NAME` | Config recorder name; or set `GOVCLOUD_CHECK_CONFIG_RECORDER=1` to use `default`. |
+| `GOVCLOUD_EXPECTED_EVIDENCE_BUCKET` | S3 evidence bucket: HeadBucket, encryption, optional Object Lock. |
+| `GOVCLOUD_EXPECT_EVIDENCE_OBJECT_LOCK` | `1` / `true` to treat Object Lock as required. |
+| `GOVCLOUD_EXPECT_EVIDENCE_OBJECT_LOCK_RETENTION_DAYS` | With Object Lock COMPLIANCE, expect retention ≥ this many days (e.g. `2555`). |
+| `GOVCLOUD_MIN_ENABLED_SECURITY_HUB_STANDARDS` | Minimum count of enabled Security Hub standards subscriptions. |
+| `GOVCLOUD_EXPECTED_VPC_ID` | Expected workload VPC id. |
+| `GOVCLOUD_EXPECTED_VPC_SUBNET_COUNT` | With VPC id, expect at least this many subnets. |
+| `GOVCLOUD_EXPECTED_KMS_ALIASES` | Comma-separated CMK aliases (`alias/` optional), e.g. `secred-cloudtrail-cmk,secred-evidence-cmk`. |
 | `ASAF_SMOKE_HEALTH_URL` | Step 11: HTTP GET health endpoint. |
 
 Example:
@@ -68,7 +83,7 @@ Example:
 export GOVCLOUD_EXPECTED_ACCOUNT_ID=483774310865
 export GOVCLOUD_EXPECTED_ORG_ID=o-3zz5j5d5bt
 export GOVCLOUD_EXPECTED_ROOT_ID=r-u7nb
-export GOVCLOUD_EXPECTED_OU_IDS=ou-u7nb-uvf0mgwa,ou-u7nb-5ziwfsio,ou-u7nb-qy1f21e7,ou-u7nb-n6kqi2ww,ou-u7nb-6kwa4aiv,ou-u7nb-by022kuw
+export GOVCLOUD_EXPECTED_OU_IDS=ou-u7nb-uvf0mgwa,ou-u7nb-5ziwfsio,ou-u7nb-qy1f21e7,ou-u7nb-n6kql2ww,ou-u7nb-6kwa4aiv,ou-u7nb-by022kuw
 export GOVCLOUD_EXPECTED_IDC_INSTANCE_ID=ssoins-7907091dd7d987a2
 export GOVCLOUD_EXPECTED_IDENTITY_STORE_ID=d-98676a2943
 export GOVCLOUD_EXPECTED_PERMISSION_SET_NAME=CUIWorkloadAccess
@@ -117,14 +132,23 @@ Documented for runbook / auditor context. The CLI does **not** read user profile
 
 Do **not** commit secrets (MFA seeds, access keys, session tokens) or unnecessary **PII** (phone, street address). Attestation **SECRED-FORM-001** and evidence uploads belong in your controlled evidence store after Step 3.
 
-## Step 2 (SCPs) — what the validator does
+## Step 2 (SCPs / RCPs) — what the validator does
 
 - Lists **SCPs attached at the organization root** (`list_policies_for_target`).
 - **WARN** if only AWS-managed SCPs are present (prompt to attach your custom guardrail SCPs).
 - **PASS** when at least one **custom** (`AwsManaged == false`) SCP is attached at root.
-- Optional **exact name** check via `GOVCLOUD_EXPECTED_SCP_NAMES`.
+- Optional **exact name** check via `GOVCLOUD_EXPECTED_SCP_NAMES` (root only).
+- Optional **Workloads OU SCP** names via `GOVCLOUD_EXPECTED_WORKLOADS_OU_ID` + `GOVCLOUD_EXPECTED_SCP_NAMES_WORKLOADS_OU`.
+- Optional **Security OU RCP** names via `GOVCLOUD_EXPECTED_SECURITY_OU_ID` + `GOVCLOUD_EXPECTED_RCP_NAMES` (filter `RESOURCE_CONTROL_POLICY`).
 
-SCPs attached to **OUs** only are not fully validated yet; say if you want OU-target checks next.
+## Step 3 (logging & evidence) — extended optional checks
+
+Beyond CloudTrail `DescribeTrails` and GuardDuty `ListDetectors`, you can enforce:
+
+- A **named trail** (`GOVCLOUD_EXPECTED_CLOUDTRAIL_NAME`): `GetTrail`, `GetTrailStatus` (logging + log file validation when present).
+- **AWS Config** recorder status (`GOVCLOUD_EXPECTED_CONFIG_RECORDER_NAME` or `GOVCLOUD_CHECK_CONFIG_RECORDER=1`).
+- **Evidence bucket** (`GOVCLOUD_EXPECTED_EVIDENCE_BUCKET`): encryption + Object Lock (optional retention days).
+- **Security Hub** enabled standards count (`GOVCLOUD_MIN_ENABLED_SECURITY_HUB_STANDARDS`).
 
 ## What you can provide next
 
