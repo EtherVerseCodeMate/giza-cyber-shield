@@ -3,7 +3,7 @@ project:
   environment: production
 
 network:
-  vpc_cidr: 10.40.0.0/16
+  vpc_cidr: 10.0.0.0/16
   allowed_cidr: 203.0.113.10/32
 
 security:
@@ -13,7 +13,7 @@ security:
 cloudformation_parameter_overrides:
   ProjectName: khepra-protocol
   Environment: production
-  VPCCidr: 10.40.0.0/16
+  VPCCidr: 10.0.0.0/16
   EnableFlowLogs: "true"
   EnableFIPS: "true"
   AllowedCIDR: 203.0.113.10/32
