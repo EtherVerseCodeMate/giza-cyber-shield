@@ -30,7 +30,7 @@ const defaultBranding: BrandingConfig = {
   primary_color: '#3b82f6',
   secondary_color: '#1e40af',
   accent_color: '#06b6d4',
-  platform_name: 'SouHimBou AI | Agentic Cybersecurity & Compliance Platform',
+  platform_name: 'SouHimBou AI | CMMC & NIST 800-172 Evidence & Audit Readiness',
   support_email: 'support@souhimbou.ai',
   white_label_enabled: false,
   theme_mode: 'dark'
