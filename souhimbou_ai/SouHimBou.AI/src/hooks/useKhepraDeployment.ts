@@ -35,7 +35,7 @@ export const useKhepraDeployment = () => {
             if (error) throw error;
 
             if (data) {
-                const metrics = data.performance_metrics as any;
+                const metrics = data.performance_metrics as Record<string, any>;
                 setConfig({
                     deploymentUrl: data.api_endpoint || 'http://localhost:8080',
                     apiKey: metrics?.api_key || '',
@@ -52,7 +52,7 @@ export const useKhepraDeployment = () => {
                     .maybeSingle();
 
                 if (genericData) {
-                    const metrics = genericData.performance_metrics as any;
+                    const metrics = genericData.performance_metrics as Record<string, any>;
                     setConfig({
                         deploymentUrl: genericData.api_endpoint || 'http://localhost:8080',
                         apiKey: metrics?.api_key || '',

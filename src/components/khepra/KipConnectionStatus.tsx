@@ -120,7 +120,7 @@ export const KipConnectionStatus = () => {
                     </Badge>
                     <div>
                       <div className="text-sm font-medium capitalize">
-                        {transformation.transformation_type.replace('_', ' ')}
+                        {transformation.transformation_type.replaceAll('_', ' ')}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         Agent: {transformation.agent_id.slice(0, 8)}...
@@ -155,7 +155,7 @@ export const KipConnectionStatus = () => {
             variant="outline" 
             size="sm"
             disabled={!connection.isConnected}
-            onClick={() => window.open(connection.kipUrl.replace('/khepra/v1', ''), '_blank')}
+            onClick={() => globalThis.open(connection.kipUrl.replaceAll('/khepra/v1', ''), '_blank')}
           >
             <ExternalLink className="h-4 w-4 mr-1" />
             Open KIP Dashboard

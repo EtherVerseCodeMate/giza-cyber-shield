@@ -33,8 +33,8 @@ export const useBusinessMetrics = () => {
     pipelineValue: 0,
     conversionRate: 0
   });
-  
-  const [segmentMetrics, setSegmentMetrics] = useState<CustomerSegmentMetrics[]>([]);
+
+  const [segmentMetrics] = useState<CustomerSegmentMetrics[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,53 +44,8 @@ export const useBusinessMetrics = () => {
   const fetchBusinessMetrics = async () => {
     try {
       setLoading(true);
-      
-      // For now, we'll use mock data since we don't have billing/customer tables yet
-      // In production, this would query actual customer and subscription data
-      const mockMetrics: BusinessMetrics = {
-        totalCustomers: 25,
-        monthlyRecurringRevenue: 125000,
-        customerAcquisitionCost: 15000,
-        lifetimeValue: 125000,
-        churnRate: 5,
-        growthRate: 25,
-        pipelineValue: 2500000,
-        conversionRate: 15
-      };
 
-      const mockSegments: CustomerSegmentMetrics[] = [
-        {
-          segment: 'Defense Contractors',
-          customers: 12,
-          revenue: 75000,
-          growth: 30,
-          satisfaction: 8.5
-        },
-        {
-          segment: 'Enterprise',
-          customers: 8,
-          revenue: 40000,
-          growth: 20,
-          satisfaction: 7.8
-        },
-        {
-          segment: 'MSSPs',
-          customers: 3,
-          revenue: 7500,
-          growth: 15,
-          satisfaction: 8.2
-        },
-        {
-          segment: 'Critical Infrastructure',
-          customers: 2,
-          revenue: 2500,
-          growth: 10,
-          satisfaction: 9.0
-        }
-      ];
-
-      setMetrics(mockMetrics);
-      setSegmentMetrics(mockSegments);
+      // Awaiting actual billing and customer telemetry integration
 
       // Log the metrics fetch for analytics
       await supabase.rpc('log_user_action', {
