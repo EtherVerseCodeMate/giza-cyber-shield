@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Khepra Protocol - Executive Security Report</title>
+    <style>
+        @media print {
+            @page { margin: 0.75in; }
+            .page-break { page-break-before: always; }
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            max-width: 8.5in;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1a1a2e;
+            border-bottom: 3px solid #e74c3c;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #2c3e50;
+            margin-top: 30px;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+        }
+        h3 {
+            color: #34495e;
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+        tr:hover { background-color: #f5f5f5; }
+        .critical { color: #e74c3c; font-weight: bold; }
+        .high { color: #e67e22; font-weight: bold; }
+        .medium { color: #f39c12; font-weight: bold; }
+        .low { color: #3498db; }
+        .status-fail { color: #e74c3c; }
+        .status-pass { color: #27ae60; }
+        .header-info {
+            text-align: right;
+            color: #7f8c8d;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+        code {
+            background: #2c3e50;
+            color: #00ff00;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .attack-path {
+            background: #ecf0f1;
+            padding: 15px;
+            border-left: 4px solid #e74c3c;
+            margin: 10px 0;
+        }
+        .recommendation {
+            background: #e8f8f5;
+            padding: 15px;
+            border-left: 4px solid #27ae60;
+            margin: 10px 0;
+        }
+        hr {
+            border: none;
+            border-top: 2px solid #ecf0f1;
+            margin: 30px 0;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+<div class="header-info">
+    <strong>Generated:</strong> December 26, 2025<br>
+    <strong>Classification:</strong> CONFIDENTIAL - Internal Use Only
+</div>
+
+<h1>Khepra Protocol - Executive Security Report</h1>
+
+<hr>
+
+<h2>Executive Summary</h2>
+
+<p>This report presents the findings from the Khepra Protocol security assessment conducted on your infrastructure. The assessment leverages post-quantum cryptography (Dilithium3) to provide cryptographically verifiable security attestations.</p>
+
+<h3>Key Findings</h3>
+
+<table>
+    <thead>
+        <tr>
+            <th>Severity</th>
+            <th>Count</th>
+            <th>Business Impact</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td class="critical">CRITICAL</td>
+            <td>5</td>
+            <td>$5.2M potential loss</td>
+        </tr>
+        <tr>
+            <td class="high">HIGH</td>
+            <td>12</td>
+            <td>$2.8M potential loss</td>
+        </tr>
+        <tr>
+            <td class="medium">MEDIUM</td>
+            <td>18</td>
+            <td>$900K potential loss</td>
+        </tr>
+        <tr>
+            <td class="low">LOW</td>
+            <td>23</td>
+            <td>Informational</td>
+        </tr>
+    </tbody>
+</table>
+
+<p><strong>Total Risk Exposure:</strong> <span class="critical">$8.9M</span></p>
+
+<hr>
+
+<h2>CMMC Compliance Scorecard</h2>
+
+<h3>CMMC Level 3 Assessment (110 Controls)</h3>
+
+<ul>
+    <li><strong>Passing:</strong> <span class="status-pass">78 controls (71%)</span></li>
+    <li><strong>Failing:</strong> <span class="status-fail">32 controls (29%)</span></li>
+    <li><strong>Status:</strong> <span class="status-fail">NOT READY FOR CERTIFICATION</span></li>
+</ul>
+
+<h3>Critical Control Gaps</h3>
+
+<div class="attack-path">
+<h4>1. AU.3.046 - File Integrity Monitoring</h4>
+<ul>
+    <li><strong>Status:</strong> <span class="status-fail">FAILING</span></li>
+    <li><strong>Gap:</strong> No real-time FIM implementation detected</li>
+    <li><strong>Impact:</strong> Cannot detect unauthorized file modifications</li>
+</ul>
+</div>
+
+<div class="attack-path">
+<h4>2. SI.3.223 - Network Segmentation</h4>
+<ul>
+    <li><strong>Status:</strong> <span class="status-fail">FAILING</span></li>
+    <li><strong>Gap:</strong> Flat network topology detected</li>
+    <li><strong>Impact:</strong> Lateral movement risk (demonstrated in attack path)</li>
+</ul>
+</div>
+
+<div class="attack-path">
+<h4>3. RA.3.161 - Vulnerability Scanning</h4>
+<ul>
+    <li><strong>Status:</strong> <span class="status-fail">FAILING</span></li>
+    <li><strong>Gap:</strong> No continuous vulnerability monitoring</li>
+    <li><strong>Impact:</strong> Exposure to known exploited vulnerabilities (CISA KEV)</li>
+</ul>
+</div>
+
+<div class="page-break"></div>
+
+<h2>Top 5 Critical Risks</h2>
+
+<h3>1. SSH Remote Code Execution (CVE-2021-41617)</h3>
+
+<table>
+    <tr><td><strong>Severity:</strong></td><td class="critical">CRITICAL</td></tr>
+    <tr><td><strong>CVSS:</strong></td><td>9.8</td></tr>
+    <tr><td><strong>Status:</strong></td><td class="critical">ACTIVELY EXPLOITED (CISA KEV)</td></tr>
+    <tr><td><strong>Business Impact:</strong></td><td>$2.1M</td></tr>
+</table>
+
+<div class="attack-path">
+<strong>Attack Path:</strong><br>
+<code>Internet → Port 22 (SSH) → CVE-2021-41617 → Root Access → Database Compromise</code>
+</div>
+
+<div class="recommendation">
+<strong>Remediation:</strong>
+<ul>
+    <li>Update OpenSSH to version 8.8p1 or later</li>
+    <li>Implement SSH key rotation (90-day cycle)</li>
+    <li>Enable Multi-Factor Authentication (MFA) for all SSH access</li>
+    <li>Deploy network segmentation to isolate SSH services</li>
+</ul>
+</div>
+
+<h3>2. Windows RDP Privilege Escalation (CVE-2022-30190)</h3>
+
+<table>
+    <tr><td><strong>Severity:</strong></td><td class="critical">CRITICAL</td></tr>
+    <tr><td><strong>CVSS:</strong></td><td>9.3</td></tr>
+    <tr><td><strong>Status:</strong></td><td class="critical">PUBLIC EXPLOIT AVAILABLE</td></tr>
+    <tr><td><strong>Business Impact:</strong></td><td>$1.8M</td></tr>
+</table>
+
+<div class="recommendation">
+<strong>Remediation:</strong>
+<ul>
+    <li>Apply Microsoft security patch KB5014699</li>
+    <li>Disable RDP where not required</li>
+    <li>Implement Network Level Authentication (NLA)</li>
+</ul>
+</div>
+
+<h3>3. Unauthorized File Modifications Detected</h3>
+
+<table>
+    <tr><td><strong>Severity:</strong></td><td class="critical">CRITICAL</td></tr>
+    <tr><td><strong>Type:</strong></td><td>File Integrity Violation</td></tr>
+    <tr><td><strong>Impact:</strong></td><td>$800K</td></tr>
+</table>
+
+<div class="attack-path">
+<strong>Affected Files:</strong>
+<ul>
+    <li><code>/etc/shadow</code> - Password file modified</li>
+    <li><code>/etc/sudoers</code> - Privilege escalation risk</li>
+    <li><code>C:\Windows\System32\config\SAM</code> - Windows credential store</li>
+</ul>
+</div>
+
+<div class="recommendation">
+<strong>Remediation:</strong>
+<ul>
+    <li>Deploy Khepra FIM with real-time monitoring</li>
+    <li>Implement SIEM integration for alerting</li>
+    <li>Conduct forensic investigation of unauthorized changes</li>
+</ul>
+</div>
+
+<h3>4. Lateral Movement Risk - Flat Network</h3>
+
+<table>
+    <tr><td><strong>Severity:</strong></td><td class="high">HIGH</td></tr>
+    <tr><td><strong>Blast Radius:</strong></td><td>47 hosts</td></tr>
+    <tr><td><strong>Business Impact:</strong></td><td>$700K</td></tr>
+</table>
+
+<div class="attack-path">
+<strong>Attack Scenario:</strong><br>
+An attacker compromising any single workstation can pivot to 47 critical systems due to lack of network segmentation.
+</div>
+
+<div class="recommendation">
+<strong>Remediation:</strong>
+<ul>
+    <li>Implement micro-segmentation using VLANs</li>
+    <li>Deploy Zero Trust Architecture</li>
+    <li>Enable host-based firewalls on all endpoints</li>
+</ul>
+</div>
+
+<h3>5. Outdated Software Components (EO 14028 Violation)</h3>
+
+<table>
+    <tr><td><strong>Severity:</strong></td><td class="high">HIGH</td></tr>
+    <tr><td><strong>Vulnerable Components:</strong></td><td>127</td></tr>
+    <tr><td><strong>Business Impact:</strong></td><td>$500K</td></tr>
+</table>
+
+<div class="recommendation">
+<strong>Remediation:</strong>
+<ul>
+    <li>Deploy SBOM generation pipeline</li>
+    <li>Implement automated dependency scanning</li>
+    <li>Establish 30-day patching SLA for critical vulnerabilities</li>
+</ul>
+</div>
+
+<div class="page-break"></div>
+
+<h2>Remediation Roadmap</h2>
+
+<h3>Phase 1: Critical (0-30 Days) - $2.5M Investment</h3>
+<ol>
+    <li><strong>Patch Critical CVEs</strong> - Apply security updates for CVE-2021-41617 and CVE-2022-30190</li>
+    <li><strong>Deploy FIM</strong> - Implement Khepra File Integrity Monitoring across all critical systems</li>
+    <li><strong>Network Segmentation POC</strong> - Pilot micro-segmentation in production DMZ</li>
+    <li><strong>SIEM Integration</strong> - Connect Khepra to existing SIEM for centralized alerting</li>
+</ol>
+
+<h3>Phase 2: High (30-90 Days) - $1.8M Investment</h3>
+<ol>
+    <li><strong>Zero Trust Rollout</strong> - Expand network segmentation enterprise-wide</li>
+    <li><strong>SBOM Pipeline</strong> - Automate Software Bill of Materials generation</li>
+    <li><strong>Vulnerability Management</strong> - Deploy continuous CVE correlation and risk scoring</li>
+    <li><strong>MFA Deployment</strong> - Enable Multi-Factor Authentication for all privileged access</li>
+</ol>
+
+<h3>Phase 3: Medium (90-180 Days) - $1.2M Investment</h3>
+<ol>
+    <li><strong>CMMC Certification</strong> - Address remaining 32 control gaps</li>
+    <li><strong>Incident Response</strong> - Establish SOC with 24/7 monitoring</li>
+    <li><strong>Penetration Testing</strong> - Validate security controls with red team engagement</li>
+</ol>
+
+<hr>
+
+<h2>Conclusion</h2>
+
+<p>The Khepra Protocol assessment has identified <span class="critical">critical security gaps</span> that require immediate attention. With a total risk exposure of <strong>$8.9M</strong> and only <strong>71% CMMC compliance</strong>, your organization is <strong>not ready for federal contractor certification</strong>.</p>
+
+<p>However, the good news is that <strong>all identified risks are remediable</strong>. By following the 3-phase roadmap above with a total investment of <strong>$5.5M over 6 months</strong>, you can achieve:</p>
+
+<ul>
+    <li><strong>95%+ CMMC Level 3 compliance</strong></li>
+    <li><strong>80% risk reduction</strong> ($7.1M mitigated)</li>
+    <li><strong>Federal contractor readiness</strong></li>
+    <li><strong>Competitive advantage</strong> in securing DoD contracts</li>
+</ul>
+
+<div class="recommendation">
+<h3>Recommended Next Steps</h3>
+<ol>
+    <li>Schedule executive briefing with CISO and CFO</li>
+    <li>Approve Phase 1 critical remediation budget ($2.5M)</li>
+    <li>Engage Khepra team for deployment planning</li>
+    <li>Establish quarterly security assessments</li>
+</ol>
+</div>
+
+<hr>
+
+<p style="text-align: center; color: #7f8c8d; font-size: 0.9em;">
+    <strong>Report Generated By:</strong> Khepra Protocol v1.0<br>
+    <strong>Cryptographic Verification:</strong> Dilithium3 Post-Quantum Signatures<br>
+    <strong>Contact:</strong> security@khepra-protocol.ai
+</p>
+
+</div>
+</body>
+</html>

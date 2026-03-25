@@ -1,0 +1,220 @@
+# Phantom Network Stack - Docker Compose Configuration (WSL + Tailscale Edition)
+#
+# Optimized for WSL deployment with Tailscale mesh networking
+#
+# Usage (from WSL):
+#   docker-compose -f docker-compose-wsl.yml up -d     # Start all services
+#   docker-compose -f docker-compose-wsl.yml ps        # Check status
+#   docker-compose -f docker-compose-wsl.yml logs -f   # View logs
+#   docker-compose -f docker-compose-wsl.yml down      # Stop all services
+#
+# Access (via Tailscale from any device):
+#   http://phantom-wsl:8080/health       # Phantom API
+#   http://phantom-wsl:9091              # Prometheus
+#   http://phantom-wsl:3001              # Grafana
+
+version: '3.8'
+
+services:
+  # ═══════════════════════════════════════════════════════════════════
+  # Phantom Network Node
+  #
+  # Core phantom node for invisible mesh networking
+  # Counter-surveillance modules ENABLED
+  # ═══════════════════════════════════════════════════════════════════
+
+  phantom-node:
+    build:
+      context: .
+      dockerfile: Dockerfile.phantom
+    container_name: phantom-node
+    restart: always
+    ports:
+      - "8080:8080"   # Phantom API (accessible via Tailscale)
+      - "9090:9090"   # Metrics (Prometheus scrape)
+    volumes:
+      - ./pkg:/app/pkg
+      - phantom-keys:/root/.khepra/keys
+      - phantom-data:/app/data
+    environment:
+      # Phantom configuration
+      - PHANTOM_SYMBOL=Eban                    # Your Adinkra symbol identity
+      - PHANTOM_NETWORK_MODE=stealth           # Network mode: stealth, normal
+      - PHANTOM_CARRIER=JPEG                   # Carrier: JPEG, HTTP, DNS, WebRTC
+      - PHANTOM_ROTATION_PERIOD=5m             # Address rotation period
+
+      # Security
+      - PHANTOM_ENCRYPTION=kyber1024           # Post-quantum encryption
+      - PHANTOM_SIGNING=dilithium3             # Post-quantum signatures
+      - PHANTOM_KEYGEN=true                    # Enable key generation
+      - PHANTOM_KEYGEN_INTERVAL=1h             # Key rotation interval
+      - PHANTOM_KEYGEN_OUTPUT=/root/.khepra/keys
+      - PHANTOM_KEYGEN_OUTPUT=/app/data/keys
+      - PHANTOM_ADINKHEPRA_LATTICE=true #Real Implementation of Adinkra Lattice from Khepra Protocol  
+      - PHANTOM_ADINKHEPRA_LATTICE_INTERVAL=1h #Real Implementation of Adinkra Lattice from Khepra Protocol  
+      - PHANTOM_ADINKHEPRA_LATTICE_OUTPUT=/app/data/lattice #Real Implementation of Adinkra Lattice from Khepra Protocol  
+
+
+      # Database
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=phantom_network
+      - DB_USER=phantom
+      - DB_PASSWORD=phantom_secure_password_change_me  # Change this!
+
+      # ═══════════════════════════════════════════════════════════════
+      # Counter-surveillance modules (ALL ENABLED)
+      # ═══════════════════════════════════════════════════════════════
+      - GPS_SPOOF_ENABLED=true
+      - GPS_SPOOF_TARGET=Switzerland           # Fake GPS location (Zurich area)
+      - GPS_SPOOF_JITTER=true                  # Add realistic movement jitter
+
+      - FACE_DEFEAT_ENABLED=true               # Adversarial patterns for face recognition
+      - FACE_DEFEAT_MODE=subtle                # subtle | aggressive
+
+      - THERMAL_MASKING_ENABLED=true           # Variable emissivity (0.2-0.9)
+      - THERMAL_MASK_PROFILE=ambient           # ambient | cold | hot
+
+      - IMSI_ROTATION_ENABLED=true             # Ephemeral IMSI (5-minute rotation)
+      - IMSI_ROTATION_INTERVAL=5m              # Rotation period
+
+      - EM_SPREAD_SPECTRUM_ENABLED=true        # 1000 hops/second
+      - EM_SPREAD_PATTERN=fibonacci            # fibonacci | random | sequential
+
+      # Tailscale integration
+      - TAILSCALE_ENABLED=true
+      - TAILSCALE_HOSTNAME=phantom-wsl
+
+    networks:
+      - phantom-network
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ═══════════════════════════════════════════════════════════════════
+  # PostgreSQL Database
+  #
+  # Stores phantom network metadata (encrypted)
+  # ═══════════════════════════════════════════════════════════════════
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: phantom-postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: phantom
+      POSTGRES_PASSWORD: Code@11phantom_mate  # Change this!
+      POSTGRES_DB: phantom_network
+    networks:
+      - phantom-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U phantom"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Prometheus (Metrics)
+  #
+  # Collects metrics from phantom-node
+  # Accessible via Tailscale: http://phantom-wsl:9091
+  # ═══════════════════════════════════════════════════════════════════
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: phantom-prometheus
+    restart: always
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - phantom-network
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Grafana (Dashboard)
+  #
+  # Visualizes phantom network metrics
+  # Accessible via Tailscale: http://phantom-wsl:3001
+  # ═══════════════════════════════════════════════════════════════════
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: phantom-grafana
+    restart: always
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=phantom
+      - GF_SECURITY_ADMIN_PASSWORD=Code@11phantom_mate  # Change this!
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://phantom-wsl:3001
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    networks:
+      - phantom-network
+    depends_on:
+      - prometheus
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Mobile Builder (gomobile)
+  #
+  # Builds Android (.aar) and iOS (.framework) libraries
+  # Run: docker-compose exec mobile-builder bash
+  # ═══════════════════════════════════════════════════════════════════
+
+  mobile-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile.mobile
+    container_name: phantom-mobile-builder
+    volumes:
+      - ./pkg:/app/pkg
+      - ./cmd:/app/cmd
+      - mobile-output:/app/output
+    command: ["tail", "-f", "/dev/null"]
+    networks:
+      - phantom-network
+
+# ═══════════════════════════════════════════════════════════════════
+# Networks
+# ═══════════════════════════════════════════════════════════════════
+
+networks:
+  phantom-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16
+
+# ═══════════════════════════════════════════════════════════════════
+# Volumes
+# ═══════════════════════════════════════════════════════════════════
+
+volumes:
+  phantom-keys:
+    driver: local
+  phantom-data:
+    driver: local
+  mobile-output:
+    driver: local
+  postgres-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local

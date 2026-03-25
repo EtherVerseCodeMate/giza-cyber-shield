@@ -1,0 +1,21 @@
+KHEPRA PROTOCOL WARRANT CANARY
+==============================
+
+Date: 2025-12-11
+Signer: Souhimbou Doh Kone (Lead Developer / Khepra Maintainer)
+
+I, Souhimbou Doh Kone, hereby declare that:
+
+1.  I have NOT received any National Security Letter (NSL).
+2.  I have NOT received any gag order from any government agency.
+3.  I have NOT been compelled to insert any backdoor into the Khepra Protocol code.
+4.  I have NOT compromised the private keys used to sign Khepra binaries.
+
+The Khepra Protocol remains a Sovereign, Zero-Trust Architecture.
+If this file is not updated within 14 days, assume the worst.
+
+Latest Block Hash (Bitcoin): 0000000000000000000001a2b3c... (Placeholder)
+
+-- BEGIN PGP SIGNATURE --
+[...Signature Placeholder...]
+-- END PGP SIGNATURE --

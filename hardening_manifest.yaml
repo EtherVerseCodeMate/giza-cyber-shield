@@ -1,0 +1,23 @@
+apiVersion: v1
+name: adinkhepra
+tags:
+- v1.0.0
+- latest
+args:
+  BASE_IMAGE: "registry1.dso.mil/ironbank/redhat/ubi/ubi9-minimal"
+  BASE_TAG: "9.5"
+  BUILDER_IMAGE: "registry1.dso.mil/ironbank/google/golang/golang"
+  BUILDER_TAG: "1.23"
+labels:
+  org.opencontainers.image.title: "AdinKhepra - PQC Cybersecurity Agent"
+  org.opencontainers.image.description: "Post-quantum cryptographic attestation and compliance agent for DoD, IC, and CMMC environments."
+  org.opencontainers.image.vendor: "NouchiX SecRed Knowledge Inc."
+  org.opencontainers.image.version: "v1.0.0"
+  mil.dso.ironbank.image.keywords: "security,audit,compliance,pqc,zero-trust,cmmc,stig,fips"
+  mil.dso.ironbank.image.type: "commercial"
+  mil.dso.ironbank.product.name: "AdinKhepra"
+resources: []
+maintainers:
+- email: "souhimbou.d.kone.mil@army.mil"
+  name: "Souhimbou D. Kone"
+  username: "souhimbou.d.kone"

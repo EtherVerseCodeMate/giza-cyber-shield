@@ -1,0 +1,51 @@
+# Fly.io deployment configuration for SouHimBou AI
+app = "souhimbou-ai"
+primary_region = "iad" # US East (Ashburn, VA)
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  PYTHONUNBUFFERED = "1"
+  ADINKHEPRA_ML_FEATURE_DIM = "128"
+  ADINKHEPRA_ML_HIDDEN_DIM = "64"
+  ADINKHEPRA_ML_LATENT_DIM = "32"
+  ADINKHEPRA_ML_MODEL_PATH = "/app/models/souhimbou_v1.pt"
+  ADINKHEPRA_ML_CLASSIFIED_DOCS_PATH = "/app/top_secret_intel"
+  ADINKHEPRA_ML_CYBER_BRAIN_PATH = "/app/data/cyber_brain"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 250
+    soft_limit = 200
+
+[[vm]]
+  size = "shared-cpu-2x"
+  memory = "4gb"
+  cpus = 2
+
+[mounts]
+  source = "souhimbou_data"
+  destination = "/app/data"
+
+[checks]
+  [checks.health]
+    type = "http"
+    port = 8080
+    path = "/"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+
+[metrics]
+  port = 9091
+  path = "/metrics"
