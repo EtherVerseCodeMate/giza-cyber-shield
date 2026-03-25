@@ -188,7 +188,7 @@ export const useEnhancedAuth = (): EnhancedAuthResult => {
       });
 
       if (strength && typeof strength === 'object' && 'score' in strength) {
-        const typedStrength = strength as {
+        const typedStrength = strength as unknown as {
           score: number;
           is_strong: boolean;
           feedback: string[];

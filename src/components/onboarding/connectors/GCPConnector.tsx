@@ -252,7 +252,7 @@ echo "⚠️  Copy the contents of \${KEY_FILE} to NouchiX connection wizard"
 
       <Button
         variant="link"
-        onClick={() => window.open('https://cloud.google.com/iam/docs/creating-managing-service-accounts', '_blank')}
+        onClick={() => globalThis.open('https://cloud.google.com/iam/docs/creating-managing-service-accounts', '_blank')}
       >
         <ExternalLink className="mr-2 h-4 w-4" />
         How to create a Service Account

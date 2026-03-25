@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -33,20 +32,20 @@ const CustomAPIIntegrationGuide = () => {
     setIsLoading(true);
     try {
       // Simulate API test
-      setTimeout(() => {
-        setTestResult({
-          status: 'success',
-          data: {
-            endpoint: testEndpoint,
-            response_time: '234ms',
-            data_types: ['security_events', 'user_logs', 'system_metrics'],
-            last_updated: new Date().toISOString()
-          }
-        });
-        setIsLoading(false);
-      }, 2000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      setTestResult({
+        status: 'success',
+        data: {
+          endpoint: testEndpoint,
+          response_time: '234ms',
+          data_types: ['security_events', 'user_logs', 'system_metrics'],
+          last_updated: new Date().toISOString()
+        }
+      });
     } catch (error) {
+      console.error('API test error:', error);
       setTestResult({ status: 'error', message: 'Connection failed' });
+    } finally {
       setIsLoading(false);
     }
   };
@@ -70,7 +69,7 @@ async function sendSecurityEvent(eventData) {
         action: 'sync',
         integration_type: 'custom_website',
         config: {
-          endpoint_url: window.location.origin,
+          endpoint_url: globalThis.location.origin,
           site_name: 'Your Website Name'
         },
         data: {
@@ -79,7 +78,7 @@ async function sendSecurityEvent(eventData) {
           user_id: eventData.userId,
           ip_address: eventData.ip,
           user_agent: navigator.userAgent,
-          page_url: window.location.href,
+          page_url: globalThis.location.href,
           details: eventData.details
         }
       })
@@ -145,8 +144,8 @@ class IMOHTEPSecurityMonitor {
           data: {
             event_type: eventType,
             timestamp: new Date().toISOString(),
-            site_url: window.location.origin,
-            page_url: window.location.href,
+            site_url: globalThis.location.origin,
+            page_url: globalThis.location.href,
             user_agent: navigator.userAgent,
             ...data
           }
@@ -182,11 +181,11 @@ class IMOHTEPSecurityMonitor {
     // Monitor rapid page visits
     let pageViews = [];
     
-    window.addEventListener('beforeunload', () => {
+    globalThis.addEventListener('beforeunload', () => {
       pageViews.push({
-        url: window.location.href,
+        url: globalThis.location.href,
         timestamp: Date.now(),
-        duration: Date.now() - window.performance.timing.navigationStart
+        duration: Date.now() - globalThis.performance.timing.navigationStart
       });
       
       // If more than 10 pages in 30 seconds
@@ -255,7 +254,7 @@ class IMOHTEPAPIClient {
       action: 'sync',
       integration_type: 'custom_api',
       config: {
-        endpoint_url: window.location.origin,
+        endpoint_url: globalThis.location.origin,
         integration_name: 'Static Website Security Feed'
       },
       data: eventData
@@ -268,7 +267,7 @@ class IMOHTEPAPIClient {
       action: 'test',
       integration_type: 'custom_api',
       config: {
-        endpoint_url: window.location.origin
+        endpoint_url: globalThis.location.origin
       }
     });
   }
@@ -279,7 +278,7 @@ class IMOHTEPAPIClient {
       action: 'sync',
       integration_type: 'bulk_events',
       config: {
-        endpoint_url: window.location.origin,
+        endpoint_url: globalThis.location.origin,
         batch_size: events.length
       },
       data: { events }
@@ -342,7 +341,7 @@ console.log('Connection status:', connectionTest);`
                 <Button
                   variant="outline"
                   className="ml-4 border-primary/50 text-primary hover:bg-primary/10"
-                  onClick={() => window.open('/integration-guide', '_blank')}
+                  onClick={() => globalThis.open('/integration-guide', '_blank')}
                 >
                   <ExternalLink className="h-4 w-4 mr-2" />
                   Open Integration Hub
@@ -816,7 +815,7 @@ console.log('Connection status:', connectionTest);`
                 {
                   label: "Documentation",
                   description: "Access detailed API documentation",
-                  action: () => window.open('#', '_blank'),
+                  action: () => globalThis.open('#', '_blank'),
                   icon: <ExternalLink className="w-3 h-3" />,
                   type: "link" as const
                 }

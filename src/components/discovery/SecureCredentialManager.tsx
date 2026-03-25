@@ -424,7 +424,7 @@ export const SecureCredentialManager: React.FC<SecureCredentialManagerProps> = (
                         id="max_uses"
                         type="number"
                         value={newCredential.max_concurrent_uses}
-                        onChange={(e) => setNewCredential({...newCredential, max_concurrent_uses: parseInt(e.target.value)})}
+                        onChange={(e) => setNewCredential({...newCredential, max_concurrent_uses: Number.parseInt(e.target.value)})}
                         min="1"
                         max="10"
                       />

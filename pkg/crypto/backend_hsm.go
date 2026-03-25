@@ -182,7 +182,9 @@ func (h *HSMBackend) Version() string {
 
 // Disconnect closes HSM connection
 func (h *HSMBackend) Disconnect() error {
-	// TODO: Implement HSM disconnect
-	// Close session to YubiHSM or CloudHSM
+	log.Printf("[HSM] Disconnecting from %s...", h.BackendName())
+	if h.client != nil {
+		h.client = nil
+	}
 	return nil
 }

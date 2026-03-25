@@ -188,7 +188,7 @@ export const TrustScoreDashboard: React.FC<TrustScoreDashboardProps> = ({
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Risk Tolerance</label>
-                <div className="text-base capitalize">{deploymentProfile.riskTolerance.replace('_', ' ')}</div>
+                <div className="text-base capitalize">{deploymentProfile.riskTolerance.replaceAll('_', ' ')}</div>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Monitoring Level</label>
@@ -202,7 +202,7 @@ export const TrustScoreDashboard: React.FC<TrustScoreDashboardProps> = ({
                 <div className="flex flex-wrap gap-1 mt-1">
                   {deploymentProfile.allowedActions.map((action) => (
                     <Badge key={action} variant="outline" className="text-xs">
-                      {action.replace('_', ' ')}
+                      {action.replaceAll('_', ' ')}
                     </Badge>
                   ))}
                 </div>

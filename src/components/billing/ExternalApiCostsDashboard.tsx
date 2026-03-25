@@ -69,18 +69,19 @@ export const ExternalApiCostsDashboard = () => {
       setCostData(costs || []);
       setUsageStats(usage || []);
 
-      // Simulate alerts for demo (in production, these would come from the database)
-      setAlerts([
-        {
-          id: '1',
-          api_provider: 'openai',
+      // Derive live alerts from actual cost data: flag any provider consuming >90% of a $100 budget
+      const liveAlerts: UsageAlert[] = (costs || [])
+        .filter(c => c.total_cost >= 90)
+        .map(c => ({
+          id: c.api_provider,
+          api_provider: c.api_provider,
           alert_type: 'cost_threshold',
           threshold_value: 100,
-          current_value: 95.50,
-          message: 'OpenAI costs approaching monthly budget limit',
+          current_value: c.total_cost,
+          message: `${c.api_provider} costs approaching monthly budget limit ($${c.total_cost.toFixed(2)} / $100)`,
           created_at: new Date().toISOString()
-        }
-      ]);
+        }));
+      setAlerts(liveAlerts);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       toast({

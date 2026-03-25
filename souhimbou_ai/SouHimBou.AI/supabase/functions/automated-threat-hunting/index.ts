@@ -168,7 +168,7 @@ interface HuntResult {
   executionTime: number;
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -431,8 +431,8 @@ async function generateDailyReport(supabase: any, reportDate: string, organizati
   }
 
   const totalQueries = huntLogs?.length || 0;
-  const matchedQueries = huntLogs?.filter(log => log.match_count > 0).length || 0;
-  const criticalFindings = huntLogs?.filter(log =>
+  const matchedQueries = huntLogs?.filter((log: any) => log.match_count > 0).length || 0;
+  const criticalFindings = huntLogs?.filter((log: any) =>
     log.match_count > 0 && log.findings?.some((f: any) => f.riskScore >= 80)
   ).length || 0;
 

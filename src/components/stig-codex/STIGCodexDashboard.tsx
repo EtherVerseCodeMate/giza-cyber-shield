@@ -10,27 +10,25 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Shield, 
-  Activity, 
-  Zap, 
-  Brain, 
-  AlertTriangle, 
-  CheckCircle, 
-  Clock, 
+import {
+  Shield,
+  Activity,
+  Zap,
+  Brain,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
   TrendingUp,
   Eye,
   Settings,
   FileText,
   Globe
 } from 'lucide-react';
-import { useSTIGCodex } from '@/hooks/useSTIGCodex';
-import { useOrganization } from '@/hooks/useOrganization';
+import { STIGCodexState, STIGCodexOperations } from '@/hooks/useSTIGCodex';
 
-export const STIGCodexDashboard: React.FC = () => {
-  const { currentOrganization } = useOrganization();
-  const organizationId = currentOrganization?.id || '';
-  
+interface STIGCodexDashboardProps extends STIGCodexState, STIGCodexOperations { }
+
+export const STIGCodexDashboard: React.FC<STIGCodexDashboardProps> = (props) => {
   const {
     // State
     complianceScore,
@@ -43,7 +41,7 @@ export const STIGCodexDashboard: React.FC = () => {
     loading,
     error,
     lastUpdated,
-    
+
     // Operations
     initializeMonitoring,
     detectDrift,
@@ -51,13 +49,13 @@ export const STIGCodexDashboard: React.FC = () => {
     correlateThreatIntel,
     calculateCompliance,
     refreshAllData
-  } = useSTIGCodex(organizationId);
+  } = props;
 
   const handleInitializeMonitoring = async () => {
-    // Mock asset and STIG rule data for demo
-    const mockAssets = ['asset-1', 'asset-2', 'asset-3'];
-    const mockSTIGRules = ['WN22-DC-000010', 'WN22-DC-000020', 'WN22-DC-000030'];
-    await initializeMonitoring(mockAssets, mockSTIGRules);
+    // Awaiting telemetry for real asset and STIG rule data
+    const pendingAssets: string[] = [];
+    const pendingSTIGRules: string[] = [];
+    await initializeMonitoring(pendingAssets, pendingSTIGRules);
   };
 
   const getComplianceColor = (score: number) => {
@@ -82,9 +80,9 @@ export const STIGCodexDashboard: React.FC = () => {
         <AlertTriangle className="h-4 w-4" />
         <AlertDescription>
           STIG-Codex Error: {error}
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             className="ml-2"
             onClick={refreshAllData}
           >
@@ -257,9 +255,9 @@ export const STIGCodexDashboard: React.FC = () => {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm">Trend</span>
-                      <Badge 
-                        variant={riskAnalysis.trending === 'improving' ? 'default' : 
-                               riskAnalysis.trending === 'declining' ? 'destructive' : 'outline'}
+                      <Badge
+                        variant={riskAnalysis.trending === 'improving' ? 'default' :
+                          riskAnalysis.trending === 'declining' ? 'destructive' : 'outline'}
                       >
                         {riskAnalysis.trending}
                       </Badge>
@@ -335,7 +333,7 @@ export const STIGCodexDashboard: React.FC = () => {
         <TabsContent value="drift" className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Configuration Drift Detection</h3>
-            <Button onClick={() => detectDrift('mock-asset-1')} disabled={loading}>
+            <Button onClick={() => detectDrift('pending-asset')} disabled={loading}>
               <Zap className="h-4 w-4 mr-2" />
               Scan for Drift
             </Button>
@@ -446,8 +444,8 @@ export const STIGCodexDashboard: React.FC = () => {
         <TabsContent value="remediation" className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Automated Remediation</h3>
-            <Button 
-              onClick={() => executeRemediation('mock-violation-1')} 
+            <Button
+              onClick={() => executeRemediation('pending-violation')}
               disabled={loading}
               variant="default"
             >

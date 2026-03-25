@@ -48,7 +48,7 @@ export const MVPLaunchBanner = () => {
               variant="outline"
               size="sm"
               className="border-orange-500/30 text-orange-400 hover:bg-orange-500/20"
-              onClick={() => window.open('https://www.producthunt.com/', '_blank')}
+              onClick={() => globalThis.open('https://www.producthunt.com/', '_blank')}
             >
               <TrendingUp className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Vote on</span> Product Hunt
@@ -60,7 +60,7 @@ export const MVPLaunchBanner = () => {
               variant="outline"
               size="sm"
               className="border-blue-500/30 text-blue-400 hover:bg-blue-500/20"
-              onClick={() => window.open('https://www.indiehackers.com/', '_blank')}
+              onClick={() => globalThis.open('https://www.indiehackers.com/', '_blank')}
             >
               <Users className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Follow on</span> IndieHackers
@@ -85,7 +85,7 @@ export const MVPLaunchBanner = () => {
             variant="outline"
             size="sm"
             className="border-orange-500/30 text-orange-400 hover:bg-orange-500/20 flex-1"
-            onClick={() => window.open('https://www.producthunt.com/', '_blank')}
+            onClick={() => globalThis.open('https://www.producthunt.com/', '_blank')}
           >
             <Star className="h-4 w-4 mr-2" />
             Product Hunt
@@ -94,7 +94,7 @@ export const MVPLaunchBanner = () => {
             variant="outline"
             size="sm"
             className="border-blue-500/30 text-blue-400 hover:bg-blue-500/20 flex-1"
-            onClick={() => window.open('https://www.indiehackers.com/', '_blank')}
+            onClick={() => globalThis.open('https://www.indiehackers.com/', '_blank')}
           >
             <Heart className="h-4 w-4 mr-2" />
             IndieHackers

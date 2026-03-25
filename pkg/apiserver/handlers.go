@@ -3,9 +3,12 @@ package apiserver
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -60,19 +63,27 @@ func (s *Server) handleTriggerScan(c *gin.Context) {
 		return
 	}
 
-	// 1. Enforce License (Commercial Logic)
+	// 1. License + optional public funnel (Fly / marketing)
+	// Set ASAF_ALLOW_EVAL_WITHOUT_LICENSE=true to allow eval/basic onboarding scans when telemetry license is invalid.
+	// Still requires a valid API key / auth path configured for your deployment.
 	status := s.licMgr.GetStatus()
+	effectiveTier := status.LicenseTier
 	if !status.IsValid {
-		c.JSON(http.StatusForbidden, ErrorResponse{
-			Error:   "license_invalid",
-			Message: "A valid license is required to trigger security scans.",
-			Code:    http.StatusForbidden,
-		})
-		return
+		allow := strings.EqualFold(os.Getenv("ASAF_ALLOW_EVAL_WITHOUT_LICENSE"), "true") &&
+			(req.ScanType == "eval" || req.ScanType == "basic")
+		if !allow {
+			c.JSON(http.StatusForbidden, ErrorResponse{
+				Error:   "license_invalid",
+				Message: "A valid license is required to trigger security scans.",
+				Code:    http.StatusForbidden,
+			})
+			return
+		}
+		effectiveTier = "community"
 	}
 
 	// 2. Feature Gating based on Egyptian Tiers
-	switch status.LicenseTier {
+	switch effectiveTier {
 	case "community", "khepri":
 		if req.ScanType != "eval" && req.ScanType != "basic" {
 			c.JSON(http.StatusPaymentRequired, ErrorResponse{
@@ -88,6 +99,26 @@ func (s *Server) handleTriggerScan(c *gin.Context) {
 	scanID := uuid.New().String()
 	queuedAt := time.Now()
 	estimatedCompletion := queuedAt.Add(5 * time.Minute)
+
+	// Register scan in Command Center and run async onboarding assessment (TCP + optional local NemoClaw).
+	now := time.Now()
+	scan := &ScanResult{
+		ID:         scanID,
+		StartTime:  now,
+		Status:     StatusRunning,
+		Framework:  req.ScanType,
+		Profile:    req.Profile,
+		Platform:   "generic",
+		Certified:  false,
+		TargetURL:  req.TargetURL,
+		Findings:   []Finding{},
+		Remediations: []Remediation{},
+	}
+	commandCenter.mu.Lock()
+	commandCenter.scans[scanID] = scan
+	commandCenter.mu.Unlock()
+
+	go runASAFOnboardingScan(scanID, req)
 
 	response := ScanResponse{
 		ScanID:       scanID,
@@ -158,6 +189,13 @@ func (s *Server) handleGetScanStatus(c *gin.Context) {
 			"failed_checks": scan.FailedChecks,
 			"findings":      len(scan.Findings),
 		},
+		Platform:           scan.Platform,
+		Certified:        scan.Certified,
+		RiskScore:          scan.RiskScore,
+		Exposed:            scan.GatewayExposed,
+		AuthWeakness:       scan.AuthWeaknessHeuristic,
+		OpenIntegrations:   scan.OpenIntegrations,
+		Findings:           scan.PresentationFindings,
 	}
 
 	if scan.EndTime != nil {
@@ -368,10 +406,22 @@ func (s *Server) handleGenerateERT(c *gin.Context) {
 		return
 	}
 
+	// 4. Generate Real Dilithium3 Signature (TRL10)
+	msg := []byte(fmt.Sprintf("%s:%s:%s", tokenID, req.EventType, dagNodeID))
+	sig, err := adinkra.Sign(s.sigPrivKey, msg)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "signing_failed",
+			Message: "PQC signing failed: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
 	response := ERTResponse{
 		TokenID:      tokenID,
 		EventType:    req.EventType,
-		PQCSignature: "pqc_sig_" + uuid.New().String(), // In production, signed with Dilithium
+		PQCSignature: fmt.Sprintf("%x", sig), // Hex encoded Dilithium3 signature
 		DAGNodeID:    dagNodeID,
 		IssuedAt:     time.Now(),
 		VerifyURL:    fmt.Sprintf("https://%s/api/v1/ert/verify/%s", c.Request.Host, tokenID),

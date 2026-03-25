@@ -40,14 +40,14 @@ export class AgentDAG {
    * Add new agent action to the DAG
    */
   addAgentAction(
-    agentId: string, 
-    action: string, 
+    agentId: string,
+    action: string,
     culturalContext: string = 'security',
     metadata: Record<string, any> = {}
   ): string {
     const timestamp = Date.now();
     const nodeId = AdinkraAlgebraicEngine.generateNodeId(agentId, action, timestamp);
-    
+
     // Select appropriate Adinkra symbol based on context
     const symbol = AdinkraAlgebraicEngine.getSymbolByContext(
       culturalContext as 'security' | 'trust' | 'transformation' | 'unity'
@@ -72,7 +72,7 @@ export class AgentDAG {
 
     this.nodes.set(nodeId, node);
     this.updateTrustScores();
-    
+
     return nodeId;
   }
 
@@ -82,14 +82,14 @@ export class AgentDAG {
   createConnection(fromNodeId: string, toNodeId: string, transformationType: string = 'trust_flow'): boolean {
     const fromNode = this.nodes.get(fromNodeId);
     const toNode = this.nodes.get(toNodeId);
-    
+
     if (!fromNode || !toNode) {
       return false;
     }
 
     // Verify cultural compatibility using Adinkra transformations
     const compatibility = this.verifyCulturalCompatibility(fromNode, toNode);
-    
+
     const edgeId = `${fromNodeId}->${toNodeId}`;
     const edge: DAGEdge = {
       from: fromNodeId,
@@ -100,7 +100,7 @@ export class AgentDAG {
     };
 
     this.edges.set(edgeId, edge);
-    
+
     // Update node connections
     fromNode.outputs.push(toNodeId);
     toNode.inputs.push(fromNodeId);
@@ -120,7 +120,7 @@ export class AgentDAG {
     // Generate cultural signature using Adinkra encoding
     const interactionData = `${sourceAgent}:${targetAgent}:${action}:${Date.now()}`;
     const culturalSignature = AdinkraAlgebraicEngine.generateFingerprint(
-      interactionData, 
+      interactionData,
       ['Nyame', 'Fawohodie'] // Authority + Freedom symbols
     );
 
@@ -147,17 +147,17 @@ export class AgentDAG {
   validateAgentAuthorization(agentId: string, requestedAction: string): boolean {
     // Find all paths to this agent
     const agentNodes = this.getAgentNodes(agentId);
-    
+
     if (agentNodes.length === 0) {
       return false; // Unknown agent
     }
 
     // Calculate cumulative trust score
     const totalTrustScore = agentNodes.reduce((sum, node) => sum + node.trustScore, 0) / agentNodes.length;
-    
+
     // Check for privilege escalation patterns
     const hasEscalationPattern = this.detectPrivilegeEscalation(agentId, requestedAction);
-    
+
     // Validate using cultural context
     const culturalValidation = this.validateCulturalContext(agentId, requestedAction);
 
@@ -168,7 +168,7 @@ export class AgentDAG {
    * Generate security audit trail with cultural context
    */
   generateAuditTrail(agentId?: string): any[] {
-    const relevantNodes = agentId 
+    const relevantNodes = agentId
       ? this.getAgentNodes(agentId)
       : Array.from(this.nodes.values());
 
@@ -210,7 +210,7 @@ export class AgentDAG {
     }
 
     // Check for cultural context violations
-    const culturalViolations = agentNodes.filter(node => 
+    const culturalViolations = agentNodes.filter(node =>
       !this.validateNodeCulturalIntegrity(node)
     ).length;
 
@@ -241,7 +241,7 @@ export class AgentDAG {
     // Check if symbols are culturally compatible
     const symbolA = AdinkraAlgebraicEngine.getAllSymbols()[nodeA.symbol];
     const symbolB = AdinkraAlgebraicEngine.getAllSymbols()[nodeB.symbol];
-    
+
     if (!symbolA || !symbolB) return 0;
 
     // Same category symbols have higher compatibility
@@ -267,14 +267,14 @@ export class AgentDAG {
       const incomingTrust = node.inputs.length * 5;
       const outgoingTrust = node.outputs.length * 3;
       const interactionTrust = this.calculateNodeInteractionTrust(node.agentId);
-      
+
       node.trustScore = Math.min(100, incomingTrust + outgoingTrust + interactionTrust);
     }
   }
 
   private calculateInteractionTrust(sourceAgent: string, targetAgent: string): number {
     const relevantInteractions = this.interactions.filter(
-      interaction => 
+      interaction =>
         (interaction.sourceAgent === sourceAgent && interaction.targetAgent === targetAgent) ||
         (interaction.sourceAgent === targetAgent && interaction.targetAgent === sourceAgent)
     );
@@ -310,7 +310,7 @@ export class AgentDAG {
       'admin_access', 'role_modification', 'permission_grant', 'system_override'
     ];
 
-    return escalationPatterns.some(pattern => 
+    return escalationPatterns.some(pattern =>
       recentActions.filter(action => action.includes(pattern)).length > 2
     );
   }
@@ -318,12 +318,12 @@ export class AgentDAG {
   private validateCulturalContext(agentId: string, action: string): boolean {
     // Validate that the action is culturally appropriate for the agent's context
     const agentNodes = this.getAgentNodes(agentId);
-    
+
     if (agentNodes.length === 0) return false;
 
     const recentNode = agentNodes[agentNodes.length - 1];
     const symbol = AdinkraAlgebraicEngine.getAllSymbols()[recentNode.symbol];
-    
+
     // Define action-symbol compatibility
     const actionCompatibility: Record<string, string[]> = {
       'protection': ['security_scan', 'threat_analysis', 'access_control'],
@@ -341,14 +341,41 @@ export class AgentDAG {
     try {
       // Verify the cultural signature hasn't been tampered with
       const expectedId = AdinkraAlgebraicEngine.generateNodeId(
-        node.agentId, 
-        node.action, 
+        node.agentId,
+        node.action,
         node.timestamp.getTime()
       );
       return node.id === expectedId;
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Resolve conflict between two competing agent actions using symbol precedence
+   * Precedence: Eban (3) > Fawohodie (2) > Nkyinkyim (1)
+   */
+  resolveSymbolConflict(nodeIdA: string, nodeIdB: string): string {
+    const nodeA = this.nodes.get(nodeIdA);
+    const nodeB = this.nodes.get(nodeIdB);
+
+    if (!nodeA) return nodeIdB;
+    if (!nodeB) return nodeIdA;
+
+    const precedence: Record<string, number> = {
+      'Eban': 3,
+      'Fawohodie': 2,
+      'Nkyinkyim': 1
+    };
+
+    const scoreA = precedence[nodeA.symbol] || 0;
+    const scoreB = precedence[nodeB.symbol] || 0;
+
+    if (scoreA > scoreB) return nodeIdA;
+    if (scoreB > scoreA) return nodeIdB;
+
+    // Tie-break: highest trust score win
+    return nodeA.trustScore >= nodeB.trustScore ? nodeIdA : nodeIdB;
   }
 
   /**

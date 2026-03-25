@@ -1,4 +1,4 @@
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode, useMemo } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { AuthContext } from './AuthContext';
@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -33,54 +33,54 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    console.log('[AUTH] Attempting sign in for:', email);
+    console.log('[SOUHIMBOU-AUTH] Checking Sunsum Vitality for:', email);
 
-    // Check if account is locked before attempting login
+    // Check if Sunsum is diminished (account locked) before attempting entry ritual
     try {
-      const { data: isLocked, error: lockError } = await supabase.rpc('is_account_locked', {
+      const { data: isDiminished, error: lockError } = await supabase.rpc('is_sunsum_diminished', {
         user_email: email
       });
 
       if (lockError) {
-        console.warn('[AUTH] Lock check failed (non-critical):', lockError.message);
-        // Continue with login even if lock check fails
-      } else if (isLocked) {
-        console.error('[AUTH] Account is locked');
-        return { error: { message: 'Account temporarily locked due to security concerns. Please try again later.' } };
+        console.warn('[SOUHIMBOU-AUTH] Sunsum check failed (non-critical):', lockError.message);
+        // Continue with ritual even if check fails
+      } else if (isDiminished) {
+        console.error('[SOUHIMBOU-AUTH] Sunsum is diminished. Entry denied.');
+        return { error: { message: 'Sunsum is temporarily diminished due to ritual lapses. Please seek harmony and try again later.' } };
       }
     } catch (lockCheckError) {
-      console.warn('[AUTH] Could not check account lock status:', lockCheckError);
-      // Continue with login even if lock check fails
+      console.warn('[SOUHIMBOU-AUTH] Could not verify Sunsum status:', lockCheckError);
+      // Continue with ritual even if check fails
     }
 
-    console.log('[AUTH] Calling signInWithPassword...');
+    console.log('[SOUHIMBOU-AUTH] Performing Entry Ritual (signInWithPassword)...');
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
     });
 
     if (error) {
-      console.error('[AUTH] Sign in failed:', error.message, error);
+      console.error('[SOUHIMBOU-AUTH] Entry ritual failed:', error.message, error);
 
-      // Record failed login attempt
+      // Record ritual lapse
       try {
-        await supabase.rpc('record_failed_login', {
+        await supabase.rpc('record_ritual_lapse', {
           user_email: email,
           client_ip: null,
           client_user_agent: navigator.userAgent
         });
       } catch (recordError) {
-        console.warn('[AUTH] Could not record failed login:', recordError);
+        console.warn('[SOUHIMBOU-AUTH] Could not record ritual lapse:', recordError);
       }
     } else {
-      console.log('[AUTH] Sign in successful, user:', data.user?.email);
+      console.log('[SOUHIMBOU-AUTH] Entry successful. Sunsum harmonized for:', data.user?.email);
     }
 
     return { error };
   };
 
   const signUp = async (email: string, password: string, metadata?: any) => {
-    const redirectUrl = `${window.location.origin}/auth/callback`;
+    const redirectUrl = `${globalThis.location.origin}/auth/callback`;
 
     const { error } = await supabase.auth.signUp({
       email,
@@ -99,7 +99,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const resetPassword = async (email: string) => {
-    const redirectUrl = `${window.location.origin}/auth/callback`;
+    const redirectUrl = `${globalThis.location.origin}/auth/callback`;
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl
@@ -107,16 +107,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return { error };
   };
 
+  const contextValue = useMemo(() => ({
+    user,
+    session,
+    loading,
+    signIn,
+    signUp,
+    signOut,
+    resetPassword
+  }), [user, session, loading]);
+
   return (
-    <AuthContext.Provider value={{
-      user,
-      session,
-      loading,
-      signIn,
-      signUp,
-      signOut,
-      resetPassword
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

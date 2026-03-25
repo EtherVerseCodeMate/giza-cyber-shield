@@ -99,7 +99,7 @@ export const ActivityFeed = () => {
         case 'document_access':
           return `Document accessed: ${resourceType || 'Unknown'}`;
         default:
-          return `${action.replace('_', ' ')} - ${resourceType || 'System'}`;
+          return `${action.replaceAll('_', ' ')} - ${resourceType || 'System'}`;
       }
     };
 

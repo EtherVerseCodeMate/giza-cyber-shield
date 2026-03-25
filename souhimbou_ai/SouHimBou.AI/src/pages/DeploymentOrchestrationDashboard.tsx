@@ -438,7 +438,7 @@ const DeploymentOrchestrationDashboard = () => {
                     <Input
                       value={commandInput}
                       onChange={(e) => setCommandInput(e.target.value)}
-                      onKeyPress={handleKeyPress}
+                      onKeyDown={handleKeyPress}
                       placeholder="Enter command..."
                       className="font-mono"
                     />

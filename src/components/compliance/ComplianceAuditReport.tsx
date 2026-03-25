@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  FileText, 
-  Download, 
-  Shield, 
-  AlertTriangle, 
-  CheckCircle, 
+import {
+  FileText,
+  Download,
+  Shield,
+  AlertTriangle,
+  CheckCircle,
   Clock,
   TrendingUp,
   BarChart3
@@ -37,78 +37,20 @@ interface AuditReportData {
   executive_summary: string;
 }
 
-import { supabase } from '@/integrations/supabase/client';
-
 export const ComplianceAuditReport = () => {
   const [activeReport, setActiveReport] = useState<string>("executive");
-  const [reportData, setReportData] = useState<AuditReportData>({
-    assessment_name: "Compliance Assessment",
-    framework: "CMMC 2.0",
-    assessment_date: new Date().toLocaleDateString(),
+
+  // Awaiting telemetry for real report data
+  const reportData: AuditReportData = {
+    assessment_name: "Pending Assessment",
+    framework: "Pending Framework",
+    assessment_date: "Pending",
     overall_score: 0,
-    compliance_level: "Loading...",
+    compliance_level: "Pending Execution",
     total_controls: 0,
     implemented_controls: 0,
     gaps: [],
-    executive_summary: "Loading assessment data from database..."
-  });
-
-  useEffect(() => {
-    loadReportData();
-  }, []);
-
-  const loadReportData = async () => {
-    try {
-      const [assessmentRes, gapControlsRes, allControlsRes, implementedControlsRes] = await Promise.all([
-        supabase
-          .from('compliance_assessments')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from('compliance_controls')
-          .select('id, control_id, description, implementation_status, created_at')
-          .not('implementation_status', 'eq', 'implemented')
-          .not('implementation_status', 'eq', 'validated')
-          .order('created_at', { ascending: false })
-          .limit(10),
-        supabase.from('compliance_controls').select('id', { count: 'exact', head: true }),
-        supabase.from('compliance_controls').select('id', { count: 'exact', head: true }).eq('implementation_status', 'implemented')
-      ]);
-
-      const assessment = assessmentRes.data;
-      const score = assessment?.score ?? 0;
-      const total = allControlsRes.count ?? 0;
-      const implemented = implementedControlsRes.count ?? 0;
-      const gapControls = gapControlsRes.data || [];
-
-      setReportData({
-        assessment_name: assessment?.assessment_type ? `${assessment.assessment_type} Assessment` : 'CMMC Level 2 Assessment',
-        framework: "CMMC 2.0",
-        assessment_date: assessment ? new Date(assessment.created_at).toLocaleDateString() : new Date().toLocaleDateString(),
-        overall_score: Math.round(score),
-        compliance_level: score >= 90 ? 'Level 2 Certified' : score >= 70 ? 'Level 2 Ready' : 'In Progress',
-        total_controls: total,
-        implemented_controls: implemented,
-        gaps: gapControls.map(c => {
-          const sev = (c as any).severity || (c as any).risk_level || 'medium';
-          return {
-            id: c.id,
-            control_id: c.control_id || c.id.slice(0, 12).toUpperCase(),
-            title: (c as any).title || `Control Gap: ${c.control_id || c.id.slice(0, 8)}`,
-            severity: sev === 'critical' || sev === 'high' ? 'HIGH' : sev === 'medium' ? 'MEDIUM' : 'LOW',
-            status: c.implementation_status === 'planned' ? 'IN_PROGRESS' : 'OPEN',
-            finding: c.description || 'Control implementation gap identified',
-            recommendation: (c as any).remediation_guidance || 'Implement control per framework requirements',
-            target_date: (c as any).target_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-          };
-        }),
-        executive_summary: `Analysis of ${total} controls reveals ${Math.round(score)}% compliance with CMMC 2.0 requirements. ${total - implemented} gap${total - implemented !== 1 ? 's' : ''} identified requiring remediation. ${implemented} controls successfully implemented and validated.`
-      });
-    } catch (error) {
-      console.error('[ComplianceAuditReport] loadReportData error:', error);
-    }
+    executive_summary: "Awaiting telemetry to generate executive summary."
   };
 
   const getSeverityIcon = (severity: string) => {
@@ -153,8 +95,8 @@ export const ComplianceAuditReport = () => {
                 <Download className="h-4 w-4 mr-2" />
                 Export PDF
               </Button>
-              <Button 
-                onClick={() => exportReport('xlsx')} 
+              <Button
+                onClick={() => exportReport('xlsx')}
                 variant="outline"
                 className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
               >
@@ -217,18 +159,18 @@ export const ComplianceAuditReport = () => {
               <p className="text-gray-300 leading-relaxed">
                 {reportData.executive_summary}
               </p>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                 <div className="text-center p-4 bg-green-500/10 rounded-lg border border-green-500/20">
-                  <div className="text-2xl font-bold text-green-400">96</div>
+                  <div className="text-2xl font-bold text-green-400">{reportData.implemented_controls}</div>
                   <div className="text-sm text-gray-400">Controls Implemented</div>
                 </div>
                 <div className="text-center p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
-                  <div className="text-2xl font-bold text-yellow-400">14</div>
-                  <div className="text-sm text-gray-400">Gaps to Address</div>
+                  <div className="text-2xl font-bold text-yellow-400">{reportData.total_controls - reportData.implemented_controls}</div>
+                  <div className="text-sm text-gray-400">Gaps To Address</div>
                 </div>
                 <div className="text-center p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                  <div className="text-2xl font-bold text-blue-400">45</div>
+                  <div className="text-2xl font-bold text-blue-400">0</div>
                   <div className="text-sm text-gray-400">Days to Target</div>
                 </div>
               </div>
@@ -247,10 +189,10 @@ export const ComplianceAuditReport = () => {
                         {getSeverityIcon(gap.severity)}
                         <h3 className="text-white font-semibold">{gap.control_id}: {gap.title}</h3>
                         <Badge className={getStatusBadge(gap.status)}>
-                          {gap.status.replace('_', ' ')}
+                          {gap.status.replaceAll('_', ' ')}
                         </Badge>
                       </div>
-                      
+
                       <div className="space-y-2">
                         <div>
                           <span className="text-gray-400 text-sm font-medium">Finding: </span>
@@ -280,21 +222,15 @@ export const ComplianceAuditReport = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {[
-                  { family: 'Access Control (AC)', implemented: 18, total: 20, percentage: 90 },
-                  { family: 'Audit and Accountability (AU)', implemented: 12, total: 12, percentage: 100 },
-                  { family: 'Configuration Management (CM)', implemented: 8, total: 10, percentage: 80 },
-                  { family: 'Identification and Authentication (IA)', implemented: 9, total: 10, percentage: 90 },
-                  { family: 'System and Communications Protection (SC)', implemented: 15, total: 18, percentage: 83 }
-                ].map((family, index) => (
-                  <div key={index} className="space-y-2">
+                {[{ family: 'Pending Families', implemented: 0, total: 0, percentage: 0 }].map((family) => (
+                  <div key={family.family} className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-gray-300">{family.family}</span>
                       <span className="text-white">{family.implemented}/{family.total} ({family.percentage}%)</span>
                     </div>
                     <div className="w-full bg-gray-700 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full" 
+                      <div
+                        className="bg-blue-600 h-2 rounded-full"
                         style={{ width: `${family.percentage}%` }}
                       ></div>
                     </div>
@@ -313,29 +249,23 @@ export const ComplianceAuditReport = () => {
             <CardContent>
               <div className="space-y-4">
                 <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-                  <h4 className="text-red-400 font-semibold mb-2">High Priority (Complete within 30 days)</h4>
+                  <h4 className="text-red-400 font-semibold mb-2">High Priority</h4>
                   <ul className="space-y-1 text-gray-300">
-                    <li>• Implement privileged account review procedures</li>
-                    <li>• Document incident response playbooks</li>
-                    <li>• Establish security awareness training program</li>
+                    <li>Pending evaluation</li>
                   </ul>
                 </div>
-                
+
                 <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                  <h4 className="text-yellow-400 font-semibold mb-2">Medium Priority (Complete within 60 days)</h4>
+                  <h4 className="text-yellow-400 font-semibold mb-2">Medium Priority</h4>
                   <ul className="space-y-1 text-gray-300">
-                    <li>• Implement automated firewall rule reviews</li>
-                    <li>• Enhance vulnerability scanning procedures</li>
-                    <li>• Improve system backup documentation</li>
+                    <li>Pending evaluation</li>
                   </ul>
                 </div>
-                
+
                 <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                  <h4 className="text-blue-400 font-semibold mb-2">Low Priority (Complete within 90 days)</h4>
+                  <h4 className="text-blue-400 font-semibold mb-2">Low Priority</h4>
                   <ul className="space-y-1 text-gray-300">
-                    <li>• Enhance physical security controls documentation</li>
-                    <li>• Implement additional monitoring capabilities</li>
-                    <li>• Refine change management procedures</li>
+                    <li>Pending evaluation</li>
                   </ul>
                 </div>
               </div>

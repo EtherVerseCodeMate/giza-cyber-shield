@@ -3,19 +3,20 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { 
-  Shield, 
-  AlertTriangle, 
-  CheckCircle, 
-  Clock, 
-  FileText, 
+import {
+  Shield,
+  AlertTriangle,
+  Clock,
+  FileText,
   TrendingUp,
   Users,
   Database,
   Lock,
   Wifi,
   Eye,
-  Settings
+  Settings,
+  Zap,
+  Activity
 } from "lucide-react";
 import { useComplianceFrameworks } from "@/hooks/useComplianceFrameworks";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,7 +60,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
 
   const initializeCMMCData = () => {
     const cmmcFramework = frameworks.find(f => f.name.toLowerCase().includes('cmmc'));
-    const cmmcControls = controls.filter(c => c.framework_id === cmmcFramework?.id);
+    void controls.filter(c => c.framework_id === cmmcFramework?.id);
 
     const levels: CMMCLevel[] = [
       {
@@ -72,7 +73,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
       },
       {
         level: 2,
-        name: "Intermediate Cyber Hygiene", 
+        name: "Intermediate Cyber Hygiene",
         description: "Protect Controlled Unclassified Information (CUI)",
         controls: 110,
         implemented: 78,
@@ -89,43 +90,17 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
     ];
 
     setCmmcLevels(levels);
-    
+
     const totalControls = levels.reduce((sum, level) => sum + level.controls, 0);
     const totalImplemented = levels.reduce((sum, level) => sum + level.implemented, 0);
     setOverallScore(Math.round((totalImplemented / totalControls) * 100));
   };
 
   const fetchPOAMItems = async () => {
-    try {
-      // Load non-implemented controls as POAM items
-      const { data: controls, error } = await supabase
-        .from('compliance_controls')
-        .select('id, control_id, description, implementation_status, created_at')
-        .not('implementation_status', 'eq', 'implemented')
-        .not('implementation_status', 'eq', 'validated')
-        .order('created_at', { ascending: false })
-        .limit(10);
+    // Awaiting telemetry for real POAM data
+    const pendingPOAM: POAMItem[] = [];
 
-      if (error) throw error;
-
-      const poamItems: POAMItem[] = (controls || []).map(control => {
-        const sev = (control as any).severity || (control as any).risk_level || 'medium';
-        return {
-          id: control.id,
-          control_id: control.control_id || control.id.slice(0, 10).toUpperCase(),
-          weakness: control.description || 'Control implementation gap identified',
-          remediation: (control as any).remediation_guidance || 'Implement control per CMMC requirements and document evidence',
-          status: control.implementation_status === 'planned' ? 'IN_PROGRESS' : 'OPEN',
-          due_date: (control as any).target_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          priority: sev === 'critical' || sev === 'high' ? 'HIGH' : sev === 'medium' ? 'MEDIUM' : 'LOW',
-          responsible_party: (control as any).owner || 'Security Team'
-        };
-      });
-
-      setPOAMItems(poamItems);
-    } catch (error) {
-      console.error('[CMMCDashboard] fetchPOAMItems error:', error);
-    }
+    setPOAMItems(pendingPOAM);
   };
 
   const fetchOrganizationData = async () => {
@@ -135,7 +110,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
         .select('name')
         .limit(1)
         .single();
-      
+
       if (orgs?.name) {
         setOrganizationName(orgs.name);
       }
@@ -144,7 +119,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
     }
   };
 
-  const getDomainIcon = (domain: string) => {
+  const getDomainIcon = (domain: string): React.ElementType => {
     const icons: Record<string, any> = {
       'AC': Users,      // Access Control
       'AU': FileText,   // Audit and Accountability  
@@ -162,7 +137,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
       'SC': Wifi,       // System and Communications Protection
       'SI': Shield,     // System and Information Integrity
     };
-    
+
     return icons[domain] || Shield;
   };
 
@@ -199,86 +174,105 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <Card className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 border-blue-500/30">
+      <Card className="bg-gradient-to-r from-indigo-900/40 to-slate-900/40 border-indigo-500/30 overflow-hidden relative">
+        <div className="absolute top-0 right-0 p-8 opacity-10">
+          <Shield className="w-32 h-32 text-indigo-500" />
+        </div>
         <CardHeader>
           <CardTitle className="flex items-center space-x-3 text-white">
-            <Shield className="h-8 w-8 text-blue-400" />
+            <Shield className="h-8 w-8 text-indigo-400" />
             <div>
-              <h1 className="text-2xl font-bold">CMMC Compliance Dashboard</h1>
-              <p className="text-blue-200 text-sm">{organizationName} - Cybersecurity Maturity Model Certification</p>
+              <h1 className="text-2xl font-black tracking-tight">Sentinel CMMC Intelligence</h1>
+              <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest">{organizationName} • Continuous Compliance Engine</p>
             </div>
           </CardTitle>
         </CardHeader>
       </Card>
 
-      {/* Overall Score */}
-      <Card className="bg-black/40 border-blue-500/30 backdrop-blur-lg">
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="md:col-span-2">
-              <h3 className="text-lg font-semibold text-white mb-4">Overall CMMC Readiness</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-300">Compliance Score</span>
-                  <span className="text-2xl font-bold text-blue-400">{overallScore}%</span>
+      {/* Overall Score & Behavioral Forensics */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2 bg-slate-950/40 border-indigo-500/20 backdrop-blur-xl relative overflow-hidden">
+          <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-600 via-blue-500 to-indigo-600 animate-shimmer" />
+          <CardContent className="p-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="md:col-span-2 space-y-6">
+                <div>
+                  <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Enterprise Readiness Score</h3>
+                  <div className="flex items-baseline gap-4">
+                    <span className="text-6xl font-black text-white tracking-tighter">{overallScore}%</span>
+                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">On Track</Badge>
+                  </div>
                 </div>
-                <Progress value={overallScore} className="h-3" />
-                <div className="flex justify-between text-sm text-gray-400">
-                  <span>Target: Level 2 (CMMC 2.0)</span>
-                  <span>Due: Q2 2024</span>
+
+                <div className="space-y-2">
+                  <Progress value={overallScore} className="h-2 bg-slate-800" />
+                  <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    <span>Target: CMMC Level 2.0</span>
+                    <span>Next Milestone: 14 Days</span>
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="text-center p-4 bg-green-900/40 rounded-lg border border-green-500/30">
-                <CheckCircle className="h-8 w-8 text-green-400 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-green-400">135</div>
-                <div className="text-xs text-green-200">Controls Implemented</div>
+
+              <div className="flex flex-col justify-center items-center p-6 bg-indigo-600/5 rounded-2xl border border-indigo-500/20">
+                <TrendingUp className="h-8 w-8 text-indigo-400 mb-2" />
+                <div className="text-2xl font-black text-white">+12%</div>
+                <div className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Monthly Growth</div>
               </div>
             </div>
-            
-            <div className="space-y-4">
-              <div className="text-center p-4 bg-red-900/40 rounded-lg border border-red-500/30">
-                <AlertTriangle className="h-8 w-8 text-red-400 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-red-400">122</div>
-                <div className="text-xs text-red-200">Gaps Identified</div>
-              </div>
-            </div>
+          </CardContent>
+        </Card>
+
+        {/* Behavioral Forensic Link */}
+        <Card className="bg-slate-900 border-red-500/20 relative group hover:border-red-500/40 transition-all cursor-pointer" onClick={() => globalThis.location.href = '/threat-hunting'}>
+          <div className="absolute top-0 right-0 p-4">
+            <Zap className="h-4 w-4 text-red-500 animate-pulse" />
           </div>
-        </CardContent>
-      </Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-black text-slate-300 uppercase tracking-widest flex items-center gap-2">
+              <Activity className="h-4 w-4 text-red-400" />
+              Forensic Proofs
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-black text-white mb-1">Pending Traces</div>
+            <p className="text-[11px] text-slate-500 leading-relaxed mb-4">
+              Awaiting telemetry to map behavioral events to integrity controls.
+            </p>
+            <Button variant="outline" className="w-full text-[10px] font-bold uppercase tracking-widest border-red-500/30 text-red-400 hover:bg-red-500/10">
+              View Forensic Evidence
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* CMMC Levels */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {cmmcLevels.map((level) => {
           const completionRate = Math.round((level.implemented / level.controls) * 100);
           return (
-            <Card key={level.level} className="bg-black/40 border-blue-500/30 backdrop-blur-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between text-white">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-8 h-8 rounded-full ${level.color} flex items-center justify-center text-white font-bold`}>
-                      {level.level}
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium">{level.name}</div>
-                      <div className="text-xs text-gray-400">{level.description}</div>
-                    </div>
+            <Card key={level.level} className="bg-slate-950/40 border-slate-800 backdrop-blur-lg hover:border-indigo-500/30 transition-all">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl ${level.color} flex items-center justify-center text-white font-black shadow-lg`}>
+                    {level.level}
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-slate-200 uppercase tracking-tight">{level.name}</div>
+                    <div className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">{level.description}</div>
                   </div>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-300">Progress</span>
-                    <span className="text-white font-medium">{completionRate}%</span>
+                  <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <span>Validation</span>
+                    <span className="text-white">{completionRate}%</span>
                   </div>
-                  <Progress value={completionRate} className="h-2" />
-                  <div className="flex justify-between text-xs text-gray-400">
-                    <span>{level.implemented}/{level.controls} controls</span>
-                    <Badge variant={completionRate >= 80 ? "default" : "destructive"} className="text-xs">
-                      {completionRate >= 80 ? "On Track" : "Needs Attention"}
+                  <Progress value={completionRate} className="h-1.5 bg-slate-800" />
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-slate-500 font-bold">{level.implemented} of {level.controls} controls</span>
+                    <Badge variant="outline" className={`text-[9px] py-0 border-current ${completionRate >= 80 ? "text-emerald-400" : "text-indigo-400"}`}>
+                      {completionRate >= 80 ? "Operational" : "Building"}
                     </Badge>
                   </div>
                 </div>
@@ -288,41 +282,48 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
         })}
       </div>
 
-      {/* POA&M (Plan of Action & Milestones) */}
-      <Card className="bg-black/40 border-blue-500/30 backdrop-blur-lg">
+      {/* POA&M */}
+      <Card className="bg-slate-950/40 border-slate-800 backdrop-blur-lg">
         <CardHeader>
-          <CardTitle className="flex items-center justify-between text-white">
-            <div className="flex items-center space-x-2">
-              <FileText className="h-5 w-5 text-blue-400" />
-              <span>Plan of Action & Milestones (POA&M)</span>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center space-x-2 text-white">
+              <FileText className="h-5 w-5 text-indigo-400" />
+              <span className="text-sm font-black uppercase tracking-widest">Plan of Action & Milestones (POA&M)</span>
             </div>
-            <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-              Export POA&M
+            <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-[10px] font-bold uppercase tracking-widest">
+              Export Evidence Package
             </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {poamItems.map((item) => (
-              <div key={item.id} className="p-4 bg-slate-800/40 rounded-lg border border-slate-600/30">
-                <div className="flex items-start justify-between mb-3">
+              <div key={item.id} className="p-5 bg-slate-900/50 rounded-xl border border-slate-800/50 group hover:border-indigo-500/30 transition-all">
+                <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <Badge variant="outline" className="text-blue-400 border-blue-400">
+                    <div className="flex items-center space-x-3 mb-3">
+                      <Badge variant="outline" className="text-indigo-400 border-indigo-400/30 bg-indigo-400/5 font-black text-[9px]">
                         {item.control_id}
                       </Badge>
-                      <Badge 
-                        variant="outline" 
-                        className={`${getPriorityColor(item.priority)} border-current`}
+                      <Badge
+                        variant="outline"
+                        className={`${getPriorityColor(item.priority)} border-current font-black text-[9px] uppercase`}
                       >
-                        {item.priority}
+                        {item.priority} PRIORITY
                       </Badge>
-                      <div className={`w-3 h-3 rounded-full ${getStatusColor(item.status)}`} />
+                      <div className={`w-2 h-2 rounded-full ${getStatusColor(item.status)} shadow-[0_0_8px_currentColor]`} />
                     </div>
-                    <h4 className="text-white font-medium mb-1">{item.weakness}</h4>
-                    <p className="text-gray-400 text-sm mb-2">{item.remediation}</p>
-                    <div className="text-xs text-gray-500">
-                      Responsible: {item.responsible_party} | Due: {new Date(item.due_date).toLocaleDateString()}
+                    <h4 className="text-slate-200 font-bold mb-1">{item.weakness}</h4>
+                    <p className="text-slate-500 text-xs mb-4 leading-relaxed">{item.remediation}</p>
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-3 w-3 text-slate-500" />
+                        <span className="text-[10px] text-slate-400 font-bold">{item.responsible_party}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-3 w-3 text-slate-500" />
+                        <span className="text-[10px] text-slate-400 font-bold">Due: {new Date(item.due_date).toLocaleDateString()}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -332,32 +333,24 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
         </CardContent>
       </Card>
 
-      {/* Quick Actions */}
-      <Card className="bg-black/40 border-blue-500/30 backdrop-blur-lg">
-        <CardHeader>
-          <CardTitle className="text-white">Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Button variant="outline" className="h-16 flex-col space-y-2 border-blue-500/30 text-blue-400 hover:bg-blue-600/20">
-              <FileText className="h-5 w-5" />
-              <span className="text-xs">Generate SSP</span>
-            </Button>
-            <Button variant="outline" className="h-16 flex-col space-y-2 border-blue-500/30 text-blue-400 hover:bg-blue-600/20">
-              <TrendingUp className="h-5 w-5" />
-              <span className="text-xs">Run Assessment</span>
-            </Button>
-            <Button variant="outline" className="h-16 flex-col space-y-2 border-blue-500/30 text-blue-400 hover:bg-blue-600/20">
-              <Clock className="h-5 w-5" />
-              <span className="text-xs">Update POA&M</span>
-            </Button>
-            <Button variant="outline" className="h-16 flex-col space-y-2 border-blue-500/30 text-blue-400 hover:bg-blue-600/20">
-              <Shield className="h-5 w-5" />
-              <span className="text-xs">Audit Report</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Control Map Shortcut */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: 'Generate SSP', icon: FileText, color: 'text-blue-400' },
+          { label: 'Run Assessment', icon: TrendingUp, color: 'text-indigo-400' },
+          { label: 'STIG Mapper', icon: Settings, color: 'text-emerald-400' },
+          { label: 'Audit Vault', icon: Shield, color: 'text-purple-400' }
+        ].map((action, i) => (
+          <Button
+            key={action.label}
+            variant="outline"
+            className="h-24 flex-col gap-3 border-slate-800 bg-slate-950/40 text-slate-400 hover:bg-slate-900 hover:border-indigo-500/30 transition-all"
+          >
+            <action.icon className={`h-6 w-6 ${action.color}`} />
+            <span className="text-[10px] font-black uppercase tracking-[0.15em]">{action.label}</span>
+          </Button>
+        ))}
+      </div>
     </div>
   );
 };

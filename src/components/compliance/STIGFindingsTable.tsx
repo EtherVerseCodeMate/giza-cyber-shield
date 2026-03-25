@@ -267,7 +267,7 @@ export const STIGFindingsTable: React.FC<STIGFindingsTableProps> = ({
                         <Badge variant="outline" className={getStatusColor(finding.finding_status)}>
                           <div className="flex items-center gap-1">
                             {getStatusIcon(finding.finding_status)}
-                            {finding.finding_status.replace('_', ' ')}
+                            {finding.finding_status.replaceAll('_', ' ')}
                           </div>
                         </Badge>
                       </TableCell>
@@ -328,7 +328,7 @@ export const STIGFindingsTable: React.FC<STIGFindingsTableProps> = ({
                 <div>
                   <Label className="text-sm font-medium">Status</Label>
                   <Badge variant="outline" className={getStatusColor(selectedFinding.finding_status)}>
-                    {selectedFinding.finding_status.replace('_', ' ')}
+                    {selectedFinding.finding_status.replaceAll('_', ' ')}
                   </Badge>
                 </div>
               </div>

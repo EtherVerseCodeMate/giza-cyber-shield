@@ -5,6 +5,10 @@
 --   - phantom_messages: Encrypted messages
 --   - phantom_keys: Spectral fingerprint keys
 
+-- Create additional databases if they don't exist
+SELECT 'CREATE DATABASE n8n' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'n8n')\gexec
+SELECT 'CREATE DATABASE nouchix' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'nouchix')\gexec
+
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
