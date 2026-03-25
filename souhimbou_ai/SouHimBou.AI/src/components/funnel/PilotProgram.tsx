@@ -54,10 +54,10 @@ export const PilotProgram = () => {
               <span className="text-sm text-[#d4af37] font-medium">Limited Availability</span>
             </div>
             <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">
-              Early Access <span className="text-[#d4af37]">Pilot Program</span>
+              Advisory-First <span className="text-[#d4af37]">Pilot Program</span>
             </h2>
             <p className="text-xl text-gray-300">
-              <span className="text-[#d4af37] font-semibold">10 Slots</span> Per Quarter
+              <span className="text-[#d4af37] font-semibold">10 Slots</span> Per Quarter (evidence advisory + readiness scope)
             </p>
           </motion.div>
 
@@ -123,10 +123,10 @@ export const PilotProgram = () => {
             >
               <Button
                 size="lg"
-                onClick={() => navigate('/onboarding')}
+                onClick={() => navigate('/advisory')}
                 className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] hover:from-[#c49b2d] hover:to-[#9d7509] text-black font-bold text-lg px-12 py-6 rounded-lg"
               >
-                Apply for Pilot Access
+                Book Advisory Call
               </Button>
             </motion.div>
             <p className="text-gray-500 text-sm mt-4">

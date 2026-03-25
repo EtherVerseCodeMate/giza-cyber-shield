@@ -40,7 +40,7 @@ const RevenueStrategies = () => {
 
       if (error) throw error;
 
-      window.open(data.url, '_blank');
+      globalThis.open(data.url, '_blank');
       toast({
         title: "Redirecting to checkout",
         description: "Opening payment page in a new tab...",
@@ -112,7 +112,7 @@ const RevenueStrategies = () => {
           </ul>
 
           <Button 
-            onClick={() => window.location.href = '/onboarding'}
+            onClick={() => globalThis.location.href = '/onboarding'}
             disabled={isProcessing}
             className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold"
           >
@@ -166,7 +166,7 @@ const RevenueStrategies = () => {
           </ul>
 
           <Button 
-            onClick={() => window.location.href = '/onboarding'}
+            onClick={() => globalThis.location.href = '/onboarding'}
             disabled={isProcessing}
             className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
           >
@@ -219,7 +219,7 @@ const RevenueStrategies = () => {
           </ul>
 
           <Button 
-            onClick={() => window.location.href = '/onboarding'}
+            onClick={() => globalThis.location.href = '/onboarding'}
             disabled={isProcessing}
             className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
           >
@@ -275,12 +275,12 @@ const RevenueStrategies = () => {
               </div>
               <Button 
                 onClick={() => {
-                  const amount = parseFloat(customAmount);
+                  const amount = Number.parseFloat(customAmount);
                   if (amount && amount >= 1) {
                     createOneTimePayment('donation', 0, amount);
                   }
                 }}
-                disabled={isProcessing || !customAmount || parseFloat(customAmount) < 1}
+                disabled={isProcessing || !customAmount || Number.parseFloat(customAmount) < 1}
               >
                 <Coffee className="h-4 w-4 mr-2" />
                 Tip

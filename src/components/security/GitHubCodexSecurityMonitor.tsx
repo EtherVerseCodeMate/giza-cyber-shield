@@ -62,79 +62,14 @@ export const GitHubCodexSecurityMonitor = () => {
 
   const loadSecurityData = async () => {
     try {
-      // Simulate GitHub integration data (in production, this would call GitHub API)
-      const mockIntegrations: GitHubIntegration[] = [
-        {
-          id: '1',
-          repository_name: 'main-application',
-          access_level: 'write',
-          branch_protection_enabled: true,
-          code_review_required: true,
-          rate_limit_remaining: 4950,
-          rate_limit_reset: new Date(Date.now() + 3600000).toISOString(),
-          last_codex_activity: new Date(Date.now() - 300000).toISOString(),
-          status: 'active'
-        },
-        {
-          id: '2',
-          repository_name: 'security-configs',
-          access_level: 'read',
-          branch_protection_enabled: true,
-          code_review_required: true,
-          rate_limit_remaining: 4800,
-          rate_limit_reset: new Date(Date.now() + 3600000).toISOString(),
-          last_codex_activity: new Date(Date.now() - 600000).toISOString(),
-          status: 'monitoring'
-        }
-      ];
+      // Awaiting telemetry for GitHub configurations and activities
+      const pendingIntegrations: GitHubIntegration[] = [];
+      const pendingViolations: SecurityViolation[] = [];
+      const pendingActivities: CodexActivity[] = [];
 
-      const mockViolations: SecurityViolation[] = [
-        {
-          id: '1',
-          type: 'sensitive_data',
-          severity: 'high',
-          repository: 'main-application',
-          description: 'API key pattern detected in Codex-generated code',
-          detected_at: new Date(Date.now() - 1800000).toISOString(),
-          resolved: false,
-          auto_blocked: true
-        },
-        {
-          id: '2',
-          type: 'rate_limit',
-          severity: 'medium',
-          repository: 'main-application',
-          description: 'Approaching GitHub API rate limit (85% usage)',
-          detected_at: new Date(Date.now() - 900000).toISOString(),
-          resolved: true,
-          auto_blocked: false
-        }
-      ];
-
-      const mockActivities: CodexActivity[] = [
-        {
-          id: '1',
-          repository: 'main-application',
-          action: 'code_generation',
-          files_affected: ['src/components/NewFeature.tsx', 'src/hooks/useNewFeature.ts'],
-          sensitive_data_detected: false,
-          auto_approved: false,
-          timestamp: new Date(Date.now() - 300000).toISOString()
-        },
-        {
-          id: '2',
-          repository: 'main-application',
-          action: 'code_review',
-          files_affected: ['src/utils/security.ts'],
-          sensitive_data_detected: true,
-          auto_approved: false,
-          timestamp: new Date(Date.now() - 600000).toISOString()
-        }
-      ];
-
-      setIntegrations(mockIntegrations);
-      setViolations(mockViolations);
-      setActivities(mockActivities);
+      setIntegrations(pendingIntegrations);
+      setViolations(pendingViolations);
+      setActivities(pendingActivities);
 
       // Log security monitoring activity
       await supabase.rpc('log_third_party_security_event', {
@@ -142,8 +77,8 @@ export const GitHubCodexSecurityMonitor = () => {
         p_event_type: 'github_codex_security_check',
         p_severity: 'low',
         p_details: {
-          integrations_monitored: mockIntegrations.length,
-          violations_detected: mockViolations.filter(v => !v.resolved).length,
+          integrations_monitored: pendingIntegrations.length,
+          violations_detected: pendingViolations.filter(v => !v.resolved).length,
           timestamp: new Date().toISOString()
         }
       });
@@ -162,9 +97,9 @@ export const GitHubCodexSecurityMonitor = () => {
 
   const suspendIntegration = async (integrationId: string) => {
     try {
-      setIntegrations(prev => 
-        prev.map(int => 
-          int.id === integrationId 
+      setIntegrations(prev =>
+        prev.map(int =>
+          int.id === integrationId
             ? { ...int, status: 'suspended' as const }
             : int
         )
@@ -193,9 +128,9 @@ export const GitHubCodexSecurityMonitor = () => {
 
   const resolveViolation = async (violationId: string) => {
     try {
-      setViolations(prev => 
-        prev.map(v => 
-          v.id === violationId 
+      setViolations(prev =>
+        prev.map(v =>
+          v.id === violationId
             ? { ...v, resolved: true }
             : v
         )
@@ -263,7 +198,7 @@ export const GitHubCodexSecurityMonitor = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="card-cyber">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -277,21 +212,21 @@ export const GitHubCodexSecurityMonitor = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="card-cyber">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Rate Limit Status</p>
                 <p className="text-2xl font-bold text-info">
-                  {Math.min(...integrations.map(i => i.rate_limit_remaining))}
+                  {integrations.length > 0 ? Math.min(...integrations.map(i => i.rate_limit_remaining)) : 5000}
                 </p>
               </div>
               <Zap className="h-8 w-8 text-info" />
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="card-cyber">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -312,7 +247,7 @@ export const GitHubCodexSecurityMonitor = () => {
         <Alert className="border-destructive bg-destructive/10">
           <AlertTriangle className="h-4 w-4 text-destructive" />
           <AlertDescription className="text-destructive">
-            <strong>{criticalViolations.length} critical security violation(s)</strong> detected in GitHub Codex integration. 
+            <strong>{criticalViolations.length} critical security violation(s)</strong> detected in GitHub Codex integration.
             Immediate action required.
           </AlertDescription>
         </Alert>
@@ -390,7 +325,7 @@ export const GitHubCodexSecurityMonitor = () => {
                     <div className="flex items-center space-x-3">
                       <FileText className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <p className="text-sm font-medium">{activity.action.replace('_', ' ')}</p>
+                        <p className="text-sm font-medium">{activity.action.replaceAll('_', ' ')}</p>
                         <p className="text-xs text-muted-foreground">{activity.repository}</p>
                       </div>
                     </div>
@@ -450,7 +385,7 @@ export const GitHubCodexSecurityMonitor = () => {
                         </Button>
                       )}
                     </div>
-                    
+
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div className="flex items-center space-x-2">
                         <Shield className={`h-3 w-3 ${integration.branch_protection_enabled ? 'text-success' : 'text-destructive'}`} />
@@ -500,11 +435,10 @@ export const GitHubCodexSecurityMonitor = () => {
                     violations.map((violation) => (
                       <div
                         key={violation.id}
-                        className={`p-4 rounded-lg border transition-colors ${
-                          violation.resolved 
-                            ? 'border-border bg-muted/30' 
+                        className={`p-4 rounded-lg border transition-colors ${violation.resolved
+                            ? 'border-border bg-muted/30'
                             : 'border-destructive bg-destructive/5'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -513,7 +447,7 @@ export const GitHubCodexSecurityMonitor = () => {
                                 {violation.severity.toUpperCase()}
                               </Badge>
                               <Badge variant="outline">
-                                {violation.type.replace('_', ' ').toUpperCase()}
+                                {violation.type.replaceAll('_', ' ').toUpperCase()}
                               </Badge>
                               {violation.auto_blocked && (
                                 <Badge variant="destructive" className="text-xs">
@@ -573,7 +507,7 @@ export const GitHubCodexSecurityMonitor = () => {
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-2">
                             <Badge variant="outline">
-                              {activity.action.replace('_', ' ').toUpperCase()}
+                              {activity.action.replaceAll('_', ' ').toUpperCase()}
                             </Badge>
                             {activity.sensitive_data_detected && (
                               <Badge variant="destructive" className="text-xs">

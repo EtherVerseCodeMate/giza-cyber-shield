@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import DiscoveryPhase from './phases/DiscoveryPhase';
@@ -16,7 +17,15 @@ interface StackDiscoveryWizardProps {
 type Phase = 'discovery' | 'connection' | 'deployment' | 'scanning' | 'complete';
 
 const StackDiscoveryWizard: React.FC<StackDiscoveryWizardProps> = ({ onComplete }) => {
-  const [organizationId] = useState<string>('00000000-0000-0000-0000-000000000000');
+  const [organizationId, setOrganizationId] = useState<string>('');
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      const id = data?.user?.user_metadata?.organization_id || data?.user?.id;
+      if (!id) throw new Error('User must be authenticated to run stack discovery');
+      setOrganizationId(id);
+    });
+  }, []);
   const [currentPhase, setCurrentPhase] = useState<Phase>('discovery');
   const [discoveryResults, setDiscoveryResults] = useState<DiscoveryResults | null>(null);
   const [scanResults, setScanResults] = useState<DeepScanResults | null>(null);

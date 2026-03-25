@@ -81,7 +81,7 @@ export const useCacheManager = () => {
       toast.loading('Clearing cache...', { id: 'cache-clear' });
       await cacheManager.clearAllCaches();
       toast.success('Cache cleared successfully!', { id: 'cache-clear' });
-      window.location.reload();
+      globalThis.location.reload();
     } catch (error) {
       console.error('Failed to clear cache:', error);
       toast.error('Failed to clear cache', { id: 'cache-clear' });

@@ -681,7 +681,18 @@ func (lp *LocalProvider) Authenticate(ctx context.Context, creds *Credentials) (
 
 	// In a real local provider, creds.Password would be compared against a stored Argon2 hash
 	// For this implementation, we simulate secure comparison
-	if !lp.verifyPassword(creds.Password, user.Attributes["password_hash"].(string)) {
+	var hash string
+	if user.Attributes != nil {
+		if h, ok := user.Attributes["password_hash"].(string); ok {
+			hash = h
+		}
+	}
+
+	if hash == "" {
+		return nil, errors.New("invalid user configuration: missing password hash")
+	}
+
+	if !lp.verifyPassword(creds.Password, hash) {
 		return nil, errors.New("invalid credentials")
 	}
 

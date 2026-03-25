@@ -1,4 +1,4 @@
-# Stage 1: Build Khepra Core (Go)
+# Stage 1: Build NouchiX Tactical Arsenal (Go)
 FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
@@ -9,14 +9,21 @@ RUN apk add --no-cache git make
 # Copy Go module files
 COPY go.mod go.sum ./
 
-# Copy source code
-COPY . .
+# Copy source code with internal packages
+COPY pkg/ ./pkg/
+COPY cmd/ ./cmd/
+COPY vendor/ ./vendor/ 
 
-# Build the Khepra (Sonar) binary (full package, not single file)
-RUN CGO_ENABLED=0 go build -mod=vendor -o /usr/local/bin/khepra ./cmd/sonar/
-
-# Build the Khepra Gateway binary (full package, not single file)
-RUN CGO_ENABLED=0 go build -mod=vendor -o /usr/local/bin/khepra-gateway ./cmd/gateway/
+# Build the Full Tactical Suite
+RUN CGO_ENABLED=0 go build -mod=vendor -o /usr/local/bin/nouchix-sonar ./cmd/sonar/
+RUN CGO_ENABLED=0 go build -mod=vendor -o /usr/local/bin/nouchix-gateway ./cmd/gateway/
+RUN CGO_ENABLED=0 go build -mod=vendor -o /usr/local/bin/nouchix-pentest ./cmd/khepra-pentest/
+RUN CGO_ENABLED=0 go build -mod=vendor -o /usr/local/bin/nouchix-motherboard ./cmd/apiserver/
+RUN CGO_ENABLED=0 go build -mod=vendor -o /usr/local/bin/nouchix-phantom ./cmd/phantom-node/
+RUN CGO_ENABLED=0 go build -mod=vendor -o /usr/local/bin/nouchix-adinkhepra ./cmd/adinkhepra/
+RUN CGO_ENABLED=0 go build -mod=vendor -o /usr/local/bin/nouchix-agent ./cmd/agent/
+RUN CGO_ENABLED=0 go build -mod=vendor -o /usr/local/bin/nouchix-stig ./cmd/stig-test/
+RUN CGO_ENABLED=0 go build -mod=vendor -o /usr/local/bin/nouchix-client ./cmd/khepra-client/
 
 # Stage 2: Runtime Environment (Python + Khepra)
 FROM python:3.11-slim
@@ -42,16 +49,16 @@ RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/wh
     pydantic-settings && \
     mkdir -p /app/data/cyber_brain /app/models /app/top_secret_intel
 
-# Copy Khepra binaries from builder
-COPY --from=builder /usr/local/bin/khepra /usr/local/bin/khepra
-COPY --from=builder /usr/local/bin/khepra-gateway /usr/local/bin/khepra-gateway
+# Copy NouchiX Tactical Suite from builder
+COPY --from=builder /usr/local/bin/nouchix-* /usr/local/bin/
+# Symlink for backward compatibility if needed
+RUN ln -s /usr/local/bin/nouchix-sonar /usr/local/bin/khepra && \
+    ln -s /usr/local/bin/nouchix-gateway /usr/local/bin/khepra-gateway
 
-# Copy entrypoint script
+# Copy entrypoint script, set permissions, and create non-root user
 COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
-
-# Create non-root user and directories
-RUN useradd -m -u 1000 khepra && \
+RUN chmod +x /app/entrypoint.sh && \
+    useradd -m -u 1000 khepra && \
     mkdir -p models && touch models/.keep && \
     mkdir -p top_secret_intel && touch top_secret_intel/.keep && \
     chown -R khepra:khepra /app

@@ -18,7 +18,7 @@ import {
   MessageSquare,
   ChevronRight
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthProvider';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { AdinkraSymbolDisplay } from '@/components/khepra/AdinkraSymbolDisplay';

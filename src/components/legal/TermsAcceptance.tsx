@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -63,6 +63,7 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
 
     setIsSubmitting(true);
     try {
+      console.log('Submitting agreements...', acceptedTerms);
       const success = await acceptAllAgreements(acceptedTerms);
       if (success) {
         // Delay slightly to ensure state is propagated
@@ -288,7 +289,7 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
               <Button
                 onClick={handleSubmit}
                 disabled={!allTermsAccepted || isSubmitting}
-                  variant="default"
+                variant="cyber"
                 className="flex-1 sm:min-w-[180px] shadow-lg shadow-primary/20"
               >
                 {isSubmitting ? (

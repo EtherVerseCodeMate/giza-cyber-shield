@@ -189,7 +189,7 @@ export const IntegrationHub = () => {
           <div className="flex items-center space-x-2">
             <Button 
               variant="outline"
-              onClick={() => window.open('/integration-guide/custom-api', '_blank')}
+              onClick={() => globalThis.open('/integration-guide/custom-api', '_blank')}
               className="flex items-center space-x-2"
             >
               <ExternalLink className="h-4 w-4" />

@@ -8,6 +8,7 @@ import { Shield, Network, Search, AlertTriangle, Eye, Globe, Mail, Cloud } from 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useOrganizationContext } from '@/components/OrganizationProvider';
 
 interface ThreatDetection {
   id: string;
@@ -37,20 +38,25 @@ export const EnterpriseSecurityDashboard = () => {
   const [scanTarget, setScanTarget] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeScans, setActiveScans] = useState(0);
-  const { user } = useAuth();
+
   const { toast } = useToast();
+  const { currentOrganization } = useOrganizationContext();
+  const organizationId = currentOrganization?.organization_id;
 
   // Fetch real threat detections
   const fetchThreatDetections = async () => {
     try {
+      if (!organizationId) return;
+
       const { data, error } = await supabase
         .from('threat_investigations')
         .select('*')
+        .eq('organization_id', organizationId)
         .order('created_at', { ascending: false })
         .limit(50);
 
       if (error) throw error;
-      
+
       const formattedDetections: ThreatDetection[] = (data || []).map(item => ({
         id: item.id,
         detection_type: item.indicator_type.toUpperCase(),
@@ -71,9 +77,12 @@ export const EnterpriseSecurityDashboard = () => {
   // Fetch network assets
   const fetchNetworkAssets = async () => {
     try {
+      if (!organizationId) return;
+
       const { data, error } = await supabase
         .from('infrastructure_assets')
         .select('*')
+        .eq('organization_id', organizationId)
         .eq('asset_type', 'network')
         .order('last_updated', { ascending: false });
 
@@ -118,7 +127,7 @@ export const EnterpriseSecurityDashboard = () => {
         body: {
           action: 'network_scan',
           target: scanTarget.trim(),
-          organizationId: user?.user_metadata?.organization_id
+          organizationId: organizationId
         }
       });
 
@@ -149,7 +158,7 @@ export const EnterpriseSecurityDashboard = () => {
   const investigateThreat = async (indicator: string, type: string) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('threat-intelligence-lookup', {
+      const { error } = await supabase.functions.invoke('threat-intelligence-lookup', {
         body: { indicator, type }
       });
 
@@ -174,9 +183,11 @@ export const EnterpriseSecurityDashboard = () => {
   };
 
   useEffect(() => {
-    fetchThreatDetections();
-    fetchNetworkAssets();
-  }, []);
+    if (organizationId) {
+      fetchThreatDetections();
+      fetchNetworkAssets();
+    }
+  }, [organizationId]);
 
   const getThreatLevelColor = (level: string) => {
     switch (level) {
@@ -292,8 +303,8 @@ export const EnterpriseSecurityDashboard = () => {
                           Source: {threat.source} • {new Date(threat.detected_at).toLocaleString()}
                         </p>
                       </div>
-                      <Button 
-                        size="sm" 
+                      <Button
+                        size="sm"
                         onClick={() => investigateThreat(threat.indicator, threat.detection_type.toLowerCase())}
                         disabled={loading}
                       >
@@ -327,7 +338,7 @@ export const EnterpriseSecurityDashboard = () => {
                   placeholder="Enter IP range (e.g., 192.168.1.0/24) or hostname"
                   value={scanTarget}
                   onChange={(e) => setScanTarget(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && initiateNetworkScan()}
+                  onKeyDown={(e) => e.key === 'Enter' && initiateNetworkScan()}
                 />
                 <Button onClick={initiateNetworkScan} disabled={loading}>
                   <Search className="h-4 w-4 mr-1" />
@@ -352,11 +363,11 @@ export const EnterpriseSecurityDashboard = () => {
                             <span className="text-sm text-muted-foreground">({asset.hostname})</span>
                           )}
                         </div>
-                        <Badge variant={asset.risk_score > 70 ? 'destructive' : asset.risk_score > 40 ? 'destructive' : 'secondary'}>
+                        <Badge variant={asset.risk_score > 40 ? 'destructive' : 'secondary'}>
                           Risk: {asset.risk_score}
                         </Badge>
                       </div>
-                      
+
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                         <div>
                           <p className="text-muted-foreground">Open Ports</p>
@@ -371,7 +382,7 @@ export const EnterpriseSecurityDashboard = () => {
                           <p>{asset.os_fingerprint || 'Unknown'}</p>
                         </div>
                       </div>
-                      
+
                       <p className="text-xs text-muted-foreground mt-2">
                         Last scanned: {new Date(asset.last_scanned).toLocaleString()}
                       </p>

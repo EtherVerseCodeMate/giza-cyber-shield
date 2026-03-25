@@ -241,7 +241,7 @@ const StrategicMarketplace: React.FC = () => {
           {categories.map((category) => (
             <TabsTrigger key={category.name} value={category.name} className="flex items-center gap-1">
               <category.icon className="h-3 w-3" />
-              <span className="hidden sm:inline">{category.name.replace('_', ' ')}</span>
+              <span className="hidden sm:inline">{category.name.replaceAll('_', ' ')}</span>
             </TabsTrigger>
           ))}
         </TabsList>
@@ -278,7 +278,7 @@ const StrategicMarketplace: React.FC = () => {
               <p className="text-sm text-muted-foreground">{integration.description}</p>
               
               <div className="flex flex-wrap gap-2">
-                <Badge variant="outline">{getCategoryIcon(integration.category)} {integration.category.replace('_', ' ')}</Badge>
+                <Badge variant="outline">{getCategoryIcon(integration.category)} {integration.category.replaceAll('_', ' ')}</Badge>
                 <Badge className={getClearanceColor(integration.clearanceLevel)}>
                   {integration.clearanceLevel}
                 </Badge>
@@ -291,7 +291,7 @@ const StrategicMarketplace: React.FC = () => {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Support Level:</span>
-                  <span className="text-foreground">{integration.supportLevel.replace('_', ' ')}</span>
+                  <span className="text-foreground">{integration.supportLevel.replaceAll('_', ' ')}</span>
                 </div>
               </div>
 

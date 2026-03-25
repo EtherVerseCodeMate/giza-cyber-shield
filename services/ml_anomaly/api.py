@@ -645,13 +645,10 @@ async def predict(request: PredictRequest):
     This is the "Intuition" query from the Motherboard.
     """
     if not model_instance or not model_state["model_loaded"]:
-         # Mock response for dev/testing if model not ready
-         logger.warning("Model not ready. Returning mock prediction.")
-         return PredictResponse(
-             anomaly_score=0.0,
-             is_anomaly=False,
-             confidence=0.0,
-             archetype_influence={"Note": 0.0} # Fixed Validation Error
+         logger.error("Model not ready. TRL10 mandate: No mocks allowed.")
+         raise HTTPException(
+             status_code=503,
+             detail="Model not loaded. Service unavailable."
          )
     
     try:

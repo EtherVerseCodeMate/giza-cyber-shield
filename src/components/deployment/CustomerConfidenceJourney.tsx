@@ -213,7 +213,7 @@ export const CustomerConfidenceJourney: React.FC<CustomerConfidenceJourneyProps>
                   <div className="text-center">
                     <div className="text-sm font-medium">{stage.name}</div>
                     <Badge variant={getStageColor(stage) as "success" | "default" | "secondary" | "destructive" | "outline"} className="text-xs mt-1">
-                      {stage.automationLevel.replace('_', ' ')}
+                      {stage.automationLevel.replaceAll('_', ' ')}
                     </Badge>
                   </div>
                 </div>

@@ -53,7 +53,7 @@ export class CloudProviderDetector {
     ];
 
     // Browser-based detection (limited)
-    const hostname = window.location.hostname;
+    const hostname = globalThis.location.hostname;
     if (
       hostname.includes('amazonaws.com') ||
       hostname.includes('aws.amazon.com')
@@ -94,7 +94,7 @@ export class CloudProviderDetector {
     const metadata: Record<string, any> = {};
     let confidence = 0;
 
-    const hostname = window.location.hostname;
+    const hostname = globalThis.location.hostname;
     if (
       hostname.includes('azure.com') ||
       hostname.includes('azurewebsites.net') ||
@@ -130,7 +130,7 @@ export class CloudProviderDetector {
     const metadata: Record<string, any> = {};
     let confidence = 0;
 
-    const hostname = window.location.hostname;
+    const hostname = globalThis.location.hostname;
     if (
       hostname.includes('googleapis.com') ||
       hostname.includes('googleusercontent.com') ||

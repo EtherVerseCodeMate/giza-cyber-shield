@@ -2,8 +2,7 @@
  * AWS Cost Explorer Connector
  * ═══════════════════════════
  *
- * Replaces INT-004 (Math.random() * 50000 + 10000 for total_cost)
- * with real cost data from AWS Cost Explorer API via Supabase Edge Function relay.
+ * Real cost data from AWS Cost Explorer API via Supabase Edge Function relay.
  *
  * The browser does NOT call AWS APIs directly — all requests route through
  * a Supabase Edge Function that uses AWS SDK v3 with STS-assumed role credentials.
@@ -261,7 +260,7 @@ export class AWSCostExplorerConnector {
         for (const period of results) {
             for (const group of (period.groups || [])) {
                 const serviceName = group.keys?.[0] || 'Unknown';
-                const amount = parseFloat(group.metrics?.UnblendedCost?.amount || '0');
+                const amount = Number.parseFloat(group.metrics?.UnblendedCost?.amount || '0');
                 totalCost += amount;
 
                 const existing = breakdown.find(b => b.service === serviceName);
