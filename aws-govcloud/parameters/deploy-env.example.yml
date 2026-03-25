@@ -2,8 +2,8 @@ aws:
   profile: govcloud
   region: us-gov-west-1
   partition: aws-us-gov
-  account_id: "483774310865"
-  organization_id: o-3zz5j5d5bt
+  account_id: "123456789012"
+  organization_id: o-xxxxxxxxxx
 
 deployment:
   project_name: khepra-protocol
@@ -13,10 +13,10 @@ deployment:
   compliance_tag: CMMC-L2
 
 identity_center:
-  instance_id: ssoins-7907091dd7d987a2
-  identity_store_id: d-98676a2943
-  permission_set_name: CUIWorkloadAccess
-  permission_set_arn: arn:aws-us-gov:sso:::permissionSet/ssoins-7907091dd7d987a2/ps-5325bb5a5aab246e
+  instance_id: ssoins-xxxxxxxxxxxxxxxx
+  identity_store_id: d-xxxxxxxxxx
+  permission_set_name: YourWorkloadPermissionSet
+  permission_set_arn: arn:aws-us-gov:sso:::permissionSet/ssoins-xxxxxxxxxxxxxxxx/ps-xxxxxxxxxxxxxxxx
   permission_set_required_tag_key: usPerson
   permission_set_required_tag_value: "true"
 

@@ -38,6 +38,10 @@ def _env_strip(name: str) -> str:
     return (os.environ.get(name) or "").strip()
 
 
+def _env_truthy(name: str) -> bool:
+    return _env_strip(name).lower() in ("1", "true", "yes", "on")
+
+
 def _check_expected_scalar(
     check_id: str,
     title: str,
@@ -842,8 +846,56 @@ class AWSGovCloudValidator(GovCloudValidator):
                     "expected_govcloud_account_id",
                     "Expected GovCloud account ID (STS)",
                     CheckStatus.SKIP,
-                    "Set GOVCLOUD_EXPECTED_ACCOUNT_ID to enforce (e.g. 483774310865 — see README).",
+                    "Set GOVCLOUD_EXPECTED_ACCOUNT_ID to enforce (12-digit GovCloud account id — see README).",
                     control_hints=["AC-2", "IA-2"],
+                )
+            )
+        # Root account hygiene (IAM summary — IA-5, AC-2)
+        try:
+            sm = (s.client("iam").get_account_summary() or {}).get("SummaryMap") or {}
+            mfa = int(sm.get("AccountMFAEnabled") or 0)
+            checks.append(
+                CheckResult(
+                    "iam_root_mfa_enabled",
+                    "AWS account root user MFA (IAM summary)",
+                    CheckStatus.PASS if mfa >= 1 else CheckStatus.WARN,
+                    "Root MFA enabled per AccountMFAEnabled"
+                    if mfa >= 1
+                    else "Root MFA not enabled (AccountMFAEnabled=0) — enable for NIST 3.5.3 / IA-2(1) baseline",
+                    evidence={"AccountMFAEnabled": mfa},
+                    control_hints=["IA-2", "IA-5", "AC-2"],
+                )
+            )
+            keys = int(sm.get("AccountAccessKeysPresent") or 0)
+            checks.append(
+                CheckResult(
+                    "iam_root_access_keys_absent",
+                    "AWS account root access keys absent",
+                    CheckStatus.PASS if keys == 0 else CheckStatus.WARN,
+                    "No active root access keys reported"
+                    if keys == 0
+                    else f"AccountAccessKeysPresent={keys} — remove root access keys",
+                    evidence={"AccountAccessKeysPresent": keys},
+                    control_hints=["IA-5", "AC-2", "AC-3"],
+                )
+            )
+        except (BotoCoreError, ClientError) as e:
+            checks.append(
+                CheckResult(
+                    "iam_root_mfa_enabled",
+                    "AWS account root user MFA (IAM summary)",
+                    CheckStatus.WARN,
+                    f"Could not read IAM account summary: {_aws_error_detail(e)}",
+                    control_hints=["IA-2", "IA-5"],
+                )
+            )
+            checks.append(
+                CheckResult(
+                    "iam_root_access_keys_absent",
+                    "AWS account root access keys absent",
+                    CheckStatus.WARN,
+                    f"Could not read IAM account summary: {_aws_error_detail(e)}",
+                    control_hints=["IA-5"],
                 )
             )
         return checks
@@ -911,7 +963,7 @@ class AWSGovCloudValidator(GovCloudValidator):
                     "expected_organization_id",
                     "Expected AWS Organization ID",
                     CheckStatus.SKIP,
-                    "Set GOVCLOUD_EXPECTED_ORG_ID to enforce (e.g. o-3zz5j5d5bt — see README).",
+                    "Set GOVCLOUD_EXPECTED_ORG_ID to enforce (see README).",
                     control_hints=["AC-2"],
                 )
             )
@@ -1160,18 +1212,52 @@ class AWSGovCloudValidator(GovCloudValidator):
             )
         )
 
-        def gd():
-            c = s.client("guardduty")
-            return c.list_detectors()
-
-        checks.append(
-            self._safe_call(
-                "guardduty_list_detectors",
-                "GuardDuty API reachable",
-                gd,
-                control_hints=["SI-4"],
+        try:
+            gd_out = s.client("guardduty").list_detectors()
+            checks.append(
+                CheckResult(
+                    "guardduty_list_detectors",
+                    "GuardDuty API reachable",
+                    CheckStatus.PASS,
+                    "OK",
+                    evidence=_evidence_blob(gd_out),
+                    control_hints=["SI-4"],
+                )
             )
-        )
+            det_ids = gd_out.get("DetectorIds") or []
+            checks.append(
+                CheckResult(
+                    "guardduty_detector_present",
+                    "GuardDuty detector enabled (this region)",
+                    CheckStatus.PASS if det_ids else CheckStatus.WARN,
+                    f"{len(det_ids)} detector(s) in {ctx.region!r}"
+                    if det_ids
+                    else "No GuardDuty detector in this region — enable for threat detection baseline",
+                    evidence={"detector_count": len(det_ids)},
+                    control_hints=["SI-4", "RA-5"],
+                )
+            )
+        except (BotoCoreError, ClientError) as e:
+            code = getattr(e, "response", {}).get("Error", {}).get("Code", "")
+            st = CheckStatus.WARN if code in ("AccessDenied", "UnauthorizedOperation", "AccessDeniedException") else CheckStatus.SKIP
+            checks.append(
+                CheckResult(
+                    "guardduty_list_detectors",
+                    "GuardDuty API reachable",
+                    st,
+                    _aws_error_detail(e),
+                    control_hints=["SI-4"],
+                )
+            )
+            checks.append(
+                CheckResult(
+                    "guardduty_detector_present",
+                    "GuardDuty detector enabled (this region)",
+                    st,
+                    _aws_error_detail(e),
+                    control_hints=["SI-4"],
+                )
+            )
 
         trail_name = _env_strip("GOVCLOUD_EXPECTED_CLOUDTRAIL_NAME")
         if trail_name:
@@ -1289,6 +1375,33 @@ class AWSGovCloudValidator(GovCloudValidator):
                     control_hints=["CM-2", "AU-2"],
                 )
             )
+
+        if cfg_name:
+            try:
+                dc_resp = s.client("config").describe_delivery_channels()
+                chans = dc_resp.get("DeliveryChannels") or []
+                checks.append(
+                    CheckResult(
+                        "config_delivery_channel",
+                        "AWS Config delivery channel(s)",
+                        CheckStatus.PASS if chans else CheckStatus.WARN,
+                        f"{len(chans)} delivery channel(s) configured"
+                        if chans
+                        else "No delivery channel — configuration history may not reach S3",
+                        evidence={"channel_count": len(chans)},
+                        control_hints=["CM-2", "AU-2", "AU-4"],
+                    )
+                )
+            except (BotoCoreError, ClientError) as e:
+                checks.append(
+                    CheckResult(
+                        "config_delivery_channel",
+                        "AWS Config delivery channel(s)",
+                        CheckStatus.WARN,
+                        _aws_error_detail(e),
+                        control_hints=["CM-2", "AU-2"],
+                    )
+                )
 
         ev_bucket = _env_strip("GOVCLOUD_EXPECTED_EVIDENCE_BUCKET")
         if ev_bucket:
@@ -1425,13 +1538,56 @@ class AWSGovCloudValidator(GovCloudValidator):
                             control_hints=["AU-9"],
                         )
                     )
+            try:
+                bpab = s3c.get_public_access_block(Bucket=ev_bucket).get("PublicAccessBlockConfiguration") or {}
+                bkeys = (
+                    "BlockPublicAcls",
+                    "IgnorePublicAcls",
+                    "BlockPublicPolicy",
+                    "RestrictPublicBuckets",
+                )
+                all_b = all(bpab.get(k) is True for k in bkeys)
+                checks.append(
+                    CheckResult(
+                        "evidence_bucket_public_access_block",
+                        f"S3 Block Public Access on evidence bucket {ev_bucket!r}",
+                        CheckStatus.PASS if all_b else CheckStatus.WARN,
+                        "All four bucket-level Block Public Access settings enabled"
+                        if all_b
+                        else f"Incomplete: {', '.join(f'{k}={bpab.get(k)!r}' for k in bkeys)}",
+                        evidence=dict(bpab),
+                        control_hints=["AC-3", "SC-7", "SI-12"],
+                    )
+                )
+            except (BotoCoreError, ClientError) as e:
+                code = getattr(e, "response", {}).get("Error", {}).get("Code", "")
+                if code == "NoSuchPublicAccessBlockConfiguration":
+                    checks.append(
+                        CheckResult(
+                            "evidence_bucket_public_access_block",
+                            f"S3 Block Public Access on evidence bucket {ev_bucket!r}",
+                            CheckStatus.WARN,
+                            "Bucket-level Block Public Access not configured",
+                            control_hints=["AC-3", "SC-7", "SI-12"],
+                        )
+                    )
+                else:
+                    checks.append(
+                        CheckResult(
+                            "evidence_bucket_public_access_block",
+                            f"S3 Block Public Access on evidence bucket {ev_bucket!r}",
+                            CheckStatus.WARN,
+                            _aws_error_detail(e),
+                            control_hints=["AC-3", "SC-7"],
+                        )
+                    )
         else:
             checks.append(
                 CheckResult(
                     "evidence_bucket_exists",
                     "CUI evidence bucket",
                     CheckStatus.SKIP,
-                    "Set GOVCLOUD_EXPECTED_EVIDENCE_BUCKET (e.g. secred-evidence-<account>).",
+                    "Set GOVCLOUD_EXPECTED_EVIDENCE_BUCKET (e.g. your-evidence-<12-digit-account-id>).",
                     control_hints=["AU-2", "SI-12"],
                 )
             )
@@ -1494,6 +1650,226 @@ class AWSGovCloudValidator(GovCloudValidator):
                 )
             )
 
+        if _env_truthy("GOVCLOUD_CHECK_IAM_PASSWORD_POLICY"):
+            try:
+                pol = (s.client("iam").get_account_password_policy() or {}).get("PasswordPolicy") or {}
+                need_len = 14
+                raw_min = _env_strip("GOVCLOUD_EXPECT_IAM_PASSWORD_MIN_LENGTH")
+                if raw_min:
+                    try:
+                        need_len = int(raw_min)
+                    except ValueError:
+                        need_len = 14
+                got_len = int(pol.get("MinimumPasswordLength") or 0)
+                len_ok = got_len >= need_len
+                cls_req = (
+                    "RequireUppercaseCharacters",
+                    "RequireLowercaseCharacters",
+                    "RequireNumbers",
+                    "RequireSymbols",
+                )
+                cls_ok = all(pol.get(k) is True for k in cls_req)
+                ok = len_ok and cls_ok
+                checks.append(
+                    CheckResult(
+                        "iam_account_password_policy",
+                        "IAM account password policy (local IAM users)",
+                        CheckStatus.PASS if ok else CheckStatus.WARN,
+                        f"min_length={got_len} (>= {need_len}), complexity flags OK"
+                        if ok
+                        else f"Strengthen policy: min_length={got_len} (want >= {need_len}), "
+                        + ", ".join(f"{k}={pol.get(k)!r}" for k in cls_req),
+                        evidence={"MinimumPasswordLength": got_len, **{k: pol.get(k) for k in cls_req}},
+                        control_hints=["IA-5", "AC-2"],
+                    )
+                )
+            except (BotoCoreError, ClientError) as e:
+                code = getattr(e, "response", {}).get("Error", {}).get("Code", "")
+                if code == "NoSuchEntity":
+                    checks.append(
+                        CheckResult(
+                            "iam_account_password_policy",
+                            "IAM account password policy (local IAM users)",
+                            CheckStatus.WARN,
+                            "No account password policy — set one if local IAM users exist",
+                            control_hints=["IA-5"],
+                        )
+                    )
+                else:
+                    checks.append(
+                        CheckResult(
+                            "iam_account_password_policy",
+                            "IAM account password policy (local IAM users)",
+                            CheckStatus.WARN,
+                            _aws_error_detail(e),
+                            control_hints=["IA-5"],
+                        )
+                    )
+
+        if _env_truthy("GOVCLOUD_CHECK_ACCOUNT_SECURITY_CONTACT"):
+            try:
+                s.client("account").get_alternate_contact(AlternateContactType="SECURITY")
+                checks.append(
+                    CheckResult(
+                        "account_alternate_security_contact",
+                        "AWS account alternate SECURITY contact",
+                        CheckStatus.PASS,
+                        "Alternate SECURITY contact is configured",
+                        control_hints=["IR-6", "SI-12"],
+                    )
+                )
+            except (BotoCoreError, ClientError) as e:
+                code = getattr(e, "response", {}).get("Error", {}).get("Code", "")
+                if code == "ResourceNotFoundException":
+                    checks.append(
+                        CheckResult(
+                            "account_alternate_security_contact",
+                            "AWS account alternate SECURITY contact",
+                            CheckStatus.WARN,
+                            "No alternate SECURITY contact — set in AWS Account management / Billing contact",
+                            control_hints=["IR-6"],
+                        )
+                    )
+                else:
+                    checks.append(
+                        CheckResult(
+                            "account_alternate_security_contact",
+                            "AWS account alternate SECURITY contact",
+                            CheckStatus.WARN,
+                            _aws_error_detail(e),
+                            control_hints=["IR-6"],
+                        )
+                    )
+
+        extra_buckets = [b.strip() for b in _env_strip("GOVCLOUD_S3_BUCKETS_VERIFY_PAB").split(",") if b.strip()]
+        if extra_buckets:
+            s3b = s.client("s3")
+            bad: List[str] = []
+            pab_keys = (
+                "BlockPublicAcls",
+                "IgnorePublicAcls",
+                "BlockPublicPolicy",
+                "RestrictPublicBuckets",
+            )
+            for bkt in extra_buckets[:20]:
+                try:
+                    cfg = s3b.get_public_access_block(Bucket=bkt).get("PublicAccessBlockConfiguration") or {}
+                    if not all(cfg.get(k) is True for k in pab_keys):
+                        bad.append(bkt)
+                except (BotoCoreError, ClientError) as e:
+                    code = getattr(e, "response", {}).get("Error", {}).get("Code", "")
+                    if code == "NoSuchPublicAccessBlockConfiguration":
+                        bad.append(bkt)
+                    else:
+                        bad.append(f"{bkt}({code or 'error'})")
+            checks.append(
+                CheckResult(
+                    "s3_named_buckets_public_access_block",
+                    "S3 Block Public Access on named bucket(s)",
+                    CheckStatus.PASS if not bad else CheckStatus.WARN,
+                    "All listed buckets have four PAB settings enabled"
+                    if not bad
+                    else f"Incomplete or error: {bad[:15]}",
+                    evidence={"checked": extra_buckets[:20], "failed": bad[:20]},
+                    control_hints=["AC-3", "SC-7", "SI-12"],
+                )
+            )
+
+        # Account-level data protection defaults (supplement org SCPs; CMMC / 800-171 SC family)
+        try:
+            acct = (s.client("sts").get_caller_identity() or {}).get("Account") or ""
+        except (BotoCoreError, ClientError):
+            acct = ""
+        if acct:
+            try:
+                s3ctl = s.client("s3control", region_name=ctx.region)
+                pab = s3ctl.get_public_access_block(AccountId=acct).get("PublicAccessBlockConfiguration") or {}
+                keys = (
+                    "BlockPublicAcls",
+                    "IgnorePublicAcls",
+                    "BlockPublicPolicy",
+                    "RestrictPublicBuckets",
+                )
+                all_on = all(pab.get(k) is True for k in keys)
+                checks.append(
+                    CheckResult(
+                        "account_s3_block_public_access",
+                        "Account-wide S3 Block Public Access (all four settings)",
+                        CheckStatus.PASS if all_on else CheckStatus.WARN,
+                        "All four Block Public Access settings enabled"
+                        if all_on
+                        else f"S3 account PAB incomplete: {', '.join(f'{k}={pab.get(k)!r}' for k in keys)}",
+                        evidence=dict(pab),
+                        control_hints=["AC-3", "SC-7", "SI-12"],
+                    )
+                )
+            except (BotoCoreError, ClientError) as e:
+                code = getattr(e, "response", {}).get("Error", {}).get("Code", "")
+                if code == "NoSuchPublicAccessBlockConfiguration":
+                    checks.append(
+                        CheckResult(
+                            "account_s3_block_public_access",
+                            "Account-wide S3 Block Public Access",
+                            CheckStatus.WARN,
+                            "Account-level Block Public Access not configured",
+                            control_hints=["AC-3", "SC-7", "SI-12"],
+                        )
+                    )
+                else:
+                    checks.append(
+                        CheckResult(
+                            "account_s3_block_public_access",
+                            "Account-wide S3 Block Public Access",
+                            CheckStatus.WARN,
+                            f"Could not read account PAB: {_aws_error_detail(e)}",
+                            control_hints=["AC-3", "SC-7"],
+                        )
+                    )
+            try:
+                ebs = s.client("ec2").get_ebs_encryption_by_default()
+                on = ebs.get("EbsEncryptionByDefault") is True
+                checks.append(
+                    CheckResult(
+                        "account_ebs_encryption_by_default",
+                        "EBS encryption by default (account/region)",
+                        CheckStatus.PASS if on else CheckStatus.WARN,
+                        "EBS encryption by default enabled"
+                        if on
+                        else "EBS encryption by default is not enabled for this account in this region",
+                        evidence={"EbsEncryptionByDefault": ebs.get("EbsEncryptionByDefault")},
+                        control_hints=["SC-13", "SC-28"],
+                    )
+                )
+            except (BotoCoreError, ClientError) as e:
+                checks.append(
+                    CheckResult(
+                        "account_ebs_encryption_by_default",
+                        "EBS encryption by default",
+                        CheckStatus.WARN,
+                        f"Could not read EBS default encryption: {_aws_error_detail(e)}",
+                        control_hints=["SC-13"],
+                    )
+                )
+        else:
+            checks.append(
+                CheckResult(
+                    "account_s3_block_public_access",
+                    "Account-wide S3 Block Public Access",
+                    CheckStatus.SKIP,
+                    "Could not resolve STS account id for S3 account PAB check.",
+                    control_hints=["AC-3", "SC-7"],
+                )
+            )
+            checks.append(
+                CheckResult(
+                    "account_ebs_encryption_by_default",
+                    "EBS encryption by default",
+                    CheckStatus.SKIP,
+                    "Could not resolve STS account id for EBS default encryption check.",
+                    control_hints=["SC-13"],
+                )
+            )
+
         return checks
 
     def _step_04(self, ctx: ValidationContext) -> List[CheckResult]:
@@ -1542,25 +1918,6 @@ class AWSGovCloudValidator(GovCloudValidator):
         if vpc_id and min_subnets:
             try:
                 need = int(min_subnets)
-
-                def subs():
-                    return s.client("ec2").describe_subnets(
-                        Filters=[{"Name": "vpc-id", "Values": [vpc_id]}]
-                    )
-
-                out = subs()
-                sn = out.get("Subnets") or []
-                n = len(sn)
-                checks.append(
-                    CheckResult(
-                        "expected_vpc_subnet_count",
-                        f"Subnet count for VPC {vpc_id}",
-                        CheckStatus.PASS if n >= need else CheckStatus.WARN,
-                        f"{n} subnet(s) (expected >= {need})",
-                        evidence={"count": n},
-                        control_hints=["SC-7"],
-                    )
-                )
             except ValueError:
                 checks.append(
                     CheckResult(
@@ -1571,6 +1928,34 @@ class AWSGovCloudValidator(GovCloudValidator):
                         control_hints=["SC-7"],
                     )
                 )
+            else:
+                try:
+                    out = s.client("ec2").describe_subnets(
+                        Filters=[{"Name": "vpc-id", "Values": [vpc_id]}]
+                    )
+                except (BotoCoreError, ClientError) as e:
+                    checks.append(
+                        CheckResult(
+                            "expected_vpc_subnet_count",
+                            f"Subnet count for VPC {vpc_id}",
+                            CheckStatus.WARN,
+                            f"Could not list subnets: {_aws_error_detail(e)}",
+                            control_hints=["SC-7"],
+                        )
+                    )
+                else:
+                    sn = out.get("Subnets") or []
+                    n = len(sn)
+                    checks.append(
+                        CheckResult(
+                            "expected_vpc_subnet_count",
+                            f"Subnet count for VPC {vpc_id}",
+                            CheckStatus.PASS if n >= need else CheckStatus.WARN,
+                            f"{n} subnet(s) (expected >= {need})",
+                            evidence={"count": n},
+                            control_hints=["SC-7"],
+                        )
+                    )
         elif min_subnets and not vpc_id:
             checks.append(
                 CheckResult(
