@@ -175,7 +175,7 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
                     className={`
                       w-full justify-start relative overflow-hidden
                       ${isActive ? 'bg-primary/10 text-primary border border-primary/20' : ''}
-                      ${!isSidebarOpen ? 'px-3' : ''}
+                      ${isSidebarOpen ? '' : 'px-3'}
                     `}
                   >
                     <Icon className="h-5 w-5 mr-3 flex-shrink-0" />
