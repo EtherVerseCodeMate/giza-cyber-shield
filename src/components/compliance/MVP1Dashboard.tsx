@@ -291,9 +291,9 @@ export const MVP1Dashboard = () => {
                       </Button>
                       <Button
                         variant="outline"
-                        onClick={() => globalThis.open('mailto:pilot@stigfirst.com', '_blank')}
+                        onClick={() => navigate('/advisory')}
                       >
-                        Contact Sales
+                        Book Advisory Call
                       </Button>
                     </div>
                   </div>
