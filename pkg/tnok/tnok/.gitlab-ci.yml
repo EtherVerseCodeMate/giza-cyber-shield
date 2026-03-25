@@ -1,0 +1,43 @@
+stages:
+  - test
+  - build
+
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  FF_DISABLE_UMASK_FOR_DOCKER_EXECUTOR: 1
+  DOCKER_BUILDER_IMAGE: "builder"
+  DOCKER_TESTER_IMAGE: "tester"
+
+quality:
+  tags:
+    - docker
+  stage: test
+  image: "${CI_REGISTRY_IMAGE}/${DOCKER_TESTER_IMAGE}:latest"
+  before_script:
+    - pdm install
+  script:
+    - ./scripts/precommit.sh
+
+test:
+  stage: test
+  tags:
+    - docker-compose
+  image: "${CI_REGISTRY_IMAGE}/${DOCKER_TESTER_IMAGE}:latest"
+  script:
+    - ./scripts/docker_test.sh
+
+build:
+  tags:
+    - docker
+  image: "${CI_REGISTRY_IMAGE}/${DOCKER_BUILDER_IMAGE}:latest"
+  stage: build
+  script:
+    - ./scripts/build.sh
+  artifacts:
+    paths:
+      - ./dist/
+    expire_in: 1 week
+
+
+
