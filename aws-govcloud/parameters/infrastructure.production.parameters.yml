@@ -1,0 +1,19 @@
+project:
+  name: khepra-protocol
+  environment: production
+
+network:
+  vpc_cidr: 10.0.0.0/16
+  allowed_cidr: 203.0.113.10/32
+
+security:
+  enable_flow_logs: true
+  enable_fips: true
+
+cloudformation_parameter_overrides:
+  ProjectName: khepra-protocol
+  Environment: production
+  VPCCidr: 10.0.0.0/16
+  EnableFlowLogs: "true"
+  EnableFIPS: "true"
+  AllowedCIDR: 203.0.113.10/32
