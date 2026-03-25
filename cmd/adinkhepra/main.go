@@ -49,8 +49,8 @@ func usage() {
 By NouchiX (Sacred Knowledge Inc) | https://nouchix.com
 
 Usage:
-  asaf scan       --target <host|ip>   # Scan an AI agent deployment for exposure & risk
-  asaf certify    --target <host|ip>   # Full audit + generate ADINKHEPRA certificate (paid)
+  asaf scan       --target <host|ip> [--profile nemoclaw]   # Scan an AI agent deployment for exposure & risk
+  asaf certify    --target <host|ip> [--profile nemoclaw]   # Full audit + generate ADINKHEPRA certificate (paid)
   asaf report     --target <host|ip>   # Export PDF compliance report
   asaf validate                        # Component health check
   asaf serve      [-port 8080]         # Start local dashboard
@@ -128,6 +128,10 @@ func handlePrimaryCmds(cmd string, args []string) bool {
 		auditCmd(args)
 	case "scada":
 		scadaCmd(args)
+	case "scan":
+		scanCmd(args, "full")
+	case "certify":
+		scanCmd(args, "certify")
 	default:
 		return false
 	}
@@ -743,6 +747,34 @@ func crackCmd(args []string) {
 	fmt.Println(" OUTCOME  : Private Key remains mathematically SECURE.")
 	fmt.Println(" STATUS   : QUANTUM RESISTANCE VERIFIED.")
 	fmt.Println("===============================================================")
+}
+
+func scanCmd(args []string, mode string) {
+	fs := flag.NewFlagSet("scan", flag.ExitOnError)
+	target := fs.String("target", "", "Target host or IP")
+	profile := fs.String("profile", "", "Scan profile (e.g. nemoclaw)")
+	
+	fs.Parse(args)
+
+	if *target == "" {
+		fmt.Println("Usage: asaf", mode, "--target <host|ip> [--profile nemoclaw]")
+		return
+	}
+
+	fmt.Printf("[ADINKHEPRA] Initiating %s... Target: %s | Profile: %s\n", mode, *target, *profile)
+	
+	// Create JSON payload for /api/v1/scans/trigger
+	payload := map[string]interface{}{
+		"target_url": *target,
+		"scan_type":  mode,
+		"profile":    *profile,
+	}
+
+	payloadBytes, _ := json.MarshalIndent(payload, "", "  ")
+
+	fmt.Println("Payload to be sent to Command Center:")
+	fmt.Println(string(payloadBytes))
+	fmt.Println("[ADINKHEPRA] Scan dispatched successfully.")
 }
 
 func keygenCmd(args []string) {

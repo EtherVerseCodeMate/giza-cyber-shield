@@ -5,10 +5,6 @@ import { useNavigate } from 'react-router-dom';
 
 export const HeroSection = () => {
   const navigate = useNavigate();
-  
-  const scrollToSystemOverview = () => {
-    document.getElementById('system-overview')?.scrollIntoView({ behavior: 'smooth' });
-  };
 
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden">
@@ -42,22 +38,21 @@ export const HeroSection = () => {
           >
             {/* Main Headline */}
             <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 bg-red-950/40 border border-red-500/30 rounded-full px-4 py-1.5 text-sm text-red-400 font-medium mb-2">
-                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                30,000+ AI agent instances exposed. Is yours one of them?
+              <div className="inline-flex items-center gap-2 bg-amber-950/40 border border-amber-500/30 rounded-full px-4 py-1.5 text-sm text-amber-400 font-medium mb-2">
+                <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                CMMC &amp; NIST 800-171 — evidence packages assessors actually use
               </div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
-                <span className="text-white">We build agents</span>
+                <span className="text-white">Audit-ready</span>
                 <br />
-                <span className="text-[#00ffff]">that secure</span>{' '}
-                <span className="text-white">other agents.</span>
+                <span className="text-[#00ffff]">compliance</span>{' '}
+                <span className="text-white">for regulated teams.</span>
               </h1>
 
               {/* Subheadline */}
               <p className="text-lg md:text-xl text-gray-300 leading-relaxed max-w-xl">
-                ASAF scans, audits, and cryptographically certifies AI agent deployments —
-                so your enterprise can say yes to agentic AI without saying yes to unacceptable risk.
-                Earn your <span className="text-[#d4af37] font-semibold">ADINKHEPRA badge</span>: the security standard for the agentic era.
+                ASAF runs readiness scans and maps findings to control-oriented evidence — so ISSMs and C3PAO prep teams get traceable outputs, not slide decks.
+                Earn your <span className="text-[#d4af37] font-semibold">ADINKHEPRA seal</span> when you certify. Agent gateways (e.g. NemoClaw profile) supported where in scope.
               </p>
             </div>
 
@@ -68,15 +63,15 @@ export const HeroSection = () => {
                 onClick={() => navigate('/onboarding')}
                 className="bg-gradient-to-r from-[#00ffff] to-[#0088ff] hover:from-[#00dddd] hover:to-[#0066dd] text-black font-bold text-lg px-8 py-6 rounded-lg shadow-[0_0_25px_rgba(0,255,255,0.4)] hover:shadow-[0_0_40px_rgba(0,255,255,0.6)] transition-all duration-300"
               >
-                Scan Free — No Card Required
+                Run Free Scan — No Card Required
               </Button>
               <Button
                 size="lg"
                 variant="outline"
-                onClick={scrollToSystemOverview}
+                  onClick={() => navigate('/advisory')}
                 className="border-[#d4af37]/60 text-[#d4af37] hover:bg-[#d4af37]/10 font-semibold text-lg px-8 py-6 rounded-lg"
               >
-                See How It Works
+                Book Advisory Call
               </Button>
             </div>
 
