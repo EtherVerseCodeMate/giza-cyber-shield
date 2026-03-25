@@ -15,7 +15,7 @@ require (
 	github.com/xuri/excelize/v2 v2.10.0
 	golang.org/x/crypto v0.49.0
 	golang.org/x/sys v0.42.0
-	google.golang.org/grpc v1.59.0
+	google.golang.org/grpc v1.79.3
 	modernc.org/sqlite v1.47.0
 	tailscale.com v1.88.1
 )
