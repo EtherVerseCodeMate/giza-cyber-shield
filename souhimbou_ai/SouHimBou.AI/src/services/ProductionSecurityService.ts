@@ -632,7 +632,7 @@ export class ProductionSecurityService {
           source_system: 'khepra_protocol',
           details: JSON.stringify(details),
           user_id: (await supabase.auth.getUser()).data.user?.id
-        });
+        } as any);
 
       if (error) {
         console.error('Failed to log security event:', error);

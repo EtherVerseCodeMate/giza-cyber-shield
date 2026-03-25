@@ -97,7 +97,7 @@ export const STIGRemediationOrchestrator: React.FC = () => {
       .order('success_rate', { ascending: false });
 
     if (error) throw error;
-    setPlaybooks(data || []);
+    setPlaybooks((data || []) as any);
   };
 
   const fetchActiveJobs = async () => {

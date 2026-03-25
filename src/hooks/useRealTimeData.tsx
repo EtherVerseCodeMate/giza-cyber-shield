@@ -92,7 +92,7 @@ export const useRealTimeData = () => {
     };
   }, []);
 
-  const currentMetrics = metrics[metrics.length - 1];
+  const currentMetrics = metrics.at(-1);
 
   return {
     metrics,

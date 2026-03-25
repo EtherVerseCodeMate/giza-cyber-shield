@@ -86,7 +86,9 @@ export interface STIGValidationResponse {
 export interface LicenseStatus {
   machine_id: string;
   organization: string;
-  license_tier: string;
+  tier: 'community' | 'khepri' | 'ra' | 'atum' | 'osiris'; // Changed from license_tier to tier
+  node_quota: number; // Added
+  node_count: number; // Added
   features: string[];
   issued_at: string;
   expires_at: string;
@@ -94,6 +96,35 @@ export interface LicenseStatus {
   days_remaining: number;
   revoked: boolean;
   last_heartbeat?: string;
+  asset_criticality?: number; // Added for Tenable integration
+}
+
+export interface EnrollmentRequest {
+  enrollment_token: string;
+  stripe_session_id?: string;
+}
+
+export interface EnrollmentResponse {
+  status: string;
+  machine_id: string;
+  organization: string;
+  license_tier: string;
+  features: string[];
+  issued_at: string;
+  expires_at: string;
+  days_remaining: number;
+}
+
+export interface TelemetryStatus {
+  status: 'online' | 'offline';
+  telemetry_server: string;
+  machine_id: string;
+  mode: string;
+  license_valid: boolean;
+  license_tier: string;
+  supports_enroll: boolean;
+  supports_validate: boolean;
+  supports_heartbeat: boolean;
 }
 
 export interface HealthStatus {
@@ -113,8 +144,8 @@ interface KhepraAPIConfig {
 
 // API Client class
 class KhepraAPIClient {
-  private baseUrl: string;
-  private apiKey: string;
+  private readonly baseUrl: string;
+  private readonly apiKey: string;
 
   constructor(config: KhepraAPIConfig) {
     this.baseUrl = config.baseUrl.replace(/\/$/, '');
@@ -128,7 +159,7 @@ class KhepraAPIClient {
     const url = `${this.baseUrl}${endpoint}`;
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${this.apiKey}`,
+      'Authorization': this.apiKey, // Note: Backend uses direct API Key check in adapter
       ...options.headers,
     };
 
@@ -187,6 +218,25 @@ class KhepraAPIClient {
   async getLicenseStatus(): Promise<LicenseStatus> {
     return this.request<LicenseStatus>('/api/v1/license/status');
   }
+
+  // Telemetry & Enrollment
+  async enroll(request: EnrollmentRequest): Promise<EnrollmentResponse> {
+    return this.request<EnrollmentResponse>('/api/v1/license/telemetry/enroll', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
+
+  async getTelemetryStatus(): Promise<TelemetryStatus> {
+    return this.request<TelemetryStatus>('/api/v1/license/telemetry/status');
+  }
+
+  async heartbeat(): Promise<any> {
+    return this.request('/api/v1/license/telemetry/heartbeat', {
+      method: 'POST',
+      body: JSON.stringify({ manual: true }),
+    });
+  }
 }
 
 // Hook for Khepra API
@@ -228,6 +278,22 @@ export function useKhepraAPI(baseUrl: string, apiKey: string) {
     mutationFn: (request: STIGValidationRequest) => client.validateSTIG(request),
   });
 
+  // Telemetry status query
+  const telemetryStatusQuery = useQuery({
+    queryKey: ['khepra', 'telemetry', 'status', baseUrl],
+    queryFn: () => client.getTelemetryStatus(),
+    refetchInterval: 60000,
+  });
+
+  // Heartbeat mutation
+  const heartbeatMutation = useMutation({
+    mutationFn: () => client.heartbeat(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['khepra', 'license', baseUrl] });
+      queryClient.invalidateQueries({ queryKey: ['khepra', 'telemetry', 'status', baseUrl] });
+    },
+  });
+
   // Get scan status
   const getScanStatus = useCallback(
     (scanId: string) => client.getScanStatus(scanId),
@@ -241,23 +307,34 @@ export function useKhepraAPI(baseUrl: string, apiKey: string) {
     [client]
   );
 
+  // Enroll mutation
+  const enrollMutation = useMutation({
+    mutationFn: (request: EnrollmentRequest) => client.enroll(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['khepra', 'license', baseUrl] });
+    },
+  });
+
   return {
     // Queries
     health: healthQuery,
     license: licenseQuery,
     dag: dagQuery,
+    telemetryStatus: telemetryStatusQuery,
 
     // Mutations
     triggerScan: triggerScanMutation,
     validateSTIG: validateSTIGMutation,
+    heartbeat: heartbeatMutation,
+    enroll: enrollMutation,
 
     // Methods
     getScanStatus,
     listScans,
 
     // Loading states
-    isLoading: healthQuery.isLoading || licenseQuery.isLoading,
-    isError: healthQuery.isError || licenseQuery.isError,
+    isLoading: healthQuery.isLoading || licenseQuery.isLoading || telemetryStatusQuery.isLoading,
+    isError: healthQuery.isError || licenseQuery.isError || telemetryStatusQuery.isError,
   };
 }
 

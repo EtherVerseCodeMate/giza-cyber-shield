@@ -11,6 +11,7 @@ type ScanRequest struct {
 	Priority    int               `json:"priority"`                     // 1-10, higher = more urgent
 	Metadata    map[string]string `json:"metadata"`
 	CallbackURL string            `json:"callback_url,omitempty"`
+	Profile     string            `json:"profile,omitempty"` // "", "nemoclaw"
 }
 
 // ScanResponse represents the response after triggering a scan
@@ -24,6 +25,12 @@ type ScanResponse struct {
 	WebSocketURL string    `json:"websocket_url"`
 }
 
+// ScanFindingItem is a short finding for product UI (onboarding, dashboards).
+type ScanFindingItem struct {
+	Severity string `json:"severity"`
+	Text     string `json:"text"`
+}
+
 // ScanStatus represents the current status of a scan
 type ScanStatus struct {
 	ScanID       string                 `json:"scan_id"`
@@ -34,6 +41,14 @@ type ScanStatus struct {
 	Results      map[string]interface{} `json:"results,omitempty"`
 	Errors       []string               `json:"errors,omitempty"`
 	ArtifactsURL string                 `json:"artifacts_url,omitempty"`
+	Platform     string                 `json:"platform,omitempty"`  // e.g. "nemoclaw", "generic"
+	Certified    bool                   `json:"certified,omitempty"` // true when ADINKHEPRA issued
+	// Onboarding / ASAF product API (matches web client expectations)
+	RiskScore         int               `json:"risk_score,omitempty"`
+	Exposed           bool              `json:"exposed,omitempty"`
+	AuthWeakness      bool              `json:"auth_weakness,omitempty"`
+	OpenIntegrations  int               `json:"open_integrations,omitempty"`
+	Findings          []ScanFindingItem `json:"findings,omitempty"`
 }
 
 // DAGNodeResponse represents a node in the Living Trust Constellation

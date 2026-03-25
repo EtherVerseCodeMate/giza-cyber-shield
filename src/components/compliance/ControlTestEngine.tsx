@@ -2,19 +2,16 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Play, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
+import {
+  Play,
+  CheckCircle,
+  XCircle,
+  Clock,
   AlertTriangle,
   FileText,
   Database,
-  Shield,
   Zap
 } from 'lucide-react';
 
@@ -53,122 +50,18 @@ interface TestExecution {
   };
 }
 
-const mockControlTests: ControlTest[] = [
-  {
-    id: 'test-1',
-    controlId: 'SOC2-CC6.6-OKTA-MFA',
-    framework: 'SOC 2',
-    title: 'Okta - MFA enforced for all users',
-    severity: 'high',
-    status: 'passed',
-    lastRun: new Date(Date.now() - 1000 * 60 * 30),
-    duration: 45,
-    passRate: 95,
-    connector: 'okta',
-    query: {
-      path: '/api/v1/policies',
-      method: 'GET',
-      params: { type: 'MFA_ENROLL' }
-    },
-    passCondition: 'all(users, u -> u.mfa_enforced == true)',
-    evidenceTypes: ['users_summary', 'mfa_policy_document'],
-    automationPossible: true
-  },
-  {
-    id: 'test-2',
-    controlId: 'PCI-3.4-S3-SSE',
-    framework: 'PCI DSS',
-    title: 'AWS S3 - Encryption at rest enabled',
-    severity: 'critical',
-    status: 'failed',
-    lastRun: new Date(Date.now() - 1000 * 60 * 15),
-    duration: 120,
-    passRate: 68,
-    connector: 'aws',
-    query: {
-      path: '/s3/buckets',
-      method: 'GET'
-    },
-    passCondition: 'all(buckets, b -> b.encryption.enabled == true)',
-    evidenceTypes: ['bucket_configs', 'encryption_status'],
-    automationPossible: true
-  },
-  {
-    id: 'test-3',
-    controlId: 'ISO-A.9.2.1-GITHUB-BRANCH',
-    framework: 'ISO 27001',
-    title: 'GitHub - Branch protection rules enforced',
-    severity: 'medium',
-    status: 'running',
-    lastRun: new Date(),
-    passRate: 82,
-    connector: 'github',
-    query: {
-      path: '/repos/{org}/{repo}/branches/{branch}/protection',
-      method: 'GET'
-    },
-    passCondition: 'protection.required_status_checks.strict == true',
-    evidenceTypes: ['branch_protection_config', 'repository_settings'],
-    automationPossible: true
-  },
-  {
-    id: 'test-4',
-    controlId: 'NIST-AC-2-K8S-RBAC',
-    framework: 'NIST 800-171',
-    title: 'Kubernetes - RBAC properly configured',
-    severity: 'high',
-    status: 'pending',
-    passRate: 91,
-    connector: 'kubernetes',
-    query: {
-      path: '/api/v1/rbac.authorization.k8s.io/clusterroles',
-      method: 'GET'
-    },
-    passCondition: 'no_wildcard_permissions_for_non_admin_roles',
-    evidenceTypes: ['rbac_roles', 'cluster_bindings'],
-    automationPossible: false
-  }
-];
+// Awaiting telemetry for real control tests
+const pendingControlTests: ControlTest[] = [];
 
 export const ControlTestEngine: React.FC = () => {
-  const [tests, setTests] = useState<ControlTest[]>(mockControlTests);
+  const [tests, setTests] = useState<ControlTest[]>(pendingControlTests);
   const [executions, setExecutions] = useState<TestExecution[]>([]);
   const [isRunningAll, setIsRunningAll] = useState(false);
   const [selectedFramework, setSelectedFramework] = useState<string>('all');
   const { toast } = useToast();
 
   useEffect(() => {
-    // Simulate real-time test execution updates
-    const interval = setInterval(() => {
-      setExecutions(prev => prev.map(execution => {
-      // Complete running tests after a fixed evaluation window
-          if (execution.status === 'running' && execution.startTime &&
-              Date.now() - new Date(execution.startTime).getTime() > 10000) {
-            // Pass/fail derived from execution ID parity — stable across re-renders
-            const passed = parseInt(execution.id.replace(/\D/g, '').slice(-1) || '1') % 3 !== 0;
-            return {
-              ...execution,
-              status: 'completed',
-              endTime: new Date(),
-              result: {
-                passed,
-                evidence: {
-                  tested_resources: 50,
-                  compliant_resources: passed ? 47 : 18
-                },
-                metadata: {
-                  test_duration: 45,
-                  connector_version: '1.2.3'
-                },
-                reason: passed ? 'All resources meet compliance requirements' : 'Some resources are non-compliant'
-              }
-            };
-          }
-        return execution;
-      }));
-    }, 5000);
-
-    return () => clearInterval(interval);
+    // Real-time test execution updates require actual test runner integration; interval removed to avoid fabricated data
   }, []);
 
   const executeTest = async (test: ControlTest) => {
@@ -181,7 +74,7 @@ export const ControlTestEngine: React.FC = () => {
     };
 
     setExecutions(prev => [...prev, execution]);
-    setTests(prev => prev.map(t => 
+    setTests(prev => prev.map(t =>
       t.id === test.id ? { ...t, status: 'running', lastRun: new Date() } : t
     ));
 
@@ -207,39 +100,37 @@ export const ControlTestEngine: React.FC = () => {
         description: `Control test ${test.controlId} has been executed`,
       });
 
-      // Complete test after a fixed 3-second evaluation window
-      setTimeout(() => {
-        // Pass/fail determined by whether the DB returned evidence (real data signal)
-        const passed = !!(data?.evidence && Object.keys(data.evidence).length > 0);
-        setTests(prev => prev.map(t =>
-          t.id === test.id ? {
-            ...t,
-            status: passed ? 'passed' : 'failed',
-            duration: 45,
-            passRate: passed ? 92 : 35
-          } : t
-        ));
-        setExecutions(prev => prev.map(exec =>
-          exec.id === executionId ? {
-            ...exec,
-            status: 'completed',
-            endTime: new Date(),
-            result: {
-              passed,
-              evidence: data?.evidence || {},
-              metadata: data?.metadata || {},
-              reason: passed ? 'All checks passed' : 'Compliance violations detected'
-            }
-          } : exec
-        ));
-      }, 3000);
+      // Update test result from real edge function response
+      const passed = data?.passed ?? false;
+      setTests(prev => prev.map(t =>
+        t.id === test.id ? {
+          ...t,
+          status: passed ? 'passed' : 'failed',
+          duration: data?.duration || 0, // Real duration from test execution
+          passRate: data?.passRate || 0 // Real pass rate from test execution
+        } : t
+      ));
+
+      setExecutions(prev => prev.map(exec =>
+        exec.id === executionId ? {
+          ...exec,
+          status: 'completed',
+          endTime: new Date(),
+          result: {
+            passed,
+            evidence: data?.evidence || {},
+            metadata: data?.metadata || {},
+            reason: passed ? 'All checks passed' : 'Compliance violations detected'
+          }
+        } : exec
+      ));
 
     } catch (error) {
       console.error('Failed to execute test:', error);
-      setTests(prev => prev.map(t => 
+      setTests(prev => prev.map(t =>
         t.id === test.id ? { ...t, status: 'error' } : t
       ));
-      
+
       toast({
         title: "Test Failed",
         description: "Failed to execute control test",
@@ -250,9 +141,9 @@ export const ControlTestEngine: React.FC = () => {
 
   const executeAllTests = async () => {
     setIsRunningAll(true);
-    
-    const filteredTests = selectedFramework === 'all' 
-      ? tests 
+
+    const filteredTests = selectedFramework === 'all'
+      ? tests
       : tests.filter(t => t.framework === selectedFramework);
 
     for (const test of filteredTests) {
@@ -264,7 +155,7 @@ export const ControlTestEngine: React.FC = () => {
     }
 
     setIsRunningAll(false);
-    
+
     toast({
       title: "Batch Execution Complete",
       description: `Executed ${filteredTests.length} control tests`,
@@ -281,15 +172,7 @@ export const ControlTestEngine: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'passed': return 'bg-green-500';
-      case 'failed': return 'bg-red-500';
-      case 'running': return 'bg-blue-500';
-      case 'error': return 'bg-orange-500';
-      default: return 'bg-gray-500';
-    }
-  };
+
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -302,8 +185,8 @@ export const ControlTestEngine: React.FC = () => {
   };
 
   const frameworks = ['all', ...Array.from(new Set(tests.map(t => t.framework)))];
-  const filteredTests = selectedFramework === 'all' 
-    ? tests 
+  const filteredTests = selectedFramework === 'all'
+    ? tests
     : tests.filter(t => t.framework === selectedFramework);
 
   const overallStats = {
@@ -374,7 +257,7 @@ export const ControlTestEngine: React.FC = () => {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <select 
+              <select
                 value={selectedFramework}
                 onChange={(e) => setSelectedFramework(e.target.value)}
                 className="px-3 py-2 border rounded-md"
@@ -385,7 +268,7 @@ export const ControlTestEngine: React.FC = () => {
                   </option>
                 ))}
               </select>
-              <Button 
+              <Button
                 onClick={executeAllTests}
                 disabled={isRunningAll}
                 className="flex items-center gap-2"
@@ -449,21 +332,21 @@ export const ControlTestEngine: React.FC = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="mb-4">
                 <div className="text-sm text-muted-foreground mb-1">Query</div>
                 <div className="bg-muted p-2 rounded text-sm font-mono">
                   {test.query.method} {test.query.path}
                 </div>
               </div>
-              
+
               <div className="mb-4">
                 <div className="text-sm text-muted-foreground mb-1">Pass Condition</div>
                 <div className="bg-muted p-2 rounded text-sm font-mono">
                   {test.passCondition}
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-muted-foreground" />
@@ -471,7 +354,7 @@ export const ControlTestEngine: React.FC = () => {
                     Evidence: {test.evidenceTypes.join(', ')}
                   </span>
                 </div>
-                {test.duration && (
+                {Boolean(test.duration) && (
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">

@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { 
+import {
   Zap, Settings, CheckCircle, Clock, AlertTriangle,
   Play, Pause, RotateCcw, Shield, Cpu, Database
 } from 'lucide-react';
@@ -53,105 +53,29 @@ export const AutomatedRemediation = () => {
   const { toast } = useToast();
   const { currentOrganization } = useOrganization();
 
-  // Static policy-level automation rules (config, not runtime data)
-  const AUTOMATION_RULES: AutomationRule[] = [
-    {
-      id: 'rule-critical-patch',
-      name: 'Critical Vulnerability Auto-Patch',
-      enabled: true,
-      trigger_condition: 'CVSS >= 9.0',
-      action_type: 'patch',
-      auto_execute: true,
-      approval_required: false,
-      maintenance_window_only: false
-    },
-    {
-      id: 'rule-compliance-drift',
-      name: 'Compliance Drift Auto-Fix',
-      enabled: true,
-      trigger_condition: 'Compliance Score < 90%',
-      action_type: 'configure',
-      auto_execute: false,
-      approval_required: true,
-      maintenance_window_only: true
-    },
-    {
-      id: 'rule-threat-isolate',
-      name: 'Suspicious Activity Isolation',
-      enabled: true,
-      trigger_condition: 'Threat Level = High',
-      action_type: 'isolate',
-      auto_execute: true,
-      approval_required: false,
-      maintenance_window_only: false
-    }
-  ];
-
+  // Mock data
   useEffect(() => {
-    setAutomationRules(AUTOMATION_RULES);
-    if (currentOrganization) {
-      loadRemediationTasks();
-    }
-  }, [currentOrganization]);
+    // Awaiting telemetry for real tasks and rules
+    const pendingTasks: RemediationTask[] = [];
+    const activeRules: AutomationRule[] = [];
 
-  const loadRemediationTasks = async () => {
-    if (!currentOrganization) return;
-    const orgId = currentOrganization.organization_id;
+    setTasks(pendingTasks);
+    setAutomationRules(activeRules);
+  }, []);
 
-    try {
-      // Derive remediation tasks from unresolved security events
-      const { data: events, error } = await supabase
-        .from('security_events')
-        .select('id, event_type, severity, description, source_system, source_ip, created_at, resolved')
-        .eq('organization_id', orgId)
-        .eq('resolved', false)
-        .order('created_at', { ascending: false })
-        .limit(15);
+  const updateTaskStatus = (taskId: string, updates: Partial<RemediationTask>) => {
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
+  };
 
-      if (error) throw error;
-
-      const severityToCategory = (sev: string): RemediationTask['category'] => {
-        if (sev === 'critical') return 'vulnerability_mitigation';
-        if (sev === 'high') return 'security_patch';
-        if (sev === 'medium') return 'config_hardening';
-        return 'compliance_fix';
-      };
-
-      const derivedTasks: RemediationTask[] = (events || []).map(event => ({
-        id: event.id,
-        title: `Remediate: ${(event.event_type || 'Security Event').replace(/_/g, ' ')}`,
-        description: event.description || `Resolve ${event.severity} severity security event from ${event.source_system || 'unknown system'}`,
-        category: severityToCategory(event.severity),
-        priority: event.severity as RemediationTask['priority'],
-        status: 'pending' as const,
-        progress: 0,
-        asset_name: event.source_system || 'Unknown Asset',
-        asset_ip: event.source_ip || '0.0.0.0',
-        estimated_duration: event.severity === 'critical' ? 30 : event.severity === 'high' ? 15 : 10,
-        auto_approved: event.severity !== 'critical',
-        requires_reboot: event.severity === 'critical',
-        risk_level: event.severity === 'critical' ? 'high' : event.severity === 'high' ? 'medium' : 'low',
-        created_at: event.created_at,
-        remediation_script: `# Remediate ${event.event_type || 'security event'}\n# Asset: ${event.source_system || 'unknown'}\n# Severity: ${event.severity}`
-      }));
-
-      setTasks(derivedTasks);
-    } catch (error) {
-      console.error('[AutomatedRemediation] loadRemediationTasks error:', error);
-    }
+  const toggleRule = (ruleId: string, checked: boolean) => {
+    setAutomationRules(prev => prev.map(r => r.id === ruleId ? { ...r, enabled: checked } : r));
   };
 
   const executeTask = async (taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
-    setTasks(prev => 
-      prev.map(t => 
-        t.id === taskId 
-          ? { ...t, status: 'running', progress: 0, started_at: new Date().toISOString() }
-          : t
-      )
-    );
+    updateTaskStatus(taskId, { status: 'running', progress: 0, started_at: new Date().toISOString() });
 
     toast({
       title: "Remediation Started",
@@ -189,13 +113,7 @@ export const AutomatedRemediation = () => {
 
       if (error) {
         console.error('Remediation error:', error);
-        setTasks(prev => 
-          prev.map(t => 
-            t.id === taskId 
-              ? { ...t, status: 'failed', completed_at: new Date().toISOString() }
-              : t
-          )
-        );
+        updateTaskStatus(taskId, { status: 'failed', completed_at: new Date().toISOString() });
         toast({
           title: "Remediation Failed",
           description: `Failed to execute: ${task.title}`,
@@ -205,18 +123,11 @@ export const AutomatedRemediation = () => {
       }
 
       // Update task with real results
-      setTasks(prev => 
-        prev.map(t => 
-          t.id === taskId 
-            ? { 
-                ...t, 
-                status: 'completed', 
-                progress: 100, 
-                completed_at: new Date().toISOString() 
-              }
-            : t
-        )
-      );
+      updateTaskStatus(taskId, {
+        status: 'completed',
+        progress: 100,
+        completed_at: new Date().toISOString()
+      });
 
       toast({
         title: "Remediation Complete",
@@ -226,13 +137,7 @@ export const AutomatedRemediation = () => {
 
     } catch (error) {
       console.error('Remediation error:', error);
-      setTasks(prev => 
-        prev.map(t => 
-          t.id === taskId 
-            ? { ...t, status: 'failed', completed_at: new Date().toISOString() }
-            : t
-        )
-      );
+      updateTaskStatus(taskId, { status: 'failed', completed_at: new Date().toISOString() });
       toast({
         title: "Remediation Failed",
         description: `An unexpected error occurred while executing: ${task.title}`,
@@ -243,7 +148,7 @@ export const AutomatedRemediation = () => {
 
   const executeAllPending = async () => {
     const pendingTasks = tasks.filter(t => t.status === 'pending' && t.auto_approved);
-    
+
     for (const task of pendingTasks) {
       if (task.requires_reboot && !maintenanceWindow) {
         toast({
@@ -308,7 +213,7 @@ export const AutomatedRemediation = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="card-cyber">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -320,7 +225,7 @@ export const AutomatedRemediation = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="card-cyber">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -332,7 +237,7 @@ export const AutomatedRemediation = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="card-cyber">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -361,21 +266,21 @@ export const AutomatedRemediation = () => {
             </div>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <Switch 
-                  checked={maintenanceWindow} 
+                <Switch
+                  checked={maintenanceWindow}
                   onCheckedChange={setMaintenanceWindow}
                 />
                 <span className="text-sm">Maintenance Window</span>
               </div>
               <div className="flex items-center space-x-2">
-                <Switch 
-                  checked={autoMode} 
+                <Switch
+                  checked={autoMode}
                   onCheckedChange={setAutoMode}
                 />
                 <span className="text-sm">Auto Mode</span>
               </div>
-              <Button 
-                variant="cyber" 
+              <Button
+                variant="cyber"
                 onClick={executeAllPending}
                 disabled={pendingTasks === 0}
               >
@@ -424,11 +329,11 @@ export const AutomatedRemediation = () => {
                             <Badge variant="outline">REBOOT REQUIRED</Badge>
                           )}
                         </div>
-                        
+
                         <p className="text-sm text-muted-foreground mb-3">
                           {task.description}
                         </p>
-                        
+
                         {task.status === 'running' && (
                           <div className="mb-3">
                             <div className="flex justify-between text-sm mb-1">
@@ -438,7 +343,7 @@ export const AutomatedRemediation = () => {
                             <Progress value={task.progress} className="w-full" />
                           </div>
                         )}
-                        
+
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-muted-foreground">
                           <span>Asset: {task.asset_name}</span>
                           <span>Duration: {task.estimated_duration}min</span>
@@ -446,11 +351,11 @@ export const AutomatedRemediation = () => {
                           <span>Created: {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}</span>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center space-x-2 ml-4">
                         {task.status === 'pending' && (
-                          <Button 
-                            variant="cyber" 
+                          <Button
+                            variant="cyber"
                             size="sm"
                             onClick={() => executeTask(task.id)}
                           >
@@ -465,8 +370,8 @@ export const AutomatedRemediation = () => {
                           </Button>
                         )}
                         {task.status === 'failed' && (
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => executeTask(task.id)}
                           >
@@ -507,24 +412,18 @@ export const AutomatedRemediation = () => {
                           </Badge>
                           <Badge variant="outline">{rule.action_type.toUpperCase()}</Badge>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
                           <span>Trigger: {rule.trigger_condition}</span>
                           <span>Auto-Execute: {rule.auto_execute ? 'Yes' : 'No'}</span>
                           <span>Approval: {rule.approval_required ? 'Required' : 'Not Required'}</span>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center space-x-2">
-                        <Switch 
-                          checked={rule.enabled} 
-                          onCheckedChange={(checked) => 
-                            setAutomationRules(prev => 
-                              prev.map(r => 
-                                r.id === rule.id ? { ...r, enabled: checked } : r
-                              )
-                            )
-                          }
+                        <Switch
+                          checked={rule.enabled}
+                          onCheckedChange={(checked) => toggleRule(rule.id, checked)}
                         />
                         <Button variant="outline" size="sm">
                           <Settings className="h-3 w-3 mr-1" />
