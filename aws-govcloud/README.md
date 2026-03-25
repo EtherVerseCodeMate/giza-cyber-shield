@@ -143,6 +143,12 @@ aws cloudformation deploy \
 
 ## Configuration Options
 
+Deployment parameter packs are available in `aws-govcloud/parameters/`:
+
+- `infrastructure.production.parameters.json|yml`
+- `services.production.parameters.json|yml`
+- `deploy-env.example.json|yml` (template-only, no secrets)
+
 ### Infrastructure Parameters
 
 | Parameter | Default | Description |
