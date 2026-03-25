@@ -1,0 +1,46 @@
+[
+    {
+        "_source": {
+            "layers": {
+                "frame": {
+                    "frame.time": "Dec 13, 2025 20:00:01",
+                    "frame.number": "1"
+                },
+                "ip": {
+                    "ip.src": "192.168.1.100",
+                    "ip.dst": "142.250.190.46"
+                },
+                "tcp": {
+                    "tcp.srcport": "54321",
+                    "tcp.dstport": "443"
+                },
+                "tls": {
+                    "tls.record.version": "0x0303",
+                    "tls.handshake.ciphersuite": "0xc02b"
+                }
+            }
+        }
+    },
+    {
+        "_source": {
+            "layers": {
+                "frame": {
+                    "frame.time": "Dec 13, 2025 20:00:02",
+                    "frame.number": "2"
+                },
+                "ip": {
+                    "ip.src": "192.168.1.100",
+                    "ip.dst": "20.112.52.29"
+                },
+                "tcp": {
+                    "tcp.srcport": "54322",
+                    "tcp.dstport": "80"
+                },
+                "tls": {},
+                "http": {
+                    "http.request.method": "GET"
+                }
+            }
+        }
+    }
+]

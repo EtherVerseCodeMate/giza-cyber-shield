@@ -1,0 +1,593 @@
+{
+  "timestamp": "2026-01-12T06:56:24.5947815+03:00",
+  "tenant": "production",
+  "readiness": {
+    "strategy_docs": [
+      "COMMUNITY_TELEMETRY_STRATEGY.md",
+      "IP_PROTECTION_STRATEGY.md",
+      "IRONBANK_CONTAINER_TEST_PLAN.md",
+      "IRON_BANK_SCANNER_STRATEGY.md",
+      "STIGVIEWER_IRONBANK_STRATEGY.md",
+      "TESTING_VALIDATION_PLAN.md",
+      "V1_5_STATUS_AND_ENHANCEMENT_ROADMAP.md",
+      "docs\\CSfC_INTEGRATION_PLAN.md",
+      "docs\\DAG_IMPLEMENTATION_PLAN.md",
+      "docs\\INTEGRATION_ROADMAP.md"
+    ],
+    "compliance_gaps": [
+      {
+        "framework": "RHEL-09-STIG-V1R3",
+        "control": "SV-257777r925318_rule",
+        "description": "",
+        "severity": "medium"
+      },
+      {
+        "framework": "RHEL-09-STIG-V1R3",
+        "control": "SV-257778r925321_rule",
+        "description": "SCAP Security Guide package installed",
+        "severity": "CAT II"
+      },
+      {
+        "framework": "RHEL-09-STIG-V1R3",
+        "control": "SV-257779r925324_rule",
+        "description": "firewalld package installed and active",
+        "severity": "CAT II"
+      },
+      {
+        "framework": "RHEL-09-STIG-V1R3",
+        "control": "SV-258001r926022_rule",
+        "description": "SELinux configured to enforce access control",
+        "severity": "CAT I"
+      },
+      {
+        "framework": "RHEL-09-STIG-V1R3",
+        "control": "SV-258090r926289_rule",
+        "description": "NIST FIPS-validated cryptography implemented",
+        "severity": "CAT I"
+      },
+      {
+        "framework": "RHEL-09-STIG-V1R3",
+        "control": "SV-257823r925453_rule",
+        "description": "Account lockout after failed login attempts",
+        "severity": "CAT II"
+      },
+      {
+        "framework": "RHEL-09-STIG-V1R3",
+        "control": "SV-257824r925456_rule",
+        "description": "Password complexity requirements",
+        "severity": "CAT II"
+      },
+      {
+        "framework": "RHEL-09-STIG-V1R3",
+        "control": "SV-257860r925564_rule",
+        "description": "Audit daemon active",
+        "severity": "CAT II"
+      },
+      {
+        "framework": "RHEL-09-STIG-V1R3",
+        "control": "SV-257872r925600_rule",
+        "description": "SSH PermitRootLogin disabled",
+        "severity": "CAT II"
+      },
+      {
+        "framework": "CIS-RHEL-9-L1",
+        "control": "CIS-6.1.1",
+        "description": "Audit system file permissions",
+        "severity": "Medium"
+      },
+      {
+        "framework": "CIS-RHEL-9-L2",
+        "control": "CIS-6.1.1",
+        "description": "Audit system file permissions",
+        "severity": "Medium"
+      },
+      {
+        "framework": "NIST-800-53-Rev5",
+        "control": "NIST-800-53:AC-1",
+        "description": "Access Control Policy and Procedures",
+        "severity": "High"
+      },
+      {
+        "framework": "NIST-800-53-Rev5",
+        "control": "NIST-800-53:SC-13",
+        "description": "Cryptographic Protection",
+        "severity": "CAT I"
+      },
+      {
+        "framework": "NIST-800-171-Rev2",
+        "control": "NIST-800-171:3.13.11",
+        "description": "Employ FIPS-validated cryptography",
+        "severity": "CAT I"
+      },
+      {
+        "framework": "CMMC-3.0-L3",
+        "control": "CMMC:SC.L2-3.13.11",
+        "description": "FIPS-validated cryptography (L2)",
+        "severity": "CAT I"
+      },
+      {
+        "framework": "CMMC-3.0-L3",
+        "control": "CMMC:SC.L3-3.13.X",
+        "description": "Post-quantum cryptography readiness (L3)",
+        "severity": "High"
+      },
+      {
+        "framework": "PQC-Readiness",
+        "control": "PQC-TLS-001",
+        "description": "TLS post-quantum readiness",
+        "severity": "High"
+      },
+      {
+        "framework": "PQC-Readiness",
+        "control": "PQC-SSH-001",
+        "description": "SSH post-quantum readiness",
+        "severity": "High"
+      },
+      {
+        "framework": "PQC-Readiness",
+        "control": "PQC-CERT-001",
+        "description": "X.509 certificate post-quantum readiness",
+        "severity": "Medium"
+      },
+      {
+        "framework": "PQC-Readiness",
+        "control": "PQC-VPN-001",
+        "description": "VPN post-quantum readiness",
+        "severity": "High"
+      }
+    ],
+    "regulatory_conflicts": [
+      "NIST 800-171 3.5.3: Multi-factor authentication required but not implemented"
+    ],
+    "stig_score": 43,
+    "alignment_score": 60,
+    "roadmap": [
+      {
+        "priority": "URGENT",
+        "action": "Resolve regulatory conflicts",
+        "impact": "Prevents compliance violations and fines",
+        "timeline": "60 days"
+      },
+      {
+        "priority": "STRATEGIC",
+        "action": "Implement AdinKhepra STIG Validation Suite",
+        "impact": "Achieves CMMC Level 2 compliance within 90 days",
+        "timeline": "90 days"
+      },
+      {
+        "priority": "STRATEGIC",
+        "action": "Initiate Post-Quantum Cryptography Migration",
+        "impact": "Future-proofs security, avoids re-audit costs",
+        "timeline": "6 months"
+      }
+    ]
+  },
+  "architecture": {
+    "dependency_graph": {
+      "filippo.io/edwards25519": [
+        "v1.1.0"
+      ],
+      "github.com/akutz/memconn": [
+        "v0.1.0"
+      ],
+      "github.com/alexbrainman/sspi": [
+        "v0.0.0-20231016080023-1a75b4708caa"
+      ],
+      "github.com/aws/aws-sdk-go-v2": [
+        "v1.36.0"
+      ],
+      "github.com/aws/aws-sdk-go-v2/config": [
+        "v1.29.5"
+      ],
+      "github.com/aws/aws-sdk-go-v2/credentials": [
+        "v1.17.58"
+      ],
+      "github.com/aws/aws-sdk-go-v2/feature/ec2/imds": [
+        "v1.16.27"
+      ],
+      "github.com/aws/aws-sdk-go-v2/internal/configsources": [
+        "v1.3.31"
+      ],
+      "github.com/aws/aws-sdk-go-v2/internal/endpoints/v2": [
+        "v2.6.31"
+      ],
+      "github.com/aws/aws-sdk-go-v2/internal/ini": [
+        "v1.8.2"
+      ],
+      "github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding": [
+        "v1.12.2"
+      ],
+      "github.com/aws/aws-sdk-go-v2/service/internal/presigned-url": [
+        "v1.12.12"
+      ],
+      "github.com/aws/aws-sdk-go-v2/service/ssm": [
+        "v1.44.7"
+      ],
+      "github.com/aws/aws-sdk-go-v2/service/sso": [
+        "v1.24.14"
+      ],
+      "github.com/aws/aws-sdk-go-v2/service/ssooidc": [
+        "v1.28.13"
+      ],
+      "github.com/aws/aws-sdk-go-v2/service/sts": [
+        "v1.33.13"
+      ],
+      "github.com/aws/smithy-go": [
+        "v1.22.2"
+      ],
+      "github.com/cloudflare/circl": [
+        "v1.6.1"
+      ],
+      "github.com/coder/websocket": [
+        "v1.8.12"
+      ],
+      "github.com/coreos/go-iptables": [
+        "v0.7.1-0.20240112124308-65c67c9f46e6"
+      ],
+      "github.com/dblohm7/wingoes": [
+        "v0.0.0-20240119213807-a09d6be7affa"
+      ],
+      "github.com/digitalocean/go-smbios": [
+        "v0.0.0-20180907143718-390a4f403a8e"
+      ],
+      "github.com/fsnotify/fsnotify": [
+        "v1.9.0"
+      ],
+      "github.com/fxamacker/cbor/v2": [
+        "v2.7.0"
+      ],
+      "github.com/gaissmai/bart": [
+        "v0.18.0"
+      ],
+      "github.com/go-json-experiment/json": [
+        "v0.0.0-20250813024750-ebf49471dced"
+      ],
+      "github.com/go-ole/go-ole": [
+        "v1.3.0"
+      ],
+      "github.com/godbus/dbus/v5": [
+        "v5.1.1-0.20230522191255-76236955d466"
+      ],
+      "github.com/golang/groupcache": [
+        "v0.0.0-20210331224755-41bb18bfe9da"
+      ],
+      "github.com/google/btree": [
+        "v1.1.2"
+      ],
+      "github.com/google/go-cmp": [
+        "v0.7.0"
+      ],
+      "github.com/google/nftables": [
+        "v0.2.1-0.20240414091927-5e242ec57806"
+      ],
+      "github.com/google/uuid": [
+        "v1.6.0"
+      ],
+      "github.com/hdevalence/ed25519consensus": [
+        "v0.2.0"
+      ],
+      "github.com/illarion/gonotify/v3": [
+        "v3.0.2"
+      ],
+      "github.com/jmespath/go-jmespath": [
+        "v0.4.0"
+      ],
+      "github.com/jsimonetti/rtnetlink": [
+        "v1.4.0"
+      ],
+      "github.com/klauspost/compress": [
+        "v1.18.0"
+      ],
+      "github.com/mdlayher/genetlink": [
+        "v1.3.2"
+      ],
+      "github.com/mdlayher/netlink": [
+        "v1.7.3-0.20250113171957-fbb4dce95f42"
+      ],
+      "github.com/mdlayher/sdnotify": [
+        "v1.0.0"
+      ],
+      "github.com/mdlayher/socket": [
+        "v0.5.0"
+      ],
+      "github.com/miekg/dns": [
+        "v1.1.58"
+      ],
+      "github.com/mikesmitty/edkey": [
+        "v0.0.0-20170222072505-3356ea4e686a"
+      ],
+      "github.com/mitchellh/go-ps": [
+        "v1.0.0"
+      ],
+      "github.com/prometheus-community/pro-bing": [
+        "v0.4.0"
+      ],
+      "github.com/richardlehane/mscfb": [
+        "v1.0.4"
+      ],
+      "github.com/richardlehane/msoleps": [
+        "v1.0.4"
+      ],
+      "github.com/safchain/ethtool": [
+        "v0.3.0"
+      ],
+      "github.com/tailscale/certstore": [
+        "v0.1.1-0.20231202035212-d3fa0460f47e"
+      ],
+      "github.com/tailscale/go-winio": [
+        "v0.0.0-20231025203758-c4f33415bf55"
+      ],
+      "github.com/tailscale/goupnp": [
+        "v1.0.1-0.20210804011211-c64d0f06ea05"
+      ],
+      "github.com/tailscale/hujson": [
+        "v0.0.0-20221223112325-20486734a56a"
+      ],
+      "github.com/tailscale/netlink": [
+        "v1.1.1-0.20240822203006-4d49adab4de7"
+      ],
+      "github.com/tailscale/peercred": [
+        "v0.0.0-20250107143737-35a0c7bd7edc"
+      ],
+      "github.com/tailscale/web-client-prebuilt": [
+        "v0.0.0-20250124233751-d4cd19a26976"
+      ],
+      "github.com/tailscale/wireguard-go": [
+        "v0.0.0-20250716170648-1d0488a3d7da"
+      ],
+      "github.com/tiendc/go-deepcopy": [
+        "v1.7.1"
+      ],
+      "github.com/vishvananda/netns": [
+        "v0.0.5"
+      ],
+      "github.com/x448/float16": [
+        "v0.8.4"
+      ],
+      "github.com/xuri/efp": [
+        "v0.0.1"
+      ],
+      "github.com/xuri/excelize/v2": [
+        "v2.10.0"
+      ],
+      "github.com/xuri/nfp": [
+        "v0.0.2-0.20250530014748-2ddeb826f9a9"
+      ],
+      "go4.org/mem": [
+        "v0.0.0-20240501181205-ae6ca9944745"
+      ],
+      "go4.org/netipx": [
+        "v0.0.0-20231129151722-fdeea329fbba"
+      ],
+      "golang.org/x/crypto": [
+        "v0.46.0"
+      ],
+      "golang.org/x/exp": [
+        "v0.0.0-20250620022241-b7579e27df2b"
+      ],
+      "golang.org/x/mod": [
+        "v0.30.0"
+      ],
+      "golang.org/x/net": [
+        "v0.47.0"
+      ],
+      "golang.org/x/sync": [
+        "v0.19.0"
+      ],
+      "golang.org/x/sys": [
+        "v0.39.0"
+      ],
+      "golang.org/x/term": [
+        "v0.38.0"
+      ],
+      "golang.org/x/text": [
+        "v0.32.0"
+      ],
+      "golang.org/x/time": [
+        "v0.11.0"
+      ],
+      "golang.org/x/tools": [
+        "v0.39.0"
+      ],
+      "golang.zx2c4.com/wintun": [
+        "v0.0.0-20230126152724-0fa3db229ce2"
+      ],
+      "golang.zx2c4.com/wireguard/windows": [
+        "v0.5.3"
+      ],
+      "gvisor.dev/gvisor": [
+        "v0.0.0-20250205023644-9414b50a5633"
+      ],
+      "honnef.co/go/tools": [
+        "v0.6.1"
+      ],
+      "module": [
+        "github.com/EtherVerseCodeMate/giza-cyber-shield"
+      ]
+    },
+    "vulnerable_deps": [],
+    "module_count": 3620,
+    "file_count": 370966,
+    "shadow_it": [
+      "JavaScript dependencies detected: requires separate CVE scanning"
+    ],
+    "friction_points": [
+      {
+        "category": "Security",
+        "description": "Potential secrets detected in version control",
+        "impact": "Risk of credential exposure"
+      }
+    ]
+  },
+  "crypto": {
+    "source_hashes": [
+      "34adfb75dcb7d55e46865ebf8d8d94c2be3425a762ed7be50d75489c8bb3d5ee",
+      "5a9ea5bb6f23e98d87504de304cb107b5b9f5b29443e578e59cfcf6898bc3a8c",
+      "1d7753396521b5e23f03e8ef557d52d55f0c0802cf0c2780ee54e5d96d2889de",
+      "3b46a13903415188ffa38f4c46362f8a35d4b9a1bc6f9a04e7b87e1862ecff8c",
+      "f393701c97654036ca22d7ba23d80d0cdd4585fbe37713de8cd649578d915656",
+      "bce6af02fa8e9d2efce4dbea895ea6ce5346c6ee28c551841db4fa67f3593b93",
+      "e6535f6629aa98ac60dc82aba7b7a72404278637d026f33e73c82960c3fdcc47",
+      "5a9ea5bb6f23e98d87504de304cb107b5b9f5b29443e578e59cfcf6898bc3a8c",
+      "1d7753396521b5e23f03e8ef557d52d55f0c0802cf0c2780ee54e5d96d2889de",
+      "3b46a13903415188ffa38f4c46362f8a35d4b9a1bc6f9a04e7b87e1862ecff8c",
+      "f568a387099885100241ed6fd9bd3ac15f959a168c637ddf3e75dcb615259b89",
+      "bce6af02fa8e9d2efce4dbea895ea6ce5346c6ee28c551841db4fa67f3593b93",
+      "0abb34903664413be68442634e34aea9d2293c9dda22c5e7b85a0ebe6b122a8f",
+      "ea8743a2ea26bbef4702a5314fc7f5d3313bc749d7700dfe2133b0d80aa0656a",
+      "8e2214ba8c860cb119a10b9b1acdda498e486802fe2e8d3a9734b8fea9e18b60",
+      "1debb9cefbfa54a76b04771015ef6bb4d2b173c79a79ee3baade970b3cd802f4",
+      "9ac8290ad9215fd7758ec45eb3f3348431e470e3efe85833ec6c2f2fe4c4c37f",
+      "90e8e2dbfb4b1502a753e56539dc19d9403e559a5f6dc52bb410c3388235fd4d",
+      "9c4de5b39c4c1f1ca6e89199f43c595b416d08d6a6e2c7db1f95dd4113a810ed",
+      "2d7c8495d56c382d22fc609d70e59da5c6cb342685cb55697990e70e878c47ec",
+      "7aad16d3ecf8bd81c8232dc341a7e8b1ad05d7b59de48e34a27bc12d27ff7323",
+      "327c1cb2780a1e547c65be0f47523d02ce33d0cef4ced41fa44f9585591a4be2",
+      "4b3f3409c43f33cf350f06e819f30a912b8b4be2ae3c6925aa35b840a1d4c9ed",
+      "4263ee8183ef34414bc3249989e036c81b80ea4ef4281cbf1e2e28dbdf1cf98a",
+      "3d7b3ba2cc9b4b293b22ebb9b2598b2dc60b6ad64108f249c1793a09b05b9bba",
+      "714f623fe4c1b9d2bcc62d301a99084b40e6b294d4db09632e5830eb27d143b9",
+      "5dc699044ff44aa35047c2d37556a41f7c4a873b0c36d339806e3c2d81b07bb6",
+      "a8fdee0e427a596dd2087ea0708188af93102e8de4102a0d383132cab1968238",
+      "2483bd0a7349be9335e3c67dc1ff4bd31901dea8fa80d2b9c6dd816a771bdc43",
+      "fc5133e40acf09e6517b073ddd7b5c0c218d09938848902210f2cc13f08e1c81",
+      "b68da31fb6c435471346960895294e6b5213954e1c187936ee7f3af116c2fb3d",
+      "36feb6ff9eda2c958da55bdf3e7280596902cbaf7050cfaca0d5c68ee25d2be2",
+      "044a495c5b3a1884aac32e8c56b6815d85d038468754c1d94b4a2447e173ebee",
+      "c179c8f4eb31420bea70298f4f092a5a0b8ce44be08ed268d75fcc79a0356a88",
+      "f3afec4749ec17d560c88dd409989838f7033f2be8a4d9b0f7a54a4c5208419c",
+      "a9e31871c3503dd6f0e02b6d8e346588825e083d9d66dc4198afd5539605f62b",
+      "7184fa422df9c9389ef061d7efe984294463d10624282f3011a76461bf0f62e3",
+      "efe9a32a0d796bd6666f8903bf6e314ad7f946340e9a6c66e70122aed89983c0",
+      "6b3b5dc956e85b46a87abc8b9bc97e4b8bfa4fb6f59412070850fbbf6654932b",
+      "044c0066e86115f7033a0bea5c28d3e61a70618d19974a1055cdec6dbe10de4c",
+      "6aeaa6b9355736ff8739b45c5bcf55dd3558d78c0b43cfc642376c7d32b84ce6",
+      "0037cb255257bec297f43dbcafe9704590146413f4cb5fb2eed9049c7df0afff",
+      "c3292c24ab3aee6af7125f9e53a77145cabe687b3fc8de890a4d203615b5c0b4",
+      "2e157b1934c40b4a7389ae82ebd40e05650c65ddf2202a5d7ab3e44edbc16e6a",
+      "88576700983a2a7963164f2bbc5c0535090f28f06fa49b7d173df4d4ee625650",
+      "f933cbd3b90b62a026a85e46ef89a6af6121e24f46aaef7c839daf646684eac9",
+      "573a294ebc04e8311f1258d7d1429479f7da0cc1dbb1604ef3a6fe36340d642d",
+      "b6a9c215f61fcf74c2fadce414d4e0fad82f682f435523713842cf0a6654a4f5",
+      "84ee45549d5f5b2dc61381307d115ef7d886ef662acebf3dcb7c40e8375d82f2",
+      "ca791c0385164c0bb2f4f937414ac32ad1553a3c2bb8c22b7201aa7c552a60f3",
+      "3834ba371cff373992077541e9e33d7805db01d1fa40d1cb40b7c613bdd62582",
+      "e5dc5943893184f10eb74d11ffd6fa97ec95491c45a0692bb3c740c45ab73dc8",
+      "6dfe8542a3e5e757d5a7e3ce79d5ebed9d0febd2a30253214985b50c1693b867",
+      "c233e7edf8541d04e409994f06a3b75d169e341c2a512fabd0aefb1184c2cee4",
+      "f661e349997f17c2b3f1f4bfac8854d551352e2fff542b7430d02be874e05bb7",
+      "fc36042dbce57ca27a85e4af3aedc44041eb6b4346532c70eafd370e9ba0f33b",
+      "2a31aa0802042cc86a70a14bc2a69dc920bfe51ceea8ad8bdb5219c87c084622",
+      "f7aad1f3da395733818728180f6b45edf7f3b64e68712e5b9cf1e512353ab991",
+      "74acf17b5b8ff5ab7e784f1124d02bf31bafd423729882e3aaac1ebf82fb7446",
+      "49344486b3f1bf695cc1f0bb1251f0cf5f443fe26e1810e833aa03781cfbb1f9",
+      "c6499e18e2447bb7d8841111b83edd7f5b203f6ed0f5a0d22fa26c7ac8fdc84a",
+      "d951f416bdf41801dc777e496707eb1b589b417193b375acc7a62f151405ef46",
+      "f61ccd61bfdfb0df979078287713c5c8ecb1cd7cba3da5af06413051adb67743",
+      "31498335913587b4c828c464f1f255d1c17dd0adfadfc1182e4be434a650cc73",
+      "42cc2ad20242bf120d4e4d5430ea1713872577ce2ee6e1a989902ae57a469b51",
+      "2dc0a1b928c9d33a82f12f9592c8161a5fa4c3ca992c19c081d780c618f4a9b4",
+      "28f265e2cfbf7a4da991210b26413e3860677da56515373aa735061ec0b9d8c5",
+      "56d319ead8ac8191306b4c641b0cb3f167c50faaa924584b52a5c55d45230543",
+      "82988a0766ca9e15713ea826549cc9156917cdd794e8d3dcf05ef416ff1ce3ab",
+      "01107795aba82f35f25634d5367ec93e04ff7b81b0df257d6e44b606afb7bb44",
+      "fa2139d36d3626d1b1f2ddce1f5a1af5cc0750c63378b77c811ccd3805a82534",
+      "7e8e62b5805be99869fabf5044515e4c1e151e20d725c49243b7711868423801",
+      "cf784a49cb5545edef5c09e0eb7b5b77641b5e4f0419be19e50106dfa5959579",
+      "a8b467e8bc36f04900252b3e69764efb8c5543fea478eb370ae80bab45f3c058",
+      "51b54e84254383e45e669306a754778780d9772e4cb8855f20bf78dd3c8ca2a7",
+      "aabc56d8b08c17abd84d55711797c5ff3acbc95219db8cff4be1adcda62465e0",
+      "327b8336cfd272b28f17c3d516723ae059b65738b2e349518fcc72606ab226ef",
+      "7de3573e78ddd41ee155a289f1dd2241b3f4c5bd7c4589f7347301d2186f2811",
+      "74ae4bc97c53a19a299e7fd70734bda36ad6e5a2cfd12c4721630ce9200220fd",
+      "efa146b199b8d79a2dac847e1160b0b5dbca20e536fd91e7011ec3ef04e7eb57",
+      "e0c89caddf2c676328593485b5065273ecfabdc53a3f21bc8aa684bc7adc7b55",
+      "80fc270a4d5e4ebdb6abeef839f3eb3c7d8c6f3cb60be7707305aa2ca5aa30fa",
+      "7999d9dbc13476308beefb858baca4b693f7bb2b643c3c57db58c8c7b87e5df1",
+      "2035fcb2b962e73eb1de5b3ac4a833fa751a21a8b347dc22db489c30833c0b4e",
+      "9af96ac7db9e8ab67eaf1566a002293efeaba8fcb2f9276344e2cd9f4d4a60be",
+      "765b5f55dc46ab59292996d416e8f1f13093f3e45d8e4deb8d3db0f3237ba412",
+      "a59263d9ee505f742c1112b12c714ebbdec35fb62339fd99a486a105e3d6584f",
+      "4afa27e2a0767c55258eea704239a26b4d10e7c9f58c70225bc3b7c5d2daca79",
+      "c60c7b722cad0321e6040c9425194601115c7ad5883de4cf20b944f443655c79",
+      "b3be6e600207d70ec52574d917b36c00862e00eb5fefc50ab7ad0e842963162a",
+      "2abb6922900df892bb4ce2f227ad4ac6717beeef73adfb20240c1e39bc27890d",
+      "26fce3c7903d17742c9e327f34bf1216ccc634bf7623fc8d073ffc2a0901d065",
+      "765a12b1272ed620195394bab0e64c45050e84d67abdf86bf499868077f93f38",
+      "181efd43b85c09888fff0a296dfc1c9898444e0ecb31f8c478c4a487c13c096d",
+      "da988fc903d634365c134b13c45ea77c94d45e3978708d71f46ee84f6af54877",
+      "653f3e53e89b4f8548ff86c19e92bb3c6b84b6be7485a320b1e00893ed877479",
+      "c0b3f4ace4bb1547128ab73e6be3b788f6e7aaabdb9fb3ed6130a2454a008c1d",
+      "f6b9dd2effe975a4ba4063ac0cdf3b3487dab9097f251e95f9e82c7c615dab85",
+      "a2782b348f7143165e8c9c882773abd7aeca399317b26691c77010a5e8d6f5a9",
+      "fb16a0ed11374e1c5f798be308f3c5634257a899709287e35b01f47bc1010da4",
+      "fc5133e40acf09e6517b073ddd7b5c0c218d09938848902210f2cc13f08e1c81",
+      "11fa57daa1daa6d1d49ec74ba023a4b244b6b982a4764c490efa3b678b112a2c",
+      "8a36e58b2b8ba2c4df8d94e70f37be7c195efa4b2076c0742107201d2e605b0a",
+      "61cbe904faece970c40304293e27637abd4a1d75f69ba53f457e945403a32543",
+      "d0e407bc32a901c676fefe8586b6081adacd14365e8136bc7b059559385ba737"
+    ],
+    "crypto_usage": {
+      "rsa": 102,
+      "ecdsa": 57,
+      "aes": 35,
+      "sha": 223,
+      "kyber": 286,
+      "dilithium": 291,
+      "has_legacy": true,
+      "has_pqc": true
+    },
+    "ip_lineage": {
+      "proprietary_pct": 99.5393775980227,
+      "oss_pct": 0.4606224019773059,
+      "gpl_pct": 0,
+      "clean": true
+    },
+    "pqc_readiness": "HYBRID"
+  },
+  "godfather": {
+    "timestamp": "2026-01-12T07:01:59.9849148+03:00",
+    "risk_level": "MODERATE",
+    "causal_chain": [
+      {
+        "step": 1,
+        "type": "GOAL",
+        "description": "Strategic Goal: Expand into Regulated Markets (Healthcare/Finance)"
+      },
+      {
+        "step": 2,
+        "type": "ENABLER",
+        "description": "AND -\u003e Security posture exceeds industry baseline"
+      },
+      {
+        "step": 3,
+        "type": "ENABLER",
+        "description": "AND -\u003e Post-Quantum Cryptography provides strategic advantage"
+      },
+      {
+        "step": 4,
+        "type": "CONSEQUENCE",
+        "description": "THEREFORE -\u003e Go-to-Market timeline accelerated by 2 quarters"
+      }
+    ],
+    "recommendations": [
+      {
+        "priority": "FOUNDATIONAL",
+        "action": "Establish Continuous Compliance Monitoring (AdinKhepra Agent)",
+        "impact": "Real-time drift detection, automated POA\u0026M generation",
+        "cost": "$75K/year",
+        "roi": "Reduces audit preparation time by 80%"
+      }
+    ],
+    "business_impact": {
+      "revenue_at_risk": "$0 (compliant)",
+      "compliance_cost": "$200K (remediation + audit)",
+      "mitigation_cost": "$75K",
+      "time_to_compliance": "30 days (minor gaps)",
+      "key_risks": [
+        "Contract renewal blocked by compliance failures",
+        "Architectural friction slows deployment velocity by 40%"
+      ]
+    }
+  }
+}

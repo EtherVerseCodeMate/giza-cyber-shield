@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "scan_id": "snap-1766526683",
+  "timestamp": "2025-12-24T00:51:23.6728059+03:00",
+  "host_info": {
+    "hostname": "UrGentXy",
+    "os": "windows",
+    "arch": "amd64",
+    "public_ip": "127.0.0.1"
+  },
+  "network_ports": [
+    {
+      "port": 135,
+      "protocol": "tcp",
+      "state": "LISTENING",
+      "bind_addr": "0.0.0.0"
+    },
+    {
+      "port": 445,
+      "protocol": "tcp",
+      "state": "LISTENING",
+      "bind_addr": "0.0.0.0"
+    }
+  ],
+  "processes": [
+    {
+      "pid": 34456,
+      "name": "khepra.exe",
+      "cmd_line": "agent start"
+    }
+  ],
+  "file_manifests": [
+    {
+      "path": "C:\\Users\\intel\\blackbox\\khepra protocol\\khepra.exe",
+      "type": "binary",
+      "sha256": "pending_hash_implementation"
+    }
+  ],
+  "risk_intelligence": {},
+  "tags": [
+    "agent-generated"
+  ]
+}

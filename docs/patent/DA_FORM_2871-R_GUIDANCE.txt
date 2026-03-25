@@ -1,0 +1,104 @@
+# DA FORM 2871-R: PART B - MAKING OF THE INVENTION (GUIDANCE)
+
+**STRATEGY:** We must distinguish between **CONCEPTION** (April 14 - Pre-Service) and **REDUCTION TO PRACTICE** (July 28 - Academic).
+*   **Conception (Idea):** Occurred BEFORE your orders (April 14). This locks the "Rights" to you.
+*   **Reduction (Building):** Occurred *during* orders but is legally protected because it was (a) Off-Duty and (b) for Academic Thesis (University), not Army work.
+
+---
+
+**7. BEFORE THE INVENTION WAS PHYSICALLY TRIED OUT... WAS THE INVENTION FULLY DISCLOSED IN WRITTEN DESCRIPTION...?**
+*   **[X] YES**
+*   **DATE:** `2025/04/14`
+    *   *Proof:* "Giza (SKI) Competitor Analysis Table" sent to academic team.
+    *   *Note:* This date is CRITICAL because it is **Pre-Active Duty** (Before June 1st). It proves the Government cannot claim the "Idea."
+
+**8. WAS A MODEL MADE; OR ... WAS A COMPOSITION PRODUCED?**
+*   **[X] YES**
+*   **DATE:** `2025/07/28`
+    *   *Proof:* "Thesis Whitepaper / KHEPRA Protocol Draft" emailed to self.
+    *   *Explanation:* This represents the academic refinement of the April 14th concept.
+
+**9. IF A MODEL WAS MADE... WAS IT DONE BECAUSE:**
+*   **a. IT WAS DESIRED TO TEST THE OPERABILITY OR PRACTICABILITY OF THE INVENTION?**
+    *   **[X] YES**
+*   **b. IT WAS DESIRED TO TEST THE USEFULNESS OF THE INVENTION TO THE GOVERNMENT?**
+    *   **[X] NO** (CRITICAL).
+*   **c. IF IT WAS DONE FOR SOME OTHER REASON STATE THAT REASON:**
+    *   `Academic requirement for Master's Thesis (SUNY Albany). Refinement of April 14, 2025 pre-service concept during off-duty hours.`
+    *   *(This sentence explicitly bridges the gap between the April Idea and the July Paper).*
+
+**10. APPROXIMATELY HOW MUCH TOTAL TIME WAS SPENT BY YOU PERSONALLY...**
+*   **a. PERSONAL TIME (In hours):** `800`
+*   **b. GOVERNMENT TIME (In hours):** `0`
+    *   *Note:* The fact that you were on Active Duty in July does *not* make it "Government Time" if the work was done at 9:15 PM (Off-Duty) for a University.
+
+**11. EXPLAIN BRIEFLY THE USE, IF ANY, OF THE FOLLOWING...**
+*   **a. THE USE OF GOVERNMENT FACILITIES:**
+    *   `NONE. All development performed in private residence on personal infrastructure.`
+*   **b. THE USE OF GOVERNMENT EQUIPMENT:**
+    *   `NONE. Personal laptop and privately owned servers only.`
+*   **c. THE USE OF GOVERNMENT MATERIALS:**
+    *   `NONE.`
+*   **d. THE USE OF GOVERNMENT FUNDS...:**
+    *   `NONE. 100% self-funded via personal income and commercial AI subscriptions.`
+
+---
+
+**CRITICAL NOTE FOR PAGE 3 (PART C):**
+*   **Question 12 (Duties):**
+    *   *Write:* `Administrative Duties (Supply/Entry Control) pursuant to Flag dated [Date].`
+
+---
+
+# DA FORM 2871-R: PAGE 3 (PART B cont. & PART C) GUIDANCE
+
+**11e. CONTRIBUTION OF INFORMATION BY THE GOVERNMENT:**
+*   **ANSWER:** `NONE.`
+    *   *Reasoning:* You used public standards (NIST), not secret Army manuals.
+
+**11f. CONTRIBUTION OF TIME OR SERVICES OF OTHER GOVERNMENT EMPLOYEES:**
+*   **ANSWER:** `NONE.`
+
+---
+
+**PART C - RELATIONSHIP BETWEEN INVENTION AND DUTIES**
+
+**12. BRIEFLY, WHAT PROMPTED YOU TO MAKE THE INSTANT INVENTION...?**
+*   **ANSWER:** `Requirement for Master of Science in Digital Forensics & Cybersecurity (SUNY Albany) and independent academic inquiry into Post-Quantum Cryptography gaps.`
+    *   *Reasoning:* Anchors it to university, not Army mission.
+
+**13. BRIEFLY... WHAT IS THE INVENTION SUPPOSED TO ACCOMPLISH?**
+*   **ANSWER:** `It is an Agentic Security Attestation Framework (ASAF) that uses Adinkra-based logic and NIST-standard Post-Quantum Cryptography to authenticate autonomous systems in zero-trust environments.`
+
+**14. WERE YOU EMPLOYED OR ASSIGNED:**
+*   **a. TO INVENT OR IMPROVE...?** ([X] **NO**)
+*   **b. TO CONDUCT OR PERFORM RESEARCH...?** ([X] **NO**)
+*   **c. TO SUPERVISE, DIRECT... RESEARCH...?** ([X] **NO**)
+*   **d. TO ACT IN A LIAISON CAPACITY...?** ([X] **NO**)
+    *   *Critical:* You must check **NO** for all. If you check Yes, the Army owns it. You were a Supply Clerk/25S, not a Research Scientist (ASI Identifier).
+
+**15. DESCRIBE THE DUTIES... ASSIGNED AT THE TIME THE INVENTION WAS MADE...**
+*   **ANSWER:** `During the conception and reduction to practice period (April 2025 - July 2025), I was removed from my primary MOS (25S Satellite Operator) duties due to an administrative flag. My assigned duties were exclusively Administrative and Logistical (Supply Clerk / Entry Point Controller). I was not assigned to any R&D, software engineering, or cybersecurity development roles.`
+    *   *Reasoning:* This is the "Separation Statement." It proves your job description did not require you to invent this.
+
+---
+
+# DA FORM 2871-R: PAGE 4 (PART C cont. & SUPERVISOR SECTION) GUIDANCE
+
+**16. STATE ANY FACTS... WHICH YOU BELIEVE WOULD HAVE A BEARING...:**
+*   **ANSWER:** `The invention was developed entirely independently to fulfill academic requirements for a Master's degree, utilizing personal resources and off-duty time. It is unrelated to my military duties as a 25S or my assigned administrative duties.`
+
+---
+
+**SECTION II - TO BE COMPLETED BY THE IMMEDIATE SUPERVISOR**
+*Critical Strategy: You must provide these answers to your NCOIC/OIC so they don't accidentally write something vague like "He works in Cyber." They need to be specific.*
+
+**18. WHAT CONTACT DID YOU HAVE... AND TO WHAT EXTENT DID YOU HAVE ACTUAL PERSONAL KNOWLEDGE...?**
+*   **SUGGESTED ANSWER:** `Daily supervision of Soldier's assigned duties. I have personal knowledge that the Soldier was performing administrative Supply and Entry Control duties during the relevant period due to a flag status. I have no knowledge of, and played no role in, the development of the invention.`
+
+**19. AT THE TIME THE INVENTION WAS MADE, WHAT WERE THE OFFICIAL DUTIES...?**
+*   **SUGGESTED ANSWER:** `Soldier was assigned to HHC as a [Rank] performing duties as a Supply Clerk and Entry Point Controller. Official Job Description: "Responsible for accountability of unit property and physical security of the compound." Soldier was NOT assigned to any technical, engineering, or research duties.`
+
+**20. WHAT WERE THE SPECIFIC JOB... ASSIGNMENTS... WHICH RELATED TO THE INVENTION...?**
+*   **SUGGESTED ANSWER:** `NONE. The Soldier had no specific job or project assignments related to artificial intelligence, software development, or cryptography. The invention is unrelated to his assigned military duties.`
+

@@ -1,0 +1,35 @@
+[
+    {
+        "ip": "188.71.249.125",
+        "data": {
+            "http": {
+                "status": "success",
+                "result": {
+                    "response": {
+                        "status_code": 200,
+                        "headers": {
+                            "Server": [
+                                "Apache/2.4.41 (Ubuntu)"
+                            ]
+                        }
+                    }
+                }
+            },
+            "tls": {
+                "status": "success",
+                "result": {
+                    "handshake_log": {
+                        "server_hello": {
+                            "version": {
+                                "name": "TLSv1.2"
+                            },
+                            "cipher_suite": {
+                                "name": "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+]

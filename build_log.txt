@@ -1,0 +1,21 @@
+
+> vite_react_shadcn_ts@0.0.0 build
+> next build
+
+   ▲ Next.js 16.0.8 (Turbopack)
+   - Environments: .env
+
+   Running TypeScript ...
+Failed to compile.
+
+./src/components/dashboard/DAGConstellation.tsx:13:8
+Type error: Cannot find module '@xyflow/react' or its corresponding type declarations.
+
+[0m [90m 11 |[39m   [33mBackgroundVariant[39m[33m,[39m
+ [90m 12 |[39m   [33mMarkerType[39m[33m,[39m
+[31m[1m>[22m[39m[90m 13 |[39m } [36mfrom[39m [32m'@xyflow/react'[39m[33m;[39m
+ [90m    |[39m        [31m[1m^[22m[39m
+ [90m 14 |[39m [36mimport[39m [32m'@xyflow/react/dist/style.css'[39m[33m;[39m
+ [90m 15 |[39m
+ [90m 16 |[39m [36minterface[39m [33mDAGNode[39m {[0m
+Next.js build worker exited with code: 1 and signal: null

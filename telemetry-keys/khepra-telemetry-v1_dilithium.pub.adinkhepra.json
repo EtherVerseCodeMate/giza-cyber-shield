@@ -1,0 +1,18 @@
+{
+  "schema": "https://adinkhepra.dev/attest/v2-pqc",
+  "symbol": "Eban",
+  "semantics": {
+    "boundary": "adinkhepra://edge-node-1",
+    "purpose": "pqc-auth",
+    "least_privilege": true
+  },
+  "lifecycle": {
+    "journey": "Nkyinkyim",
+    "created_at": "2026-01-06T03:22:52.8098915Z",
+    "rotation_after_days": 90
+  },
+  "binding": {
+    "openssh_pub_sha256": "805d3953ea1dc628e79f6d91cf8a7955a5f8fd68f5001cc693fb43c7cb3f5d53",
+    "comment": "khepra-telemetry-v1"
+  }
+}

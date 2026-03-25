@@ -1,0 +1,389 @@
+package main
+
+import (
+	"context"
+	"encoding/hex"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"log"
+	mrand "math/rand/v2"
+	"net/http"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"strings"
+	"syscall"
+	"time"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/agi"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/billing"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/config"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/net/tailnet"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/sekhem"
+)
+
+const (
+	BannerSeparator     = "==========================================="
+	HeaderContentType   = "Content-Type"
+	MIMEApplicationJSON = "application/json"
+)
+
+type server struct {
+	cfg     config.Config
+	store   dag.Store
+	agi     *agi.Engine
+	sekhem  *sekhem.SekhemTriad
+	licAPI  *LicensingAPI
+	pubKey  []byte
+	privKey []byte
+}
+
+func main() {
+	showMachineID := flag.Bool("machine-id", false, "Print machine ID and exit")
+	enrollmentToken := flag.String("enrollment-token", "", "Enrollment token")
+	flag.Parse()
+
+	if *showMachineID {
+		printMachineID()
+		return
+	}
+
+	initializeAgent(*enrollmentToken)
+}
+
+func printMachineID() {
+	machineID := license.GenerateMachineID()
+	fmt.Println(BannerSeparator)
+	fmt.Println("  KHEPRA MACHINE ID (License Fingerprint)")
+	fmt.Println(BannerSeparator)
+	fmt.Printf("  Machine ID: %s\n", machineID)
+	fmt.Println(BannerSeparator)
+	fmt.Println("\nSend this Machine ID to your administrator\nto receive your license activation.")
+	os.Exit(0)
+}
+
+func initializeAgent(token string) {
+	if token == "" {
+		token = os.Getenv("KHEPRA_ENROLLMENT_TOKEN")
+	}
+
+	cfg := config.Load()
+	store := dag.GlobalDAG()
+
+	// 1. Setup Licensing
+	clientMgr, regMgr, enforcer := setupLicensing(token, store)
+
+	// 2. Setup AGI and Sekhem
+	arch := agi.NewEngine(store)
+	triad := setupSekhem(arch, store)
+
+	// 3. Setup API
+	licAPI := NewLicensingAPI(LicensingDeps{
+		ClientManager:      clientMgr,
+		RegistryManager:    regMgr,
+		DagLicenseEnforcer: enforcer,
+		BillingCalculator:  billing.NewHybridBillingCalculator(500.0),
+		TelemetryClient:    nil,
+		DagStore:           store,
+		IsAirGapped:        false,
+		MachineID:          license.GenerateMachineID(),
+	})
+
+	pub, priv, err := adinkra.GenerateDilithiumKey()
+	if err != nil {
+		log.Fatalf("[AGENT] Failed to generate signing identity: %v", err)
+	}
+	s := &server{cfg: cfg, store: store, agi: arch, sekhem: triad, licAPI: licAPI, pubKey: pub, privKey: priv}
+	runServer(s, cfg)
+}
+
+func setupLicensing(token string, _ dag.Store) (*license.Manager, *license.LicenseManager, *license.DAGLicenseEnforcer) {
+	licenseServer := os.Getenv("KHEPRA_LICENSE_SERVER")
+	if licenseServer == "" {
+		licenseServer = "https://telemetry.souhimbou.org"
+	}
+
+	m, err := license.NewManager(licenseServer)
+	if err != nil {
+		log.Printf("[LICENSE] Error: %v", err)
+	}
+
+	if key := getMasterKey(); key != "" && m != nil {
+		m.SetPrivateKey(key)
+		log.Printf("[LICENSE] ✅ Sovereign mode enabled")
+	}
+
+	if token != "" && m != nil {
+		m.SetEnrollmentToken(token)
+	}
+	if m != nil {
+		if err := m.Initialize(); err != nil {
+			log.Printf("[LICENSE] Warning: Using community mode: %v", err)
+		}
+	}
+
+	home, _ := os.UserHomeDir()
+	if home == "" {
+		home = "."
+	}
+	tierStorePath := filepath.Join(home, ".khepra", "tiers.json")
+
+	regMgr := license.NewLicenseManager(tierStorePath)
+	enforcer := license.NewDAGLicenseEnforcer(regMgr)
+
+	return m, regMgr, enforcer
+}
+
+func getMasterKey() string {
+	if key := os.Getenv("KHEPRA_MASTER_KEY"); key != "" {
+		return key
+	}
+	path := os.Getenv("KHEPRA_MASTER_KEY_PATH")
+	if path == "" {
+		path = "keys/offline/OFFLINE_ROOT_KEY.secret"
+	}
+	if data, err := os.ReadFile(path); err == nil {
+		return strings.TrimSpace(string(data))
+	}
+	return ""
+}
+
+func setupSekhem(arch *agi.Engine, store dag.Store) *sekhem.SekhemTriad {
+	mode := getDeploymentMode()
+	triad, err := sekhem.NewSekhemTriad(arch, store, mode)
+	if err != nil {
+		log.Fatalf("[SEKHEM] Failed: %v", err)
+	}
+	_ = triad.Harmonize()
+	return triad
+}
+
+func getDeploymentMode() sekhem.DeploymentMode {
+	switch strings.ToLower(os.Getenv("KHEPRA_MODE")) {
+	case "hybrid":
+		return sekhem.ModeHybrid
+	case "sovereign":
+		return sekhem.ModeSovereign
+	case "ironbank":
+		return sekhem.ModeIronBank
+	default:
+		return sekhem.ModeEdge
+	}
+}
+
+func runServer(s *server, cfg config.Config) {
+	mux := http.NewServeMux()
+	registerRoutes(mux, s)
+	s.agi.Start()
+
+	go func() {
+		if cfg.TailscaleAuthKey != "" {
+			startTailscale(mux, cfg)
+		} else {
+			startLocal(mux, cfg)
+		}
+	}()
+
+	waitForInterrupt()
+	s.agi.Stop()
+	if s.sekhem != nil {
+		s.sekhem.Stop()
+	}
+}
+
+func registerRoutes(mux *http.ServeMux, s *server) {
+	mux.HandleFunc("/healthz", s.health)
+	mux.HandleFunc("/attest/new", s.attestNew)
+	mux.HandleFunc("/dag/add", s.dagAdd)
+	mux.HandleFunc("/dag/state", s.dagState)
+	mux.HandleFunc("/agi/state", s.agiState)
+	mux.HandleFunc("/agi/chat", s.agiChat)
+	mux.HandleFunc("/agi/scan", s.agiScan)
+
+	if s.licAPI != nil {
+		s.licAPI.RegisterEndpoints(mux)
+	}
+}
+
+func (s *server) health(w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "time": time.Now()})
+}
+
+func (s *server) attestNew(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		AgentID string `json:"agent_id"`
+		Action  string `json:"action"`
+		Symbol  string `json:"symbol"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	if req.Action == "" {
+		req.Action = "attest:new"
+	}
+	if req.Symbol == "" {
+		req.Symbol = "Gye_Nyame"
+	}
+
+	// Use an existing DAG node as parent to maintain chain integrity
+	var parents []string
+	if existing := s.store.All(); len(existing) > 0 {
+		parents = []string{existing[len(existing)-1].ID}
+	}
+
+	node := &dag.Node{
+		Action: req.Action,
+		Symbol: req.Symbol,
+		Time:   time.Now().UTC().Format(time.RFC3339),
+		PQC:    map[string]string{"agent_id": req.AgentID, "pub_key_hex": hex.EncodeToString(s.pubKey)},
+	}
+	if err := node.Sign(s.privKey); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "signing failed: " + err.Error()})
+		return
+	}
+	if err := s.store.Add(node, parents); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "dag add failed: " + err.Error()})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":         "attested",
+		"node_id":        node.ID,
+		"signature":      node.Signature,
+		"public_key_hex": hex.EncodeToString(s.pubKey),
+		"algorithm":      "ML-DSA-65",
+		"timestamp":      node.Time,
+	})
+}
+
+func (s *server) dagAdd(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Symbol  string   `json:"symbol"`
+		Action  string   `json:"action"`
+		Parents []string `json:"parents"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	if req.Action == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "action required"})
+		return
+	}
+	node := &dag.Node{
+		Action: req.Action,
+		Symbol: req.Symbol,
+		Time:   time.Now().UTC().Format(time.RFC3339),
+	}
+	if len(s.privKey) > 0 {
+		_ = node.Sign(s.privKey)
+	}
+	if err := s.store.Add(node, req.Parents); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok", "node_id": node.ID})
+}
+
+func (s *server) dagState(w http.ResponseWriter, r *http.Request) {
+	nodes := s.store.All()
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":     "ok",
+		"node_count": len(nodes),
+		"nodes":      nodes,
+	})
+}
+
+func (s *server) agiState(w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(w).Encode(s.agi.GetState())
+}
+
+func (s *server) agiChat(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Message string `json:"message"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	if req.Message == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "message required"})
+		return
+	}
+	response := s.agi.Chat(req.Message)
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok", "response": response})
+}
+
+func (s *server) agiScan(w http.ResponseWriter, r *http.Request) {
+	state := s.agi.GetState()
+	json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "scan": state})
+}
+
+func startTailscale(mux *http.ServeMux, _ config.Config) {
+	ts, _ := tailnet.NewServer("adinkhepra-node-" + randID())
+	ln, _ := ts.Listen(context.TODO(), ":45444")
+	log.Fatal(http.Serve(ln, sWithJSON(mux)))
+}
+
+func startLocal(mux *http.ServeMux, cfg config.Config) {
+	addr := "127.0.0.1:" + itoa(cfg.AgentListenPort)
+	log.Printf("ADINKHEPRA agent alive @ %s", addr)
+	log.Fatal(http.ListenAndServe(addr, sWithJSON(mux)))
+}
+
+func waitForInterrupt() {
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	<-stop
+}
+
+func sWithJSON(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set(HeaderContentType, MIMEApplicationJSON)
+		h.ServeHTTP(w, r)
+	})
+}
+
+func itoa(n int) string {
+	if n == 0 {
+		return "0"
+	}
+	var b [20]byte
+	i := len(b)
+	neg := n < 0
+	if neg {
+		n = -n
+	}
+	for n > 0 {
+		i--
+		b[i] = byte('0' + (n % 10))
+		n /= 10
+	}
+	if neg {
+		i--
+		b[i] = '-'
+	}
+	return string(b[i:])
+}
+
+func randID() string {
+	const letters = "abcdefghijklmnopqrstuvwxyz0123456789"
+	b := make([]byte, 12)
+	for i := range b {
+		b[i] = letters[mrand.IntN(len(letters))]
+	}
+	return string(b)
+}

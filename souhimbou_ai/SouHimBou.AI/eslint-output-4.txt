@@ -1,0 +1,49 @@
+
+C:\Users\intel\blackbox\khepra protocol\souhimbou_ai\SouHimBou.AI\src\hooks\useSecurityHardening.tsx
+  71:9  error  Unexpected lexical declaration in case block  no-case-declarations
+
+C:\Users\intel\blackbox\khepra protocol\souhimbou_ai\SouHimBou.AI\src\lib\security.ts
+  20:9   error  Unnecessary escape character: \-  no-useless-escape
+  20:11  error  Unnecessary escape character: \-  no-useless-escape
+  39:19  error  Unnecessary escape character: \`  no-useless-escape
+
+C:\Users\intel\blackbox\khepra protocol\souhimbou_ai\SouHimBou.AI\src\pages\DeploymentOrchestrationDashboard.tsx
+  137:9  error  Unexpected lexical declaration in case block  no-case-declarations
+  162:9  error  Unexpected lexical declaration in case block  no-case-declarations
+  163:9  error  Unexpected lexical declaration in case block  no-case-declarations
+  164:9  error  Unexpected lexical declaration in case block  no-case-declarations
+
+C:\Users\intel\blackbox\khepra protocol\souhimbou_ai\SouHimBou.AI\src\services\APIGatewayManager.ts
+  247:11  error  'currentCapacity' is never reassigned. Use 'const' instead  prefer-const
+
+C:\Users\intel\blackbox\khepra protocol\souhimbou_ai\SouHimBou.AI\supabase\functions\advanced-threat-detection\index.ts
+  810:7  error  'findings' is never reassigned. Use 'const' instead  prefer-const
+
+C:\Users\intel\blackbox\khepra protocol\souhimbou_ai\SouHimBou.AI\supabase\functions\agentic-compliance-orchestrator\index.ts
+  393:9  error  'updateData' is never reassigned. Use 'const' instead  prefer-const
+
+C:\Users\intel\blackbox\khepra protocol\souhimbou_ai\SouHimBou.AI\supabase\functions\compliance-drift-detector\index.ts
+  500:7  error  'currentCompliance' is never reassigned. Use 'const' instead  prefer-const
+
+C:\Users\intel\blackbox\khepra protocol\souhimbou_ai\SouHimBou.AI\supabase\functions\enhanced-asset-discovery\index.ts
+  979:7  error  'threatCategories' is never reassigned. Use 'const' instead  prefer-const
+
+C:\Users\intel\blackbox\khepra protocol\souhimbou_ai\SouHimBou.AI\supabase\functions\enhanced-payment-validation\index.ts
+  129:9  error  'validationResult' is never reassigned. Use 'const' instead  prefer-const
+
+C:\Users\intel\blackbox\khepra protocol\souhimbou_ai\SouHimBou.AI\supabase\functions\stig-intelligence-orchestrator\index.ts
+  711:9  error  'success' is never reassigned. Use 'const' instead       prefer-const
+  712:9  error  'errorMessage' is never reassigned. Use 'const' instead  prefer-const
+
+C:\Users\intel\blackbox\khepra protocol\souhimbou_ai\SouHimBou.AI\supabase\functions\stig-query-with-timeline\index.ts
+  353:9  error  'rawData' is never reassigned. Use 'const' instead  prefer-const
+
+C:\Users\intel\blackbox\khepra protocol\souhimbou_ai\SouHimBou.AI\supabase\functions\threat-intelligence-lookup\index.ts
+  81:7  error  'results' is never reassigned. Use 'const' instead  prefer-const
+
+C:\Users\intel\blackbox\khepra protocol\souhimbou_ai\SouHimBou.AI\tailwind.config.ts
+  144:12  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+✖ 19 problems (19 errors, 0 warnings)
+  10 errors and 0 warnings potentially fixable with the `--fix` option.
+
