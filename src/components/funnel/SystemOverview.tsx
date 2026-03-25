@@ -6,27 +6,27 @@ export const SystemOverview = () => {
     {
       number: '01',
       icon: Search,
-      title: 'Discover & Classify Assets',
-      status: 'Planned',
-      description: 'Automatically inventory your environment and identify applicable STIGs based on asset type, OS, and software stack.',
+      title: 'Probe Exposed Surfaces',
+      status: 'Live',
+      description: 'Real readiness probes (e.g. common agent ports, HTTPS) to surface exposure signals from your deployment.',
       iconColor: 'text-[#00ffff]',
       borderColor: 'border-[#00ffff]/40',
     },
     {
       number: '02',
       icon: GitBranch,
-      title: 'Map Controls Automatically',
+      title: 'Map Findings to Evidence',
       status: 'Prototype',
-      description: 'AI-driven mapping between CMMC requirements, NIST 800-171, and specific STIG rules — eliminating manual correlation.',
+      description: 'Translate results into CMMC / NIST 800-171 control-oriented evidence expectations with traceable findings.',
       iconColor: 'text-[#d4af37]',
       borderColor: 'border-[#d4af37]/40',
     },
     {
       number: '03',
       icon: FileText,
-      title: 'Generate Evidence Automatically',
+      title: 'Package Evidence & (Optional) Certify',
       status: 'Prototype',
-      description: 'Produce audit-ready documentation, POA&Ms, and compliance reports directly from your scanned configurations.',
+      description: 'Build assessor-ready evidence packages; optionally bind outputs to an ADINKHEPRA seal when you certify.',
       iconColor: 'text-[#00ff88]',
       borderColor: 'border-[#00ff88]/40',
     },
@@ -46,10 +46,10 @@ export const SystemOverview = () => {
           className="text-center mb-20"
         >
           <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">
-            How SouHimBou AI <span className="text-[#00ffff]">Will Work</span>
+            Evidence-First <span className="text-[#00ffff]">Readiness</span>
           </h2>
           <p className="text-gray-400 max-w-2xl mx-auto text-lg">
-            A conceptual overview of our automated compliance workflow
+            A conceptual overview of the evidence-oriented workflow for CMMC and NIST 800-171 readiness.
           </p>
           <p className="text-xs text-gray-500 mt-3 italic">
             This section describes intended functionality and may change during development.
