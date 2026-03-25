@@ -1,0 +1,26 @@
+[
+  {
+    "ParameterKey": "ProjectName",
+    "ParameterValue": "khepra-protocol"
+  },
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "production"
+  },
+  {
+    "ParameterKey": "APIImageTag",
+    "ParameterValue": "latest"
+  },
+  {
+    "ParameterKey": "DashboardImageTag",
+    "ParameterValue": "latest"
+  },
+  {
+    "ParameterKey": "APIDesiredCount",
+    "ParameterValue": "2"
+  },
+  {
+    "ParameterKey": "DashboardDesiredCount",
+    "ParameterValue": "2"
+  }
+]
