@@ -1,0 +1,90 @@
+project_id = "bqxmmonqibpmnxgypevd"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+
+[db.pooler]
+enabled = false
+port = 54329
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
+[realtime]
+enabled = true
+ip_version = "IPv4"
+
+[studio]
+enabled = true
+port = 54324
+api_url = "http://127.0.0.1:54321"
+openai_api_key = "env(OPENAI_API_KEY)"
+
+[inbucket]
+enabled = true
+port = 54325
+smtp_port = 54326
+pop3_port = 54327
+
+[storage]
+enabled = true
+# port = 54328
+file_size_limit = "50MiB"
+
+[functions.polymorphic-schema-engine]
+
+[functions.integration-manager]
+
+[functions.industry-integration-manager]
+
+[functions.security-webhook]
+
+[functions.threat-feed-sync]
+
+[functions.automated-threat-hunting]
+
+[functions.alert-engine]
+
+[functions.security-event-logger]
+
+[functions.falco-webhook]
+verify_jwt = false
+
+[functions.stix-taxii-sync]
+
+[functions.auth-callback]
+verify_jwt = false
+
+[functions.send-password-reset-otp]
+verify_jwt = false
+
+[functions.verify-password-reset-otp]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.license-register]
+verify_jwt = false
+
+[functions.license-heartbeat]
+verify_jwt = false
+
+[functions.mcp-agent-bridge]
+verify_jwt = true
+
+[functions.n8n-webhook-receiver]
+verify_jwt = false
+
+[functions.storage-backup-worker]
+verify_jwt = false
+
+[functions.discord-bot]
+verify_jwt = false

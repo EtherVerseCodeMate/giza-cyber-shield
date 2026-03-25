@@ -1,0 +1,34 @@
+package mldsa65 // import "github.com/cloudflare/circl/sign/mldsa/mldsa65"
+
+mldsa65 implements NIST signature scheme ML-DSA-65 as defined in FIPS204.
+
+const SeedSize = common.SeedSize ...
+func GenerateKey(rand io.Reader) (*PublicKey, *PrivateKey, error)
+func NewKeyFromSeed(seed *[SeedSize]byte) (*PublicKey, *PrivateKey)
+func Scheme() sign.Scheme
+func SignTo(sk *PrivateKey, msg, ctx []byte, randomized bool, sig []byte) error
+func Verify(pk *PublicKey, msg, ctx, sig []byte) bool
+type PrivateKey internal.PrivateKey
+type PublicKey internal.PublicKey
+package mldsa65 // import "github.com/cloudflare/circl/sign/mldsa/mldsa65"
+
+func (sk *PrivateKey) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts) (
+	sig []byte, err error)
+    Sign signs the given message.
+
+    opts.HashFunc() must return zero, which can be achieved by passing
+    crypto.Hash(0) for opts. rand is ignored. Will only return an error if
+    opts.HashFunc() is non-zero.
+
+    This function is used to make PrivateKey implement the crypto.Signer
+    interface. The package-level SignTo function might be more convenient to
+    use.
+
+package mldsa65 // import "github.com/cloudflare/circl/sign/mldsa/mldsa65"
+
+func Verify(pk *PublicKey, msg, ctx, sig []byte) bool
+    Verify checks whether the given signature by pk on msg is valid.
+
+    ctx is the optional context string. Fails if ctx is larger than 255 bytes.
+    A nil context string is equivalent to an empty context string.
+
