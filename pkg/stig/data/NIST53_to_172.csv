@@ -1,0 +1,34 @@
+NIST_172_Ref,NIST_53_Ref,Control_Family
+3.1.2e,AC-2,Access Control
+3.1.2e,AC-3,Access Control
+3.1.3e,AC-17,Access Control
+3.2.1e,AT-2,Awareness and Training
+3.2.1e,PM-13,Awareness and Training
+3.2.2e,AT-3,Awareness and Training
+3.4.1e,CM-2,Configuration Management
+3.4.1e,CM-8,Configuration Management
+3.4.2e,CM-3,Configuration Management
+3.4.3e,CM-8,Configuration Management
+3.6.1e,IR-4,Incident Response
+3.6.2e,IR-6,Incident Response
+3.9.2e,PS-6,Personnel Security
+3.11.1e,RA-3,Risk Assessment
+3.11.1e,SI-4,Risk Assessment
+3.11.2e,RA-5,Risk Assessment
+3.11.2e,SI-4,Risk Assessment
+3.11.3e,RA-5,Risk Assessment
+3.11.4e,RA-3,Risk Assessment
+3.11.5e,RA-5,Risk Assessment
+3.11.6e,RA-3,Risk Assessment
+3.11.6e,SI-4,Risk Assessment
+3.11.7e,CA-7,Risk Assessment
+3.11.7e,RA-5,Risk Assessment
+3.12.1e,CA-2,Security Assessment
+3.12.1e,CA-7,Security Assessment
+3.13.1e,SC-7,System and Communications Protection
+3.13.2e,SC-7,System and Communications Protection
+3.13.2e,SC-8,System and Communications Protection
+3.13.3e,SC-29,System and Communications Protection
+3.14.1e,SI-7,System and Information Integrity
+3.14.2e,SI-4,System and Information Integrity
+3.14.3e,SI-4,System and Information Integrity

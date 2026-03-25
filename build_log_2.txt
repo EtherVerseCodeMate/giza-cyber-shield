@@ -1,0 +1,20 @@
+
+> vite_react_shadcn_ts@0.0.0 build
+> next build
+
+   ▲ Next.js 16.0.8 (Turbopack)
+   - Environments: .env
+
+   Running TypeScript ...
+Failed to compile.
+
+./supabase/functions/create-advisory-checkout-session/index.ts:2:23
+Type error: Cannot find module 'https://deno.land/std@0.168.0/http/server.ts' or its corresponding type declarations.
+
+[0m [90m 1 |[39m [36mimport[39m [32m"https://deno.land/x/xhr@0.1.0/mod.ts"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 2 |[39m [36mimport[39m { serve } [36mfrom[39m [32m"https://deno.land/std@0.168.0/http/server.ts"[39m[33m;[39m
+ [90m   |[39m                       [31m[1m^[22m[39m
+ [90m 3 |[39m [36mimport[39m { createClient } [36mfrom[39m [32m"https://esm.sh/@supabase/supabase-js@2.49.4"[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m [33mStripe[39m [36mfrom[39m [32m"https://esm.sh/stripe@14.21.0"[39m[33m;[39m
+ [90m 5 |[39m[0m
+Next.js build worker exited with code: 1 and signal: null

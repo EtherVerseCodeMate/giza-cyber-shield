@@ -1,0 +1,45 @@
+import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+
+/**
+ * Sets document.title dynamically based on the current route.
+ * Add new routes here as pages are created.
+ */
+const ROUTE_TITLES: Record<string, string> = {
+    '/': 'SouHimBou AI | CMMC & NIST 800-171 Evidence & Audit Readiness',
+    '/auth': 'Sign In | SouHimBou AI',
+    '/blog': 'Security Blog | SouHimBou AI',
+    '/dod': 'DoD Solutions | SouHimBou AI',
+    '/onboarding': 'Run Free Scan | CMMC Evidence | SouHimBou AI',
+    '/advisory': 'Book Advisory Call | SouHimBou AI',
+    '/contact-sales': 'Book Advisory Call | SouHimBou AI',
+    '/privacy': 'Privacy Policy | SouHimBou AI',
+    '/terms': 'Terms of Service | SouHimBou AI',
+    '/security': 'Security | SouHimBou AI',
+    '/compliance': 'Compliance | SouHimBou AI',
+    '/dashboard': 'Dashboard | SouHimBou AI',
+    '/stig-dashboard': 'STIG Dashboard | SouHimBou AI',
+    '/asset-scanning': 'Asset Scanning | SouHimBou AI',
+    '/compliance-reports': 'Reports | SouHimBou AI',
+    '/evidence-collection': 'Evidence | SouHimBou AI',
+    '/billing': 'Plans & Pricing | ADINKHEPRA Seal | SouHimBou AI',
+    '/master-admin': 'Admin Console | SouHimBou AI',
+    '/vdp': 'Vulnerability Disclosure | SouHimBou AI',
+};
+
+const DEFAULT_TITLE = 'SouHimBou AI | CMMC & NIST 800-171 Evidence & Audit Readiness';
+
+export function useDocumentTitle() {
+    const { pathname } = useLocation();
+
+    useEffect(() => {
+        // Try exact match first, then prefix match for blog posts
+        let title = ROUTE_TITLES[pathname];
+
+        if (!title && pathname.startsWith('/blog/')) {
+            title = 'Blog | SouHimBou AI';
+        }
+
+        document.title = title || DEFAULT_TITLE;
+    }, [pathname]);
+}

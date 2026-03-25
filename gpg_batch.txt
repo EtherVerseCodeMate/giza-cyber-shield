@@ -1,0 +1,7 @@
+Key-Type: EDDSA
+Key-Curve: ed25519
+Name-Real: AdinKhepra IronBank
+Name-Email: souhimbou.d.kone.mil@army.mil
+Expire-Date: 0
+%no-protection
+%commit

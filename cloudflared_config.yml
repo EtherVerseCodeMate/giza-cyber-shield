@@ -1,0 +1,9 @@
+tunnel: 97afcbf6-fbe7-4564-9adf-c63b909c06b9
+credentials-file: C:\Users\intel\.cloudflared\97afcbf6-fbe7-4564-9adf-c63b909c06b9.json
+
+ingress:
+  # CHANGE THIS HOSTNAME to your desired subdomain (e.g. agent.souhimbou.org)
+  # You must also run: cloudflared tunnel route dns khepra-demo <YOUR_HOSTNAME>
+  - hostname: agent.souhimbou.org
+    service: http://localhost:45444
+  - service: http_status:404

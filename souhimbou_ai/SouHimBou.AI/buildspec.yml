@@ -1,0 +1,81 @@
+version: 0.2
+
+env:
+  variables:
+    # Set these in your CodeBuild project or CodePipeline action
+    AWS_DEFAULT_REGION: us-east-1
+    ECR_REPO_URI: ""                 # e.g. 445971788114.dkr.ecr.us-east-1.amazonaws.com/khepra-protocol
+    LAMBDA_TOKEN_FUNCTION: "khepra-protocol-github-app-token-generator"
+    CONTAINER_NAME: "app"            # must match ECS task definition container name
+    DOCKERFILE: "Dockerfile"
+
+phases:
+  install:
+    runtime-versions:
+      docker: 20
+    commands:
+      - echo "Installing helpers (jq if missing)..."
+      - |
+        if ! command -v jq >/dev/null 2>&1; then
+          if command -v yum >/dev/null 2>&1; then sudo yum -y install jq;
+          elif command -v apt-get >/dev/null 2>&1; then sudo apt-get update && sudo apt-get -y install jq;
+          else echo "jq not available, will use Python for JSON parsing"; fi
+        fi
+      - echo "Docker must be enabled (Privileged mode ON) in CodeBuild"
+
+  pre_build:
+    commands:
+      - echo "Getting GitHub App installation token via Lambda..."
+      - aws lambda invoke --function-name "$LAMBDA_TOKEN_FUNCTION" --payload '{}' --cli-binary-format raw-in-base64-out /tmp/token.json >/dev/null
+      - |
+        if command -v jq >/dev/null 2>&1; then
+          TOKEN=$(jq -r '.body | fromjson | .token' /tmp/token.json)
+        else
+          TOKEN=$(python - <<'PY'
+import json,sys,io
+with io.open('/tmp/token.json','r',encoding='utf-8') as f:
+    outer=json.load(f)
+try:
+    body=json.loads(outer.get('body','{}'))
+except Exception:
+    body={}
+sys.stdout.write(body.get('token',''))
+PY
+)
+        fi
+      - test -n "$TOKEN" || (echo "Failed to obtain GitHub token" && exit 1)
+      - echo "Configuring git to use GitHub App token for https://github.com/"
+      - git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
+
+      - echo "Submodules (if any)..."
+      - git submodule sync || true
+      - git submodule update --init --recursive || true
+
+      - echo "Logging in to Amazon ECR..."
+      - REGISTRY="${ECR_REPO_URI%%/*}"
+      - REPOSITORY="${ECR_REPO_URI#*/}"
+      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$REGISTRY"
+
+      - IMAGE_TAG="${CODEBUILD_RESOLVED_SOURCE_VERSION:-latest}"
+      - echo "Using tag: $IMAGE_TAG"
+
+  build:
+    commands:
+      - echo "Building Docker image..."
+      - docker build -f "$DOCKERFILE" -t "$REPOSITORY:$IMAGE_TAG" .
+      - docker tag "$REPOSITORY:$IMAGE_TAG" "$ECR_REPO_URI:$IMAGE_TAG"
+      - docker tag "$REPOSITORY:$IMAGE_TAG" "$ECR_REPO_URI:latest"
+
+  post_build:
+    commands:
+      - echo "Pushing images to ECR..."
+      - docker push "$ECR_REPO_URI:$IMAGE_TAG"
+      - docker push "$ECR_REPO_URI:latest"
+
+      - echo "Generating imagedefinitions.json for ECS deploy..."
+      - printf '[{"name":"%s","imageUri":"%s"}]\n' "$CONTAINER_NAME" "$ECR_REPO_URI:$IMAGE_TAG" > imagedefinitions.json
+      - cat imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json
