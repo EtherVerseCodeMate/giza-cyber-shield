@@ -85,6 +85,13 @@ type ScanResult struct {
 	Profile         string        `json:"profile,omitempty"`   // "nemoclaw" or ""
 	Platform        string        `json:"platform,omitempty"`  // "nemoclaw" or "generic"
 	Certified       bool          `json:"certified,omitempty"`
+	// ASAF onboarding / exposure summary (populated by async onboarding runner)
+	RiskScore               int               `json:"risk_score,omitempty"`
+	GatewayExposed          bool              `json:"gateway_exposed,omitempty"`
+	AuthWeaknessHeuristic   bool              `json:"auth_weakness,omitempty"`
+	OpenIntegrations        int               `json:"open_integrations,omitempty"`
+	PresentationFindings    []ScanFindingItem `json:"presentation_findings,omitempty"`
+	TargetURL               string            `json:"target_url,omitempty"`
 }
 
 // Finding represents a compliance finding
