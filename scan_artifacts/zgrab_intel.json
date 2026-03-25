@@ -1,0 +1,57 @@
+[
+    {
+        "ip": "192.168.1.10",
+        "domain": "internal-db.local",
+        "data": {
+            "http": {
+                "status": "success",
+                "result": {
+                    "response": {
+                        "status_code": 200,
+                        "headers": {
+                            "server": [
+                                "Apache/2.4.41"
+                            ]
+                        }
+                    }
+                }
+            },
+            "tls": {
+                "status": "success",
+                "result": {
+                    "handshake_log": {
+                        "server_hello": {
+                            "version": {
+                                "name": "TLSv1.2"
+                            },
+                            "cipher_suite": {
+                                "name": "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "ip": "192.168.1.11",
+        "domain": "quantum-ready.local",
+        "data": {
+            "tls": {
+                "status": "success",
+                "result": {
+                    "handshake_log": {
+                        "server_hello": {
+                            "version": {
+                                "name": "TLSv1.3"
+                            },
+                            "cipher_suite": {
+                                "name": "TLS_KYBER_1024_WITH_AES_256_GCM_SHA384"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+]

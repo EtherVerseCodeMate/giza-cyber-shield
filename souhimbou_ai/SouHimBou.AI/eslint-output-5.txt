@@ -1,0 +1,20 @@
+
+C:\Users\intel\blackbox\khepra protocol\souhimbou_ai\SouHimBou.AI\src\hooks\useSecurityHardening.tsx
+  71:9  error  Unexpected lexical declaration in case block  no-case-declarations
+
+C:\Users\intel\blackbox\khepra protocol\souhimbou_ai\SouHimBou.AI\src\lib\security.ts
+  20:9   error  Unnecessary escape character: \-  no-useless-escape
+  20:11  error  Unnecessary escape character: \-  no-useless-escape
+  39:19  error  Unnecessary escape character: \`  no-useless-escape
+
+C:\Users\intel\blackbox\khepra protocol\souhimbou_ai\SouHimBou.AI\src\pages\DeploymentOrchestrationDashboard.tsx
+  137:9  error  Unexpected lexical declaration in case block  no-case-declarations
+  162:9  error  Unexpected lexical declaration in case block  no-case-declarations
+  163:9  error  Unexpected lexical declaration in case block  no-case-declarations
+  164:9  error  Unexpected lexical declaration in case block  no-case-declarations
+
+C:\Users\intel\blackbox\khepra protocol\souhimbou_ai\SouHimBou.AI\tailwind.config.ts
+  144:12  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+✖ 9 problems (9 errors, 0 warnings)
+

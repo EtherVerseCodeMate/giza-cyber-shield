@@ -1,0 +1,428 @@
+{
+  "schema_version": "1.0",
+  "scan_id": "c085775f0cea",
+  "timestamp": "2025-12-30T21:30:16.0325475Z",
+  "host_info": {
+    "hostname": "UrGentXy",
+    "os": "windows",
+    "arch": "amd64",
+    "public_ip": "173.255.161.220"
+  },
+  "network_ports": [
+    {
+      "port": 39133,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 17052,
+      "process_name": "Antigravity"
+    },
+    {
+      "port": 17268,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 26404,
+      "process_name": "language_server_windows_x64"
+    },
+    {
+      "port": 15049,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 17052,
+      "process_name": "Antigravity"
+    },
+    {
+      "port": 13030,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 6996,
+      "process_name": "ROGLiveService"
+    },
+    {
+      "port": 9012,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 15244,
+      "process_name": "ArmourySocketServer"
+    },
+    {
+      "port": 49664,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 1984,
+      "process_name": "lsass"
+    },
+    {
+      "port": 11434,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 28884,
+      "process_name": "ollama"
+    },
+    {
+      "port": 9013,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 15244,
+      "process_name": "ArmourySocketServer"
+    },
+    {
+      "port": 8769,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 4,
+      "process_name": "System"
+    },
+    {
+      "port": 6850,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 18216,
+      "process_name": "AacAmbientLighting"
+    },
+    {
+      "port": 1042,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 15440,
+      "process_name": "asus_framework"
+    },
+    {
+      "port": 49674,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 5988,
+      "process_name": "spoolsv"
+    },
+    {
+      "port": 49668,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 2748,
+      "process_name": "svchost"
+    },
+    {
+      "port": 5357,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 4,
+      "process_name": "System"
+    },
+    {
+      "port": 51100,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 20756,
+      "process_name": "ArmouryCrate.UserSessionHelper"
+    },
+    {
+      "port": 49726,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 6780,
+      "process_name": "GlideXService"
+    },
+    {
+      "port": 49722,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 6780,
+      "process_name": "GlideXService"
+    },
+    {
+      "port": 49716,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 6780,
+      "process_name": "GlideXService"
+    },
+    {
+      "port": 38934,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 26404,
+      "process_name": "language_server_windows_x64"
+    },
+    {
+      "port": 50923,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 6380,
+      "process_name": "ArmouryCrateControlInterface"
+    },
+    {
+      "port": 49719,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 6780,
+      "process_name": "GlideXService"
+    },
+    {
+      "port": 49715,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 6772,
+      "process_name": "GlideXNearService"
+    },
+    {
+      "port": 38933,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 26404,
+      "process_name": "language_server_windows_x64"
+    },
+    {
+      "port": 22112,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 6996,
+      "process_name": "ROGLiveService"
+    },
+    {
+      "port": 17471,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 24172,
+      "process_name": "ollama app"
+    },
+    {
+      "port": 13032,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 20756,
+      "process_name": "ArmouryCrate.UserSessionHelper"
+    },
+    {
+      "port": 13031,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 20756,
+      "process_name": "ArmouryCrate.UserSessionHelper"
+    },
+    {
+      "port": 2869,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 4,
+      "process_name": "System"
+    },
+    {
+      "port": 135,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 2080,
+      "process_name": "svchost"
+    },
+    {
+      "port": 49721,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 6780,
+      "process_name": "GlideXService"
+    },
+    {
+      "port": 7778,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 6380,
+      "process_name": "ArmouryCrateControlInterface"
+    },
+    {
+      "port": 5040,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 16076,
+      "process_name": "svchost"
+    },
+    {
+      "port": 49679,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 6832,
+      "process_name": "jhi_service"
+    },
+    {
+      "port": 49720,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 6772,
+      "process_name": "GlideXNearService"
+    },
+    {
+      "port": 49714,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 6780,
+      "process_name": "GlideXService"
+    },
+    {
+      "port": 11001,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 6652,
+      "process_name": "AuraWallpaperService"
+    },
+    {
+      "port": 139,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 4,
+      "process_name": "System"
+    },
+    {
+      "port": 49723,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 1952,
+      "process_name": "services"
+    },
+    {
+      "port": 49669,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 4312,
+      "process_name": "svchost"
+    },
+    {
+      "port": 49665,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 1876,
+      "process_name": "wininit"
+    },
+    {
+      "port": 50100,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 21104,
+      "process_name": "ArmouryCrate.Service"
+    },
+    {
+      "port": 32480,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 17052,
+      "process_name": "Antigravity"
+    },
+    {
+      "port": 27339,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 4,
+      "process_name": "System"
+    },
+    {
+      "port": 24830,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 6580,
+      "process_name": "AsusSoftwareManager"
+    },
+    {
+      "port": 9014,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 15468,
+      "process_name": "ArmouryHtmlDebugServer"
+    },
+    {
+      "port": 42050,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 13872,
+      "process_name": "OneDrive.Sync.Service"
+    },
+    {
+      "port": 9101,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 29572,
+      "process_name": "Antigravity"
+    },
+    {
+      "port": 1043,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 15440,
+      "process_name": "asus_framework"
+    },
+    {
+      "port": 1676,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 29572,
+      "process_name": "Antigravity"
+    },
+    {
+      "port": 445,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 4,
+      "process_name": "System"
+    },
+    {
+      "port": 49717,
+      "protocol": "tcp",
+      "state": "LISTEN",
+      "bind_addr": "0.0.0.0",
+      "pid": 6772,
+      "process_name": "GlideXNearService"
+    }
+  ],
+  "processes": [],
+  "file_manifests": null,
+  "risk_intelligence": {},
+  "tags": [
+    "comprehensive_scan",
+    "localhost"
+  ]
+}

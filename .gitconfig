@@ -1,0 +1,9 @@
+[core]
+	editor = \"C:\\Users\\intel\\AppData\\Local\\Programs\\Microsoft VS Code\\bin\\code\" --wait
+[url "https://x-access-token:@github.com/"]
+	insteadOf = https://github.com/
+[user]
+	email = skone@alumni.albany.edu
+	name = EtherVerseCodeMate
+[credential]
+	helper = manager
