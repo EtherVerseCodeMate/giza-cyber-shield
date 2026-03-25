@@ -44,7 +44,7 @@ const NewHomepage = () => {
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-8 text-sm" role="navigation" aria-label="Main navigation">
               <a href="#system-overview" className="text-gray-300 hover:text-[#00ffff] transition-colors">
-                How It Works
+                Evidence-First Process
               </a>
               <a href="#founder" className="text-gray-300 hover:text-[#00ffff] transition-colors">
                 About
@@ -57,19 +57,19 @@ const NewHomepage = () => {
                 Sign In
               </button>
               <Button
-                onClick={() => navigate('/billing')}
+                onClick={() => navigate('/advisory')}
                 variant="outline"
                 size="sm"
                 className="border-[#00ffff]/50 text-[#00ffff] hover:bg-[#00ffff]/10"
               >
-                Pricing
+                Book Advisory Call
               </Button>
               <Button
                 onClick={() => navigate('/onboarding')}
                 size="sm"
                 className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] hover:from-[#c49b2d] hover:to-[#9d7509] text-black font-semibold"
               >
-                Scan Free
+                Run Free Scan
               </Button>
             </nav>
 
@@ -88,7 +88,7 @@ const NewHomepage = () => {
           {mobileMenuOpen && (
             <nav className="md:hidden mt-4 pb-4 flex flex-col gap-4" role="navigation" aria-label="Mobile navigation">
               <a href="#system-overview" onClick={() => setMobileMenuOpen(false)} className="text-gray-300 hover:text-[#00ffff] transition-colors">
-                How It Works
+                Evidence-First Process
               </a>
               <a href="#founder" onClick={() => setMobileMenuOpen(false)} className="text-gray-300 hover:text-[#00ffff] transition-colors">
                 Founder
@@ -110,11 +110,19 @@ const NewHomepage = () => {
                 DoD Center
               </Button>
               <Button
+                onClick={() => { navigate('/advisory'); setMobileMenuOpen(false); }}
+                variant="outline"
+                size="sm"
+                className="border-[#00ffff]/50 text-[#00ffff] hover:bg-[#00ffff]/10 w-full"
+              >
+                Book Advisory Call
+              </Button>
+              <Button
                 onClick={() => { navigate('/onboarding'); setMobileMenuOpen(false); }}
                 size="sm"
                 className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] hover:from-[#c49b2d] hover:to-[#9d7509] text-black font-semibold w-full"
               >
-                Apply for Pilot
+                Run Free Scan
               </Button>
             </nav>
           )}
