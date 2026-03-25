@@ -99,17 +99,17 @@ export const FooterConversion = () => {
           >
             <div className="flex items-center gap-3 mb-4">
               <Shield className="h-6 w-6 text-[#d4af37]" />
-              <h3 className="text-xl font-bold text-white">Reserve Your Pilot Slot</h3>
+              <h3 className="text-xl font-bold text-white">Book an Evidence Advisory Call</h3>
             </div>
             <p className="text-gray-400">
-              Only 10 slots available per quarter — secure your spot in the next cohort
+              Limited advisory slots per quarter — book a call and align on scope, artifacts, and evidence packaging
             </p>
             <Button
               size="lg"
-              onClick={() => navigate('/onboarding')}
+              onClick={() => navigate('/advisory')}
               className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] hover:from-[#c49b2d] hover:to-[#9d7509] text-black font-semibold w-full"
             >
-              Reserve Pilot Slot
+              Book Advisory Call
               <ChevronRight className="ml-2 h-5 w-5" />
             </Button>
           </motion.div>

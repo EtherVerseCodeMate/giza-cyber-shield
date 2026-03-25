@@ -8,6 +8,7 @@ export interface ScanRequest {
   priority?: number;
   metadata?: Record<string, string>;
   callback_url?: string;
+  profile?: string; // "", "nemoclaw"
 }
 
 export interface ScanResponse {
@@ -33,6 +34,8 @@ export interface ScanStatus {
   };
   errors?: string[];
   artifacts_url?: string;
+  platform?: string;   // "nemoclaw" | "generic"
+  certified?: boolean; // true when ADINKHEPRA issued
 }
 
 export interface DAGNode {
