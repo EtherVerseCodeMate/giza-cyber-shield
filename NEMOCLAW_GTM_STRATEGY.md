@@ -173,3 +173,40 @@ This is the floor. The ceiling is NVIDIA's partner ecosystem: if even one Salesf
 ---
 
 *Built by NouchiX / Sacred Knowledge Inc — skone@alumni.albany.edu*
+
+---
+
+## ASAF × NemoClaw Implementation Notes (AI Design Sessions)
+
+### MVP 1.0 Scope (Ship First, Charge First)
+
+- **Core promise**: *“Scan and certify your OpenClaw / NemoClaw deployment — earn your ADINKHEPRA badge.”*
+- **Included now:**
+  - **ASAF scan engine (Go backend)**: exposure/risk scan + compliance engine, returning `risk_score`, findings, and `certified` flag via `/api/v1/scans/*`.
+  - **NemoClaw profile**:
+    - `NemoClawConnector` discovers NemoClaw/OpenShell installs (`~/.nemoclaw`, `/etc/nemoclaw`, `/opt/nemoclaw`, project `.nemoclaw`).
+    - `nemoclaw_checks.go` implements `NMC-001`–`NMC-009` exactly as documented in this GTM file and `README.md`.
+  - **ADINKHEPRA attestation**:
+    - PQC-signed certificate that includes platform (`nemoclaw`) and NMC check results.
+  - **Single funnel UI (Vercel)**:
+    - `HeroSection` + `FinalCTABar` → `/onboarding` (`OnboardingOrchestrator`) → `/billing` (`SimpleBilling`) wired to `/api/checkout` (Stripe).
+  - **Stripe billing (Vercel + Fly.io)**:
+    - `/api/checkout` route creates a Checkout Session for “ASAF Certify” ($99/mo) using `STRIPE_SECRET_KEY` and `STRIPE_PRICE_ID`.
+    - Success URL returns to onboarding / dashboard and marks the deployment as certified.
+
+### Phase 2+ (Roadmap / Enterprise)
+
+- **Continuous monitoring & policy drift detection (NemoClaw)**:
+  - Move from scheduled/rescans to event-driven monitoring and alerts when NMC posture changes.
+- **STIG overlay for NemoClaw**:
+  - Full mapping of NemoClaw/OpenShell policy domains to 36,000+ STIG controls, with exportable reports for auditors.
+- **Deeper OpenClaw / “go everywhere” integrations**:
+  - Multi-chat agent footprints (Slack, Discord, WhatsApp, Teams) with ASAF as the central attestation and control plane.
+
+### Positioning Guardrails (for All Public Copy)
+
+- **Always** present ASAF as an **independent third-party auditor**, not an NVIDIA product or partner.
+- Ground all claims in what the code actually does:
+  - NemoClaw NMC checks are real and implemented.
+  - ADINKHEPRA certificates are PQC-signed artifacts backed by the existing attestation engine.
+- Treat continuous monitoring, STIG overlay, and full “go everywhere” agent integration as **explicit roadmap items** or **Enterprise pilots**, not self-serve MVP guarantees.

@@ -1,0 +1,17 @@
+project:
+  name: khepra-protocol
+  environment: production
+
+services:
+  api_image_tag: latest
+  dashboard_image_tag: latest
+  api_desired_count: 2
+  dashboard_desired_count: 2
+
+cloudformation_parameter_overrides:
+  ProjectName: khepra-protocol
+  Environment: production
+  APIImageTag: latest
+  DashboardImageTag: latest
+  APIDesiredCount: "2"
+  DashboardDesiredCount: "2"
