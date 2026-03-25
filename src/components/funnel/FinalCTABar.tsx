@@ -5,10 +5,6 @@ import { useNavigate } from 'react-router-dom';
 export const FinalCTABar = () => {
   const navigate = useNavigate();
 
-  const scrollToSystemOverview = () => {
-    document.getElementById('system-overview')?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   return (
     <section className="py-24 bg-gradient-to-r from-[#0d1421] via-[#0a0a0a] to-[#0d1421] relative overflow-hidden">
       {/* Background glow */}
@@ -30,12 +26,12 @@ export const FinalCTABar = () => {
           className="max-w-3xl mx-auto text-center space-y-8"
         >
           <h2 className="text-3xl md:text-4xl font-bold text-white">
-            Is your AI agent deployment{' '}
-            <span className="text-[#00ffff]">enterprise-safe</span>?
+            Ready for{' '}
+            <span className="text-[#00ffff]">CMMC evidence</span>?
           </h2>
           <p className="text-gray-400 text-lg max-w-xl mx-auto">
-            Scan free. Get your exposure report in minutes. Upgrade to earn your
-            <span className="text-[#d4af37] font-semibold"> ADINKHEPRA certification badge</span> — the proof your CISO needs.
+            Scan free. Get surface + readiness findings in minutes. Upgrade to earn your
+            <span className="text-[#d4af37] font-semibold"> ADINKHEPRA seal</span> — tamper-evident attestation for assessors.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -49,10 +45,10 @@ export const FinalCTABar = () => {
             <Button
               size="lg"
               variant="outline"
-              onClick={() => navigate('/billing')}
-              className="border-[#d4af37]/60 text-[#d4af37] hover:bg-[#d4af37]/10 font-semibold text-lg px-10 py-6 rounded-lg"
+              onClick={() => navigate('/advisory')}
+              className="border-[#00ffff]/40 text-[#00ffff] hover:bg-[#00ffff]/10 font-semibold text-lg px-10 py-6 rounded-lg"
             >
-              Get Certified — $99/mo
+              Book Advisory Call
             </Button>
           </div>
 

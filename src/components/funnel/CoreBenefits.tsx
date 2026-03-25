@@ -5,33 +5,33 @@ export const CoreBenefits = () => {
   const benefits = [
     {
       icon: FileCheck,
-      title: 'Automated STIG Workflow Assistance',
-      status: 'Prototype',
-      statusColor: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-      description: 'AI-assisted mapping of STIG controls to reduce manual work. Automatically correlates controls across frameworks.',
-      gradient: 'from-blue-500/15 to-cyan-500/10',
-      borderColor: 'border-blue-500/30',
-      iconColor: 'text-blue-400',
+      title: 'Readiness Scan & Exposure Report',
+      status: 'Live',
+      statusColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+      description: 'Probe exposed surfaces and map signals to a readiness posture you can defend in an assessor conversation.',
+      gradient: 'from-cyan-500/15 to-blue-500/10',
+      borderColor: 'border-cyan-500/30',
+      iconColor: 'text-cyan-400',
     },
     {
       icon: Eye,
-      title: 'Passive-First Monitoring Approach',
-      status: 'Planned',
-      statusColor: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
-      description: 'Designed for OT/ICS and low-impact compliance validation. Non-intrusive scanning that respects operational constraints.',
-      gradient: 'from-yellow-500/15 to-orange-500/10',
-      borderColor: 'border-yellow-500/30',
-      iconColor: 'text-yellow-400',
+      title: 'Assessor-Oriented Evidence Mapping',
+      status: 'Prototype',
+      statusColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+      description: 'Translate findings into CMMC / NIST 800-171 evidence expectations with traceable, control-oriented outputs.',
+      gradient: 'from-amber-500/15 to-orange-500/10',
+      borderColor: 'border-amber-500/30',
+      iconColor: 'text-amber-400',
     },
     {
       icon: Shield,
-      title: 'Secure Enclave Architecture',
-      status: 'Planned',
-      statusColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-      description: 'Future AWS GovCloud deployment model for CMMC Level 2 alignment. Designed for FedRAMP-ready infrastructure.',
-      gradient: 'from-purple-500/15 to-pink-500/10',
-      borderColor: 'border-purple-500/30',
-      iconColor: 'text-purple-400',
+      title: 'ADINKHEPRA Seal (When Certified)',
+      status: 'Optional',
+      statusColor: 'bg-red-500/20 text-red-300 border-red-500/30',
+      description: 'When you certify, bind evidence to a cryptographic attestation seal auditors can verify.',
+      gradient: 'from-red-500/15 to-amber-500/10',
+      borderColor: 'border-red-500/30',
+      iconColor: 'text-red-400',
     },
   ];
 
@@ -51,10 +51,10 @@ export const CoreBenefits = () => {
           className="text-center mb-16"
         >
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Core <span className="text-[#00ffff]">Capabilities</span>
+            Evidence-First <span className="text-[#00ffff]">Capabilities</span>
           </h2>
           <p className="text-gray-400 max-w-2xl mx-auto">
-            Built specifically for defense contractors navigating CMMC and STIG compliance
+            Built for regulated teams that need CMMC / NIST 800-171 evidence they can stand behind.
           </p>
         </motion.div>
 
