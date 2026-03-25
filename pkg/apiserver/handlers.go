@@ -3,7 +3,9 @@ package apiserver
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
@@ -61,19 +63,27 @@ func (s *Server) handleTriggerScan(c *gin.Context) {
 		return
 	}
 
-	// 1. Enforce License (Commercial Logic)
+	// 1. License + optional public funnel (Fly / marketing)
+	// Set ASAF_ALLOW_EVAL_WITHOUT_LICENSE=true to allow eval/basic onboarding scans when telemetry license is invalid.
+	// Still requires a valid API key / auth path configured for your deployment.
 	status := s.licMgr.GetStatus()
+	effectiveTier := status.LicenseTier
 	if !status.IsValid {
-		c.JSON(http.StatusForbidden, ErrorResponse{
-			Error:   "license_invalid",
-			Message: "A valid license is required to trigger security scans.",
-			Code:    http.StatusForbidden,
-		})
-		return
+		allow := strings.EqualFold(os.Getenv("ASAF_ALLOW_EVAL_WITHOUT_LICENSE"), "true") &&
+			(req.ScanType == "eval" || req.ScanType == "basic")
+		if !allow {
+			c.JSON(http.StatusForbidden, ErrorResponse{
+				Error:   "license_invalid",
+				Message: "A valid license is required to trigger security scans.",
+				Code:    http.StatusForbidden,
+			})
+			return
+		}
+		effectiveTier = "community"
 	}
 
 	// 2. Feature Gating based on Egyptian Tiers
-	switch status.LicenseTier {
+	switch effectiveTier {
 	case "community", "khepri":
 		if req.ScanType != "eval" && req.ScanType != "basic" {
 			c.JSON(http.StatusPaymentRequired, ErrorResponse{
