@@ -24,11 +24,11 @@ type SecurityPackage struct {
 
 // GenerateSSP generates a structured SSP based on NIST 800-171 and 800-172 results
 func (g *SSPGenerator) GenerateSSP(results171 []nist80171.ControlResult, results172 []nist80172.EnhancedResult) (string, error) {
-	ssp := fmt.Sprintf("# System Security Plan (SSP)\n")
+	ssp := "# System Security Plan (SSP)\n"
 	ssp += fmt.Sprintf("System: %s\n", g.AppName)
 	ssp += fmt.Sprintf("Organization: %s\n", g.Organization)
 	ssp += fmt.Sprintf("Date Generated: %s\n", time.Now().Format(time.RFC1123))
-	ssp += fmt.Sprintf("Compliance Baseline: NIST 800-171 Rev 2 + NIST 800-172 (Enhanced)\n\n")
+	ssp += "Compliance Baseline: NIST 800-171 Rev 2 + NIST 800-172 (Enhanced)\n\n"
 
 	ssp += "## NIST 800-171 Control Implementation Details\n\n"
 
@@ -56,7 +56,7 @@ func (g *SSPGenerator) GenerateSSP(results171 []nist80171.ControlResult, results
 
 // GeneratePOAM identifies failed controls and creates a POA&M
 func (g *SSPGenerator) GeneratePOAM(results []nist80171.ControlResult) (string, error) {
-	poam := fmt.Sprintf("# Plan of Action & Milestones (POA&M)\n\n")
+	poam := "# Plan of Action & Milestones (POA&M)\n\n"
 	poam += "| Control ID | Weakness | Remediation Plan | Scheduled Completion | Status |\n"
 	poam += "|------------|----------|------------------|----------------------|--------|\n"
 

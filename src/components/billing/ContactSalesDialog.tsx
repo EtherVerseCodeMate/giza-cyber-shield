@@ -39,15 +39,15 @@ const ContactSalesDialog = ({ open, onOpenChange }: ContactSalesDialogProps) => 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Contact Sales</DialogTitle>
+          <DialogTitle>Book Advisory Call</DialogTitle>
           <DialogDescription>
-            Tell us a bit about your organization and needs. We'll follow up with pricing and options.
+            Tell us a bit about your scope and evidence needs. We'll follow up to book an advisory call and confirm readiness artifacts.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <Input placeholder="Company / Agency" value={company} onChange={(e) => setCompany(e.target.value)} />
           <Textarea placeholder="Your requirements, number of users, timelines..." value={message} onChange={(e) => setMessage(e.target.value)} />
-          <Button onClick={submit} disabled={loading} className="w-full">{loading ? 'Sending...' : 'Send Request'}</Button>
+          <Button onClick={submit} disabled={loading} className="w-full">{loading ? 'Sending...' : 'Request Advisory Call'}</Button>
         </div>
       </DialogContent>
     </Dialog>
