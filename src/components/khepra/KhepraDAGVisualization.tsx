@@ -27,6 +27,7 @@ import {
   CheckCircle,
   FileText,
   Lock,
+  Loader2,
 } from 'lucide-react';
 
 interface KhepraDAGVisualizationProps {
@@ -35,7 +36,7 @@ interface KhepraDAGVisualizationProps {
   height?: number;
 }
 
-// Custom node component
+// Custom node component colors - Premium Palette
 const nodeColors: Record<string, string> = {
   scan: '#3b82f6',         // blue
   finding: '#ef4444',      // red
@@ -66,7 +67,6 @@ function transformDAGToFlow(dagNodes: DAGNode[]): { nodes: Node[]; edges: Edge[]
 
   // Calculate positions using a simple layout algorithm
   const levels = new Map<string, number>();
-  const processedNodes = new Set<string>();
 
   function calculateLevel(nodeId: string): number {
     if (levels.has(nodeId)) return levels.get(nodeId)!;
@@ -117,14 +117,14 @@ function transformDAGToFlow(dagNodes: DAGNode[]): { nodes: Node[]; edges: Edge[]
           <div className="flex flex-col items-center gap-1 p-2">
             <div className="flex items-center gap-1">
               {nodeIcons[dagNode.type] || <Network className="h-4 w-4" />}
-              <span className="text-xs font-medium capitalize">{dagNode.type}</span>
+              <span className="text-[10px] font-black italic uppercase tracking-tighter capitalize">{dagNode.type}</span>
             </div>
-            <div className="text-xs text-gray-500 font-mono">
-              {dagNode.node_id.slice(0, 8)}...
+            <div className="text-[8px] text-white/40 font-mono">
+              {dagNode.node_id.slice(0, 12)}...
             </div>
             {dagNode.verified && (
-              <Badge variant="outline" className="text-xs px-1 py-0 text-green-600 border-green-600">
-                Verified
+              <Badge variant="outline" className="text-[8px] px-1 py-0 text-emerald-400 border-emerald-500/30 bg-emerald-500/10 uppercase font-black">
+                PQC Secured
               </Badge>
             )}
           </div>
@@ -133,11 +133,14 @@ function transformDAGToFlow(dagNodes: DAGNode[]): { nodes: Node[]; edges: Edge[]
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
       style: {
-        background: nodeColors[dagNode.type] || '#6b7280',
+        background: 'rgba(0, 0, 0, 0.6)',
         color: 'white',
-        borderRadius: '8px',
-        padding: '4px',
-        minWidth: '120px',
+        borderRadius: '12px',
+        padding: '2px',
+        minWidth: '140px',
+        border: `1px solid ${nodeColors[dagNode.type] || '#444'}`,
+        boxShadow: `0 0 15px ${(nodeColors[dagNode.type] || '#444')}40`,
+        backdropFilter: 'blur(10px)',
       },
     });
 
@@ -152,11 +155,12 @@ function transformDAGToFlow(dagNodes: DAGNode[]): { nodes: Node[]; edges: Edge[]
           animated: true,
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            color: '#6b7280',
+            color: '#666',
           },
           style: {
-            stroke: '#6b7280',
-            strokeWidth: 2,
+            stroke: '#666',
+            strokeWidth: 1.5,
+            opacity: 0.4,
           },
         });
       }
@@ -198,85 +202,86 @@ export function KhepraDAGVisualization({
   }, [dag]);
 
   return (
-    <Card className="w-full">
-      <CardHeader>
+    <Card className="glass-card overflow-hidden border-white/5 shadow-2xl">
+      <CardHeader className="border-b border-white/5 bg-white/2">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2">
-              <Network className="h-5 w-5" />
-              Living Trust Constellation
+            <CardTitle className="flex items-center gap-2 text-xl font-black italic">
+              <Network className="h-5 w-5 text-primary" />
+              LIVING TRUST CONSTELLATION
             </CardTitle>
-            <CardDescription>
-              Immutable DAG of security events with PQC signatures
+            <CardDescription className="text-muted-foreground uppercase text-[10px] tracking-widest font-bold">
+              Immutable security event ledger • PQC Signed
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
             {isConnected ? (
-              <Badge variant="outline" className="text-green-600 border-green-600">
+              <Badge variant="outline" className="text-primary border-primary/30 bg-primary/10 animate-pulse uppercase text-[9px]">
                 <Wifi className="h-3 w-3 mr-1" />
-                Live
+                Linked
               </Badge>
             ) : (
-              <Badge variant="outline" className="text-red-600 border-red-600">
+              <Badge variant="outline" className="text-red-400 border-red-500/30 bg-red-500/10 uppercase text-[9px]">
                 <WifiOff className="h-3 w-3 mr-1" />
-                Offline
+                Detached
               </Badge>
             )}
-            <Button variant="ghost" size="sm" onClick={handleRefresh}>
+            <Button variant="ghost" size="sm" onClick={handleRefresh} className="hover:bg-white/5">
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-6">
         {/* Stats Bar */}
         {dag.data && (
-          <div className="flex gap-4 mb-4 text-sm">
-            <div className="bg-muted rounded-lg px-3 py-1">
-              <span className="text-muted-foreground">Nodes:</span>{' '}
-              <span className="font-medium">{dag.data.total_nodes}</span>
+          <div className="flex gap-4 mb-6 text-[10px] uppercase font-bold tracking-widest">
+            <div className="bg-white/5 border border-white/5 rounded-full px-4 py-1.5 flex items-center gap-2">
+              <span className="text-muted-foreground">Ledger Depth:</span>
+              <span className="text-white italic">{dag.data.total_nodes}</span>
             </div>
-            <div className="bg-muted rounded-lg px-3 py-1">
-              <span className="text-muted-foreground">Root Nodes:</span>{' '}
-              <span className="font-medium">{dag.data.root_nodes.length}</span>
+            <div className="bg-white/5 border border-white/5 rounded-full px-4 py-1.5 flex items-center gap-2">
+              <span className="text-muted-foreground">Genesis Nodes:</span>
+              <span className="text-white italic">{dag.data.root_nodes.length}</span>
             </div>
-            <div className="bg-muted rounded-lg px-3 py-1">
-              <span className="text-muted-foreground">Live Updates:</span>{' '}
-              <span className="font-medium">{dagUpdates.length}</span>
+            <div className="bg-primary/5 border border-primary/10 rounded-full px-4 py-1.5 flex items-center gap-2">
+              <span className="text-primary/60">Real-time Stream:</span>
+              <span className="text-primary italic">{dagUpdates.length} ev/s</span>
             </div>
           </div>
         )}
 
         {/* Legend */}
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="flex flex-wrap gap-2 mb-6">
           {Object.entries(nodeColors).map(([type, color]) => (
             <div
               key={type}
-              className="flex items-center gap-1 text-xs px-2 py-1 rounded"
-              style={{ backgroundColor: `${color}20`, color }}
+              className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border bg-white/2 transition-all hover:bg-white/5"
+              style={{ borderColor: `${color}40`, color }}
             >
               {nodeIcons[type]}
-              <span className="capitalize">{type}</span>
+              <span>{type}</span>
             </div>
           ))}
         </div>
 
         {/* Flow Diagram */}
         <div
-          className="border rounded-lg overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100"
+          className="border border-white/10 rounded-xl overflow-hidden bg-black/40 backdrop-blur-3xl relative"
           style={{ height }}
         >
+          {/* Cyber Overlay Grid */}
+          <div className="absolute inset-0 bg-cyber-grid pointer-events-none opacity-20" />
+
           {dag.isLoading ? (
             <div className="flex items-center justify-center h-full">
-              <div className="animate-pulse text-muted-foreground">
-                Loading constellation...
-              </div>
+              <Loader2 className="h-10 w-10 animate-spin text-primary/30" />
             </div>
           ) : nodes.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-              <Network className="h-12 w-12 mb-2 opacity-50" />
-              <p>No DAG nodes available</p>
-              <p className="text-sm">Trigger a scan to start building the constellation</p>
+              <Network className="h-12 w-12 mb-2 opacity-20" />
+              <p className="font-black italic uppercase tracking-widest text-[10px]">Empty Constellation</p>
+              <p className="text-[9px] uppercase tracking-tighter opacity-50">Node deployment pending</p>
             </div>
           ) : (
             <ReactFlow
@@ -286,19 +291,18 @@ export function KhepraDAGVisualization({
               onEdgesChange={onEdgesChange}
               fitView
               attributionPosition="bottom-left"
+              colorMode="dark"
             >
-              <Background />
-              <Controls />
+              <Background color="#111" gap={20} />
+              <Controls className="bg-black/80 border-white/10 fill-white" />
               <MiniMap
                 nodeColor={(node) => {
-                  const type = node.id.includes('scan')
-                    ? 'scan'
-                    : node.id.includes('finding')
-                    ? 'finding'
-                    : 'default';
-                  return nodeColors[type] || '#6b7280';
+                  const type = nodes.find(n => n.id === node.id)?.id.includes('scan') ? 'scan' : 'default';
+                  // Simple heuristic for minimap colors
+                  return '#222';
                 }}
-                style={{ backgroundColor: '#f3f4f6' }}
+                maskColor="rgba(0,0,0,0.8)"
+                style={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)' }}
               />
             </ReactFlow>
           )}

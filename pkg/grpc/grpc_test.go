@@ -50,7 +50,7 @@ func TestScanCacheEntry(t *testing.T) {
 	}
 }
 
-func TestNewIronBankBridge_MissingEndpoint(t *testing.T) {
+func TestNewIronBankBridgeMissingEndpoint(t *testing.T) {
 	config := &BridgeConfig{
 		ScannerEndpoint: "", // Missing
 	}
@@ -61,7 +61,7 @@ func TestNewIronBankBridge_MissingEndpoint(t *testing.T) {
 	}
 }
 
-func TestBridgeConfig_Defaults(t *testing.T) {
+func TestBridgeConfigDefaults(t *testing.T) {
 	config := &BridgeConfig{
 		ScannerEndpoint: "test:443",
 		// Leave timeout and cacheTTL at zero

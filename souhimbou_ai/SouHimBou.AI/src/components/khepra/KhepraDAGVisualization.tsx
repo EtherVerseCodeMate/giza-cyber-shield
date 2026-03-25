@@ -69,7 +69,7 @@ function transformDAGToFlow(dagNodes: DAGNode[]): { nodes: Node[]; edges: Edge[]
   const levels = new Map<string, number>();
 
   function calculateLevel(nodeId: string): number {
-    if (levels.has(nodeId)) return levels.get(nodeId)!;
+    if (levels.has(nodeId)) return levels.get(nodeId) || 0;
 
     const node = nodeMap.get(nodeId);
     if (!node || node.parents.length === 0) {
@@ -95,7 +95,7 @@ function transformDAGToFlow(dagNodes: DAGNode[]): { nodes: Node[]; edges: Edge[]
     if (!levelGroups.has(level)) {
       levelGroups.set(level, []);
     }
-    levelGroups.get(level)!.push(nodeId);
+    levelGroups.get(level)?.push(nodeId);
   });
 
   // Create nodes with positions
@@ -174,7 +174,7 @@ export function KhepraDAGVisualization({
   deploymentUrl,
   apiKey,
   height = 500,
-}: KhepraDAGVisualizationProps) {
+}: Readonly<KhepraDAGVisualizationProps>) {
   const { dag } = useKhepraAPI(deploymentUrl, apiKey);
   const { isConnected, dagUpdates } = useKhepraDAGUpdates(deploymentUrl);
 
@@ -297,9 +297,9 @@ export function KhepraDAGVisualization({
               <Controls className="bg-black/80 border-white/10 fill-white" />
               <MiniMap
                 nodeColor={(node) => {
-                  const type = nodes.find(n => n.id === node.id)?.id.includes('scan') ? 'scan' : 'default';
+                  const nodeType = nodes.find(n => n.id === node.id)?.id.includes('scan') ? 'scan' : 'default';
                   // Simple heuristic for minimap colors
-                  return '#222';
+                  return nodeType === 'scan' ? '#3b82f6' : '#222';
                 }}
                 maskColor="rgba(0,0,0,0.8)"
                 style={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)' }}

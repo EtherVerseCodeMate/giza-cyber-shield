@@ -1,13 +1,19 @@
-import React, { Fragment } from 'react';
+import { Fragment } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
   ArrowLeft,
   Home,
+  Shield,
   FileText,
+  Bot,
   Crown,
+  Zap,
   BarChart3,
-  Plug
+
+  Plug,
+  Briefcase,
+  Phone
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -22,9 +28,14 @@ interface NavigationItem {
 
 const navigationItems: NavigationItem[] = [
   { id: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: Home, requiresAuth: true },
+  { id: 'security', label: 'Security', path: '/security', icon: Shield, requiresAuth: true },
   { id: 'integrations', label: 'Integrations', path: '/integrations', icon: Plug, requiresAuth: true },
+  { id: 'business-dev', label: 'Business Development', path: '/business-development', icon: Briefcase, requiresAuth: true },
+  { id: 'automation', label: 'Automation', path: '/automation', icon: Bot, requiresAuth: true },
+  { id: 'khepra', label: 'KHEPRA Protocol', path: '/khepra', icon: Zap, requiresAuth: true },
   { id: 'billing', label: 'Billing', path: '/billing', icon: BarChart3, requiresAuth: true },
   { id: 'admin', label: 'Admin', path: '/admin', icon: Crown, requiresAuth: true, requiresAdmin: true },
+  { id: 'contact-sales', label: 'Book Advisory Call', path: '/advisory', icon: Phone, requiresAuth: false },
   { id: 'legal', label: 'Legal', path: '/legal', icon: FileText, requiresAuth: true },
 ];
 
@@ -34,13 +45,13 @@ interface BackButtonProps {
   customLabel?: string;
 }
 
-export const BackButton: React.FC<BackButtonProps> = ({ 
-  className, 
-  customPath, 
-  customLabel = "Back" 
+export const BackButton: React.FC<BackButtonProps> = ({
+  className,
+  customPath,
+  customLabel = "Back"
 }) => {
   const navigate = useNavigate();
-  
+
   const handleBack = () => {
     if (customPath) {
       navigate(customPath);
@@ -68,9 +79,8 @@ interface SideNavigationProps {
   isAdmin?: boolean;
 }
 
-export const SideNavigation: React.FC<SideNavigationProps> = ({ 
+export const SideNavigation: React.FC<SideNavigationProps> = ({
   className,
-  userRole,
   isAdmin = false
 }) => {
   const location = useLocation();
@@ -82,8 +92,8 @@ export const SideNavigation: React.FC<SideNavigationProps> = ({
   });
 
   const isActive = (path: string) => {
-    return location.pathname === path || 
-           (path !== '/dashboard' && location.pathname.startsWith(path));
+    return location.pathname === path ||
+      (path !== '/dashboard' && location.pathname.startsWith(path));
   };
 
   return (
@@ -91,7 +101,7 @@ export const SideNavigation: React.FC<SideNavigationProps> = ({
       {filteredItems.map((item) => {
         const Icon = item.icon;
         const active = isActive(item.path);
-        
+
         return (
           <Button
             key={item.id}
@@ -126,11 +136,11 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items, className }) => {
   return (
     <nav className={cn("flex items-center space-x-2 text-sm text-muted-foreground mb-4", className)}>
       {items.map((item, index) => (
-        <Fragment key={index}>
+        <Fragment key={item.label}>
           {index > 0 && <span>/</span>}
           {item.path ? (
             <button
-              onClick={() => navigate(item.path!)}
+              onClick={() => item.path && navigate(item.path)}
               className="hover:text-foreground transition-colors"
             >
               {item.label}

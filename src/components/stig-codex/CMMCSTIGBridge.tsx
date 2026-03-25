@@ -144,7 +144,7 @@ export const CMMCSTIGBridge = () => {
               <label className="text-sm font-medium mb-2 block">CMMC Level</label>
               <Select
                 value={selectedCMMCLevel.toString()}
-                onValueChange={(value) => setSelectedCMMCLevel(parseInt(value))}
+                onValueChange={(value) => setSelectedCMMCLevel(Number.parseInt(value))}
               >
                 <SelectTrigger>
                   <SelectValue />
