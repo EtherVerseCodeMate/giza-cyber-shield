@@ -4,45 +4,39 @@
 [![NouchiX / Sacred Knowledge Inc](https://img.shields.io/badge/BY-NouchiX-gold?style=for-the-badge)](https://nouchix.com)
 [![ADINKHEPRA Certified](https://img.shields.io/badge/ADINKHEPRA-POST--QUANTUM_CERTIFIED-cyan?style=for-the-badge)](#certification)
 
-**By NouchiX (Sacred Knowledge Inc) — We build agents that secure other agents.**
+**By NouchiX (Sacred Knowledge Inc) — Compliance you can defend in an audit.**
 
 ---
 
 ## The Problem
 
-AI agent platforms are being deployed at extraordinary speed — and with extraordinary recklessness.
+Defense contractors and regulated teams are judged on **evidence**, not intentions. CMMC, NIST 800-171, and STIG work fails in the same places: **missing logs**, weak **traceability**, and packages assessors cannot rely on under time pressure.
 
-OpenClaw, the fastest-growing AI agent platform in recent memory, had **30,000+ instances exposed to the open internet** within 12 days of launch. Researchers confirmed remote code execution and full credential dumping against exposed deployments. Gartner called it "a dangerous preview of agentic AI — insecure by default."
-
-This is not an OpenClaw problem. It is a **category problem**.
-
-Every AI agent platform — OpenClaw, NVIDIA NemoClaw, custom MCP deployments, internal AI assistants with system access — carries the same structural risk: broad permissions, minimal guardrails, and no cryptographic proof of what it was doing or why.
-
-**NVIDIA NemoClaw** (launched at GTC 2026) adds OpenShell sandboxing and YAML-based policy guardrails to OpenClaw deployments — a meaningful improvement. But NemoClaw is **alpha software**, and NVIDIA's own documentation states it "should not yet be considered production-ready." OpenShell enforces sandboxing; it does not issue proof that a deployment is correctly configured. That is ASAF's role.
-
-Your CISO will ask: *"Is our AI agent deployment safe?"*
-
-Without ASAF, you cannot answer that question with evidence — even if you've deployed NemoClaw.
+Agent and AI platforms add new exposed surfaces (gateways, integrations, credentials). That is a **category risk** — but the buyer’s urgent question is still: *“Will this pass scrutiny when someone asks for proof?”*
 
 ---
 
-## What ASAF Does
+## What ASAF Does (MVP 1.0)
 
-ASAF is the security layer for agentic AI. It scans, audits, and cryptographically certifies AI agent deployments so enterprises can say yes to agentic productivity without saying yes to unacceptable risk.
+ASAF turns scans and configuration into **assessor-oriented outputs**: exposure signals, control-oriented findings, and **ADINKHEPRA** cryptographic attestation when you certify.
 
 ```
 asaf scan --target <host>
 ```
 
-Three outputs, every time:
+| Output | What it means for buyers |
+|--------|---------------------------|
+| **Readiness scan** | Real probes (e.g. agent-style ports, HTTPS) plus guidance framed for **C3PAO / ISSM** intake. |
+| **Compliance mapping** | STIG / NIST / CMMC-oriented checks where applicable — structured for evidence packages, not slide decks. |
+| **ADINKHEPRA certificate** | Tamper-evident attestation (PQC-aligned signing) — **the seal** enterprises display after they pass. |
 
-| Output | What It Means |
-|--------|---------------|
-| **Exposure Report** | Is this agent gateway accessible? Auth mode? Integrations? Attack surface. |
-| **Compliance Audit** | Does it meet enterprise security baselines? NIST, STIG, configuration hardening. |
-| **ADINKHEPRA Certificate** | Cryptographic attestation. A verifiable, tamper-proof proof of security posture. |
+**Lead with pain removal:** evidence and audit readiness. Agent/AI coverage is included; it is not the only story.
 
-The certificate is the product. Enterprises earn it. They display it. They renew it.
+---
+
+## Agent & NemoClaw (secondary)
+
+AI agent gateways (e.g. OpenClaw-class surfaces) and **NVIDIA NemoClaw / OpenShell** are supported as **profiles** when you need them. NemoClaw remains **alpha** per NVIDIA; ASAF’s job is independent **configuration and evidence** proof — not vendor marketing.
 
 ---
 
@@ -93,13 +87,13 @@ ASAF uses three technical layers under the hood:
 - **Compliance Engine** — 36,000+ STIG/NIST/CMMC control mappings applied automatically, no manual checklist
 - **ADINKHEPRA Attestation** — Post-quantum cryptographic signatures (NIST Dilithium/Kyber) bind findings to a tamper-proof certificate — mathematical proof, not a PDF checklist
 
-The certificate is the moat. Any scanner can find a vulnerability. Only ASAF can issue a verifiable, quantum-safe proof that an AI deployment is enterprise-grade.
+The certificate is the **seal** buyers show after evidence checks out. Scanners find issues; ASAF binds posture to a verifiable, PQC-aligned attestation when you certify.
 
 ---
 
-## NVIDIA NemoClaw Support
+## NemoClaw profile (optional)
 
-ASAF natively scans and certifies **NVIDIA NemoClaw** deployments — the OpenShell-powered enterprise stack for OpenClaw AI agents.
+When your scope includes agent gateways, ASAF can audit **NVIDIA NemoClaw** / OpenShell-style deployments (alpha per vendor docs). Use this as a **profile**, not the default headline.
 
 ```bash
 # Discover and audit a NemoClaw deployment
@@ -123,7 +117,7 @@ ASAF's NemoClaw audit checks all four OpenShell policy domains:
 | NMC-008 | Filesystem | Config directory not world-readable |
 | NMC-009 | Process | Static policy domains not marked hot-reloadable |
 
-**Why NemoClaw needs ASAF:** OpenShell enforces runtime guardrails. ASAF issues the cryptographic proof — a quantum-safe ADINKHEPRA certificate — that those guardrails are correctly configured. NemoClaw tells the agent what it can do. ASAF tells your CISO that the agent is safe to deploy.
+**Why this matters:** OpenShell enforces runtime guardrails; ASAF produces **structured evidence** and optional **ADINKHEPRA** attestation so assessors can trace claims to configuration and scan results.
 
 ---
 
