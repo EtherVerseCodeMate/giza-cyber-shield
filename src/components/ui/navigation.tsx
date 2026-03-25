@@ -35,7 +35,7 @@ const navigationItems: NavigationItem[] = [
   { id: 'khepra', label: 'KHEPRA Protocol', path: '/khepra', icon: Zap, requiresAuth: true },
   { id: 'billing', label: 'Billing', path: '/billing', icon: BarChart3, requiresAuth: true },
   { id: 'admin', label: 'Admin', path: '/admin', icon: Crown, requiresAuth: true, requiresAdmin: true },
-  { id: 'contact-sales', label: 'Contact Sales', path: '/contact-sales', icon: Phone, requiresAuth: false },
+  { id: 'contact-sales', label: 'Book Advisory Call', path: '/advisory', icon: Phone, requiresAuth: false },
   { id: 'legal', label: 'Legal', path: '/legal', icon: FileText, requiresAuth: true },
 ];
 
