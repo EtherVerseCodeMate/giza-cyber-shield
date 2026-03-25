@@ -7,8 +7,10 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, Search, CheckCircle, AlertTriangle, XCircle, ArrowRight, Lock, Loader2 } from 'lucide-react';
 
-const API_BASE = process.env.NEXT_PUBLIC_ASAF_API_URL || 'http://localhost:45444';
-const API_KEY = process.env.NEXT_PUBLIC_ASAF_API_KEY || '';
+const env = (import.meta as any)?.env ?? {};
+const API_BASE =
+  env.VITE_ASAF_API_URL || env.NEXT_PUBLIC_ASAF_API_URL || 'http://localhost:45444';
+const API_KEY = env.VITE_ASAF_API_KEY || env.NEXT_PUBLIC_ASAF_API_KEY || '';
 
 type Step = 'input' | 'scanning' | 'results' | 'upgrade';
 
@@ -69,7 +71,7 @@ async function triggerScan(target: string): Promise<string> {
     scan_type: 'eval',
     metadata: { source: 'onboarding', product: 'asaf' },
   };
-  const profile = (import.meta as { env?: { VITE_ASAF_SCAN_PROFILE?: string } }).env?.VITE_ASAF_SCAN_PROFILE;
+  const profile = env.VITE_ASAF_SCAN_PROFILE || env.NEXT_PUBLIC_ASAF_SCAN_PROFILE;
   if (profile) body.profile = profile;
 
   const res = await fetch(`${API_BASE}/api/v1/scans/trigger`, {
@@ -136,7 +138,7 @@ const OnboardingOrchestrator: React.FC = () => {
         const raw = await pollScan(scanId);
         const done = raw.status === 'completed' || raw.status === 'failed';
         if (done) {
-          clearInterval(pollRef.current!);
+          if (pollRef.current) clearInterval(pollRef.current);
           setProgress(100);
           setIsScanning(false);
           setTimeout(() => {
@@ -164,10 +166,17 @@ const OnboardingOrchestrator: React.FC = () => {
       const id = await triggerScan(target.trim());
       setScanId(id);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
+      let msg = 'Unknown error';
+      if (e instanceof Error) {
+        msg = e.message;
+      } else if (typeof e === 'string') {
+        msg = e;
+      } else if (e && typeof e === 'object') {
+        msg = JSON.stringify(e);
+      }
       setError(
         `Scan failed: ${msg}. ` +
-        `Ensure NEXT_PUBLIC_ASAF_API_URL points to your running ASAF backend (currently: ${API_BASE}).`
+        `Ensure VITE_ASAF_API_URL (or NEXT_PUBLIC_ASAF_API_URL) points to your ASAF backend (currently: ${API_BASE}).`
       );
       setStep('input');
       setIsScanning(false);
@@ -184,7 +193,7 @@ const OnboardingOrchestrator: React.FC = () => {
       });
       const data = await res.json();
       if (data.url) {
-        window.location.href = data.url;
+        globalThis.location.href = data.url;
       } else {
         throw new Error(data.error || 'Checkout unavailable');
       }
@@ -219,8 +228,9 @@ const OnboardingOrchestrator: React.FC = () => {
 
           <div className="space-y-4 bg-[#111] border border-gray-800 rounded-xl p-6">
             <div className="space-y-2">
-              <label className="text-sm text-gray-400 font-medium">Target host or IP</label>
+              <label htmlFor="target-input" className="text-sm text-gray-400 font-medium">Target host or IP</label>
               <Input
+                id="target-input"
                 placeholder="192.168.1.100 or myagent.company.com"
                 value={target}
                 onChange={e => setTarget(e.target.value)}
@@ -230,8 +240,9 @@ const OnboardingOrchestrator: React.FC = () => {
               <p className="text-xs text-gray-600">Default probes include 18789 (common agent gateway) and 443. Use https://host:port for a specific URL.</p>
             </div>
             <div className="space-y-2">
-              <label className="text-sm text-gray-400 font-medium">Email <span className="text-gray-600">(optional — to receive your report)</span></label>
+              <label htmlFor="email-input" className="text-sm text-gray-400 font-medium">Email <span className="text-gray-600">(optional — to receive your report)</span></label>
               <Input
+                id="email-input"
                 type="email"
                 placeholder="you@company.com"
                 value={email}
@@ -276,8 +287,8 @@ const OnboardingOrchestrator: React.FC = () => {
             <p className="text-sm text-gray-400 font-mono">{SCAN_PHASES[Math.min(phase, SCAN_PHASES.length - 1)]}</p>
           </div>
           <div className="space-y-2 text-left bg-[#111] border border-gray-800 rounded-xl p-4">
-            {SCAN_PHASES.slice(0, phase + 1).map((p, i) => (
-              <div key={i} className="flex items-center gap-2 text-sm">
+            {SCAN_PHASES.slice(0, phase + 1).map((p) => (
+              <div key={p} className="flex items-center gap-2 text-sm">
                 <CheckCircle className="h-3.5 w-3.5 text-green-400 shrink-0" />
                 <span className="text-gray-400">{p}</span>
               </div>
@@ -292,10 +303,21 @@ const OnboardingOrchestrator: React.FC = () => {
   if (step === 'results' && result) {
     const riskColor = result.risk_score >= 70 ? 'text-red-400' : result.risk_score >= 40 ? 'text-yellow-400' : 'text-green-400';
     const severityIcon = (s: string) => {
-      if (s === 'critical') return <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />;
-      if (s === 'high') return <AlertTriangle className="h-3.5 w-3.5 text-orange-400 shrink-0" />;
-      if (s === 'low') return <CheckCircle className="h-3.5 w-3.5 text-emerald-400 shrink-0" />;
-      return <AlertTriangle className="h-3.5 w-3.5 text-yellow-400 shrink-0" />;
+      switch (s) {
+        case 'critical': return <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />;
+        case 'high': return <AlertTriangle className="h-3.5 w-3.5 text-orange-400 shrink-0" />;
+        case 'low': return <CheckCircle className="h-3.5 w-3.5 text-emerald-400 shrink-0" />;
+        default: return <AlertTriangle className="h-3.5 w-3.5 text-yellow-400 shrink-0" />;
+      }
+    };
+
+    const getBadgeStyle = (s: string) => {
+      switch (s) {
+        case 'critical': return 'bg-red-950/40 text-red-400 border-red-500/30';
+        case 'high': return 'bg-orange-950/40 text-orange-400 border-orange-500/30';
+        case 'low': return 'bg-emerald-950/40 text-emerald-400 border-emerald-500/30';
+        default: return 'bg-yellow-950/40 text-yellow-400 border-yellow-500/30';
+      }
     };
 
     return (
@@ -318,15 +340,10 @@ const OnboardingOrchestrator: React.FC = () => {
           <div className="bg-[#111] border border-gray-800 rounded-xl p-5 space-y-3">
             <div className="text-sm font-semibold text-gray-300">{result.findings.length} findings</div>
             {result.findings.map((f, i) => (
-              <div key={i} className="flex items-start gap-2 text-sm">
+              <div key={`${f.severity}-${i}`} className="flex items-start gap-2 text-sm">
                 {severityIcon(f.severity)}
                 <span className="text-gray-300">{f.text}</span>
-                <Badge className={`ml-auto shrink-0 text-xs ${
-                  f.severity === 'critical' ? 'bg-red-950/40 text-red-400 border-red-500/30' :
-                  f.severity === 'high' ? 'bg-orange-950/40 text-orange-400 border-orange-500/30' :
-                  f.severity === 'low' ? 'bg-emerald-950/40 text-emerald-400 border-emerald-500/30' :
-                  'bg-yellow-950/40 text-yellow-400 border-yellow-500/30'
-                }`}>{f.severity}</Badge>
+                <Badge className={`ml-auto shrink-0 text-xs ${getBadgeStyle(f.severity)}`}>{f.severity}</Badge>
               </div>
             ))}
           </div>
