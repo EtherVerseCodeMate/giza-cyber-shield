@@ -15,7 +15,7 @@ require (
 	github.com/xuri/excelize/v2 v2.10.0
 	golang.org/x/crypto v0.49.0
 	golang.org/x/sys v0.42.0
-	google.golang.org/grpc v1.59.0
+	google.golang.org/grpc v1.79.3
 	modernc.org/sqlite v1.47.0
 	tailscale.com v1.88.1
 )
@@ -29,7 +29,6 @@ require (
 	github.com/coreos/go-iptables v0.7.1-0.20240112124308-65c67c9f46e6 // indirect
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
-	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/nftables v0.2.1-0.20240414091927-5e242ec57806 // indirect
 	github.com/illarion/gonotify/v3 v3.0.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
