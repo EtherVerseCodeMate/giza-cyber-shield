@@ -162,7 +162,7 @@ export const FounderNarrative = () => {
               onClick={() => globalThis.open('https://calendly.com/cybersouhimbou', '_blank')}
               className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] hover:from-[#c49b2d] hover:to-[#9d7509] text-black font-semibold mt-4"
             >
-              Join the Mission
+              Book Advisory Call
               <ChevronRight className="ml-2 h-5 w-5" />
             </Button>
           </motion.div>

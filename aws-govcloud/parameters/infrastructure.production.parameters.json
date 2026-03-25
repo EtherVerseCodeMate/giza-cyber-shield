@@ -1,0 +1,26 @@
+[
+  {
+    "ParameterKey": "ProjectName",
+    "ParameterValue": "khepra-protocol"
+  },
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "production"
+  },
+  {
+    "ParameterKey": "VPCCidr",
+    "ParameterValue": "10.0.0.0/16"
+  },
+  {
+    "ParameterKey": "EnableFlowLogs",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "EnableFIPS",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "AllowedCIDR",
+    "ParameterValue": "203.0.113.10/32"
+  }
+]

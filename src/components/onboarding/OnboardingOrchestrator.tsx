@@ -7,8 +7,12 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, Search, CheckCircle, AlertTriangle, XCircle, ArrowRight, Lock, Loader2 } from 'lucide-react';
 
-const API_BASE = process.env.NEXT_PUBLIC_ASAF_API_URL || 'http://localhost:45444';
-const API_KEY = process.env.NEXT_PUBLIC_ASAF_API_KEY || '';
+// Vite: VITE_*; Next-style builds may inject NEXT_PUBLIC_* via host
+// Next.js/Turbopack may not populate `import.meta.env`, so default safely.
+const env = (import.meta as any)?.env ?? {};
+const API_BASE =
+  env.VITE_ASAF_API_URL || env.NEXT_PUBLIC_ASAF_API_URL || 'http://localhost:45444';
+const API_KEY = env.VITE_ASAF_API_KEY || env.NEXT_PUBLIC_ASAF_API_KEY || '';
 
 type Step = 'input' | 'scanning' | 'results' | 'upgrade';
 
@@ -68,7 +72,7 @@ async function triggerScan(target: string): Promise<string> {
     scan_type: 'eval',
     metadata: { source: 'onboarding', product: 'asaf' },
   };
-  const profile = process.env.NEXT_PUBLIC_ASAF_SCAN_PROFILE;
+  const profile = env.VITE_ASAF_SCAN_PROFILE || env.NEXT_PUBLIC_ASAF_SCAN_PROFILE;
   if (profile) body.profile = profile;
 
   const res = await fetch(`${API_BASE}/api/v1/scans/trigger`, {
