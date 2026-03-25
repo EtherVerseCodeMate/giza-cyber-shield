@@ -37,6 +37,9 @@ func (r *SonarRuntime) RunActiveScan(targetIP string) ActiveScanResult {
 	// 1. Native Port Scan (Zero-Dependency)
 	scanner := network.NewScanner(targetIP, nil)
 	result.PortResults = scanner.Scan(context.Background())
+	if result.PortResults == nil {
+		result.PortResults = []network.PortResult{}
+	}
 	log.Printf("[SONAR] Network Scan Complete. Open Ports: %d", len(result.PortResults))
 
 	// 2. Native OSINT (Optional)

@@ -33,6 +33,12 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/supabase"
 )
 
+// Protocol and algorithm constants used across MCP handlers.
+const (
+	protocolVersion = "AdinKhepra-v1"
+	pqcAlgorithm    = "ML-DSA-65"
+)
+
 // ─── Server Extension ─────────────────────────────────────────────────────────
 
 // MCPStore is the interface to the Supabase MCP persistence layer.
@@ -109,7 +115,7 @@ func (s *Server) handleMCPHealth(c *gin.Context) {
 		"pqc_signing": "enabled",
 		"dag_audit":   "enabled",
 		"supabase":    "unconfigured",
-		"protocol":    "AdinKhepra-v1",
+		"protocol":    protocolVersion,
 		"mcp_version": "2024-11-05",
 		"timestamp":   time.Now().UTC(),
 	}
@@ -234,7 +240,7 @@ func (s *Server) handleMCPToolCall(c *gin.Context) {
 		"pqc_signed":     signed,
 		"pqc_signature":  sigHex,
 		"pqc_public_key": pubKeyHex,
-		"pqc_algorithm":  "ML-DSA-65",
+		"pqc_algorithm":  pqcAlgorithm,
 	})
 }
 
@@ -328,7 +334,7 @@ func (s *Server) handleMCPDAGChain(c *gin.Context) {
 	payload["pqc_signed"] = signed
 	payload["pqc_signature"] = sigHex
 	payload["pqc_public_key"] = pubKeyHex
-	payload["pqc_algorithm"] = "ML-DSA-65"
+	payload["pqc_algorithm"] = pqcAlgorithm
 	c.JSON(http.StatusOK, payload)
 }
 
@@ -476,13 +482,13 @@ func (s *Server) handleMCPNaturalLanguageQuery(c *gin.Context) {
 				"duration_ms":  nlResp.DurationMS,
 				"dag_node_id":  dagNodeID,
 				"engine":       "nl_processor_v1",
-				"protocol":     "AdinKhepra-v1",
+				"protocol":     protocolVersion,
 			}
 			sigHex, pubKeyHex, signed := s.signPayload(nlPayload)
 			nlPayload["pqc_signed"] = signed
 			nlPayload["pqc_signature"] = sigHex
 			nlPayload["pqc_public_key"] = pubKeyHex
-			nlPayload["pqc_algorithm"] = "ML-DSA-65"
+			nlPayload["pqc_algorithm"] = pqcAlgorithm
 			c.JSON(http.StatusOK, nlPayload)
 			return
 		}
@@ -503,20 +509,20 @@ func (s *Server) handleMCPNaturalLanguageQuery(c *gin.Context) {
 		"dag_node_id": dagNodeID,
 		"duration_ms": time.Since(start).Milliseconds(),
 		"engine":      "keyword_router_v1",
-		"protocol":    "AdinKhepra-v1",
+		"protocol":    protocolVersion,
 		"note":        "Set LLM_PROVIDER=ollama + LLM_URL env vars to enable AI synthesis",
 	}
 	sigHex2, pubKeyHex2, signed2 := s.signPayload(kwPayload)
 	kwPayload["pqc_signed"] = signed2
 	kwPayload["pqc_signature"] = sigHex2
 	kwPayload["pqc_public_key"] = pubKeyHex2
-	kwPayload["pqc_algorithm"] = "ML-DSA-65"
+	kwPayload["pqc_algorithm"] = pqcAlgorithm
 	c.JSON(http.StatusOK, kwPayload)
 }
 
 // keywordRouteQuery provides fast keyword-based tool routing.
 func keywordRouteQuery(query string, _ map[string]string) []gin.H {
-	import_lower := func(s string) string {
+	toLower := func(s string) string {
 		result := make([]byte, len(s))
 		for i, c := range s {
 			if c >= 'A' && c <= 'Z' {
@@ -527,7 +533,7 @@ func keywordRouteQuery(query string, _ map[string]string) []gin.H {
 		}
 		return string(result)
 	}
-	lower := import_lower(query)
+	lower := toLower(query)
 
 	type route struct {
 		keywords []string

@@ -257,7 +257,7 @@ export const UsageBillingSetup = ({ organizationId, onComplete, onSkip }: UsageB
                       id={`${resourceType}-quota`}
                       type="number"
                       value={quota}
-                      onChange={(e) => updateQuota(resourceType as keyof QuotaSettings, parseInt(e.target.value) || 0)}
+                      onChange={(e) => updateQuota(resourceType as keyof QuotaSettings, Number.parseInt(e.target.value) || 0)}
                       className="mt-1"
                       min="0"
                     />
@@ -329,7 +329,7 @@ export const UsageBillingSetup = ({ organizationId, onComplete, onSkip }: UsageB
                   id="alert-threshold"
                   type="number"
                   value={alertThreshold}
-                  onChange={(e) => setAlertThreshold(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+                  onChange={(e) => setAlertThreshold(Math.min(100, Math.max(0, Number.parseInt(e.target.value) || 0)))}
                   className="w-20"
                   min="0"
                   max="100"

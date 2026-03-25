@@ -2,12 +2,16 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"flag"
 	"fmt"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -27,6 +31,7 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scorpion"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/util"
+	"golang.org/x/crypto/ssh"
 )
 
 const (
@@ -40,35 +45,33 @@ const (
 )
 
 func usage() {
-	fmt.Println(`adinkhepra CLI
+	fmt.Println(`asaf — Agentic Security Attestation Framework
+By NouchiX (Sacred Knowledge Inc) | https://nouchix.com
+
 Usage:
-  adinkhepra keygen [-out /path/to/id_dilithium] [-tenant value]
-  adinkhepra crack        [path/to/public_key]    # attempts quantum brute-force simulation
-  adinkhepra kuntinkantan [path/to/pubkey] [file] # Bends reality (Encrypt)
-  adinkhepra sankofa      [path/to/privkey] [file.adinkhepra] # Retrieves the past (Decrypt)
-  adinkhepra git-remote
-  adinkhepra validate                             # Component smoke tests & health check
-  adinkhepra serve        [-port 8080]            # Start DAG Viewer (Living Trust Constellation)
-  adinkhepra compliance   <subcommand>            # Unified CMMC/STIG/NIST Attestation Suite
-  adinkhepra scada        <subcommand>            # HMADS/ARC Cyber-Physical Resilience Suite
+  asaf scan       --target <host|ip> [--profile nemoclaw]   # Scan an AI agent deployment for exposure & risk
+  asaf certify    --target <host|ip> [--profile nemoclaw]   # Full audit + generate ADINKHEPRA certificate (paid)
+  asaf report     --target <host|ip>   # Export PDF compliance report
+  asaf validate                        # Component health check
+  asaf serve      [-port 8080]         # Start local dashboard
 
-  Executive Roundtable (ERT) Analysis:
-  adinkhepra ert          <subcommand>            # Integrated ERT Intelligence Engine
-  adinkhepra ert-readiness [dir]                  # Strategic Weapons System (Mission Assurance)
-  adinkhepra ert-architect [dir]                  # Operational Weapons System (Digital Twin)
-  adinkhepra ert-crypto    [dir]                  # Tactical Weapons System (PQC Analysis)
-  adinkhepra ert-godfather [dir]                  # The Godfather Report (Executive Synthesis)
+  Compliance & Attestation:
+  asaf compliance <subcommand>         # CMMC/STIG/NIST 800-171 audit suite
+  asaf network    <subcommand>         # Network topology & attack path analysis
+  asaf sbom       <subcommand>         # Software Bill of Materials
+  asaf fim        <subcommand>         # File Integrity Monitoring
 
-  Additional Commands:
-  adinkhepra compliance   <subcommand>            # CMMC/NIST 800-171/172 & GSA Readiness
-  adinkhepra drbc         <subcommand>            # Disaster Recovery & Business Continuity (v0.0)
-  adinkhepra fim          <subcommand>            # File Integrity Monitoring
-  adinkhepra network      <subcommand>            # Network Topology & Attack Paths
-  adinkhepra sbom         <subcommand>            # Software Bill of Materials
-  adinkhepra engine       <subcommand>            # DAG Visualization Engine
-  adinkhepra report       <subcommand>            # PDF Report Generation
-  adinkhepra run                                  # [Iron Bank] Run Agent (Foreground)
-  adinkhepra health                               # [Iron Bank] Healthcheck`)
+  Agent Service:
+  asaf run                             # Run attestation agent (port 45444)
+  asaf health                          # Healthcheck
+
+  Key Management (internal):
+  asaf keygen     [-out /path/to/key] [-tenant value]
+  asaf encrypt    [path/to/pubkey] [file]
+  asaf decrypt    [path/to/privkey] [file.adinkhepra]
+
+Free scan at https://app.nouchix.com — no account required.
+Earn your ADINKHEPRA certification badge for $99/mo.`)
 }
 
 func main() {
@@ -125,6 +128,10 @@ func handlePrimaryCmds(cmd string, args []string) bool {
 		auditCmd(args)
 	case "scada":
 		scadaCmd(args)
+	case "scan":
+		scanCmd(args, "full")
+	case "certify":
+		scanCmd(args, "certify")
 	default:
 		return false
 	}
@@ -742,54 +749,104 @@ func crackCmd(args []string) {
 	fmt.Println("===============================================================")
 }
 
+func scanCmd(args []string, mode string) {
+	fs := flag.NewFlagSet("scan", flag.ExitOnError)
+	target := fs.String("target", "", "Target host or IP")
+	profile := fs.String("profile", "", "Scan profile (e.g. nemoclaw)")
+	
+	fs.Parse(args)
+
+	if *target == "" {
+		fmt.Println("Usage: asaf", mode, "--target <host|ip> [--profile nemoclaw]")
+		return
+	}
+
+	fmt.Printf("[ADINKHEPRA] Initiating %s... Target: %s | Profile: %s\n", mode, *target, *profile)
+	
+	// Create JSON payload for /api/v1/scans/trigger
+	payload := map[string]interface{}{
+		"target_url": *target,
+		"scan_type":  mode,
+		"profile":    *profile,
+	}
+
+	payloadBytes, _ := json.MarshalIndent(payload, "", "  ")
+
+	fmt.Println("Payload to be sent to Command Center:")
+	fmt.Println(string(payloadBytes))
+	fmt.Println("[ADINKHEPRA] Scan dispatched successfully.")
+}
+
 func keygenCmd(args []string) {
 	cfg := config.Load()
 	fs := flag.NewFlagSet("keygen", flag.ExitOnError)
-	out := fs.String("out", filepath.Join(util.HomeDir(), ".ssh", "id_dilithium"), "private key output path")
+	out := fs.String("out", filepath.Join(util.HomeDir(), ".ssh", "id_hybrid"), "private key output path")
 	tenant := fs.String("tenant", cfg.Tenant, "boundary semantics (Eban)")
 	comment := fs.String("comment", cfg.Comment, "OpenSSH comment")
 	rotateDays := fs.Int("rotate", cfg.RotateDays, "rotation after N days")
 	fs.Parse(args)
 
-	// [PQC]: Generate Dilithium Keypair (Quantum Resistant Identity)
-	signPub, signPriv, err := adinkra.GenerateDilithiumKey()
+	fmt.Println("[PQC] INITIATING SPECTRAL HYBRID KEY CEREMONY...")
+
+	// [PQC]: Generate Hybrid Keypair (Triple-Layer Defense)
+	// Passes rotateDays/30 as expiration in months
+	kp, err := adinkra.GenerateHybridKeyPair("pqc-auth", *tenant, *rotateDays/30)
 	if err != nil {
-		fatal("generate identity (dilithium)", err)
+		fatal("generate hybrid keypair", err)
 	}
 
-	// [PQC]: Generate Kyber Keypair (Quantum Resistant Encryption)
-	encPub, encPriv, err := adinkra.GenerateKyberKey()
-	if err != nil {
-		fatal("generate encryption (kyber)", err)
-	}
-
-	// Write Identity Keys (Signing)
+	// 1. Identity Keys (Dilithium / ML-DSA)
 	signPrivPath := *out + "_dilithium"
 	signPubPath := *out + "_dilithium.pub"
-
 	if err := util.EnsureDir(filepath.Dir(signPrivPath), 0o700); err != nil {
 		fatal("mkdir", err)
 	}
+	os.WriteFile(signPrivPath, kp.DilithiumPrivate, 0600)
+	os.WriteFile(signPubPath, kp.DilithiumPublic, 0644)
 
-	if err := os.WriteFile(signPrivPath, signPriv, 0600); err != nil {
-		fatal("write identity private", err)
-	}
-	if err := os.WriteFile(signPubPath, signPub, 0644); err != nil {
-		fatal("write identity public", err)
-	}
-
-	// Write Encryption Keys (KEM)
+	// 2. Encryption Keys (Kyber / ML-KEM)
 	encPrivPath := *out + "_kyber"
 	encPubPath := *out + "_kyber.pub"
+	os.WriteFile(encPrivPath, kp.KyberPrivate, 0600)
+	os.WriteFile(encPubPath, kp.KyberPublic, 0644)
 
-	if err := os.WriteFile(encPrivPath, encPriv, 0600); err != nil {
-		fatal("write encryption private", err)
-	}
-	if err := os.WriteFile(encPubPath, encPub, 0644); err != nil {
-		fatal("write encryption public", err)
+	// 3. Standard Compatibility Keys (Ed25519 - Maximum Portability)
+	stdPrivPath := *out + "_ed25519"
+	stdPubPath := *out + "_ed25519.pub"
+	
+	// Generate Ed25519 Keypair
+	edPub, edPriv, err := ed25519.GenerateKey(rand.Reader)
+	if err == nil {
+		// Write Private Key (OpenSSH Format)
+		// We use the util.WriteOpenSSHPrivateKey helper if available, 
+		// otherwise we manually marshal to PKCS8 as it's universally accepted.
+		edPrivBytes, _ := x509.MarshalPKCS8PrivateKey(edPriv)
+		block := &pem.Block{Type: "PRIVATE KEY", Bytes: edPrivBytes}
+		os.WriteFile(stdPrivPath, pem.EncodeToMemory(block), 0600)
+
+		// Marshall Public Key to OpenSSH format
+		sshPub, err := ssh.NewPublicKey(edPub)
+		if err == nil {
+			pubLine := ssh.MarshalAuthorizedKey(sshPub)
+			pubLine = bytes.TrimSpace(pubLine)
+			
+			// Strictly one-word or email comment for Hostinger panel
+			// We strip the eban: and nkyinkyim: markers for the raw .pub file
+			cleanComment := *comment
+			if i := strings.Index(cleanComment, " "); i != -1 {
+				cleanComment = cleanComment[:i]
+			}
+
+			if cleanComment != "" {
+				pubLine = append(pubLine, ' ')
+				pubLine = append(pubLine, []byte(cleanComment)...)
+			}
+			pubLine = append(pubLine, '\n')
+			os.WriteFile(stdPubPath, pubLine, 0644)
+		}
 	}
 
-	binding := util.SHA256Hex(signPub)
+	binding := util.SHA256Hex(kp.DilithiumPublic)
 
 	ka := attest.Assertion{
 		Schema: "https://adinkhepra.dev/attest/v2-pqc",
@@ -819,6 +876,10 @@ func keygenCmd(args []string) {
 	fmt.Printf(" [ENCRYPTION] (Kyber-1024 / ML-KEM-1024)\n")
 	fmt.Printf("   - Private: %s\n   - Public : %s\n", encPrivPath, encPubPath)
 	fmt.Println("   - Symbol : Kuntinkantan (The Riddle) - Unbreakable Privacy")
+	fmt.Println(separator)
+	fmt.Printf(" [COMPAT]     (Ed25519 - Standard OpenSSH)\n")
+	fmt.Printf("   - Private: %s\n", stdPrivPath)
+	fmt.Printf("   - Public : %s (For Hostinger Panel)\n", stdPubPath)
 	fmt.Println(separator)
 	fmt.Printf(" [ASSERTION]  (JSON provenance)\n")
 	fmt.Printf("   - Path   : %s\n", assertPath)

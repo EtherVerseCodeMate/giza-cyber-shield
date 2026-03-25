@@ -2,8 +2,7 @@
  * VirusTotal Enterprise Connector — Alpha Connector
  * ═══════════════════════════════════════════════════
  *
- * The FIRST real external API integration for the AdinKhepra Protocol.
- * Replaces INT-005 (Math.random() vulnerability counts) with live VirusTotal v3 data.
+ * Live VirusTotal v3 data for vulnerability and malware analysis.
  *
  * Capabilities:
  *   1. File/Hash Analysis — Submit file hashes for malware verdicts
@@ -136,9 +135,6 @@ export class VirusTotalConnector {
 
     /**
      * Ingest live vulnerability/malware data from VirusTotal.
-     * This is the Alpha Connector — the first real API call replacing Math.random().
-     *
-     * Replaces: INT-005 (OpenControlsAPIService.ingestVulnerabilityFeed)
      */
     static async ingestThreatFeed(
         organizationId: string,
@@ -159,7 +155,7 @@ export class VirusTotalConnector {
             this.PROVIDER
         );
 
-        if (!credential || !credential.api_key) {
+        if (!credential?.api_key) {
             return {
                 vulnerabilities_processed: 0,
                 threat_correlations: 0,
@@ -484,7 +480,7 @@ export class VirusTotalConnector {
         baseUrl: string,
         path: string,
         organizationId: string
-    ): Promise<any | null> {
+    ): Promise<any> {
         try {
             const response = await fetch(`${baseUrl}${path}`, {
                 method: 'GET',

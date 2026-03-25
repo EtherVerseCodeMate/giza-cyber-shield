@@ -39,6 +39,767 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_roles: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      agent_actions: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      agent_workflows: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      ai_agent_chats: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      ai_agents: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      ai_compliance_agents: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      alert_rules: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      alerts: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      api_integrations: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      asset_configuration_snapshots: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      beta_enrollments: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      billing_periods: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      cloud_connections: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      cmmc_control_mappings: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      cmmc_stig_mappings: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      compliance_assessments: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      compliance_drift_events: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      compliance_evidence: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      compliance_implementations: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      compliance_reports: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      compliance_validation_results: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      connector_api_licenses: {
+        Row: {
+          id: string
+          organization_id: string
+          api_key_hash: string
+          tier: 'community' | 'professional' | 'enterprise' | 'partner'
+          rate_limit_rpm: number
+          rate_limit_daily: number
+          allowed_actions: string[]
+          pqc_public_key: string | null
+          issued_at: string
+          expires_at: string | null
+          revoked: boolean
+          revoked_at: string | null
+          metadata: Json
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          api_key_hash: string
+          tier?: 'community' | 'professional' | 'enterprise' | 'partner'
+          rate_limit_rpm?: number
+          rate_limit_daily?: number
+          allowed_actions?: string[]
+          pqc_public_key?: string | null
+          issued_at?: string
+          expires_at?: string | null
+          revoked?: boolean
+          revoked_at?: string | null
+          metadata?: Json
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          api_key_hash?: string
+          tier?: 'community' | 'professional' | 'enterprise' | 'partner'
+          rate_limit_rpm?: number
+          rate_limit_daily?: number
+          allowed_actions?: string[]
+          pqc_public_key?: string | null
+          issued_at?: string
+          expires_at?: string | null
+          revoked?: boolean
+          revoked_at?: string | null
+          metadata?: Json
+        }
+        Relationships: []
+      }
+      connector_dag_nodes: {
+        Row: {
+          id: string
+          node_hash: string
+          parent_hashes: string[]
+          action: string
+          symbol: string
+          actor_id: string | null
+          organization_id: string
+          connector_id: string | null
+          pqc_metadata: Json
+          hmac_signature: string | null
+          ml_dsa_signature: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          node_hash: string
+          parent_hashes?: string[]
+          action: string
+          symbol: string
+          actor_id?: string | null
+          organization_id: string
+          connector_id?: string | null
+          pqc_metadata?: Json
+          hmac_signature?: string | null
+          ml_dsa_signature?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          node_hash?: string
+          parent_hashes?: string[]
+          action?: string
+          symbol?: string
+          actor_id?: string | null
+          organization_id?: string
+          connector_id?: string | null
+          pqc_metadata?: Json
+          hmac_signature?: string | null
+          ml_dsa_signature?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connector_dag_nodes_actor_id_fkey"
+            columns: ["actor_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connector_dag_nodes_connector_id_fkey"
+            columns: ["connector_id"]
+            referencedRelation: "compliance_connectors"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      connector_failure_log: {
+        Row: {
+          id: string
+          organization_id: string
+          connector_id: string | null
+          provider: string
+          error_code: string | null
+          error_body: Json
+          http_status: number | null
+          attempted_at: string
+          dag_node_hash: string | null
+          pattern_generated: boolean
+          pattern_id: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          connector_id?: string | null
+          provider: string
+          error_code?: string | null
+          error_body?: Json
+          http_status?: number | null
+          attempted_at?: string
+          dag_node_hash?: string | null
+          pattern_generated?: boolean
+          pattern_id?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          connector_id?: string | null
+          provider?: string
+          error_code?: string | null
+          error_body?: Json
+          http_status?: number | null
+          attempted_at?: string
+          dag_node_hash?: string | null
+          pattern_generated?: boolean
+          pattern_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connector_failure_log_connector_id_fkey"
+            columns: ["connector_id"]
+            referencedRelation: "compliance_connectors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connector_failure_log_dag_node_hash_fkey"
+            columns: ["dag_node_hash"]
+            referencedRelation: "connector_dag_nodes"
+            referencedColumns: ["node_hash"]
+          }
+        ]
+      }
+      connector_usage_events: {
+        Row: {
+          id: string
+          organization_id: string
+          license_id: string | null
+          session_id: string | null
+          dag_node_hash: string | null
+          action: string
+          provider: string | null
+          billable: boolean
+          cost_units: number
+          occurred_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          license_id?: string | null
+          session_id?: string | null
+          dag_node_hash?: string | null
+          action: string
+          provider?: string | null
+          billable?: boolean
+          cost_units?: number
+          occurred_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          license_id?: string | null
+          session_id?: string | null
+          dag_node_hash?: string | null
+          action?: string
+          provider?: string | null
+          billable?: boolean
+          cost_units?: number
+          occurred_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connector_usage_events_license_id_fkey"
+            columns: ["license_id"]
+            referencedRelation: "connector_api_licenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connector_usage_events_session_id_fkey"
+            columns: ["session_id"]
+            referencedRelation: "pqc_oauth_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connector_usage_events_dag_node_hash_fkey"
+            columns: ["dag_node_hash"]
+            referencedRelation: "connector_dag_nodes"
+            referencedColumns: ["node_hash"]
+          }
+        ]
+      }
+      pqc_oauth_sessions: {
+        Row: {
+          id: string
+          user_id: string
+          organization_id: string
+          license_id: string | null
+          tier: string
+          threat_level: 'green' | 'yellow' | 'orange' | 'red'
+          allowed_scopes: string[]
+          token_hash: string
+          ml_dsa_signature: string | null
+          issued_at: string
+          expires_at: string
+          last_used_at: string | null
+          revoked: boolean
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          organization_id: string
+          license_id?: string | null
+          tier?: string
+          threat_level?: 'green' | 'yellow' | 'orange' | 'red'
+          allowed_scopes?: string[]
+          token_hash: string
+          ml_dsa_signature?: string | null
+          issued_at?: string
+          expires_at?: string
+          last_used_at?: string | null
+          revoked?: boolean
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          organization_id?: string
+          license_id?: string | null
+          tier?: string
+          threat_level?: 'green' | 'yellow' | 'orange' | 'red'
+          allowed_scopes?: string[]
+          token_hash?: string
+          ml_dsa_signature?: string | null
+          issued_at?: string
+          expires_at?: string
+          last_used_at?: string | null
+          revoked?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pqc_oauth_sessions_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pqc_oauth_sessions_license_id_fkey"
+            columns: ["license_id"]
+            referencedRelation: "connector_api_licenses"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      data_source_configurations: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      deployments: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      disa_stigs_api_cache: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      discovered_assets: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      discovery_audit_trail: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      discovery_credentials: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      discovery_executions: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      discovery_jobs: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      encryption_keys: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      enhanced_open_controls_integrations: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      enterprise_performance_analytics: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      environment_assets: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      event_sources: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      infrastructure_assets: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      infrastructure_audit: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      integration_tickets: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      integrations_library: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      live_api_gateway_requests: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      ml_training_datasets: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      monday_integration_config: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      monday_sync_history: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      nist_controls: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      open_controls_performance_metrics: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      organization_integrations: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      organization_settings: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      performance_metrics: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      referrals: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      remediation_activities: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      resource_usage: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      secure_discovery_credentials: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      security_audit_enhanced: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      security_devices: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      session_security_events: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      stig_analytics_metrics: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      stig_applicability_rules: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      stig_assessment_results: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      stig_baselines: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      stig_compliance_policies: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      stig_compliance_reports: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      stig_monitoring_agents: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      stig_remediation_executions: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      stig_remediation_workflows: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      stig_rule_implementations: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      stig_rules: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      stig_trusted_registry: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      subscriptions: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      threat_intelligence: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      threat_investigations: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      trusted_devices: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      usage_costs_summary: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      usage_quotas: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      user_agreements: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      user_integrations: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      user_roles: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      webhook_activity: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      zero_trust_device_assessments: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      zero_trust_network_segments: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      zero_trust_policies: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+      zero_trust_risk_assessments: {
+        Row: any
+        Insert: any
+        Update: any
+        Relationships: []
+      }
+
       adinkra_symbols: {
         Row: {
           adjacency_matrix: Json
@@ -190,7 +951,9 @@ export type Database = {
       }
       compliance_controls: {
         Row: {
+          automation_possible: boolean | null
           control_family: string
+          control_id: string | null
           control_identifier: string
           created_at: string
           description: string | null
@@ -200,7 +963,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          automation_possible?: boolean | null
           control_family: string
+          control_id?: string | null
           control_identifier: string
           created_at?: string
           description?: string | null
@@ -210,7 +975,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          automation_possible?: boolean | null
           control_family?: string
+          control_id?: string | null
           control_identifier?: string
           created_at?: string
           description?: string | null
@@ -231,27 +998,39 @@ export type Database = {
       }
       compliance_frameworks: {
         Row: {
+          authority: string | null
+          category: string | null
           created_at: string
           description: string | null
+          enabled: boolean | null
           id: string
+          metadata: Json | null
           name: string
           organization_id: string
           updated_at: string
           version: string
         }
         Insert: {
+          authority?: string | null
+          category?: string | null
           created_at?: string
           description?: string | null
+          enabled?: boolean | null
           id?: string
+          metadata?: Json | null
           name: string
           organization_id: string
           updated_at?: string
           version: string
         }
         Update: {
+          authority?: string | null
+          category?: string | null
           created_at?: string
           description?: string | null
+          enabled?: boolean | null
           id?: string
+          metadata?: Json | null
           name?: string
           organization_id?: string
           updated_at?: string
@@ -334,6 +1113,7 @@ export type Database = {
         Row: {
           author: string | null
           created_at: string
+          created_by: string | null
           description: string | null
           id: string
           last_executed: string | null
@@ -352,6 +1132,7 @@ export type Database = {
         Insert: {
           author?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           last_executed?: string | null
@@ -370,6 +1151,7 @@ export type Database = {
         Update: {
           author?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           last_executed?: string | null
@@ -556,7 +1338,9 @@ export type Database = {
           created_at: string | null
           details: Json | null
           id: string
+          ip_address: string | null
           resource_type: string | null
+          user_agent: string | null
           user_id: string | null
         }
         Insert: {
@@ -564,7 +1348,9 @@ export type Database = {
           created_at?: string | null
           details?: Json | null
           id?: string
+          ip_address?: string | null
           resource_type?: string | null
+          user_agent?: string | null
           user_id?: string | null
         }
         Update: {
@@ -572,7 +1358,9 @@ export type Database = {
           created_at?: string | null
           details?: Json | null
           id?: string
+          ip_address?: string | null
           resource_type?: string | null
+          user_agent?: string | null
           user_id?: string | null
         }
         Relationships: []
@@ -1238,27 +2026,45 @@ export type Database = {
       organization_onboarding: {
         Row: {
           assessment_data: Json | null
+          completed_at: string | null
           created_at: string
+          current_phase: string | null
           discovery_data: Json | null
+          discovery_results: Json | null
           id: string
+          intake_data: Json | null
+          integration_config: Json | null
+          organization_id: string | null
           step: string
           updated_at: string
           user_id: string
         }
         Insert: {
           assessment_data?: Json | null
+          completed_at?: string | null
           created_at?: string
+          current_phase?: string | null
           discovery_data?: Json | null
+          discovery_results?: Json | null
           id?: string
+          intake_data?: Json | null
+          integration_config?: Json | null
+          organization_id?: string | null
           step?: string
           updated_at?: string
           user_id: string
         }
         Update: {
           assessment_data?: Json | null
+          completed_at?: string | null
           created_at?: string
+          current_phase?: string | null
           discovery_data?: Json | null
+          discovery_results?: Json | null
           id?: string
+          intake_data?: Json | null
+          integration_config?: Json | null
+          organization_id?: string | null
           step?: string
           updated_at?: string
           user_id?: string
@@ -1276,10 +2082,12 @@ export type Database = {
           id: string
           license_expires_at: string | null
           license_tier: string
+          logo_url: string | null
           max_devices: number | null
           name: string
           pqc_transition_complete: boolean | null
           primary_contact_email: string
+          settings: Json | null
           slug: string
           stig_compliant: boolean | null
           updated_at: string | null
@@ -1294,10 +2102,12 @@ export type Database = {
           id?: string
           license_expires_at?: string | null
           license_tier?: string
+          logo_url?: string | null
           max_devices?: number | null
           name: string
           pqc_transition_complete?: boolean | null
           primary_contact_email: string
+          settings?: Json | null
           slug: string
           stig_compliant?: boolean | null
           updated_at?: string | null
@@ -1312,10 +2122,12 @@ export type Database = {
           id?: string
           license_expires_at?: string | null
           license_tier?: string
+          logo_url?: string | null
           max_devices?: number | null
           name?: string
           pqc_transition_complete?: boolean | null
           primary_contact_email?: string
+          settings?: Json | null
           slug?: string
           stig_compliant?: boolean | null
           updated_at?: string | null
@@ -1639,6 +2451,7 @@ export type Database = {
         Row: {
           acknowledged_at: string | null
           acknowledged_by: string | null
+          archived: boolean | null
           created_at: string | null
           description: string | null
           details: Json | null
@@ -1646,17 +2459,20 @@ export type Database = {
           id: string
           organization_id: string | null
           resolution_notes: string | null
+          resolved: boolean | null
           resolved_at: string | null
           resolved_by: string | null
           severity: string
           source_country: string | null
           source_device_id: string | null
           source_ip: string | null
+          source_system: string | null
           title: string
         }
         Insert: {
           acknowledged_at?: string | null
           acknowledged_by?: string | null
+          archived?: boolean | null
           created_at?: string | null
           description?: string | null
           details?: Json | null
@@ -1664,17 +2480,20 @@ export type Database = {
           id?: string
           organization_id?: string | null
           resolution_notes?: string | null
+          resolved?: boolean | null
           resolved_at?: string | null
           resolved_by?: string | null
           severity: string
           source_country?: string | null
           source_device_id?: string | null
           source_ip?: string | null
+          source_system?: string | null
           title: string
         }
         Update: {
           acknowledged_at?: string | null
           acknowledged_by?: string | null
+          archived?: boolean | null
           created_at?: string | null
           description?: string | null
           details?: Json | null
@@ -1682,12 +2501,14 @@ export type Database = {
           id?: string
           organization_id?: string | null
           resolution_notes?: string | null
+          resolved?: boolean | null
           resolved_at?: string | null
           resolved_by?: string | null
           severity?: string
           source_country?: string | null
           source_device_id?: string | null
           source_ip?: string | null
+          source_system?: string | null
           title?: string
         }
         Relationships: [
@@ -2008,6 +2829,23 @@ export type Database = {
         Args: { input_text: string }
         Returns: boolean
       }
+      correlate_security_alerts: { Args: Record<string, never> | { [key: string]: Json }; Returns: Json }
+      check_security_policy_compliance: { Args: Record<string, never> | { [key: string]: Json }; Returns: Json }
+      is_account_locked: { Args: { [key: string]: Json } | Record<string, never>; Returns: boolean }
+      is_sunsum_diminished: { Args: Record<string, never> | { [key: string]: Json }; Returns: boolean }
+      log_security_event: { Args: { [key: string]: Json } | Record<string, never>; Returns: Json }
+      log_third_party_security_event: { Args: { [key: string]: Json } | Record<string, never>; Returns: Json }
+      log_user_action: { Args: { [key: string]: Json } | Record<string, never>; Returns: Json }
+      record_failed_login: { Args: { [key: string]: Json } | Record<string, never>; Returns: Json }
+      record_ritual_lapse: { Args: Record<string, never> | { [key: string]: Json }; Returns: Json }
+      validate_password_strength: { Args: { [key: string]: Json } | Record<string, never>; Returns: Json }
+      has_accepted_all_agreements: { Args: Record<string, never> | { [key: string]: Json }; Returns: boolean }
+      log_clearance_access: { Args: { [key: string]: Json } | Record<string, never>; Returns: Json }
+      log_session_security_event: { Args: { [key: string]: Json } | Record<string, never>; Returns: Json }
+      log_system_audit: { Args: { [key: string]: Json } | Record<string, never>; Returns: Json }
+      track_resource_usage: { Args: { [key: string]: Json } | Record<string, never>; Returns: Json }
+      decrypt_credential_data: { Args: { [key: string]: Json } | Record<string, never>; Returns: Json }
+      encrypt_credential_data: { Args: { [key: string]: Json } | Record<string, never>; Returns: Json }
     }
     Enums: {
       adinkra_category:

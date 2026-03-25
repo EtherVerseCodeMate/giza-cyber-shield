@@ -298,7 +298,7 @@ export const useKhepraAuth = () => {
           cultural_protocol: true
         },
         created_at: event.timestamp.toISOString()
-      });
+      } as any);
 
       setSecurityEvents(prev => [event, ...prev.slice(0, 99)]); // Keep last 100 events
     } catch (error) {

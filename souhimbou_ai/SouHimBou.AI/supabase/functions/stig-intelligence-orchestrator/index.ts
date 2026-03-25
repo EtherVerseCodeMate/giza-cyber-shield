@@ -159,7 +159,7 @@ async function getWorkflowSuccessRate(
   }
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -208,7 +208,7 @@ serve(async (req) => {
           }
         );
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('STIG Intelligence Orchestrator error:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
@@ -272,8 +272,15 @@ async function handleAIVerification(supabase: any, payload: any) {
   const isComplexPlatform = ['windows_server', 'rhel', 'oracle'].includes(configData?.platform_type || '');
   const hasDISAApproval = configData?.disa_approved || false;
 
+  let securityImpact = 'medium';
+  if (hasDISAApproval) {
+    securityImpact = 'low';
+  } else if (isComplexPlatform) {
+    securityImpact = 'high';
+  }
+
   const riskAssessment = {
-    security_impact: hasDISAApproval ? 'low' : (isComplexPlatform ? 'high' : 'medium'),
+    security_impact: securityImpact,
     implementation_complexity: isComplexPlatform ? 'complex' : 'standard',
     compatibility_score: configData?.confidence_score || 0.85
   };
@@ -439,7 +446,7 @@ async function handleSTIGOptimization(supabase: any, payload: any) {
 
     // Use historical analysis data if available
     let confidenceScore = 0.85;
-    let implementationPriority = 70;
+    let implementationPriority: number;
     if (history.lastAnalysis) {
       confidenceScore = history.lastAnalysis.confidence_score || 0.85;
       implementationPriority = history.lastAnalysis.implementation_priority || 70;
@@ -465,8 +472,10 @@ async function handleSTIGOptimization(supabase: any, payload: any) {
     if (history.currentCompliance === 'non_compliant') {
       recommendations.push('Prioritize remediation to achieve compliance');
     }
-    recommendations.push('Consider automated implementation for improved consistency');
-    recommendations.push('Validate configuration against latest DISA guidance');
+    recommendations.push(
+      'Consider automated implementation for improved consistency',
+      'Validate configuration against latest DISA guidance'
+    );
     if (!history.lastAnalysis) {
       recommendations.push('Establish baseline monitoring for configuration drift');
     }
@@ -643,7 +652,7 @@ async function generateSTIGImplementations(
     const hashBase = `${cmmcControl}-${platform}`;
     let hash = 0;
     for (let i = 0; i < hashBase.length; i++) {
-      hash = ((hash << 5) - hash) + hashBase.charCodeAt(i);
+      hash = ((hash << 5) - hash) + (hashBase.codePointAt(i) || 0);
       hash = hash & hash;
     }
     const stigIdNum = 100000 + Math.abs(hash % 900000);
@@ -651,8 +660,12 @@ async function generateSTIGImplementations(
     // Determine automation based on platform type
     const automationPossible = ['linux', 'rhel', 'ubuntu', 'centos'].some(p => platform.toLowerCase().includes(p));
 
-    // Priority based on CMMC control level
-    const controlLevel = cmmcControl.includes('L2') ? 80 : (cmmcControl.includes('L3') ? 90 : 70);
+    let controlLevel = 70;
+    if (cmmcControl.includes('L2')) {
+      controlLevel = 80;
+    } else if (cmmcControl.includes('L3')) {
+      controlLevel = 90;
+    }
 
     return {
       stig_id: `V-${stigIdNum}`,

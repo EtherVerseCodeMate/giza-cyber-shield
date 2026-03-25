@@ -388,7 +388,7 @@ export const AISecurityAgent = () => {
                                 <div className="flex-1">
                                   <div className="flex items-center space-x-2">
                                     <Badge className={getExecutionStatusBadge(result.status)}>
-                                      {result.status.replace('_', ' ').toUpperCase()}
+                                      {result.status.replaceAll('_', ' ').toUpperCase()}
                                     </Badge>
                                     <span className="text-xs text-muted-foreground">{result.type}</span>
                                   </div>
