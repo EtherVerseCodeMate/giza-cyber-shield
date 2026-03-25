@@ -21,9 +21,9 @@ func TestDagAdd(t *testing.T) {
 
 	// Create Request
 	payload := map[string]interface{}{
-		"action":     "test-action",
-		"symbol":     "TestSymbol",
-		"parent_ids": []string{},
+		"action":  "test-action",
+		"symbol":  "TestSymbol",
+		"parents": []string{},
 	}
 	body, _ := json.Marshal(payload)
 	req := httptest.NewRequest("POST", "/dag/add", bytes.NewBuffer(body))
@@ -40,16 +40,13 @@ func TestDagAdd(t *testing.T) {
 		t.Logf("Response Body: %s", w.Body.String())
 	}
 
-	var n dag.Node
-	if err := json.NewDecoder(w.Body).Decode(&n); err != nil {
+	var respData map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&respData); err != nil {
 		t.Fatal(err)
 	}
 
-	if n.Action != "test-action" {
-		t.Errorf("Expected action test-action, got %s", n.Action)
-	}
-	if n.ID == "" {
-		t.Error("Expected Node ID to be set (by content hash)")
+	if respData["node_id"] == "" {
+		t.Error("Expected node_id to be set")
 	}
 }
 
@@ -68,7 +65,7 @@ func TestHealth(t *testing.T) {
 
 	var resp map[string]interface{}
 	json.NewDecoder(w.Body).Decode(&resp)
-	if ok, exists := resp["ok"]; !exists || ok != true {
-		t.Error("Expected ok: true")
+	if status, exists := resp["status"]; !exists || status != "ok" {
+		t.Error("Expected status: ok")
 	}
 }

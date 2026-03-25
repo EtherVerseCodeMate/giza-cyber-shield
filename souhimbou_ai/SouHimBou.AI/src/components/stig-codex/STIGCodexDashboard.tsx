@@ -3,7 +3,7 @@
  * Comprehensive STIG-first compliance automation interface
  */
 
-import { useState, useEffect } from 'react';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,6 @@ import {
   TrendingUp,
   Eye,
   Settings,
-  FileText,
   Globe
 } from 'lucide-react';
 import { STIGCodexState, STIGCodexOperations } from '@/hooks/useSTIGCodex';
@@ -37,7 +36,6 @@ export const STIGCodexDashboard: React.FC<STIGCodexDashboardProps> = (props) => 
     agents,
     driftEvents,
     threatCorrelations,
-    aiAnalyses,
     loading,
     error,
     lastUpdated,
@@ -64,14 +62,22 @@ export const STIGCodexDashboard: React.FC<STIGCodexDashboardProps> = (props) => 
     return 'text-red-600 dark:text-red-400';
   };
 
-  const getSeverityBadge = (severity: string): "default" | "destructive" | "outline" | "secondary" => {
-    const colors: Record<string, "default" | "destructive" | "outline" | "secondary"> = {
+  type BadgeVariant = "default" | "destructive" | "outline" | "secondary";
+
+  const getSeverityBadge = (severity: string): BadgeVariant => {
+    const colors: Record<string, BadgeVariant> = {
       critical: 'destructive',
       high: 'secondary',
       medium: 'outline',
       low: 'default'
     };
     return colors[severity] || 'default';
+  };
+
+  const getTrendBadge = (trending?: string): BadgeVariant => {
+    if (trending === 'improving') return 'default';
+    if (trending === 'declining') return 'destructive';
+    return 'outline';
   };
 
   if (error) {
@@ -255,10 +261,7 @@ export const STIGCodexDashboard: React.FC<STIGCodexDashboardProps> = (props) => 
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm">Trend</span>
-                      <Badge
-                        variant={riskAnalysis.trending === 'improving' ? 'default' :
-                          riskAnalysis.trending === 'declining' ? 'destructive' : 'outline'}
-                      >
+                      <Badge variant={getTrendBadge(riskAnalysis.trending)}>
                         {riskAnalysis.trending}
                       </Badge>
                     </div>
@@ -346,7 +349,7 @@ export const STIGCodexDashboard: React.FC<STIGCodexDashboardProps> = (props) => 
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
                       <CardTitle className="text-sm">{event.drift_type}</CardTitle>
-                      <Badge variant={getSeverityBadge(event.severity) as "default" | "destructive" | "outline" | "secondary"}>
+                      <Badge variant={getSeverityBadge(event.severity)}>
                         {event.severity}
                       </Badge>
                     </div>
@@ -402,7 +405,7 @@ export const STIGCodexDashboard: React.FC<STIGCodexDashboardProps> = (props) => 
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
                       <CardTitle className="text-sm">Threat: {correlation.threat_id}</CardTitle>
-                      <Badge variant={getSeverityBadge(correlation.risk_elevation) as "default" | "destructive" | "outline" | "secondary"}>
+                      <Badge variant={getSeverityBadge(correlation.risk_elevation)}>
                         {correlation.risk_elevation}
                       </Badge>
                     </div>
