@@ -20,9 +20,13 @@ export GOVCLOUD_EXPECTED_PERMISSION_SET_ARN=arn:aws-us-gov:sso:::permissionSet/s
 export GOVCLOUD_EXPECT_PS_ABAC_USPERSON=1
 
 # SCP / RCP (split root vs OU attachments)
-export GOVCLOUD_EXPECTED_SCP_NAMES=DenyNonGovRegions,DenyS3PublicAccess,ForceTLS,DenyDisableSecurityServices,DenyRootAccountUsage
+# Root allows at most 5 SCPs (FullAWSAccess + 4 custom). If DenyRootAccountUsage is on Workloads only, keep it OFF this line and add it to WORKLOADS_OU below.
+export GOVCLOUD_EXPECTED_SCP_NAMES=DenyNonGovRegions,DenyS3PublicAccess,ForceTLS,DenyDisableSecurityServices
+# Workloads OU id from: aws organizations list-organizational-units-for-parent --parent-id <root>
 export GOVCLOUD_EXPECTED_WORKLOADS_OU_ID=ou-xxxx-workloads
-export GOVCLOUD_EXPECTED_SCP_NAMES_WORKLOADS_OU=DenyNonApprovedServices,DenyCUIWithoutUSPersonTag,DenyEC2WithPublicIP,DenyUnencryptedStorage,RequireIMDSv2
+# Custom SCP names only — paste from list-policies-for-target on that OU (order irrelevant).
+# FullAWSAccess is usually attached; you do not need to list it. Do not list SCPs attached only on child OUs.
+export GOVCLOUD_EXPECTED_SCP_NAMES_WORKLOADS_OU=DenyEC2WithPublicIP,DenyUnencryptedStorage,RequireIMDSv2,DenyRootAccountUsage
 export GOVCLOUD_EXPECTED_SECURITY_OU_ID=ou-xxxx-security
 export GOVCLOUD_EXPECTED_RCP_NAMES=DenyExternalResourceAccess
 
