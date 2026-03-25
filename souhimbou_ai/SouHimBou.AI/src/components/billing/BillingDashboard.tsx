@@ -66,18 +66,18 @@ const BillingDashboard = () => {
     {
       id: "enterprise",
       name: "Enterprise",
-      price: "Contact Sales",
+      price: "Advisory",
       tier: "enterprise",
-      description: "Full platform with custom deployment options",
+      description: "Evidence-first compliance advisory + readiness scope alignment.",
       icon: Building2,
       features: [
         "Everything in Plus",
-        "M-XDR Core platform",
-        "SOAR automation", 
-        "AI-powered threat hunting",
+        "ADINKHEPRA evidence packaging",
+        "Assessor-oriented evidence mapping",
+        "Optional attestation seal workflows",
         "Dedicated enclave/on-prem",
-        "FedRAMP/FIPS compliance",
-        "24/7 dedicated support",
+        "CMMC / NIST 800-171 alignment",
+        "Priority advisory support",
         "Custom SLAs"
       ],
       color: "gold"
@@ -247,7 +247,7 @@ const BillingDashboard = () => {
                 >
                   {plan.isFree ? "Current Plan" : 
                    isCurrentPlan ? "Manage Plan" : 
-                   (plan.tier === 'enterprise' ? 'Contact Sales' : `Upgrade to ${plan.name}`)}
+                   (plan.tier === 'enterprise' ? 'Book Advisory Call' : `Upgrade to ${plan.name}`)}
                 </Button>
               </CardContent>
             </Card>
