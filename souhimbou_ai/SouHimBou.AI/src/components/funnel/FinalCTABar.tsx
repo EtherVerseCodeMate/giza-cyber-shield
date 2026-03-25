@@ -5,10 +5,6 @@ import { useNavigate } from 'react-router-dom';
 export const FinalCTABar = () => {
   const navigate = useNavigate();
 
-  const scrollToSystemOverview = () => {
-    document.getElementById('system-overview')?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   return (
     <section className="py-24 bg-gradient-to-r from-[#0d1421] via-[#0a0a0a] to-[#0d1421] relative overflow-hidden">
       {/* Background glow */}
@@ -30,25 +26,29 @@ export const FinalCTABar = () => {
           className="max-w-3xl mx-auto text-center space-y-8"
         >
           <h2 className="text-3xl md:text-4xl font-bold text-white">
-            Ready to influence the next generation of{' '}
-            <span className="text-[#00ffff]">STIG automation</span>?
+            Ready for{' '}
+            <span className="text-[#00ffff]">CMMC evidence</span>?
           </h2>
+          <p className="text-gray-400 text-lg max-w-xl mx-auto">
+            Run a free readiness scan. Map findings to control-oriented outputs. Pilot partners can pursue the{' '}
+            <span className="text-[#d4af37] font-semibold">ADINKHEPRA seal</span> when certifying.
+          </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
               size="lg"
-              onClick={scrollToSystemOverview}
+              onClick={() => navigate('/onboarding')}
               className="bg-gradient-to-r from-[#00ffff] to-[#0088ff] hover:from-[#00dddd] hover:to-[#0066dd] text-black font-bold text-lg px-10 py-6 rounded-lg shadow-[0_0_20px_rgba(0,255,255,0.3)] hover:shadow-[0_0_35px_rgba(0,255,255,0.5)] transition-all duration-300"
             >
-              See How It Works
+              Start Free Scan
             </Button>
             <Button
               size="lg"
               variant="outline"
-              onClick={() => navigate('/onboarding')}
-              className="border-[#d4af37]/60 text-[#d4af37] hover:bg-[#d4af37]/10 font-semibold text-lg px-10 py-6 rounded-lg"
+              onClick={() => navigate('/advisory')}
+              className="border-[#00ffff]/40 text-[#00ffff] hover:bg-[#00ffff]/10 font-semibold text-lg px-10 py-6 rounded-lg"
             >
-              Apply for Pilot Access
+              Book Advisory Call
             </Button>
           </div>
 
