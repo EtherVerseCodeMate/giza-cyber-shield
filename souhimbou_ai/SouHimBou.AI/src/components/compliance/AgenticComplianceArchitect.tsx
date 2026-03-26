@@ -191,7 +191,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
 
   const triggerComplianceScan = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('grok-ai-agent', {
+      const { error } = await supabase.functions.invoke('grok-ai-agent', {
         body: {
           action: 'compliance_scan',
           mode: activeMode,
@@ -231,7 +231,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
 
       updateGapStatus(gap.id, 'remediating');
 
-      const { data, error } = await supabase.functions.invoke('grok-ai-agent', {
+      const { error } = await supabase.functions.invoke('grok-ai-agent', {
         body: {
           action: 'execute_remediation',
           controlId: gap.controlId,
@@ -739,8 +739,8 @@ export const AgenticComplianceArchitect: React.FC = () => {
 
         <TabsContent value="capabilities" className="space-y-4">
           <div className="grid gap-4">
-            {capabilities.map((capability, index) => (
-              <Card key={index}>
+            {capabilities.map((capability) => (
+              <Card key={capability.name}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
@@ -778,7 +778,10 @@ export const AgenticComplianceArchitect: React.FC = () => {
                     <div>
                       <CardTitle className="flex items-center gap-2">
                         {mode.name}
-                        <Badge variant={mode.riskLevel === 'high' ? 'destructive' : mode.riskLevel === 'medium' ? 'default' : 'secondary'}>
+                        <Badge variant={
+                          mode.riskLevel === 'high' ? 'destructive' : 
+                          mode.riskLevel === 'medium' ? 'default' : 'secondary'
+                        }>
                           {mode.riskLevel} risk
                         </Badge>
                       </CardTitle>
