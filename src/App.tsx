@@ -19,7 +19,7 @@ import Episode3 from "./pages/blog/Episode3";
 import Episode4 from "./pages/blog/Episode4";
 import BuildingCyberImmunity from "./pages/blog/BuildingCyberImmunity";
 import LaunchingVDP from "./pages/blog/LaunchingVDP";
-import VDP from "./pages/VDP";
+import Vdp from "./pages/Vdp";
 import HallOfFame from "./pages/HallOfFame";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
@@ -94,7 +94,7 @@ const App = () => {
                     <Route path="/blog/episode-4-rising-through-ranks" element={<Episode4 />} />
                     <Route path="/blog/building-cyber-immunity-cmmc-stig-database" element={<BuildingCyberImmunity />} />
                     <Route path="/blog/launching-vdp" element={<LaunchingVDP />} />
-                    <Route path="/vdp" element={<VDP />} />
+                    <Route path="/vdp" element={<Vdp />} />
                     <Route path="/hall-of-fame" element={<HallOfFame />} />
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/auth/callback" element={<AuthCallback />} />
