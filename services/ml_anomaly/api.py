@@ -232,7 +232,7 @@ app = FastAPI(
 
 # --- Endpoints ---
 
-@app.get("/api/v1/dag/visualize", response_model=TrustConstellation)
+@app.get("/api/v1/dag/visualize", response_model=TrustConstellation, responses={500: {"detail": "Internal Server Error"}})
 async def get_dag_visualize():
     """
     Returns the Trust Constellation (DAG) graph for visualization.
@@ -283,7 +283,7 @@ async def get_dag_visualize():
         logger.error(f"DAG Export Failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/v1/compliance/cmmc")
+@app.get("/api/v1/compliance/cmmc", responses={500: {"detail": "Internal Server Error"}})
 async def get_cmmc_status():
     """
     Returns the CMMC Level 2 Compliance Scorecard.
@@ -409,7 +409,7 @@ async def papyrus_chat(request: dict):
 
 # --- License & Telemetry Endpoints ---
 
-@app.get("/api/v1/license/status")
+@app.get("/api/v1/license/status", responses={500: {"detail": "License service unavailable"}})
 async def get_license_status():
     """
     Returns the current license status.
@@ -520,7 +520,7 @@ async def get_current_dag() -> dict:
     return {"nodes": [], "edges": [], "stats": {"nodes": 0, "critical": 0}}
 
 # --- PDF Export for Compliance Reports ---
-@app.get("/api/v1/export/compliance-report")
+@app.get("/api/v1/export/compliance-report", responses={500: {"detail": "Failed to generate PDF"}})
 async def export_compliance_report():
     """Generate PDF compliance report from current CMMC status."""
     try:
@@ -589,7 +589,7 @@ async def export_compliance_report():
         raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}")
 
 # --- STIG Gateway Proxy ---
-@app.get("/api/stigs")
+@app.get("/api/stigs", responses={503: {"detail": "STIG Gateway service is currently unavailable"}})
 async def proxy_stig_gateway(request: Request):
     """
     Proxy request to the local Go STIG Gateway.
@@ -638,7 +638,7 @@ async def get_soul():
         "dominant_archetype": max(model_state["soul_embedding"], key=model_state["soul_embedding"].get) if model_state["soul_embedding"] else "None"
     }
 
-@app.post("/predict", response_model=PredictResponse)
+@app.post("/predict", response_model=PredictResponse, responses={503: {"detail": "Model not loaded"}, 500: {"detail": "Internal Server Error"}})
 async def predict(request: PredictRequest):
     """
     Get an anomaly score for a feature vector.
@@ -738,7 +738,7 @@ def run_training_task():
         logger.error(f"Training Failed: {e}")
         model_state["status"] = "TRAINING_FAILED"
 
-@app.post("/train")
+@app.post("/train", responses={409: {"detail": "Training already in progress"}})
 async def trigger_training(request: TrainingRequest, background_tasks: BackgroundTasks):
     """Triggers the 'Awakening' (Retraining) process in the background."""
     if model_state["status"] == "TRAINING":
@@ -751,7 +751,7 @@ async def trigger_training(request: TrainingRequest, background_tasks: Backgroun
 
 # --- SouHimBou AGI Endpoints (BabyAGI Pattern) ---
 
-@app.post("/chat", response_model=ChatResponse)
+@app.post("/chat", response_model=ChatResponse, responses={500: {"detail": "Internal Server Error"}})
 async def chat(request: ChatRequest):
     """
     Process user chat message - replaces LLM-based chat.
@@ -826,7 +826,7 @@ async def chat(request: ChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/recommend_tasks", response_model=RecommendTasksResponse)
+@app.post("/recommend_tasks", response_model=RecommendTasksResponse, responses={500: {"detail": "Internal Server Error"}})
 async def recommend_tasks(request: RecommendTasksRequest):
     """
     Generate task recommendations from analysis results.
@@ -884,7 +884,7 @@ async def recommend_tasks(request: RecommendTasksRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/prioritize", response_model=PrioritizeResponse)
+@app.post("/prioritize", response_model=PrioritizeResponse, responses={500: {"detail": "Internal Server Error"}})
 async def prioritize_tasks(request: PrioritizeRequest):
     """
     Reorder task list by risk priority.
