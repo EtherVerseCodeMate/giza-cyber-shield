@@ -55,113 +55,14 @@ import (
 )
 
 func main() {
-	// CLI flags
-	// TLS is ON by default — Khepra is a security product, plaintext is unacceptable.
-	// Disable only for local development with --tls=false.
-	port := flag.Int("port", 443, "Server port (default 443 for TLS)")
-	host := flag.String("host", "0.0.0.0", "Server host")
-	tlsEnabled := flag.Bool("tls", true, "Enable TLS with Let's Encrypt (default: true)")
-	tlsDomain := flag.String("tls-domain", "", "Domain for Let's Encrypt (required when TLS enabled)")
-	certCacheDir := flag.String("cert-cache", "/var/cache/khepra-certs", "Certificate cache directory")
-	debug := flag.Bool("debug", false, "Enable debug mode")
-	telemetryURL := flag.String("telemetry-url", "https://telemetry.souhimbou.org", "Telemetry server URL")
-	flag.Parse()
-
-	// Environment variable overrides (env vars take precedence over CLI defaults)
-	if envPort := os.Getenv("PORT"); envPort != "" {
-		if p, err := strconv.Atoi(envPort); err == nil {
-			*port = p
-		}
-	}
-	if envHost := os.Getenv("HOST"); envHost != "" {
-		*host = envHost
-	}
-	// TLS_ENABLED=false explicitly opts out of TLS (local dev only)
-	if os.Getenv("TLS_ENABLED") == "false" {
-		*tlsEnabled = false
-		if *port == 443 {
-			*port = 8080 // revert to dev port when TLS explicitly disabled
-		}
-	}
-	if envDomain := os.Getenv("TLS_DOMAIN"); envDomain != "" {
-		*tlsDomain = envDomain
-	}
-	if envCertDir := os.Getenv("CERT_CACHE_DIR"); envCertDir != "" {
-		*certCacheDir = envCertDir
-	}
-	if os.Getenv("DEBUG") == "true" {
-		*debug = true
-	}
-	if envTelemetry := os.Getenv("TELEMETRY_URL"); envTelemetry != "" {
-		*telemetryURL = envTelemetry
-	}
-
-	// Warn if TLS is enabled but domain is not configured
-	if *tlsEnabled && *tlsDomain == "" {
-		log.Println("WARNING: TLS_DOMAIN not set. Let's Encrypt requires a valid public domain.")
-		log.Println("  Set: export TLS_DOMAIN=api.yourdomain.com")
-		log.Println("  Or disable TLS for local dev: export TLS_ENABLED=false")
-		log.Println("Falling back to HTTP on port 8080 for this session.")
-		*tlsEnabled = false
-		*port = 8080
-	}
-
-	// Validate service secret
-	if os.Getenv("KHEPRA_SERVICE_SECRET") == "" {
-		log.Println("WARNING: KHEPRA_SERVICE_SECRET not set!")
-		log.Println("Service-to-service authentication will use development defaults.")
-		log.Println("Set this for production: export KHEPRA_SERVICE_SECRET=<your-256-bit-hex-secret>")
-	}
+	cfg, flags := parseConfig()
 
 	printBanner()
 
-	// Initialize DAG (global singleton - The Long-Term Memory)
-	dagStore := dag.GlobalDAG()
-	log.Printf("DAG initialized with %d nodes", len(dagStore.All()))
-
-	// Initialize license manager (Merkaba Egyptian mythology system)
-	licMgr, err := license.NewManager(*telemetryURL)
-	if err != nil {
-		log.Fatalf("Failed to create license manager: %v", err)
-	}
-
-	// Initialize license (validates with server and starts heartbeat)
-	if err := licMgr.Initialize(); err != nil {
-		log.Printf("License validation failed: %v", err)
-		log.Println("Running in community mode - proprietary features disabled")
-	} else {
-		log.Println("License validated - full features enabled")
-	}
-
-	// Create API server configuration
-	config := &apiserver.Config{
-		Host:         *host,
-		Port:         *port,
-		TLSEnabled:   *tlsEnabled,
-		TLSDomain:    *tlsDomain,
-		CertCacheDir: *certCacheDir,
-		AllowedOrigins: []string{
-			"https://souhimbou.org",
-			"https://www.souhimbou.org",
-			"https://gateway.souhimbou.org",
-			"https://telemetry.souhimbou.org",
-			"https://adinkhepra.dev",
-			"http://localhost:3000",
-			"http://localhost:5173",
-			"http://localhost:8080",
-		},
-		Debug: *debug,
-	}
-
-	// Create adapters to bridge existing components with API server
-	dagAdapter := apiserver.NewDAGStoreAdapter(dagStore)
-	licAdapter := apiserver.NewLicenseManagerAdapter(licMgr)
-
-	// Load service accounts (from env or secure defaults)
-	apiserver.LoadDefaultServiceAccounts()
+	dagStore, licMgr := initInfrastructure(cfg)
 
 	// Create server (The Motherboard)
-	server := apiserver.NewServer(config, dagAdapter, licAdapter)
+	server := initServices(cfg, flags, dagStore, licMgr)
 
 	// ── PQC Auth Gateway (ML-DSA-65 / NIST FIPS 204) ─────────────────────────
 	initPQCAuthGateway(server)
@@ -233,6 +134,134 @@ func main() {
 	licMgr.Stop()
 
 	log.Println("DEMARC server exited gracefully. The Scarab rests.")
+}
+
+type serverConfig struct {
+	port         int
+	host         string
+	tlsEnabled   bool
+	tlsDomain    string
+	certCacheDir string
+	debug        bool
+	telemetryURL string
+}
+
+func parseConfig() (*serverConfig, map[string]interface{}) {
+	port := flag.Int("port", 443, "Server port (default 443 for TLS)")
+	host := flag.String("host", "0.0.0.0", "Server host")
+	tlsEnabled := flag.Bool("tls", true, "Enable TLS with Let's Encrypt (default: true)")
+	tlsDomain := flag.String("tls-domain", "", "Domain for Let's Encrypt (required when TLS enabled)")
+	certCacheDir := flag.String("cert-cache", "/var/cache/khepra-certs", "Certificate cache directory")
+	debug := flag.Bool("debug", false, "Enable debug mode")
+	telemetryURL := flag.String("telemetry-url", "https://telemetry.souhimbou.org", "Telemetry server URL")
+	flag.Parse()
+
+	// Environment variable overrides
+	if envPort := os.Getenv("PORT"); envPort != "" {
+		if p, err := strconv.Atoi(envPort); err == nil {
+			*port = p
+		}
+	}
+	if envHost := os.Getenv("HOST"); envHost != "" {
+		*host = envHost
+	}
+	if os.Getenv("TLS_ENABLED") == "false" {
+		*tlsEnabled = false
+		if *port == 443 {
+			*port = 8080
+		}
+	}
+	if envDomain := os.Getenv("TLS_DOMAIN"); envDomain != "" {
+		*tlsDomain = envDomain
+	}
+	if envCertDir := os.Getenv("CERT_CACHE_DIR"); envCertDir != "" {
+		*certCacheDir = envCertDir
+	}
+	if os.Getenv("DEBUG") == "true" {
+		*debug = true
+	}
+	if envTelemetry := os.Getenv("TELEMETRY_URL"); envTelemetry != "" {
+		*telemetryURL = envTelemetry
+	}
+
+	// Warn if TLS is enabled but domain is not configured
+	if *tlsEnabled && *tlsDomain == "" {
+		log.Println("WARNING: TLS_DOMAIN not set. Falling back to HTTP on port 8080.")
+		*tlsEnabled = false
+		*port = 8080
+	}
+
+	// Validate service secret
+	if os.Getenv("KHEPRA_SERVICE_SECRET") == "" {
+		log.Println("WARNING: KHEPRA_SERVICE_SECRET not set!")
+	}
+
+	cfg := &serverConfig{
+		port:         *port,
+		host:         *host,
+		tlsEnabled:   *tlsEnabled,
+		tlsDomain:    *tlsDomain,
+		certCacheDir: *certCacheDir,
+		debug:        *debug,
+		telemetryURL: *telemetryURL,
+	}
+
+	return cfg, map[string]interface{}{
+		"host":         host,
+		"port":         port,
+		"tlsEnabled":   tlsEnabled,
+		"tlsDomain":    tlsDomain,
+		"certCacheDir": certCacheDir,
+		"telemetryURL": telemetryURL,
+	}
+}
+
+func initInfrastructure(cfg *serverConfig) (*dag.Store, *license.Manager) {
+	// Initialize DAG
+	dagStore := dag.GlobalDAG()
+	log.Printf("DAG initialized with %d nodes", len(dagStore.All()))
+
+	// Initialize license manager
+	licMgr, err := license.NewManager(cfg.telemetryURL)
+	if err != nil {
+		log.Fatalf("Failed to create license manager: %v", err)
+	}
+
+	if err := licMgr.Initialize(); err != nil {
+		log.Printf("License validation failed: %v", err)
+	} else {
+		log.Println("License validated - full features enabled")
+	}
+
+	return dagStore, licMgr
+}
+
+func initServices(cfg *serverConfig, flags map[string]interface{}, dagStore *dag.Store, licMgr *license.Manager) *apiserver.Server {
+	config := &apiserver.Config{
+		Host:         cfg.host,
+		Port:         cfg.port,
+		TLSEnabled:   cfg.tlsEnabled,
+		TLSDomain:    cfg.tlsDomain,
+		CertCacheDir: cfg.certCacheDir,
+		AllowedOrigins: []string{
+			"https://souhimbou.org",
+			"https://www.souhimbou.org",
+			"https://gateway.souhimbou.org",
+			"https://telemetry.souhimbou.org",
+			"https://adinkhepra.dev",
+			"http://localhost:3000",
+			"http://localhost:5173",
+			"http://localhost:8080",
+		},
+		Debug: cfg.debug,
+	}
+
+	dagAdapter := apiserver.NewDAGStoreAdapter(dagStore)
+	licAdapter := apiserver.NewLicenseManagerAdapter(licMgr)
+
+	apiserver.LoadDefaultServiceAccounts()
+
+	return apiserver.NewServer(config, dagAdapter, licAdapter)
 }
 
 func initPQCAuthGateway(server *apiserver.Server) {
