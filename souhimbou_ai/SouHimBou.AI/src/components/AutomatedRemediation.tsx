@@ -88,6 +88,8 @@ export const AutomatedRemediation = () => {
       let action: string;
       switch (task.category) {
         case 'security_patch':
+          action = 'patch_management';
+          break;
         default:
           action = 'patch_management';
           break;

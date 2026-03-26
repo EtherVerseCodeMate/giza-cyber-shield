@@ -12,12 +12,10 @@ import {
   Shield,
   CheckCircle,
   AlertTriangle,
-  Clock,
   GitBranch,
   Eye,
   Play,
   Pause,
-  Settings,
   FileCheck,
   Network
 } from 'lucide-react';
@@ -29,7 +27,6 @@ import { AttestationEngine } from './AttestationEngine';
 import { EvidenceCollectionEngine } from './EvidenceCollectionEngine';
 import { ComplianceControlMapper } from './ComplianceControlMapper';
 import { POAMGenerator } from '../automation/POAMGenerator';
-import { EnhancedPOAMTracker } from '../automation/EnhancedPOAMTracker';
 import { ComplianceDemoScenarios } from '../demo/ComplianceDemoScenarios';
 
 interface AgentMode {
@@ -102,7 +99,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
   const [activeMode, setActiveMode] = useState<string>('observe');
   const [controlGaps, setControlGaps] = useState<ControlGap[]>([]);
   const [capabilities, setCapabilities] = useState<AgentCapability[]>([]);
-  const [overallCompliance, setOverallCompliance] = useState(78);
+  const [overallCompliance] = useState(78);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -138,13 +135,15 @@ export const AgenticComplianceArchitect: React.FC = () => {
     id: d.id,
     controlId: d.control_id,
     framework: 'SOC2 / TBD',
-    severity: d.severity as any || 'medium',
-    status: d.status as any || 'detected',
+    severity: d.severity || 'medium',
+    status: d.status || 'detected',
     description: d.description || '',
     affectedAssets: 0,
     estimatedTime: '4h',
     blastRadius: 5,
-    remediationPlan: d.remediation_plan ? (typeof d.remediation_plan === 'string' ? JSON.parse(d.remediation_plan) : d.remediation_plan) : undefined
+    remediationPlan: d.remediation_plan 
+      ? (typeof d.remediation_plan === 'string' ? JSON.parse(d.remediation_plan) : d.remediation_plan)
+      : undefined
   });
 
   const fetchControlGaps = async () => {
