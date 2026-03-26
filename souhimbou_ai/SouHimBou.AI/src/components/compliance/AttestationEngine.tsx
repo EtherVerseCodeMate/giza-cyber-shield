@@ -20,14 +20,10 @@ import {
   Upload,
   QrCode,
   Lock,
-  Unlock,
   Hash,
   Eye,
   EyeOff,
-  Fingerprint,
-  Calendar,
-  User,
-  Building
+  Fingerprint
 } from 'lucide-react';
 
 interface AttestationRecord {
@@ -687,7 +683,7 @@ export const AttestationEngine: React.FC = () => {
                     const blockId = `block-${5 - index}`;
 
                     return (
-                      <div key={index} className="border rounded-lg p-4">
+                      <div key={blockId} className="border rounded-lg p-4">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
                             <Lock className="h-4 w-4 text-blue-500" />
