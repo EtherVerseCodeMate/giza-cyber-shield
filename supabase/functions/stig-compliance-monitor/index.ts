@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+declare const Deno: any;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -285,14 +286,15 @@ async function processAssetRule(asset: any, stigRule: any, ctx: ProcessContext) 
   }
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
+      supabaseUrl,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
@@ -390,7 +392,7 @@ serve(async (req) => {
       }
     };
 
-    await supabase.from('compliance_reports').insert(report);
+    const { data: insertedReport } = await supabase.from('compliance_reports').insert(report).select().single();
 
     await sendStigDiscordWebhook({
       assets, stigRules, compliancePercentage, compliantChecks, totalChecks,
@@ -407,7 +409,7 @@ serve(async (req) => {
       high_findings: highFindings,
       drift_events_detected: driftEvents.length,
       evidence_collected: evidenceCollected.length,
-      report_id: report.id || 'generated',
+      report_id: insertedReport?.id || 'generated',
       results: complianceResults
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
