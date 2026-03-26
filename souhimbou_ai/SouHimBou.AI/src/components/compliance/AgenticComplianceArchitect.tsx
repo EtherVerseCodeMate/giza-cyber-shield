@@ -142,7 +142,9 @@ export const AgenticComplianceArchitect: React.FC = () => {
     estimatedTime: '4h',
     blastRadius: 5,
     remediationPlan: d.remediation_plan 
-      ? (typeof d.remediation_plan === 'string' ? JSON.parse(d.remediation_plan) : d.remediation_plan)
+      ? (typeof d.remediation_plan === 'string' 
+          ? JSON.parse(d.remediation_plan) 
+          : d.remediation_plan)
       : undefined
   });
 
@@ -695,7 +697,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                       <h5 className="font-medium">Remediation Plan ({gap.remediationPlan.tool})</h5>
                       <div className="bg-muted p-3 rounded space-y-1">
                         {gap.remediationPlan.steps.map((step, index) => (
-                          <div key={index} className="text-sm">
+                          <div key={`remediation-step-${gap.id}-${index}`} className="text-sm">
                             {index + 1}. {step}
                           </div>
                         ))}
