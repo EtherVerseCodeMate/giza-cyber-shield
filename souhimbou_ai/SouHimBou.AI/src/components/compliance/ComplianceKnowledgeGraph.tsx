@@ -7,20 +7,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import {
-  Network,
   Shield,
   AlertTriangle,
   CheckCircle,
-  XCircle,
   Eye,
   Target,
-  GitBranch,
   Database,
   Zap,
   Users,
   Building,
   Globe,
-  Key,
   FileText,
   ArrowRight,
   Search,
@@ -104,27 +100,10 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
     animate();
   }, [graphData, selectedNode, hoveredNode, animationFrame]);
 
-  const drawGraph = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height);
-
-    // Apply filters
-    const filteredNodes = graphData.nodes.filter(node => {
-      const matchesSearch = searchTerm === '' ||
-        node.label.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesType = filterType === 'all' || node.type === filterType;
-      return matchesSearch && matchesType;
-    });
-
-    const filteredNodeIds = new Set(filteredNodes.map(n => n.id));
-    const filteredEdges = graphData.edges.filter(edge =>
-      filteredNodeIds.has(edge.from) && filteredNodeIds.has(edge.to)
-    );
-
-    // Draw edges first
-    filteredEdges.forEach(edge => {
-      const fromNode = filteredNodes.find(n => n.id === edge.from);
-      const toNode = filteredNodes.find(n => n.id === edge.to);
+  const drawEdges = (ctx: CanvasRenderingContext2D, edges: GraphEdge[], nodes: GraphNode[]) => {
+    edges.forEach(edge => {
+      const fromNode = nodes.find(n => n.id === edge.from);
+      const toNode = nodes.find(n => n.id === edge.to);
 
       if (!fromNode || !toNode) return;
 
@@ -163,9 +142,10 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
       ctx.closePath();
       ctx.fill();
     });
+  };
 
-    // Draw nodes
-    filteredNodes.forEach(node => {
+  const drawNodes = (ctx: CanvasRenderingContext2D, nodes: GraphNode[]) => {
+    nodes.forEach(node => {
       const isSelected = selectedNode?.id === node.id;
       const isHovered = hoveredNode?.id === node.id;
 
@@ -219,6 +199,28 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
 
       ctx.shadowBlur = 0;
     });
+  };
+
+  const drawGraph = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+    // Clear canvas
+    ctx.clearRect(0, 0, width, height);
+
+    // Apply filters
+    const filteredNodes = graphData.nodes.filter(node => {
+      const matchesSearch = searchTerm === '' ||
+        node.label.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesType = filterType === 'all' || node.type === filterType;
+      return matchesSearch && matchesType;
+    });
+
+    const filteredNodeIds = new Set(filteredNodes.map(n => n.id));
+    const filteredEdges = graphData.edges.filter(edge =>
+      filteredNodeIds.has(edge.from) && filteredNodeIds.has(edge.to)
+    );
+
+    // Draw components
+    drawEdges(ctx, filteredEdges, filteredNodes);
+    drawNodes(ctx, filteredNodes);
   };
 
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -323,7 +325,7 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <Network className="h-5 w-5" />
+                    <Zap className="h-5 w-5 text-purple-400" />
                     Compliance Knowledge Graph
                   </CardTitle>
                   <CardDescription>
@@ -511,7 +513,7 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
                   const toNode = graphData.nodes.find(n => n.id === edge.to);
 
                   return (
-                    <div key={index} className="flex items-center justify-between p-3 border rounded">
+                    <div key={`${edge.from}-${edge.to}-${index}`} className="flex items-center justify-between p-3 border rounded">
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                           {fromNode && getTypeIcon(fromNode.type)}

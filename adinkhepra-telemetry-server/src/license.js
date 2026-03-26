@@ -361,7 +361,7 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 		// Check if machine already registered
 		const existingLicense = await checkExistingLicense(env, machine_id);
 
-		if (existingLicense && existingLicense.revoked === 0) {
+		if (existingLicense?.revoked === 0) {
 			return new Response(JSON.stringify({
 				status: 'already_registered',
 				machine_id: machine_id,
