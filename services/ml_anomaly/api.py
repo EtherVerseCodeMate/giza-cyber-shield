@@ -232,6 +232,46 @@ app = FastAPI(
 
 # --- Endpoints ---
 
+@app.get("/api/v1/asset/{asset_id}", responses={
+    200: {"description": "Asset found"},
+    404: {"description": "Asset not found"},
+    500: {"description": "Internal server error"}
+})
+async def get_asset_details(asset_id: str):
+    """
+    Retrieves details for a specific asset by its ID.
+    Calls 'khepra asset get --json {asset_id}' to get the latest state.
+    """
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "khepra", "asset", "get", "--json", asset_id,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=10)
+
+        if proc.returncode != 0:
+            error_msg = stderr.decode().strip()
+            logger.error(f"Asset details for {asset_id} failed: {error_msg}")
+            if "not found" in error_msg.lower():
+                raise HTTPException(status_code=404, detail=f"Asset with ID '{asset_id}' not found")
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve asset details: {error_msg}")
+
+        asset_data = json.loads(stdout.decode())
+        return asset_data
+
+    except subprocess.TimeoutExpired:
+        logger.error(f"Asset details for {asset_id} timed out")
+        raise HTTPException(status_code=500, detail="Asset details retrieval timed out")
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse asset JSON for {asset_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to parse asset data: {e}")
+    except HTTPException:
+        raise # Re-raise HTTPExceptions
+    except Exception as e:
+        logger.error(f"Asset details for {asset_id} failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/v1/dag/visualize", response_model=TrustConstellation, responses={500: {"detail": "Internal Server Error"}})
 async def get_dag_visualize():
     """
@@ -283,7 +323,10 @@ async def get_dag_visualize():
         logger.error(f"DAG Export Failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/v1/compliance/cmmc", responses={500: {"detail": "Internal Server Error"}})
+@app.get("/api/v1/compliance/cmmc", responses={
+    200: {"description": "CMMC status retrieved"},
+    500: {"description": "Internal server error"}
+})
 async def get_cmmc_status():
     """
     Returns the CMMC Level 2 Compliance Scorecard.
@@ -332,7 +375,10 @@ async def get_cmmc_status():
             "error": str(e)
         }
 
-@app.get("/api/v1/ir/playbooks")
+@app.get("/api/v1/ir/playbooks", responses={
+    200: {"description": "Incident response playbooks retrieved"},
+    500: {"description": "Internal server error"}
+})
 async def get_ir_playbooks():
     """
     Returns available Incident Response Playbooks.
@@ -363,7 +409,10 @@ async def get_ir_playbooks():
         logger.error(f"IR playbooks error: {e}")
         return []
 
-@app.post("/api/v1/papyrus/chat")
+@app.post("/api/v1/papyrus/chat", responses={
+    200: {"description": "Papyrus chat response generated"},
+    500: {"description": "Internal server error"}
+})
 async def papyrus_chat(request: dict):
     """
     Papyrus AI Chat - Contextual help powered by SouHimBou AGI.
@@ -441,7 +490,10 @@ async def get_license_status():
         logger.error(f"License API Error: {e}")
         raise HTTPException(status_code=500, detail="License service unavailable")
 
-@app.get("/api/v1/license/telemetry/status")
+@app.get("/api/v1/license/telemetry/status", responses={
+    200: {"description": "Telemetry status retrieved"},
+    500: {"description": "Internal server error"}
+})
 async def get_telemetry_status():
     """
     Returns telemetry connection status.
@@ -622,7 +674,7 @@ async def proxy_stig_gateway(request: Request):
             detail="STIG Gateway service is currently unavailable. Please ensure the Go connector is running."
         )
 
-@app.get("/")
+@app.get("/", responses={200: {"description": "Root service status retrieved"}})
 async def root():
     return {
         "service": "SouHimBou AI",
@@ -630,7 +682,7 @@ async def root():
         "soul_integrity": "STABLE" if model_state["soul_embedding"] else "FRAGMENTED"
     }
 
-@app.get("/soul")
+@app.get("/soul", responses={200: {"description": "Soul embedding retrieved"}})
 async def get_soul():
     """Returns the current Soul Embedding (Adinkra + Persona mapping)"""
     return {
@@ -957,7 +1009,7 @@ async def prioritize_tasks(request: PrioritizeRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/v1/agi/status")
+@app.get("/api/v1/agi/status", responses={200: {"description": "AGI system status retrieved"}})
 async def get_agi_status():
     """
     Returns SouHimBou AGI system status.
