@@ -131,22 +131,27 @@ export const AgenticComplianceArchitect: React.FC = () => {
     setControlGaps(prev => prev.map(g => g.id === gapId ? { ...g, status } : g));
   };
 
-  const mapToControlGap = (d: any): ControlGap => ({
-    id: d.id,
-    controlId: d.control_id,
-    framework: 'SOC2 / TBD',
-    severity: d.severity || 'medium',
-    status: d.status || 'detected',
-    description: d.description || '',
-    affectedAssets: 0,
-    estimatedTime: '4h',
-    blastRadius: 5,
-    remediationPlan: d.remediation_plan 
-      ? (typeof d.remediation_plan === 'string' 
-          ? JSON.parse(d.remediation_plan) 
-          : d.remediation_plan)
-      : undefined
-  });
+  const mapToControlGap = (d: any): ControlGap => {
+    let remediationPlan = undefined;
+    if (d.remediation_plan) {
+      remediationPlan = typeof d.remediation_plan === 'string' 
+        ? JSON.parse(d.remediation_plan) 
+        : d.remediation_plan;
+    }
+
+    return {
+      id: d.id,
+      controlId: d.control_id,
+      framework: 'SOC2 / TBD',
+      severity: d.severity || 'medium',
+      status: d.status || 'detected',
+      description: d.description || '',
+      affectedAssets: 0,
+      estimatedTime: '4h',
+      blastRadius: 5,
+      remediationPlan
+    };
+  };
 
   const fetchControlGaps = async () => {
     setIsLoading(true);
@@ -781,8 +786,11 @@ export const AgenticComplianceArchitect: React.FC = () => {
                       <CardTitle className="flex items-center gap-2">
                         {mode.name}
                         <Badge variant={
-                          mode.riskLevel === 'high' ? 'destructive' : 
-                          mode.riskLevel === 'medium' ? 'default' : 'secondary'
+                          (({
+                            high: 'destructive',
+                            medium: 'default',
+                            low: 'secondary'
+                          } as const)[mode.riskLevel] || 'secondary')
                         }>
                           {mode.riskLevel} risk
                         </Badge>
