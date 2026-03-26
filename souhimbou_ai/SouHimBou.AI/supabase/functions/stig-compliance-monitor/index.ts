@@ -191,7 +191,17 @@ async function sendStigDiscordWebhook(params: any) {
   }
 }
 
-async function processAssetRule(supabase: any, asset: any, stigRule: any, organization_id: string, remediation_mode: string, complianceResults: any[], driftEvents: any[], evidenceCollected: any[]) {
+interface ProcessContext {
+  supabase: any;
+  organization_id: string;
+  remediation_mode: string;
+  complianceResults: any[];
+  driftEvents: any[];
+  evidenceCollected: any[];
+}
+
+async function processAssetRule(asset: any, stigRule: any, ctx: ProcessContext) {
+  const { supabase, organization_id, remediation_mode, complianceResults, driftEvents, evidenceCollected } = ctx;
   const result = await performSTIGComplianceCheck(supabase, asset, stigRule);
   complianceResults.push(result);
 
@@ -307,7 +317,15 @@ serve(async (req) => {
 
     for (const asset of assets) {
       for (const stigRule of stigRules) {
-        await processAssetRule(supabase, asset, stigRule, organization_id, remediation_mode, complianceResults, driftEvents, evidenceCollected);
+        const ctx: ProcessContext = {
+          supabase,
+          organization_id,
+          remediation_mode,
+          complianceResults,
+          driftEvents,
+          evidenceCollected
+        };
+        await processAssetRule(asset, stigRule, ctx);
       }
 
       const configSnapshot = {
