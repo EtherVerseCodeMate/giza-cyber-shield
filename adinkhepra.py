@@ -583,24 +583,30 @@ def main() -> None:
     command = sys.argv[1].lower()
     extra_args = sys.argv[2:]
     
-    # Command dispatch map
-    commands = {
-        "build": lambda: sys.exit(0 if build_all_components(fips="--no-fips" not in extra_args) else 1),
-        "agent": lambda: run("adinkhepra-agent", extra_args),
-        "cli": lambda: run("adinkhepra", extra_args),
-        "scada": lambda: run("adinkhepra", ["scada"] + extra_args),
-        "launch": lambda: launch(extra_args),
-        "test": lambda: handle_test_command(),
-        "validate": lambda: handle_validate_command(),
-        "resilience": lambda: handle_resilience_command(),
-        "tnok": lambda: launch_tnok(extra_args),
-    }
-    
-    if command in commands:
-        commands[command]()
+    match_command(command, extra_args)
+
+def match_command(command: str, extra_args: list[str]) -> None:
+    """Dispatches command to the appropriate handler."""
+    if command == "build":
+        sys.exit(0 if build_all_components(fips="--no-fips" not in extra_args) else 1)
+    elif command == "agent":
+        run("adinkhepra-agent", extra_args)
+    elif command == "cli":
+        run("adinkhepra", extra_args)
+    elif command == "scada":
+        run("adinkhepra", ["scada"] + extra_args)
+    elif command == "launch":
+        launch(extra_args)
+    elif command == "test":
+        handle_test_command()
+    elif command == "validate":
+        handle_validate_command()
+    elif command == "resilience":
+        handle_resilience_command()
+    elif command == "tnok":
+        launch_tnok(extra_args)
     else:
-        # Default to CLI if command unknown
-        run("adinkhepra", sys.argv[1:])
+        run("adinkhepra", [command] + extra_args)
 
 def handle_test_command() -> None:
     print_info("Running tests...")
