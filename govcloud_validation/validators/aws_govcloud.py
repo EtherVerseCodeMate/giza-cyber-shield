@@ -190,7 +190,9 @@ def _policy_names_on_target(s: Any, target_id: str, policy_filter: str) -> set[s
         for p in page.get("Policies") or []:
             n = p.get("Name")
             if n:
-                names.add(str(n))
+                # Organizations policy names should be stable identifiers; in the wild
+                # we've observed trailing whitespace in API responses for Name.
+                names.add(str(n).strip())
     return names
 
 
