@@ -173,22 +173,7 @@ func handleEvidenceCommand(parts []string) {
 	}
 	collectEvidence(parts[1])
 }
-us <framework> (e.g., focus 800-172)")
-		} else {
-			focusFramework(parts[1])
-		}
-	case "evidence":
-		if len(parts) < 2 {
-			fmt.Println("Usage: evidence <control_id> (e.g., evidence 3.1.8)")
-		} else {
-			collectEvidence(parts[1])
-		}
-	default:
-		fmt.Printf("Unknown command '%s'. Type 'help' for assistance.\n", cmd)
-	}
-}
-
-func printInteractiveHelp() {
+ func printInteractiveHelp() {
 	fmt.Println(`Available Commands:
   explain <id>    - Get a plain-English explanation of a security control
   audit           - Run automated probes for the current control family

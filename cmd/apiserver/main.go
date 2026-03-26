@@ -84,10 +84,10 @@ func main() {
 	log.Println("╔═══════════════════════════════════════════════════════════════════╗")
 	log.Println("║                    DEMARC Server Active                           ║")
 	log.Println("╚═══════════════════════════════════════════════════════════════════╝")
-	log.Printf("  Address:           %s:%d", *host, *port)
-	log.Printf("  TLS:               %v", *tlsEnabled)
+	log.Printf("  Address:           %s:%d", cfg.host, cfg.port)
+	log.Printf("  TLS:               %v", cfg.tlsEnabled)
 	log.Printf("  Service Auth:      %s", getSecretStatus())
-	log.Printf("  Telemetry Server:  %s", *telemetryURL)
+	log.Printf("  Telemetry Server:  %s", cfg.telemetryURL)
 	log.Println("")
 	log.Println("  Auth Endpoints (public — no auth required):")
 	log.Println("    POST /api/v1/auth/token            - Exchange Supabase JWT → PQC token")
@@ -216,7 +216,7 @@ func parseConfig() (*serverConfig, map[string]interface{}) {
 	}
 }
 
-func initInfrastructure(cfg *serverConfig) (*dag.Store, *license.Manager) {
+func initInfrastructure(cfg *serverConfig) (dag.Store, *license.Manager) {
 	// Initialize DAG
 	dagStore := dag.GlobalDAG()
 	log.Printf("DAG initialized with %d nodes", len(dagStore.All()))
@@ -236,7 +236,7 @@ func initInfrastructure(cfg *serverConfig) (*dag.Store, *license.Manager) {
 	return dagStore, licMgr
 }
 
-func initServices(cfg *serverConfig, flags map[string]interface{}, dagStore *dag.Store, licMgr *license.Manager) *apiserver.Server {
+func initServices(cfg *serverConfig, flags map[string]interface{}, dagStore dag.Store, licMgr *license.Manager) *apiserver.Server {
 	config := &apiserver.Config{
 		Host:         cfg.host,
 		Port:         cfg.port,
