@@ -22,11 +22,8 @@ import {
   Shield,
   Zap,
   Plus,
-  Edit,
-  Trash,
   TestTube,
   FileText,
-  Github,
   Brain,
   Loader2
 } from 'lucide-react';
@@ -593,8 +590,8 @@ export const ConnectorSDK: React.FC = () => {
                       <div>
                         <h5 className="font-medium mb-2">Capabilities</h5>
                         <div className="space-y-1">
-                          {connector.capabilities.map((capability, index) => (
-                            <div key={index} className="flex items-center justify-between text-sm">
+                          {connector.capabilities.map((capability, idx) => (
+                            <div key={`${connector.id}-cap-${idx}`} className="flex items-center justify-between text-sm">
                               <div className="flex items-center gap-2">
                                 {capability.enabled ? (
                                   <CheckCircle className="h-3 w-3 text-green-500" />
@@ -612,8 +609,8 @@ export const ConnectorSDK: React.FC = () => {
                       <div>
                         <h5 className="font-medium mb-2">Compliance Frameworks</h5>
                         <div className="flex flex-wrap gap-1">
-                          {connector.complianceFrameworks.map((framework, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
+                          {connector.complianceFrameworks.map((framework, idx) => (
+                            <Badge key={`${connector.id}-fw-${idx}`} variant="outline" className="text-xs">
                               {framework}
                             </Badge>
                           ))}
@@ -736,8 +733,8 @@ export const ConnectorSDK: React.FC = () => {
                     <div>
                       <h5 className="font-medium mb-2">Supported Frameworks</h5>
                       <div className="flex flex-wrap gap-1">
-                        {template.supportedFrameworks.map((framework, index) => (
-                          <Badge key={index} variant="outline" className="text-xs">
+                        {template.supportedFrameworks.map((framework, idx) => (
+                          <Badge key={`${template.id}-fw-${idx}`} variant="outline" className="text-xs">
                             {framework}
                           </Badge>
                         ))}
