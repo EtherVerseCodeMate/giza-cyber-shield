@@ -252,6 +252,7 @@ func initServices(cfg *serverConfig, flags map[string]interface{}, dagStore dag.
 			"http://localhost:3000",
 			"http://localhost:5173",
 			"http://localhost:8080",
+			"http://localhost:8080",
 		},
 		Debug: cfg.debug,
 	}
