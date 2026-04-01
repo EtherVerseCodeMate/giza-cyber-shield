@@ -24,6 +24,7 @@ import {
   Plus,
   TestTube,
   FileText,
+  Github,
   Brain,
   Loader2
 } from 'lucide-react';
