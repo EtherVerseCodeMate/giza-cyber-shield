@@ -1,265 +1,220 @@
 #!/bin/bash
-# deploy-vps.sh
-# Deploy ASAF backend stack to srv1494994.hstgr.cloud (187.124.225.91)
-# Run from the project root: bash deploy-vps.sh
+# deploy-vps.sh — ASAF VPS: Static Dist + Stripe Webhook + Docs
 #
-# What this does:
-#   1. Cross-compiles Linux binaries locally
-#   2. Uploads them to the VPS
-#   3. Installs nginx + systemd services
-#   4. Configures TLS via Let's Encrypt (certbot)
-#   5. Starts: api server (:45444), telemetry server, MCP SSE server (:8811)
+# Scope (what this VPS does):
+#   ✅ Serve install-asaf.sh + checksums (static, behind TLS)
+#   ✅ Serve docs (MCP setup, quickstart)
+#   ✅ Stripe webhook receiver (stateless, idempotent Go service)
+#   ✅ Optional: release artifact mirror for restricted networks
 #
-# Prerequisites:
-#   - SSH access to 187.124.225.91
-#   - Go toolchain installed locally
-#   - SSH key configured (or use root password for first run)
+#   ❌ NOT: public ASAF API server (that runs on customer machines)
+#   ❌ NOT: Ollama / model weights (customer-local only)
+#   ❌ NOT: multi-tenant SaaS (future decision, not now)
+#
+# Usage: bash deploy-vps.sh
+# Prereqs: Go toolchain, SSH access to VPS
 
 set -euo pipefail
 
 VPS_HOST="187.124.225.91"
-VPS_USER="root"
-VPS_HOSTNAME="srv1494994.hstgr.cloud"
-ASAF_DOMAIN="${ASAF_DOMAIN:-api.nouchix.com}"   # Set ASAF_DOMAIN env to override
-SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
+VPS_USER="${VPS_USER:-asaf}"        # non-root after first run; root on first run
+DEPLOY_EMAIL="skone@alumni.albany.edu"
+
+SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
+
+RED='\033[0;31m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; BOLD='\033[1m'; RESET='\033[0m'
+log() { printf "${CYAN}[DEPLOY]${RESET} %s\n" "$*"; }
+ok()  { printf "${GREEN}[DEPLOY]${RESET} ✓ %s\n" "$*"; }
+die() { printf "${RED}[DEPLOY]${RESET} ✗ %s\n" "$*" >&2; exit 1; }
+
+# ── Phase 0: Build webhook service binary ─────────────────────────────────────
+log "Building Stripe webhook service..."
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+  -trimpath -ldflags="-s -w" \
+  -o bin/asaf-webhook-linux-amd64 \
+  ./cmd/webhook 2>/dev/null || {
+    log "webhook cmd not yet built — skipping binary upload"
+    SKIP_WEBHOOK_BIN=1
+  }
+
+# ── Phase 1: Security Baseline (idempotent — safe to re-run) ─────────────────
+log "Phase 1: Security baseline..."
+ssh ${SSH_OPTS} root@${VPS_HOST} << 'BASELINE'
+set -e
+
+# Create non-root deploy user if absent
+if ! id asaf &>/dev/null; then
+  adduser --disabled-password --gecos "ASAF Deploy" asaf
+  usermod -aG sudo asaf
+  echo "asaf ALL=(ALL) NOPASSWD:/bin/systemctl restart asaf-*" >> /etc/sudoers.d/asaf
+fi
+
+# Harden SSH (idempotent sed)
+sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin no/'          /etc/ssh/sshd_config
+sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+sed -i 's/^#\?PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+systemctl reload ssh
+
+# UFW: default deny, allow only 22/80/443
+ufw --force reset
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow 22/tcp comment 'SSH'
+ufw allow 80/tcp comment 'HTTP (redirect to HTTPS)'
+ufw allow 443/tcp comment 'HTTPS'
+ufw --force enable
+
+# Automatic security updates
+apt-get install -y -qq unattended-upgrades
+dpkg-reconfigure -f noninteractive unattended-upgrades
+
+# Install Caddy (automatic Let's Encrypt)
+if ! command -v caddy &>/dev/null; then
+  apt-get install -y -qq debian-keyring debian-archive-keyring apt-transport-https curl
+  curl -fsSL 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
+    | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  echo 'deb [signed-by=/usr/share/keyrings/caddy-stable-archive-keyring.gpg] \
+    https://dl.cloudsmith.io/public/caddy/stable/deb/debian any-version main' \
+    > /etc/apt/sources.list.d/caddy-stable.list
+  apt-get update -qq && apt-get install -y -qq caddy
+fi
+
+# Create dirs
+mkdir -p /var/www/asaf/{releases,docs}
+chown -R asaf:asaf /var/www/asaf
+mkdir -p /opt/asaf/bin /opt/asaf/secrets
+chown -R asaf:asaf /opt/asaf
+
+echo "✓ Security baseline complete"
+BASELINE
+ok "Security baseline applied"
+
+# ── Phase 2: Install deploy user SSH key ─────────────────────────────────────
+if [ -f "${HOME}/.ssh/id_ed25519.pub" ]; then
+  log "Installing SSH key for asaf user..."
+  ssh ${SSH_OPTS} root@${VPS_HOST} << EOF
+    mkdir -p /home/asaf/.ssh
+    echo "$(cat ${HOME}/.ssh/id_ed25519.pub)" >> /home/asaf/.ssh/authorized_keys
+    sort -u /home/asaf/.ssh/authorized_keys -o /home/asaf/.ssh/authorized_keys
+    chmod 700 /home/asaf/.ssh && chmod 600 /home/asaf/.ssh/authorized_keys
+    chown -R asaf:asaf /home/asaf/.ssh
+EOF
+  ok "SSH key installed for asaf user"
+else
+  log "No ~/.ssh/id_ed25519.pub found — add your public key to /home/asaf/.ssh/authorized_keys manually"
+fi
+
+# Switch to non-root user for remaining steps
 SSH="ssh ${SSH_OPTS} ${VPS_USER}@${VPS_HOST}"
 SCP="scp ${SSH_OPTS}"
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'
-BOLD='\033[1m'; RESET='\033[0m'
+# ── Phase 3: Upload static assets ─────────────────────────────────────────────
+log "Uploading static assets..."
+$SCP install-asaf.sh ${VPS_USER}@${VPS_HOST}:/var/www/asaf/      # installer script
+[ -d "docs" ] && $SCP -r docs/. ${VPS_USER}@${VPS_HOST}:/var/www/asaf/docs/
 
-log()  { printf "${CYAN}[DEPLOY]${RESET} %s\n" "$*"; }
-ok()   { printf "${GREEN}[DEPLOY]${RESET} ✓ %s\n" "$*"; }
-die()  { printf "${RED}[DEPLOY]${RESET} ✗ %s\n" "$*" >&2; exit 1; }
-
-# ── 1. Build Binaries ──────────────────────────────────────────────────────────
-log "Building Linux/amd64 binaries..."
-make build-linux || die "Build failed. Run: make build-linux"
-ok "Binaries built: bin/asaf-linux-amd64, bin/asaf-apiserver-linux-amd64"
-
-# Also build the telemetry server if it has its own cmd
-if [ -d "adinkhepra-telemetry-server" ]; then
-  log "Building telemetry server..."
-  GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
-    -trimpath -ldflags="-s -w" \
-    -o bin/asaf-telemetry-linux-amd64 \
-    ./adinkhepra-telemetry-server/... 2>/dev/null || \
-    log "Telemetry server build skipped (check path)"
+# Upload release artifacts if built
+if [ -d "bin" ] && ls bin/asaf-* &>/dev/null; then
+  $SCP bin/asaf-* ${VPS_USER}@${VPS_HOST}:/var/www/asaf/releases/
+  $SCP bin/checksums.txt ${VPS_USER}@${VPS_HOST}:/var/www/asaf/releases/ 2>/dev/null || true
 fi
 
-# Build MCP server
-log "Building MCP server..."
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
-  -trimpath -ldflags="-s -w" \
-  -o bin/asaf-mcp-linux-amd64 ./cmd/khepra-mcp
-ok "MCP server built: bin/asaf-mcp-linux-amd64"
-
-# ── 2. Provision VPS ──────────────────────────────────────────────────────────
-log "Provisioning VPS (${VPS_HOST})..."
-$SSH << 'REMOTE'
-set -e
-
-# Update and install dependencies
-apt-get update -qq
-apt-get install -y -qq nginx certbot python3-certbot-nginx sqlite3 curl
-
-# Create ASAF user and directories
-useradd -r -s /bin/false -d /opt/asaf asaf 2>/dev/null || true
-mkdir -p /opt/asaf/{bin,data,keys,logs,certs}
-mkdir -p /var/log/asaf
-
-# Create install-redirect for get.nouchix.com/asaf
-mkdir -p /var/www/get-asaf
-
-echo "✓ VPS provisioned"
-REMOTE
-ok "VPS provisioned"
-
-# ── 3. Upload Binaries ─────────────────────────────────────────────────────────
-log "Uploading binaries..."
-$SCP \
-  bin/asaf-linux-amd64 \
-  bin/asaf-apiserver-linux-amd64 \
-  bin/asaf-mcp-linux-amd64 \
-  ${VPS_USER}@${VPS_HOST}:/opt/asaf/bin/
-
-# Upload install script
-$SCP install-asaf.sh ${VPS_USER}@${VPS_HOST}:/var/www/get-asaf/asaf
-
-# Upload NLP platform if it exists
-if [ -f "docs/asaf-nlp.html" ]; then
-  $SCP docs/asaf-nlp.html ${VPS_USER}@${VPS_HOST}:/var/www/get-asaf/
+# Upload webhook binary
+if [ "${SKIP_WEBHOOK_BIN:-0}" = "0" ] && [ -f "bin/asaf-webhook-linux-amd64" ]; then
+  $SCP bin/asaf-webhook-linux-amd64 ${VPS_USER}@${VPS_HOST}:/opt/asaf/bin/
 fi
 
-ok "Binaries uploaded"
+ok "Assets uploaded"
 
-# ── 4. Install systemd Services ───────────────────────────────────────────────
-log "Installing systemd services..."
-$SSH << REMOTE
-set -e
+# ── Phase 4: Caddyfile ────────────────────────────────────────────────────────
+log "Configuring Caddy..."
+$SSH "sudo tee /etc/caddy/Caddyfile" << CADDYEOF
+# ASAF Distribution Server
+# Caddy handles TLS automatically via Let's Encrypt
 
-# Make binaries executable + symlink
-chmod +x /opt/asaf/bin/*
-ln -sf /opt/asaf/bin/asaf-linux-amd64 /usr/local/bin/asaf
+# Install script + checksums + release mirrors
+get.nouchix.com {
+    root * /var/www/asaf
 
-# ── ASAF API Server service ────────────────────────────────────────────────────
-cat > /etc/systemd/system/asaf-api.service << 'EOF'
+    # Serve install-asaf.sh as plain text (so curl | sh works)
+    @installer path /asaf
+    header @installer Content-Type "text/plain; charset=utf-8"
+
+    # Windows PowerShell stub
+    @wininstaller path /asaf/win
+    respond @wininstaller "Invoke-WebRequest -Uri 'https://get.nouchix.com/releases/asaf-windows-amd64.exe' -OutFile asaf.exe" 200
+
+    # Releases directory (with directory listing for mirrors)
+    @releases path /releases/*
+    file_server @releases browse
+
+    file_server
+}
+
+# Docs site
+docs.nouchix.com {
+    root * /var/www/asaf/docs
+    file_server browse
+    try_files {path} {path}.html {path}/index.html =404
+}
+
+# Stripe webhook receiver (proxies to local Go service on :4242)
+webhook.nouchix.com {
+    reverse_proxy localhost:4242
+}
+CADDYEOF
+
+$SSH "sudo systemctl enable caddy && sudo systemctl restart caddy"
+ok "Caddy configured and restarted"
+
+# ── Phase 5: Stripe Webhook systemd service ───────────────────────────────────
+log "Installing Stripe webhook service..."
+$SSH "sudo tee /etc/systemd/system/asaf-webhook.service" << 'SVCEOF'
 [Unit]
-Description=ASAF API Server (Mitochondria Polymorphic API)
+Description=ASAF Stripe Webhook Receiver
 After=network.target
-Wants=network-online.target
 
 [Service]
 Type=simple
-User=root
+User=asaf
 WorkingDirectory=/opt/asaf
-ExecStart=/opt/asaf/bin/asaf-apiserver-linux-amd64
+EnvironmentFile=/opt/asaf/secrets/webhook.env
+ExecStart=/opt/asaf/bin/asaf-webhook-linux-amd64 --addr=:4242
 Restart=always
 RestartSec=5
-Environment=ADINKHEPRA_AGENT_PORT=45444
-Environment=ASAF_DATA_DIR=/opt/asaf/data
-Environment=ASAF_KEYS_DIR=/opt/asaf/keys
-StandardOutput=append:/var/log/asaf/api.log
-StandardError=append:/var/log/asaf/api.log
+# No filesystem write access outside data dir
+ReadWritePaths=/opt/asaf/data
+PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
-EOF
+SVCEOF
 
-# ── ASAF MCP SSE Server service ────────────────────────────────────────────────
-cat > /etc/systemd/system/asaf-mcp.service << 'EOF'
-[Unit]
-Description=ASAF MCP Server (SSE transport — remote AI tool access)
-After=asaf-api.service
-Wants=asaf-api.service
+$SSH << 'SVCSETUP'
+sudo systemctl daemon-reload
+sudo systemctl enable asaf-webhook
+# Only start if binary exists
+[ -f /opt/asaf/bin/asaf-webhook-linux-amd64 ] && sudo systemctl restart asaf-webhook || true
+SVCSETUP
+ok "Webhook service installed"
 
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/opt/asaf
-ExecStart=/opt/asaf/bin/asaf-mcp-linux-amd64 --transport=sse --addr=:8811
-Restart=always
-RestartSec=5
-Environment=KHEPRA_API_URL=http://localhost:45444
-Environment=MCP_PQC_ENABLED=true
-StandardOutput=append:/var/log/asaf/mcp.log
-StandardError=append:/var/log/asaf/mcp.log
+# ── Phase 6: Secrets reminder ─────────────────────────────────────────────────
+printf "\n${BOLD}━━━ Secrets Setup (manual — do not put in git) ━━━${RESET}\n"
+printf "SSH into the VPS and create /opt/asaf/secrets/webhook.env:\n\n"
+printf "  ${CYAN}ssh ${VPS_USER}@${VPS_HOST}${RESET}\n"
+printf "  ${CYAN}sudo tee /opt/asaf/secrets/webhook.env << 'EOF'${RESET}\n"
+printf "  STRIPE_WEBHOOK_SECRET=whsec_...\n"
+printf "  STRIPE_SECRET_KEY=sk_live_...\n"
+printf "  ASAF_NOTIFY_EMAIL=skone@alumni.albany.edu\n"
+printf "  EOF\n"
+printf "  ${CYAN}sudo chmod 600 /opt/asaf/secrets/webhook.env${RESET}\n\n"
 
-[Install]
-WantedBy=multi-user.target
-EOF
+printf "${BOLD}━━━ DNS (point these to ${VPS_HOST}) ━━━${RESET}\n"
+printf "  get.nouchix.com     A  ${VPS_HOST}\n"
+printf "  docs.nouchix.com    A  ${VPS_HOST}\n"
+printf "  webhook.nouchix.com A  ${VPS_HOST}\n\n"
 
-systemctl daemon-reload
-systemctl enable asaf-api asaf-mcp
-systemctl restart asaf-api asaf-mcp || true
-echo "✓ Services installed"
-REMOTE
-ok "systemd services installed"
-
-# ── 5. Configure nginx ─────────────────────────────────────────────────────────
-log "Configuring nginx (domain: ${ASAF_DOMAIN})..."
-$SSH "cat > /etc/nginx/sites-available/asaf" << NGINXEOF
-# ASAF — nginx reverse proxy
-# Domains:
-#   api.nouchix.com  → API server (:45444)
-#   mcp.nouchix.com  → MCP SSE server (:8811)
-#   get.nouchix.com  → Install redirect
-
-# API server
-server {
-    listen 80;
-    server_name ${ASAF_DOMAIN};
-
-    # Rate limiting
-    limit_req_zone \$binary_remote_addr zone=api:10m rate=30r/m;
-
-    location / {
-        limit_req zone=api burst=10 nodelay;
-        proxy_pass http://127.0.0.1:45444;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_read_timeout 300;
-    }
-}
-
-# MCP SSE server
-server {
-    listen 80;
-    server_name mcp.nouchix.com;
-
-    location / {
-        proxy_pass http://127.0.0.1:8811;
-        proxy_http_version 1.1;
-        proxy_set_header Connection '';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        # SSE requires disabling buffering
-        proxy_buffering off;
-        proxy_cache off;
-        proxy_read_timeout 3600;
-        chunked_transfer_encoding on;
-    }
-}
-
-# Install redirect — serves install-asaf.sh
-server {
-    listen 80;
-    server_name get.nouchix.com;
-
-    root /var/www/get-asaf;
-
-    location = /asaf {
-        default_type text/plain;
-        add_header Content-Type "text/plain; charset=utf-8";
-        try_files /asaf =404;
-    }
-
-    # Windows PowerShell installer (future)
-    location = /asaf/win {
-        default_type text/plain;
-        return 200 "Write-Host 'Windows installer coming soon. Download from: https://github.com/EtherVerseCodeMate/giza-cyber-shield/releases'";
-    }
-
-    # NLP platform
-    location = /nlp {
-        try_files /asaf-nlp.html =404;
-    }
-}
-NGINXEOF
-
-$SSH << REMOTE2
-set -e
-ln -sf /etc/nginx/sites-available/asaf /etc/nginx/sites-enabled/asaf
-rm -f /etc/nginx/sites-enabled/default
-nginx -t && systemctl reload nginx
-echo "✓ nginx configured"
-REMOTE2
-ok "nginx configured"
-
-# ── 6. Optional: TLS via Let's Encrypt ────────────────────────────────────────
-log "DNS must be pointed to ${VPS_HOST} before running certbot."
-log "Once DNS is live, run this on the VPS to enable TLS:"
-printf "\n  ${BOLD}ssh root@${VPS_HOST}${RESET}\n"
-printf "  ${BOLD}certbot --nginx -d ${ASAF_DOMAIN} -d mcp.nouchix.com -d get.nouchix.com --email skone@alumni.albany.edu --agree-tos --non-interactive${RESET}\n\n"
-
-# ── 7. Health Check ────────────────────────────────────────────────────────────
-log "Waiting for services to start..."
-sleep 3
-
-if $SSH "curl -sf http://localhost:45444/healthz > /dev/null 2>&1"; then
-  ok "API server is responding at http://${VPS_HOST}:45444/healthz"
-else
-  log "API server not yet responding (may need a moment to initialize)"
-  log "Check logs: ssh root@${VPS_HOST} journalctl -u asaf-api -n 50"
-fi
-
-printf "\n${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
-printf "${BOLD}VPS Deployment Complete${RESET}\n"
-printf "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n\n"
-printf "  API:      http://${VPS_HOST}:45444   (→ ${ASAF_DOMAIN} after DNS+TLS)\n"
-printf "  MCP SSE:  http://${VPS_HOST}:8811    (→ mcp.nouchix.com after DNS+TLS)\n"
-printf "  Install:  http://${VPS_HOST}/asaf    (→ get.nouchix.com after DNS)\n\n"
-printf "  Logs:     ssh root@${VPS_HOST} journalctl -u asaf-api -f\n"
-printf "  Status:   ssh root@${VPS_HOST} systemctl status asaf-api asaf-mcp\n\n"
+printf "${GREEN}✓ VPS deploy complete${RESET}\n"
+printf "  Static:  https://get.nouchix.com/asaf (after DNS)\n"
+printf "  Docs:    https://docs.nouchix.com\n"
+printf "  Webhook: https://webhook.nouchix.com (Stripe → here)\n"
