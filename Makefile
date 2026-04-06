@@ -25,6 +25,67 @@ secure-build:
 	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -mod=vendor -o bin/$(AGENT).exe ./cmd/agent
 	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -mod=vendor -o bin/$(GATEWAY).exe ./cmd/gateway
 
+# ============================================================
+# Cross-Platform Release Builds (Track 1 — Sovereign Distribution)
+# ============================================================
+
+VERSION?=$(shell git describe --tags --always --dirty 2>/dev/null || echo "v1.0.0")
+LD_FLAGS=-trimpath -ldflags="-s -w -X main.Version=$(VERSION) -X main.BuildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+# Linux AMD64 (primary for DoD/SCIF/Iron Bank)
+build-linux:
+	@echo "[ASAF] Building Linux/amd64 static binary ($(VERSION))"
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build $(LD_FLAGS) -o bin/asaf-linux-amd64 ./cmd/adinkhepra
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build $(LD_FLAGS) -o bin/asaf-apiserver-linux-amd64 ./cmd/apiserver
+	@echo "[ASAF] Linux build: bin/asaf-linux-amd64"
+
+# Linux ARM64 (Raspberry Pi, AWS Graviton, Apple M1 server)
+build-linux-arm64:
+	@echo "[ASAF] Building Linux/arm64 static binary ($(VERSION))"
+	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build $(LD_FLAGS) -o bin/asaf-linux-arm64 ./cmd/adinkhepra
+	@echo "[ASAF] Linux ARM64 build: bin/asaf-linux-arm64"
+
+# macOS AMD64
+build-darwin-amd64:
+	@echo "[ASAF] Building macOS/amd64 binary ($(VERSION))"
+	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build $(LD_FLAGS) -o bin/asaf-darwin-amd64 ./cmd/adinkhepra
+
+# macOS ARM64 (Apple Silicon — M1/M2/M3)
+build-darwin-arm64:
+	@echo "[ASAF] Building macOS/arm64 binary ($(VERSION))"
+	GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build $(LD_FLAGS) -o bin/asaf-darwin-arm64 ./cmd/adinkhepra
+
+# Windows AMD64
+build-windows:
+	@echo "[ASAF] Building Windows/amd64 binary ($(VERSION))"
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build $(LD_FLAGS) -o bin/asaf-windows-amd64.exe ./cmd/adinkhepra
+
+# Build all platforms for GitHub Release
+release-all: build-linux build-linux-arm64 build-darwin-amd64 build-darwin-arm64 build-windows
+	@echo "[ASAF] Generating SHA-256 checksums for release verification..."
+	@cd bin && sha256sum asaf-linux-amd64 asaf-linux-arm64 \
+		asaf-darwin-amd64 asaf-darwin-arm64 asaf-windows-amd64.exe > checksums.txt
+	@echo "[ASAF] Release artifacts ready in bin/"
+	@echo "[ASAF] Checksums: bin/checksums.txt"
+	@ls -lh bin/
+
+# MCP server binary (for asaf mcp command)
+build-mcp:
+	@echo "[ASAF] Building khepra-mcp binary"
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build $(LD_FLAGS) -o bin/asaf-mcp-linux-amd64 ./cmd/khepra-mcp
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build $(LD_FLAGS) -o bin/asaf-mcp-windows.exe ./cmd/khepra-mcp
+
+# Local NLP server (Track 3) — spawns apiserver + serves asaf-nlp.html
+serve-nlp:
+	@echo "[ASAF] Starting Natural Language Security Platform..."
+	@echo "[ASAF] API server → http://localhost:45444"
+	@echo "[ASAF] NLP console → http://localhost:7777"
+	@ADINKHEPRA_AGENT_PORT=45444 ./bin/asaf-apiserver-linux-amd64 &
+	@sleep 1
+	@cd docs && python3 -m http.server 7777 --bind 127.0.0.1 &
+	@echo "[ASAF] Opening browser..."
+	@xdg-open http://localhost:7777/asaf-nlp.html 2>/dev/null || open http://localhost:7777/asaf-nlp.html 2>/dev/null || echo "Open: http://localhost:7777/asaf-nlp.html"
+
 # ECR-02: FIPS 140-3 Compliance Build (DoD Iron Bank)
 # This builds with BoringCrypto (FIPS-validated cryptography module)
 # Required for DoD Platform One deployments
