@@ -5,9 +5,10 @@
 //   asaf serve-nlp --port 8080   # custom port
 //   asaf serve-nlp --no-open     # don't auto-open browser
 //
-// Embeds asaf-nlp.html via embed.FS.
-// Spawns apiserver as a supervised child process.
-// Shuts down cleanly on SIGINT/SIGTERM.
+// The asaf-nlp.html is embedded at build time from the static/ subdirectory.
+// To update: cp docs/asaf-nlp.html cmd/serve-nlp/static/asaf-nlp.html
+//
+//go:generate cp ../../docs/asaf-nlp.html static/asaf-nlp.html
 
 package main
 
@@ -28,7 +29,7 @@ import (
 	"time"
 )
 
-//go:embed ../../docs/asaf-nlp.html
+//go:embed static
 var nlpHTML embed.FS
 
 func main() {
@@ -70,7 +71,7 @@ func main() {
 	}
 
 	// ── Serve asaf-nlp.html ──────────────────────────────────────────────────
-	sub, err := fs.Sub(nlpHTML, "docs")
+	sub, err := fs.Sub(nlpHTML, "static")
 	if err != nil {
 		log.Fatalf("[serve-nlp] embed.FS error: %v", err)
 	}
