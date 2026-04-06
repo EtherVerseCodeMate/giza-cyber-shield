@@ -43,8 +43,8 @@ export interface AttestResponse {
 }
 
 export class KhepraClient {
-  private baseURL: string;
-  private timeout: number;
+  private readonly baseURL: string;
+  private readonly timeout: number;
 
   constructor(
     port: number = 45444,
@@ -213,7 +213,7 @@ export async function ensureKhepraRunning(): Promise<void> {
     const health = await khepra.heartbeat();
     console.log('[KHEPRA] Father is watching:', health.message);
   } catch (error) {
-    console.error('[KHEPRA] CRITICAL: Father is not running!');
+    console.error('[KHEPRA] CRITICAL: Father is not running!', error);
     console.error('Start the Khepra daemon: khepra-daemon.exe');
     throw new Error('Khepra daemon required but not running on port 45444');
   }
@@ -228,7 +228,7 @@ export async function ensureKhepraRunning(): Promise<void> {
  * // In your Next.js app startup
  * startHeartbeatMonitor(30000); // Check every 30 seconds
  */
-export function startHeartbeatMonitor(interval: number = 30000): NodeJS.Timer {
+export function startHeartbeatMonitor(interval: number = 30000): ReturnType<typeof setInterval> {
   console.log('[KHEPRA] Starting heartbeat monitor (every 30s)');
 
   return setInterval(async () => {
