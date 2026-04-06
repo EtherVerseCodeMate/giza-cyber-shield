@@ -1,0 +1,225 @@
+name: ASAF Release — Cross-Platform Builds
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. v1.0.1)'
+        required: true
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  # ── Build all platform binaries ──────────────────────────────────────────────
+  build:
+    name: Build (${{ matrix.goos }}/${{ matrix.goarch }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            artifact: asaf-linux-amd64
+          - goos: linux
+            goarch: arm64
+            artifact: asaf-linux-arm64
+          - goos: darwin
+            goarch: amd64
+            artifact: asaf-darwin-amd64
+          - goos: darwin
+            goarch: arm64
+            artifact: asaf-darwin-arm64
+          - goos: windows
+            goarch: amd64
+            artifact: asaf-windows-amd64.exe
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: '0'
+        run: |
+          VERSION="${{ github.ref_name || github.event.inputs.version }}"
+          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          go build \
+            -trimpath \
+            -ldflags="-s -w -X main.Version=${VERSION} -X main.BuildDate=${BUILD_DATE}" \
+            -o bin/${{ matrix.artifact }} \
+            ./cmd/adinkhepra
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: bin/${{ matrix.artifact }}
+          retention-days: 1
+
+  # ── Build MCP server binaries ─────────────────────────────────────────────────
+  build-mcp:
+    name: Build MCP server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build MCP Linux
+        env:
+          GOOS: linux
+          GOARCH: amd64
+          CGO_ENABLED: '0'
+        run: |
+          go build -trimpath -ldflags="-s -w" -o bin/asaf-mcp-linux-amd64 ./cmd/khepra-mcp
+      - name: Build MCP Windows
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: '0'
+        run: |
+          go build -trimpath -ldflags="-s -w" -o bin/asaf-mcp-windows.exe ./cmd/khepra-mcp
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asaf-mcp-binaries
+          path: bin/asaf-mcp-*
+          retention-days: 1
+
+  # ── Create GitHub Release ─────────────────────────────────────────────────────
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build, build-mcp]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+
+      - name: Flatten artifacts and generate checksums
+        run: |
+          mkdir -p release/
+          find dist/ -type f -exec cp {} release/ \;
+          cd release/
+          sha256sum * > checksums.txt
+          echo "=== Release artifacts ==="
+          ls -lh
+          echo ""
+          echo "=== SHA-256 Checksums ==="
+          cat checksums.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ASAF ${{ github.ref_name }} — Agentic Security Attestation Framework
+          body: |
+            ## ASAF ${{ github.ref_name }}
+
+            **ADINKHEPRA Post-Quantum Certified · By NouchiX / Sacred Knowledge Inc**
+
+            ---
+
+            ### Quick Install
+
+            ```bash
+            # Linux / macOS
+            curl -sSL https://get.nouchix.com/asaf | sh
+
+            # Windows (PowerShell)
+            irm https://get.nouchix.com/asaf/win | iex
+            ```
+
+            ### Manual Install
+
+            Download the binary for your platform below, verify the SHA-256 checksum
+            in `checksums.txt`, and place in your `$PATH`.
+
+            | Platform | Binary |
+            |----------|--------|
+            | Linux x86_64 | `asaf-linux-amd64` |
+            | Linux ARM64 | `asaf-linux-arm64` |
+            | macOS Intel | `asaf-darwin-amd64` |
+            | macOS Apple Silicon | `asaf-darwin-arm64` |
+            | Windows x86_64 | `asaf-windows-amd64.exe` |
+
+            ### Quick Start
+
+            ```bash
+            asaf scan --target <host-or-ip>
+            asaf certify --target <host> --out report.pdf
+            asaf mcp    # Add to Claude Code / Cursor / Windsurf
+            ```
+
+            ### MCP Integration (Claude Code, Cursor, Windsurf)
+
+            ```json
+            {
+              "mcpServers": {
+                "asaf": {
+                  "command": "asaf",
+                  "args": ["mcp"],
+                  "description": "ASAF — PQC security attestation and CMMC compliance"
+                }
+              }
+            }
+            ```
+
+            ---
+
+            **All binaries are statically compiled, zero external dependencies.**
+            Verify with `sha256sum` against `checksums.txt`.
+          files: release/*
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: false
+
+      # ── Deploy API server to VPS ──────────────────────────────────────────────
+      - name: Deploy API server to VPS
+        env:
+          VPS_HOST: "187.124.225.91"
+          VPS_USER: "root"
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_DEPLOY_KEY }}
+        run: |
+          if [ -z "${SSH_PRIVATE_KEY}" ]; then
+            echo "⚠️  VPS_DEPLOY_KEY secret not set — skipping VPS deployment"
+            exit 0
+          fi
+
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "${SSH_PRIVATE_KEY}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${VPS_HOST}" >> ~/.ssh/known_hosts 2>/dev/null
+
+          # Upload new Linux binary to VPS
+          scp -i ~/.ssh/deploy_key \
+            release/asaf-linux-amd64 \
+            release/asaf-mcp-linux-amd64 \
+            "${VPS_USER}@${VPS_HOST}:/opt/asaf/bin/"
+
+          # Reload services on VPS
+          ssh -i ~/.ssh/deploy_key "${VPS_USER}@${VPS_HOST}" << 'EOF'
+            chmod +x /opt/asaf/bin/asaf-linux-amd64 /opt/asaf/bin/asaf-mcp-linux-amd64
+            ln -sf /opt/asaf/bin/asaf-linux-amd64 /usr/local/bin/asaf
+            systemctl restart asaf-api || true
+            systemctl restart asaf-telemetry || true
+            echo "[ASAF] Deployment complete: $(asaf version)"
+          EOF
