@@ -75,16 +75,29 @@ build-mcp:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build $(LD_FLAGS) -o bin/asaf-mcp-linux-amd64 ./cmd/khepra-mcp
 	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build $(LD_FLAGS) -o bin/asaf-mcp-windows.exe ./cmd/khepra-mcp
 
-# Local NLP server (Track 3) — spawns apiserver + serves asaf-nlp.html
-serve-nlp:
+# Stripe webhook receiver (VPS distribution layer)
+build-webhook:
+	@echo "[ASAF] Building Stripe webhook service"
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build $(LD_FLAGS) -o bin/asaf-webhook-linux-amd64 ./cmd/webhook
+
+# Local NLP server (Track 3) — uses embed.FS, proper process supervision
+# Requires: build-linux first to produce asaf-apiserver-linux-amd64
+serve-nlp: build-linux
+	@echo "[ASAF] Building serve-nlp binary..."
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build $(LD_FLAGS) -o bin/asaf-serve-nlp-linux-amd64 ./cmd/serve-nlp
 	@echo "[ASAF] Starting Natural Language Security Platform..."
-	@echo "[ASAF] API server → http://localhost:45444"
-	@echo "[ASAF] NLP console → http://localhost:7777"
-	@ADINKHEPRA_AGENT_PORT=45444 ./bin/asaf-apiserver-linux-amd64 &
-	@sleep 1
-	@cd docs && python3 -m http.server 7777 --bind 127.0.0.1 &
-	@echo "[ASAF] Opening browser..."
-	@xdg-open http://localhost:7777/asaf-nlp.html 2>/dev/null || open http://localhost:7777/asaf-nlp.html 2>/dev/null || echo "Open: http://localhost:7777/asaf-nlp.html"
+	@echo "[ASAF]   NLP console → http://localhost:7777"
+	@echo "[ASAF]   API server  → http://localhost:45444"
+	./bin/asaf-serve-nlp-linux-amd64
+
+# Local NLP (Windows)
+serve-nlp-windows: build-windows
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build $(LD_FLAGS) -o bin/asaf-serve-nlp.exe ./cmd/serve-nlp
+
+# Full release: all binaries including mcp + webhook
+release-full: release-all build-mcp build-webhook
+	@cd bin && sha256sum * > checksums.txt
+	@echo "[ASAF] Full release artifacts ready in bin/"
 
 # ECR-02: FIPS 140-3 Compliance Build (DoD Iron Bank)
 # This builds with BoringCrypto (FIPS-validated cryptography module)
