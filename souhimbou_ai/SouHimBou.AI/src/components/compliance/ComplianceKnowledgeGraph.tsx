@@ -2,15 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Shield,
-  AlertTriangle,
   CheckCircle,
-  Eye,
   Target,
   Database,
   Zap,
@@ -233,7 +230,7 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
 
     // Find clicked node
     const clickedNode = graphData.nodes.find(node => {
-      const distance = Math.sqrt((x - node.x) ** 2 + (y - node.y) ** 2);
+      const distance = Math.hypot(x - node.x, y - node.y);
       return distance <= node.radius;
     });
 
@@ -257,7 +254,7 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
     const y = event.clientY - rect.top;
 
     const hoveredNode = graphData.nodes.find(node => {
-      const distance = Math.sqrt((x - node.x) ** 2 + (y - node.y) ** 2);
+      const distance = Math.hypot(x - node.x, y - node.y);
       return distance <= node.radius;
     });
 
@@ -268,7 +265,7 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
   const refreshGraph = async () => {
     try {
       // Simulate fetching updated graph data
-      const { data, error } = await supabase.functions.invoke('grok-ai-agent', {
+      await supabase.functions.invoke('grok-ai-agent', {
         body: {
           action: 'generate_knowledge_graph',
           includeRemediations: true,
@@ -276,7 +273,6 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
         }
       });
 
-      if (error) throw error;
 
       // For now, regenerate pending data
       setGraphData(generatePendingGraphData());
@@ -422,9 +418,13 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
                         <Badge variant="outline">{selectedNode.type}</Badge>
                         {selectedNode.status && (
                           <Badge
-                            className={`ml-2 ${selectedNode.status === 'compliant' ? 'bg-green-500' :
-                                selectedNode.status === 'non-compliant' ? 'bg-red-500' : 'bg-gray-500'
-                              }`}
+                            className={`ml-2 ${
+                              selectedNode.status === 'compliant'
+                                ? 'bg-green-500'
+                                : selectedNode.status === 'non-compliant'
+                                  ? 'bg-red-500'
+                                  : 'bg-gray-500'
+                            }`}
                           >
                             {selectedNode.status}
                           </Badge>
