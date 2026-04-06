@@ -34,7 +34,7 @@ export interface DriftFinding {
 }
 
 export class ContinuousComplianceMonitor {
-  private monitoringIntervals: Map<string, NodeJS.Timeout> = new Map();
+  private monitoringIntervals: Map<string, ReturnType<typeof setInterval>> = new Map();
 
   /**
    * Start continuous monitoring for an asset
