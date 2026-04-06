@@ -83,7 +83,6 @@ export const AttestationEngine: React.FC = () => {
   const [selectedAttestation, setSelectedAttestation] = useState<AttestationRecord | null>(null);
   const [isGeneratingPackage, setIsGeneratingPackage] = useState(false);
   const [showSignatureDetails, setShowSignatureDetails] = useState(false);
-  const [adinkraEngine] = useState(new AdinkraAlgebraicEngine());
   const { toast } = useToast();
 
   const refreshAttestations = () => {
@@ -129,15 +128,15 @@ export const AttestationEngine: React.FC = () => {
         attestedBy: 'ai-agent@company.com',
         attestedAt: new Date(),
         validUntil: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90),
-        evidenceHash: data?.evidenceHash || `sha256:${crypto.randomUUID().replace(/-/g, '')}`,
-        signature: data?.signature || `khepra:sig:${crypto.randomUUID().replace(/-/g, '')}`,
+        evidenceHash: data?.evidenceHash || `sha256:${crypto.randomUUID().replaceAll('-', '')}`,
+        signature: data?.signature || `khepra:sig:${crypto.randomUUID().replaceAll('-', '')}`,
         culturalFingerprint: fingerprint,
         trustScore: data?.trustScore || 0, // Real trust score comes from attestation service
         metadata: {
           evidenceCount: data?.evidenceCount || 0, // Real count from evidence collection
           testResults: data?.testResults || 0, // Real results from test execution
           remediationActions: data?.remediationActions || 0, // Real count from remediation engine
-          riskLevel: (data?.riskLevel || 'low') as any
+          riskLevel: (data?.riskLevel ?? 'low') as 'low' | 'medium' | 'high' | 'critical'
         }
       };
 
@@ -173,7 +172,7 @@ export const AttestationEngine: React.FC = () => {
         attestations: frameworkAttestations.map(att => att.id),
         totalControls: frameworkAttestations.length,
         compliantControls: compliantCount,
-        packageHash: `sha256:package:${crypto.randomUUID().replace(/-/g, '')}`,
+        packageHash: `sha256:package:${crypto.randomUUID().replaceAll('-', '')}`,
         downloadUrl: `/downloads/${framework.toLowerCase().replaceAll(' ', '-')}-${Date.now()}.zip`,
         expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90)
       };
