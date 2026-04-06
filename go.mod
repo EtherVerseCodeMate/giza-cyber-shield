@@ -16,7 +16,7 @@ require (
 	golang.org/x/crypto v0.49.0
 	golang.org/x/sys v0.42.0
 	google.golang.org/grpc v1.79.3
-	modernc.org/sqlite v1.47.0
+	modernc.org/sqlite v1.48.1
 	tailscale.com v1.88.1
 )
 
