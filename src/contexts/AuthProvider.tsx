@@ -12,7 +12,7 @@ import { AuthContext } from './AuthContext';
 // The ASAF agent verifies the key and returns claims on every app start.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ASAF_API = 'http://localhost:45444/api/v1';
+const ASAF_API = (import.meta.env.VITE_ASAF_API ?? 'http://localhost:45444') + '/api/v1';
 const LICENSE_STORAGE_KEY = 'asaf_license_key';
 const USER_STORAGE_KEY = 'asaf_user_profile';
 
