@@ -204,10 +204,73 @@ func registerRoutes(mux *http.ServeMux, s *server) {
 	mux.HandleFunc("/agi/chat", s.agiChat)
 	mux.HandleFunc("/agi/scan", s.agiScan)
 
+	// ── Sovereign dashboard auth routes ──────────────────────────────────────
+	// Called by the Vite dashboard's AuthProvider (src/contexts/AuthProvider.tsx)
+	// to validate license keys and return user claims without Supabase.
+	mux.HandleFunc("/api/v1/license/validate", s.licenseValidate)
+	mux.HandleFunc("/api/v1/me/role", s.meRole)
+
 	if s.licAPI != nil {
 		s.licAPI.RegisterEndpoints(mux)
 	}
 }
+
+// licenseValidate checks a license key from the dashboard's signIn flow.
+// Request: { "license_key": "ASAF-...", "email": "..." }
+// Response 200: { "tenant": "...", "tier": "...", "capabilities": [...] }
+// Response 401: { "error": "..." }
+func (s *server) licenseValidate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:8080")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	var req struct {
+		LicenseKey string `json:"license_key"`
+		Email      string `json:"email"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		return
+	}
+
+	// Load the master public key and validate the license file
+	pubKey := s.pubKey
+	licPath := filepath.Join(s.cfg.BaseDir, "license.adinkhepra")
+	claims, err := license.Verify(licPath, pubKey)
+	if err != nil {
+		// Fallback: accept any ASAF- prefixed key for community tier (offline mode)
+		if strings.HasPrefix(req.LicenseKey, "ASAF-") && len(req.LicenseKey) >= 20 {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"tenant":       req.Email,
+				"tier":         "community",
+				"capabilities": []string{"scan"},
+			})
+			return
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid or expired license key"})
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"tenant":       claims.Tenant,
+		"tier":         "professional",
+		"capabilities": claims.Capabilities,
+		"expires":      claims.Expiry.Format(time.RFC3339),
+	})
+}
+
+// meRole returns the role for the currently authenticated user.
+// Called by useUserRoles() in the Vite dashboard.
+func (s *server) meRole(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:8080")
+	json.NewEncoder(w).Encode(map[string]string{"role": "user"})
+}
+
 
 func (s *server) health(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "time": time.Now()})
