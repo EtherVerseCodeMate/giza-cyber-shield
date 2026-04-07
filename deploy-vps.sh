@@ -71,12 +71,24 @@ dpkg-reconfigure -f noninteractive unattended-upgrades
 # Install Caddy (automatic Let's Encrypt)
 if ! command -v caddy &>/dev/null; then
   apt-get install -y -qq debian-keyring debian-archive-keyring apt-transport-https curl
-  curl -fsSL 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
     | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-  echo 'deb [signed-by=/usr/share/keyrings/caddy-stable-archive-keyring.gpg] \
-    https://dl.cloudsmith.io/public/caddy/stable/deb/debian any-version main' \
-    > /etc/apt/sources.list.d/caddy-stable.list
-  apt-get update -qq && apt-get install -y -qq caddy
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/deb/ubuntu/any-version/amd64/dists/any-version/Release' \
+    -o /dev/null --silent --head --fail 2>/dev/null \
+    || true
+  # Use official Caddy script — works on Ubuntu 24.04 (noble)
+  curl -fsSL https://caddyserver.com/api/download?os=linux&arch=amd64 \
+    -o /usr/local/bin/caddy
+  chmod +x /usr/local/bin/caddy
+  # Create systemd service for Caddy
+  curl -fsSL https://raw.githubusercontent.com/caddyserver/dist/master/init/caddy.service \
+    -o /etc/systemd/system/caddy.service
+  groupadd --system caddy 2>/dev/null || true
+  useradd --system --gid caddy --create-home \
+    --home-dir /var/lib/caddy --shell /usr/sbin/nologin \
+    --comment "Caddy web server" caddy 2>/dev/null || true
+  systemctl daemon-reload
+  systemctl enable caddy
 fi
 
 # Create dirs
