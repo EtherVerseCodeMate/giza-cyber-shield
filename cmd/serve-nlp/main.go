@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"syscall"
 	"time"
@@ -42,7 +43,30 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	// ── Detect API server binary ─────────────────────────────────────────────
+	// ── Detect and start llamafile (bundled LLM — zero external dependency) ──
+	llamafilePort := 8080
+	var llamaCmd *exec.Cmd
+	llamaURL := ""
+	if lf := detectLlamafile(); lf != "" {
+		log.Printf("[serve-nlp] llamafile detected: %s", lf)
+		if !isPortOpen(llamafilePort) {
+			var err error
+			llamaCmd, err = startLlamafile(ctx, lf, llamafilePort)
+			if err != nil {
+				log.Printf("[serve-nlp] WARNING: could not start llamafile: %v", err)
+			} else {
+				log.Printf("[serve-nlp] llamafile started on :%d (PID %d)", llamafilePort, llamaCmd.Process.Pid)
+				waitForPort(llamafilePort, 10*time.Second)
+				llamaURL = fmt.Sprintf("http://localhost:%d", llamafilePort)
+			}
+		} else {
+			log.Printf("[serve-nlp] llamafile already running on :%d", llamafilePort)
+			llamaURL = fmt.Sprintf("http://localhost:%d", llamafilePort)
+		}
+	} else {
+		log.Printf("[serve-nlp] No llamafile found — LLM detection order: Ollama→LM Studio→OpenRouter")
+		log.Printf("[serve-nlp] To ship a bundled LLM: place asaf-phi3-mini.llamafile next to the asaf binary")
+	}
 	apiBin := *apiPath
 	if apiBin == "" {
 		apiBin = detectAPIBinary()
@@ -79,7 +103,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.FS(sub)))
 
-	// Inject runtime config into a small JS endpoint
+	// Inject runtime config — includes llamafileURL so browser picks it up first
 	mux.HandleFunc("/asaf-config.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript")
 		fmt.Fprintf(w, `
@@ -87,9 +111,10 @@ window.ASAF_CONFIG = {
   apiURL: "http://localhost:%d",
   ollamaURL: "http://localhost:11434",
   lmstudioURL: "http://localhost:1234",
+  llamafileURL: "%s",
   version: "%s"
 };
-`, *apiPort, version())
+`, *apiPort, llamaURL, version())
 	})
 
 	addr := fmt.Sprintf("127.0.0.1:%d", *port)
@@ -119,7 +144,73 @@ window.ASAF_CONFIG = {
 	if apiCmd != nil && apiCmd.Process != nil {
 		apiCmd.Process.Signal(syscall.SIGTERM) //nolint:errcheck
 	}
+	if llamaCmd != nil && llamaCmd.Process != nil {
+		llamaCmd.Process.Signal(syscall.SIGTERM) //nolint:errcheck
+	}
 	log.Println("[serve-nlp] Stopped.")
+}
+
+// detectLlamafile looks for a llamafile binary adjacent to the asaf executable
+// or in the current working directory. Naming convention: asaf-*.llamafile
+func detectLlamafile() string {
+	// Check same directory as the running binary
+	exeDir := ""
+	if exe, err := os.Executable(); err == nil {
+		exeDir = filepath.Dir(exe)
+	}
+
+	candidates := []string{
+		// Specific model names we ship
+		filepath.Join(exeDir, "asaf-phi3-mini.llamafile"),
+		filepath.Join(exeDir, "asaf-llama3.llamafile"),
+		// Generic glob-style fallback (checked by explicit name pattern)
+		"./asaf-phi3-mini.llamafile",
+		"./asaf-llama3.llamafile",
+		// User may have placed any .llamafile here
+		filepath.Join(exeDir, "phi3-mini.llamafile"),
+		"./phi3-mini.llamafile",
+	}
+
+	for _, c := range candidates {
+		if info, err := os.Stat(c); err == nil && !info.IsDir() {
+			// Ensure it's executable
+			if info.Mode()&0111 != 0 {
+				return c
+			}
+			// On Windows .llamafile files may lack exec bit — still usable
+			if runtime.GOOS == "windows" {
+				return c
+			}
+		}
+	}
+	return ""
+}
+
+// startLlamafile starts the llamafile as a subprocess serving OpenAI-compatible
+// API on the given port. llamafile uses --server --port flags.
+func startLlamafile(ctx context.Context, path string, port int) (*exec.Cmd, error) {
+	cmd := exec.CommandContext(ctx, path,
+		"--server",
+		"--host", "127.0.0.1",
+		"--port", fmt.Sprintf("%d", port),
+		"--nobrowser",
+		"--log-disable",
+	)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("exec llamafile: %w", err)
+	}
+	return cmd, nil
+}
+
+func isPortOpen(port int) bool {
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("localhost:%d", port), 300*time.Millisecond)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
 }
 
 func detectAPIBinary() string {

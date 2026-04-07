@@ -5,8 +5,6 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha512"
-
-	//why is boringcrypto not imported here ?
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -16,7 +14,17 @@ import (
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
-	"golang.org/x/crypto/pbkdf2"
+	"golang.org/x/crypto/argon2"
+)
+
+// argon2ID parameters (NIST SP 800-63B / OWASP recommended minimums).
+// time=3 memory=64MiB parallelism=4 — memory-hard, GPU/ASIC resistant.
+// Upgrade from PBKDF2-SHA512 which is vulnerable to GPU bruteforce attacks.
+const (
+	argon2Time    = 3
+	argon2Memory  = 64 * 1024 // 64 MiB
+	argon2Threads = 4
+	argon2KeyLen  = 96 // 3 × 32-byte AES-256 keys
 )
 
 // Tier0Result represents the output of a Root of Trust ceremony
@@ -181,10 +189,27 @@ func tripleDecryptAndUnseal(sealed string, password string, salt []byte) ([]byte
 	return seed, nil
 }
 
-// deriveKeys implements the key derivation function (KDF)
+// deriveKeys derives 96 bytes of key material from a password and salt
+// using Argon2id (NIST SP 800-63B, memory-hard, GPU/ASIC resistant).
+//
+// Parameters are chosen per OWASP Argon2id recommendations:
+//   - time=3 iterations
+//   - memory=64 MiB (forces 64MB RAM per guess — kills GPU parallelism)
+//   - parallelism=4
+//
+// Output is 3 × 32-byte AES-256 keys for the triple-encryption layers.
+//
+// Migration note: sealed artifacts created with the old PBKDF2 KDF must be
+// re-sealed using `asaf keys migrate` before the next rotation cycle.
 func deriveKeys(password string, salt []byte) []byte {
-	// 100,000 iterations for TRL10 high-assurance protection
-	return pbkdf2.Key([]byte(password), salt, 100000, 96, sha512.New)
+	return argon2.IDKey(
+		[]byte(password),
+		salt,
+		argon2Time,
+		argon2Memory,
+		argon2Threads,
+		argon2KeyLen,
+	)
 }
 
 func aesGCMEncrypt(key, data []byte) ([]byte, error) {
