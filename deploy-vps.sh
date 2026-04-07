@@ -17,10 +17,12 @@
 set -euo pipefail
 
 VPS_HOST="187.124.225.91"
-VPS_USER="${VPS_USER:-asaf}"        # non-root after first run; root on first run
+VPS_USER="${VPS_USER:-asaf}"        # non-root deploy user
 DEPLOY_EMAIL="skone@alumni.albany.edu"
+SKIP_BASELINE="${SKIP_BASELINE:-0}" # set to 1 if Phase 1 already done
+SSH_KEY="${HOME}/.ssh/id_ed25519"
 
-SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
+SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -i ${SSH_KEY}"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; BOLD='\033[1m'; RESET='\033[0m'
 log() { printf "${CYAN}[DEPLOY]${RESET} %s\n" "$*"; }
@@ -38,8 +40,13 @@ GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
   }
 
 # ── Phase 1: Security Baseline (idempotent — safe to re-run) ─────────────────
-log "Phase 1: Security baseline..."
-ssh ${SSH_OPTS} root@${VPS_HOST} << 'BASELINE'
+if [ "${SKIP_BASELINE}" = "1" ]; then
+  log "Phase 1: Skipping baseline (SKIP_BASELINE=1)"
+else
+  log "Phase 1: Security baseline (needs root with key auth)..."
+  # Note: requires root key auth. If root is locked, set SKIP_BASELINE=1
+  ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
+    -i "${SSH_KEY}" root@${VPS_HOST} << 'BASELINE'
 set -e
 
 # Create non-root deploy user if absent
@@ -50,7 +57,7 @@ if ! id asaf &>/dev/null; then
 fi
 
 # Harden SSH (idempotent sed)
-sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin no/'          /etc/ssh/sshd_config
+sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
 sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
 sed -i 's/^#\?PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
 systemctl reload ssh
@@ -68,38 +75,27 @@ ufw --force enable
 apt-get install -y -qq unattended-upgrades
 dpkg-reconfigure -f noninteractive unattended-upgrades
 
-# Install Caddy (automatic Let's Encrypt)
+# Install Caddy (Ubuntu 24.04 / noble)
 if ! command -v caddy &>/dev/null; then
   apt-get install -y -qq debian-keyring debian-archive-keyring apt-transport-https curl
   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
     | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/deb/ubuntu/any-version/amd64/dists/any-version/Release' \
-    -o /dev/null --silent --head --fail 2>/dev/null \
-    || true
-  # Use official Caddy script — works on Ubuntu 24.04 (noble)
-  curl -fsSL https://caddyserver.com/api/download?os=linux&arch=amd64 \
-    -o /usr/local/bin/caddy
-  chmod +x /usr/local/bin/caddy
-  # Create systemd service for Caddy
-  curl -fsSL https://raw.githubusercontent.com/caddyserver/dist/master/init/caddy.service \
-    -o /etc/systemd/system/caddy.service
-  groupadd --system caddy 2>/dev/null || true
-  useradd --system --gid caddy --create-home \
-    --home-dir /var/lib/caddy --shell /usr/sbin/nologin \
-    --comment "Caddy web server" caddy 2>/dev/null || true
-  systemctl daemon-reload
-  systemctl enable caddy
+  rm -f /etc/apt/sources.list.d/caddy-stable.list
+  echo "deb [signed-by=/usr/share/keyrings/caddy-stable-archive-keyring.gpg] https://dl.cloudsmith.io/public/caddy/stable/deb/ubuntu noble main" \
+    > /etc/apt/sources.list.d/caddy-stable.list
+  apt-get update -qq && apt-get install -y -qq caddy
 fi
 
 # Create dirs
 mkdir -p /var/www/asaf/{releases,docs}
-chown -R asaf:asaf /var/www/asaf
+id asaf &>/dev/null && chown -R asaf:asaf /var/www/asaf
 mkdir -p /opt/asaf/bin /opt/asaf/secrets
-chown -R asaf:asaf /opt/asaf
+id asaf &>/dev/null && chown -R asaf:asaf /opt/asaf
 
 echo "✓ Security baseline complete"
 BASELINE
-ok "Security baseline applied"
+  ok "Security baseline applied"
+fi
 
 # ── Phase 2: Install deploy user SSH key ─────────────────────────────────────
 # Key: eban:prod nkyinkyim:v1 (skone@alumni.albany.edu)
