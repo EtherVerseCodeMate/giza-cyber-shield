@@ -49,8 +49,8 @@ func usage() {
 By NouchiX (Sacred Knowledge Inc) | https://nouchix.com
 
 Usage:
-  asaf scan       --target <host|ip> [--profile nemoclaw]   # Scan an AI agent deployment for exposure & risk
-  asaf certify    --target <host|ip> [--profile nemoclaw]   # Full audit + generate ADINKHEPRA certificate (paid)
+  asaf scan       --target <host|ip> [--profile nemoclaw]   # Scan an AI agent deployment
+  asaf certify    --target <host|ip> [--profile nemoclaw]   # Full audit + ADINKHEPRA certificate
   asaf report     --target <host|ip>   # Export PDF compliance report
   asaf validate                        # Component health check
   asaf serve      [-port 8080]         # Start local dashboard
@@ -61,14 +61,22 @@ Usage:
   asaf sbom       <subcommand>         # Software Bill of Materials
   asaf fim        <subcommand>         # File Integrity Monitoring
 
+  Key Management (PQC):
+  asaf keys init                       # Tier 0 key ceremony (Dilithium-3 + Argon2id)
+  asaf keys status                     # Key status and storage backend
+  asaf keys backup [--shares N]        # Shamir 2-of-3 backup shards
+  asaf keys recover --shards s1,s2     # Reconstruct from shards
+
+  Local LLM (NLP Platform):
+  asaf llm install [--model mistral]   # Download bundled llamafile model
+  asaf llm status                      # Check available LLM backends
+
   Agent Service:
   asaf run                             # Run attestation agent (port 45444)
   asaf health                          # Healthcheck
 
-  Key Management (internal):
+  Key Management (legacy):
   asaf keygen     [-out /path/to/key] [-tenant value]
-  asaf encrypt    [path/to/pubkey] [file]
-  asaf decrypt    [path/to/privkey] [file.adinkhepra]
 
 Free scan at https://app.nouchix.com — no account required.
 Earn your ADINKHEPRA certification badge for $99/mo.`)
@@ -158,6 +166,10 @@ func handleSecondaryCmds(cmd string, args []string) bool {
 		attestCmd(args)
 	case "kms":
 		kmsCmd(args)
+	case "keys":
+		keysCmd(args)
+	case "llm":
+		llmCmd(args)
 	case "drbc":
 		drbcCmd(args)
 	case "agent":
