@@ -102,14 +102,15 @@ fi
 ASAF_PUBKEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKJMvbsYQSfBo6tTFKGC7gkr6LXRX+OCMejXIVLWxq8T skone@alumni.albany.edu eban:prod nkyinkyim:v1"
 
 log "Installing SSH key for asaf user..."
-ssh ${SSH_OPTS} root@${VPS_HOST} "
-  mkdir -p /home/asaf/.ssh
-  echo '${ASAF_PUBKEY}' >> /home/asaf/.ssh/authorized_keys
-  sort -u /home/asaf/.ssh/authorized_keys -o /home/asaf/.ssh/authorized_keys
-  chmod 700 /home/asaf/.ssh && chmod 600 /home/asaf/.ssh/authorized_keys
-  chown -R asaf:asaf /home/asaf/.ssh
+# Connect as asaf (key already seeded via console); idempotent — won't duplicate
+ssh ${SSH_OPTS} asaf@${VPS_HOST} "
+  mkdir -p ~/.ssh
+  grep -qF '${ASAF_PUBKEY}' ~/.ssh/authorized_keys 2>/dev/null \
+    || echo '${ASAF_PUBKEY}' >> ~/.ssh/authorized_keys
+  chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys
 "
-ok "SSH key installed for asaf user"
+ok "SSH key confirmed for asaf user"
+
 
 
 # Switch to non-root user for remaining steps
