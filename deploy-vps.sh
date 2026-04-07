@@ -102,19 +102,19 @@ BASELINE
 ok "Security baseline applied"
 
 # ── Phase 2: Install deploy user SSH key ─────────────────────────────────────
-if [ -f "${HOME}/.ssh/id_ed25519.pub" ]; then
-  log "Installing SSH key for asaf user..."
-  ssh ${SSH_OPTS} root@${VPS_HOST} << EOF
-    mkdir -p /home/asaf/.ssh
-    echo "$(cat ${HOME}/.ssh/id_ed25519.pub)" >> /home/asaf/.ssh/authorized_keys
-    sort -u /home/asaf/.ssh/authorized_keys -o /home/asaf/.ssh/authorized_keys
-    chmod 700 /home/asaf/.ssh && chmod 600 /home/asaf/.ssh/authorized_keys
-    chown -R asaf:asaf /home/asaf/.ssh
-EOF
-  ok "SSH key installed for asaf user"
-else
-  log "No ~/.ssh/id_ed25519.pub found — add your public key to /home/asaf/.ssh/authorized_keys manually"
-fi
+# Key: eban:prod nkyinkyim:v1 (skone@alumni.albany.edu)
+ASAF_PUBKEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKJMvbsYQSfBo6tTFKGC7gkr6LXRX+OCMejXIVLWxq8T skone@alumni.albany.edu eban:prod nkyinkyim:v1"
+
+log "Installing SSH key for asaf user..."
+ssh ${SSH_OPTS} root@${VPS_HOST} "
+  mkdir -p /home/asaf/.ssh
+  echo '${ASAF_PUBKEY}' >> /home/asaf/.ssh/authorized_keys
+  sort -u /home/asaf/.ssh/authorized_keys -o /home/asaf/.ssh/authorized_keys
+  chmod 700 /home/asaf/.ssh && chmod 600 /home/asaf/.ssh/authorized_keys
+  chown -R asaf:asaf /home/asaf/.ssh
+"
+ok "SSH key installed for asaf user"
+
 
 # Switch to non-root user for remaining steps
 SSH="ssh ${SSH_OPTS} ${VPS_USER}@${VPS_HOST}"
