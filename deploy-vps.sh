@@ -120,7 +120,16 @@ SCP="scp ${SSH_OPTS}"
 # ── Phase 3: Upload static assets ─────────────────────────────────────────────
 log "Uploading static assets..."
 $SCP install-asaf.sh ${VPS_USER}@${VPS_HOST}:/var/www/asaf/      # installer script
-[ -d "docs" ] && $SCP -r docs/. ${VPS_USER}@${VPS_HOST}:/var/www/asaf/docs/
+
+# Upload ASAF-specific docs only — NOT the entire docs/ dir (may contain private files)
+ASAF_DOCS_DIR="docs/public"
+if [ -d "${ASAF_DOCS_DIR}" ]; then
+  $SCP -r "${ASAF_DOCS_DIR}/." ${VPS_USER}@${VPS_HOST}:/var/www/asaf/docs/
+elif [ -f "docs/mcp-setup.md" ]; then
+  # Fallback: upload only known safe ASAF doc files
+  $SCP docs/mcp-setup.md ${VPS_USER}@${VPS_HOST}:/var/www/asaf/docs/ 2>/dev/null || true
+  $SCP docs/asaf-nlp.html ${VPS_USER}@${VPS_HOST}:/var/www/asaf/docs/ 2>/dev/null || true
+fi
 
 # Upload release artifacts if built
 if [ -d "bin" ] && ls bin/asaf-* &>/dev/null; then
