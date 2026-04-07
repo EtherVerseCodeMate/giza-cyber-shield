@@ -182,8 +182,10 @@ webhook.nouchix.com {
 }
 CADDYEOF
 
-$SSH "sudo systemctl enable caddy && sudo systemctl restart caddy"
-ok "Caddy configured and restarted"
+$SSH "sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl enable caddy && sudo systemctl restart caddy" \
+  && ok "Caddy configured and restarted" \
+  || { log "Caddy restart failed — check: journalctl -xeu caddy.service"; ok "Caddyfile written — fix Caddy manually then restart"; }
+
 
 # ── Phase 5: Stripe Webhook systemd service ───────────────────────────────────
 log "Installing Stripe webhook service..."
