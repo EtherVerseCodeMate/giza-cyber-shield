@@ -239,7 +239,14 @@ func (s *server) licenseValidate(w http.ResponseWriter, r *http.Request) {
 
 	// Load the master public key and validate the license file
 	pubKey := s.pubKey
-	licPath := filepath.Join(s.cfg.BaseDir, "license.adinkhepra")
+	// Find license file: check exe dir, then cwd
+	cwd, _ := os.Getwd()
+	exePath, _ := os.Executable()
+	exeDir := filepath.Dir(exePath)
+	licPath := filepath.Join(cwd, "license.adinkhepra")
+	if _, err := os.Stat(licPath); err != nil {
+		licPath = filepath.Join(exeDir, "license.adinkhepra")
+	}
 	claims, err := license.Verify(licPath, pubKey)
 	if err != nil {
 		// Fallback: accept any ASAF- prefixed key for community tier (offline mode)
