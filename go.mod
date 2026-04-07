@@ -13,6 +13,7 @@ require (
 	github.com/masterzen/winrm v0.0.0-20250927112105-5f8e6c707321
 	github.com/mikesmitty/edkey v0.0.0-20170222072505-3356ea4e686a
 	github.com/xuri/excelize/v2 v2.10.0
+	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/crypto v0.49.0
 	golang.org/x/sys v0.42.0
 	google.golang.org/grpc v1.79.3
@@ -32,7 +33,6 @@ require (
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/google/nftables v0.2.1-0.20240414091927-5e242ec57806 // indirect
-	github.com/hashicorp/vault/sdk v0.25.0 // indirect
 	github.com/illarion/gonotify/v3 v3.0.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/mdlayher/genetlink v1.3.2 // indirect
@@ -43,7 +43,6 @@ require (
 	github.com/tailscale/goupnp v1.0.1-0.20210804011211-c64d0f06ea05 // indirect
 	github.com/tailscale/netlink v1.1.1-0.20240822203006-4d49adab4de7 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
-	github.com/zalando/go-keyring v0.2.8 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
 )
 
@@ -134,7 +133,7 @@ require (
 	golang.org/x/mod v0.33.0 // indirect
 	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/term v0.41.0 // indirect
+	golang.org/x/term v0.41.0
 	golang.org/x/text v0.35.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
 	golang.org/x/tools v0.42.0 // indirect
