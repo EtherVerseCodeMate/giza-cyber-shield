@@ -52,7 +52,7 @@ const makeQueryStub = (table: string) => ({
   range: (_from: number, _to: number) => makeQueryStub(table),
   single: () => Promise.resolve({ data: null, error: null }),
   maybeSingle: () => Promise.resolve({ data: null, error: null }),
-  then: (resolve: (v: any) => any) => Promise.resolve({ data: [], error: null }).then(resolve),
+  // Note: no `then` — adding `then` makes TypeScript think this is a Promise thenable
 });
 
 // ── Auth stub ─────────────────────────────────────────────────────────────────
