@@ -214,6 +214,49 @@ let dagNodes = [];
 let term, fitAddon;
 let isThinking = false;
 
+// ── OS + Environment Detection (Polymorphic Connector) ────────────────────────
+// Server injects CFG.os (runtime.GOOS); browser UA is the fallback.
+const OS = CFG.os || (
+  navigator.userAgent.includes('Win') ? 'windows' :
+  navigator.userAgent.includes('Mac') ? 'mac' : 'linux'
+);
+const OS_PROFILE = {
+  windows: {
+    label: 'Windows',
+    startCmd: 'bin\\asaf-agent.exe --port 45444',
+    altPorts: [45444, 45445, 45446, 45447],
+    firewallCmd: 'netsh advfirewall firewall add rule name="ASAF Agent" dir=in action=allow protocol=TCP localport=45444',
+    avNames: 'Windows Defender / CrowdStrike / Bitdefender / SentinelOne',
+    edNote: 'Run as Administrator. Exclude ASAF folder in Windows Security if quarantined.',
+  },
+  mac: {
+    label: 'macOS',
+    startCmd: './bin/asaf-agent --port 45444',
+    altPorts: [45444, 45445, 45446, 45447],
+    firewallCmd: 'sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add ./bin/asaf-agent',
+    avNames: 'XProtect / CrowdStrike / Malwarebytes / Carbon Black',
+    edNote: 'Allow in System Settings → Privacy & Security if blocked.',
+  },
+  linux: {
+    label: 'Linux',
+    startCmd: './bin/asaf-agent --port 45444',
+    altPorts: [45444, 45445, 45446, 45447],
+    firewallCmd: 'sudo ufw allow 45444/tcp',
+    avNames: 'ClamAV / Wazuh / Falco / SELinux / AppArmor',
+    edNote: 'Check SELinux (sudo getenforce) or AppArmor (sudo aa-status) if blocked.',
+  },
+}[OS] || {
+  label: 'your OS', startCmd: './asaf-agent --port 45444',
+  altPorts: [45444, 45445, 45446, 45447],
+  firewallCmd: 'Allow port 45444 in your firewall', avNames: 'your AV/EDR', edNote: '',
+};
+
+// Polymorphic API Engine state
+let _resolvedAPIURL = null;
+let _apiRetryTimer = null;
+let _apiRetryCount = 0;
+const POLY_RETRY_MS = [5000, 15000, 30000];
+
 // ── Terminal setup ─────────────────────────────────────────────────────────────
 function initTerminal() {
   term = new Terminal({
@@ -305,19 +348,67 @@ document.querySelectorAll('.llm-btn').forEach(btn => {
   });
 });
 
-// ── API health check ──────────────────────────────────────────────────────────
-async function checkAPI() {
+// ── Polymorphic API Engine ────────────────────────────────────────────────────
+// 'timeout' (AbortError) = firewall/AV/EDR silently dropping packets (ETIMEDOUT)
+// 'refused' (TypeError)  = TCP RST / process not running (ECONNREFUSED)
+async function _probePort(baseURL) {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), 4000);
   try {
-    const r = await fetch(CFG.apiURL + '/healthz', { signal: AbortSignal.timeout(3000) });
-    if (r.ok) {
-      setDot('api', 'ok', 'ASAF API · ' + CFG.apiURL);
-      termOk('ASAF API connected: ' + CFG.apiURL);
-      loadDAGChain();
-      return;
-    }
-  } catch {}
-  setDot('api', 'err', 'API offline · start: asaf serve --port 45444');
-  termWarn('ASAF API not reachable at ' + CFG.apiURL + ' — scans will run via LLM only');
+    const r = await fetch(baseURL + '/healthz', { signal: ctrl.signal });
+    clearTimeout(tid);
+    return { ok: r.ok, errType: null };
+  } catch (e) {
+    clearTimeout(tid);
+    return { ok: false, errType: e.name === 'AbortError' ? 'timeout' : 'refused' };
+  }
+}
+
+async function _polymorphicConnect() {
+  let lastErrType = 'refused';
+  const ports = OS_PROFILE.altPorts;
+  for (let i = 0; i < ports.length; i++) {
+    const url = 'http://localhost:' + ports[i];
+    if (i > 0) termInfo('Polymorphic connector → trying port ' + ports[i] + '...');
+    const { ok, errType } = await _probePort(url);
+    if (ok) { _resolvedAPIURL = url; CFG.apiURL = url; return { connected: true, url, port: ports[i] }; }
+    lastErrType = errType;
+    if (errType === 'timeout' && i === 0) break; // firewall blocks all ports
+  }
+  return { connected: false, errType: lastErrType };
+}
+
+async function checkAPI() {
+  const result = await _polymorphicConnect();
+  if (result.connected) {
+    const portNote = result.port !== 45444 ? ' [polymorphic port ' + result.port + ']' : '';
+    setDot('api', 'ok', 'ASAF API · ' + result.url);
+    termOk('ASAF API: ' + result.url + portNote);
+    loadDAGChain();
+    _apiRetryCount = 0;
+    if (_apiRetryTimer) { clearTimeout(_apiRetryTimer); _apiRetryTimer = null; }
+    return;
+  }
+  _apiRetryCount++;
+  const { errType } = result;
+  if (errType === 'timeout') {
+    setDot('api', 'warn', 'API blocked · firewall/AV/EDR intercepting port 45444');
+    termWarn('Port 45444 timeout — ' + OS_PROFILE.avNames + ' may be blocking ASAF');
+    termWarn('Firewall fix: ' + OS_PROFILE.firewallCmd);
+  } else {
+    setDot('api', 'err', 'API offline · ASAF agent not running');
+    termWarn('ASAF offline (connection refused) · Start: ' + OS_PROFILE.startCmd);
+    if (OS_PROFILE.edNote) termInfo(OS_PROFILE.edNote);
+  }
+  termInfo('OS: ' + OS_PROFILE.label + ' · Retry ' + _apiRetryCount + ' of 3');
+  if (_apiRetryCount >= 3) {
+    setDot('api', 'warn', 'Cloud mode · ASAF unreachable');
+    termWarn('Entering cloud-only mode after 3 retries');
+    return;
+  }
+  const delay = POLY_RETRY_MS[_apiRetryCount - 1] || 30000;
+  termInfo('Retry in ' + (delay / 1000) + 's...');
+  _apiRetryTimer = setTimeout(checkAPI, delay);
 }
 
 function setDot(id, state, title) {
@@ -486,7 +577,15 @@ async function dispatchASAFCommand(cmd) {
     return data;
   } catch (e) {
     termErr('Network error: ' + e.message);
-    termWarn('Is ASAF API running? Try: asaf serve --port 45444');
+    const isTimeout = e.name === 'AbortError';
+    if (isTimeout) {
+      termWarn('Request timed out — ' + OS_PROFILE.avNames + ' may be blocking ASAF');
+      termWarn('Whitelist: ' + OS_PROFILE.firewallCmd);
+    } else {
+      termWarn('Connection refused — Start: ' + OS_PROFILE.startCmd);
+      if (OS_PROFILE.edNote) termInfo(OS_PROFILE.edNote);
+    }
+    if (!_apiRetryTimer && _apiRetryCount < 3) { _apiRetryCount = 0; checkAPI(); }
     throw e;
   }
 }
@@ -728,6 +827,10 @@ function renderDAGFromChain(chain) {
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('version-badge').textContent = 'v' + CFG.version;
   initTerminal();
+  // OS detection + Polymorphic Connector bootstrap
+  termInfo('OS detected: ' + OS_PROFILE.label + ' (' + OS + ')');
+  termInfo('ASAF start: ' + OS_PROFILE.startCmd);
+  termInfo('Polymorphic ports: ' + OS_PROFILE.altPorts.join(', '));
   termInfo('Detecting LLM inference...');
   checkAPI();
   detectLLM();
