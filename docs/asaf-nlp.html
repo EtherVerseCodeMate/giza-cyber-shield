@@ -485,7 +485,14 @@ const POLY_RETRY_MS = [5000, 15000, 30000];
 // ── Analytics ─────────────────────────────────────────────────────────────────
 const Analytics={
   ev:JSON.parse(localStorage.getItem('asaf_ev')||'[]'),
-  track(e,d={}){const ev={t:Date.now(),e,...d};this.ev.push(ev);if(this.ev.length>500)this.ev.shift();localStorage.setItem('asaf_ev',JSON.stringify(this.ev));try{fetch(CFG.apiURL+'/api/v1/telemetry',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ev)});}catch{}}
+  track(e,d={}){
+    const ev={t:Date.now(),e,...d};
+    this.ev.push(ev);if(this.ev.length>500)this.ev.shift();
+    localStorage.setItem('asaf_ev',JSON.stringify(this.ev));
+    // fetch() returns a Promise — a sync try/catch won't catch async rejections.
+    // Use .catch(()=>{}) so Chrome PNA / CORS / offline errors stay silent.
+    fetch(CFG.apiURL+'/api/v1/telemetry',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ev)}).catch(()=>{});
+  }
 };
 
 // ── Terminal ──────────────────────────────────────────────────────────────────
