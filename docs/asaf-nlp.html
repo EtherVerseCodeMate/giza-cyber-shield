@@ -432,6 +432,56 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
 const CFG=window.ASAF_CONFIG||{apiURL:'http://localhost:45444',ollamaURL:'http://localhost:11434',lmstudioURL:'http://localhost:1234',version:'dev'};
 let provider='ollama',ollamaModel='llama3.1:8b',orKey='',dagNodes=[],term,fitAddon,isThinking=false,apiErrCount=0;
 
+// ── OS + Environment Detection (Polymorphic Connector) ────────────────────────
+// Server injects CFG.os (runtime.GOOS); browser UA is the fallback.
+const OS = CFG.os || (
+  navigator.userAgent.includes('Win') ? 'windows' :
+  navigator.userAgent.includes('Mac') ? 'mac' : 'linux'
+);
+
+// Per-OS: start command, polymorphic fallback ports, firewall whitelist,
+// known AV/EDR products, and any special notes (UAC, SIP, SELinux).
+const OS_PROFILE = {
+  windows: {
+    label: 'Windows',
+    startCmd: 'bin\\asaf-agent.exe --port 45444',
+    altPorts: [45444, 45445, 45446, 45447],
+    firewallCmd: 'netsh advfirewall firewall add rule name="ASAF Agent" dir=in action=allow protocol=TCP localport=45444',
+    avNames: 'Windows Defender / CrowdStrike Falcon / Bitdefender / SentinelOne',
+    edNote: 'Run Command Prompt as Administrator. If Windows Defender quarantined the binary, exclude the ASAF folder in Windows Security → Virus & threat protection → Exclusions.',
+  },
+  mac: {
+    label: 'macOS',
+    startCmd: './bin/asaf-agent --port 45444',
+    altPorts: [45444, 45445, 45446, 45447],
+    firewallCmd: 'sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add ./bin/asaf-agent && sudo /usr/libexec/ApplicationFirewall/socketfilterfw --unblockapp ./bin/asaf-agent',
+    avNames: 'XProtect / CrowdStrike Falcon / Malwarebytes / Carbon Black',
+    edNote: 'Allow in System Settings → Privacy & Security if macOS blocked execution. If CrowdStrike/SentinelOne is running, whitelist the ASAF agent binary in your EDR console.',
+  },
+  linux: {
+    label: 'Linux',
+    startCmd: './bin/asaf-agent --port 45444',
+    altPorts: [45444, 45445, 45446, 45447],
+    firewallCmd: 'sudo ufw allow 45444/tcp\n# OR for firewalld:\nsudo firewall-cmd --add-port=45444/tcp --permanent && sudo firewall-cmd --reload\n# SELinux:\nsudo semanage port -a -t http_port_t -p tcp 45444',
+    avNames: 'ClamAV / Wazuh / Falco / Crowdstrike Falcon for Linux / SELinux / AppArmor',
+    edNote: 'Check SELinux: sudo getenforce. Check AppArmor: sudo aa-status. If blocking, add an exception or temporarily set to permissive for testing.',
+  },
+}[OS] || {
+  label: 'your OS',
+  startCmd: './asaf-agent --port 45444',
+  altPorts: [45444, 45445, 45446, 45447],
+  firewallCmd: 'Allow port 45444 in your firewall settings',
+  avNames: 'your antivirus / EDR / XDR',
+  edNote: '',
+};
+
+// Polymorphic API Engine state
+let _resolvedAPIURL = null;   // set after successful port negotiation
+let _apiRetryTimer = null;
+let _apiRetryCount = 0;
+// Progressive retry schedule: immediate → 5 s → 15 s → 30 s → stop + cloud mode
+const POLY_RETRY_MS = [5000, 15000, 30000];
+
 // ── Analytics ─────────────────────────────────────────────────────────────────
 const Analytics={
   ev:JSON.parse(localStorage.getItem('asaf_ev')||'[]'),
@@ -496,11 +546,108 @@ function connectOR(){
   Analytics.track('or_connected');
 }
 
-// ── API health ────────────────────────────────────────────────────────────────
-async function checkAPI(){
-  try{const r=await fetch(CFG.apiURL+'/healthz',{signal:AbortSignal.timeout(3000)});if(r.ok){setDot('api','ok','ASAF API · '+CFG.apiURL);termOk('ASAF API: '+CFG.apiURL);loadDAGChain();apiErrCount=0;return;}}catch{}
-  setDot('api','err','API offline · asaf serve --port 45444');termWarn('ASAF API offline — scans via LLM only');
-  if(++apiErrCount>=3)setTimeout(()=>papSay("ASAF doesn't seem to be running. To start it, open a terminal and run: asaf serve --port 45444 — Want me to walk you through the full setup?"),2000);
+// ── Polymorphic API Engine ────────────────────────────────────────────────────
+// Probes a single URL/port and classifies the failure mode:
+//   'timeout'  → port is reachable but no response in 4 s → firewall/AV/EDR/IDS
+//                is silently dropping packets (ETIMEDOUT pattern)
+//   'refused'  → TCP RST / immediate rejection → process not running (ECONNREFUSED)
+async function _probePort(baseURL) {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), 4000);
+  try {
+    const r = await fetch(baseURL + '/healthz', { signal: ctrl.signal });
+    clearTimeout(tid);
+    return { ok: r.ok, errType: null };
+  } catch (e) {
+    clearTimeout(tid);
+    return { ok: false, errType: e.name === 'AbortError' ? 'timeout' : 'refused' };
+  }
+}
+
+// Tries each port in OS_PROFILE.altPorts in order (polymorphic port negotiation).
+// Updates CFG.apiURL and _resolvedAPIURL on success.
+async function _polymorphicConnect() {
+  const ports = OS_PROFILE.altPorts;
+  let lastErrType = 'refused';
+  for (let i = 0; i < ports.length; i++) {
+    const port = ports[i];
+    const url = 'http://localhost:' + port;
+    if (i > 0) termInfo('Polymorphic connector → trying port ' + port + '...');
+    const { ok, errType } = await _probePort(url);
+    if (ok) {
+      _resolvedAPIURL = url;
+      CFG.apiURL = url;   // update live so dispatchCmd picks up new port
+      return { connected: true, url, port };
+    }
+    lastErrType = errType;
+    // timeout on primary = firewall blockage; no point waiting for other ports either,
+    // so break early and report the firewall condition (ports 45445+ would also be blocked).
+    if (errType === 'timeout' && i === 0) break;
+  }
+  return { connected: false, errType: lastErrType };
+}
+
+// Souhimbou guidance messages, keyed by retry count + error type
+function _papAPIGuidance(retryCount, errType) {
+  const p = OS_PROFILE;
+  if (errType === 'timeout') {
+    if (retryCount === 1)
+      return `Port 45444 is not responding (timeout) on ${p.label} — your ${p.avNames} may be silently blocking the ASAF agent. I tried alternate ports automatically.\n\nTo add a firewall exception:\n  ${p.firewallCmd}`;
+    if (retryCount === 2)
+      return `Still blocked. ${p.edNote || 'Check your security software.'}\n\nFirewall whitelist command:\n  ${p.firewallCmd}`;
+  } else {
+    if (retryCount === 1)
+      return `ASAF agent isn't running on ${p.label}. Start it with:\n\n  ${p.startCmd}\n\n${p.edNote || ''}`;
+    if (retryCount === 2)
+      return `Still offline. Double-check ASAF is running:\n\n  ${p.startCmd}\n\nIf ${p.avNames} quarantined the binary, whitelist it first, then retry.`;
+  }
+  // retryCount >= 3 → cloud fallback
+  return `I've switched to cloud-only mode — scans will use AI analysis without the local ASAF agent. Reconnect anytime by starting:\n\n  ${p.startCmd}`;
+}
+
+async function checkAPI() {
+  const result = await _polymorphicConnect();
+
+  if (result.connected) {
+    const portNote = result.port !== 45444 ? ` [polymorphic: port ${result.port}]` : '';
+    setDot('api', 'ok', 'ASAF API · ' + result.url);
+    termOk('ASAF API: ' + result.url + portNote);
+    loadDAGChain();
+    _apiRetryCount = 0;
+    apiErrCount = 0;
+    if (_apiRetryTimer) { clearTimeout(_apiRetryTimer); _apiRetryTimer = null; }
+    return;
+  }
+
+  _apiRetryCount++;
+  apiErrCount++;
+  const { errType } = result;
+
+  // Visual status
+  if (errType === 'timeout') {
+    setDot('api', 'warn', 'API blocked · firewall/AV/EDR may be intercepting port 45444');
+    termWarn('Port 45444 unreachable (timeout) — firewall, AV, or EDR may be blocking ASAF');
+  } else {
+    setDot('api', 'err', 'API offline · ASAF agent not running');
+    termWarn('ASAF API offline (connection refused) — agent not running on ' + OS_PROFILE.label);
+  }
+  termInfo('OS detected: ' + OS_PROFILE.label + ' · Retry ' + _apiRetryCount + ' of 3');
+
+  // Progressive Souhimbou guidance
+  setTimeout(() => papSay(_papAPIGuidance(_apiRetryCount, errType)), 1500);
+
+  if (_apiRetryCount >= 3) {
+    // Cloud fallback — stop polling
+    setDot('api', 'warn', 'Cloud mode · ASAF agent unreachable');
+    termWarn('Entering cloud-only mode after 3 failed attempts');
+    _apiRetryTimer = null;
+    return;
+  }
+
+  // Schedule next probe
+  const delay = POLY_RETRY_MS[_apiRetryCount - 1] || 30000;
+  termInfo('Next connection attempt in ' + (delay / 1000) + 's...');
+  _apiRetryTimer = setTimeout(checkAPI, delay);
 }
 
 // ── System prompt ─────────────────────────────────────────────────────────────
@@ -514,7 +661,10 @@ Always translate compliance jargon into clear findings. Map findings to STIG rul
 const PAP_SYS=`You are Souhimbou, the AI Security Architect and friendly guide for the ASAF Natural Language Security Platform by NouchiX / SecRed Knowledge Inc. You GUIDE and ONBOARD users — the main Security Advisor handles scans.
 Personality: warm, encouraging, patient, plain English only. Explain every technical term immediately.
 When users ask how to do something: give clear step-by-step guidance and point to specific UI elements.
-Key facts: ASAF = compliance automation tool. Every scan creates an immutable cryptographic record (DAG chain). Run "asaf serve --port 45444" to start the local engine. ADINKHEPRA = post-quantum security protocol. OpenRouter = free cloud AI fallback.
+Key facts: ASAF = compliance automation tool. Every scan creates an immutable cryptographic record (DAG chain). ADINKHEPRA = post-quantum security protocol. OpenRouter = free cloud AI fallback.
+User's OS: ${OS_PROFILE.label}. To start ASAF on their machine: ${OS_PROFILE.startCmd}
+If ASAF is blocked by firewall/AV/EDR (${OS_PROFILE.avNames}), guide them to run: ${OS_PROFILE.firewallCmd.split('\n')[0]}
+Additional OS note: ${OS_PROFILE.edNote}
 Always be Souhimbou the guardian. Celebrate user progress!`;
 
 // ── LLM call ──────────────────────────────────────────────────────────────────
@@ -543,7 +693,21 @@ async function dispatchCmd(cmd){
     if(d.dag_node||d.attestation)addDAGNode(d);
     if(d.chain)renderDAGFromChain(d.chain);
     termSep();Analytics.track('cmd',{action:cmd.action,ok:true});return d;
-  }catch(e){termErr('Network: '+e.message);termWarn('Is ASAF running? Try: asaf serve --port 45444');Analytics.track('cmd_err',{msg:e.message});throw e;}
+  }catch(e){
+    termErr('Network: '+e.message);
+    // Distinguish error modes for actionable guidance
+    const isTimeout=e.name==='AbortError';
+    if(isTimeout){
+      termWarn('Request timed out — firewall/AV/EDR may be blocking ASAF on '+OS_PROFILE.label);
+      termWarn('Whitelist command: '+OS_PROFILE.firewallCmd.split('\n')[0]);
+    } else {
+      termWarn('Connection refused — is ASAF running? Start: '+OS_PROFILE.startCmd);
+    }
+    // Trigger reconnect probe
+    if(!_apiRetryTimer && _apiRetryCount<3){_apiRetryCount=0;checkAPI();}
+    Analytics.track('cmd_err',{msg:e.message,os:OS,errType:isTimeout?'timeout':'refused'});
+    throw e;
+  }
 }
 function cScore(s){if(s>=80)return'\x1b[32m'+s+'/100 (GOOD)\x1b[0m';if(s>=60)return'\x1b[33m'+s+'/100 (FAIR)\x1b[0m';return'\x1b[31m'+s+'/100 (POOR)\x1b[0m';}
 function extractCmds(t){const re=/ASAF_CMD:(\{[^}]+\})/g;const cs=[];let m;while((m=re.exec(t))!==null){try{cs.push(JSON.parse(m[1]));}catch{}}return cs;}
@@ -704,7 +868,13 @@ document.addEventListener('click',e=>{if(e.target.id)Analytics.track('click',{id
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('ver-badge').textContent='v'+CFG.version;
-  initTerm();termInfo('Detecting LLM inference...');checkAPI();detectLLM();
+  initTerm();
+  // OS detection + Polymorphic Connector bootstrap
+  termInfo('OS detected: '+OS_PROFILE.label+' ('+OS+')');
+  termInfo('ASAF start command: '+OS_PROFILE.startCmd);
+  termInfo('Polymorphic ports: '+OS_PROFILE.altPorts.join(', '));
+  termInfo('Detecting LLM inference...');
+  checkAPI();detectLLM();
   const msgs=document.getElementById('messages');
   const welcome=document.createElement('div');welcome.className='msg system';
   welcome.innerHTML=`<div class="mav">◈</div><div class="mbody"><div class="mtext">ASAF Natural Language Security Platform — ready.\n\nType a security question or compliance request. Examples:\n• "Check if my systems meet government security standards"\n• "What does STIG V-72213 require?"\n• "Generate an ADINKHEPRA attestation for org acme-corp"\n• "Show me threat intel for CVE-2024-3400"</div><div class="mtime">system</div></div>`;
