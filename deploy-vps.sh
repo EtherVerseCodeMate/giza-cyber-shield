@@ -140,7 +140,9 @@ fi
 # Upload webhook binary
 if [ "${SKIP_WEBHOOK_BIN:-0}" = "0" ] && [ -f "bin/asaf-webhook-linux-amd64" ]; then
   $SCP bin/asaf-webhook-linux-amd64 ${VPS_USER}@${VPS_HOST}:/opt/asaf/bin/
+  $SSH "chmod +x /opt/asaf/bin/asaf-webhook-linux-amd64"
 fi
+
 
 ok "Assets uploaded"
 
