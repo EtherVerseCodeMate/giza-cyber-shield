@@ -429,7 +429,288 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
 </div>
 
 <script>
-// ── JAVASCRIPT_PLACEHOLDER ──
+const CFG=window.ASAF_CONFIG||{apiURL:'http://localhost:45444',ollamaURL:'http://localhost:11434',lmstudioURL:'http://localhost:1234',version:'dev'};
+let provider='ollama',ollamaModel='llama3.1:8b',orKey='',dagNodes=[],term,fitAddon,isThinking=false,apiErrCount=0;
+
+// ── Analytics ─────────────────────────────────────────────────────────────────
+const Analytics={
+  ev:JSON.parse(localStorage.getItem('asaf_ev')||'[]'),
+  track(e,d={}){const ev={t:Date.now(),e,...d};this.ev.push(ev);if(this.ev.length>500)this.ev.shift();localStorage.setItem('asaf_ev',JSON.stringify(this.ev));try{fetch(CFG.apiURL+'/api/v1/telemetry',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ev)});}catch{}}
+};
+
+// ── Terminal ──────────────────────────────────────────────────────────────────
+function initTerm(){
+  term=new Terminal({theme:{background:'#0d1117',foreground:'#e2e8f0',cursor:'#00d4aa',selectionBackground:'#2a3545'},fontFamily:"'JetBrains Mono','Fira Code',monospace",fontSize:12,lineHeight:1.4,cursorBlink:true,scrollback:5000});
+  fitAddon=new FitAddon.FitAddon();term.loadAddon(fitAddon);term.open(document.getElementById('term'));fitAddon.fit();
+  termPrint('\x1b[38;5;36m┌─────────────────────────────────────────────────────┐\x1b[0m');
+  termPrint('\x1b[38;5;36m│\x1b[0m  ASAF — Agentic Security Attestation Framework       \x1b[38;5;36m│\x1b[0m');
+  termPrint('\x1b[38;5;36m│\x1b[0m  Post-Quantum Certified · NouchiX / SecRed Knowledge \x1b[38;5;36m│\x1b[0m');
+  termPrint('\x1b[38;5;36m└─────────────────────────────────────────────────────┘\x1b[0m');
+  termPrint('');
+  window.addEventListener('resize',()=>fitAddon.fit());
+}
+const tP=s=>term.writeln(s);
+function termPrint(l){tP(l)}
+function termInfo(m){tP('\x1b[38;5;36m[INFO]\x1b[0m  '+m)}
+function termOk(m){tP('\x1b[38;5;40m[ OK ]\x1b[0m  '+m)}
+function termErr(m){tP('\x1b[38;5;196m[ ERR]\x1b[0m  '+m)}
+function termWarn(m){tP('\x1b[38;5;214m[WARN]\x1b[0m  '+m)}
+function termData(k,v){tP(`  \x1b[38;5;245m${k.padEnd(18)}\x1b[0m ${v}`)}
+function termSep(){tP('\x1b[38;5;237m'+'─'.repeat(54)+'\x1b[0m')}
+
+// ── Tab switch ────────────────────────────────────────────────────────────────
+function switchTab(tab,ev){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===(tab==='term'?0:1)));
+  document.getElementById('twrap').style.display=tab==='term'?'flex':'none';
+  document.getElementById('dagwrap').style.display=tab==='dag'?'flex':'none';
+  if(tab==='term')fitAddon.fit();
+  if(tab==='dag')renderDAGGraph();
+  Analytics.track('tab',{tab});
+}
+
+// ── Status dots ───────────────────────────────────────────────────────────────
+function setDot(id,state,title){
+  const d=document.getElementById(id+'-dot'),l=document.getElementById(id+'-lbl');
+  d.className='sdot '+state;d.title=title;
+  if(l)l.textContent=title.split('·')[0].trim();
+}
+
+// ── LLM detection ─────────────────────────────────────────────────────────────
+async function detectLLM(){
+  try{const r=await fetch(CFG.ollamaURL+'/api/tags',{signal:AbortSignal.timeout(2000)});if(r.ok){const d=await r.json();ollamaModel=(d.models||[])[0]?.name||'llama3.1:8b';setProvider('ollama');document.getElementById('mbadge').textContent=ollamaModel;setDot('llm','ok','Ollama · '+ollamaModel);termOk('Ollama: '+ollamaModel);return;}}catch{}
+  try{const r=await fetch(CFG.lmstudioURL+'/v1/models',{signal:AbortSignal.timeout(2000)});if(r.ok){const d=await r.json();const m=d.data?.[0]?.id||'local-model';setProvider('lmstudio');document.getElementById('mbadge').textContent='LM Studio · '+m;setDot('llm','ok','LM Studio');termOk('LM Studio: '+m);return;}}catch{}
+  setProvider('openrouter');setDot('llm','warn','No local LLM — OpenRouter fallback');termWarn('No local LLM. Enter OpenRouter API key below.');
+  document.getElementById('mbadge').textContent='OpenRouter';document.getElementById('or-card').style.display='block';
+  setTimeout(()=>papSay("I noticed you need an API key! Visit openrouter.ai, sign up free, create a key, paste it in the box. Takes about 2 minutes. Want me to guide you step by step?"),1500);
+}
+function setProvider(p){
+  provider=p;document.querySelectorAll('.llmbtn').forEach(b=>b.classList.toggle('active',b.dataset.p===p));
+  document.getElementById('or-card').style.display=p==='openrouter'?'block':'none';
+}
+document.querySelectorAll('.llmbtn').forEach(b=>b.addEventListener('click',()=>{setProvider(b.dataset.p);if(b.dataset.p!=='openrouter')detectLLM();Analytics.track('llm',{p:b.dataset.p});}));
+function connectOR(){
+  const k=document.getElementById('orkl').value.trim();if(!k)return;
+  orKey=k;setProvider('openrouter');document.getElementById('or-card').style.display='none';
+  setDot('llm','ok','OpenRouter connected');document.getElementById('mbadge').textContent='OpenRouter · Hermes-3';termOk('OpenRouter connected');
+  papSay('🎉 Connected! You\'re ready to run your first security scan. Try clicking one of the suggestion chips or just type a question!');
+  Analytics.track('or_connected');
+}
+
+// ── API health ────────────────────────────────────────────────────────────────
+async function checkAPI(){
+  try{const r=await fetch(CFG.apiURL+'/healthz',{signal:AbortSignal.timeout(3000)});if(r.ok){setDot('api','ok','ASAF API · '+CFG.apiURL);termOk('ASAF API: '+CFG.apiURL);loadDAGChain();apiErrCount=0;return;}}catch{}
+  setDot('api','err','API offline · asaf serve --port 45444');termWarn('ASAF API offline — scans via LLM only');
+  if(++apiErrCount>=3)setTimeout(()=>papSay("ASAF doesn't seem to be running. To start it, open a terminal and run: asaf serve --port 45444 — Want me to walk you through the full setup?"),2000);
+}
+
+// ── System prompt ─────────────────────────────────────────────────────────────
+const SYS=`You are ASAF Security Advisor, an expert in CMMC, NIST 800-171, STIG, and post-quantum cryptography by NouchiX / SecRed Knowledge Inc.
+1. Answer concisely — no hedging, no disclaimers. 2. For scan/attest/stig/export actions emit a JSON command block:
+ASAF API (base: ${CFG.apiURL}): POST /api/v1/scans/trigger | GET /api/v1/compliance/score | GET /api/v1/stigs/:id | POST /api/v1/attestation/export | GET /api/v1/dag/:id | GET /api/v1/intel/query?q=
+Command format: ASAF_CMD:{"action":"<scan|stig|attest|dag|intel|score>","endpoint":"<path>","method":"<GET|POST>","body":<json|null>,"description":"<one line>"}
+Always translate compliance jargon into clear findings. Map findings to STIG rules or CMMC practices.`;
+
+// ── Papyrus system prompt ─────────────────────────────────────────────────────
+const PAP_SYS=`You are Souhimbou, the AI Security Architect and friendly guide for the ASAF Natural Language Security Platform by NouchiX / SecRed Knowledge Inc. You GUIDE and ONBOARD users — the main Security Advisor handles scans.
+Personality: warm, encouraging, patient, plain English only. Explain every technical term immediately.
+When users ask how to do something: give clear step-by-step guidance and point to specific UI elements.
+Key facts: ASAF = compliance automation tool. Every scan creates an immutable cryptographic record (DAG chain). Run "asaf serve --port 45444" to start the local engine. ADINKHEPRA = post-quantum security protocol. OpenRouter = free cloud AI fallback.
+Always be Souhimbou the guardian. Celebrate user progress!`;
+
+// ── LLM call ──────────────────────────────────────────────────────────────────
+async function callLLM(msgs){
+  if(provider==='ollama'){const r=await fetch(CFG.ollamaURL+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:ollamaModel,messages:msgs,stream:true})});if(!r.ok)throw new Error('Ollama '+r.status);return streamOllama(r);}
+  if(provider==='lmstudio'){const r=await fetch(CFG.lmstudioURL+'/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'local-model',messages:msgs,stream:true,max_tokens:2048})});if(!r.ok)throw new Error('LM Studio '+r.status);return streamOAI(r);}
+  if(provider==='openrouter'){const k=orKey||document.getElementById('orkl')?.value;if(!k)throw new Error('OpenRouter API key required');orKey=k;const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+k,'HTTP-Referer':'https://nouchix.com','X-Title':'ASAF Security Platform'},body:JSON.stringify({model:'nousresearch/hermes-3-llama-3.1-70b',messages:msgs,stream:true,max_tokens:2048})});if(!r.ok)throw new Error('OpenRouter '+r.status);return streamOAI(r);}
+}
+async function* streamOllama(r){const rd=r.body.getReader();const dc=new TextDecoder();let buf='';while(true){const{done,value}=await rd.read();if(done)break;buf+=dc.decode(value,{stream:true});const ls=buf.split('\n');buf=ls.pop();for(const l of ls){if(!l.trim())continue;try{const o=JSON.parse(l);if(o.message?.content)yield o.message.content;}catch{}}}}
+async function* streamOAI(r){const rd=r.body.getReader();const dc=new TextDecoder();let buf='';while(true){const{done,value}=await rd.read();if(done)break;buf+=dc.decode(value,{stream:true});const ls=buf.split('\n');buf=ls.pop();for(const l of ls){if(!l.startsWith('data: '))continue;const d=l.slice(6).trim();if(d==='[DONE]')return;try{const o=JSON.parse(d);const c=o.choices?.[0]?.delta?.content;if(c)yield c;}catch{}}}}
+
+// ── ASAF command dispatch ─────────────────────────────────────────────────────
+async function dispatchCmd(cmd){
+  termSep();termInfo(cmd.description||cmd.action);termData('Endpoint',cmd.method+' '+CFG.apiURL+cmd.endpoint);
+  const opts={method:cmd.method,headers:{'Content-Type':'application/json'}};if(cmd.body)opts.body=JSON.stringify(cmd.body);
+  try{
+    const r=await fetch(CFG.apiURL+cmd.endpoint,opts);const txt=await r.text();
+    let d;try{d=JSON.parse(txt);}catch{d={raw:txt};}
+    if(!r.ok){termErr('HTTP '+r.status+': '+(d.error||txt.slice(0,120)));return d;}
+    termOk('Response ('+r.status+')');
+    if(d.risk_score!==undefined)termData('Risk Score',cScore(d.risk_score));
+    if(d.scan_id)termData('Scan ID',d.scan_id);
+    if(d.certified!==undefined)termData('Certified',d.certified?'\x1b[32m✓ YES\x1b[0m':'\x1b[33m✗ NO\x1b[0m');
+    if(d.framework)termData('Framework',d.framework);
+    if(d.findings?.length){termPrint('');termPrint('  \x1b[38;5;220mFindings:\x1b[0m');d.findings.slice(0,10).forEach(f=>{const s=f.severity==='critical'?'\x1b[31m':f.severity==='high'?'\x1b[33m':'\x1b[36m';termPrint(`  ${s}[${(f.severity||'info').toUpperCase().padEnd(8)}]\x1b[0m ${f.title||f.control_id||f.id}`);});if(d.findings.length>10)termPrint('  ... +'+(d.findings.length-10)+' more');}
+    if(d.dag_node||d.attestation)addDAGNode(d);
+    if(d.chain)renderDAGFromChain(d.chain);
+    termSep();Analytics.track('cmd',{action:cmd.action,ok:true});return d;
+  }catch(e){termErr('Network: '+e.message);termWarn('Is ASAF running? Try: asaf serve --port 45444');Analytics.track('cmd_err',{msg:e.message});throw e;}
+}
+function cScore(s){if(s>=80)return'\x1b[32m'+s+'/100 (GOOD)\x1b[0m';if(s>=60)return'\x1b[33m'+s+'/100 (FAIR)\x1b[0m';return'\x1b[31m'+s+'/100 (POOR)\x1b[0m';}
+function extractCmds(t){const re=/ASAF_CMD:(\{[^}]+\})/g;const cs=[];let m;while((m=re.exec(t))!==null){try{cs.push(JSON.parse(m[1]));}catch{}}return cs;}
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+let history=[{role:'system',content:SYS}];
+function addMsg(role,content){
+  const msgs=document.getElementById('messages');
+  const el=document.createElement('div');el.className='msg '+role;
+  const av={user:'▲',assistant:'⬡',system:'◈'};
+  const t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  el.innerHTML=`<div class="mav">${av[role]||'•'}</div><div class="mbody"><div class="mtext" id="m${Date.now()}">${esc(content)}</div><div class="mtime">${t}</div></div>`;
+  msgs.appendChild(el);msgs.scrollTop=msgs.scrollHeight;
+  return el.querySelector('.mtext');
+}
+function addThinking(){const d=document.getElementById('messages');const el=document.createElement('div');el.className='msg assistant';el.id='thinker';el.innerHTML='<div class="mav">⬡</div><div class="mbody"><div class="thinking"><span></span><span></span><span></span></div></div>';d.appendChild(el);d.scrollTop=d.scrollHeight;}
+function rmThinking(){document.getElementById('thinker')?.remove();}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fmt(t){return esc(t.replace(/ASAF_CMD:\{[^}]+\}/g,'').trim()).replace(/`([^`]+)`/g,'<code>$1</code>');}
+
+async function sendMsg(){
+  const inp=document.getElementById('cinput');const text=inp.value.trim();
+  if(!text||isThinking)return;
+  inp.value='';inp.style.height='';isThinking=true;document.getElementById('sbtn').disabled=true;
+  addMsg('user',text);history.push({role:'user',content:text});addThinking();
+  let full='',textEl=null;
+  try{
+    const stream=callLLM(history);rmThinking();textEl=addMsg('assistant','');
+    for await(const chunk of await stream){full+=chunk;textEl.innerHTML=fmt(full);document.getElementById('messages').scrollTop=999999;}
+    const cmds=extractCmds(full);for(const cmd of cmds){try{await dispatchCmd(cmd);}catch{}}
+    history.push({role:'assistant',content:full});
+    Analytics.track('prompt',{len:text.length,provider});
+  }catch(e){rmThinking();if(!textEl)textEl=addMsg('assistant','');textEl.innerHTML=fmt('Error: '+e.message+'\n\nCheck your LLM connection.');termErr('LLM: '+e.message);}
+  finally{isThinking=false;document.getElementById('sbtn').disabled=false;}
+}
+function usePrompt(el){document.getElementById('cinput').value=el.textContent.replace('→ ','');document.getElementById('cinput').focus();Analytics.track('sug_click',{text:el.textContent.slice(0,40)});}
+document.getElementById('cinput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
+document.getElementById('cinput').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';});
+
+// ── DAG chain ─────────────────────────────────────────────────────────────────
+async function loadDAGChain(){
+  try{const r=await fetch(CFG.apiURL+'/api/v1/dag/recent?limit=10',{signal:AbortSignal.timeout(3000)});if(!r.ok)return;const d=await r.json();if(d.nodes?.length){dagNodes=d.nodes;renderChain();}}catch{}
+}
+function addDAGNode(data){
+  const node={id:data.dag_node?.id||data.scan_id||('n-'+Date.now()),label:data.scan_target||data.framework||'Attestation',hash:data.dag_node?.hash||data.attestation?.hash||'0x'+Math.random().toString(16).slice(2,18),timestamp:new Date().toISOString(),cert:data.certified||false,framework:data.framework||'CMMC_L2',pqc:true};
+  dagNodes.unshift(node);if(dagNodes.length>20)dagNodes.pop();renderChain();
+}
+function renderChain(){
+  const list=document.getElementById('chain-list');
+  list.querySelectorAll('.chain-node').forEach(n=>n.remove());
+  list.querySelectorAll('.demo-node').forEach(n=>n.style.display='none');
+  dagNodes.forEach(node=>{
+    const div=document.createElement('div');div.className='chain-node'+(node.cert?' cert':'');
+    div.innerHTML=`<div class="cn-hash">${(node.hash||'').slice(0,28)}...</div><div class="cn-lbl">${esc(node.label||node.id)}</div><div class="cn-row">${node.pqc?'<span class="cbadge pqc">ML-DSA-65</span>':''}${node.cert?'<span class="cbadge gold">ADINKHEPRA ✓</span>':''}${node.framework?`<span class="cbadge cmmc">${node.framework}</span>`:''}<span class="cn-time">${new Date(node.timestamp).toLocaleTimeString()}</span></div>`;
+    div.addEventListener('click',()=>{switchTab('dag',null);document.querySelectorAll('.tab')[1].classList.add('active');document.querySelectorAll('.tab')[0].classList.remove('active');});
+    list.appendChild(div);
+  });
+}
+function renderDAGFromChain(chain){if(!Array.isArray(chain))return;dagNodes=chain.map(n=>({...n,label:n.entity_id||n.id,pqc:true}));renderChain();}
+
+// ── D3 DAG graph ──────────────────────────────────────────────────────────────
+function renderDAGGraph(){
+  const svg=d3.select('#dag-svg');svg.selectAll('*').remove();if(!dagNodes.length)return;
+  const w=document.getElementById('dagwrap').clientWidth,h=document.getElementById('dagwrap').clientHeight;
+  svg.append('defs').append('marker').attr('id','arrow').attr('viewBox','0 -5 10 10').attr('refX',18).attr('refY',0).attr('markerWidth',6).attr('markerHeight',6).attr('orient','auto').append('path').attr('d','M0,-5L10,0L0,5').attr('fill','#2a3545');
+  const g=svg.append('g').attr('transform',`translate(${w/2},40)`);
+  const nodes=dagNodes.slice(0,8).map((n,i)=>({...n,x:(i%3-1)*120,y:Math.floor(i/3)*100}));
+  const links=nodes.slice(1).map((n,i)=>({source:nodes[i],target:n}));
+  g.selectAll('.dag-link').data(links).enter().append('line').attr('class','dag-link').attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+  const tt=document.getElementById('dag-tt');
+  g.selectAll('.dag-node').data(nodes).enter().append('g').attr('class','dag-node').attr('transform',d=>`translate(${d.x},${d.y})`).each(function(d){
+    d3.select(this).append('circle').attr('r',14).attr('fill',d.cert?'rgba(0,212,170,.15)':'rgba(26,32,44,0.8)').attr('stroke',d.cert?'#00d4aa':'#2a3545').on('mouseover',(ev)=>{tt.style.opacity='1';tt.style.left=(ev.pageX+12)+'px';tt.style.top=(ev.pageY-28)+'px';tt.textContent=`${d.label}\n${(d.hash||'').slice(0,16)}...\n${d.framework||''} · ${d.cert?'CERTIFIED':'PENDING'}`;}).on('mouseout',()=>{tt.style.opacity='0';});
+    d3.select(this).append('text').attr('text-anchor','middle').attr('dy','0.35em').text((d.label||d.id).slice(0,6));
+  });
+}
+
+// ── Papyrus / Souhimbou ───────────────────────────────────────────────────────
+let papHistory=[{role:'system',content:PAP_SYS}];let papOpen=false;
+function togglePapyrus(){papOpen=!papOpen;document.getElementById('pap-panel').classList.toggle('open',papOpen);document.getElementById('pap-badge').classList.remove('show');if(papOpen&&document.getElementById('pap-msgs').children.length===0)papSay("Hey! I'm Souhimbou, your AI guide for this platform 🛡️ Ask me anything, or click 🗺 Tour for an interactive walkthrough!");Analytics.track('papyrus',{open:papOpen});}
+function papSay(msg){
+  const d=document.getElementById('pap-msgs');const el=document.createElement('div');el.className='pmsg sou';el.textContent=msg;d.appendChild(el);d.scrollTop=d.scrollHeight;
+  if(!papOpen){document.getElementById('pap-badge').classList.add('show');}
+}
+async function sendPapMsg(){
+  const inp=document.getElementById('pap-in');const text=inp.value.trim();if(!text)return;inp.value='';
+  const d=document.getElementById('pap-msgs');const uel=document.createElement('div');uel.className='pmsg usr';uel.textContent=text;d.appendChild(uel);
+  papHistory.push({role:'user',content:text});
+  const ael=document.createElement('div');ael.className='pmsg sou';ael.textContent='...';d.appendChild(ael);d.scrollTop=d.scrollHeight;
+  try{
+    let full='';const stream=callLLM(papHistory);
+    for await(const c of await stream){full+=c;ael.textContent=full;}
+    papHistory.push({role:'assistant',content:full});
+    Analytics.track('pap_msg',{len:text.length});
+  }catch(e){ael.textContent='Sorry, I need an AI connection to respond. Make sure your LLM is set up!';}
+}
+document.getElementById('pap-in').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendPapMsg();}});
+document.getElementById('pap-in').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px';});
+function setPapMode(mode,btn){document.querySelectorAll('.phmbtn').forEach(b=>b.classList.remove('active'));btn?.classList.add('active');}
+
+// ── Nudge (10s first visit) ───────────────────────────────────────────────────
+function dismissNudge(){document.getElementById('pap-nudge').classList.remove('show');localStorage.setItem('asaf_nudged','1');}
+if(!localStorage.getItem('asaf_nudged'))setTimeout(()=>{document.getElementById('pap-nudge').classList.add('show');},10000);
+
+// ── Tour engine ───────────────────────────────────────────────────────────────
+const TOUR=[
+  {el:'#dag-panel',text:"🔒 This is your Security Ledger — immutable proof your systems are compliant. Every scan permanently anchors a tamper-proof record here.",card:'right'},
+  {el:'#cinput',text:"💬 Ask me anything in plain English — no technical knowledge needed. I'll translate your question into real security actions.",card:'above'},
+  {el:'#term-panel',text:"🖥 This is your live scan output — like a security camera for your systems. Watch real-time findings as scans run.",card:'left'},
+  {el:'#llmsel',text:"🤖 Connect your AI engine here. Ollama and LM Studio run locally (private). OpenRouter is a free cloud fallback.",card:'above'},
+  {el:'#suggested',text:"⚡ Quick actions — click any of these to instantly run a common security task. No typing required!",card:'above'},
+  {el:'#dag-panel',text:"⛓ After your first scan, this placeholder data is replaced with your real cryptographic proof — signed with post-quantum ML-DSA-65.",card:'right'},
+  {el:'#help-btn',text:"📖 The Help menu has documentation, shortcuts, and feedback. You can always restart this tour here.",card:'below'},
+  {el:'#pap-btn',text:"🛡 I'm always here! Click anytime to ask questions, get guidance, or restart the tour. You're all set!",card:'above'},
+];
+let tourStep=0;
+function startTour(){tourStep=0;document.getElementById('tour-ov').classList.add('active');document.getElementById('tour-ov').style.pointerEvents='all';showTourStep();Analytics.track('tour_start');}
+function showTourStep(){
+  const s=TOUR[tourStep];const target=document.querySelector(s.el);
+  document.getElementById('tc-step').textContent='STEP '+(tourStep+1)+' OF '+TOUR.length;
+  document.getElementById('tc-text').textContent=s.text;
+  document.getElementById('tc-prog').textContent=(tourStep+1)+'/'+TOUR.length;
+  document.getElementById('tc-next').onclick=()=>{tourStep++;if(tourStep>=TOUR.length){endTour();}else{showTourStep();}};
+  if(target){const r=target.getBoundingClientRect();const spot=document.getElementById('tour-spot');spot.style.cssText=`left:${r.left-8}px;top:${r.top-8}px;width:${r.width+16}px;height:${r.height+16}px`;const card=document.getElementById('tour-card');card.style.cssText=`top:${Math.min(r.bottom+16,window.innerHeight-200)}px;left:${Math.max(Math.min(r.left,window.innerWidth-290),10)}px`;}
+  Analytics.track('tour_step',{step:tourStep});
+}
+function endTour(){document.getElementById('tour-ov').classList.remove('active');document.getElementById('tour-ov').style.pointerEvents='none';localStorage.setItem('asaf_toured','1');papSay('🎉 Tour complete! You\'re ready to run your first security scan. Just type a question or click a suggestion chip above.');togglePapyrus();Analytics.track('tour_end',{step:tourStep});}
+
+// ── Help overlay ──────────────────────────────────────────────────────────────
+function openHelp(){document.getElementById('help-ov').classList.add('open');Analytics.track('help_open');}
+function closeHelp(ev){if(!ev||ev.target===document.getElementById('help-ov'))document.getElementById('help-ov').classList.remove('open');}
+function showQuickRef(){closeHelp();papSay('⚡ Quick Reference:\n• "Scan [target] for CMMC L2 gaps"\n• "What does STIG [ID] require?"\n• "Check my compliance score"\n• "Show threat intel for CVE-[year]-[id]"\n• "Generate attestation for org [name]"\n• "Export my compliance certificate"');if(!papOpen)togglePapyrus();}
+function openFeedback(){document.getElementById('fb-form').classList.add('open');}
+function submitFeedback(){const t=document.getElementById('fb-txt').value.trim();if(!t)return;fetch(CFG.apiURL+'/api/v1/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({feedback:t,ts:Date.now()})}).catch(()=>{});document.getElementById('fb-form').classList.remove('open');document.getElementById('fb-txt').value='';papSay('Thanks for your feedback! It helps us improve. 🙏');if(!papOpen)togglePapyrus();Analytics.track('feedback',{len:t.length});}
+function requestFeature(){window.location.href='mailto:support@nouchix.com?subject=Feature Request — ASAF Platform&body=Hi NouchiX team,%0A%0AFeature request:%0A%0A';}
+function copyDiag(){const d=JSON.stringify({v:CFG.version,ua:navigator.userAgent,provider,api:document.getElementById('api-dot').className,llm:document.getElementById('llm-dot').className,ts:new Date().toISOString()},null,2);navigator.clipboard?.writeText(d);papSay('📋 Diagnostic info copied to clipboard. Paste it when reporting a bug — thank you!');if(!papOpen)togglePapyrus();}
+
+// ── DAG drawer (tablet) ───────────────────────────────────────────────────────
+function toggleDagDrawer(){document.getElementById('dag-panel').classList.toggle('open');}
+
+// ── Mobile tabs ───────────────────────────────────────────────────────────────
+function mobileTab(tab){
+  const cp=document.getElementById('chat-panel'),tp=document.getElementById('term-panel'),dp=document.getElementById('dag-panel');
+  cp.style.display=tab==='chat'?'flex':'none';tp.style.display=tab==='scan'?'flex':'none';
+  dp.classList.toggle('open',tab==='dag');
+  document.querySelectorAll('.mtab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('mtab-'+tab)?.classList.add('active');
+  if(tab==='scan')fitAddon.fit();
+  Analytics.track('mob_tab',{tab});
+}
+
+// ── Keyboard shortcuts ────────────────────────────────────────────────────────
+document.addEventListener('keydown',e=>{if(e.altKey&&e.key==='t'){e.preventDefault();startTour();}if(e.altKey&&e.key==='l'){e.preventDefault();toggleDagDrawer();}if(e.key==='Escape'){document.getElementById('help-ov').classList.remove('open');document.getElementById('fb-form').classList.remove('open');}});
+
+// ── Analytics: scroll depth & click tracking ──────────────────────────────────
+document.getElementById('messages').addEventListener('scroll',function(){const d=Math.round((this.scrollTop/(this.scrollHeight-this.clientHeight||1))*100);if(d===100)Analytics.track('scroll_bottom',{panel:'chat'});});
+document.addEventListener('click',e=>{if(e.target.id)Analytics.track('click',{id:e.target.id});});
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('ver-badge').textContent='v'+CFG.version;
+  initTerm();termInfo('Detecting LLM inference...');checkAPI();detectLLM();
+  const msgs=document.getElementById('messages');
+  const welcome=document.createElement('div');welcome.className='msg system';
+  welcome.innerHTML=`<div class="mav">◈</div><div class="mbody"><div class="mtext">ASAF Natural Language Security Platform — ready.\n\nType a security question or compliance request. Examples:\n• "Check if my systems meet government security standards"\n• "What does STIG V-72213 require?"\n• "Generate an ADINKHEPRA attestation for org acme-corp"\n• "Show me threat intel for CVE-2024-3400"</div><div class="mtime">system</div></div>`;
+  msgs.appendChild(welcome);
+  Analytics.track('page_view',{ref:document.referrer,w:window.innerWidth,h:window.innerHeight});
+});
 </script>
 </body>
 </html>
