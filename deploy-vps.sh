@@ -135,6 +135,14 @@ elif [ -f "docs/mcp-setup.md" ]; then
   $SCP docs/asaf-nlp.html ${VPS_USER}@${VPS_HOST}:/var/www/asaf/docs/ 2>/dev/null || true
 fi
 
+# Upload brand images (Souhimbou, ADINKHEPRA, SecRed seal)
+if [ -d "static/images" ]; then
+  $SSH "mkdir -p /var/www/asaf/images"
+  $SCP static/images/*.png ${VPS_USER}@${VPS_HOST}:/var/www/asaf/images/ 2>/dev/null || true
+  $SCP static/images/*.jpg ${VPS_USER}@${VPS_HOST}:/var/www/asaf/images/ 2>/dev/null || true
+  ok "Brand images uploaded"
+fi
+
 # Upload release artifacts if built
 if [ -d "bin" ] && ls bin/asaf-* &>/dev/null; then
   $SCP bin/asaf-* ${VPS_USER}@${VPS_HOST}:/var/www/asaf/releases/
