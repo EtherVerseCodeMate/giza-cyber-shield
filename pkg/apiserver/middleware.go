@@ -58,22 +58,59 @@ func (s *Server) AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-// CORSMiddleware handles CORS headers
-func CORSMiddleware() gin.HandlerFunc {
+// CORSMiddleware handles CORS headers including Chrome's Private Network Access (PNA).
+//
+// Chrome 94+ enforces PNA: a page served from a secure public origin (e.g.
+// https://docs.nouchix.com) is blocked from fetching localhost unless the
+// local server responds to the preflight with Access-Control-Allow-Private-Network: true.
+// Without this header the browser never sends the real request — it looks identical
+// to ECONNREFUSED from JS, making it hard to diagnose.
+//
+// allowedOrigins is typically populated from Config.AllowedOrigins; the function
+// also merges a set of hardcoded NouchiX / ASAF origins so local binaries work
+// without any environment configuration.
+func CORSMiddleware(allowedOrigins ...string) gin.HandlerFunc {
+	allowed := map[string]bool{
+		// NouchiX production origins — always allowed regardless of config
+		"https://docs.nouchix.com":        true,
+		"https://nouchix.com":             true,
+		"https://www.nouchix.com":         true,
+		"https://adinkhepra.com":          true,
+		"https://www.adinkhepra.com":      true,
+		"https://adinkhepra.dev":          true,
+		"https://souhimbou.ai":            true,
+		"https://souhimbou.org":           true,
+		"https://www.souhimbou.org":       true,
+		"https://gateway.souhimbou.org":   true,
+		"https://telemetry.souhimbou.org": true,
+		// Local development — serve-nlp (7777), Vite/Next (3000/5173), generic (8080)
+		"http://localhost:3000":           true,
+		"http://localhost:5173":           true,
+		"http://localhost:7777":           true,
+		"http://localhost:8080":           true,
+	}
+	// Merge any extra origins passed from Config.AllowedOrigins
+	for _, o := range allowedOrigins {
+		if o != "" {
+			allowed[o] = true
+		}
+	}
+
 	return func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
-		allowedOrigins := map[string]bool{
-			"https://souhimbou.ai":            true,
-			"http://localhost:3000":           true,
-			"https://telemetry.souhimbou.org": true,
+		if allowed[origin] {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
 		}
 
-		if allowedOrigins[origin] {
-			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
-		} else {
-			// Fallback for non-browser clients or unknown origins (optional: remove to be strict)
-			// c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		// ── Chrome Private Network Access (PNA) ───────────────────────────────
+		// When a page at a public HTTPS origin fetches localhost, Chrome sends a
+		// CORS preflight with "Access-Control-Request-Private-Network: true".
+		// The local server MUST echo the allow header or the fetch is silently
+		// blocked — the browser reports it as a CORS error, not a network error.
+		if c.Request.Header.Get("Access-Control-Request-Private-Network") == "true" {
+			c.Writer.Header().Set("Access-Control-Allow-Private-Network", "true")
 		}
+
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
