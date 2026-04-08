@@ -62,13 +62,17 @@ sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd
 sed -i 's/^#\?PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
 systemctl reload ssh
 
-# UFW: default deny, allow only 22/80/443
+# UFW: default deny, allow only 22/80/443 + Docker subnet → host services
 ufw --force reset
 ufw default deny incoming
 ufw default allow outgoing
-ufw allow 22/tcp comment 'SSH'
-ufw allow 80/tcp comment 'HTTP (redirect to HTTPS)'
+ufw allow 22/tcp  comment 'SSH'
+ufw allow 80/tcp  comment 'HTTP (redirect to HTTPS)'
 ufw allow 443/tcp comment 'HTTPS'
+# Allow NPM Docker containers to reach host-bound services
+ufw allow from 172.19.0.0/16 to any port 8080 comment 'Caddy static (Docker→host)'
+ufw allow from 172.19.0.0/16 to any port 8081 comment 'Caddy docs (Docker→host)'
+ufw allow from 172.19.0.0/16 to any port 4242 comment 'ASAF webhook (Docker→host)'
 ufw --force enable
 
 # Automatic security updates
