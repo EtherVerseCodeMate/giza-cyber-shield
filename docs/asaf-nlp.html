@@ -2,748 +2,434 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ASAF — Natural Language Security Platform</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="ASAF — AI-powered compliance scanning, CMMC, NIST 800-171, STIG attestation with post-quantum DAG anchoring by NouchiX.">
+<title>ASAF — Natural Language Security Platform · NouchiX</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
 <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script src="/asaf-config.js" onerror="window.ASAF_CONFIG={apiURL:'http://localhost:45444',ollamaURL:'http://localhost:11434',lmstudioURL:'http://localhost:1234',version:'dev'}"></script>
 <style>
-  :root {
-    --bg: #0a0c0f; --bg2: #111418; --bg3: #181c22;
-    --border: #1e2530; --border2: #2a3545;
-    --accent: #00d4aa; --accent2: #0099ff; --accent3: #7c3aed;
-    --danger: #ef4444; --warn: #f59e0b; --ok: #22c55e;
-    --text: #e2e8f0; --text2: #94a3b8; --text3: #475569;
-    --font: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
+:root {
+  --bg:#0a0c0f; --bg2:#111418; --bg3:#181c22; --bg4:#0d1117;
+  --bd:#1e2530; --bd2:#2a3545;
+  --a:#00d4aa; --a2:#0099ff; --a3:#7c3aed;
+  --gold:#e8b84b;
+  --err:#ef4444; --warn:#f59e0b; --ok:#22c55e;
+  --t:#e2e8f0; --t2:#94a3b8; --t3:#475569;
+  --fn:'JetBrains Mono','Fira Code',monospace;
+  --ui:'Inter',-apple-system,sans-serif;
+  --hh:52px; --mbh:60px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);overflow:hidden}
 
-  /* ── Layout ── */
-  #app { display: grid; grid-template-rows: 48px 1fr; height: 100vh; }
-  #header { display: flex; align-items: center; gap: 12px; padding: 0 16px; background: var(--bg2); border-bottom: 1px solid var(--border); z-index: 10; }
-  #main { display: grid; grid-template-columns: 380px 1fr 300px; overflow: hidden; }
+/* ── App ── */
+#app{display:grid;grid-template-rows:var(--hh) 1fr;height:100vh}
+#main{display:grid;grid-template-columns:360px 1fr 300px;overflow:hidden;position:relative}
 
-  /* ── Header ── */
-  .logo { font-family: var(--font); font-size: 13px; font-weight: 700; color: var(--accent); letter-spacing: 2px; }
-  .logo span { color: var(--text3); font-weight: 400; }
-  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text3); transition: background .3s; }
-  .status-dot.ok { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
-  .status-dot.warn { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
-  .status-dot.err { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
-  .status-label { font-size: 11px; color: var(--text3); font-family: var(--font); }
-  .header-sep { flex: 1; }
-  .badge { font-size: 10px; font-family: var(--font); padding: 2px 8px; border-radius: 3px; border: 1px solid; }
-  .badge.pqc { color: var(--accent); border-color: var(--accent); }
-  .badge.version { color: var(--text3); border-color: var(--border2); }
+/* ── Header ── */
+#header{display:flex;align-items:center;gap:10px;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--bd);z-index:100;flex-shrink:0;user-select:none}
+.logo{font-family:var(--fn);font-size:13px;font-weight:700;color:var(--a);letter-spacing:2px;white-space:nowrap}
+.logo span{color:var(--t3);font-weight:400}
+.sep{flex:1}
+.sdot{width:7px;height:7px;border-radius:50%;background:var(--t3);transition:background .3s;flex-shrink:0}
+.sdot.ok{background:var(--ok);box-shadow:0 0 6px var(--ok)}
+.sdot.warn{background:var(--warn);box-shadow:0 0 6px var(--warn)}
+.sdot.err{background:var(--err);box-shadow:0 0 6px var(--err)}
+.slabel{font-size:11px;color:var(--t3);font-family:var(--fn);white-space:nowrap}
+.badge{font-size:10px;font-family:var(--fn);padding:2px 8px;border-radius:3px;border:1px solid;white-space:nowrap}
+.badge.pqc{color:var(--gold);border-color:var(--gold);background:rgba(232,184,75,.08)}
+.badge.ver{color:var(--t3);border-color:var(--bd2)}
+.hbtn{background:transparent;border:1px solid var(--bd2);border-radius:6px;color:var(--t2);cursor:pointer;font-size:12px;padding:4px 10px;transition:all .15s;flex-shrink:0}
+.hbtn:hover{border-color:var(--a2);color:var(--a2)}
+#dag-toggle{display:none}
 
-  /* ── Chat Panel ── */
-  #chat-panel { display: flex; flex-direction: column; border-right: 1px solid var(--border); background: var(--bg); }
-  #chat-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 11px; font-family: var(--font); color: var(--text3); letter-spacing: 1px; display: flex; align-items: center; justify-content: space-between; }
-  #model-badge { font-size: 10px; color: var(--accent2); background: rgba(0,153,255,.1); padding: 2px 8px; border-radius: 3px; border: 1px solid rgba(0,153,255,.3); }
-  #messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
-  #messages::-webkit-scrollbar { width: 4px; }
-  #messages::-webkit-scrollbar-track { background: transparent; }
-  #messages::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
-  .msg { display: flex; gap: 8px; animation: fadeIn .2s ease; }
-  .msg-avatar { width: 26px; height: 26px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; margin-top: 2px; }
-  .msg.user .msg-avatar { background: rgba(124,58,237,.2); color: var(--accent3); border: 1px solid rgba(124,58,237,.3); }
-  .msg.assistant .msg-avatar { background: rgba(0,212,170,.1); color: var(--accent); border: 1px solid rgba(0,212,170,.2); }
-  .msg.system .msg-avatar { background: rgba(245,158,11,.1); color: var(--warn); border: 1px solid rgba(245,158,11,.2); }
-  .msg-body { flex: 1; min-width: 0; }
-  .msg-text { font-size: 13px; line-height: 1.6; color: var(--text); white-space: pre-wrap; word-break: break-word; }
-  .msg-text code { font-family: var(--font); background: var(--bg3); padding: 1px 5px; border-radius: 3px; font-size: 11px; color: var(--accent); }
-  .msg-time { font-size: 10px; color: var(--text3); font-family: var(--font); margin-top: 3px; }
-  .msg.user .msg-text { color: var(--text2); }
-  .thinking { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
-  .thinking span { width: 5px; height: 5px; background: var(--accent); border-radius: 50%; animation: pulse 1.2s infinite; }
-  .thinking span:nth-child(2) { animation-delay: .2s; }
-  .thinking span:nth-child(3) { animation-delay: .4s; }
-  @keyframes pulse { 0%,80%,100% { opacity:.2; transform: scale(.8); } 40% { opacity:1; transform: scale(1); } }
+/* ── Chat panel ── */
+#chat-panel{display:flex;flex-direction:column;border-right:1px solid var(--bd);background:var(--bg);overflow:hidden}
+#chat-hdr{padding:10px 16px;border-bottom:1px solid var(--bd);font-size:11px;font-family:var(--fn);color:var(--t3);letter-spacing:1px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+#mbadge{font-size:10px;color:var(--a2);background:rgba(0,153,255,.1);padding:2px 8px;border-radius:3px;border:1px solid rgba(0,153,255,.3)}
+#messages{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth}
+#messages::-webkit-scrollbar{width:4px}
+#messages::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:2px}
+.msg{display:flex;gap:8px;animation:fi .25s ease}
+.mav{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-top:2px}
+.msg.user .mav{background:rgba(124,58,237,.2);color:var(--a3);border:1px solid rgba(124,58,237,.3)}
+.msg.assistant .mav{background:rgba(0,212,170,.1);color:var(--a);border:1px solid rgba(0,212,170,.2)}
+.msg.system .mav{background:rgba(245,158,11,.1);color:var(--warn);border:1px solid rgba(245,158,11,.2)}
+.mbody{flex:1;min-width:0}
+.mtext{font-size:13px;line-height:1.7;color:var(--t);white-space:pre-wrap;word-break:break-word}
+.mtext code{font-family:var(--fn);background:var(--bg3);padding:1px 5px;border-radius:3px;font-size:11px;color:var(--a)}
+.mtime{font-size:10px;color:var(--t3);font-family:var(--fn);margin-top:3px}
+.msg.user .mtext{color:var(--t2)}
+.thinking{display:flex;gap:4px;align-items:center;padding:4px 0}
+.thinking span{width:5px;height:5px;background:var(--a);border-radius:50%;animation:pulse 1.2s infinite}
+.thinking span:nth-child(2){animation-delay:.2s}
+.thinking span:nth-child(3){animation-delay:.4s}
+#ciw{padding:12px;border-top:1px solid var(--bd);display:flex;flex-direction:column;gap:8px;flex-shrink:0}
+#suggested{display:flex;flex-direction:column;gap:4px}
+.sug{font-size:12px;color:var(--a2);cursor:pointer;padding:5px 10px;border-radius:6px;border:1px solid transparent;transition:all .15s;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sug:hover{border-color:rgba(0,153,255,.3);background:rgba(0,153,255,.07)}
+.sug::before{content:'→ ';opacity:.5}
+#llmsel{display:flex;gap:6px;flex-wrap:wrap}
+.llmbtn{font-size:10px;font-family:var(--fn);padding:3px 10px;border-radius:3px;border:1px solid var(--bd2);background:transparent;color:var(--t3);cursor:pointer;transition:all .15s}
+.llmbtn:hover{border-color:var(--a2);color:var(--a2)}
+.llmbtn.active{border-color:var(--a);color:var(--a);background:rgba(0,212,170,.08)}
+#irow{display:flex;gap:8px}
+#cinput{flex:1;background:var(--bg3);border:1px solid var(--bd2);border-radius:8px;padding:9px 12px;font-size:13px;color:var(--t);font-family:var(--ui);resize:none;outline:none;transition:border-color .2s;min-height:42px;max-height:120px;line-height:1.5}
+#cinput:focus{border-color:var(--a);box-shadow:0 0 0 3px rgba(0,212,170,.08)}
+#cinput::placeholder{color:var(--t3)}
+#sbtn{background:linear-gradient(135deg,var(--a),#00b894);color:#000;border:none;border-radius:8px;padding:9px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fn);transition:all .15s;white-space:nowrap}
+#sbtn:hover{opacity:.9;transform:translateY(-1px)}
+#sbtn:active{transform:none}
+#sbtn:disabled{opacity:.4;cursor:default;transform:none}
+#or-card{display:none;background:var(--bg3);border:1px solid rgba(232,184,75,.25);border-radius:8px;padding:12px}
+#or-card h4{color:var(--gold);margin-bottom:8px;font-size:13px}
+#or-card p{font-size:12px;color:var(--t2);line-height:1.6;margin-bottom:8px}
+#or-card a{color:var(--a2);text-decoration:none}
+#orkl{width:100%;background:var(--bg);border:1px solid var(--bd2);border-radius:6px;padding:7px 10px;font-size:12px;color:var(--t);font-family:var(--fn);outline:none;margin-top:6px;transition:border-color .2s}
+#orkl:focus{border-color:var(--gold)}
+#or-conn{margin-top:8px;background:var(--gold);color:#000;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer}
 
-  #chat-input-wrap { padding: 12px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
-  #llm-selector { display: flex; gap: 6px; flex-wrap: wrap; }
-  .llm-btn { font-size: 10px; font-family: var(--font); padding: 3px 10px; border-radius: 3px; border: 1px solid var(--border2); background: transparent; color: var(--text3); cursor: pointer; transition: all .15s; }
-  .llm-btn:hover { border-color: var(--accent2); color: var(--accent2); }
-  .llm-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,212,170,.08); }
-  #input-row { display: flex; gap: 8px; }
-  #chat-input { flex: 1; background: var(--bg3); border: 1px solid var(--border2); border-radius: 6px; padding: 9px 12px; font-size: 13px; color: var(--text); font-family: var(--sans); resize: none; outline: none; transition: border-color .2s; min-height: 42px; max-height: 120px; }
-  #chat-input:focus { border-color: var(--accent); }
-  #chat-input::placeholder { color: var(--text3); }
-  #send-btn { background: var(--accent); color: #000; border: none; border-radius: 6px; padding: 9px 16px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: opacity .15s; white-space: nowrap; }
-  #send-btn:disabled { opacity: .4; cursor: default; }
+/* ── Terminal panel ── */
+#term-panel{display:flex;flex-direction:column;background:var(--bg4);overflow:hidden}
+#thdr{padding:0 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;height:40px;flex-shrink:0}
+.tabbar{display:flex;flex:1}
+.tab{font-size:11px;font-family:var(--fn);padding:0 16px;height:40px;display:flex;align-items:center;cursor:pointer;color:var(--t3);border-bottom:2px solid transparent;transition:all .15s;text-transform:uppercase;letter-spacing:.5px}
+.tab.active{color:var(--a);border-bottom-color:var(--a)}
+#twrap{flex:1;padding:8px;overflow:hidden;min-height:0}
+#term{height:100%}
+#dagwrap{flex:1;overflow:hidden;display:none;position:relative}
+#dag-svg{width:100%;height:100%}
+.dag-tt{position:absolute;background:var(--bg3);border:1px solid var(--bd2);border-radius:8px;padding:10px 14px;font-size:11px;font-family:var(--fn);color:var(--t);pointer-events:none;max-width:280px;z-index:100;opacity:0;transition:opacity .15s}
+.dag-node circle{stroke-width:2;cursor:pointer;transition:all .2s}
+.dag-node circle:hover{stroke-width:3;filter:brightness(1.3)}
+.dag-node text{font-family:var(--fn);font-size:9px;fill:var(--t2);pointer-events:none}
+.dag-link{stroke:var(--bd2);stroke-width:1.5;fill:none;marker-end:url(#arrow)}
 
-  /* ── Terminal Panel ── */
-  #terminal-panel { display: flex; flex-direction: column; background: #0d1117; }
-  #terminal-header { padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 11px; font-family: var(--font); color: var(--text3); letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
-  .tab-bar { display: flex; gap: 0; }
-  .tab { font-size: 11px; font-family: var(--font); padding: 6px 16px; cursor: pointer; color: var(--text3); border-bottom: 2px solid transparent; transition: all .15s; }
-  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-  #terminal-wrap { flex: 1; padding: 8px; overflow: hidden; }
-  #term { height: 100%; }
-  #dag-wrap { flex: 1; overflow: hidden; display: none; }
-  #dag-svg { width: 100%; height: 100%; }
-  .dag-node circle { stroke-width: 2; cursor: pointer; transition: all .2s; }
-  .dag-node circle:hover { stroke-width: 3; filter: brightness(1.3); }
-  .dag-node text { font-family: var(--font); font-size: 9px; fill: var(--text2); pointer-events: none; }
-  .dag-link { stroke: var(--border2); stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
-  .dag-tooltip { position: absolute; background: var(--bg3); border: 1px solid var(--border2); border-radius: 6px; padding: 8px 12px; font-size: 11px; font-family: var(--font); color: var(--text); pointer-events: none; white-space: pre-wrap; max-width: 280px; z-index: 100; opacity: 0; transition: opacity .15s; }
+/* ── DAG chain panel ── */
+#dag-panel{display:flex;flex-direction:column;border-left:1px solid var(--bd);background:var(--bg);overflow:hidden;transition:transform .3s cubic-bezier(.4,0,.2,1)}
+#dag-hdr{padding:12px 16px;border-bottom:1px solid var(--bd);flex-shrink:0}
+.dht{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+#dag-badge{width:32px;height:32px;border-radius:4px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 0 6px rgba(232,184,75,.4))}
+#dag-title{font-size:11px;font-family:var(--fn);color:var(--t3);letter-spacing:1px}
+#dag-sub{font-size:11px;color:var(--t3);line-height:1.5}
+#ledger-xp{margin:8px;padding:10px 12px;background:var(--bg3);border:1px solid var(--bd);border-radius:8px;font-size:12px;color:var(--t2);line-height:1.6;flex-shrink:0}
+#ledger-xp strong{color:var(--a)}
+#chain-list{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:6px}
+#chain-list::-webkit-scrollbar{width:3px}
+#chain-list::-webkit-scrollbar-thumb{background:var(--bd2)}
+.demo-node{background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;opacity:.55;animation:shimmer 2.5s infinite}
+.demo-node:nth-child(2){animation-delay:.5s}
+.demo-node:nth-child(3){animation-delay:1s}
+.dn-lbl{font-size:11px;color:var(--t2);margin-bottom:4px}
+.dn-hash{font-family:var(--fn);font-size:9px;color:var(--t3)}
+.dn-badges{display:flex;gap:4px;margin-top:6px}
+.chain-node{background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;cursor:pointer;transition:all .15s;animation:fi .25s ease}
+.chain-node:hover{border-color:var(--a);transform:translateX(2px)}
+.chain-node.cert{border-color:rgba(232,184,75,.4);animation:certglow 3s infinite}
+.cn-hash{font-family:var(--fn);font-size:9px;color:var(--t3);margin-bottom:4px}
+.cn-lbl{font-size:12px;color:var(--t);font-weight:500;margin-bottom:6px}
+.cn-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.cbadge{font-size:9px;font-family:var(--fn);padding:1px 6px;border-radius:2px}
+.cbadge.pqc{background:rgba(0,212,170,.1);color:var(--a);border:1px solid rgba(0,212,170,.2)}
+.cbadge.gold{background:rgba(232,184,75,.1);color:var(--gold);border:1px solid rgba(232,184,75,.2)}
+.cbadge.cmmc{background:rgba(0,153,255,.1);color:var(--a2);border:1px solid rgba(0,153,255,.2)}
+.cbadge.stig{background:rgba(124,58,237,.1);color:var(--a3);border:1px solid rgba(124,58,237,.2)}
+.cn-time{font-size:9px;color:var(--t3);font-family:var(--fn);margin-left:auto}
 
-  /* ── DAG Panel ── */
-  #dag-panel { display: flex; flex-direction: column; border-left: 1px solid var(--border); background: var(--bg); }
-  #dag-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 11px; font-family: var(--font); color: var(--text3); letter-spacing: 1px; }
-  #chain-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
-  #chain-list::-webkit-scrollbar { width: 3px; }
-  #chain-list::-webkit-scrollbar-thumb { background: var(--border2); }
-  .chain-node { background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; cursor: pointer; transition: border-color .15s; }
-  .chain-node:hover { border-color: var(--accent); }
-  .chain-node.certified { border-color: rgba(0,212,170,.4); }
-  .chain-node .cn-hash { font-family: var(--font); font-size: 9px; color: var(--text3); margin-bottom: 4px; }
-  .chain-node .cn-label { font-size: 12px; color: var(--text); font-weight: 500; }
-  .chain-node .cn-status { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
-  .cn-badge { font-size: 9px; font-family: var(--font); padding: 1px 6px; border-radius: 2px; }
-  .cn-badge.pqc { background: rgba(0,212,170,.1); color: var(--accent); border: 1px solid rgba(0,212,170,.2); }
-  .cn-badge.cmmc { background: rgba(0,153,255,.1); color: var(--accent2); border: 1px solid rgba(0,153,255,.2); }
-  .cn-badge.stig { background: rgba(124,58,237,.1); color: var(--accent3); border: 1px solid rgba(124,58,237,.2); }
-  .cn-time { font-size: 9px; color: var(--text3); font-family: var(--font); margin-left: auto; }
-  #dag-empty { padding: 24px 16px; text-align: center; color: var(--text3); font-size: 12px; line-height: 1.8; }
-  #dag-empty .icon { font-size: 28px; margin-bottom: 8px; }
+/* ── Papyrus / Souhimbou widget ── */
+#pap-btn{position:fixed;bottom:24px;right:24px;z-index:1000;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#0f2a2a,#1a3a3a);border:2px solid var(--a);cursor:pointer;overflow:visible;box-shadow:0 4px 20px rgba(0,212,170,.3);transition:all .2s;padding:0;display:flex;align-items:center;justify-content:center}
+#pap-btn:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(0,212,170,.5)}
+#pap-btn-img{width:52px;height:52px;border-radius:50%;object-fit:cover;object-position:top center}
+#pap-badge{position:absolute;top:-4px;right:-4px;background:var(--a);color:#000;border-radius:50%;width:18px;height:18px;font-size:9px;font-weight:700;display:none;align-items:center;justify-content:center}
+#pap-badge.show{display:flex;animation:pbadge 2s ease 3}
+#pap-panel{position:fixed;bottom:96px;right:24px;z-index:999;width:360px;max-height:540px;background:var(--bg2);border:1px solid var(--bd2);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.6);display:none;flex-direction:column;overflow:hidden}
+#pap-panel.open{display:flex;animation:slu .25s ease}
+#pap-hdr{background:linear-gradient(135deg,#071a1a,#0d2535);border-bottom:1px solid var(--bd);display:flex;align-items:stretch;flex-shrink:0}
+#pap-portrait{width:68px;height:78px;object-fit:cover;object-position:top center;flex-shrink:0}
+.phi{padding:10px 12px;flex:1}
+.pht{font-size:14px;font-weight:700;color:var(--a)}
+.phs{font-size:11px;color:var(--t2);margin-top:2px;line-height:1.4}
+.phm{display:flex;gap:5px;margin-top:8px}
+.phmbtn{font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid var(--bd2);background:transparent;color:var(--t3);cursor:pointer;transition:all .15s}
+.phmbtn:hover,.phmbtn.active{border-color:var(--a);color:var(--a);background:rgba(0,212,170,.08)}
+#pap-close{padding:8px 10px;background:transparent;border:none;color:var(--t3);cursor:pointer;font-size:18px;align-self:flex-start;flex-shrink:0;transition:color .15s;line-height:1}
+#pap-close:hover{color:var(--t)}
+#pap-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+#pap-msgs::-webkit-scrollbar{width:3px}
+#pap-msgs::-webkit-scrollbar-thumb{background:var(--bd2)}
+.pmsg{max-width:90%;line-height:1.6;padding:8px 12px;border-radius:10px;font-size:13px;animation:fi .2s ease}
+.pmsg.sou{background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.15);color:var(--t);align-self:flex-start;border-radius:4px 10px 10px 10px}
+.pmsg.usr{background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.2);color:var(--t2);align-self:flex-end;border-radius:10px 4px 10px 10px}
+#pap-irow{padding:10px 12px;border-top:1px solid var(--bd);display:flex;gap:8px;flex-shrink:0}
+#pap-in{flex:1;background:var(--bg3);border:1px solid var(--bd2);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--t);outline:none;font-family:var(--ui);resize:none;min-height:36px;max-height:80px}
+#pap-in:focus{border-color:var(--a)}
+#pap-send{background:var(--a);color:#000;border:none;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:700;cursor:pointer;line-height:1}
 
-  /* ── Suggested prompts ── */
-  #suggested { display: flex; flex-direction: column; gap: 4px; }
-  .suggestion { font-size: 11px; color: var(--accent2); cursor: pointer; padding: 4px 8px; border-radius: 4px; border: 1px solid transparent; transition: all .15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .suggestion:hover { border-color: rgba(0,153,255,.3); background: rgba(0,153,255,.05); }
+/* ── Nudge toast ── */
+#pap-nudge{position:fixed;bottom:96px;right:92px;z-index:998;background:var(--bg2);border:1px solid var(--a);border-radius:12px;padding:14px 16px;max-width:210px;font-size:12px;color:var(--t);line-height:1.5;box-shadow:0 8px 24px rgba(0,0,0,.5);display:none}
+#pap-nudge.show{display:block;animation:slu .3s ease}
+#pap-nudge strong{color:var(--a);display:block;margin-bottom:6px}
+#nudge-tour{width:100%;background:var(--a);color:#000;border:none;border-radius:6px;padding:6px;font-size:11px;font-weight:700;cursor:pointer;margin-bottom:4px}
+#nudge-dismiss{width:100%;background:none;border:none;color:var(--t3);cursor:pointer;font-size:11px;padding:2px}
 
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+/* ── Tour overlay ── */
+#tour-ov{position:fixed;inset:0;z-index:2000;display:none;pointer-events:none}
+#tour-ov.active{display:block}
+#tour-spot{position:absolute;border:2px solid var(--a);border-radius:10px;box-shadow:0 0 0 9999px rgba(0,0,0,.72),0 0 24px rgba(0,212,170,.4);transition:all .4s cubic-bezier(.4,0,.2,1);pointer-events:none}
+#tour-card{position:absolute;background:var(--bg2);border:1px solid var(--a);border-radius:12px;padding:16px 18px;max-width:270px;box-shadow:0 8px 32px rgba(0,0,0,.6);pointer-events:all;animation:fi .25s ease}
+.tc-step{font-size:10px;font-family:var(--fn);color:var(--t3);margin-bottom:6px;letter-spacing:1px}
+.tc-text{font-size:14px;color:var(--t);line-height:1.6;margin-bottom:12px}
+.tc-acts{display:flex;gap:8px;align-items:center}
+.tc-next{background:var(--a);color:#000;border:none;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer}
+.tc-skip{background:none;border:none;color:var(--t3);cursor:pointer;font-size:12px}
+.tc-skip:hover{color:var(--t)}
+.tc-prog{margin-left:auto;font-size:11px;color:var(--t3);font-family:var(--fn)}
 
-  /* ── API endpoint callout ── */
-  .api-call { font-family: var(--font); font-size: 10px; background: rgba(0,212,170,.05); border: 1px solid rgba(0,212,170,.15); border-radius: 4px; padding: 6px 10px; margin-top: 6px; color: var(--accent); }
-  .api-call .method { color: var(--accent2); }
+/* ── Help overlay ── */
+#help-ov{position:fixed;inset:0;z-index:1500;display:none;background:rgba(0,0,0,.5);backdrop-filter:blur(3px);align-items:flex-start;justify-content:flex-end;padding:60px 16px 0}
+#help-ov.open{display:flex}
+#help-menu{background:var(--bg2);border:1px solid var(--bd2);border-radius:12px;width:270px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.5);animation:sld .2s ease}
+.hm-hdr{padding:12px 16px;font-size:11px;font-family:var(--fn);color:var(--t3);letter-spacing:1px;border-bottom:1px solid var(--bd)}
+.hm-sec{padding:6px 0;border-bottom:1px solid var(--bd)}
+.hm-sec:last-child{border-bottom:none}
+.hm-item{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:13px;color:var(--t2);cursor:pointer;transition:all .15s}
+.hm-item:hover{background:var(--bg3);color:var(--t)}
+.hm-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.hm-sc{margin-left:auto;font-size:10px;font-family:var(--fn);color:var(--t3)}
+
+/* ── Feedback form ── */
+#fb-form{position:fixed;z-index:2000;bottom:24px;left:50%;transform:translateX(-50%);background:var(--bg2);border:1px solid var(--bd2);border-radius:12px;padding:16px 18px;width:320px;box-shadow:0 12px 40px rgba(0,0,0,.5);display:none}
+#fb-form.open{display:block;animation:slu .25s ease}
+#fb-form h4{font-size:13px;color:var(--t);margin-bottom:10px}
+#fb-txt{width:100%;height:80px;background:var(--bg3);border:1px solid var(--bd2);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--t);font-family:var(--ui);resize:none;outline:none}
+#fb-txt:focus{border-color:var(--a)}
+.fb-acts{display:flex;gap:8px;margin-top:10px}
+.fb-sub{background:var(--a);color:#000;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer}
+.fb-can{background:none;border:1px solid var(--bd2);border-radius:6px;padding:7px 14px;font-size:12px;color:var(--t2);cursor:pointer}
+
+/* ── Mobile bar ── */
+#mob-bar{display:none;position:fixed;bottom:0;left:0;right:0;height:var(--mbh);background:var(--bg2);border-top:1px solid var(--bd);z-index:200}
+.mtab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;color:var(--t3);transition:color .15s;border:none;background:none}
+.mtab.active{color:var(--a)}
+.mt-ic{font-size:20px}
+.mt-lb{font-size:10px}
+
+/* ── API callout ── */
+.api-call{font-family:var(--fn);font-size:10px;background:rgba(0,212,170,.05);border:1px solid rgba(0,212,170,.15);border-radius:4px;padding:6px 10px;margin-top:6px;color:var(--a)}
+.api-call .method{color:var(--a2)}
+
+/* ── Animations ── */
+@keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+@keyframes slu{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes sld{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+@keyframes pbadge{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
+@keyframes shimmer{0%,100%{opacity:.4}50%{opacity:.75}}
+@keyframes certglow{0%,100%{box-shadow:0 0 8px rgba(232,184,75,.15)}50%{box-shadow:0 0 18px rgba(232,184,75,.5)}}
+
+/* ── Responsive ── */
+@media(max-width:1200px){
+  #main{grid-template-columns:300px 1fr}
+  #dag-panel{position:fixed;right:0;top:var(--hh);bottom:0;width:300px;transform:translateX(100%);box-shadow:-4px 0 24px rgba(0,0,0,.4);z-index:80}
+  #dag-panel.open{transform:translateX(0)}
+  #dag-toggle{display:flex}
+}
+@media(max-width:768px){
+  #main{grid-template-columns:1fr}
+  #chat-panel{position:absolute;inset:0}
+  #term-panel{position:absolute;inset:0;display:none}
+  #dag-panel{position:fixed;top:var(--hh);left:0;right:0;bottom:var(--mbh);width:auto;transform:translateY(110%);border-left:none;border-top:1px solid var(--bd)}
+  #dag-panel.open{transform:translateY(0)}
+  #dag-toggle{display:none}
+  #mob-bar{display:flex}
+  #pap-btn{bottom:calc(var(--mbh) + 14px)}
+  #pap-panel{width:calc(100vw - 32px);right:16px;bottom:calc(var(--mbh) + 76px)}
+  #pap-nudge{right:auto;left:16px;bottom:calc(var(--mbh) + 80px)}
+}
 </style>
 </head>
 <body>
 <div id="app">
-  <!-- Header -->
   <header id="header">
+    <img src="/images/secred-seal.png" style="width:26px;height:26px;border-radius:50%;object-fit:cover;opacity:.8;flex-shrink:0" onerror="this.style.display='none'" alt="SecRed">
     <div class="logo">ASAF <span>// Natural Language Security Platform</span></div>
-    <div class="status-dot" id="api-dot" title="API Server"></div>
-    <div class="status-label" id="api-label">api</div>
-    <div class="status-dot" id="llm-dot" title="LLM"></div>
-    <div class="status-label" id="llm-label">llm</div>
-    <div class="header-sep"></div>
+    <div class="sdot" id="api-dot"></div><div class="slabel" id="api-lbl">API</div>
+    <div class="sdot" id="llm-dot"></div><div class="slabel" id="llm-lbl">LLM</div>
+    <div class="sep"></div>
     <div class="badge pqc">ML-DSA-65</div>
-    <div class="badge version" id="version-badge">v--</div>
+    <div class="badge ver" id="ver-badge">v--</div>
+    <button class="hbtn" id="dag-toggle" onclick="toggleDagDrawer()">🔒 Ledger</button>
+    <button class="hbtn" id="help-btn" onclick="openHelp()">? Help</button>
   </header>
 
-  <!-- Main 3-panel layout -->
   <main id="main">
     <!-- Left: NL Chat -->
     <section id="chat-panel">
-      <div id="chat-header">
+      <div id="chat-hdr">
         <span>SECURITY ADVISOR</span>
-        <div id="model-badge">detecting...</div>
+        <div id="mbadge">detecting...</div>
       </div>
       <div id="messages"></div>
-      <div id="chat-input-wrap">
+      <div id="ciw">
         <div id="suggested">
-          <div class="suggestion" onclick="usePrompt(this)">Scan localhost for CMMC L2 gaps</div>
-          <div class="suggestion" onclick="usePrompt(this)">Query STIG V-230221 remediation</div>
-          <div class="suggestion" onclick="usePrompt(this)">Export attestation for org acme-corp</div>
+          <div class="sug" onclick="usePrompt(this)">Check if my systems meet government security standards</div>
+          <div class="sug" onclick="usePrompt(this)">What does STIG V-72213 require in plain English?</div>
+          <div class="sug" onclick="usePrompt(this)">Create a compliance proof for my organization</div>
         </div>
-        <div id="llm-selector">
-          <button class="llm-btn active" data-provider="ollama">Ollama</button>
-          <button class="llm-btn" data-provider="lmstudio">LM Studio</button>
-          <button class="llm-btn" data-provider="openrouter">OpenRouter</button>
+        <div id="llmsel">
+          <button class="llmbtn active" data-p="ollama">Ollama</button>
+          <button class="llmbtn" data-p="lmstudio">LM Studio</button>
+          <button class="llmbtn" data-p="openrouter">OpenRouter</button>
         </div>
-        <div id="input-row">
-          <textarea id="chat-input" rows="1" placeholder="Ask anything about compliance, STIGs, threats..."></textarea>
-          <button id="send-btn" onclick="sendMessage()">SEND</button>
+        <div id="irow">
+          <textarea id="cinput" rows="1" placeholder="Ask anything about compliance, security, or threats..."></textarea>
+          <button id="sbtn" onclick="sendMsg()">SEND</button>
         </div>
-        <div id="or-key-row" style="display:none">
-          <input id="or-key-input" type="password" placeholder="OpenRouter API key (sk-or-v1-...)"
-            style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:6px 10px;font-size:12px;color:var(--text);font-family:var(--font);outline:none;">
+        <div id="or-card">
+          <h4>🔑 Connect your AI engine</h4>
+          <p>No local AI detected. Get a free API key from OpenRouter to power the advisor:</p>
+          <div style="font-size:12px;color:var(--t2);line-height:1.9">
+            1. Visit <a href="https://openrouter.ai" target="_blank">openrouter.ai</a> → Sign up (free)<br>
+            2. Create an API key<br>
+            3. Paste it below — done!
+          </div>
+          <input id="orkl" type="password" placeholder="sk-or-v1-...">
+          <button id="or-conn" onclick="connectOR()">Connect ✓</button>
         </div>
       </div>
     </section>
 
-    <!-- Center: Terminal + DAG vis -->
-    <section id="terminal-panel">
-      <div id="terminal-header">
-        <div class="tab-bar">
-          <div class="tab active" onclick="switchTab('terminal')">SCAN OUTPUT</div>
-          <div class="tab" onclick="switchTab('dag')">DAG GRAPH</div>
+    <!-- Center: Terminal + DAG graph -->
+    <section id="term-panel">
+      <div id="thdr">
+        <div class="tabbar">
+          <div class="tab active" onclick="switchTab('term',event)">SCAN OUTPUT</div>
+          <div class="tab" onclick="switchTab('dag',event)">DAG GRAPH</div>
         </div>
       </div>
-      <div id="terminal-wrap"><div id="term"></div></div>
-      <div id="dag-wrap">
+      <div id="twrap"><div id="term"></div></div>
+      <div id="dagwrap">
         <svg id="dag-svg"></svg>
-        <div class="dag-tooltip" id="dag-tooltip"></div>
+        <div class="dag-tt" id="dag-tt"></div>
       </div>
     </section>
 
-    <!-- Right: DAG audit chain -->
+    <!-- Right: Security Ledger -->
     <aside id="dag-panel">
-      <div id="dag-header">ATTESTATION CHAIN</div>
-      <div id="chain-list">
-        <div id="dag-empty">
-          <div class="icon">⛓</div>
-          <div>No attestations yet.<br>Run a scan or certify a target<br>to anchor the DAG chain.</div>
+      <div id="dag-hdr">
+        <div class="dht">
+          <img id="dag-badge" src="/images/adinkhepra-badge.png" alt="ADINKHEPRA ASAF" onerror="this.textContent='🛡️';this.style.cssText='font-size:28px;width:32px;height:32px'">
+          <div>
+            <div id="dag-title">SECURITY LEDGER</div>
+            <div id="dag-sub">Immutable compliance proof</div>
+          </div>
         </div>
+      </div>
+      <div id="ledger-xp">
+        <strong>Every scan creates a tamper-proof record</strong> — like a notarized document, but cryptographic and post-quantum secure. Run a scan to anchor your first proof.
+      </div>
+      <div id="chain-list">
+        <div class="demo-node"><div class="dn-lbl">⟳ Awaiting attestations...</div><div class="dn-hash">0x████████████████████████...</div><div class="dn-badges"><span class="cbadge pqc">ML-DSA-65</span><span class="cbadge cmmc">CMMC L2</span></div></div>
+        <div class="demo-node"><div class="dn-lbl">⟳ Previous record encrypted</div><div class="dn-hash">0x████████████████████████...</div><div class="dn-badges"><span class="cbadge pqc">ML-DSA-65</span><span class="cbadge stig">STIG</span></div></div>
+        <div class="demo-node"><div class="dn-lbl">⟳ Chain integrity verified</div><div class="dn-hash">0x████████████████████████...</div><div class="dn-badges"><span class="cbadge gold">ADINKHEPRA</span></div></div>
       </div>
     </aside>
   </main>
 </div>
 
+<!-- Papyrus nudge toast -->
+<div id="pap-nudge">
+  <strong>👋 Hey, I'm Souhimbou!</strong>
+  Want a quick 2-min tour of the platform?
+  <button id="nudge-tour" onclick="startTour();dismissNudge()">Start Tour →</button>
+  <button id="nudge-dismiss" onclick="dismissNudge()">Not now</button>
+</div>
+
+<!-- Papyrus floating button -->
+<button id="pap-btn" onclick="togglePapyrus()" title="Chat with Souhimbou AI">
+  <img id="pap-btn-img" src="/images/souhimbou-avatar.png" alt="Souhimbou" onerror="this.outerHTML='<span style=\'font-size:26px\'>🛡</span>'">
+  <div id="pap-badge">1</div>
+</button>
+
+<!-- Papyrus chat panel -->
+<div id="pap-panel">
+  <div id="pap-hdr">
+    <img id="pap-portrait" src="/images/souhimbou-warrior.png" alt="I AM SOUHIMBOU" onerror="this.style.display='none'">
+    <div class="phi">
+      <div class="pht">SOUHIMBOU AI</div>
+      <div class="phs">AI Security Architect &amp; Platform Guide<br>by NouchiX / SecRed Knowledge Inc.</div>
+      <div class="phm">
+        <button class="phmbtn active" onclick="setPapMode('chat',this)">💬 Chat</button>
+        <button class="phmbtn" onclick="startTour();togglePapyrus()">🗺 Tour</button>
+        <button class="phmbtn" onclick="openHelp()">📖 Help</button>
+      </div>
+    </div>
+    <button id="pap-close" onclick="togglePapyrus()">✕</button>
+  </div>
+  <div id="pap-msgs"></div>
+  <div id="pap-irow">
+    <textarea id="pap-in" rows="1" placeholder="Ask Souhimbou anything..."></textarea>
+    <button id="pap-send" onclick="sendPapMsg()">↑</button>
+  </div>
+</div>
+
+<!-- Tour overlay -->
+<div id="tour-ov">
+  <div id="tour-spot"></div>
+  <div id="tour-card">
+    <div class="tc-step" id="tc-step"></div>
+    <div class="tc-text" id="tc-text"></div>
+    <div class="tc-acts">
+      <button class="tc-next" id="tc-next">Next →</button>
+      <button class="tc-skip" onclick="endTour()">Skip tour</button>
+      <span class="tc-prog" id="tc-prog"></span>
+    </div>
+  </div>
+</div>
+
+<!-- Help overlay -->
+<div id="help-ov" onclick="closeHelp(event)">
+  <div id="help-menu">
+    <div class="hm-hdr">HELP &amp; SUPPORT</div>
+    <div class="hm-sec">
+      <div class="hm-item" onclick="startTour();closeHelp()"><span class="hm-icon">🗺</span>Interactive Tour<span class="hm-sc">Alt+T</span></div>
+      <div class="hm-item" onclick="window.open('https://docs.nouchix.com','_blank');closeHelp()"><span class="hm-icon">📖</span>Documentation</div>
+      <div class="hm-item" onclick="showQuickRef()"><span class="hm-icon">⚡</span>Quick Reference</div>
+    </div>
+    <div class="hm-sec">
+      <div class="hm-item" onclick="openFeedback();closeHelp()"><span class="hm-icon">💬</span>Send Feedback</div>
+      <div class="hm-item" onclick="requestFeature();closeHelp()"><span class="hm-icon">💡</span>Request Feature</div>
+      <div class="hm-item" onclick="copyDiag();closeHelp()"><span class="hm-icon">🐛</span>Copy Diagnostic</div>
+    </div>
+    <div class="hm-sec">
+      <div class="hm-item" style="cursor:default;font-size:11px;opacity:.7"><span class="hm-icon">⌨</span>Enter=Send · Shift+Enter=Newline · Alt+T=Tour</div>
+    </div>
+  </div>
+</div>
+
+<!-- Feedback form -->
+<div id="fb-form">
+  <h4>💬 Send Feedback</h4>
+  <textarea id="fb-txt" placeholder="Bug, idea, frustration — all welcome."></textarea>
+  <div class="fb-acts">
+    <button class="fb-sub" onclick="submitFeedback()">Send</button>
+    <button class="fb-can" onclick="document.getElementById('fb-form').classList.remove('open')">Cancel</button>
+  </div>
+</div>
+
+<!-- Mobile tab bar -->
+<div id="mob-bar">
+  <button class="mtab active" id="mtab-chat" onclick="mobileTab('chat')"><div class="mt-ic">💬</div><div class="mt-lb">Advisor</div></button>
+  <button class="mtab" id="mtab-scan" onclick="mobileTab('scan')"><div class="mt-ic">🖥</div><div class="mt-lb">Scan</div></button>
+  <button class="mtab" id="mtab-dag" onclick="mobileTab('dag')"><div class="mt-ic">🔒</div><div class="mt-lb">Ledger</div></button>
+</div>
+
 <script>
-// ── Config (injected by serve-nlp, or defaults) ──────────────────────────────
-const CFG = window.ASAF_CONFIG || {
-  apiURL: 'http://localhost:45444',
-  ollamaURL: 'http://localhost:11434',
-  lmstudioURL: 'http://localhost:1234',
-  version: 'dev',
-};
-
-// ── State ─────────────────────────────────────────────────────────────────────
-let provider = 'ollama';
-let ollamaModel = 'llama3.1:8b';
-let openrouterKey = '';
-let dagNodes = [];
-let term, fitAddon;
-let isThinking = false;
-
-// ── Terminal setup ─────────────────────────────────────────────────────────────
-function initTerminal() {
-  term = new Terminal({
-    theme: { background: '#0d1117', foreground: '#e2e8f0', cursor: '#00d4aa', selectionBackground: '#2a3545' },
-    fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
-    fontSize: 12, lineHeight: 1.4, cursorBlink: true, scrollback: 5000,
-  });
-  fitAddon = new FitAddon.FitAddon();
-  term.loadAddon(fitAddon);
-  term.open(document.getElementById('term'));
-  fitAddon.fit();
-  termPrint('\x1b[38;5;36m┌─────────────────────────────────────────────────────┐\x1b[0m');
-  termPrint('\x1b[38;5;36m│\x1b[0m  ASAF — Agentic Security Attestation Framework       \x1b[38;5;36m│\x1b[0m');
-  termPrint('\x1b[38;5;36m│\x1b[0m  Post-Quantum Certified · NouchiX / Sacred Knowledge \x1b[38;5;36m│\x1b[0m');
-  termPrint('\x1b[38;5;36m└─────────────────────────────────────────────────────┘\x1b[0m');
-  termPrint('');
-  window.addEventListener('resize', () => fitAddon.fit());
-}
-
-function termPrint(line) { term.writeln(line); }
-function termInfo(msg)  { termPrint('\x1b[38;5;36m[INFO]\x1b[0m  ' + msg); }
-function termOk(msg)    { termPrint('\x1b[38;5;40m[ OK ]\x1b[0m  ' + msg); }
-function termErr(msg)   { termPrint('\x1b[38;5;196m[ ERR]\x1b[0m  ' + msg); }
-function termWarn(msg)  { termPrint('\x1b[38;5;214m[WARN]\x1b[0m  ' + msg); }
-function termData(key, val) { termPrint(`  \x1b[38;5;245m${key.padEnd(18)}\x1b[0m ${val}`); }
-function termSep()      { termPrint('\x1b[38;5;237m' + '─'.repeat(54) + '\x1b[0m'); }
-
-// ── Tab switching ─────────────────────────────────────────────────────────────
-function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  event.target.classList.add('active');
-  document.getElementById('terminal-wrap').style.display = tab === 'terminal' ? 'flex' : 'none';
-  document.getElementById('dag-wrap').style.display = tab === 'dag' ? 'flex' : 'none';
-  if (tab === 'terminal') { fitAddon.fit(); }
-  if (tab === 'dag') renderDAGGraph();
-}
-
-// ── LLM provider detection ────────────────────────────────────────────────────
-async function detectLLM() {
-  // 1. Try Ollama
-  try {
-    const r = await fetch(CFG.ollamaURL + '/api/tags', { signal: AbortSignal.timeout(2000) });
-    if (r.ok) {
-      const data = await r.json();
-      const models = data.models || [];
-      ollamaModel = models.length ? models[0].name : 'llama3.1:8b';
-      setProvider('ollama');
-      document.getElementById('model-badge').textContent = ollamaModel;
-      setDot('llm', 'ok', 'Ollama · ' + ollamaModel);
-      termOk('Ollama detected: ' + ollamaModel);
-      return;
-    }
-  } catch {}
-
-  // 2. Try LM Studio
-  try {
-    const r = await fetch(CFG.lmstudioURL + '/v1/models', { signal: AbortSignal.timeout(2000) });
-    if (r.ok) {
-      const data = await r.json();
-      const m = data.data?.[0]?.id || 'local-model';
-      setProvider('lmstudio');
-      document.getElementById('model-badge').textContent = 'LM Studio · ' + m;
-      setDot('llm', 'ok', 'LM Studio');
-      termOk('LM Studio detected: ' + m);
-      return;
-    }
-  } catch {}
-
-  // 3. Fall back to OpenRouter prompt
-  setProvider('openrouter');
-  setDot('llm', 'warn', 'No local LLM — OpenRouter fallback');
-  termWarn('No local LLM detected. Enter OpenRouter API key in chat panel.');
-  document.getElementById('model-badge').textContent = 'OpenRouter';
-  document.getElementById('or-key-row').style.display = 'block';
-}
-
-function setProvider(p) {
-  provider = p;
-  document.querySelectorAll('.llm-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.provider === p);
-  });
-  document.getElementById('or-key-row').style.display = p === 'openrouter' ? 'block' : 'none';
-}
-
-document.querySelectorAll('.llm-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    setProvider(btn.dataset.provider);
-    if (btn.dataset.provider !== 'openrouter') detectLLM();
-  });
-});
-
-// ── API health check ──────────────────────────────────────────────────────────
-async function checkAPI() {
-  try {
-    const r = await fetch(CFG.apiURL + '/healthz', { signal: AbortSignal.timeout(3000) });
-    if (r.ok) {
-      setDot('api', 'ok', 'ASAF API · ' + CFG.apiURL);
-      termOk('ASAF API connected: ' + CFG.apiURL);
-      loadDAGChain();
-      return;
-    }
-  } catch {}
-  setDot('api', 'err', 'API offline · start: asaf serve --port 45444');
-  termWarn('ASAF API not reachable at ' + CFG.apiURL + ' — scans will run via LLM only');
-}
-
-function setDot(id, state, title) {
-  const dot = document.getElementById(id + '-dot');
-  const label = document.getElementById(id + '-label');
-  dot.className = 'status-dot ' + state;
-  dot.title = title;
-  if (label) label.textContent = title.split('·')[0].trim();
-}
-
-// ── System prompt for security NL translation ─────────────────────────────────
-const SYSTEM_PROMPT = `You are ASAF Security Advisor, an expert in CMMC, NIST 800-171, STIG, and post-quantum cryptography, deployed via the ASAF (Agentic Security Attestation Framework) by NouchiX.
-
-When the user asks a security question, you:
-1. Answer concisely and directly — no hedging, no disclaimers
-2. When the user wants to scan, attest, query STIG, or export — emit a JSON command block so the UI can call the real ASAF API
-
-ASAF API endpoints (base: ${CFG.apiURL}):
-  GET  /healthz                           — health check
-  POST /api/v1/scans/trigger              — trigger compliance scan
-  GET  /api/v1/scans/:id/results          — get scan results
-  GET  /api/v1/compliance/score           — get compliance score
-  GET  /api/v1/stigs/:id                  — query STIG control
-  POST /api/v1/attestation/export         — export PQC attestation
-  GET  /api/v1/dag/:entity_id             — get DAG chain
-  GET  /api/v1/intel/query?q=:query       — threat intel
-
-When issuing an API command, output EXACTLY this JSON block (no markdown, no extra text before/after the block):
-ASAF_CMD:{"action":"<scan|stig|attest|dag|intel|score>","endpoint":"<full path>","method":"<GET|POST>","body":<json or null>,"description":"<one line>"}
-
-After the command block, add a brief explanation of what you did and what to expect.
-
-Always translate compliance jargon into clear findings. Always note when a finding maps to a STIG rule or CMMC practice.`;
-
-// ── LLM call ──────────────────────────────────────────────────────────────────
-async function callLLM(messages) {
-  if (provider === 'ollama') {
-    const r = await fetch(CFG.ollamaURL + '/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: ollamaModel, messages, stream: true }),
-    });
-    if (!r.ok) throw new Error('Ollama error: ' + r.status);
-    return streamOllama(r);
-  }
-
-  if (provider === 'lmstudio') {
-    const r = await fetch(CFG.lmstudioURL + '/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'local-model', messages, stream: true, max_tokens: 2048 }),
-    });
-    if (!r.ok) throw new Error('LM Studio error: ' + r.status);
-    return streamOpenAI(r);
-  }
-
-  if (provider === 'openrouter') {
-    const key = openrouterKey || document.getElementById('or-key-input')?.value;
-    if (!key) throw new Error('OpenRouter API key required');
-    openrouterKey = key;
-    const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + key,
-        'HTTP-Referer': 'https://nouchix.com',
-        'X-Title': 'ASAF Security Platform',
-      },
-      body: JSON.stringify({
-        model: 'nousresearch/hermes-3-llama-3.1-70b',
-        messages, stream: true, max_tokens: 2048,
-      }),
-    });
-    if (!r.ok) throw new Error('OpenRouter error: ' + r.status);
-    return streamOpenAI(r);
-  }
-}
-
-async function* streamOllama(response) {
-  const reader = response.body.getReader();
-  const dec = new TextDecoder();
-  let buf = '';
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += dec.decode(value, { stream: true });
-    const lines = buf.split('\n');
-    buf = lines.pop();
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      try {
-        const obj = JSON.parse(line);
-        if (obj.message?.content) yield obj.message.content;
-      } catch {}
-    }
-  }
-}
-
-async function* streamOpenAI(response) {
-  const reader = response.body.getReader();
-  const dec = new TextDecoder();
-  let buf = '';
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += dec.decode(value, { stream: true });
-    const lines = buf.split('\n');
-    buf = lines.pop();
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      const data = line.slice(6).trim();
-      if (data === '[DONE]') return;
-      try {
-        const obj = JSON.parse(data);
-        const delta = obj.choices?.[0]?.delta?.content;
-        if (delta) yield delta;
-      } catch {}
-    }
-  }
-}
-
-// ── ASAF API dispatch ─────────────────────────────────────────────────────────
-async function dispatchASAFCommand(cmd) {
-  termSep();
-  termInfo(cmd.description || cmd.action);
-  termData('Endpoint', cmd.method + ' ' + CFG.apiURL + cmd.endpoint);
-
-  const opts = { method: cmd.method, headers: { 'Content-Type': 'application/json' } };
-  if (cmd.body) opts.body = JSON.stringify(cmd.body);
-
-  let url = CFG.apiURL + cmd.endpoint;
-
-  try {
-    const r = await fetch(url, opts);
-    const text = await r.text();
-    let data;
-    try { data = JSON.parse(text); } catch { data = { raw: text }; }
-
-    if (!r.ok) {
-      termErr('HTTP ' + r.status + ': ' + (data.error || text.slice(0, 120)));
-      return data;
-    }
-
-    termOk('Response received (' + r.status + ')');
-
-    // Print structured results
-    if (data.risk_score !== undefined) termData('Risk Score', colorScore(data.risk_score));
-    if (data.scan_id)      termData('Scan ID', data.scan_id);
-    if (data.certified !== undefined) termData('Certified', data.certified ? '\x1b[32m✓ YES\x1b[0m' : '\x1b[33m✗ NO\x1b[0m');
-    if (data.framework)    termData('Framework', data.framework);
-    if (data.findings?.length) {
-      termPrint('');
-      termPrint('  \x1b[38;5;220mFindings:\x1b[0m');
-      data.findings.slice(0, 10).forEach(f => {
-        const sev = f.severity === 'critical' ? '\x1b[31m' : f.severity === 'high' ? '\x1b[33m' : '\x1b[36m';
-        termPrint(`  ${sev}[${(f.severity||'info').toUpperCase().padEnd(8)}]\x1b[0m ${f.title || f.control_id || f.id}`);
-      });
-      if (data.findings.length > 10) termPrint('  ... +' + (data.findings.length - 10) + ' more');
-    }
-    if (data.dag_node || data.attestation) {
-      addDAGNode(data);
-    }
-    if (data.chain) renderDAGFromChain(data.chain);
-
-    termSep();
-    return data;
-  } catch (e) {
-    termErr('Network error: ' + e.message);
-    termWarn('Is ASAF API running? Try: asaf serve --port 45444');
-    throw e;
-  }
-}
-
-function colorScore(score) {
-  if (score >= 80) return '\x1b[32m' + score + '/100 (GOOD)\x1b[0m';
-  if (score >= 60) return '\x1b[33m' + score + '/100 (FAIR)\x1b[0m';
-  return '\x1b[31m' + score + '/100 (POOR)\x1b[0m';
-}
-
-// ── Parse LLM response for ASAF_CMD blocks ────────────────────────────────────
-function extractASAFCommands(text) {
-  const cmds = [];
-  const re = /ASAF_CMD:(\{[^}]+\})/g;
-  let m;
-  while ((m = re.exec(text)) !== null) {
-    try { cmds.push(JSON.parse(m[1])); } catch {}
-  }
-  return cmds;
-}
-
-// ── Chat message management ───────────────────────────────────────────────────
-let conversationHistory = [{ role: 'system', content: SYSTEM_PROMPT }];
-
-function addMessage(role, content, isStreaming = false) {
-  const msgs = document.getElementById('messages');
-  const div = document.createElement('div');
-  div.className = 'msg ' + role;
-  const avatarMap = { user: '▲', assistant: '⬡', system: '◈' };
-  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  div.innerHTML = `
-    <div class="msg-avatar">${avatarMap[role] || '•'}</div>
-    <div class="msg-body">
-      <div class="msg-text" id="msg-${Date.now()}">${escapeHTML(content)}</div>
-      <div class="msg-time">${timeStr}</div>
-    </div>`;
-  msgs.appendChild(div);
-  msgs.scrollTop = msgs.scrollHeight;
-  return div.querySelector('.msg-text');
-}
-
-function addThinking() {
-  const msgs = document.getElementById('messages');
-  const div = document.createElement('div');
-  div.className = 'msg assistant';
-  div.id = 'thinking-indicator';
-  div.innerHTML = `<div class="msg-avatar">⬡</div><div class="msg-body"><div class="thinking"><span></span><span></span><span></span></div></div>`;
-  msgs.appendChild(div);
-  msgs.scrollTop = msgs.scrollHeight;
-}
-
-function removeThinking() {
-  document.getElementById('thinking-indicator')?.remove();
-}
-
-function escapeHTML(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-function formatAssistantText(text) {
-  // Remove ASAF_CMD blocks from displayed text, render code inline
-  return escapeHTML(text.replace(/ASAF_CMD:\{[^}]+\}/g, '').trim())
-    .replace(/`([^`]+)`/g, '<code>$1</code>');
-}
-
-// ── Send message ──────────────────────────────────────────────────────────────
-async function sendMessage() {
-  const input = document.getElementById('chat-input');
-  const text = input.value.trim();
-  if (!text || isThinking) return;
-
-  input.value = '';
-  input.style.height = '';
-  isThinking = true;
-  document.getElementById('send-btn').disabled = true;
-
-  addMessage('user', text);
-  conversationHistory.push({ role: 'user', content: text });
-
-  addThinking();
-
-  let fullResponse = '';
-  let textEl = null;
-
-  try {
-    const stream = callLLM(conversationHistory);
-    removeThinking();
-    textEl = addMessage('assistant', '');
-
-    for await (const chunk of await stream) {
-      fullResponse += chunk;
-      textEl.innerHTML = formatAssistantText(fullResponse);
-      document.getElementById('messages').scrollTop = 999999;
-    }
-
-    // Execute any ASAF commands found in the response
-    const cmds = extractASAFCommands(fullResponse);
-    for (const cmd of cmds) {
-      try { await dispatchASAFCommand(cmd); } catch {}
-    }
-
-    conversationHistory.push({ role: 'assistant', content: fullResponse });
-
-  } catch (e) {
-    removeThinking();
-    if (!textEl) textEl = addMessage('assistant', '');
-    textEl.innerHTML = formatAssistantText('Error: ' + e.message + '\n\nCheck your LLM connection and try again.');
-    termErr('LLM error: ' + e.message);
-  } finally {
-    isThinking = false;
-    document.getElementById('send-btn').disabled = false;
-  }
-}
-
-function usePrompt(el) {
-  document.getElementById('chat-input').value = el.textContent;
-  document.getElementById('chat-input').focus();
-}
-
-document.getElementById('chat-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-});
-
-document.getElementById('chat-input').addEventListener('input', function() {
-  this.style.height = 'auto';
-  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-});
-
-// ── DAG audit chain ───────────────────────────────────────────────────────────
-async function loadDAGChain() {
-  try {
-    const r = await fetch(CFG.apiURL + '/api/v1/dag/recent?limit=10', { signal: AbortSignal.timeout(3000) });
-    if (!r.ok) return;
-    const data = await r.json();
-    if (data.nodes?.length) {
-      dagNodes = data.nodes;
-      renderChainList();
-    }
-  } catch {}
-}
-
-function addDAGNode(data) {
-  const node = {
-    id: data.dag_node?.id || data.scan_id || ('node-' + Date.now()),
-    label: data.scan_target || data.framework || 'Attestation',
-    hash: data.dag_node?.hash || data.attestation?.hash || '0x' + Math.random().toString(16).slice(2, 10),
-    timestamp: new Date().toISOString(),
-    certified: data.certified || false,
-    framework: data.framework || 'CMMC_L2',
-    pqc: true,
-  };
-  dagNodes.unshift(node);
-  if (dagNodes.length > 20) dagNodes.pop();
-  renderChainList();
-}
-
-function renderChainList() {
-  const list = document.getElementById('chain-list');
-  document.getElementById('dag-empty').style.display = dagNodes.length ? 'none' : 'block';
-  // Remove all non-empty nodes
-  list.querySelectorAll('.chain-node').forEach(n => n.remove());
-  dagNodes.forEach(node => {
-    const div = document.createElement('div');
-    div.className = 'chain-node' + (node.certified ? ' certified' : '');
-    div.innerHTML = `
-      <div class="cn-hash">${(node.hash || '').slice(0, 24)}...</div>
-      <div class="cn-label">${escapeHTML(node.label || node.id)}</div>
-      <div class="cn-status">
-        ${node.pqc ? '<span class="cn-badge pqc">ML-DSA-65</span>' : ''}
-        ${node.framework ? '<span class="cn-badge cmmc">' + node.framework + '</span>' : ''}
-        <span class="cn-time">${new Date(node.timestamp).toLocaleTimeString()}</span>
-      </div>`;
-    div.addEventListener('click', () => {
-      switchTab('dag');
-      document.querySelectorAll('.tab')[1].classList.add('active');
-      document.querySelectorAll('.tab')[0].classList.remove('active');
-    });
-    list.appendChild(div);
-  });
-}
-
-// ── D3 DAG graph ─────────────────────────────────────────────────────────────
-function renderDAGGraph() {
-  const svg = d3.select('#dag-svg');
-  svg.selectAll('*').remove();
-  if (!dagNodes.length) return;
-
-  const w = document.getElementById('dag-wrap').clientWidth;
-  const h = document.getElementById('dag-wrap').clientHeight;
-
-  svg.append('defs').append('marker')
-    .attr('id', 'arrow').attr('viewBox', '0 -5 10 10')
-    .attr('refX', 18).attr('refY', 0)
-    .attr('markerWidth', 6).attr('markerHeight', 6)
-    .attr('orient', 'auto')
-    .append('path').attr('d', 'M0,-5L10,0L0,5').attr('fill', '#2a3545');
-
-  const g = svg.append('g').attr('transform', `translate(${w/2}, 40)`);
-
-  const nodes = dagNodes.slice(0, 8).map((n, i) => ({
-    ...n, x: (i % 3 - 1) * 120, y: Math.floor(i / 3) * 100,
-  }));
-
-  const links = nodes.slice(1).map((n, i) => ({ source: nodes[i], target: n }));
-
-  g.selectAll('.dag-link').data(links).enter().append('line')
-    .attr('class', 'dag-link')
-    .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
-    .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
-
-  const tooltip = document.getElementById('dag-tooltip');
-
-  const node = g.selectAll('.dag-node').data(nodes).enter().append('g')
-    .attr('class', 'dag-node')
-    .attr('transform', d => `translate(${d.x},${d.y})`);
-
-  node.append('circle').attr('r', 14)
-    .attr('fill', d => d.certified ? 'rgba(0,212,170,.15)' : 'rgba(26,32,44,0.8)')
-    .attr('stroke', d => d.certified ? '#00d4aa' : '#2a3545')
-    .on('mouseover', (event, d) => {
-      tooltip.style.opacity = '1';
-      tooltip.style.left = (event.pageX + 12) + 'px';
-      tooltip.style.top = (event.pageY - 28) + 'px';
-      tooltip.textContent = `${d.label}\n${(d.hash||'').slice(0,16)}...\n${d.framework||''} · ${d.certified?'CERTIFIED':'PENDING'}`;
-    })
-    .on('mouseout', () => { tooltip.style.opacity = '0'; });
-
-  node.append('text').attr('text-anchor', 'middle').attr('dy', '0.35em')
-    .text(d => (d.label || d.id).slice(0, 6));
-}
-
-function renderDAGFromChain(chain) {
-  if (!Array.isArray(chain)) return;
-  dagNodes = chain.map(n => ({ ...n, label: n.entity_id || n.id, pqc: true }));
-  renderChainList();
-}
-
-// ── Bootstrap ─────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('version-badge').textContent = 'v' + CFG.version;
-  initTerminal();
-  termInfo('Detecting LLM inference...');
-  checkAPI();
-  detectLLM();
-
-  // Welcome message
-  const msgs = document.getElementById('messages');
-  const welcome = document.createElement('div');
-  welcome.className = 'msg system';
-  welcome.innerHTML = `
-    <div class="msg-avatar">◈</div>
-    <div class="msg-body">
-      <div class="msg-text">ASAF Natural Language Security Platform — ready.\n\nType a security question or compliance request. Examples:\n• "Scan 192.168.1.0/24 for CMMC L2 gaps"\n• "What does STIG V-72213 require?"\n• "Generate an ADINKHEPRA attestation for org acme-corp"\n• "Show me recent threat intel for CVE-2024-3400"</div>
-      <div class="msg-time">system</div>
-    </div>`;
-  msgs.appendChild(welcome);
-});
+// ── JAVASCRIPT_PLACEHOLDER ──
 </script>
 </body>
 </html>
