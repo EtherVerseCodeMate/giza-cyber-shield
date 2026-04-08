@@ -18,6 +18,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -25,6 +26,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/smtp"
 	"os"
@@ -49,15 +51,15 @@ type StripeEventData struct {
 }
 
 type StripeSession struct {
-	ID                    string            `json:"id"`
-	CustomerEmail         string            `json:"customer_email"`
-	CustomerDetails       *CustomerDetails  `json:"customer_details"`
-	AmountTotal           int64             `json:"amount_total"`
-	Currency              string            `json:"currency"`
-	PaymentStatus         string            `json:"payment_status"`
-	Metadata              map[string]string `json:"metadata"`
-	SubscriptionID        string            `json:"subscription"`
-	ClientReferenceID     string            `json:"client_reference_id"` // CLI token
+	ID                string            `json:"id"`
+	CustomerEmail     string            `json:"customer_email"`
+	CustomerDetails   *CustomerDetails  `json:"customer_details"`
+	AmountTotal       int64             `json:"amount_total"`
+	Currency          string            `json:"currency"`
+	PaymentStatus     string            `json:"payment_status"`
+	Metadata          map[string]string `json:"metadata"`
+	SubscriptionID    string            `json:"subscription"`
+	ClientReferenceID string            `json:"client_reference_id"` // CLI token
 }
 
 type CustomerDetails struct {
@@ -83,13 +85,13 @@ func loadConfig() Config {
 	return Config{
 		WebhookSecret: mustEnv("STRIPE_WEBHOOK_SECRET"),
 		StripeKey:     mustEnv("STRIPE_SECRET_KEY"),
-		NotifyEmail:   getEnv("ASAF_NOTIFY_EMAIL", "skone@alumni.albany.edu"),
+		NotifyEmail:   getEnv("ASAF_NOTIFY_EMAIL", "support@nouchix.com"),
 		APIURL:        getEnv("ASAF_API_URL", "http://localhost:45444"),
 		Addr:          getEnv("ADDR", ":4242"),
-		SMTPHost:      getEnv("SMTP_HOST", "smtp.gmail.com"),
-		SMTPPort:      getEnv("SMTP_PORT", "587"),
-		SMTPUser:      mustEnv("SMTP_USER"),
-		SMTPPass:      mustEnv("SMTP_PASS"),
+		SMTPHost:      getEnv("SMTP_HOST", "smtp.hostinger.com"),
+		SMTPPort:      getEnv("SMTP_PORT", "465"),
+		SMTPUser:      getEnv("SMTP_USER", ""),  // optional — logs warning if empty
+		SMTPPass:      getEnv("SMTP_PASS", ""),
 	}
 }
 
@@ -299,24 +301,24 @@ func handleSubscriptionCanceled(event StripeEvent) error {
 // ── ASAF API integration ──────────────────────────────────────────────────────
 
 type CertificateResponse struct {
-	CertificateID  string `json:"certificate_id"`
-	OrgID          string `json:"org_id"`
-	IssuedAt       string `json:"issued_at"`
-	ExpiresAt      string `json:"expires_at"`
-	Framework      string `json:"framework"`
-	Score          int    `json:"score"`
-	PDFBase64      string `json:"pdf_base64"`
-	DilithiumSig   string `json:"dilithium_signature"`
-	DAGNode        string `json:"dag_node"`
+	CertificateID string `json:"certificate_id"`
+	OrgID         string `json:"org_id"`
+	IssuedAt      string `json:"issued_at"`
+	ExpiresAt     string `json:"expires_at"`
+	Framework     string `json:"framework"`
+	Score         int    `json:"score"`
+	PDFBase64     string `json:"pdf_base64"`
+	DilithiumSig  string `json:"dilithium_signature"`
+	DAGNode       string `json:"dag_node"`
 }
 
 func requestCertificate(session StripeSession, email string) (*CertificateResponse, error) {
 	payload := map[string]interface{}{
-		"org_email":     email,
-		"session_id":    session.ID,
-		"subscription":  session.SubscriptionID,
-		"framework":     getOrDefault(session.Metadata, "framework", "CMMC_L2"),
-		"tier":          getOrDefault(session.Metadata, "tier", "certify"),
+		"org_email":    email,
+		"session_id":   session.ID,
+		"subscription": session.SubscriptionID,
+		"framework":    getOrDefault(session.Metadata, "framework", "CMMC_L2"),
+		"tier":         getOrDefault(session.Metadata, "tier", "certify"),
 	}
 	body, _ := json.Marshal(payload)
 
@@ -448,9 +450,50 @@ Certificate issued and emailed automatically.
 	sendMail([]string{cfg.NotifyEmail}, subject, body) //nolint:errcheck
 }
 
+// sendMail supports both implicit SSL (port 465, Hostinger) and STARTTLS (port 587, Gmail).
 func sendMail(to []string, subject, body string) error {
+	if cfg.SMTPUser == "" || cfg.SMTPPass == "" {
+		log.Printf("[webhook] SMTP not configured — skipping email to %v", to)
+		return nil
+	}
 	addr := cfg.SMTPHost + ":" + cfg.SMTPPort
 	auth := smtp.PlainAuth("", cfg.SMTPUser, cfg.SMTPPass, cfg.SMTPHost)
+
+	if cfg.SMTPPort == "465" {
+		// Implicit SSL (required by Hostinger)
+		tlsCfg := &tls.Config{ServerName: cfg.SMTPHost}
+		conn, err := tls.Dial("tcp", addr, tlsCfg)
+		if err != nil {
+			return fmt.Errorf("tls dial: %w", err)
+		}
+		defer conn.Close()
+		client, err := smtp.NewClient(conn, cfg.SMTPHost)
+		if err != nil {
+			return fmt.Errorf("smtp client: %w", err)
+		}
+		defer client.Close()
+		if err := client.Auth(auth); err != nil {
+			return fmt.Errorf("smtp auth: %w", err)
+		}
+		if err := client.Mail(cfg.SMTPUser); err != nil {
+			return fmt.Errorf("smtp mail from: %w", err)
+		}
+		for _, r := range to {
+			if err := client.Rcpt(r); err != nil {
+				log.Printf("[webhook] smtp rcpt %s: %v", r, err)
+			}
+		}
+		w, err := client.Data()
+		if err != nil {
+			return fmt.Errorf("smtp data: %w", err)
+		}
+		_, err = fmt.Fprint(w, body)
+		w.Close()
+		return err
+	}
+
+	// STARTTLS (port 587 — Gmail etc.)
+	_ = net.Dial // ensure net is used
 	return smtp.SendMail(addr, auth, cfg.SMTPUser, to, []byte(body))
 }
 
