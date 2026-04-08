@@ -124,7 +124,9 @@ func NewServer(config *Config, dagStore DAGStore, licMgr LicenseManager) *Server
 func (s *Server) setupMiddleware() {
 	s.router.Use(RecoveryMiddleware())
 	s.router.Use(LoggingMiddleware())
-	s.router.Use(CORSMiddleware())
+	// Pass AllowedOrigins from config so caller-supplied origins are merged with
+	// the hardcoded NouchiX/ASAF defaults inside CORSMiddleware.
+	s.router.Use(CORSMiddleware(s.config.AllowedOrigins...))
 	s.router.Use(RateLimitMiddleware())
 }
 
@@ -132,6 +134,7 @@ func (s *Server) setupMiddleware() {
 func (s *Server) setupRoutes() {
 	// Public routes (no auth required)
 	s.router.GET("/health", s.handleHealth)
+	s.router.GET("/healthz", s.handleHealth) // alias — frontend probes /healthz
 	s.router.GET("/version", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"version": s.version,
