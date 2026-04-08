@@ -146,39 +146,30 @@ ok "Assets uploaded"
 
 # ── Phase 4: Caddyfile ────────────────────────────────────────────────────────
 log "Configuring Caddy..."
-$SSH "sudo tee /etc/caddy/Caddyfile" << CADDYEOF
-# ASAF Distribution Server
-# Caddy handles TLS automatically via Let's Encrypt
+$SSH "sudo tee /etc/caddy/Caddyfile" << 'CADDYEOF'
+# ASAF static file server — runs on local ports only.
+# NPM (nginx-proxy-manager) handles TLS and external routing.
+# get.nouchix.com  → NPM → :8080
+# docs.nouchix.com → NPM → :8081
 
-# Install script + checksums + release mirrors
-get.nouchix.com {
+:8080 {
     root * /var/www/asaf
 
-    # Serve install-asaf.sh as plain text (so curl | sh works)
-    @installer path /asaf
+    @installer path /install-asaf.sh
     header @installer Content-Type "text/plain; charset=utf-8"
 
-    # Windows PowerShell stub
-    @wininstaller path /asaf/win
-    respond @wininstaller "Invoke-WebRequest -Uri 'https://get.nouchix.com/releases/asaf-windows-amd64.exe' -OutFile asaf.exe" 200
+    @wininstaller path /win
+    respond @wininstaller `Invoke-WebRequest -Uri 'https://get.nouchix.com/releases/asaf-windows-amd64.exe' -OutFile asaf.exe` 200
 
-    # Releases directory (with directory listing for mirrors)
     @releases path /releases/*
     file_server @releases browse
 
     file_server
 }
 
-# Docs site
-docs.nouchix.com {
+:8081 {
     root * /var/www/asaf/docs
     file_server browse
-    try_files {path} {path}.html {path}/index.html =404
-}
-
-# Stripe webhook receiver (proxies to local Go service on :4242)
-webhook.nouchix.com {
-    reverse_proxy localhost:4242
 }
 CADDYEOF
 
