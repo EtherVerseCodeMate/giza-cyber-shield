@@ -133,6 +133,7 @@ elif [ -f "docs/mcp-setup.md" ]; then
   # Fallback: upload only known safe ASAF doc files
   $SCP docs/mcp-setup.md ${VPS_USER}@${VPS_HOST}:/var/www/asaf/docs/ 2>/dev/null || true
   $SCP docs/asaf-nlp.html ${VPS_USER}@${VPS_HOST}:/var/www/asaf/docs/ 2>/dev/null || true
+  $SCP docs/asaf-config.js ${VPS_USER}@${VPS_HOST}:/var/www/asaf/docs/ 2>/dev/null || true
 fi
 
 # Upload brand images (Souhimbou, ADINKHEPRA, SecRed seal)
