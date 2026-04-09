@@ -30,6 +30,7 @@ const (
 	BannerSeparator     = "==========================================="
 	HeaderContentType   = "Content-Type"
 	MIMEApplicationJSON = "application/json"
+	HeaderCORSOrigin    = "Access-Control-Allow-Origin"
 )
 
 type server struct {
@@ -224,7 +225,7 @@ func (s *server) licenseValidate(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:8080")
+	w.Header().Set(HeaderCORSOrigin, "http://localhost:8080")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
 	var req struct {
@@ -274,7 +275,7 @@ func (s *server) licenseValidate(w http.ResponseWriter, r *http.Request) {
 // meRole returns the role for the currently authenticated user.
 // Called by useUserRoles() in the Vite dashboard.
 func (s *server) meRole(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:8080")
+	w.Header().Set(HeaderCORSOrigin, "http://localhost:8080")
 	json.NewEncoder(w).Encode(map[string]string{"role": "user"})
 }
 
@@ -422,7 +423,7 @@ func waitForInterrupt() {
 func sWithJSON(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// CORS: allow the ASAF dashboard (any origin) to reach the local agent
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set(HeaderCORSOrigin, "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		w.Header().Set("Access-Control-Allow-Private-Network", "true")
