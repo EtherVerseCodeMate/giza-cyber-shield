@@ -242,12 +242,83 @@ printf "  ASAF_NOTIFY_EMAIL=skone@alumni.albany.edu\n"
 printf "  EOF\n"
 printf "  ${CYAN}sudo chmod 600 /opt/asaf/secrets/webhook.env${RESET}\n\n"
 
+# ── Phase 7: Next.js Dashboard Docker Container ───────────────────────────────
+# Builds Dockerfile.dashboard locally, streams image to VPS, runs on :3000.
+# NPM (nginx-proxy-manager) on the VPS then proxies adinkhepra.com → :3000.
+DEPLOY_DASHBOARD="${DEPLOY_DASHBOARD:-1}"
+if [ "${DEPLOY_DASHBOARD}" = "0" ]; then
+  log "Phase 7: Skipping dashboard deploy (DEPLOY_DASHBOARD=0)"
+else
+  log "Phase 7: Building Next.js dashboard image..."
+
+  if ! command -v docker &>/dev/null; then
+    log "Docker not found locally — skipping dashboard build (DEPLOY_DASHBOARD=0 to suppress)"
+  else
+    # Git short SHA for image tag; fall back to 'latest'
+    GIT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo latest)"
+    DASHBOARD_IMAGE="asaf-dashboard:${GIT_SHA}"
+    DASHBOARD_APP_URL="${DASHBOARD_APP_URL:-https://adinkhepra.com}"
+    DASHBOARD_API_URL="${DASHBOARD_API_URL:-http://187.124.225.91:45444}"
+
+    docker build \
+      -f Dockerfile.dashboard \
+      --build-arg NEXT_PUBLIC_APP_URL="${DASHBOARD_APP_URL}" \
+      --build-arg NEXT_PUBLIC_ASAF_API_URL="${DASHBOARD_API_URL}" \
+      --build-arg NEXT_PUBLIC_ASAF_SCAN_PROFILE="nemoclaw" \
+      -t "${DASHBOARD_IMAGE}" \
+      -t "asaf-dashboard:latest" \
+      . || die "Dashboard Docker build failed — fix and re-run with DEPLOY_DASHBOARD=1"
+
+    log "Streaming image to VPS (this may take a minute)..."
+    docker save "asaf-dashboard:latest" \
+      | ssh ${SSH_OPTS} ${VPS_USER}@${VPS_HOST} \
+          "docker load \
+           && docker stop asaf-dashboard 2>/dev/null || true \
+           && docker rm   asaf-dashboard 2>/dev/null || true \
+           && docker run -d \
+                --name asaf-dashboard \
+                --restart always \
+                -p 127.0.0.1:3000:3000 \
+                --env-file /opt/asaf/secrets/dashboard.env \
+                asaf-dashboard:latest" \
+      && ok "Dashboard container running on VPS :3000 (image: ${DASHBOARD_IMAGE})" \
+      || log "Dashboard deploy failed — container may need manual start on VPS"
+
+    # Print dashboard.env template if file doesn't exist yet on VPS
+    if ! $SSH "test -f /opt/asaf/secrets/dashboard.env" 2>/dev/null; then
+      printf "\n${BOLD}━━━ Dashboard Secrets (create on VPS first-time) ━━━${RESET}\n"
+      printf "  ${CYAN}ssh ${VPS_USER}@${VPS_HOST}${RESET}\n"
+      printf "  ${CYAN}tee /opt/asaf/secrets/dashboard.env << 'EOF'${RESET}\n"
+      printf "  STRIPE_SECRET_KEY=sk_live_...\n"
+      printf "  STRIPE_PRICE_ID=price_...   # one-time \$99 price from Stripe Dashboard\n"
+      printf "  NEXT_PUBLIC_APP_URL=${DASHBOARD_APP_URL}\n"
+      printf "  NEXT_PUBLIC_ASAF_API_URL=${DASHBOARD_API_URL}\n"
+      printf "  ASAF_ALLOW_EVAL_WITHOUT_LICENSE=true\n"
+      printf "  EOF\n"
+      printf "  ${CYAN}chmod 600 /opt/asaf/secrets/dashboard.env${RESET}\n\n"
+      printf "  Then restart the container:\n"
+      printf "  ${CYAN}docker restart asaf-dashboard${RESET}\n\n"
+    fi
+  fi
+fi
+
 printf "${BOLD}━━━ DNS (point these to ${VPS_HOST}) ━━━${RESET}\n"
 printf "  get.nouchix.com     A  ${VPS_HOST}\n"
 printf "  docs.nouchix.com    A  ${VPS_HOST}\n"
-printf "  webhook.nouchix.com A  ${VPS_HOST}\n\n"
+printf "  webhook.nouchix.com A  ${VPS_HOST}\n"
+printf "  adinkhepra.com      A  ${VPS_HOST}\n\n"
+
+printf "${BOLD}━━━ NPM (nginx-proxy-manager) — add proxy host ━━━${RESET}\n"
+printf "  1. Open NPM admin: http://${VPS_HOST}:81\n"
+printf "  2. Proxy Hosts → Add Proxy Host:\n"
+printf "       Domain:      adinkhepra.com\n"
+printf "       Scheme:      http\n"
+printf "       Forward Host: 127.0.0.1\n"
+printf "       Forward Port: 3000\n"
+printf "       SSL:         Request Let's Encrypt cert\n\n"
 
 printf "${GREEN}✓ VPS deploy complete${RESET}\n"
-printf "  Static:  https://get.nouchix.com/asaf (after DNS)\n"
-printf "  Docs:    https://docs.nouchix.com\n"
-printf "  Webhook: https://webhook.nouchix.com (Stripe → here)\n"
+printf "  Static:    https://get.nouchix.com/asaf (after DNS)\n"
+printf "  Docs:      https://docs.nouchix.com\n"
+printf "  Webhook:   https://webhook.nouchix.com (Stripe → here)\n"
+printf "  Dashboard: https://adinkhepra.com (after NPM + DNS)\n"

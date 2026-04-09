@@ -370,11 +370,11 @@ const OnboardingOrchestrator: React.FC = () => {
               className="w-full bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-bold py-5"
             >
               {checkingOut ? 'Redirecting to Stripe...' : (
-                <>Get ADINKHEPRA Certified — $99/mo <ArrowRight className="h-4 w-4 ml-2" /></>
+                <>Get ADINKHEPRA Certified — $99 <ArrowRight className="h-4 w-4 ml-2" /></>
               )}
             </Button>
             <p className="text-xs text-center text-gray-600">
-              Billed monthly via Stripe. Cancel anytime. Certification issued within minutes of payment.
+              One-time payment via Stripe. ADINKHEPRA badge issued within minutes.
             </p>
           </div>
 
