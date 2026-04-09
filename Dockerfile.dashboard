@@ -3,6 +3,17 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# NEXT_PUBLIC_* vars must be available at build time so Next.js
+# embeds them in the client bundle (standalone output).
+ARG NEXT_PUBLIC_APP_URL=https://adinkhepra.com
+ARG NEXT_PUBLIC_ASAF_API_URL=http://localhost:45444
+ARG NEXT_PUBLIC_ASAF_SCAN_PROFILE=
+
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_ASAF_API_URL=$NEXT_PUBLIC_ASAF_API_URL
+ENV NEXT_PUBLIC_ASAF_SCAN_PROFILE=$NEXT_PUBLIC_ASAF_SCAN_PROFILE
+ENV NEXT_TELEMETRY_DISABLED=1
+
 # Copy package files
 COPY package*.json ./
 
