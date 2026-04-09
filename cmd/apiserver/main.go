@@ -244,14 +244,21 @@ func initServices(cfg *serverConfig, flags map[string]interface{}, dagStore dag.
 		TLSDomain:    cfg.tlsDomain,
 		CertCacheDir: cfg.certCacheDir,
 		AllowedOrigins: []string{
+			// NouchiX / ASAF production origins
+			"https://docs.nouchix.com",        // ASAF NLP UI — served here, fetches localhost agent
+			"https://nouchix.com",
+			"https://www.nouchix.com",
+			"https://adinkhepra.com",
+			"https://www.adinkhepra.com",
+			"https://adinkhepra.dev",
 			"https://souhimbou.org",
 			"https://www.souhimbou.org",
 			"https://gateway.souhimbou.org",
 			"https://telemetry.souhimbou.org",
-			"https://adinkhepra.dev",
+			// Local development
 			"http://localhost:3000",
 			"http://localhost:5173",
-			"http://localhost:8080",
+			"http://localhost:7777", // serve-nlp default
 			"http://localhost:8080",
 		},
 		Debug: cfg.debug,
