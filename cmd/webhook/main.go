@@ -324,7 +324,7 @@ func requestCertificate(session StripeSession, email string) (*CertificateRespon
 
 	resp, err := http.Post(
 		cfg.APIURL+"/api/v1/attestation/issue",
-		"application/json",
+		contentTypeJSON,
 		bytes.NewReader(body),
 	)
 	if err != nil {
@@ -347,7 +347,7 @@ func requestCertificate(session StripeSession, email string) (*CertificateRespon
 func callASAFAPI(method, path string, payload map[string]interface{}) error {
 	body, _ := json.Marshal(payload)
 	req, _ := http.NewRequest(method, cfg.APIURL+path, bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", contentTypeJSON)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
@@ -460,41 +460,46 @@ func sendMail(to []string, subject, body string) error {
 	auth := smtp.PlainAuth("", cfg.SMTPUser, cfg.SMTPPass, cfg.SMTPHost)
 
 	if cfg.SMTPPort == "465" {
-		// Implicit SSL (required by Hostinger)
-		tlsCfg := &tls.Config{ServerName: cfg.SMTPHost}
-		conn, err := tls.Dial("tcp", addr, tlsCfg)
-		if err != nil {
-			return fmt.Errorf("tls dial: %w", err)
-		}
-		defer conn.Close()
-		client, err := smtp.NewClient(conn, cfg.SMTPHost)
-		if err != nil {
-			return fmt.Errorf("smtp client: %w", err)
-		}
-		defer client.Close()
-		if err := client.Auth(auth); err != nil {
-			return fmt.Errorf("smtp auth: %w", err)
-		}
-		if err := client.Mail(cfg.SMTPUser); err != nil {
-			return fmt.Errorf("smtp mail from: %w", err)
-		}
-		for _, r := range to {
-			if err := client.Rcpt(r); err != nil {
-				log.Printf("[webhook] smtp rcpt %s: %v", r, err)
-			}
-		}
-		w, err := client.Data()
-		if err != nil {
-			return fmt.Errorf("smtp data: %w", err)
-		}
-		_, err = fmt.Fprint(w, body)
-		w.Close()
-		return err
+		return sendMailImplicitSSL(addr, auth, to, body)
 	}
 
 	// STARTTLS (port 587 — Gmail etc.)
 	_ = net.Dial // ensure net is used
 	return smtp.SendMail(addr, auth, cfg.SMTPUser, to, []byte(body))
+}
+
+// sendMailImplicitSSL sends mail over an implicit TLS connection (port 465).
+// Required by Hostinger and other hosts that do not support STARTTLS.
+func sendMailImplicitSSL(addr string, auth smtp.Auth, to []string, body string) error {
+	tlsCfg := &tls.Config{ServerName: cfg.SMTPHost}
+	conn, err := tls.Dial("tcp", addr, tlsCfg)
+	if err != nil {
+		return fmt.Errorf("tls dial: %w", err)
+	}
+	defer conn.Close()
+	client, err := smtp.NewClient(conn, cfg.SMTPHost)
+	if err != nil {
+		return fmt.Errorf("smtp client: %w", err)
+	}
+	defer client.Close()
+	if err := client.Auth(auth); err != nil {
+		return fmt.Errorf("smtp auth: %w", err)
+	}
+	if err := client.Mail(cfg.SMTPUser); err != nil {
+		return fmt.Errorf("smtp mail from: %w", err)
+	}
+	for _, r := range to {
+		if err := client.Rcpt(r); err != nil {
+			log.Printf("[webhook] smtp rcpt %s: %v", r, err)
+		}
+	}
+	w, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("smtp data: %w", err)
+	}
+	_, err = fmt.Fprint(w, body)
+	w.Close()
+	return err
 }
 
 func getOrDefault(m map[string]string, key, def string) string {
