@@ -94,7 +94,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     // Offline mode: validate license key format locally (ASAF-XXXX-XXXX-XXXX-XXXX)
     if (isValidLicenseFormat(rawKey)) {
-      const offlineUser = buildOfflineUser(email, rawKey);
       return handleValidLicense(rawKey, email, { tenant: email, tier: 'community', capabilities: ['scan'] });
     }
 

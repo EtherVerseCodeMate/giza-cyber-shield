@@ -28,6 +28,9 @@ const (
 
 	// probeKey is used to detect keystore availability without a real key
 	keyringProbeKey = "asaf-probe"
+
+	// rootSealedFile is the filename used for the file-based key fallback.
+	rootSealedFile = "root.sealed"
 )
 
 // StoreKey saves the sealed root key to the OS keystore.
@@ -63,7 +66,7 @@ func LoadKey() ([]byte, error) {
 // Used during key rotation — call only after the new key is safely stored.
 func DeleteKey() error {
 	ksErr := keyring.Delete(keyringSvc, keyringKey)
-	fileErr := os.Remove(filepath.Join(ASAFKeysDir(), "root.sealed"))
+	fileErr := os.Remove(filepath.Join(ASAFKeysDir(), rootSealedFile))
 
 	if ksErr != nil && fileErr != nil {
 		return fmt.Errorf("keystore: %v; file: %v", ksErr, fileErr)
@@ -82,7 +85,7 @@ func StorageBackendName() string {
 	_, err := keyring.Get(keyringSvc, keyringProbeKey)
 	if err != nil && !isNotFound(err) {
 		// Keystore daemon unavailable — report file fallback
-		return fmt.Sprintf("file (%s)", filepath.Join(ASAFKeysDir(), "root.sealed"))
+		return fmt.Sprintf("file (%s)", filepath.Join(ASAFKeysDir(), rootSealedFile))
 	}
 
 	switch runtime.GOOS {
@@ -117,7 +120,7 @@ func storeToFile(sealed []byte) error {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("create keys dir %s: %w", dir, err)
 	}
-	path := filepath.Join(dir, "root.sealed")
+	path := filepath.Join(dir, rootSealedFile)
 	if err := os.WriteFile(path, sealed, 0600); err != nil {
 		return fmt.Errorf("write sealed key to %s: %w", path, err)
 	}
@@ -125,7 +128,7 @@ func storeToFile(sealed []byte) error {
 }
 
 func loadFromFile() ([]byte, error) {
-	path := filepath.Join(ASAFKeysDir(), "root.sealed")
+	path := filepath.Join(ASAFKeysDir(), rootSealedFile)
 	return os.ReadFile(path)
 }
 
