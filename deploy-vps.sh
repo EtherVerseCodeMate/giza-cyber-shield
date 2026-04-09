@@ -133,14 +133,16 @@ elif [ -f "docs/mcp-setup.md" ]; then
   # Fallback: upload only known safe ASAF doc files
   $SCP docs/mcp-setup.md ${VPS_USER}@${VPS_HOST}:/var/www/asaf/docs/ 2>/dev/null || true
   $SCP docs/asaf-nlp.html ${VPS_USER}@${VPS_HOST}:/var/www/asaf/docs/ 2>/dev/null || true
+  $SCP docs/asaf-config.js ${VPS_USER}@${VPS_HOST}:/var/www/asaf/docs/ 2>/dev/null || true
 fi
 
 # Upload brand images (Souhimbou, ADINKHEPRA, SecRed seal)
+# Images go into docs/images/ because the docs site roots at /var/www/asaf/docs/
 if [ -d "static/images" ]; then
-  $SSH "mkdir -p /var/www/asaf/images"
-  $SCP static/images/*.png ${VPS_USER}@${VPS_HOST}:/var/www/asaf/images/ 2>/dev/null || true
-  $SCP static/images/*.jpg ${VPS_USER}@${VPS_HOST}:/var/www/asaf/images/ 2>/dev/null || true
-  ok "Brand images uploaded"
+  $SSH "mkdir -p /var/www/asaf/docs/images"
+  $SCP static/images/*.png ${VPS_USER}@${VPS_HOST}:/var/www/asaf/docs/images/ 2>/dev/null || true
+  $SCP static/images/*.jpg ${VPS_USER}@${VPS_HOST}:/var/www/asaf/docs/images/ 2>/dev/null || true
+  ok "Brand images uploaded to docs/images/"
 fi
 
 # Upload release artifacts if built

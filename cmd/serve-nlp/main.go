@@ -72,23 +72,17 @@ func main() {
 		apiBin = detectAPIBinary()
 	}
 
-	// ── Start API server as child ────────────────────────────────────────────
+	// ── Start API server with polymorphic port negotiation ───────────────────
+	// Tries the primary port first; if it's already bound (e.g. another ASAF
+	// instance, or a firewall rule occupying it) we step through fallback ports
+	// identical to what the browser Polymorphic Connector probes.
+	resolvedAPIPort := *apiPort
 	var apiCmd *exec.Cmd
 	if apiBin != "" {
-		log.Printf("[serve-nlp] Starting API server: %s", apiBin)
-		apiCmd = exec.CommandContext(ctx, apiBin)
-		apiCmd.Env = append(os.Environ(),
-			fmt.Sprintf("ADINKHEPRA_AGENT_PORT=%d", *apiPort),
-		)
-		apiCmd.Stdout = os.Stdout
-		apiCmd.Stderr = os.Stderr
-		if err := apiCmd.Start(); err != nil {
-			log.Printf("[serve-nlp] WARNING: Could not start API server: %v", err)
-			log.Printf("[serve-nlp] NLP UI will still work — connect manually at http://localhost:%d", *apiPort)
-		} else {
-			log.Printf("[serve-nlp] API server PID %d on :%d", apiCmd.Process.Pid, *apiPort)
-			// Wait for API to be ready (up to 5s)
-			waitForPort(*apiPort, 5*time.Second)
+		resolvedAPIPort, apiCmd = startAPIPolymorphic(ctx, apiBin, *apiPort)
+		if apiCmd == nil {
+			log.Printf("[serve-nlp] WARNING: Could not start API server on any port")
+			log.Printf("[serve-nlp] NLP UI will still work — start ASAF manually: %s --port %d", apiBin, *apiPort)
 		}
 	} else {
 		log.Printf("[serve-nlp] No API binary found — NLP UI will prompt for API URL")
@@ -103,18 +97,22 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.FS(sub)))
 
-	// Inject runtime config — includes llamafileURL so browser picks it up first
+	// Inject runtime config — includes llamafileURL and server-detected OS
+	// so the browser Polymorphic Connector can show the correct start command
+	// without relying on navigator.userAgent alone.
 	mux.HandleFunc("/asaf-config.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript")
+		w.Header().Set("Cache-Control", "no-store")
 		fmt.Fprintf(w, `
 window.ASAF_CONFIG = {
   apiURL: "http://localhost:%d",
   ollamaURL: "http://localhost:11434",
   lmstudioURL: "http://localhost:1234",
   llamafileURL: "%s",
-  version: "%s"
+  version: "%s",
+  os: "%s"
 };
-`, *apiPort, llamaURL, version())
+`, resolvedAPIPort, llamaURL, version(), runtime.GOOS)
 	})
 
 	addr := fmt.Sprintf("127.0.0.1:%d", *port)
@@ -130,7 +128,7 @@ window.ASAF_CONFIG = {
 
 	consoleURL := fmt.Sprintf("http://localhost:%d/asaf-nlp.html", *port)
 	log.Printf("[serve-nlp] NLP console: %s", consoleURL)
-	log.Printf("[serve-nlp] API server:  http://localhost:%d", *apiPort)
+	log.Printf("[serve-nlp] API server:  http://localhost:%d", resolvedAPIPort)
 	log.Printf("[serve-nlp] Press Ctrl+C to stop")
 
 	if !*noOpen {
@@ -214,10 +212,23 @@ func isPortOpen(port int) bool {
 }
 
 func detectAPIBinary() string {
+	// Check Windows .exe first when running on Windows (GOOS=windows),
+	// then cross-platform names, then PATH lookup.
 	candidates := []string{
+		// Windows — explicit .exe so AV/EDR whitelisting by name works
+		"./bin/asaf-agent.exe",
+		"./bin/asaf-apiserver.exe",
+		// Linux
+		"./bin/asaf-agent-linux-amd64",
+		"./bin/asaf-agent-linux-arm64",
 		"./bin/asaf-apiserver-linux-amd64",
+		// macOS
+		"./bin/asaf-agent-darwin-amd64",
+		"./bin/asaf-agent-darwin-arm64",
 		"./bin/asaf-apiserver-darwin-amd64",
 		"./bin/asaf-apiserver-darwin-arm64",
+		// Generic (set via PATH or symlink)
+		"asaf-agent",
 		"asaf-apiserver",
 	}
 	for _, c := range candidates {
@@ -254,6 +265,40 @@ func openBrowser(url string) {
 	if cmd != nil {
 		cmd.Start() //nolint:errcheck
 	}
+}
+
+// startAPIPolymorphic starts the ASAF API server, trying the primary port first
+// and stepping through up to 3 fallback ports (matching browser Polymorphic
+// Connector probe order: 45444 → 45445 → 45446 → 45447).
+// Returns the resolved port and the running Cmd, or (primaryPort, nil) on failure.
+func startAPIPolymorphic(ctx context.Context, apiBin string, primaryPort int) (int, *exec.Cmd) {
+	ports := []int{primaryPort, primaryPort + 1, primaryPort + 2, primaryPort + 3}
+	for _, port := range ports {
+		if isPortOpen(port) {
+			log.Printf("[serve-nlp] Port %d already in use — trying next polymorphic port", port)
+			continue
+		}
+		log.Printf("[serve-nlp] Starting API server: %s on :%d", apiBin, port)
+		cmd := exec.CommandContext(ctx, apiBin)
+		cmd.Env = append(os.Environ(),
+			fmt.Sprintf("ADINKHEPRA_AGENT_PORT=%d", port),
+		)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Start(); err != nil {
+			log.Printf("[serve-nlp] WARNING: Could not start API on :%d: %v", port, err)
+			continue
+		}
+		log.Printf("[serve-nlp] API server PID %d on :%d", cmd.Process.Pid, port)
+		waitForPort(port, 5*time.Second)
+		if isPortOpen(port) {
+			return port, cmd
+		}
+		// Process started but port not answering — kill and try next
+		cmd.Process.Signal(syscall.SIGTERM) //nolint:errcheck
+		log.Printf("[serve-nlp] API on :%d did not become ready — trying next port", port)
+	}
+	return primaryPort, nil
 }
 
 func version() string {
