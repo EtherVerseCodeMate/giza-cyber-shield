@@ -4,12 +4,12 @@ const STRIPE_API = 'https://api.stripe.com/v1';
 
 /**
  * POST /api/checkout
- * Creates a Stripe Checkout Session for the ASAF Certify plan ($99/mo).
+ * Creates a Stripe Checkout Session for the ASAF Certify plan ($99/attestation).
  * Uses Stripe REST API directly — no SDK dependency required.
  *
  * Required env vars:
  *   STRIPE_SECRET_KEY     — sk_live_... or sk_test_...
- *   STRIPE_PRICE_ID       — price_... (created in Stripe Dashboard)
+ *   STRIPE_PRICE_ID       — price_... (created in Stripe Dashboard, one-time $99)
  *   NEXT_PUBLIC_APP_URL   — https://app.nouchix.com (used for redirect URLs)
  */
 export async function POST(req: NextRequest) {
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
   // Build form-encoded body for Stripe API
   const params = new URLSearchParams({
-    mode: 'subscription',
+    mode: 'payment',
     'line_items[0][price]': priceId,
     'line_items[0][quantity]': '1',
     'success_url': `${appUrl}/onboarding?stripe_session_id={CHECKOUT_SESSION_ID}&plan=certify`,
