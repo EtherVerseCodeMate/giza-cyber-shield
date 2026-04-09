@@ -1,7 +1,7 @@
 // ASAF NLP Dashboard Configuration
 // This file provides default settings when served from the docs site.
 // Override locally or via environment-specific deployment.
-window.ASAF_CONFIG = {
+globalThis.ASAF_CONFIG = {
   apiURL: 'http://localhost:45444',
   ollamaURL: 'http://localhost:11434',
   lmstudioURL: 'http://localhost:1234',
