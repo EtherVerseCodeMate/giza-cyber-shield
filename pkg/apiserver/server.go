@@ -113,12 +113,9 @@ func NewServer(config *Config, dagStore DAGStore, licMgr LicenseManager) *Server
 		server.sigPubKey = pub
 	}
 
-	// Setup middleware
-	server.setupMiddleware()
-
-	// Setup routes
-	server.setupRoutes()
-
+	// NOTE: setupMiddleware() and setupRoutes() are intentionally NOT called here.
+	// They are called from Start() after all optional dependencies (SekhemTriad,
+	// PQCAuthGateway, MCPStore, NLProcessor) have been injected via With* methods.
 	return server
 }
 
@@ -327,8 +324,15 @@ func (s *Server) setupRoutes() {
 	})
 }
 
-// Start starts the API server
+// Start starts the API server.
+// All With* dependency injections must be called before Start().
+// setupMiddleware and setupRoutes run here so the WAFShield (from SekhemTriad)
+// is available when middleware is configured.
 func (s *Server) Start() error {
+	// Setup middleware and routes now — all dependencies are injected
+	s.setupMiddleware()
+	s.setupRoutes()
+
 	// Start WebSocket hub in background
 	go s.wsHub.Run()
 
