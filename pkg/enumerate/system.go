@@ -678,6 +678,17 @@ func collectCronDJobs() []audit.CronJob {
 	return jobs
 }
 
+// isNoLoginShell returns true for shells that prevent interactive login.
+// Accounts with these shells cannot own personal crontabs; querying them
+// via `crontab -l -u <user>` produces only PAM journal noise.
+func isNoLoginShell(shell string) bool {
+	switch filepath.Base(shell) {
+	case "nologin", "false", "sync", "halt", "shutdown":
+		return true
+	}
+	return false
+}
+
 func collectCronJobsLinux() ([]audit.CronJob, error) {
 	var cronJobs []audit.CronJob
 
@@ -696,8 +707,16 @@ func collectCronJobsLinux() ([]audit.CronJob, error) {
 	// PAM logs every invocation. Filter them out here.
 	users, _ := collectUsersUnix()
 	for _, u := range users {
+		// Skip any account that cannot log in interactively — they cannot have
+		// personal crontabs and `crontab -l -u <them>` just generates PAM journal
+		// noise every Ouroboros tick (20+ entries / 10 s).
+		// Covers: UID 1-999 service accounts AND nobody (UID 65534) AND any
+		// custom service account whose shell is nologin/false regardless of UID.
+		if isNoLoginShell(u.Shell) {
+			continue
+		}
 		if u.UID > 0 && u.UID < 1000 {
-			continue // skip service accounts
+			continue
 		}
 		if output, err := exec.Command("crontab", "-u", u.Username, "-l").Output(); err == nil {
 			cronJobs = append(cronJobs, parseCrontab(string(output), u.Username)...)
