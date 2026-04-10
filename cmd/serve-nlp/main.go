@@ -90,9 +90,9 @@ func gracefulStop(cmd *exec.Cmd) {
 }
 
 func main() {
-	port    := flag.Int("port", 7777, "Port for NLP console")
+	port := flag.Int("port", 7777, "Port for NLP console")
 	apiPort := flag.Int("api-port", 45444, "Port for ASAF API server")
-	noOpen  := flag.Bool("no-open", false, "Don't auto-open browser")
+	noOpen := flag.Bool("no-open", false, "Don't auto-open browser")
 	apiPath := flag.String("api-bin", "", "Path to asaf-apiserver binary (auto-detected if empty)")
 	flag.Parse()
 
@@ -268,9 +268,12 @@ func waitForPort(port int, timeout time.Duration) {
 func openBrowser(url string) {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
-	case "linux":   cmd = exec.Command("xdg-open", url)
-	case "darwin":  cmd = exec.Command("open", url)
-	case "windows": cmd = exec.Command("cmd", "/c", "start", url)
+	case "linux":
+		cmd = exec.Command("xdg-open", url)
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "start", url)
 	}
 	if cmd != nil {
 		cmd.Start() //nolint:errcheck
