@@ -12,7 +12,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -761,32 +764,280 @@ func crackCmd(args []string) {
 	fmt.Println("===============================================================")
 }
 
+// asafAPIURL returns the ASAF gateway URL from env or the production default.
+func asafAPIURL() string {
+	if v := os.Getenv("ASAF_API_URL"); v != "" {
+		return strings.TrimRight(v, "/")
+	}
+	return "https://agent.souhimbou.org"
+}
+
+// stripePriceID returns the Stripe price ID to charge for certification.
+func stripePriceID() string {
+	if v := os.Getenv("ASAF_STRIPE_PRICE_ID"); v != "" {
+		return v
+	}
+	return "price_1TBPqkDqGyad2D3VoG57KwdX" // ADINKHEPRA Certification Badge $99/mo
+}
+
+// stripeSecretKey returns the Stripe secret key from env; exits if absent.
+func stripeSecretKey() string {
+	v := os.Getenv("STRIPE_SECRET_KEY")
+	if v == "" {
+		fmt.Fprintln(os.Stderr, "[certify] STRIPE_SECRET_KEY is not set. Export it before running asaf certify.")
+		os.Exit(1)
+	}
+	return v
+}
+
+// scanResult is the minimal response shape from POST /api/v1/onboarding/scan.
+type scanResult struct {
+	ScanID  string `json:"scan_id"`
+	Status  string `json:"status"`
+	Score   int    `json:"score"`
+	Passed  int    `json:"passed"`
+	Failed  int    `json:"failed"`
+	Message string `json:"message"`
+}
+
+// licenseStatus is the minimal shape of GET /api/v1/license/status.
+type licenseStatus struct {
+	Valid      bool   `json:"valid"`
+	LicenseTier string `json:"license_tier"`
+	LicenseID  string `json:"license_id"`
+	ExpiresAt  string `json:"expires_at"`
+}
+
+// stripeCheckoutSession is what Stripe returns on session creation.
+type stripeCheckoutSession struct {
+	ID  string `json:"id"`
+	URL string `json:"url"`
+}
+
+// scanCmd runs a scan (mode="full") or a full certify flow (mode="certify").
 func scanCmd(args []string, mode string) {
-	fs := flag.NewFlagSet("scan", flag.ExitOnError)
-	target := fs.String("target", "", "Target host or IP")
+	fs := flag.NewFlagSet(mode, flag.ExitOnError)
+	target  := fs.String("target", "", "Target host or IP to scan")
 	profile := fs.String("profile", "", "Scan profile (e.g. nemoclaw)")
-	
+	apiKey  := fs.String("api-key", os.Getenv("ASAF_API_KEY"), "ASAF API key (or set ASAF_API_KEY)")
 	fs.Parse(args)
 
 	if *target == "" {
-		fmt.Println("Usage: asaf", mode, "--target <host|ip> [--profile nemoclaw]")
-		return
+		fmt.Printf("Usage: asaf %s --target <host|ip> [--profile nemoclaw] [--api-key <key>]\n", mode)
+		os.Exit(1)
 	}
 
-	fmt.Printf("[ADINKHEPRA] Initiating %s... Target: %s | Profile: %s\n", mode, *target, *profile)
-	
-	// Create JSON payload for /api/v1/scans/trigger
-	payload := map[string]interface{}{
+	apiURL := asafAPIURL()
+
+	// ── Step 1: Run the compliance scan ──────────────────────────────────────
+	fmt.Printf("\n  ADINKHEPRA — Agentic Security Attestation Framework\n")
+	fmt.Printf("  ─────────────────────────────────────────────────────\n")
+	fmt.Printf("  Target  : %s\n", *target)
+	fmt.Printf("  Profile : %s\n", coalesce(*profile, "default"))
+	fmt.Printf("  Mode    : %s\n\n", mode)
+	fmt.Printf("  [1/4] Initiating compliance scan...\n")
+
+	scanPayload, _ := json.Marshal(map[string]interface{}{
 		"target_url": *target,
 		"scan_type":  mode,
 		"profile":    *profile,
+	})
+
+	req, err := http.NewRequest(http.MethodPost, apiURL+"/api/v1/onboarding/scan", bytes.NewReader(scanPayload))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  [ERROR] failed to build scan request: %v\n", err)
+		os.Exit(1)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if *apiKey != "" {
+		req.Header.Set("X-API-Key", *apiKey)
 	}
 
-	payloadBytes, _ := json.MarshalIndent(payload, "", "  ")
+	client := &http.Client{Timeout: 120 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  [ERROR] scan request failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "  Is the ASAF gateway reachable at %s?\n", apiURL)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
 
-	fmt.Println("Payload to be sent to Command Center:")
-	fmt.Println(string(payloadBytes))
-	fmt.Println("[ADINKHEPRA] Scan dispatched successfully.")
+	var result scanResult
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Fprintf(os.Stderr, "  [ERROR] could not parse scan response: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("  [2/4] Scan complete.\n")
+	fmt.Printf("\n  ┌─ Compliance Results ──────────────────────────────┐\n")
+	fmt.Printf("  │  Scan ID  : %-37s│\n", result.ScanID)
+	fmt.Printf("  │  Score    : %-3d/100                                │\n", result.Score)
+	fmt.Printf("  │  Passed   : %-3d controls                           │\n", result.Passed)
+	fmt.Printf("  │  Failed   : %-3d controls                           │\n", result.Failed)
+	fmt.Printf("  │  Status   : %-37s│\n", result.Status)
+	fmt.Printf("  └───────────────────────────────────────────────────┘\n\n")
+
+	// For plain scan, stop here.
+	if mode != "certify" {
+		fmt.Println("  Run 'asaf certify --target', to issue your ADINKHEPRA badge.")
+		return
+	}
+
+	// ── Step 2: Create Stripe Checkout Session ────────────────────────────────
+	fmt.Printf("  [3/4] Creating secure payment session...\n")
+
+	machineID := getMachineID()
+	sessionURL, sessionID, err := createStripeCheckoutSession(machineID, result.ScanID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  [ERROR] Stripe session creation failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	const boxBlank = "  │                                                   │\n"
+	fmt.Printf("\n  ┌─ Payment Required ────────────────────────────────┐\n")
+	fmt.Printf("  │  ADINKHEPRA Certification Badge — $99/month       │\n")
+	fmt.Print(boxBlank)
+	fmt.Printf("  │  Open this URL to complete payment:               │\n")
+	fmt.Print(boxBlank)
+	fmt.Printf("  │  %s\n", sessionURL)
+	fmt.Print(boxBlank)
+	fmt.Printf("  │  Session : %-37s│\n", sessionID)
+	fmt.Printf("  │  Token   : %-37s│\n", machineID)
+	fmt.Printf("  └───────────────────────────────────────────────────┘\n\n")
+
+	// Try to open in default browser
+	openBrowser(sessionURL)
+
+	// ── Step 3: Poll for license activation ──────────────────────────────────
+	fmt.Printf("  [4/4] Waiting for payment confirmation")
+	fmt.Printf(" (press Ctrl+C to exit and re-run later)...\n\n")
+
+	deadline := time.Now().Add(30 * time.Minute)
+	for time.Now().Before(deadline) {
+		time.Sleep(8 * time.Second)
+		fmt.Printf("  .")
+
+		licReq, _ := http.NewRequest(http.MethodGet, apiURL+"/api/v1/license/status", nil)
+		if *apiKey != "" {
+			licReq.Header.Set("X-API-Key", *apiKey)
+		}
+		licResp, err := client.Do(licReq)
+		if err != nil {
+			continue
+		}
+		var lic licenseStatus
+		json.NewDecoder(licResp.Body).Decode(&lic) //nolint:errcheck
+		licResp.Body.Close()
+
+		if lic.Valid {
+			fmt.Printf("\n\n  ╔══════════════════════════════════════════════════╗\n")
+			fmt.Printf("  ║        ADINKHEPRA BADGE ISSUED                  ║\n")
+			fmt.Printf("  ╠══════════════════════════════════════════════════╣\n")
+			fmt.Printf("  ║  License   : %-35s║\n", lic.LicenseID)
+			fmt.Printf("  ║  Tier      : %-35s║\n", lic.LicenseTier)
+			fmt.Printf("  ║  Expires   : %-35s║\n", lic.ExpiresAt)
+			fmt.Printf("  ╠══════════════════════════════════════════════════╣\n")
+			fmt.Printf("  ║  Certificate delivered to your email.           ║\n")
+			fmt.Printf("  ║  Verify:  asaf verify --cert %s\n", lic.LicenseID)
+			fmt.Printf("  ╚══════════════════════════════════════════════════╝\n\n")
+			return
+		}
+	}
+
+	fmt.Printf("\n\n  Payment not confirmed within 30 minutes.\n")
+	fmt.Printf("  Your session URL remains active — complete payment and re-run:\n")
+	fmt.Printf("    asaf certify --target %s\n\n", *target)
+}
+
+// createStripeCheckoutSession creates a Stripe Checkout Session via the API.
+// machineID is embedded as client_reference_id so the webhook can activate
+// the correct machine's license after payment.
+func createStripeCheckoutSession(machineID, scanID string) (url, id string, err error) {
+	sk := stripeSecretKey()
+	priceID := stripePriceID()
+
+	// Stripe API uses application/x-www-form-urlencoded
+	form := strings.NewReader(strings.Join([]string{
+		"mode=subscription",
+		"line_items[0][price]=" + priceID,
+		"line_items[0][quantity]=1",
+		"client_reference_id=" + machineID,
+		"metadata[machine_id]=" + machineID,
+		"metadata[scan_id]=" + scanID,
+		"metadata[framework]=CMMC_L2",
+		"success_url=https://app.nouchix.com/certified?session_id={CHECKOUT_SESSION_ID}",
+		"cancel_url=https://app.nouchix.com/pricing",
+	}, "&"))
+
+	req, err := http.NewRequest(http.MethodPost, "https://api.stripe.com/v1/checkout/sessions", form)
+	if err != nil {
+		return "", "", fmt.Errorf("build request: %w", err)
+	}
+	req.SetBasicAuth(sk, "")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", "", fmt.Errorf("stripe API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", "", fmt.Errorf("stripe returned HTTP %d: %s", resp.StatusCode, string(body))
+	}
+
+	var session stripeCheckoutSession
+	if err := json.NewDecoder(resp.Body).Decode(&session); err != nil {
+		return "", "", fmt.Errorf("decode session: %w", err)
+	}
+	return session.URL, session.ID, nil
+}
+
+// getMachineID returns the machine ID used as the Stripe client_reference_id.
+// Prefers ASAF_MACHINE_ID env var, falls back to /etc/machine-id, then hostname.
+func getMachineID() string {
+	if v := os.Getenv("ASAF_MACHINE_ID"); v != "" {
+		return v
+	}
+	if data, err := os.ReadFile("/etc/machine-id"); err == nil {
+		id := strings.TrimSpace(string(data))
+		if id != "" {
+			return id
+		}
+	}
+	if h, err := os.Hostname(); err == nil {
+		return h
+	}
+	return "unknown-machine"
+}
+
+// openBrowser attempts to open url in the system default browser.
+// Non-fatal — the URL is always printed to stdout regardless.
+func openBrowser(url string) {
+	// Attempt silently; ignore errors — URL is already printed.
+	_ = func() error {
+		switch {
+		case isCommandAvailable("xdg-open"):
+			return exec.Command("xdg-open", url).Start()
+		case isCommandAvailable("open"):
+			return exec.Command("open", url).Start()
+		}
+		return nil
+	}()
+}
+
+func isCommandAvailable(name string) bool {
+	_, err := exec.LookPath(name)
+	return err == nil
+}
+
+func coalesce(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
 }
 
 func keygenCmd(args []string) {
