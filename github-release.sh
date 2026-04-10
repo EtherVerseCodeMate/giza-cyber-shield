@@ -8,7 +8,7 @@
 set -e
 
 REPO="EtherVerseCodeMate/giza-cyber-shield"
-TAG="v1.0.0"
+TAG="v1.0.1"
 TITLE="ASAF v1.0.0 — Track 1"
 NOTES="First revenue-ready release.
 
@@ -42,18 +42,32 @@ fi
 # ── Create release ────────────────────────────────────────────────────────────
 echo "[2/3] Creating release $TAG..."
 
-# Escape notes for JSON without Python: escape backslashes, quotes, then newlines
-NOTES_JSON=$(printf '%s' "$NOTES" \
-  | sed 's/\\/\\\\/g' \
-  | sed 's/"/\\"/g' \
-  | awk '{printf "%s\\n", $0}' \
-  | sed 's/\\n$//')
+# Write JSON to temp file — avoids all shell escaping issues
+cat > /tmp/asaf_release.json << 'ENDJSON'
+{
+  "tag_name": "v1.0.1",
+  "name": "ASAF v1.0.0 - Track 1",
+  "body": "First revenue-ready release.\n\nChanges:\n- certify CLI: polls scan status for real Scan ID, Score, Passed/Failed controls\n- Stripe webhook: HMAC-SHA256 via STRIPE_WEBHOOK_SECRET - stops license spoofing\n- Scan enrichment: Shodan (CVEs, banners, ports) + APIVoid (domain blacklist, 80+ engines)\n- OpenRouter LLM fallback: cloud AI when no local model is present\n- License revocation: subscription cancellation wired end-to-end",
+  "draft": false,
+  "prerelease": false
+}
+ENDJSON
 
-RELEASE=$(curl -sf -X POST \
+RELEASE=$(curl -sS -X POST \
   -H "$AUTH" \
   -H "Content-Type: application/json" \
-  -d "{\"tag_name\":\"$TAG\",\"name\":\"$TITLE\",\"body\":\"$NOTES_JSON\",\"draft\":false,\"prerelease\":false}" \
+  -d @/tmp/asaf_release.json \
+  -w "\nHTTP_STATUS:%{http_code}" \
   "$API/repos/$REPO/releases")
+
+HTTP_STATUS=$(echo "$RELEASE" | grep "HTTP_STATUS:" | tail -1 | cut -d: -f2)
+RELEASE=$(echo "$RELEASE" | grep -v "HTTP_STATUS:")
+
+if [ "$HTTP_STATUS" != "201" ]; then
+  echo "[ERROR] GitHub returned HTTP $HTTP_STATUS. Full response:"
+  echo "$RELEASE"
+  exit 1
+fi
 
 RELEASE_ID=$(echo "$RELEASE" | grep '"id"' | head -1 | grep -o '[0-9]*' | head -1)
 UPLOAD_URL=$(echo "$RELEASE" | grep '"upload_url"' | head -1 | sed 's/.*"upload_url": *"\([^"]*\)".*/\1/' | sed 's/{.*}//')
