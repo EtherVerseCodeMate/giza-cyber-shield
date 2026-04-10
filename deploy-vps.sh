@@ -200,6 +200,41 @@ else
 fi
 
 
+# ── Phase 5a: ASAF API systemd service ───────────────────────────────────────
+# The ASAF Go API server must be permanently running on the VPS so the
+# Next.js dashboard (Dockerfile.dashboard) can proxy scan requests to it
+# via http://localhost:45444 — eliminating the Cloudflare tunnel dependency.
+log "Installing ASAF API service..."
+$SSH "sudo tee /etc/systemd/system/asaf-api.service" << 'APIEOF'
+[Unit]
+Description=ASAF API Server (Go — scan engine + attestation)
+After=network.target
+
+[Service]
+Type=simple
+User=asaf
+WorkingDirectory=/opt/asaf
+EnvironmentFile=/opt/asaf/secrets/api.env
+ExecStart=/opt/asaf/bin/asaf-linux-amd64
+Restart=always
+RestartSec=5
+# Write DAG/attestation data to data dir only
+ReadWritePaths=/opt/asaf/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+APIEOF
+
+$SSH << 'APISETUP'
+sudo mkdir -p /opt/asaf/data
+sudo chown -R asaf:asaf /opt/asaf/data
+sudo systemctl daemon-reload
+sudo systemctl enable asaf-api
+[ -f /opt/asaf/bin/asaf-linux-amd64 ] && sudo systemctl restart asaf-api || true
+APISETUP
+ok "ASAF API service installed (starts on boot)"
+
 # ── Phase 5: Stripe Webhook systemd service ───────────────────────────────────
 log "Installing Stripe webhook service..."
 $SSH "sudo tee /etc/systemd/system/asaf-webhook.service" << 'SVCEOF'
@@ -233,7 +268,16 @@ ok "Webhook service installed"
 
 # ── Phase 6: Secrets reminder ─────────────────────────────────────────────────
 printf "\n${BOLD}━━━ Secrets Setup (manual — do not put in git) ━━━${RESET}\n"
-printf "SSH into the VPS and create /opt/asaf/secrets/webhook.env:\n\n"
+printf "\n1. ASAF API secrets — /opt/asaf/secrets/api.env:\n"
+printf "  ${CYAN}tee /opt/asaf/secrets/api.env << 'EOF'${RESET}\n"
+printf "  ADINKHEPRA_AGENT_PORT=45444\n"
+printf "  ASAF_ALLOW_EVAL_WITHOUT_LICENSE=true\n"
+printf "  ASAF_API_KEY=                    # optional bearer token\n"
+printf "  ADINKHEPRA_LICENSE_KEY=          # optional paid license\n"
+printf "  EOF\n"
+printf "  ${CYAN}chmod 600 /opt/asaf/secrets/api.env${RESET}\n\n"
+printf "  Then start: ${CYAN}sudo systemctl restart asaf-api${RESET}\n\n"
+printf "2. Stripe webhook secrets — /opt/asaf/secrets/webhook.env:\n"
 printf "  ${CYAN}ssh ${VPS_USER}@${VPS_HOST}${RESET}\n"
 printf "  ${CYAN}sudo tee /opt/asaf/secrets/webhook.env << 'EOF'${RESET}\n"
 printf "  STRIPE_WEBHOOK_SECRET=whsec_...\n"

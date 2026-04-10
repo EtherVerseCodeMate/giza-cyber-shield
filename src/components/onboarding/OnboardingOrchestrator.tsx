@@ -7,12 +7,12 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, Search, CheckCircle, AlertTriangle, XCircle, ArrowRight, Lock, Loader2 } from 'lucide-react';
 
-// Vite: VITE_*; Next-style builds may inject NEXT_PUBLIC_* via host
-// Next.js/Turbopack may not populate `import.meta.env`, so default safely.
-const env = (import.meta as any)?.env ?? {};
-const API_BASE =
-  env.VITE_ASAF_API_URL || env.NEXT_PUBLIC_ASAF_API_URL || 'http://localhost:45444';
-const API_KEY = env.VITE_ASAF_API_KEY || env.NEXT_PUBLIC_ASAF_API_KEY || '';
+// Scan requests go through Next.js server-side proxy routes (/api/scan/*).
+// This avoids CORS issues and keeps the ASAF API endpoint private.
+// The proxy routes are defined in src/app/api/scan/trigger/route.ts and
+// src/app/api/scan/[id]/route.ts.
+const SCAN_TRIGGER = '/api/scan/trigger';
+const SCAN_POLL    = (id: string) => `/api/scan/${id}`;
 
 type Step = 'input' | 'scanning' | 'results' | 'upgrade';
 
@@ -67,29 +67,25 @@ const SCAN_PHASES = [
 ];
 
 async function triggerScan(target: string): Promise<string> {
-  const body: Record<string, unknown> = {
-    target_url: target,
-    scan_type: 'eval',
-    metadata: { source: 'onboarding', product: 'asaf' },
-  };
-  const profile = env.VITE_ASAF_SCAN_PROFILE || env.NEXT_PUBLIC_ASAF_SCAN_PROFILE;
-  if (profile) body.profile = profile;
-
-  const res = await fetch(`${API_BASE}/api/v1/scans/trigger`, {
+  const res = await fetch(SCAN_TRIGGER, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': API_KEY },
-    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ target_url: target }),
   });
-  if (!res.ok) throw new Error(`Scan failed: ${res.status}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Scan failed: ${res.status}`);
+  }
   const data = await res.json();
   return data.scan_id;
 }
 
 async function pollScan(scanId: string): Promise<ScanStatusPayload> {
-  const res = await fetch(`${API_BASE}/api/v1/scans/${scanId}`, {
-    headers: { 'Authorization': API_KEY },
-  });
-  if (!res.ok) throw new Error(`Poll failed: ${res.status}`);
+  const res = await fetch(SCAN_POLL(scanId));
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Poll failed: ${res.status}`);
+  }
   return res.json();
 }
 
@@ -168,10 +164,7 @@ const OnboardingOrchestrator: React.FC = () => {
       setScanId(id);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      setError(
-        `Scan failed: ${msg}. ` +
-        `Ensure NEXT_PUBLIC_ASAF_API_URL points to your running ASAF backend (currently: ${API_BASE}).`
-      );
+      setError(`Scan failed: ${msg}`);
       setStep('input');
       setIsScanning(false);
     }
