@@ -283,3 +283,18 @@ func (m *Manager) Heartbeat() (*HeartbeatResponse, error) {
 	}
 	return resp, err
 }
+
+// RevokeLicense marks the current license as revoked in-memory.
+// Sets Valid=false and Error="revoked" on the cached validation so that
+// GetStatus().Revoked == true and IsValid() == false for this process lifetime.
+// On the next server restart the telemetry server will be re-queried.
+func (m *Manager) RevokeLicense(stripeEventID, reason string) error {
+	m.validationMu.Lock()
+	defer m.validationMu.Unlock()
+	if m.cachedValidation != nil {
+		m.cachedValidation.Valid = false
+		m.cachedValidation.Error = "revoked"
+	}
+	log.Printf("[LICENSE] License revoked: stripe_event=%s reason=%s", stripeEventID, reason)
+	return nil
+}
