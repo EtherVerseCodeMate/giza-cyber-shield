@@ -1,10 +1,17 @@
 package apiserver
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
@@ -14,6 +21,10 @@ import (
 
 const (
 	msgLicenseIDRequired = "license_id parameter is required"
+
+	// Tier shortcuts used by Stripe webhook handler.
+	licenseRaTier        = license.TierRa
+	licenseCommunityTier = license.TierKhepri
 )
 
 // Merkaba Egyptian Licensing System Handlers (Version 2)
@@ -317,6 +328,177 @@ func (s *Server) handleTelemetryStatus(c *gin.Context) {
 		"supports_heartbeat": true,
 	})
 }
+
+// handleStripeWebhook processes Stripe webhook events to activate / revoke licenses.
+//
+// Route: POST /api/v1/stripe/webhook  (public — no API-key auth, verified by HMAC)
+//
+// Supported events:
+//   - checkout.session.completed  → activate license for machine_id in metadata
+//   - customer.subscription.deleted → revoke license for that machine_id
+//
+// Security: raw body is read BEFORE gin parses JSON so the Stripe-Signature
+// HMAC can be verified against STRIPE_WEBHOOK_SECRET.  Any event that fails
+// verification is rejected with 400.
+func (s *Server) handleStripeWebhook(c *gin.Context) {
+	const maxBodyBytes = int64(65536)
+
+	webhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
+	if webhookSecret == "" {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "webhook_misconfigured",
+			Message: "STRIPE_WEBHOOK_SECRET is not set on the server.",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	// Read raw body — must happen before any c.Bind* calls.
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBodyBytes)
+	payload, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "body_read_error",
+			Message: "Could not read request body.",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// Verify HMAC signature — rejects any spoofed webhook.
+	sigHeader := c.GetHeader("Stripe-Signature")
+	if err := verifyStripeSignature(payload, sigHeader, webhookSecret); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "invalid_signature",
+			Message: "Stripe webhook signature verification failed.",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// Parse the minimal event envelope.
+	var event stripeWebhookEvent
+	if err := json.Unmarshal(payload, &event); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "parse_error",
+			Message: "Could not parse Stripe event payload.",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	switch event.Type {
+	case "checkout.session.completed":
+		machineID := event.Data.Object.ClientReferenceID
+		if machineID == "" {
+			machineID = event.Data.Object.Metadata["machine_id"]
+		}
+		if machineID == "" {
+			// No machine ID — log and ack (avoid Stripe retry storm).
+			fmt.Printf("[STRIPE] checkout.session.completed received but no machine_id in metadata\n")
+			c.JSON(http.StatusOK, gin.H{"received": true})
+			return
+		}
+
+		// Activate a Ra-tier (Hunter) 365-day license for this machine.
+		licenseID := "ra-" + machineID[:min(8, len(machineID))]
+		if _, err := s.licMgr.CreateLicense(licenseID, licenseRaTier, 365); err != nil {
+			fmt.Printf("[STRIPE] license activation failed for machine %s: %v\n", machineID, err)
+			// Still return 200 — Stripe will not retry; log for manual recovery.
+		} else {
+			fmt.Printf("[STRIPE] License activated: %s → machine %s\n", licenseID, machineID)
+		}
+
+		// Broadcast activation over WebSocket so the CLI poll loop sees it.
+		if s.wsHub != nil {
+			s.wsHub.BroadcastScanUpdate(map[string]interface{}{
+				"type":       "license_activated",
+				"machine_id": machineID,
+				"license_id": licenseID,
+				"tier":       "ra",
+			})
+		}
+
+	case "customer.subscription.deleted":
+		machineID := event.Data.Object.Metadata["machine_id"]
+		if machineID != "" {
+			licenseID := "ra-" + machineID[:min(8, len(machineID))]
+			fmt.Printf("[STRIPE] Subscription cancelled — revoking license %s\n", licenseID)
+			// Upgrade to community (lowest tier) effectively revokes Ra access.
+			_ = s.licMgr.UpgradeLicense(licenseID, licenseCommunityTier)
+		}
+
+	default:
+		// Acknowledge unhandled events silently — don't return 4xx (causes Stripe retries).
+	}
+
+	c.JSON(http.StatusOK, gin.H{"received": true})
+}
+
+// stripeWebhookEvent is the minimal envelope parsed from a Stripe webhook body.
+type stripeWebhookEvent struct {
+	ID   string `json:"id"`
+	Type string `json:"type"`
+	Data struct {
+		Object struct {
+			ClientReferenceID string            `json:"client_reference_id"`
+			Metadata          map[string]string `json:"metadata"`
+		} `json:"object"`
+	} `json:"data"`
+}
+
+// verifyStripeSignature verifies the Stripe-Signature header HMAC.
+// Stripe signs the raw payload with HMAC-SHA256 using the webhook secret.
+// Format: "t=<timestamp>,v1=<sig>[,v1=<sig>...]"
+func verifyStripeSignature(payload []byte, header, secret string) error {
+	if header == "" {
+		return fmt.Errorf("missing Stripe-Signature header")
+	}
+
+	var timestamp string
+	var signatures []string
+	for _, part := range strings.Split(header, ",") {
+		kv := strings.SplitN(part, "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		switch kv[0] {
+		case "t":
+			timestamp = kv[1]
+		case "v1":
+			signatures = append(signatures, kv[1])
+		}
+	}
+	if timestamp == "" || len(signatures) == 0 {
+		return fmt.Errorf("malformed Stripe-Signature header")
+	}
+
+	// Reject timestamps older than 5 minutes (replay attack prevention).
+	ts, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil || time.Now().Unix()-ts > 300 {
+		return fmt.Errorf("webhook timestamp too old or invalid")
+	}
+
+	signed := timestamp + "." + string(payload)
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(signed)) //nolint:errcheck
+	expected := hex.EncodeToString(mac.Sum(nil))
+
+	for _, sig := range signatures {
+		if hmac.Equal([]byte(sig), []byte(expected)) {
+			return nil
+		}
+	}
+	return fmt.Errorf("signature mismatch")
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 
 // handleRevokeLicense marks a license as revoked following a Stripe subscription cancellation.
 // POST /api/v1/license/revoke
