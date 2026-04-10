@@ -33,6 +33,62 @@ import (
 //go:embed static
 var nlpHTML embed.FS
 
+// initLlamafile detects, starts or reuses a llamafile LLM backend.
+// Returns the exec.Cmd (nil if not started) and the base URL (empty if unavailable).
+func initLlamafile(ctx context.Context, port int) (*exec.Cmd, string) {
+	lf := detectLlamafile()
+	if lf == "" {
+		log.Printf("[serve-nlp] No llamafile found — LLM detection order: Ollama→LM Studio→OpenRouter")
+		log.Printf("[serve-nlp] To ship a bundled LLM: place asaf-phi3-mini.llamafile next to the asaf binary")
+		return nil, ""
+	}
+
+	log.Printf("[serve-nlp] llamafile detected: %s", lf)
+	url := fmt.Sprintf("http://localhost:%d", port)
+
+	if isPortOpen(port) {
+		log.Printf("[serve-nlp] llamafile already running on :%d", port)
+		return nil, url
+	}
+
+	cmd, err := startLlamafile(ctx, lf, port)
+	if err != nil {
+		log.Printf("[serve-nlp] WARNING: could not start llamafile: %v", err)
+		return nil, ""
+	}
+
+	log.Printf("[serve-nlp] llamafile started on :%d (PID %d)", port, cmd.Process.Pid)
+	waitForPort(port, 10*time.Second)
+	return cmd, url
+}
+
+// initAPIServer locates the API binary and starts it with polymorphic port negotiation.
+// Returns the resolved port and exec.Cmd (nil if not started).
+func initAPIServer(ctx context.Context, apiPath string, defaultPort int) (int, *exec.Cmd) {
+	apiBin := apiPath
+	if apiBin == "" {
+		apiBin = detectAPIBinary()
+	}
+	if apiBin == "" {
+		log.Printf("[serve-nlp] No API binary found — NLP UI will prompt for API URL")
+		return defaultPort, nil
+	}
+
+	resolvedPort, cmd := startAPIPolymorphic(ctx, apiBin, defaultPort)
+	if cmd == nil {
+		log.Printf("[serve-nlp] WARNING: Could not start API server on any port")
+		log.Printf("[serve-nlp] NLP UI will still work — start ASAF manually: %s --port %d", apiBin, defaultPort)
+	}
+	return resolvedPort, cmd
+}
+
+// gracefulStop sends SIGTERM to a process if it is running.
+func gracefulStop(cmd *exec.Cmd) {
+	if cmd != nil && cmd.Process != nil {
+		cmd.Process.Signal(syscall.SIGTERM) //nolint:errcheck
+	}
+}
+
 func main() {
 	port    := flag.Int("port", 7777, "Port for NLP console")
 	apiPort := flag.Int("api-port", 45444, "Port for ASAF API server")
@@ -43,50 +99,8 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	// ── Detect and start llamafile (bundled LLM — zero external dependency) ──
-	llamafilePort := 8080
-	var llamaCmd *exec.Cmd
-	llamaURL := ""
-	if lf := detectLlamafile(); lf != "" {
-		log.Printf("[serve-nlp] llamafile detected: %s", lf)
-		if !isPortOpen(llamafilePort) {
-			var err error
-			llamaCmd, err = startLlamafile(ctx, lf, llamafilePort)
-			if err != nil {
-				log.Printf("[serve-nlp] WARNING: could not start llamafile: %v", err)
-			} else {
-				log.Printf("[serve-nlp] llamafile started on :%d (PID %d)", llamafilePort, llamaCmd.Process.Pid)
-				waitForPort(llamafilePort, 10*time.Second)
-				llamaURL = fmt.Sprintf("http://localhost:%d", llamafilePort)
-			}
-		} else {
-			log.Printf("[serve-nlp] llamafile already running on :%d", llamafilePort)
-			llamaURL = fmt.Sprintf("http://localhost:%d", llamafilePort)
-		}
-	} else {
-		log.Printf("[serve-nlp] No llamafile found — LLM detection order: Ollama→LM Studio→OpenRouter")
-		log.Printf("[serve-nlp] To ship a bundled LLM: place asaf-phi3-mini.llamafile next to the asaf binary")
-	}
-	apiBin := *apiPath
-	if apiBin == "" {
-		apiBin = detectAPIBinary()
-	}
-
-	// ── Start API server with polymorphic port negotiation ───────────────────
-	// Tries the primary port first; if it's already bound (e.g. another ASAF
-	// instance, or a firewall rule occupying it) we step through fallback ports
-	// identical to what the browser Polymorphic Connector probes.
-	resolvedAPIPort := *apiPort
-	var apiCmd *exec.Cmd
-	if apiBin != "" {
-		resolvedAPIPort, apiCmd = startAPIPolymorphic(ctx, apiBin, *apiPort)
-		if apiCmd == nil {
-			log.Printf("[serve-nlp] WARNING: Could not start API server on any port")
-			log.Printf("[serve-nlp] NLP UI will still work — start ASAF manually: %s --port %d", apiBin, *apiPort)
-		}
-	} else {
-		log.Printf("[serve-nlp] No API binary found — NLP UI will prompt for API URL")
-	}
+	llamaCmd, llamaURL := initLlamafile(ctx, 8080)
+	resolvedAPIPort, apiCmd := initAPIServer(ctx, *apiPath, *apiPort)
 
 	// ── Serve asaf-nlp.html ──────────────────────────────────────────────────
 	sub, err := fs.Sub(nlpHTML, "static")
@@ -139,12 +153,8 @@ window.ASAF_CONFIG = {
 		log.Fatalf("[serve-nlp] HTTP server error: %v", err)
 	}
 
-	if apiCmd != nil && apiCmd.Process != nil {
-		apiCmd.Process.Signal(syscall.SIGTERM) //nolint:errcheck
-	}
-	if llamaCmd != nil && llamaCmd.Process != nil {
-		llamaCmd.Process.Signal(syscall.SIGTERM) //nolint:errcheck
-	}
+	gracefulStop(apiCmd)
+	gracefulStop(llamaCmd)
 	log.Println("[serve-nlp] Stopped.")
 }
 
