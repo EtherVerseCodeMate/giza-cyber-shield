@@ -2,8 +2,10 @@ package apiserver
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/gin-gonic/gin"
@@ -313,5 +315,68 @@ func (s *Server) handleTelemetryStatus(c *gin.Context) {
 		"supports_enroll":    true,
 		"supports_validate":  true,
 		"supports_heartbeat": true,
+	})
+}
+
+// handleRevokeLicense marks a license as revoked following a Stripe subscription cancellation.
+// POST /api/v1/license/revoke
+// Body: {"stripe_event_id": "...", "reason": "..."}
+//
+// Internal-only: accepts requests from localhost or a matching ASAF_WEBHOOK_SECRET header.
+// Registered on the public (unauthenticated) route group because the webhook service
+// has no Bearer credentials — it calls our own API on loopback.
+func (s *Server) handleRevokeLicense(c *gin.Context) {
+	// Internal-only guard: localhost IP or shared webhook secret.
+	webhookSecret := os.Getenv("ASAF_WEBHOOK_SECRET")
+	clientIP := c.ClientIP()
+	isLocalhost := clientIP == "127.0.0.1" || clientIP == "::1"
+	authorized := isLocalhost ||
+		(webhookSecret != "" && c.GetHeader("X-ASAF-Webhook-Secret") == webhookSecret)
+	if !authorized {
+		c.JSON(http.StatusForbidden, ErrorResponse{
+			Error:   "forbidden",
+			Message: "License revocation is restricted to internal services",
+			Code:    http.StatusForbidden,
+		})
+		return
+	}
+
+	var req struct {
+		StripeEventID string `json:"stripe_event_id"`
+		Reason        string `json:"reason"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "invalid_request",
+			Message: err.Error(),
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// Mark license invalid in-memory (survives until next restart / re-validate).
+	if s.licMgr != nil {
+		if err := s.licMgr.RevokeLicense(req.StripeEventID, req.Reason); err != nil {
+			log.Printf("[license] revocation warning: %v", err)
+		}
+	}
+
+	// Write an immutable DAG node as the audit record of this revocation.
+	if s.dagStore != nil {
+		nodeID := "revoke-" + uuid.New().String()
+		_ = s.dagStore.Add(nodeID, "license_revocation", []string{}, map[string]string{
+			"stripe_event_id": req.StripeEventID,
+			"reason":          req.Reason,
+			"revoked_at":      time.Now().UTC().Format(time.RFC3339),
+		})
+	}
+
+	log.Printf("[license] revoked via stripe_event=%s reason=%s caller=%s",
+		req.StripeEventID, req.Reason, clientIP)
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "revoked",
+		"reason":  req.Reason,
+		"message": "License access revoked. Active sessions will expire on next validation.",
 	})
 }
