@@ -16,9 +16,10 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/auth"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/mcp"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/sekhem"
 )
 
-// Server represents the Khepra API server
+// Server represents the SEKHEM gateway — the divine boundary between clients and the inner realms.
 type Server struct {
 	router      *gin.Engine
 	wsHub       *WebSocketHub
@@ -29,11 +30,12 @@ type Server struct {
 	version     string
 	httpServer  *http.Server
 	agentMgr    AgentManagerInterface
-	mcpStore    MCPStore             // Supabase MCP persistence layer (optional)
-	nlProcessor *mcp.NLProcessor     // Natural language → tool chain processor (optional)
-	pqcGateway  *auth.PQCAuthGateway // PQC-SAML-OAuth2 auth gateway (optional)
-	sigPrivKey  []byte               // ML-DSA-65 Dilithium3 signing key (server identity)
-	sigPubKey   []byte               // ML-DSA-65 Dilithium3 verification key (server identity)
+	mcpStore    MCPStore              // Supabase MCP persistence layer (optional)
+	nlProcessor *mcp.NLProcessor      // Natural language → tool chain processor (optional)
+	pqcGateway  *auth.PQCAuthGateway  // PQC-SAML-OAuth2 auth gateway (optional)
+	sigPrivKey  []byte                // ML-DSA-65 Dilithium3 signing key (server identity)
+	sigPubKey   []byte                // ML-DSA-65 Dilithium3 verification key (server identity)
+	sekhemTriad *sekhem.SekhemTriad   // Ouroboros cycle, WAF realm, sensor/actuator mesh (optional)
 }
 
 const (
@@ -138,7 +140,7 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/version", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"version": s.version,
-			"service": "khepra-api",
+			"service": "sekhem-gateway",
 		})
 	})
 
@@ -316,7 +318,7 @@ func (s *Server) Start() error {
 	go s.wsHub.Run()
 
 	addr := fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
-	log.Printf("Starting Khepra API Server on %s", addr)
+	log.Printf("[SEKHEM] Starting SEKHEM Gateway on %s", addr)
 	log.Printf("TLS Enabled: %v", s.config.TLSEnabled)
 	log.Printf("Version: %s", s.version)
 
@@ -369,9 +371,16 @@ func (s *Server) startTLS() error {
 	return s.httpServer.ListenAndServeTLS("", "")
 }
 
+// WithSekhemTriad injects the SekhemTriad (Ouroboros + WAF realm) into the gateway.
+// Must be called before Start(). The triad's lifecycle (Harmonize/Stop) is managed
+// by the caller in main.go alongside the server lifecycle.
+func (s *Server) WithSekhemTriad(triad *sekhem.SekhemTriad) {
+	s.sekhemTriad = triad
+}
+
 // Shutdown gracefully shuts down the server
 func (s *Server) Shutdown(ctx context.Context) error {
-	log.Println("Shutting down Khepra API Server...")
+	log.Println("[SEKHEM] Shutting down SEKHEM Gateway...")
 
 	if s.httpServer != nil {
 		if err := s.httpServer.Shutdown(ctx); err != nil {
@@ -379,7 +388,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 		}
 	}
 
-	log.Println("Server shutdown complete")
+	log.Println("[SEKHEM] Gateway shutdown complete")
 	return nil
 }
 
