@@ -7,15 +7,9 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, Search, CheckCircle, AlertTriangle, XCircle, ArrowRight, Lock, Loader2 } from 'lucide-react';
 
-// Next.js inlines process.env.NEXT_PUBLIC_* at build time via webpack.
-// import.meta.env is Vite-only and is empty in Next.js — keep as fallback for hybrid builds.
-const env = (import.meta as any)?.env ?? {};
-const API_BASE =
-  process.env.NEXT_PUBLIC_ASAF_API_URL ||
-  env.VITE_ASAF_API_URL ||
-  env.NEXT_PUBLIC_ASAF_API_URL ||
-  'https://agent.souhimbou.org';
-const API_KEY = process.env.NEXT_PUBLIC_ASAF_API_KEY || env.VITE_ASAF_API_KEY || env.NEXT_PUBLIC_ASAF_API_KEY || '';
+
+// Scan requests are proxied server-side through /api/scan (Next.js API route).
+// The backend URL (ASAF_INTERNAL_API_URL) is only used on the server — never exposed to the browser.
 
 type Step = 'input' | 'scanning' | 'results' | 'upgrade';
 
@@ -75,10 +69,13 @@ async function triggerScan(target: string): Promise<string> {
     scan_type: 'eval',
     metadata: { source: 'onboarding', product: 'asaf' },
   };
-  const profile = env.VITE_ASAF_SCAN_PROFILE || env.NEXT_PUBLIC_ASAF_SCAN_PROFILE;
+  const env = (import.meta as any)?.env ?? {};
+  const profile = process.env.NEXT_PUBLIC_ASAF_SCAN_PROFILE || env.VITE_ASAF_SCAN_PROFILE || env.NEXT_PUBLIC_ASAF_SCAN_PROFILE;
   if (profile) body.profile = profile;
 
-  const res = await fetch(`${API_BASE}/api/v1/onboarding/scan`, {
+  // Call same-origin Next.js API route — proxies server-side to the ASAF API.
+  // No CORS, no external tunnel dependency.
+  const res = await fetch('/api/scan', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -89,7 +86,7 @@ async function triggerScan(target: string): Promise<string> {
 }
 
 async function pollScan(scanId: string): Promise<ScanStatusPayload> {
-  const res = await fetch(`${API_BASE}/api/v1/onboarding/scan/${scanId}`);
+  const res = await fetch(`/api/scan/${scanId}`);
   if (!res.ok) throw new Error(`Poll failed: ${res.status}`);
   return res.json();
 }
@@ -171,7 +168,7 @@ const OnboardingOrchestrator: React.FC = () => {
       const msg = e instanceof Error ? e.message : String(e);
       setError(
         `Scan failed: ${msg}. ` +
-        `Ensure NEXT_PUBLIC_ASAF_API_URL points to your running ASAF backend (currently: ${API_BASE}).`
+        `The scan proxy could not reach the ASAF backend. Check that the API server is running on the VPS.`
       );
       setStep('input');
       setIsScanning(false);
