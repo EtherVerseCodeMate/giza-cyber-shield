@@ -10,7 +10,7 @@ database_id = "e8ef77ce-5203-4b78-8969-9ee2dc74a7b6"
 
 # Custom domain route — must be top-level, NOT inside [vars]
 [[routes]]
-pattern = "telemetry.souhimbou.org/*"
+pattern = "telemetry.souhimbou.org"
 custom_domain = true
 
 [vars]
