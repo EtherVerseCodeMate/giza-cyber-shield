@@ -4,9 +4,12 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/sekhem"
 )
 
 // AuthMiddleware validates API key authentication
@@ -152,46 +155,65 @@ func LoggingMiddleware() gin.HandlerFunc {
 	}
 }
 
-// RateLimitMiddleware implements basic rate limiting
+// RateLimitMiddleware implements rate limiting with safe concurrent access.
+// This middleware is the pre-WAF stopgap; it is superseded by SEKHEM-007 once
+// WAFShield is wired into setupMiddleware. The sync.Mutex + cleanup goroutine
+// fixes the data race present in the original plain-map implementation.
 func RateLimitMiddleware() gin.HandlerFunc {
-	// Simple in-memory rate limiter
-	// In production, use Redis or similar
 	type clientInfo struct {
 		lastRequest time.Time
 		requests    int
 	}
 
-	clients := make(map[string]*clientInfo)
 	const (
 		maxRequests = 100
 		timeWindow  = 1 * time.Minute
+		cleanupEvery = 5 * time.Minute
 	)
+
+	var mu sync.Mutex
+	clients := make(map[string]*clientInfo)
+
+	// Background goroutine evicts entries idle for >2× the window so the map
+	// does not grow unboundedly over long uptimes.
+	go func() {
+		ticker := time.NewTicker(cleanupEvery)
+		defer ticker.Stop()
+		for range ticker.C {
+			cutoff := time.Now().Add(-2 * timeWindow)
+			mu.Lock()
+			for ip, c := range clients {
+				if c.lastRequest.Before(cutoff) {
+					delete(clients, ip)
+				}
+			}
+			mu.Unlock()
+		}
+	}()
 
 	return func(c *gin.Context) {
 		clientIP := c.ClientIP()
-
 		now := time.Now()
-		client, exists := clients[clientIP]
 
+		mu.Lock()
+		client, exists := clients[clientIP]
 		if !exists {
-			clients[clientIP] = &clientInfo{
-				lastRequest: now,
-				requests:    1,
-			}
+			clients[clientIP] = &clientInfo{lastRequest: now, requests: 1}
+			mu.Unlock()
 			c.Next()
 			return
 		}
 
-		// Reset counter if time window has passed
 		if now.Sub(client.lastRequest) > timeWindow {
 			client.lastRequest = now
 			client.requests = 1
+			mu.Unlock()
 			c.Next()
 			return
 		}
 
-		// Check rate limit
 		if client.requests >= maxRequests {
+			mu.Unlock()
 			c.JSON(http.StatusTooManyRequests, ErrorResponse{
 				Error:   "rate_limit_exceeded",
 				Message: "Too many requests, please try again later",
@@ -202,8 +224,29 @@ func RateLimitMiddleware() gin.HandlerFunc {
 		}
 
 		client.requests++
+		mu.Unlock()
 		c.Next()
 	}
+}
+
+// WAFMiddleware wraps the SEKHEM WAFShield as a Gin handler.
+//
+// Correct ordering in setupMiddleware:
+//
+//	RecoveryMiddleware → LoggingMiddleware → CORSMiddleware → WAFMiddleware → AuthMiddleware
+//
+// WAF must come AFTER CORS so OPTIONS preflights receive CORS headers before
+// the WAF can block them. It must come BEFORE AuthMiddleware so un-authed
+// attack traffic is rejected at the perimeter.
+//
+// When shield is nil the middleware is a no-op (safe for tests or environments
+// where SEKHEM is not yet wired).
+func WAFMiddleware(shield *sekhem.WAFShield) gin.HandlerFunc {
+	if shield == nil {
+		log.Println("[SEKHEM-WAF] WAFMiddleware: shield is nil — L7 inspection DISABLED")
+		return func(c *gin.Context) { c.Next() }
+	}
+	return shield.GinHandler()
 }
 
 // RecoveryMiddleware recovers from panics and logs them
