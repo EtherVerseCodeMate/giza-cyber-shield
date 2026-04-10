@@ -41,21 +41,18 @@ fi
 
 # ── Create release ────────────────────────────────────────────────────────────
 echo "[2/3] Creating release $TAG..."
-PAYLOAD=$(cat <<EOF
-{
-  "tag_name": "$TAG",
-  "name": "$TITLE",
-  "body": $(echo "$NOTES" | python3 -c "import sys,json; print(json.dumps(sys.stdin.read()))"),
-  "draft": false,
-  "prerelease": false
-}
-EOF
-)
+
+# Escape notes for JSON without Python: escape backslashes, quotes, then newlines
+NOTES_JSON=$(printf '%s' "$NOTES" \
+  | sed 's/\\/\\\\/g' \
+  | sed 's/"/\\"/g' \
+  | awk '{printf "%s\\n", $0}' \
+  | sed 's/\\n$//')
 
 RELEASE=$(curl -sf -X POST \
   -H "$AUTH" \
   -H "Content-Type: application/json" \
-  -d "$PAYLOAD" \
+  -d "{\"tag_name\":\"$TAG\",\"name\":\"$TITLE\",\"body\":\"$NOTES_JSON\",\"draft\":false,\"prerelease\":false}" \
   "$API/repos/$REPO/releases")
 
 RELEASE_ID=$(echo "$RELEASE" | grep '"id"' | head -1 | grep -o '[0-9]*' | head -1)
