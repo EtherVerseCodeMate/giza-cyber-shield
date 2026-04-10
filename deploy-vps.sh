@@ -243,7 +243,7 @@ printf "  ${CYAN}ssh ${VPS_USER}@${VPS_HOST}${RESET}\n"
 printf "  ${CYAN}sudo tee /opt/asaf/secrets/webhook.env << 'EOF'${RESET}\n"
 printf "  STRIPE_WEBHOOK_SECRET=whsec_...\n"
 printf "  STRIPE_SECRET_KEY=sk_live_...\n"
-printf "  ASAF_NOTIFY_EMAIL=skone@alumni.albany.edu\n"
+printf "  ASAF_NOTIFY_EMAIL=support@nouchix.com\n"
 printf "  EOF\n"
 printf "  ${CYAN}sudo chmod 600 /opt/asaf/secrets/webhook.env${RESET}\n\n"
 
