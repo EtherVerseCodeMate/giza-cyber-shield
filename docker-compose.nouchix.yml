@@ -73,9 +73,10 @@ services:
       # Override in .env if VPS NIC is not eth0 (check with: ip -br link show)
       SURICATA_INTERFACE: ${SURICATA_INTERFACE:-eth0}
     # String form so compose expands ${SURICATA_INTERFACE} before passing to container.
-    # --af-packet: zero-copy ring buffer capture (kernel bypass — lowest latency).
+    # -i <iface> selects af-packet runmode automatically — --af-packet flag is redundant
+    # and triggers a Suricata warning when combined with -i. Drop it.
     # WAFEye tails /var/log/suricata/eve.json; default jasonish config writes it there.
-    command: "-i ${SURICATA_INTERFACE:-eth0} --af-packet"
+    command: "-i ${SURICATA_INTERFACE:-eth0}"
     volumes:
       # Bind to host-standard path so the SEKHEM binary (running outside Docker)
       # can tail /var/log/suricata/eve.json without any symlink indirection.
