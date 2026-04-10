@@ -78,9 +78,9 @@ async function triggerScan(target: string): Promise<string> {
   const profile = env.VITE_ASAF_SCAN_PROFILE || env.NEXT_PUBLIC_ASAF_SCAN_PROFILE;
   if (profile) body.profile = profile;
 
-  const res = await fetch(`${API_BASE}/api/v1/scans/trigger`, {
+  const res = await fetch(`${API_BASE}/api/v1/onboarding/scan`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': API_KEY },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`Scan failed: ${res.status}`);
@@ -89,9 +89,7 @@ async function triggerScan(target: string): Promise<string> {
 }
 
 async function pollScan(scanId: string): Promise<ScanStatusPayload> {
-  const res = await fetch(`${API_BASE}/api/v1/scans/${scanId}`, {
-    headers: { 'Authorization': API_KEY },
-  });
+  const res = await fetch(`${API_BASE}/api/v1/onboarding/scan/${scanId}`);
   if (!res.ok) throw new Error(`Poll failed: ${res.status}`);
   return res.json();
 }
