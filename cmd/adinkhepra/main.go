@@ -790,14 +790,21 @@ func stripeSecretKey() string {
 	return v
 }
 
-// scanResult is the minimal response shape from POST /api/v1/onboarding/scan.
-type scanResult struct {
-	ScanID  string `json:"scan_id"`
-	Status  string `json:"status"`
-	Score   int    `json:"score"`
-	Passed  int    `json:"passed"`
-	Failed  int    `json:"failed"`
-	Message string `json:"message"`
+// scanQueued is the initial response from POST /api/v1/onboarding/scan (async — status="queued").
+type scanQueued struct {
+	ScanID string `json:"scan_id"`
+	Status string `json:"status"`
+}
+
+// scanStatusResp is the polled response from GET /api/v1/onboarding/scan/:id.
+type scanStatusResp struct {
+	ScanID    string `json:"scan_id"`
+	Status    string `json:"status"`
+	RiskScore int    `json:"risk_score"`
+	Results   struct {
+		PassedChecks int `json:"passed_checks"`
+		FailedChecks int `json:"failed_checks"`
+	} `json:"results"`
 }
 
 // licenseStatus is the minimal shape of GET /api/v1/license/status.
@@ -862,19 +869,53 @@ func scanCmd(args []string, mode string) {
 	}
 	defer resp.Body.Close()
 
-	var result scanResult
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	var queued scanQueued
+	if err := json.NewDecoder(resp.Body).Decode(&queued); err != nil {
 		fmt.Fprintf(os.Stderr, "  [ERROR] could not parse scan response: %v\n", err)
 		os.Exit(1)
 	}
+	if queued.ScanID == "" {
+		fmt.Fprintf(os.Stderr, "  [ERROR] server returned no scan_id (status %d)\n", resp.StatusCode)
+		os.Exit(1)
+	}
 
-	fmt.Printf("  [2/4] Scan complete.\n")
+	// Poll GET /api/v1/onboarding/scan/:id until the async scan finishes.
+	fmt.Printf("  [2/4] Waiting for scan to complete")
+	var scanStatus scanStatusResp
+	pollDeadline := time.Now().Add(90 * time.Second)
+	for time.Now().Before(pollDeadline) {
+		time.Sleep(2 * time.Second)
+		fmt.Printf(".")
+		statusReq, _ := http.NewRequest(http.MethodGet,
+			apiURL+"/api/v1/onboarding/scan/"+queued.ScanID, nil)
+		if *apiKey != "" {
+			statusReq.Header.Set("X-API-Key", *apiKey)
+		}
+		statusResp, err := client.Do(statusReq)
+		if err != nil {
+			continue
+		}
+		json.NewDecoder(statusResp.Body).Decode(&scanStatus) //nolint:errcheck
+		statusResp.Body.Close()
+		if scanStatus.Status == "completed" || scanStatus.Status == "failed" {
+			break
+		}
+	}
+	fmt.Printf(" done.\n")
+
+	// Build a display-friendly score: server returns risk_score (0–100, higher=riskier).
+	// Convert to a compliance score (100 - risk) so higher feels better to the user.
+	displayScore := 100 - scanStatus.RiskScore
+	if displayScore < 0 {
+		displayScore = 0
+	}
+
 	fmt.Printf("\n  ┌─ Compliance Results ──────────────────────────────┐\n")
-	fmt.Printf("  │  Scan ID  : %-37s│\n", result.ScanID)
-	fmt.Printf("  │  Score    : %-3d/100                                │\n", result.Score)
-	fmt.Printf("  │  Passed   : %-3d controls                           │\n", result.Passed)
-	fmt.Printf("  │  Failed   : %-3d controls                           │\n", result.Failed)
-	fmt.Printf("  │  Status   : %-37s│\n", result.Status)
+	fmt.Printf("  │  Scan ID  : %-37s│\n", queued.ScanID)
+	fmt.Printf("  │  Score    : %-3d/100                                │\n", displayScore)
+	fmt.Printf("  │  Passed   : %-3d controls                           │\n", scanStatus.Results.PassedChecks)
+	fmt.Printf("  │  Failed   : %-3d controls                           │\n", scanStatus.Results.FailedChecks)
+	fmt.Printf("  │  Status   : %-37s│\n", scanStatus.Status)
 	fmt.Printf("  └───────────────────────────────────────────────────┘\n\n")
 
 	// For plain scan, stop here.
@@ -887,7 +928,7 @@ func scanCmd(args []string, mode string) {
 	fmt.Printf("  [3/4] Creating secure payment session...\n")
 
 	machineID := getMachineID()
-	sessionURL, sessionID, err := createStripeCheckoutSession(machineID, result.ScanID)
+	sessionURL, sessionID, err := createStripeCheckoutSession(machineID, queued.ScanID)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  [ERROR] Stripe session creation failed: %v\n", err)
 		os.Exit(1)
