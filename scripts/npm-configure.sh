@@ -77,16 +77,16 @@ for h in hosts:
 
 # ── 3. Configure all required proxy hosts ─────────────────────────────────────
 #  get.nouchix.com  → Caddy static server on :8080
-create_proxy "get.nouchix.com"     "127.0.0.1" 8080
+create_proxy "get.nouchix.com"     "172.19.0.1" 8080
 
 #  docs.nouchix.com → Caddy docs server on :8081
-create_proxy "docs.nouchix.com"    "127.0.0.1" 8081
+create_proxy "docs.nouchix.com"    "172.19.0.1" 8081
 
 #  webhook.nouchix.com → ASAF Stripe webhook on :4242
-create_proxy "webhook.nouchix.com" "127.0.0.1" 4242
+create_proxy "webhook.nouchix.com" "172.19.0.1" 4242
 
 #  adinkhepra.com → Next.js dashboard container on :3000
-create_proxy "adinkhepra.com"      "127.0.0.1" 3000
+create_proxy "adinkhepra.com"      "172.19.0.1" 3000
 
 # ── 4. Show final state ───────────────────────────────────────────────────────
 echo ""

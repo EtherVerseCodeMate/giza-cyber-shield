@@ -185,7 +185,7 @@ $SSH "sudo tee /etc/caddy/Caddyfile" << 'CADDYEOF'
     @releases path /releases/*
     file_server @releases browse
 
-    file_server
+    file_server browse
 }
 
 :8081 {
@@ -314,13 +314,14 @@ printf "  webhook.nouchix.com A  ${VPS_HOST}\n"
 printf "  adinkhepra.com      A  ${VPS_HOST}\n\n"
 
 printf "${BOLD}━━━ NPM (nginx-proxy-manager) — add proxy host ━━━${RESET}\n"
+printf "  NPM runs in Docker — use host gateway IP 172.19.0.1, NOT 127.0.0.1\n\n"
 printf "  1. Open NPM admin: http://${VPS_HOST}:81\n"
-printf "  2. Proxy Hosts → Add Proxy Host:\n"
-printf "       Domain:      adinkhepra.com\n"
-printf "       Scheme:      http\n"
-printf "       Forward Host: 127.0.0.1\n"
-printf "       Forward Port: 3000\n"
-printf "       SSL:         Request Let's Encrypt cert\n\n"
+printf "  2. Proxy Hosts → Add Proxy Host for each domain:\n"
+printf "       adinkhepra.com      http  172.19.0.1  3000  (dashboard)\n"
+printf "       get.nouchix.com     http  172.19.0.1  8080  (installer/releases)\n"
+printf "       docs.nouchix.com    http  172.19.0.1  8081  (docs)\n"
+printf "       webhook.nouchix.com http  172.19.0.1  4242  (Stripe webhook)\n"
+printf "  3. SSL tab on each: Request Let's Encrypt cert\n\n"
 
 printf "${GREEN}✓ VPS deploy complete${RESET}\n"
 printf "  Static:    https://get.nouchix.com/asaf (after DNS)\n"
