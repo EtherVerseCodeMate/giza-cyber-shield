@@ -290,18 +290,8 @@ func (ws *WAFShield) GinHandler() gin.HandlerFunc {
 		}
 
 		// ── Body size limit (SEKHEM-004) — read and rebuffer before rule checks ──
-		if c.Request.Body != nil {
-			limited := http.MaxBytesReader(c.Writer, c.Request.Body, maxBodyBytes)
-			body, err := io.ReadAll(limited)
-			if err != nil {
-				// Body exceeded limit or read failed
-				ws.blockRequest(c, "SEKHEM-004", clientIP,
-					"request body exceeds maximum allowed size",
-					maat.SeveritySevere)
-				return
-			}
-			// Rebuffer so downstream handlers can read the body again
-			c.Request.Body = io.NopCloser(bytes.NewReader(body))
+		if !ws.readBody(c, clientIP) {
+			return
 		}
 
 		// ── Spectral fingerprint for this request ─────────────────────────────
@@ -313,49 +303,9 @@ func (ws *WAFShield) GinHandler() gin.HandlerFunc {
 			if result == nil {
 				continue
 			}
-
 			ws.metrics.record(result.RuleID, result.Action)
-
-			// Emit threat to Ouroboros channel (non-blocking — drop if full)
-			threat := maat.Isfet{
-				ID:       result.CorrelationID,
-				Severity: result.Severity,
-				Source:   clientIP,
-				Omens: []maat.Omen{
-					{Name: "rule_id", Value: result.RuleID, Malevolence: severityToMalevolence(result.Severity)},
-					{Name: "path", Value: c.Request.URL.Path, Malevolence: 0},
-					{Name: "fingerprint", Value: fingerprint, Malevolence: 0},
-					{Name: "ip", Value: clientIP, Malevolence: severityToMalevolence(result.Severity)},
-				},
-				Certainty: result.Certainty,
-			}
-			select {
-			case ws.threatChan <- threat:
-			default:
-				log.Printf("[SEKHEM-WAF] threatChan full — dropping event for %s rule=%s", clientIP, result.RuleID)
-			}
-
-			switch result.Action {
-			case WAFActionBlock:
-				// Submit to Crowdsec for IP ban (fire-and-forget in goroutine)
-				if result.Severity == maat.SeveritySevere || result.Severity == maat.SeverityCatastrophic {
-					go ws.submitCrowdsecDecision(clientIP, crowdsecDecisionDuration, "ban")
-				}
-				c.JSON(http.StatusForbidden, gin.H{
-					"error":          "forbidden",
-					"correlation_id": result.CorrelationID,
-				})
-				c.Abort()
-				return
-
-			case WAFActionChallenge:
-				// For rate-limit challenges: 429 with Retry-After
-				c.Header("Retry-After", "60")
-				c.JSON(http.StatusTooManyRequests, gin.H{
-					"error":          "rate_limit_exceeded",
-					"correlation_id": result.CorrelationID,
-				})
-				c.Abort()
+			ws.emitThreat(result, clientIP, fingerprint, c.Request.URL.Path)
+			if ws.enforceAction(c, result, clientIP) {
 				return
 			}
 		}
@@ -365,6 +315,76 @@ func (ws *WAFShield) GinHandler() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// readBody enforces the body-size limit (SEKHEM-004) and rebuffers the body
+// for downstream handlers. Returns false if the request was blocked.
+func (ws *WAFShield) readBody(c *gin.Context, clientIP string) bool {
+	if c.Request.Body == nil {
+		return true
+	}
+	limited := http.MaxBytesReader(c.Writer, c.Request.Body, maxBodyBytes)
+	body, err := io.ReadAll(limited)
+	if err != nil {
+		ws.blockRequest(c, "SEKHEM-004", clientIP,
+			"request body exceeds maximum allowed size",
+			maat.SeveritySevere)
+		return false
+	}
+	// Rebuffer so downstream handlers can read the body again
+	c.Request.Body = io.NopCloser(bytes.NewReader(body))
+	return true
+}
+
+// emitThreat sends a WAF threat event to the Ouroboros channel (non-blocking).
+// If the channel is full the event is dropped and logged.
+func (ws *WAFShield) emitThreat(result *WAFRuleResult, clientIP, fingerprint, path string) {
+	threat := maat.Isfet{
+		ID:       result.CorrelationID,
+		Severity: result.Severity,
+		Source:   clientIP,
+		Omens: []maat.Omen{
+			{Name: "rule_id", Value: result.RuleID, Malevolence: severityToMalevolence(result.Severity)},
+			{Name: "path", Value: path, Malevolence: 0},
+			{Name: "fingerprint", Value: fingerprint, Malevolence: 0},
+			{Name: "ip", Value: clientIP, Malevolence: severityToMalevolence(result.Severity)},
+		},
+		Certainty: result.Certainty,
+	}
+	select {
+	case ws.threatChan <- threat:
+	default:
+		log.Printf("[SEKHEM-WAF] threatChan full — dropping event for %s rule=%s", clientIP, result.RuleID)
+	}
+}
+
+// enforceAction applies the WAF decision (block or challenge) and returns true
+// if the request was terminated so the caller can return early.
+func (ws *WAFShield) enforceAction(c *gin.Context, result *WAFRuleResult, clientIP string) bool {
+	switch result.Action {
+	case WAFActionBlock:
+		// Submit to Crowdsec for IP ban on severe/catastrophic events (fire-and-forget)
+		if result.Severity == maat.SeveritySevere || result.Severity == maat.SeverityCatastrophic {
+			go ws.submitCrowdsecDecision(clientIP, crowdsecDecisionDuration, "ban")
+		}
+		c.JSON(http.StatusForbidden, gin.H{
+			"error":          "forbidden",
+			"correlation_id": result.CorrelationID,
+		})
+		c.Abort()
+		return true
+	case WAFActionChallenge:
+		// Rate-limit challenge: 429 with Retry-After
+		c.Header("Retry-After", "60")
+		c.JSON(http.StatusTooManyRequests, gin.H{
+			"error":          "rate_limit_exceeded",
+			"correlation_id": result.CorrelationID,
+		})
+		c.Abort()
+		return true
+	}
+	return false
+}
+
 
 // isBypassPath returns true if the path matches any configured bypass prefix.
 func (ws *WAFShield) isBypassPath(path string) bool {
