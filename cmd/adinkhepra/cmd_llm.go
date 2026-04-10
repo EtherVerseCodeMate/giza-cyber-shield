@@ -205,33 +205,37 @@ func downloadWithProgress(url, dest string) error {
 	lastPrint := time.Now()
 
 	for {
-		n, err := resp.Body.Read(buf)
+		n, readErr := resp.Body.Read(buf)
 		if n > 0 {
 			if _, werr := f.Write(buf[:n]); werr != nil {
 				return werr
 			}
 			downloaded += int64(n)
-
 			if time.Since(lastPrint) > 2*time.Second {
-				if total > 0 {
-					pct := float64(downloaded) / float64(total) * 100
-					fmt.Printf("\r   %s / %s (%.0f%%)   ",
-						fmtBytes(downloaded), fmtBytes(total), pct)
-				} else {
-					fmt.Printf("\r   %s downloaded   ", fmtBytes(downloaded))
-				}
+				printDownloadProgress(downloaded, total)
 				lastPrint = time.Now()
 			}
 		}
-		if err == io.EOF {
+		if readErr == io.EOF {
 			break
 		}
-		if err != nil {
-			return err
+		if readErr != nil {
+			return readErr
 		}
 	}
 	fmt.Printf("\r   %s downloaded ✓\n", fmtBytes(downloaded))
 	return nil
+}
+
+// printDownloadProgress prints the current download progress to stdout.
+func printDownloadProgress(downloaded, total int64) {
+	if total > 0 {
+		pct := float64(downloaded) / float64(total) * 100
+		fmt.Printf("\r   %s / %s (%.0f%%)   ",
+			fmtBytes(downloaded), fmtBytes(total), pct)
+	} else {
+		fmt.Printf("\r   %s downloaded   ", fmtBytes(downloaded))
+	}
 }
 
 func verifySHA256(path, expected string) error {
