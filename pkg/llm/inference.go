@@ -40,9 +40,9 @@ func (b *Backend) Stop() {
 // Detect probes available LLM backends in priority order and returns the
 // first usable one. If a llamafile exists adjacent to the binary and no
 // running service is found, it starts the llamafile on a free OS-assigned port.
+// Final fallback: if OPENROUTER_API_KEY is set, returns an OpenRouter cloud backend.
 //
-// Returns an error only if detection is exhausted — callers should then
-// prompt for an OpenRouter API key as the cloud fallback.
+// Returns an error only if all backends (local + cloud) are unavailable.
 func Detect(ctx context.Context) (*Backend, error) {
 	// ── Step 1: probe already-running services ───────────────────────────────
 	running := []struct{ url, name string }{
@@ -61,21 +61,29 @@ func Detect(ctx context.Context) (*Backend, error) {
 
 	// ── Step 2: detect llamafile next to our binary ──────────────────────────
 	lf := detectLlamafilePath()
-	if lf == "" {
-		return nil, fmt.Errorf(
-			"no local LLM found (checked Ollama :11434, LM Studio :1234, no .llamafile adjacent)\n" +
-				"  → Install a local LLM: asaf llm install\n" +
-				"  → Or set OPENROUTER_API_KEY for cloud fallback",
-		)
+	if lf != "" {
+		// Get a free port from the OS — avoids :8080 conflicts
+		port, err := findFreePort()
+		if err == nil {
+			if b, err := startLlamafile(ctx, lf, port); err == nil {
+				return b, nil
+			}
+		}
 	}
 
-	// Get a free port from the OS — avoids :8080 conflicts
-	port, err := findFreePort()
-	if err != nil {
-		return nil, fmt.Errorf("cannot find free port for llamafile: %w", err)
+	// ── Step 3: OpenRouter cloud fallback ────────────────────────────────────
+	if key := os.Getenv("OPENROUTER_API_KEY"); key != "" {
+		return &Backend{
+			BaseURL: "https://openrouter.ai/api/v1",
+			Name:    "OpenRouter",
+		}, nil
 	}
 
-	return startLlamafile(ctx, lf, port)
+	return nil, fmt.Errorf(
+		"no LLM backend available\n" +
+			"  → Local: install Ollama (ollama.com) or run 'asaf llm install'\n" +
+			"  → Cloud: set OPENROUTER_API_KEY for instant access to Claude/GPT-4/Mistral",
+	)
 }
 
 // detectLlamafilePath returns the path of the first llamafile found adjacent
