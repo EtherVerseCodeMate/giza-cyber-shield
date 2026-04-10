@@ -53,6 +53,7 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/llm/ollama"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/mcp"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/sekhem"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/supabase"
 )
 
@@ -63,8 +64,14 @@ func main() {
 
 	dagStore, licMgr := initInfrastructure(cfg)
 
-	// Create server (The Motherboard)
+	// ── SEKHEM Triad (Ouroboros + WAFShield + Sensor/Actuator mesh) ───────────
+	// Must be created and harmonized BEFORE server.Start() so that WAFShield
+	// exists when setupMiddleware() wires it into the Gin handler chain.
+	triad := initSekhemTriad(dagStore)
+
+	// Create server — dependencies injected before Start()
 	server := initServices(cfg, flags, dagStore, licMgr)
+	server.WithSekhemTriad(triad)
 
 	// ── PQC Auth Gateway (ML-DSA-65 / NIST FIPS 204) ─────────────────────────
 	initPQCAuthGateway(server)
@@ -75,7 +82,7 @@ func main() {
 	// ── Natural Language Security Engine ─────────────────────────────────────
 	initNLProcessor(server)
 
-	// Start server in background
+	// Start server in background (setupMiddleware runs here with WAFShield ready)
 	go func() {
 		if err := server.Start(); err != nil {
 			log.Fatalf("Server error: %v", err)
@@ -134,6 +141,11 @@ func main() {
 
 	// Stop license heartbeat
 	licMgr.Stop()
+
+	// Stop SEKHEM Triad (Ouroboros cycle + WAFShield rotation + file handles)
+	if triad != nil {
+		triad.Stop()
+	}
 
 	log.Println("SEKHEM gateway exited gracefully. The scepter rests.")
 }
@@ -216,6 +228,23 @@ func parseConfig() (*serverConfig, map[string]interface{}) {
 		"certCacheDir": certCacheDir,
 		"telemetryURL": telemetryURL,
 	}
+}
+
+// initSekhemTriad creates the SekhemTriad in Edge mode and harmonizes all realms.
+// Harmonize() calls DuatRealm.Awaken() which initializes WAFShield, WAFEye,
+// and starts the Ouroboros cycle. Must complete before server.Start() so the
+// WAFShield is available when setupMiddleware() wires it into Gin.
+func initSekhemTriad(dagStore dag.Store) *sekhem.SekhemTriad {
+	triad, err := sekhem.NewSekhemTriad(nil, dagStore, sekhem.ModeEdge)
+	if err != nil {
+		log.Fatalf("SEKHEM Triad init failed: %v", err)
+	}
+	if err := triad.Harmonize(); err != nil {
+		// WAFShield failure is fatal — we never run without the perimeter guard.
+		log.Fatalf("SEKHEM Triad harmonize failed: %v", err)
+	}
+	log.Printf("[SEKHEM] Triad harmonized — mode=%s realms=%d", triad.GetMode(), triad.GetActiveRealmCount())
+	return triad
 }
 
 func initInfrastructure(cfg *serverConfig) (dag.Store, *license.Manager) {
