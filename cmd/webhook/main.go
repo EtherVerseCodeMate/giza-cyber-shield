@@ -70,28 +70,50 @@ type CustomerDetails struct {
 // ── Config ────────────────────────────────────────────────────────────────────
 
 type Config struct {
-	WebhookSecret string
-	StripeKey     string
-	NotifyEmail   string
-	APIURL        string
-	Addr          string
-	SMTPHost      string
-	SMTPPort      string
-	SMTPUser      string
-	SMTPPass      string
+	WebhookSecrets []string // all configured whsec_* values, tried in order
+	StripeKey      string
+	NotifyEmail    string
+	APIURL         string
+	Addr           string
+	SMTPHost       string
+	SMTPPort       string
+	SMTPUser       string
+	SMTPPass       string
+}
+
+// loadWebhookSecrets collects every non-empty webhook secret env var.
+func loadWebhookSecrets() []string {
+	keys := []string{
+		"STRIPE_WEBHOOK_SECRET",
+		"STRIPE_WEBHOOK_SECRET_LITE",
+		"ASAF_STRIPE_WEBHOOK_SECRET",
+		"ASAF_STRIPE_WEBHOOK_SECRET_LITE",
+	}
+	var secrets []string
+	for _, k := range keys {
+		if v := os.Getenv(k); v != "" {
+			secrets = append(secrets, v)
+		}
+	}
+	return secrets
 }
 
 func loadConfig() Config {
+	secrets := loadWebhookSecrets()
+	if len(secrets) == 0 {
+		log.Fatal("[webhook] no STRIPE_WEBHOOK_SECRET* env vars set")
+	}
+	log.Printf("[webhook] loaded %d webhook secret(s)", len(secrets))
 	return Config{
-		WebhookSecret: mustEnv("STRIPE_WEBHOOK_SECRET"),
-		StripeKey:     mustEnv("STRIPE_SECRET_KEY"),
-		NotifyEmail:   getEnv("ASAF_NOTIFY_EMAIL", "support@nouchix.com"),
-		APIURL:        getEnv("ASAF_API_URL", "http://localhost:45444"),
-		Addr:          getEnv("ADDR", ":4242"),
-		SMTPHost:      getEnv("SMTP_HOST", "smtp.hostinger.com"),
-		SMTPPort:      getEnv("SMTP_PORT", "465"),
-		SMTPUser:      getEnv("SMTP_USER", ""),  // optional — logs warning if empty
-		SMTPPass:      getEnv("SMTP_PASS", ""),
+		WebhookSecrets: secrets,
+		StripeKey:      mustEnv("STRIPE_SECRET_KEY"),
+		NotifyEmail:    getEnv("ASAF_NOTIFY_EMAIL", "support@nouchix.com"),
+		APIURL:         getEnv("ASAF_API_URL", "http://localhost:45444"),
+		Addr:           getEnv("ADDR", ":4242"),
+		SMTPHost:       getEnv("SMTP_HOST", "smtp.hostinger.com"),
+		SMTPPort:       getEnv("SMTP_PORT", "465"),
+		SMTPUser:       getEnv("SMTP_USER", ""),
+		SMTPPass:       getEnv("SMTP_PASS", ""),
 	}
 }
 
@@ -147,10 +169,17 @@ func handleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify Stripe signature
+	// Verify Stripe signature — try all configured secrets in order.
 	sigHeader := r.Header.Get("Stripe-Signature")
-	if err := verifyStripeSignature(body, sigHeader, cfg.WebhookSecret); err != nil {
-		log.Printf("[webhook] signature verification failed: %v", err)
+	var sigErr error
+	for _, secret := range cfg.WebhookSecrets {
+		if sigErr = verifyStripeSignature(body, sigHeader, secret); sigErr == nil {
+			break
+		}
+	}
+	if sigErr != nil {
+		log.Printf("[webhook] signature verification failed (tried %d secrets): %v",
+			len(cfg.WebhookSecrets), sigErr)
 		http.Error(w, "invalid signature", http.StatusUnauthorized)
 		return
 	}
@@ -230,17 +259,194 @@ func verifyStripeSignature(body []byte, sigHeader, secret string) error {
 
 func processEvent(event StripeEvent) error {
 	switch event.Type {
+
+	// ── Revenue ───────────────────────────────────────────────────────────────
 	case "checkout.session.completed":
 		return handleCheckoutComplete(event)
-	case "customer.subscription.created":
-		log.Printf("[webhook] subscription created — handled by checkout.session.completed")
-		return nil
 	case "customer.subscription.deleted":
 		return handleSubscriptionCanceled(event)
+
+	// ── Subscription lifecycle ────────────────────────────────────────────────
+	case "customer.subscription.created":
+		log.Printf("[webhook] [info] subscription.created id=%s (cert delivered via checkout.session.completed)", event.ID)
+		return nil
+	case "customer.subscription.paused":
+		return handleSubscriptionPaused(event)
+	case "customer.subscription.resumed":
+		return handleSubscriptionResumed(event)
+	case "customer.subscription.trial_will_end":
+		return handleTrialWillEnd(event)
+	case "customer.subscription.updated":
+		log.Printf("[webhook] [info] subscription.updated id=%s", event.ID)
+		return nil
+	case "customer.subscription.pending_update_applied",
+		"customer.subscription.pending_update_expired":
+		log.Printf("[webhook] [info] %s id=%s", event.Type, event.ID)
+		return nil
+
+	// ── Checkout abandonment ──────────────────────────────────────────────────
+	case "checkout.session.expired":
+		log.Printf("[webhook] [analytics] checkout.session.expired id=%s — abandoned payment", event.ID)
+		return nil
+	case "checkout.session.async_payment_failed":
+		log.Printf("[webhook] [warn] async_payment_failed id=%s", event.ID)
+		return nil
+	case "checkout.session.async_payment_succeeded":
+		return handleCheckoutComplete(event) // same flow as completed
+
+	// ── Fraud / disputes ──────────────────────────────────────────────────────
+	case "charge.dispute.created":
+		return handleDisputeCreated(event)
+
+	// ── Customer ──────────────────────────────────────────────────────────────
+	case "customer.created":
+		log.Printf("[webhook] [info] customer.created id=%s", event.ID)
+		return nil
+	case "customer.deleted":
+		log.Printf("[webhook] [warn] customer.deleted id=%s — possible churn", event.ID)
+		return nil
+	case "customer.updated",
+		"customer.discount.created", "customer.discount.deleted", "customer.discount.updated",
+		"customer.source.created", "customer.source.deleted", "customer.source.updated", "customer.source.expiring",
+		"customer.tax_id.created", "customer.tax_id.deleted", "customer.tax_id.updated",
+		"customer_cash_balance_transaction.created":
+		log.Printf("[webhook] [info] %s id=%s", event.Type, event.ID)
+		return nil
+
+	// ── Payment methods ───────────────────────────────────────────────────────
+	case "payment_method.attached", "payment_method.detached":
+		log.Printf("[webhook] [info] %s id=%s", event.Type, event.ID)
+		return nil
+	case "payment_intent.partially_funded":
+		log.Printf("[webhook] [info] payment_intent partially funded id=%s", event.ID)
+		return nil
+
+	// ── Invoices ──────────────────────────────────────────────────────────────
+	case "invoice.created", "invoice.deleted", "invoice.finalization_failed", "invoice.upcoming":
+		log.Printf("[webhook] [billing] %s id=%s", event.Type, event.ID)
+		return nil
+
+	// ── Subscription schedules ────────────────────────────────────────────────
+	case "subscription_schedule.aborted", "subscription_schedule.canceled",
+		"subscription_schedule.completed", "subscription_schedule.created",
+		"subscription_schedule.expiring", "subscription_schedule.released",
+		"subscription_schedule.updated":
+		log.Printf("[webhook] [schedule] %s id=%s", event.Type, event.ID)
+		return nil
+
+	// ── Entitlements ──────────────────────────────────────────────────────────
+	case "entitlements.active_entitlement_summary.updated":
+		log.Printf("[webhook] [entitlement] updated id=%s", event.ID)
+		return nil
+
+	// ── v2 account events (thin payload — no action needed) ───────────────────
+	case "v2.core.account[configuration.customer].capability_status_updated",
+		"v2.core.account[configuration.customer].updated":
+		log.Printf("[webhook] [v2-account] %s id=%s (thin event, no action)", event.Type, event.ID)
+		return nil
+
 	default:
-		log.Printf("[webhook] unhandled event type: %s", event.Type)
+		log.Printf("[webhook] [unhandled] %s id=%s", event.Type, event.ID)
 		return nil
 	}
+}
+
+// handleDisputeCreated sends an URGENT operator alert on chargeback.
+func handleDisputeCreated(event StripeEvent) error {
+	var dispute struct {
+		ID     string `json:"id"`
+		Amount int64  `json:"amount"`
+		Reason string `json:"reason"`
+		Status string `json:"status"`
+	}
+	_ = json.Unmarshal(event.Data.Object, &dispute)
+	log.Printf("[webhook] [URGENT] charge.dispute.created id=%s amount=%d reason=%s status=%s",
+		dispute.ID, dispute.Amount, dispute.Reason, dispute.Status)
+
+	subject := fmt.Sprintf("⚠️ URGENT: Stripe Dispute Filed — $%.2f (%s)",
+		float64(dispute.Amount)/100, dispute.Reason)
+	body := fmt.Sprintf(`From: ASAF Alerts <alerts@nouchix.com>
+To: %s
+Subject: %s
+
+A chargeback/dispute has been filed:
+
+  Dispute ID : %s
+  Amount     : $%.2f
+  Reason     : %s
+  Status     : %s
+  Event ID   : %s
+
+Action required: Log into Stripe Dashboard and respond within 7 days.
+https://dashboard.stripe.com/disputes/%s
+
+— ASAF Webhook (automated)
+`,
+		cfg.NotifyEmail, subject,
+		dispute.ID, float64(dispute.Amount)/100, dispute.Reason, dispute.Status, event.ID,
+		dispute.ID)
+	return sendMail([]string{cfg.NotifyEmail}, subject, body)
+}
+
+// handleSubscriptionPaused notifies operator and flags the license on the API.
+func handleSubscriptionPaused(event StripeEvent) error {
+	log.Printf("[webhook] subscription paused event=%s — pausing license access", event.ID)
+	return callASAFAPI("POST", "/api/v1/license/revoke", map[string]interface{}{
+		"stripe_event_id": event.ID,
+		"reason":          "subscription_paused",
+	})
+}
+
+// handleSubscriptionResumed re-activates a paused license (logged; re-activation
+// is handled automatically on next API call once Stripe confirms active status).
+func handleSubscriptionResumed(event StripeEvent) error {
+	log.Printf("[webhook] subscription resumed event=%s — license re-activation pending next auth check", event.ID)
+	// Notify operator
+	subject := "ASAF: Subscription Resumed"
+	body := fmt.Sprintf(`From: ASAF Webhook <webhook@nouchix.com>
+To: %s
+Subject: %s
+
+A subscription has been resumed.
+Event ID: %s
+
+The license will be re-activated on the customer's next certification request.
+
+— ASAF Webhook
+`, cfg.NotifyEmail, subject, event.ID)
+	sendMail([]string{cfg.NotifyEmail}, subject, body) //nolint:errcheck
+	return nil
+}
+
+// handleTrialWillEnd sends a renewal reminder to the customer 3 days before trial ends.
+func handleTrialWillEnd(event StripeEvent) error {
+	var sub struct {
+		ID             string `json:"id"`
+		TrialEnd       int64  `json:"trial_end"`
+		CustomerEmail  string `json:"customer_email"`
+	}
+	_ = json.Unmarshal(event.Data.Object, &sub)
+	log.Printf("[webhook] trial_will_end sub=%s trial_end=%d customer=%s", sub.ID, sub.TrialEnd, sub.CustomerEmail)
+
+	if sub.CustomerEmail == "" {
+		return nil // can't email without address
+	}
+	subject := "Your ASAF trial ends in 3 days — keep your certification active"
+	body := fmt.Sprintf(`From: ASAF <support@nouchix.com>
+To: %s
+Subject: %s
+
+Your ADINKHEPRA trial subscription ends in 3 days.
+
+To keep your post-quantum compliance certification active and continue
+accessing the ASAF scan engine, no action is needed — your subscription
+will automatically convert to a paid plan.
+
+If you have any questions: security@nouchix.com
+
+— NouchiX / Sacred Knowledge Inc
+`, sub.CustomerEmail, subject)
+	return sendMail([]string{sub.CustomerEmail, cfg.NotifyEmail}, subject, body)
 }
 
 func handleCheckoutComplete(event StripeEvent) error {
