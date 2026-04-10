@@ -82,6 +82,9 @@ type LicenseManager interface {
 	Heartbeat() (*license.HeartbeatResponse, error)
 	GetFullStatus() *license.ValidateResponse
 	GetMachineID() string
+
+	// Revocation (called by internal webhook service on subscription cancellation)
+	RevokeLicense(stripeEventID, reason string) error
 }
 
 // NewServer creates a new API server instance
@@ -165,6 +168,10 @@ func (s *Server) setupRoutes() {
 	// Uses /onboarding/ prefix to avoid Gin route collision with authenticated /scans/*.
 	pubV1.POST("/onboarding/scan", s.handleTriggerScan)
 	pubV1.GET("/onboarding/scan/:id", s.handleGetScanStatus)
+
+	// Internal license revocation — called by the webhook service on subscription cancellation.
+	// No Bearer auth (webhook has no credentials); protected by localhost-only guard in handler.
+	pubV1.POST("/license/revoke", s.handleRevokeLicense)
 
 	// API v1 routes — PQC auth when gateway is wired, legacy API key otherwise
 	v1 := s.router.Group("/api/v1")
