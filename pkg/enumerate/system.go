@@ -18,8 +18,31 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/audit"
 )
 
+const (
+	// psCommand is the PowerShell flag used to pass an inline script.
+	psCommand = "-Command"
+
+	// errUnsupportedOSFmt is the format string for unsupported-OS errors.
+	// Use errUnsupportedOS() rather than repeating this literal inline.
+	errUnsupportedOSFmt = "unsupported OS: %s"
+)
+
+// errUnsupportedOS returns a formatted error for the current OS.
+func errUnsupportedOS() error { return fmt.Errorf(errUnsupportedOSFmt, runtime.GOOS) }
+
+// collectField runs fn and, if it succeeds, stores the result via set.
+// On failure it logs a warning and leaves the destination unchanged.
+func collectField[T any](label string, fn func() (T, error), set func(T)) {
+	v, err := fn()
+	if err != nil {
+		fmt.Printf("[WARN] Failed to collect %s: %v\n", label, err)
+		return
+	}
+	set(v)
+}
+
 // CollectSystemIntelligence gathers comprehensive system information
-// including processes, services, kernel modules, users, and startup items
+// including processes, services, kernel modules, users, and startup items.
 func CollectSystemIntelligence() (audit.SystemIntelligence, error) {
 	si := audit.SystemIntelligence{
 		Processes:         []audit.ProcessInfo{},
@@ -31,63 +54,15 @@ func CollectSystemIntelligence() (audit.SystemIntelligence, error) {
 		StartupItems:      []audit.StartupItem{},
 	}
 
-	// Collect running processes
-	processes, err := collectProcesses()
-	if err != nil {
-		fmt.Printf("[WARN] Failed to collect processes: %v\n", err)
-	} else {
-		si.Processes = processes
-	}
-
-	// Collect system services
-	services, err := collectServices()
-	if err != nil {
-		fmt.Printf("[WARN] Failed to collect services: %v\n", err)
-	} else {
-		si.Services = services
-	}
-
-	// Collect kernel modules (Linux only)
+	collectField("processes", collectProcesses, func(v []audit.ProcessInfo) { si.Processes = v })
+	collectField("services", collectServices, func(v []audit.ServiceInfo) { si.Services = v })
 	if runtime.GOOS == "linux" {
-		modules, err := collectKernelModules()
-		if err != nil {
-			fmt.Printf("[WARN] Failed to collect kernel modules: %v\n", err)
-		} else {
-			si.KernelModules = modules
-		}
+		collectField("kernel modules", collectKernelModules, func(v []audit.KernelModule) { si.KernelModules = v })
 	}
-
-	// Collect installed software
-	software, err := collectInstalledSoftware()
-	if err != nil {
-		fmt.Printf("[WARN] Failed to collect installed software: %v\n", err)
-	} else {
-		si.InstalledSoftware = software
-	}
-
-	// Collect user accounts
-	users, err := collectUsers()
-	if err != nil {
-		fmt.Printf("[WARN] Failed to collect users: %v\n", err)
-	} else {
-		si.Users = users
-	}
-
-	// Collect cron jobs
-	cronJobs, err := collectCronJobs()
-	if err != nil {
-		fmt.Printf("[WARN] Failed to collect cron jobs: %v\n", err)
-	} else {
-		si.CronJobs = cronJobs
-	}
-
-	// Collect startup items
-	startupItems, err := collectStartupItems()
-	if err != nil {
-		fmt.Printf("[WARN] Failed to collect startup items: %v\n", err)
-	} else {
-		si.StartupItems = startupItems
-	}
+	collectField("installed software", collectInstalledSoftware, func(v []audit.Software) { si.InstalledSoftware = v })
+	collectField("users", collectUsers, func(v []audit.UserInfo) { si.Users = v })
+	collectField("cron jobs", collectCronJobs, func(v []audit.CronJob) { si.CronJobs = v })
+	collectField("startup items", collectStartupItems, func(v []audit.StartupItem) { si.StartupItems = v })
 
 	return si, nil
 }
@@ -102,7 +77,7 @@ func collectProcesses() ([]audit.ProcessInfo, error) {
 	case "darwin":
 		return collectProcessesDarwin()
 	default:
-		return nil, fmt.Errorf("unsupported OS: %s", runtime.GOOS)
+		return nil, errUnsupportedOS()
 	}
 }
 
@@ -136,74 +111,40 @@ func collectProcessesLinux() ([]audit.ProcessInfo, error) {
 }
 
 func getLinuxProcessInfo(pid int) (audit.ProcessInfo, error) {
-	procInfo := audit.ProcessInfo{
-		PID: pid,
-	}
+	procInfo := audit.ProcessInfo{PID: pid}
 
-	// Read /proc/PID/stat for basic info
+	// Read /proc/PID/stat for process name and PPID
 	statPath := fmt.Sprintf("/proc/%d/stat", pid)
 	statData, err := os.ReadFile(statPath)
 	if err != nil {
 		return procInfo, err
 	}
-
-	// Parse stat file
 	statStr := string(statData)
-	// Extract process name (between parentheses)
-	start := strings.IndexByte(statStr, '(')
-	end := strings.LastIndexByte(statStr, ')')
-	if start >= 0 && end > start {
-		procInfo.Name = statStr[start+1 : end]
-	}
-
-	// Parse PPID (field after process name)
-	fields := strings.Fields(statStr[end+1:])
-	if len(fields) >= 2 {
-		ppid, _ := strconv.Atoi(fields[1])
-		procInfo.PPID = ppid
-	}
-
-	// Read /proc/PID/cmdline for command line
-	cmdlinePath := fmt.Sprintf("/proc/%d/cmdline", pid)
-	cmdlineData, err := os.ReadFile(cmdlinePath)
-	if err == nil {
-		cmdline := string(cmdlineData)
-		cmdline = strings.ReplaceAll(cmdline, "\x00", " ")
-		procInfo.CmdLine = strings.TrimSpace(cmdline)
-	}
-
-	// Read /proc/PID/status for UID and other details
-	statusPath := fmt.Sprintf("/proc/%d/status", pid)
-	statusData, err := os.ReadFile(statusPath)
-	if err == nil {
-		lines := strings.Split(string(statusData), "\n")
-		for _, line := range lines {
-			if strings.HasPrefix(line, "Uid:") {
-				fields := strings.Fields(line)
-				if len(fields) >= 2 {
-					uid, _ := strconv.Atoi(fields[1])
-					u, err := user.LookupId(fmt.Sprintf("%d", uid))
-					if err == nil {
-						procInfo.User = u.Username
-					}
-				}
-			} else if strings.HasPrefix(line, "VmRSS:") {
-				fields := strings.Fields(line)
-				if len(fields) >= 2 {
-					kb, _ := strconv.ParseFloat(fields[1], 64)
-					procInfo.MemoryMB = kb / 1024
-				}
+	if start := strings.IndexByte(statStr, '('); start >= 0 {
+		if end := strings.LastIndexByte(statStr, ')'); end > start {
+			procInfo.Name = statStr[start+1 : end]
+			if fields := strings.Fields(statStr[end+1:]); len(fields) >= 2 {
+				procInfo.PPID, _ = strconv.Atoi(fields[1])
 			}
 		}
 	}
 
-	// Get executable path
-	exePath := fmt.Sprintf("/proc/%d/exe", pid)
-	exeTarget, err := os.Readlink(exePath)
-	if err == nil {
-		procInfo.ExecutablePath = exeTarget
+	// Read /proc/PID/cmdline
+	cmdlinePath := fmt.Sprintf("/proc/%d/cmdline", pid)
+	if cmdlineData, err := os.ReadFile(cmdlinePath); err == nil {
+		procInfo.CmdLine = strings.TrimSpace(strings.ReplaceAll(string(cmdlineData), "\x00", " "))
+	}
 
-		// Calculate file hash
+	// Read /proc/PID/status for UID → username and VmRSS → memory
+	statusPath := fmt.Sprintf("/proc/%d/status", pid)
+	if statusData, err := os.ReadFile(statusPath); err == nil {
+		parseLinuxProcStatus(string(statusData), &procInfo)
+	}
+
+	// Resolve executable path and compute SHA-256
+	exePath := fmt.Sprintf("/proc/%d/exe", pid)
+	if exeTarget, err := os.Readlink(exePath); err == nil {
+		procInfo.ExecutablePath = exeTarget
 		if fileData, err := os.ReadFile(exeTarget); err == nil {
 			hash := sha256.Sum256(fileData)
 			procInfo.FileHash = hex.EncodeToString(hash[:])
@@ -213,8 +154,29 @@ func getLinuxProcessInfo(pid int) (audit.ProcessInfo, error) {
 	return procInfo, nil
 }
 
+// parseLinuxProcStatus extracts UID→username and VmRSS→MemoryMB from the
+// text contents of /proc/<pid>/status, updating procInfo in-place.
+func parseLinuxProcStatus(data string, procInfo *audit.ProcessInfo) {
+	for _, line := range strings.Split(data, "\n") {
+		switch {
+		case strings.HasPrefix(line, "Uid:"):
+			if fields := strings.Fields(line); len(fields) >= 2 {
+				uid, _ := strconv.Atoi(fields[1])
+				if u, err := user.LookupId(fmt.Sprintf("%d", uid)); err == nil {
+					procInfo.User = u.Username
+				}
+			}
+		case strings.HasPrefix(line, "VmRSS:"):
+			if fields := strings.Fields(line); len(fields) >= 2 {
+				kb, _ := strconv.ParseFloat(fields[1], 64)
+				procInfo.MemoryMB = kb / 1024
+			}
+		}
+	}
+}
+
 func collectProcessesWindows() ([]audit.ProcessInfo, error) {
-	cmd := exec.Command("powershell", "-Command",
+	cmd := exec.Command("powershell", psCommand,
 		"Get-Process | Select-Object Id,ProcessName,Path,StartTime | ConvertTo-Csv -NoTypeInformation")
 	output, err := cmd.Output()
 	if err != nil {
@@ -300,7 +262,7 @@ func collectServices() ([]audit.ServiceInfo, error) {
 	case "darwin":
 		return collectServicesDarwin()
 	default:
-		return nil, fmt.Errorf("unsupported OS: %s", runtime.GOOS)
+		return nil, errUnsupportedOS()
 	}
 }
 
@@ -340,7 +302,7 @@ func collectServicesLinux() ([]audit.ServiceInfo, error) {
 }
 
 func collectServicesWindows() ([]audit.ServiceInfo, error) {
-	cmd := exec.Command("powershell", "-Command",
+	cmd := exec.Command("powershell", psCommand,
 		"Get-Service | Select-Object Name,DisplayName,Status,StartType | ConvertTo-Csv -NoTypeInformation")
 	output, err := cmd.Output()
 	if err != nil {
@@ -484,7 +446,7 @@ func collectInstalledSoftware() ([]audit.Software, error) {
 	case "darwin":
 		return collectInstalledSoftwareDarwin()
 	default:
-		return nil, fmt.Errorf("unsupported OS: %s", runtime.GOOS)
+		return nil, errUnsupportedOS()
 	}
 }
 
@@ -533,7 +495,7 @@ func collectInstalledSoftwareLinux() ([]audit.Software, error) {
 }
 
 func collectInstalledSoftwareWindows() ([]audit.Software, error) {
-	cmd := exec.Command("powershell", "-Command",
+	cmd := exec.Command("powershell", psCommand,
 		"Get-ItemProperty HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\* | Select-Object DisplayName,DisplayVersion,Publisher | ConvertTo-Csv -NoTypeInformation")
 	output, err := cmd.Output()
 	if err != nil {
@@ -601,7 +563,7 @@ func collectUsers() ([]audit.UserInfo, error) {
 	case "windows":
 		return collectUsersWindows()
 	default:
-		return nil, fmt.Errorf("unsupported OS: %s", runtime.GOOS)
+		return nil, errUnsupportedOS()
 	}
 }
 
@@ -693,7 +655,7 @@ func collectCronJobs() ([]audit.CronJob, error) {
 	case "windows":
 		return collectCronJobsWindows()
 	default:
-		return nil, fmt.Errorf("unsupported OS: %s", runtime.GOOS)
+		return nil, errUnsupportedOS()
 	}
 }
 
@@ -824,7 +786,7 @@ func collectStartupItems() ([]audit.StartupItem, error) {
 	case "darwin":
 		return collectStartupItemsDarwin()
 	default:
-		return nil, fmt.Errorf("unsupported OS: %s", runtime.GOOS)
+		return nil, errUnsupportedOS()
 	}
 }
 
