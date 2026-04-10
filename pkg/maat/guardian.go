@@ -15,16 +15,36 @@ type Guardian struct {
 	Anubis    *AnubisWeigher
 	Chronicle *seshat.Chronicle
 	KASA      *agi.Engine
+
+	// AllowAutonomousRemediation gates whether RemediationBlade actions execute
+	// without human approval. Must be explicitly enabled — defaults to false.
+	//
+	// Set true only in ModeIronBank where the host is a hardened DoD image with
+	// the required packages and capabilities pre-installed. In ModeEdge (Hostinger
+	// VPS) remediation attempts for STIG controls (scap-security-guide, firewalld,
+	// FIPS) fail with exit status 1 on every Ouroboros tick — enabling this on
+	// a standard Linux host produces noisy failures with no security benefit.
+	AllowAutonomousRemediation bool
 }
 
-// NewGuardian creates a Maat Guardian for a realm
+// NewGuardian creates a Maat Guardian for a realm.
+// Autonomous remediation is disabled by default — call WithAutonomousRemediation(true)
+// only for Iron Bank / DoD hardened deployments.
 func NewGuardian(realm string, kasa *agi.Engine, chronicle *seshat.Chronicle) *Guardian {
 	return &Guardian{
-		Realm:     realm,
-		Anubis:    NewAnubisWeigher(),
-		Chronicle: chronicle,
-		KASA:      kasa,
+		Realm:                      realm,
+		Anubis:                     NewAnubisWeigher(),
+		Chronicle:                  chronicle,
+		KASA:                       kasa,
+		AllowAutonomousRemediation: false,
 	}
+}
+
+// WithAutonomousRemediation enables autonomous execution of RemediationBlade actions.
+// Only call this in ModeIronBank deployments.
+func (g *Guardian) WithAutonomousRemediation(enabled bool) *Guardian {
+	g.AllowAutonomousRemediation = enabled
+	return g
 }
 
 // WeighAndDecide evaluates Isfet and determines Heka
@@ -108,22 +128,26 @@ func (g *Guardian) selectBestOption(options []HeartOption) HeartOption {
 	return options[0]
 }
 
-// shouldAutomate determines if action should be automated
+// shouldAutomate determines if action should be automated.
+//
+// Remediation actions (ActionPurify) additionally require AllowAutonomousRemediation
+// to be set — otherwise they are logged as "requires manual approval" and skipped.
+// This prevents the Ouroboros cycle from attempting to install DoD packages
+// (scap-security-guide, firewalld, FIPS mode) on standard Linux hosts where
+// they are unavailable, producing noisy failures with no security benefit.
 func (g *Guardian) shouldAutomate(option HeartOption) bool {
-	// Automate if:
-	// 1. High certainty (>= 0.8)
-	// 2. Low operational burden (<= 0.3)
-	// 3. Not a catastrophic action (seal/isolate)
-
-	if option.Certainty >= 0.8 && option.OperationalBurden <= 0.3 {
-		// Don't auto-execute seal/isolate (too disruptive)
-		if option.Action == ActionSeal || option.Action == ActionIsolate {
-			return false
-		}
-		return true
+	// Never auto-execute seal/isolate (too disruptive regardless of mode)
+	if option.Action == ActionSeal || option.Action == ActionIsolate {
+		return false
 	}
 
-	return false
+	// Remediation requires explicit opt-in (Iron Bank only)
+	if option.Action == ActionPurify && !g.AllowAutonomousRemediation {
+		return false
+	}
+
+	// Automate if: high certainty + low operational burden
+	return option.Certainty >= 0.8 && option.OperationalBurden <= 0.3
 }
 
 // selectKhopesh determines which blade should execute the action
