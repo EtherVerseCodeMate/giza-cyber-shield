@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   phantom:
     build:
@@ -71,8 +69,21 @@ services:
       - NET_ADMIN
       - NET_RAW
       - SYS_NICE
+    environment:
+      # Override in .env if VPS NIC is not eth0 (check with: ip -br link show)
+      SURICATA_INTERFACE: ${SURICATA_INTERFACE:-eth0}
+    # String form so compose expands ${SURICATA_INTERFACE} before passing to container.
+    # --af-packet: zero-copy ring buffer capture (kernel bypass — lowest latency).
+    # WAFEye tails /var/log/suricata/eve.json; default jasonish config writes it there.
+    command: "-i ${SURICATA_INTERFACE:-eth0} --af-packet"
     volumes:
-      - ./data/suricata:/var/log/suricata
+      # Bind to host-standard path so the SEKHEM binary (running outside Docker)
+      # can tail /var/log/suricata/eve.json without any symlink indirection.
+      # WAFEye hardcodes this path — do NOT change the host-side mount point.
+      - /var/log/suricata:/var/log/suricata
+      # Rules persistence at standard host path; avoids re-downloading ET Open
+      # ruleset on every container restart.
+      - /var/lib/suricata:/var/lib/suricata
     restart: always
 
   crowdsec:
@@ -82,8 +93,9 @@ services:
       COLLECTIONS: "crowdsecurity/linux crowdsecurity/sshd crowdsecurity/nginx-proxy-manager"
     ports:
       # Expose LAPI on loopback only so the SEKHEM systemd service (outside Docker)
-      # can submit IP ban decisions via http://127.0.0.1:8080/v1/decisions.
-      # NOT exposed on 0.0.0.0 — UFW already blocks 8080 from public internet.
+      # can submit IP ban decisions via http://127.0.0.1:8090/v1/decisions.
+      # Port 8090 on host (not 8080) because Caddy owns *:8080 on this host.
+      # NOT exposed on 0.0.0.0 — UFW already blocks 8090 from public internet.
       - "127.0.0.1:8090:8080"
     volumes:
       - /var/log/auth.log:/var/log/auth.log:ro
