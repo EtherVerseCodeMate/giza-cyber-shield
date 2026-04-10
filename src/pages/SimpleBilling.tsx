@@ -389,6 +389,11 @@ export default function SimpleBilling() {
           </span>
           <span style={styles.footerRight}>SecRed Knowledge Inc. (NouchiX) · SDVOSB · Albany, NY</span>
         </div>
+        <div style={{ textAlign: 'center', marginTop: 10, fontSize: 11, color: '#5c6478' }}>
+          <a href="https://nouchix.com/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#5c6478', textDecoration: 'underline', marginRight: 16 }}>Privacy Policy</a>
+          <a href="https://nouchix.com/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#5c6478', textDecoration: 'underline', marginRight: 16 }}>Terms of Service</a>
+          <a href="mailto:security@nouchix.com" style={{ color: '#5c6478', textDecoration: 'underline' }}>security@nouchix.com</a>
+        </div>
       </footer>
     </div>
   );
