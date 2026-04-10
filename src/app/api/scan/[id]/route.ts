@@ -19,15 +19,23 @@ export async function GET(
   const apiKey = process.env.ASAF_API_KEY;
   if (apiKey) headers['Authorization'] = apiKey;
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+
   let res: Response;
   try {
-    res = await fetch(`${ASAF_API}/api/v1/scans/${id}`, { headers });
+    res = await fetch(`${ASAF_API}/api/v1/scans/${id}`, {
+      headers,
+      signal: controller.signal,
+    });
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return NextResponse.json(
-      { error: 'api_unreachable', message: `ASAF API unreachable: ${msg}` },
-      { status: 503 },
-    );
+    const isTimeout = e instanceof Error && e.name === 'AbortError';
+    const msg = isTimeout
+      ? `Poll timed out after 10 seconds. ASAF API may be overloaded.`
+      : `Cannot reach ASAF API at ${ASAF_API}. Check that the asaf-api service is running.`;
+    return NextResponse.json({ error: 'api_unreachable', message: msg }, { status: 503 });
+  } finally {
+    clearTimeout(timeout);
   }
 
   const data = await res.json().catch(() => ({}));

@@ -215,10 +215,11 @@ Type=simple
 User=asaf
 WorkingDirectory=/opt/asaf
 EnvironmentFile=/opt/asaf/secrets/api.env
-ExecStart=/opt/asaf/bin/asaf-linux-amd64
+# asaf-apiserver-linux-amd64 is built from cmd/apiserver (the HTTP API server).
+# It binds 0.0.0.0:PORT; PORT is set in api.env.
+ExecStart=/opt/asaf/bin/asaf-apiserver-linux-amd64
 Restart=always
 RestartSec=5
-# Write DAG/attestation data to data dir only
 ReadWritePaths=/opt/asaf/data
 PrivateTmp=true
 
@@ -270,7 +271,8 @@ ok "Webhook service installed"
 printf "\n${BOLD}━━━ Secrets Setup (manual — do not put in git) ━━━${RESET}\n"
 printf "\n1. ASAF API secrets — /opt/asaf/secrets/api.env:\n"
 printf "  ${CYAN}tee /opt/asaf/secrets/api.env << 'EOF'${RESET}\n"
-printf "  ADINKHEPRA_AGENT_PORT=45444\n"
+printf "  PORT=45444                       # apiserver listen port\n"
+printf "  HOST=0.0.0.0                     # bind all interfaces\n"
 printf "  ASAF_ALLOW_EVAL_WITHOUT_LICENSE=true\n"
 printf "  ASAF_API_KEY=                    # optional bearer token\n"
 printf "  ADINKHEPRA_LICENSE_KEY=          # optional paid license\n"
@@ -314,6 +316,10 @@ else
       . || die "Dashboard Docker build failed — fix and re-run with DEPLOY_DASHBOARD=1"
 
     log "Streaming image to VPS (this may take a minute)..."
+    # --network host: container shares the VPS host network so localhost:45444
+    # (the asaf-api systemd service) is reachable directly. This avoids Docker
+    # bridge routing complexity and UFW subnet rules.
+    # Note: -p is not used with --network host; Next.js binds 0.0.0.0:3000 on host.
     docker save "asaf-dashboard:latest" \
       | ssh ${SSH_OPTS} ${VPS_USER}@${VPS_HOST} \
           "docker load \
@@ -322,10 +328,10 @@ else
            && docker run -d \
                 --name asaf-dashboard \
                 --restart always \
-                -p 127.0.0.1:3000:3000 \
+                --network host \
                 --env-file /opt/asaf/secrets/dashboard.env \
                 asaf-dashboard:latest" \
-      && ok "Dashboard container running on VPS :3000 (image: ${DASHBOARD_IMAGE})" \
+      && ok "Dashboard container running on VPS :3000 via host network (image: ${DASHBOARD_IMAGE})" \
       || log "Dashboard deploy failed — container may need manual start on VPS"
 
     # Print dashboard.env template if file doesn't exist yet on VPS
@@ -336,7 +342,7 @@ else
       printf "  STRIPE_SECRET_KEY=sk_live_...\n"
       printf "  STRIPE_PRICE_ID=price_...   # one-time \$99 price from Stripe Dashboard\n"
       printf "  NEXT_PUBLIC_APP_URL=${DASHBOARD_APP_URL}\n"
-      printf "  NEXT_PUBLIC_ASAF_API_URL=${DASHBOARD_API_URL}\n"
+      printf "  ASAF_API_URL=http://localhost:45444   # host network — direct to asaf-api service\n"
       printf "  ASAF_ALLOW_EVAL_WITHOUT_LICENSE=true\n"
       printf "  EOF\n"
       printf "  ${CYAN}chmod 600 /opt/asaf/secrets/dashboard.env${RESET}\n\n"
