@@ -8,11 +8,13 @@ const INTERNAL_API = process.env.ASAF_INTERNAL_API_URL || 'http://172.17.0.1:454
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
+
     const res = await fetch(
-      `${INTERNAL_API}/api/v1/onboarding/scan/${params.id}`,
+      `${INTERNAL_API}/api/v1/onboarding/scan/${id}`,
     );
 
     const data = await res.json();
