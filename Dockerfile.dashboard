@@ -6,7 +6,7 @@ WORKDIR /app
 # NEXT_PUBLIC_* vars must be available at build time so Next.js
 # embeds them in the client bundle (standalone output).
 ARG NEXT_PUBLIC_APP_URL=https://adinkhepra.com
-ARG NEXT_PUBLIC_ASAF_API_URL=http://localhost:45444
+ARG NEXT_PUBLIC_ASAF_API_URL=https://agent.souhimbou.org
 ARG NEXT_PUBLIC_ASAF_SCAN_PROFILE=
 
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
@@ -26,7 +26,7 @@ COPY . .
 # NEXT_PUBLIC_* vars must be baked in at build time (Next.js webpack requirement)
 # Pass these via: docker build --build-arg NEXT_PUBLIC_APP_URL=https://... ...
 ARG NEXT_PUBLIC_APP_URL=https://adinkhepra.com
-ARG NEXT_PUBLIC_ASAF_API_URL=http://187.124.225.91:45444
+ARG NEXT_PUBLIC_ASAF_API_URL=https://agent.souhimbou.org
 ARG NEXT_PUBLIC_APP_NAME="AdinKhepra ASAF"
 ARG NEXT_PUBLIC_APP_VERSION=1.0.0
 ARG NEXT_PUBLIC_ENABLE_TELEMETRY=true
