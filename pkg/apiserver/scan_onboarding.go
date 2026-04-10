@@ -1,9 +1,13 @@
 package apiserver
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -102,6 +106,18 @@ func runASAFOnboardingScan(scanID string, req ScanRequest) {
 				Text:   fmt.Sprintf("Port %d on %s is reachable from the scan origin — confirm intended exposure.", p, host),
 			})
 		}
+	}
+
+	// ── Shodan enrichment (SHODAN_API_KEY) ──────────────────────────────────
+	if shodanKey := os.Getenv("SHODAN_API_KEY"); shodanKey != "" {
+		shodanFindings := enrichWithShodan(host, shodanKey)
+		findings = append(findings, shodanFindings...)
+	}
+
+	// ── APIVoid domain reputation (APIVOID_API_KEY) ──────────────────────────
+	if apiVoidKey := os.Getenv("APIVOID_API_KEY"); apiVoidKey != "" {
+		reputationFindings := enrichWithAPIVoid(host, apiVoidKey)
+		findings = append(findings, reputationFindings...)
 	}
 
 	platform := "generic"

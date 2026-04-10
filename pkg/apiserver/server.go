@@ -169,6 +169,9 @@ func (s *Server) setupRoutes() {
 	pubV1.POST("/onboarding/scan", s.handleTriggerScan)
 	pubV1.GET("/onboarding/scan/:id", s.handleGetScanStatus)
 
+	// Stripe webhook — public, no API-key auth. Security is HMAC via STRIPE_WEBHOOK_SECRET.
+	pubV1.POST("/stripe/webhook", s.handleStripeWebhook)
+
 	// Internal license revocation — called by the webhook service on subscription cancellation.
 	// No Bearer auth (webhook has no credentials); protected by localhost-only guard in handler.
 	pubV1.POST("/license/revoke", s.handleRevokeLicense)
