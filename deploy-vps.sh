@@ -284,7 +284,8 @@ else
                 --name asaf-dashboard \
                 --restart always \
                 -p 127.0.0.1:3000:3000 \
-                --env-file /opt/asaf/secrets/dashboard.env \
+                --network mesh_nouchix-dmz \
+                 --env-file /opt/asaf/secrets/dashboard.env \
                 asaf-dashboard:latest" \
       && ok "Dashboard container running on VPS :3000 (image: ${DASHBOARD_IMAGE})" \
       || log "Dashboard deploy failed — container may need manual start on VPS"
