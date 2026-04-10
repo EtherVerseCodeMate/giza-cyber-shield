@@ -116,10 +116,14 @@ ssh ${SSH_OPTS} asaf@${VPS_HOST} "
 ok "SSH key confirmed for asaf user"
 
 
-
 # Switch to non-root user for remaining steps
 SSH="ssh ${SSH_OPTS} ${VPS_USER}@${VPS_HOST}"
 SCP="scp ${SSH_OPTS}"
+
+# ── Pre-flight: ensure required directories exist (idempotent) ────────────────
+log "Ensuring required directories exist on VPS..."
+$SSH "mkdir -p /opt/asaf/bin /opt/asaf/data /opt/asaf/secrets /var/www/asaf/releases /var/www/asaf/docs"
+ok "Directories confirmed"
 
 # ── Phase 3: Upload static assets ─────────────────────────────────────────────
 log "Uploading static assets..."
