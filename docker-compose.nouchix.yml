@@ -80,6 +80,11 @@ services:
     container_name: nouchix-crowdsec
     environment:
       COLLECTIONS: "crowdsecurity/linux crowdsecurity/sshd crowdsecurity/nginx-proxy-manager"
+    ports:
+      # Expose LAPI on loopback only so the SEKHEM systemd service (outside Docker)
+      # can submit IP ban decisions via http://127.0.0.1:8080/v1/decisions.
+      # NOT exposed on 0.0.0.0 — UFW already blocks 8080 from public internet.
+      - "127.0.0.1:8080:8080"
     volumes:
       - /var/log/auth.log:/var/log/auth.log:ro
       - ./data/crowdsec/config:/etc/crowdsec

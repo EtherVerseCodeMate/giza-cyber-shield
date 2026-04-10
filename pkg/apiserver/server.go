@@ -122,14 +122,29 @@ func NewServer(config *Config, dagStore DAGStore, licMgr LicenseManager) *Server
 	return server
 }
 
-// setupMiddleware configures all middleware
+// setupMiddleware configures all middleware in the correct SEKHEM order:
+//
+//  1. RecoveryMiddleware  — catches panics from any middleware below it, including WAF
+//  2. LoggingMiddleware   — logs all requests (including blocked ones, before WAF fires)
+//  3. CORSMiddleware      — CORS headers applied first; OPTIONS preflights must get
+//     Access-Control-* headers BEFORE the WAF can reject them
+//  4. WAFMiddleware       — Merkaba L7 perimeter: SQLi/XSS/path traversal/rate-limit
+//  5. AuthMiddleware      — only for authenticated route groups (applied per-group below)
+//
+// RateLimitMiddleware is removed: its function is now handled by SEKHEM-007
+// inside WAFShield (per-IP sync.Map rate limiter, same 100 req/min threshold).
 func (s *Server) setupMiddleware() {
 	s.router.Use(RecoveryMiddleware())
 	s.router.Use(LoggingMiddleware())
-	// Pass AllowedOrigins from config so caller-supplied origins are merged with
-	// the hardcoded NouchiX/ASAF defaults inside CORSMiddleware.
 	s.router.Use(CORSMiddleware(s.config.AllowedOrigins...))
-	s.router.Use(RateLimitMiddleware())
+
+	// WAF — nil-safe: if sekhemTriad is not yet wired (e.g. test mode),
+	// WAFMiddleware logs a warning and is a no-op.
+	var wafShield *sekhem.WAFShield
+	if s.sekhemTriad != nil && s.sekhemTriad.DuatRealm != nil {
+		wafShield = s.sekhemTriad.DuatRealm.WAFShield
+	}
+	s.router.Use(WAFMiddleware(wafShield))
 }
 
 // setupRoutes configures all API routes
