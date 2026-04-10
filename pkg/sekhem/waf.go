@@ -172,10 +172,10 @@ func NewWAFShield(cfg WAFShieldConfig) (*WAFShield, error) {
 
 	// Compute spectral anchor: static D₈ fingerprint for the "Eban" symbol.
 	anchorHex := adinkra.GetSpectralFingerprint("Eban")
-	anchor, err := hex.DecodeString(anchorHex)
+	anchor, err := hex.DecodeString(string(anchorHex))
 	if err != nil {
 		// If the fingerprint is not hex (e.g. raw bytes), hash it instead.
-		h := sha256.Sum256([]byte(anchorHex))
+		h := sha256.Sum256(anchorHex)
 		anchor = h[:]
 	}
 
@@ -208,7 +208,7 @@ func NewWAFShield(cfg WAFShieldConfig) (*WAFShield, error) {
 	go shield.rotateKeypairLoop(ctx)
 
 	log.Printf("[SEKHEM-WAF] WAFShield online — %d rules, spectral anchor=%s, Crowdsec=%s",
-		len(shield.rules), anchorHex[:16]+"...", csURL)
+		len(shield.rules), string(anchorHex[:16])+"...", csURL)
 
 	return shield, nil
 }
