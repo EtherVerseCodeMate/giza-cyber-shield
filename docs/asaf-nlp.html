@@ -255,7 +255,7 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
 <body>
 <div id="app">
   <header id="header">
-    <img src="/images/secred-seal.png" style="width:26px;height:26px;border-radius:50%;object-fit:cover;opacity:.8;flex-shrink:0" onerror="this.style.display='none'" alt="SecRed">
+    <img src="/images/secred-seal.png" style="width:26px;height:26px;border-radius:50%;object-fit:cover;opacity:.8;flex-shrink:0" alt="SecRed">
     <div class="logo">ASAF <span>// Natural Language Security Platform</span></div>
     <div class="sdot" id="api-dot"></div><div class="slabel" id="api-lbl">API</div>
     <div class="sdot" id="llm-dot"></div><div class="slabel" id="llm-lbl">LLM</div>
@@ -276,9 +276,9 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
       <div id="messages"></div>
       <div id="ciw">
         <div id="suggested">
-          <div class="sug" role="button" tabindex="0" onclick="usePrompt(this)" onkeydown="if(event.key==='Enter'||event.key===' ')usePrompt(this)">Check if my systems meet government security standards</div>
-          <div class="sug" role="button" tabindex="0" onclick="usePrompt(this)" onkeydown="if(event.key==='Enter'||event.key===' ')usePrompt(this)">What does STIG V-72213 require in plain English?</div>
-          <div class="sug" role="button" tabindex="0" onclick="usePrompt(this)" onkeydown="if(event.key==='Enter'||event.key===' ')usePrompt(this)">Create a compliance proof for my organization</div>
+          <button class="sug" onclick="usePrompt(this)">Check if my systems meet government security standards</button>
+          <button class="sug" onclick="usePrompt(this)">What does STIG V-72213 require in plain English?</button>
+          <button class="sug" onclick="usePrompt(this)">Create a compliance proof for my organization</button>
         </div>
         <div id="llmsel">
           <button class="llmbtn active" data-p="ollama">Ollama</button>
@@ -307,8 +307,8 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
     <section id="term-panel">
       <div id="thdr">
         <div class="tabbar">
-          <div class="tab active" role="button" tabindex="0" onclick="switchTab('term',event)" onkeydown="if(event.key==='Enter')switchTab('term',event)">SCAN OUTPUT</div>
-          <div class="tab" role="button" tabindex="0" onclick="switchTab('dag',event)" onkeydown="if(event.key==='Enter')switchTab('dag',event)">DAG GRAPH</div>
+          <button class="tab active" onclick="switchTab('term',event)">SCAN OUTPUT</button>
+          <button class="tab" onclick="switchTab('dag',event)">DAG GRAPH</button>
         </div>
       </div>
       <div id="twrap"><div id="term"></div></div>
@@ -322,7 +322,7 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
     <aside id="dag-panel">
       <div id="dag-hdr">
         <div class="dht">
-          <img id="dag-badge" src="/images/adinkhepra-badge.png" alt="ADINKHEPRA ASAF" onerror="this.textContent='🛡️';this.style.cssText='font-size:28px;width:32px;height:32px'">
+          <img id="dag-badge" src="/images/adinkhepra-badge.png" alt="ADINKHEPRA ASAF">
           <div>
             <div id="dag-title">SECURITY LEDGER</div>
             <div id="dag-sub">Immutable compliance proof</div>
@@ -351,14 +351,14 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
 
 <!-- Papyrus floating button -->
 <button id="pap-btn" onclick="togglePapyrus()" title="Chat with Souhimbou AI">
-  <img id="pap-btn-img" src="/images/souhimbou-avatar.png" alt="Souhimbou" onerror="this.outerHTML='<span style=\'font-size:26px\'>🛡</span>'">
+  <img id="pap-btn-img" src="/images/souhimbou-avatar.png" alt="Souhimbou">
   <div id="pap-badge">1</div>
 </button>
 
 <!-- Papyrus chat panel -->
 <div id="pap-panel">
   <div id="pap-hdr">
-    <img id="pap-portrait" src="/images/souhimbou-warrior.png" alt="I AM SOUHIMBOU" onerror="this.style.display='none'">
+    <img id="pap-portrait" src="/images/souhimbou-warrior.png" alt="I AM SOUHIMBOU">
     <div class="phi">
       <div class="pht">SOUHIMBOU AI</div>
       <div class="phs">AI Security Architect &amp; Platform Guide<br>by NouchiX / SecRed Knowledge Inc.</div>
@@ -392,18 +392,18 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
 </div>
 
 <!-- Help overlay -->
-<div id="help-ov" onclick="closeHelp(event)">
+<div id="help-ov">
   <div id="help-menu">
     <div class="hm-hdr">HELP &amp; SUPPORT</div>
     <div class="hm-sec">
-      <div class="hm-item" role="button" tabindex="0" onclick="startTour();closeHelp()" onkeydown="if(event.key==='Enter')this.click()"><span class="hm-icon">🗺</span>Interactive Tour<span class="hm-sc">Alt+T</span></div>
-      <div class="hm-item" role="button" tabindex="0" onclick="globalThis.open('https://docs.nouchix.com','_blank');closeHelp()" onkeydown="if(event.key==='Enter')this.click()"><span class="hm-icon">📖</span>Documentation</div>
-      <div class="hm-item" role="button" tabindex="0" onclick="showQuickRef()" onkeydown="if(event.key==='Enter')this.click()"><span class="hm-icon">⚡</span>Quick Reference</div>
+      <button class="hm-item" onclick="startTour();closeHelp()"><span class="hm-icon">🗺</span>Interactive Tour<span class="hm-sc">Alt+T</span></button>
+      <button class="hm-item" onclick="globalThis.open('https://docs.nouchix.com','_blank');closeHelp()"><span class="hm-icon">📖</span>Documentation</button>
+      <button class="hm-item" onclick="showQuickRef()"><span class="hm-icon">⚡</span>Quick Reference</button>
     </div>
     <div class="hm-sec">
-      <div class="hm-item" role="button" tabindex="0" onclick="openFeedback();closeHelp()" onkeydown="if(event.key==='Enter')this.click()"><span class="hm-icon">💬</span>Send Feedback</div>
-      <div class="hm-item" role="button" tabindex="0" onclick="requestFeature();closeHelp()" onkeydown="if(event.key==='Enter')this.click()"><span class="hm-icon">💡</span>Request Feature</div>
-      <div class="hm-item" role="button" tabindex="0" onclick="copyDiag();closeHelp()" onkeydown="if(event.key==='Enter')this.click()"><span class="hm-icon">🐛</span>Copy Diagnostic</div>
+      <button class="hm-item" onclick="openFeedback();closeHelp()"><span class="hm-icon">💬</span>Send Feedback</button>
+      <button class="hm-item" onclick="requestFeature();closeHelp()"><span class="hm-icon">💡</span>Request Feature</button>
+      <button class="hm-item" onclick="copyDiag();closeHelp()"><span class="hm-icon">🐛</span>Copy Diagnostic</button>
     </div>
     <div class="hm-sec">
       <div class="hm-item" style="cursor:default;font-size:11px;opacity:.7"><span class="hm-icon">⌨</span>Enter=Send · Shift+Enter=Newline · Alt+T=Tour</div>
@@ -434,10 +434,12 @@ let provider='ollama',ollamaModel='llama3.1:8b',orKey='',dagNodes=[],term,fitAdd
 
 // ── OS + Environment Detection (Polymorphic Connector) ────────────────────────
 // Server injects CFG.os (runtime.GOOS); browser UA is the fallback.
-const OS = CFG.os || (
-  navigator.userAgent.includes('Win') ? 'windows' :
-  navigator.userAgent.includes('Mac') ? 'mac' : 'linux'
-);
+function _detectOS() {
+  if (navigator.userAgent.includes('Win')) { return 'windows'; }
+  if (navigator.userAgent.includes('Mac')) { return 'mac'; }
+  return 'linux';
+}
+const OS = CFG.os || _detectOS();
 
 // Per-OS: start command, polymorphic fallback ports, firewall whitelist,
 // known AV/EDR products, and any special notes (UAC, SIP, SELinux).
@@ -517,11 +519,12 @@ function termSep(){tP('\x1b[38;5;237m'+'─'.repeat(54)+'\x1b[0m')}
 
 // ── Tab switch ────────────────────────────────────────────────────────────────
 function switchTab(tab,ev){
-  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===(tab==='term'?0:1)));
-  document.getElementById('twrap').style.display=tab==='term'?'flex':'none';
-  document.getElementById('dagwrap').style.display=tab==='dag'?'flex':'none';
-  if(tab==='term')fitAddon.fit();
-  if(tab==='dag')renderDAGGraph();
+  const isTermTab = tab === 'term';
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',isTermTab ? i===0 : i===1));
+  document.getElementById('twrap').style.display=isTermTab?'flex':'none';
+  document.getElementById('dagwrap').style.display=isTermTab?'none':'flex';
+  if(isTermTab){fitAddon.fit();}
+  if(!isTermTab){renderDAGGraph();}
   Analytics.track('tab',{tab});
 }
 
@@ -619,22 +622,25 @@ function _papAPIGuidance(retryCount, errType) {
 async function checkAPI() {
   const result = await _polymorphicConnect();
 
-  if (result.connected) {
-    const portNote = result.port !== 45444 ? ` [polymorphic: port ${result.port}]` : '';
-    setDot('api', 'ok', 'ASAF API · ' + result.url);
-    termOk('ASAF API: ' + result.url + portNote);
-    loadDAGChain();
-    _apiRetryCount = 0;
-    apiErrCount = 0;
-    if (_apiRetryTimer) { clearTimeout(_apiRetryTimer); _apiRetryTimer = null; }
+  if (!result.connected) {
+    _onAPIFailure(result);
     return;
   }
+  const portNote = result.port !== 45444 ? ` [polymorphic: port ${result.port}]` : '';
+  setDot('api', 'ok', 'ASAF API · ' + result.url);
+  termOk('ASAF API: ' + result.url + portNote);
+  loadDAGChain();
+  _apiRetryCount = 0;
+  apiErrCount = 0;
+  if (_apiRetryTimer) { clearTimeout(_apiRetryTimer); _apiRetryTimer = null; }
+}
+
+function _onAPIFailure(result) {
 
   _apiRetryCount++;
   apiErrCount++;
   const { errType } = result;
 
-  // Visual status
   if (errType === 'timeout') {
     setDot('api', 'warn', 'API blocked · firewall/AV/EDR may be intercepting port 45444');
     termWarn('Port 45444 unreachable (timeout) — firewall, AV, or EDR may be blocking ASAF');
@@ -643,19 +649,14 @@ async function checkAPI() {
     termWarn('ASAF API offline (connection refused) — agent not running on ' + OS_PROFILE.label);
   }
   termInfo('OS detected: ' + OS_PROFILE.label + ' · Retry ' + _apiRetryCount + ' of 3');
-
-  // Progressive Souhimbou guidance
   setTimeout(() => papSay(_papAPIGuidance(_apiRetryCount, errType)), 1500);
 
   if (_apiRetryCount >= 3) {
-    // Cloud fallback — stop polling
     setDot('api', 'warn', 'Cloud mode · ASAF agent unreachable');
     termWarn('Entering cloud-only mode after 3 failed attempts');
     _apiRetryTimer = null;
     return;
   }
-
-  // Schedule next probe
   const delay = POLY_RETRY_MS[_apiRetryCount - 1] || 30000;
   termInfo('Next connection attempt in ' + (delay / 1000) + 's...');
   _apiRetryTimer = setTimeout(checkAPI, delay);
@@ -679,10 +680,29 @@ Additional OS note: ${OS_PROFILE.edNote}
 Always be Souhimbou the guardian. Celebrate user progress!`;
 
 // ── LLM call ──────────────────────────────────────────────────────────────────
+async function _llmOllama(msgs){
+  const r=await fetch(CFG.ollamaURL+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:ollamaModel,messages:msgs,stream:true})});
+  if(!r.ok){throw new Error('Ollama '+r.status);}
+  return streamOllama(r);
+}
+async function _llmLMStudio(msgs){
+  const r=await fetch(CFG.lmstudioURL+'/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'local-model',messages:msgs,stream:true,max_tokens:2048})});
+  if(!r.ok){throw new Error('LM Studio '+r.status);}
+  return streamOAI(r);
+}
+async function _llmOpenRouter(msgs){
+  const k=orKey||document.getElementById('orkl')?.value;
+  if(!k){throw new Error('OpenRouter API key required');}
+  orKey=k;
+  const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+k,'HTTP-Referer':'https://nouchix.com','X-Title':'ASAF Security Platform'},body:JSON.stringify({model:'nousresearch/hermes-3-llama-3.1-70b',messages:msgs,stream:true,max_tokens:2048})});
+  if(!r.ok){throw new Error('OpenRouter '+r.status);}
+  return streamOAI(r);
+}
 async function callLLM(msgs){
-  if(provider==='ollama'){const r=await fetch(CFG.ollamaURL+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:ollamaModel,messages:msgs,stream:true})});if(!r.ok)throw new Error('Ollama '+r.status);return streamOllama(r);}
-  if(provider==='lmstudio'){const r=await fetch(CFG.lmstudioURL+'/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'local-model',messages:msgs,stream:true,max_tokens:2048})});if(!r.ok)throw new Error('LM Studio '+r.status);return streamOAI(r);}
-  if(provider==='openrouter'){const k=orKey||document.getElementById('orkl')?.value;if(!k)throw new Error('OpenRouter API key required');orKey=k;const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+k,'HTTP-Referer':'https://nouchix.com','X-Title':'ASAF Security Platform'},body:JSON.stringify({model:'nousresearch/hermes-3-llama-3.1-70b',messages:msgs,stream:true,max_tokens:2048})});if(!r.ok)throw new Error('OpenRouter '+r.status);return streamOAI(r);}
+  if(provider==='ollama'){return _llmOllama(msgs);}
+  if(provider==='lmstudio'){return _llmLMStudio(msgs);}
+  if(provider==='openrouter'){return _llmOpenRouter(msgs);}
+  throw new Error('No LLM provider configured');
 }
 async function* streamOllama(r){
   const rd=r.body.getReader();
@@ -696,7 +716,7 @@ async function* streamOllama(r){
     buf=ls.pop();
     for(const l of ls){
       if(!l.trim()){continue;}
-      try{const o=JSON.parse(l);if(o.message?.content){yield o.message.content;}}catch(err){/* non-JSON line — skip */}
+      try{const o=JSON.parse(l);if(o.message?.content){yield o.message.content;}}catch(parseErr){console.debug('streamOllama: non-JSON line skipped',parseErr);}
     }
   }
 }
@@ -714,43 +734,47 @@ async function* streamOAI(r){
       if(!l.startsWith('data: ')){continue;}
       const d=l.slice(6).trim();
       if(d==='[DONE]'){return;}
-      try{const o=JSON.parse(d);const c=o.choices?.[0]?.delta?.content;if(c){yield c;}}catch(err){/* non-JSON SSE line — skip */}
+      try{const o=JSON.parse(d);const c=o.choices?.[0]?.delta?.content;if(c){yield c;}}catch(parseErr){console.debug('streamOAI: non-JSON SSE line skipped',parseErr);}
     }
   }
 }
 
 // ── ASAF command dispatch ─────────────────────────────────────────────────────
+function _severityColor(sev){
+  if(sev==='critical'){return '\x1b[31m';}
+  if(sev==='high'){return '\x1b[33m';}
+  return '\x1b[36m';
+}
+function _printFindings(findings){
+  termPrint('');
+  termPrint('  \x1b[38;5;220mFindings:\x1b[0m');
+  findings.slice(0,10).forEach(f=>{
+    const color=_severityColor(f.severity);
+    const label=(f.severity||'info').toUpperCase().padEnd(8);
+    termPrint('  '+color+'['+label+']\x1b[0m '+(f.title||f.control_id||f.id));
+  });
+  if(findings.length>10){termPrint('  ... +'+(findings.length-10)+' more');}
+}
 async function dispatchCmd(cmd){
   termSep();termInfo(cmd.description||cmd.action);termData('Endpoint',cmd.method+' '+CFG.apiURL+cmd.endpoint);
-  const opts={method:cmd.method,headers:{'Content-Type':'application/json'}};if(cmd.body)opts.body=JSON.stringify(cmd.body);
+  const opts={method:cmd.method,headers:{'Content-Type':'application/json'}};
+  if(cmd.body){opts.body=JSON.stringify(cmd.body);}
   try{
     const r=await fetch(CFG.apiURL+cmd.endpoint,opts);const txt=await r.text();
-    let d;try{d=JSON.parse(txt);}catch{d={raw:txt};}
+    let d;
+    try{d=JSON.parse(txt);}catch(jsonErr){console.debug('Response not JSON',jsonErr);d={raw:txt};}
     if(!r.ok){termErr('HTTP '+r.status+': '+(d.error||txt.slice(0,120)));return d;}
     termOk('Response ('+r.status+')');
-    if(d.risk_score!==undefined)termData('Risk Score',cScore(d.risk_score));
-    if(d.scan_id)termData('Scan ID',d.scan_id);
-    if(d.certified!==undefined)termData('Certified',d.certified?'\x1b[32m✓ YES\x1b[0m':'\x1b[33m✗ NO\x1b[0m');
-    if(d.framework)termData('Framework',d.framework);
-    if(d.findings?.length){
-      termPrint('');
-      termPrint('  \x1b[38;5;220mFindings:\x1b[0m');
-      d.findings.slice(0,10).forEach(f=>{
-        let sev;
-        if(f.severity==='critical'){sev='\x1b[31m';}
-        else if(f.severity==='high'){sev='\x1b[33m';}
-        else{sev='\x1b[36m';}
-        const label=(f.severity||'info').toUpperCase().padEnd(8);
-        termPrint('  '+sev+'['+label+']\x1b[0m '+(f.title||f.control_id||f.id));
-      });
-      if(d.findings.length>10){termPrint('  ... +'+(d.findings.length-10)+' more');}
-    }
-    if(d.dag_node||d.attestation)addDAGNode(d);
-    if(d.chain)renderDAGFromChain(d.chain);
+    if(d.risk_score!==undefined){termData('Risk Score',cScore(d.risk_score));}
+    if(d.scan_id){termData('Scan ID',d.scan_id);}
+    if(d.certified!==undefined){termData('Certified',d.certified?'\x1b[32m✓ YES\x1b[0m':'\x1b[33m✗ NO\x1b[0m');}
+    if(d.framework){termData('Framework',d.framework);}
+    if(d.findings?.length){_printFindings(d.findings);}
+    if(d.dag_node||d.attestation){addDAGNode(d);}
+    if(d.chain){renderDAGFromChain(d.chain);}
     termSep();Analytics.track('cmd',{action:cmd.action,ok:true});return d;
   }catch(e){
     termErr('Network: '+e.message);
-    // Distinguish error modes for actionable guidance
     const isTimeout=e.name==='AbortError';
     if(isTimeout){
       termWarn('Request timed out — firewall/AV/EDR may be blocking ASAF on '+OS_PROFILE.label);
@@ -758,14 +782,23 @@ async function dispatchCmd(cmd){
     } else {
       termWarn('Connection refused — is ASAF running? Start: '+OS_PROFILE.startCmd);
     }
-    // Trigger reconnect probe
     if(!_apiRetryTimer && _apiRetryCount<3){_apiRetryCount=0;checkAPI();}
     Analytics.track('cmd_err',{msg:e.message,os:OS,errType:isTimeout?'timeout':'refused'});
     throw e;
   }
 }
-function cScore(s){if(s>=80)return'\x1b[32m'+s+'/100 (GOOD)\x1b[0m';if(s>=60)return'\x1b[33m'+s+'/100 (FAIR)\x1b[0m';return'\x1b[31m'+s+'/100 (POOR)\x1b[0m';}
-function extractCmds(t){const re=/ASAF_CMD:(\{[^}]+\})/g;const cs=[];let m;while((m=re.exec(t))!==null){try{cs.push(JSON.parse(m[1]));}catch{}}return cs;}
+function cScore(s){
+  if(s>=80){return '\x1b[32m'+s+'/100 (GOOD)\x1b[0m';}
+  if(s>=60){return '\x1b[33m'+s+'/100 (FAIR)\x1b[0m';}
+  return '\x1b[31m'+s+'/100 (POOR)\x1b[0m';
+}
+function extractCmds(t){
+  const re=/ASAF_CMD:(\{[^}]+\})/g;const cs=[];let m;
+  while((m=re.exec(t))!==null){
+    try{cs.push(JSON.parse(m[1]));}catch(parseErr){console.debug('extractCmds parse error',parseErr);}
+  }
+  return cs;
+}
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
 let history=[{role:'system',content:SYS}];
@@ -812,11 +845,18 @@ document.getElementById('cinput').addEventListener('input',function(){this.style
 
 // ── DAG chain ─────────────────────────────────────────────────────────────────
 async function loadDAGChain(){
-  try{const r=await fetch(CFG.apiURL+'/api/v1/dag/recent?limit=10',{signal:AbortSignal.timeout(3000)});if(!r.ok)return;const d=await r.json();if(d.nodes?.length){dagNodes=d.nodes;renderChain();}}catch{}
+  try{
+    const r=await fetch(CFG.apiURL+'/api/v1/dag/recent?limit=10',{signal:AbortSignal.timeout(3000)});
+    if(!r.ok){return;}
+    const d=await r.json();
+    if(d.nodes?.length){dagNodes=d.nodes;renderChain();}
+  }catch(fetchErr){console.debug('loadDAGChain fetch error',fetchErr);}
 }
 function addDAGNode(data){
   const node={id:data.dag_node?.id||data.scan_id||('n-'+Date.now()),label:data.scan_target||data.framework||'Attestation',hash:data.dag_node?.hash||data.attestation?.hash||'0x'+Math.random().toString(16).slice(2,18),timestamp:new Date().toISOString(),cert:data.certified||false,framework:data.framework||'CMMC_L2',pqc:true};
-  dagNodes.unshift(node);if(dagNodes.length>20)dagNodes.pop();renderChain();
+  dagNodes.unshift(node);
+  if(dagNodes.length>20){dagNodes.pop();}
+  renderChain();
 }
 function renderChain(){
   const list=document.getElementById('chain-list');
@@ -824,8 +864,14 @@ function renderChain(){
   list.querySelectorAll('.demo-node').forEach(n=>n.style.display='none');
   dagNodes.forEach(node=>{
     const div=document.createElement('div');div.className='chain-node'+(node.cert?' cert':'');
-    div.innerHTML=`<div class="cn-hash">${(node.hash||'').slice(0,28)}...</div><div class="cn-lbl">${esc(node.label||node.id)}</div><div class="cn-row">${node.pqc?'<span class="cbadge pqc">ML-DSA-65</span>':''}${node.cert?'<span class="cbadge gold">ADINKHEPRA ✓</span>':''}${node.framework?`<span class="cbadge cmmc">${node.framework}</span>`:''}<span class="cn-time">${new Date(node.timestamp).toLocaleTimeString()}</span></div>`;
-    div.addEventListener('click',()=>{switchTab('dag',null);document.querySelectorAll('.tab')[1].classList.add('active');document.querySelectorAll('.tab')[0].classList.remove('active');});
+    const pqcBadge = node.pqc ? '<span class="cbadge pqc">ML-DSA-65</span>' : '';
+    const certBadge = node.cert ? '<span class="cbadge gold">ADINKHEPRA ✓</span>' : '';
+    const fwBadge = node.framework ? '<span class="cbadge cmmc">'+node.framework+'</span>' : '';
+    const timeStr = new Date(node.timestamp).toLocaleTimeString();
+    div.innerHTML = '<div class="cn-hash">'+(node.hash||'').slice(0,28)+'...</div>'
+      +'<div class="cn-lbl">'+esc(node.label||node.id)+'</div>'
+      +'<div class="cn-row">'+pqcBadge+certBadge+fwBadge+'<span class="cn-time">'+timeStr+'</span></div>';
+    div.addEventListener('click',()=>switchTab('dag',null));
     list.appendChild(div);
   });
 }
@@ -838,7 +884,7 @@ function renderDAGFromChain(chain){
 // ── D3 DAG graph ──────────────────────────────────────────────────────────────
 function renderDAGGraph(){
   const svg=d3.select('#dag-svg');svg.selectAll('*').remove();if(!dagNodes.length){return;}
-  const w=document.getElementById('dagwrap').clientWidth,hPx=document.getElementById('dagwrap').clientHeight;
+  const w=document.getElementById('dagwrap').clientWidth;
   svg.append('defs').append('marker').attr('id','arrow').attr('viewBox','0 -5 10 10').attr('refX',18).attr('refY',0).attr('markerWidth',6).attr('markerHeight',6).attr('orient','auto').append('path').attr('d','M0,-5L10,0L0,5').attr('fill','#2a3545');
   const g=svg.append('g').attr('transform',`translate(${w/2},40)`);
   const nodes=dagNodes.slice(0,8).map((n,i)=>({...n,x:(i%3-1)*120,y:Math.floor(i/3)*100}));
@@ -900,17 +946,38 @@ function showTourStep(){
   document.getElementById('tc-text').textContent=s.text;
   document.getElementById('tc-prog').textContent=(tourStep+1)+'/'+TOUR.length;
   document.getElementById('tc-next').onclick=()=>{tourStep++;if(tourStep>=TOUR.length){endTour();}else{showTourStep();}};
-  if(target){const r=target.getBoundingClientRect();const spot=document.getElementById('tour-spot');spot.style.cssText=`left:${r.left-8}px;top:${r.top-8}px;width:${r.width+16}px;height:${r.height+16}px`;const card=document.getElementById('tour-card');card.style.cssText=`top:${Math.min(r.bottom+16,window.innerHeight-200)}px;left:${Math.max(Math.min(r.left,window.innerWidth-290),10)}px`;}
+  if(target){
+    const r=target.getBoundingClientRect();
+    const spot=document.getElementById('tour-spot');
+    spot.style.cssText='left:'+(r.left-8)+'px;top:'+(r.top-8)+'px;width:'+(r.width+16)+'px;height:'+(r.height+16)+'px';
+    const card=document.getElementById('tour-card');
+    const cardTop=Math.min(r.bottom+16,globalThis.innerHeight-200);
+    const cardLeft=Math.max(Math.min(r.left,globalThis.innerWidth-290),10);
+    card.style.cssText='top:'+cardTop+'px;left:'+cardLeft+'px';
+  }
   Analytics.track('tour_step',{step:tourStep});
 }
 function endTour(){document.getElementById('tour-ov').classList.remove('active');document.getElementById('tour-ov').style.pointerEvents='none';localStorage.setItem('asaf_toured','1');papSay('🎉 Tour complete! You\'re ready to run your first security scan. Just type a question or click a suggestion chip above.');togglePapyrus();Analytics.track('tour_end',{step:tourStep});}
 
 // ── Help overlay ──────────────────────────────────────────────────────────────
 function openHelp(){document.getElementById('help-ov').classList.add('open');Analytics.track('help_open');}
-function closeHelp(ev){if(!ev||ev.target===document.getElementById('help-ov'))document.getElementById('help-ov').classList.remove('open');}
+function closeHelp(ev){
+  if(!ev||ev.target===document.getElementById('help-ov')){
+    document.getElementById('help-ov').classList.remove('open');
+  }
+}
 function showQuickRef(){closeHelp();papSay('⚡ Quick Reference:\n• "Scan [target] for CMMC L2 gaps"\n• "What does STIG [ID] require?"\n• "Check my compliance score"\n• "Show threat intel for CVE-[year]-[id]"\n• "Generate attestation for org [name]"\n• "Export my compliance certificate"');if(!papOpen)togglePapyrus();}
 function openFeedback(){document.getElementById('fb-form').classList.add('open');}
-function submitFeedback(){const t=document.getElementById('fb-txt').value.trim();if(!t)return;fetch(CFG.apiURL+'/api/v1/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({feedback:t,ts:Date.now()})}).catch(()=>{});document.getElementById('fb-form').classList.remove('open');document.getElementById('fb-txt').value='';papSay('Thanks for your feedback! It helps us improve. 🙏');if(!papOpen)togglePapyrus();Analytics.track('feedback',{len:t.length});}
+function submitFeedback(){
+  const t=document.getElementById('fb-txt').value.trim();
+  if(!t){return;}
+  fetch(CFG.apiURL+'/api/v1/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({feedback:t,ts:Date.now()})}).catch(fbErr=>console.debug('feedback send failed',fbErr));
+  document.getElementById('fb-form').classList.remove('open');
+  document.getElementById('fb-txt').value='';
+  papSay('Thanks for your feedback! It helps us improve. 🙏');
+  if(!papOpen){togglePapyrus();}
+  Analytics.track('feedback',{len:t.length});
+}
 function requestFeature(){globalThis.location.href='mailto:support@nouchix.com?subject=Feature Request — ASAF Platform&body=Hi NouchiX team,%0A%0AFeature request:%0A%0A';}
 function copyDiag(){const d=JSON.stringify({v:CFG.version,ua:navigator.userAgent,provider,api:document.getElementById('api-dot').className,llm:document.getElementById('llm-dot').className,ts:new Date().toISOString()},null,2);navigator.clipboard?.writeText(d);papSay('📋 Diagnostic info copied to clipboard. Paste it when reporting a bug — thank you!');if(!papOpen)togglePapyrus();}
 
