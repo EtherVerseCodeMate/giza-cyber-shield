@@ -177,3 +177,8 @@ func (a *LicenseManagerAdapter) GetFullStatus() *license.ValidateResponse {
 func (a *LicenseManagerAdapter) GetMachineID() string {
 	return a.mgr.GetMachineID()
 }
+
+// RevokeLicense marks the license as revoked in-memory via the underlying manager.
+func (a *LicenseManagerAdapter) RevokeLicense(stripeEventID, reason string) error {
+	return a.mgr.RevokeLicense(stripeEventID, reason)
+}
