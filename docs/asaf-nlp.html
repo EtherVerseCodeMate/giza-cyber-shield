@@ -276,9 +276,9 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
       <div id="messages"></div>
       <div id="ciw">
         <div id="suggested">
-          <div class="sug" onclick="usePrompt(this)">Check if my systems meet government security standards</div>
-          <div class="sug" onclick="usePrompt(this)">What does STIG V-72213 require in plain English?</div>
-          <div class="sug" onclick="usePrompt(this)">Create a compliance proof for my organization</div>
+          <div class="sug" role="button" tabindex="0" onclick="usePrompt(this)" onkeydown="if(event.key==='Enter'||event.key===' ')usePrompt(this)">Check if my systems meet government security standards</div>
+          <div class="sug" role="button" tabindex="0" onclick="usePrompt(this)" onkeydown="if(event.key==='Enter'||event.key===' ')usePrompt(this)">What does STIG V-72213 require in plain English?</div>
+          <div class="sug" role="button" tabindex="0" onclick="usePrompt(this)" onkeydown="if(event.key==='Enter'||event.key===' ')usePrompt(this)">Create a compliance proof for my organization</div>
         </div>
         <div id="llmsel">
           <button class="llmbtn active" data-p="ollama">Ollama</button>
@@ -307,8 +307,8 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
     <section id="term-panel">
       <div id="thdr">
         <div class="tabbar">
-          <div class="tab active" onclick="switchTab('term',event)">SCAN OUTPUT</div>
-          <div class="tab" onclick="switchTab('dag',event)">DAG GRAPH</div>
+          <div class="tab active" role="button" tabindex="0" onclick="switchTab('term',event)" onkeydown="if(event.key==='Enter')switchTab('term',event)">SCAN OUTPUT</div>
+          <div class="tab" role="button" tabindex="0" onclick="switchTab('dag',event)" onkeydown="if(event.key==='Enter')switchTab('dag',event)">DAG GRAPH</div>
         </div>
       </div>
       <div id="twrap"><div id="term"></div></div>
@@ -396,14 +396,14 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
   <div id="help-menu">
     <div class="hm-hdr">HELP &amp; SUPPORT</div>
     <div class="hm-sec">
-      <div class="hm-item" onclick="startTour();closeHelp()"><span class="hm-icon">🗺</span>Interactive Tour<span class="hm-sc">Alt+T</span></div>
-      <div class="hm-item" onclick="window.open('https://docs.nouchix.com','_blank');closeHelp()"><span class="hm-icon">📖</span>Documentation</div>
-      <div class="hm-item" onclick="showQuickRef()"><span class="hm-icon">⚡</span>Quick Reference</div>
+      <div class="hm-item" role="button" tabindex="0" onclick="startTour();closeHelp()" onkeydown="if(event.key==='Enter')this.click()"><span class="hm-icon">🗺</span>Interactive Tour<span class="hm-sc">Alt+T</span></div>
+      <div class="hm-item" role="button" tabindex="0" onclick="globalThis.open('https://docs.nouchix.com','_blank');closeHelp()" onkeydown="if(event.key==='Enter')this.click()"><span class="hm-icon">📖</span>Documentation</div>
+      <div class="hm-item" role="button" tabindex="0" onclick="showQuickRef()" onkeydown="if(event.key==='Enter')this.click()"><span class="hm-icon">⚡</span>Quick Reference</div>
     </div>
     <div class="hm-sec">
-      <div class="hm-item" onclick="openFeedback();closeHelp()"><span class="hm-icon">💬</span>Send Feedback</div>
-      <div class="hm-item" onclick="requestFeature();closeHelp()"><span class="hm-icon">💡</span>Request Feature</div>
-      <div class="hm-item" onclick="copyDiag();closeHelp()"><span class="hm-icon">🐛</span>Copy Diagnostic</div>
+      <div class="hm-item" role="button" tabindex="0" onclick="openFeedback();closeHelp()" onkeydown="if(event.key==='Enter')this.click()"><span class="hm-icon">💬</span>Send Feedback</div>
+      <div class="hm-item" role="button" tabindex="0" onclick="requestFeature();closeHelp()" onkeydown="if(event.key==='Enter')this.click()"><span class="hm-icon">💡</span>Request Feature</div>
+      <div class="hm-item" role="button" tabindex="0" onclick="copyDiag();closeHelp()" onkeydown="if(event.key==='Enter')this.click()"><span class="hm-icon">🐛</span>Copy Diagnostic</div>
     </div>
     <div class="hm-sec">
       <div class="hm-item" style="cursor:default;font-size:11px;opacity:.7"><span class="hm-icon">⌨</span>Enter=Send · Shift+Enter=Newline · Alt+T=Tour</div>
@@ -429,7 +429,7 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
 </div>
 
 <script>
-const CFG=window.ASAF_CONFIG||{apiURL:'http://localhost:45444',ollamaURL:'http://localhost:11434',lmstudioURL:'http://localhost:1234',version:'dev'};
+const CFG=globalThis.ASAF_CONFIG||{apiURL:'http://localhost:45444',ollamaURL:'http://localhost:11434',lmstudioURL:'http://localhost:1234',version:'dev'};
 let provider='ollama',ollamaModel='llama3.1:8b',orKey='',dagNodes=[],term,fitAddon,isThinking=false,apiErrCount=0;
 
 // ── OS + Environment Detection (Polymorphic Connector) ────────────────────────
@@ -504,7 +504,7 @@ function initTerm(){
   termPrint('\x1b[38;5;36m│\x1b[0m  Post-Quantum Certified · NouchiX / SecRed Knowledge \x1b[38;5;36m│\x1b[0m');
   termPrint('\x1b[38;5;36m└─────────────────────────────────────────────────────┘\x1b[0m');
   termPrint('');
-  window.addEventListener('resize',()=>fitAddon.fit());
+  globalThis.addEventListener('resize',()=>fitAddon.fit());
 }
 const tP=s=>term.writeln(s);
 function termPrint(l){tP(l)}
@@ -544,7 +544,11 @@ function setProvider(p){
   provider=p;document.querySelectorAll('.llmbtn').forEach(b=>b.classList.toggle('active',b.dataset.p===p));
   document.getElementById('or-card').style.display=p==='openrouter'?'block':'none';
 }
-document.querySelectorAll('.llmbtn').forEach(b=>b.addEventListener('click',()=>{setProvider(b.dataset.p);if(b.dataset.p!=='openrouter')detectLLM();Analytics.track('llm',{p:b.dataset.p});}));
+document.querySelectorAll('.llmbtn').forEach(b=>b.addEventListener('click',()=>{
+  setProvider(b.dataset.p);
+  if(b.dataset.p!=='openrouter'){detectLLM();}
+  Analytics.track('llm',{p:b.dataset.p});
+}));
 function connectOR(){
   const k=document.getElementById('orkl').value.trim();if(!k)return;
   orKey=k;setProvider('openrouter');document.getElementById('or-card').style.display='none';
@@ -680,8 +684,40 @@ async function callLLM(msgs){
   if(provider==='lmstudio'){const r=await fetch(CFG.lmstudioURL+'/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'local-model',messages:msgs,stream:true,max_tokens:2048})});if(!r.ok)throw new Error('LM Studio '+r.status);return streamOAI(r);}
   if(provider==='openrouter'){const k=orKey||document.getElementById('orkl')?.value;if(!k)throw new Error('OpenRouter API key required');orKey=k;const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+k,'HTTP-Referer':'https://nouchix.com','X-Title':'ASAF Security Platform'},body:JSON.stringify({model:'nousresearch/hermes-3-llama-3.1-70b',messages:msgs,stream:true,max_tokens:2048})});if(!r.ok)throw new Error('OpenRouter '+r.status);return streamOAI(r);}
 }
-async function* streamOllama(r){const rd=r.body.getReader();const dc=new TextDecoder();let buf='';while(true){const{done,value}=await rd.read();if(done)break;buf+=dc.decode(value,{stream:true});const ls=buf.split('\n');buf=ls.pop();for(const l of ls){if(!l.trim())continue;try{const o=JSON.parse(l);if(o.message?.content)yield o.message.content;}catch{}}}}
-async function* streamOAI(r){const rd=r.body.getReader();const dc=new TextDecoder();let buf='';while(true){const{done,value}=await rd.read();if(done)break;buf+=dc.decode(value,{stream:true});const ls=buf.split('\n');buf=ls.pop();for(const l of ls){if(!l.startsWith('data: '))continue;const d=l.slice(6).trim();if(d==='[DONE]')return;try{const o=JSON.parse(d);const c=o.choices?.[0]?.delta?.content;if(c)yield c;}catch{}}}}
+async function* streamOllama(r){
+  const rd=r.body.getReader();
+  const dc=new TextDecoder();
+  let buf='';
+  while(true){
+    const{done,value}=await rd.read();
+    if(done){break;}
+    buf+=dc.decode(value,{stream:true});
+    const ls=buf.split('\n');
+    buf=ls.pop();
+    for(const l of ls){
+      if(!l.trim()){continue;}
+      try{const o=JSON.parse(l);if(o.message?.content){yield o.message.content;}}catch(err){/* non-JSON line — skip */}
+    }
+  }
+}
+async function* streamOAI(r){
+  const rd=r.body.getReader();
+  const dc=new TextDecoder();
+  let buf='';
+  while(true){
+    const{done,value}=await rd.read();
+    if(done){break;}
+    buf+=dc.decode(value,{stream:true});
+    const ls=buf.split('\n');
+    buf=ls.pop();
+    for(const l of ls){
+      if(!l.startsWith('data: ')){continue;}
+      const d=l.slice(6).trim();
+      if(d==='[DONE]'){return;}
+      try{const o=JSON.parse(d);const c=o.choices?.[0]?.delta?.content;if(c){yield c;}}catch(err){/* non-JSON SSE line — skip */}
+    }
+  }
+}
 
 // ── ASAF command dispatch ─────────────────────────────────────────────────────
 async function dispatchCmd(cmd){
@@ -696,7 +732,19 @@ async function dispatchCmd(cmd){
     if(d.scan_id)termData('Scan ID',d.scan_id);
     if(d.certified!==undefined)termData('Certified',d.certified?'\x1b[32m✓ YES\x1b[0m':'\x1b[33m✗ NO\x1b[0m');
     if(d.framework)termData('Framework',d.framework);
-    if(d.findings?.length){termPrint('');termPrint('  \x1b[38;5;220mFindings:\x1b[0m');d.findings.slice(0,10).forEach(f=>{const s=f.severity==='critical'?'\x1b[31m':f.severity==='high'?'\x1b[33m':'\x1b[36m';termPrint(`  ${s}[${(f.severity||'info').toUpperCase().padEnd(8)}]\x1b[0m ${f.title||f.control_id||f.id}`);});if(d.findings.length>10)termPrint('  ... +'+(d.findings.length-10)+' more');}
+    if(d.findings?.length){
+      termPrint('');
+      termPrint('  \x1b[38;5;220mFindings:\x1b[0m');
+      d.findings.slice(0,10).forEach(f=>{
+        let sev;
+        if(f.severity==='critical'){sev='\x1b[31m';}
+        else if(f.severity==='high'){sev='\x1b[33m';}
+        else{sev='\x1b[36m';}
+        const label=(f.severity||'info').toUpperCase().padEnd(8);
+        termPrint('  '+sev+'['+label+']\x1b[0m '+(f.title||f.control_id||f.id));
+      });
+      if(d.findings.length>10){termPrint('  ... +'+(d.findings.length-10)+' more');}
+    }
     if(d.dag_node||d.attestation)addDAGNode(d);
     if(d.chain)renderDAGFromChain(d.chain);
     termSep();Analytics.track('cmd',{action:cmd.action,ok:true});return d;
@@ -732,8 +780,8 @@ function addMsg(role,content){
 }
 function addThinking(){const d=document.getElementById('messages');const el=document.createElement('div');el.className='msg assistant';el.id='thinker';el.innerHTML='<div class="mav">⬡</div><div class="mbody"><div class="thinking"><span></span><span></span><span></span></div></div>';d.appendChild(el);d.scrollTop=d.scrollHeight;}
 function rmThinking(){document.getElementById('thinker')?.remove();}
-function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function fmt(t){return esc(t.replace(/ASAF_CMD:\{[^}]+\}/g,'').trim()).replace(/`([^`]+)`/g,'<code>$1</code>');}
+function esc(s){return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');}
+function fmt(t){return esc(t.replaceAll(/ASAF_CMD:\{[^}]+\}/g,'').trim()).replaceAll(/`([^`]+)`/g,'<code>$1</code>');}
 
 async function sendMsg(){
   const inp=document.getElementById('cinput');const text=inp.value.trim();
@@ -744,10 +792,18 @@ async function sendMsg(){
   try{
     const stream=callLLM(history);rmThinking();textEl=addMsg('assistant','');
     for await(const chunk of await stream){full+=chunk;textEl.innerHTML=fmt(full);document.getElementById('messages').scrollTop=999999;}
-    const cmds=extractCmds(full);for(const cmd of cmds){try{await dispatchCmd(cmd);}catch{}}
+    const cmds=extractCmds(full);
+    for(const cmd of cmds){
+      try{await dispatchCmd(cmd);}catch(cmdErr){termErr('Cmd error: '+cmdErr.message);}
+    }
     history.push({role:'assistant',content:full});
     Analytics.track('prompt',{len:text.length,provider});
-  }catch(e){rmThinking();if(!textEl)textEl=addMsg('assistant','');textEl.innerHTML=fmt('Error: '+e.message+'\n\nCheck your LLM connection.');termErr('LLM: '+e.message);}
+  }catch(e){
+    rmThinking();
+    if(!textEl){textEl=addMsg('assistant','');}
+    textEl.innerHTML=fmt('Error: '+e.message+'\n\nCheck your LLM connection.');
+    termErr('LLM: '+e.message);
+  }
   finally{isThinking=false;document.getElementById('sbtn').disabled=false;}
 }
 function usePrompt(el){document.getElementById('cinput').value=el.textContent.replace('→ ','');document.getElementById('cinput').focus();Analytics.track('sug_click',{text:el.textContent.slice(0,40)});}
@@ -773,12 +829,16 @@ function renderChain(){
     list.appendChild(div);
   });
 }
-function renderDAGFromChain(chain){if(!Array.isArray(chain))return;dagNodes=chain.map(n=>({...n,label:n.entity_id||n.id,pqc:true}));renderChain();}
+function renderDAGFromChain(chain){
+  if(!Array.isArray(chain)){return;}
+  dagNodes=chain.map(n=>({...n,label:n.entity_id||n.id,pqc:true}));
+  renderChain();
+}
 
 // ── D3 DAG graph ──────────────────────────────────────────────────────────────
 function renderDAGGraph(){
-  const svg=d3.select('#dag-svg');svg.selectAll('*').remove();if(!dagNodes.length)return;
-  const w=document.getElementById('dagwrap').clientWidth,h=document.getElementById('dagwrap').clientHeight;
+  const svg=d3.select('#dag-svg');svg.selectAll('*').remove();if(!dagNodes.length){return;}
+  const w=document.getElementById('dagwrap').clientWidth,hPx=document.getElementById('dagwrap').clientHeight;
   svg.append('defs').append('marker').attr('id','arrow').attr('viewBox','0 -5 10 10').attr('refX',18).attr('refY',0).attr('markerWidth',6).attr('markerHeight',6).attr('orient','auto').append('path').attr('d','M0,-5L10,0L0,5').attr('fill','#2a3545');
   const g=svg.append('g').attr('transform',`translate(${w/2},40)`);
   const nodes=dagNodes.slice(0,8).map((n,i)=>({...n,x:(i%3-1)*120,y:Math.floor(i/3)*100}));
@@ -808,7 +868,10 @@ async function sendPapMsg(){
     for await(const c of await stream){full+=c;ael.textContent=full;}
     papHistory.push({role:'assistant',content:full});
     Analytics.track('pap_msg',{len:text.length});
-  }catch(e){ael.textContent='Sorry, I need an AI connection to respond. Make sure your LLM is set up!';}
+  }catch(e){
+    ael.textContent='Sorry, I need an AI connection to respond. Make sure your LLM is set up!';
+    console.warn('Papyrus LLM error:', e);
+  }
 }
 document.getElementById('pap-in').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendPapMsg();}});
 document.getElementById('pap-in').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px';});
@@ -848,7 +911,7 @@ function closeHelp(ev){if(!ev||ev.target===document.getElementById('help-ov'))do
 function showQuickRef(){closeHelp();papSay('⚡ Quick Reference:\n• "Scan [target] for CMMC L2 gaps"\n• "What does STIG [ID] require?"\n• "Check my compliance score"\n• "Show threat intel for CVE-[year]-[id]"\n• "Generate attestation for org [name]"\n• "Export my compliance certificate"');if(!papOpen)togglePapyrus();}
 function openFeedback(){document.getElementById('fb-form').classList.add('open');}
 function submitFeedback(){const t=document.getElementById('fb-txt').value.trim();if(!t)return;fetch(CFG.apiURL+'/api/v1/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({feedback:t,ts:Date.now()})}).catch(()=>{});document.getElementById('fb-form').classList.remove('open');document.getElementById('fb-txt').value='';papSay('Thanks for your feedback! It helps us improve. 🙏');if(!papOpen)togglePapyrus();Analytics.track('feedback',{len:t.length});}
-function requestFeature(){window.location.href='mailto:support@nouchix.com?subject=Feature Request — ASAF Platform&body=Hi NouchiX team,%0A%0AFeature request:%0A%0A';}
+function requestFeature(){globalThis.location.href='mailto:support@nouchix.com?subject=Feature Request — ASAF Platform&body=Hi NouchiX team,%0A%0AFeature request:%0A%0A';}
 function copyDiag(){const d=JSON.stringify({v:CFG.version,ua:navigator.userAgent,provider,api:document.getElementById('api-dot').className,llm:document.getElementById('llm-dot').className,ts:new Date().toISOString()},null,2);navigator.clipboard?.writeText(d);papSay('📋 Diagnostic info copied to clipboard. Paste it when reporting a bug — thank you!');if(!papOpen)togglePapyrus();}
 
 // ── DAG drawer (tablet) ───────────────────────────────────────────────────────
@@ -886,7 +949,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   const welcome=document.createElement('div');welcome.className='msg system';
   welcome.innerHTML=`<div class="mav">◈</div><div class="mbody"><div class="mtext">ASAF Natural Language Security Platform — ready.\n\nType a security question or compliance request. Examples:\n• "Check if my systems meet government security standards"\n• "What does STIG V-72213 require?"\n• "Generate an ADINKHEPRA attestation for org acme-corp"\n• "Show me threat intel for CVE-2024-3400"</div><div class="mtime">system</div></div>`;
   msgs.appendChild(welcome);
-  Analytics.track('page_view',{ref:document.referrer,w:window.innerWidth,h:window.innerHeight});
+  Analytics.track('page_view',{ref:document.referrer,w:globalThis.innerWidth,h:globalThis.innerHeight});
 });
 </script>
 </body>

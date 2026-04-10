@@ -39,13 +39,7 @@ const tier1HKDFInfo = "ASAF-TIER1-ATTESTATION-SIGNING-KEY-v1"
 
 func keysCmd(args []string) {
 	if len(args) == 0 {
-		fmt.Println("Usage: asaf keys <subcommand>")
-		fmt.Println("")
-		fmt.Println("Subcommands:")
-		fmt.Println("  init                                    Root key ceremony (Tier 0)")
-		fmt.Println("  status                                  Key status and storage backend")
-		fmt.Println("  backup [--shares N] [--threshold M]     Shamir backup (default: 3-of-2)")
-		fmt.Println("  recover --shards s1.json,s2.json        Reconstruct from shards")
+		printKeyUsage()
 		return
 	}
 	switch args[0] {
@@ -58,40 +52,62 @@ func keysCmd(args []string) {
 			fatal("keys status failed", err)
 		}
 	case "backup":
-		outDir := filepath.Join(os.TempDir(), "asaf-keyshards")
-		shares, threshold := 3, 2
-		for i, a := range args {
-			if a == "--out" && i+1 < len(args) {
-				outDir = args[i+1]
-			}
-			if a == "--shares" && i+1 < len(args) {
-				fmt.Sscanf(args[i+1], "%d", &shares)
-			}
-			if a == "--threshold" && i+1 < len(args) {
-				fmt.Sscanf(args[i+1], "%d", &threshold)
-			}
-		}
+		outDir, shares, threshold := parseBackupArgs(args)
 		if err := cmdKeysBackup(outDir, shares, threshold); err != nil {
 			fatal("keys backup failed", err)
 		}
 	case "recover":
-		var shardList string
-		for i, a := range args {
-			if a == "--shards" && i+1 < len(args) {
-				shardList = args[i+1]
-			}
-		}
+		shardList := parseShardList(args)
 		if shardList == "" {
 			fmt.Println("Usage: asaf keys recover --shards shard-1-of-3.json,shard-2-of-3.json")
 			return
 		}
-		shardPaths := strings.Split(shardList, ",")
-		if err := cmdKeysRecover(shardPaths); err != nil {
+		if err := cmdKeysRecover(strings.Split(shardList, ",")); err != nil {
 			fatal("keys recover failed", err)
 		}
 	default:
 		fmt.Printf("Unknown keys subcommand: %s\n", args[0])
 	}
+}
+
+func printKeyUsage() {
+	fmt.Println("Usage: asaf keys <subcommand>")
+	fmt.Println("")
+	fmt.Println("Subcommands:")
+	fmt.Println("  init                                    Root key ceremony (Tier 0)")
+	fmt.Println("  status                                  Key status and storage backend")
+	fmt.Println("  backup [--shares N] [--threshold M]     Shamir backup (default: 3-of-2)")
+	fmt.Println("  recover --shards s1.json,s2.json        Reconstruct from shards")
+}
+
+// parseBackupArgs extracts --out, --shares, and --threshold from args.
+func parseBackupArgs(args []string) (outDir string, shares, threshold int) {
+	outDir = filepath.Join(os.TempDir(), "asaf-keyshards")
+	shares, threshold = 3, 2
+	for i, a := range args {
+		if i+1 >= len(args) {
+			break
+		}
+		switch a {
+		case "--out":
+			outDir = args[i+1]
+		case "--shares":
+			fmt.Sscanf(args[i+1], "%d", &shares)
+		case "--threshold":
+			fmt.Sscanf(args[i+1], "%d", &threshold)
+		}
+	}
+	return
+}
+
+// parseShardList extracts the --shards value from args.
+func parseShardList(args []string) string {
+	for i, a := range args {
+		if a == "--shards" && i+1 < len(args) {
+			return args[i+1]
+		}
+	}
+	return ""
 }
 
 // cmdKeysInit performs the Tier 0 root key ceremony.
