@@ -113,23 +113,27 @@ func (fb *FirewallBlade) Strike(heka maat.Heka) error {
 		return nil
 	}
 
-	log.Printf("[%s] Processing banishment for Isfet: %s", fb.name, heka.Isfet.ID)
-
+	// Collect actionable IP omens first — only log if there is at least one.
+	// CVE/STIG findings route here via ActionBanish but carry no IP omens;
+	// logging "Processing banishment" for them produces misleading journal noise.
 	var lastErr error
+	submitted := 0
 	for _, omen := range heka.Isfet.Omens {
-		// Only act on omens that carry an IP address with high malevolence.
 		if omen.Name != "ip" || omen.Malevolence < 0.7 {
 			continue
+		}
+		if submitted == 0 {
+			log.Printf("[%s] Processing banishment for Isfet: %s", fb.name, heka.Isfet.ID)
 		}
 		ip := omen.Value
 		log.Printf("[%s] Submitting Crowdsec decision: ban ip=%s malevolence=%.2f isfet=%s",
 			fb.name, ip, omen.Malevolence, heka.Isfet.ID)
-
 		if err := fb.submitCrowdsecDecision(ip, "24h", "ban"); err != nil {
 			log.Printf("[%s] Crowdsec submission failed for %s: %v", fb.name, ip, err)
 			lastErr = err
 		} else {
 			log.Printf("[%s] SUCCESS: ip=%s submitted to Crowdsec (24h ban)", fb.name, ip)
+			submitted++
 		}
 	}
 
