@@ -155,10 +155,11 @@ if [ -d "bin" ] && ls bin/asaf-* &>/dev/null; then
   $SCP bin/checksums.txt ${VPS_USER}@${VPS_HOST}:/var/www/asaf/releases/ 2>/dev/null || true
 fi
 
-# Upload webhook binary
+# Upload webhook binary (non-fatal — binary may already exist on VPS)
 if [ "${SKIP_WEBHOOK_BIN:-0}" = "0" ] && [ -f "bin/asaf-webhook-linux-amd64" ]; then
-  $SCP bin/asaf-webhook-linux-amd64 ${VPS_USER}@${VPS_HOST}:/opt/asaf/bin/
-  $SSH "chmod +x /opt/asaf/bin/asaf-webhook-linux-amd64"
+  $SCP bin/asaf-webhook-linux-amd64 ${VPS_USER}@${VPS_HOST}:/opt/asaf/bin/ \
+    || log "webhook binary upload skipped (already exists on VPS — OK)"
+  $SSH "chmod +x /opt/asaf/bin/asaf-webhook-linux-amd64" 2>/dev/null || true
 fi
 
 
