@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/apiserver"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/arsenal"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/compliance"       // CMMC/SSP Engine
 	agiconfig "github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/config" // Revert to valid pkg/config
@@ -68,7 +67,11 @@ type Engine struct {
 	intel      *intel.KnowledgeBase
 	arsenal    *arsenal.Inventory // Dynamic Tool Arsenal
 	scanner    *scanner.Scanner
-	python     *apiserver.PythonServiceClient
+	// Motherboard Link — kept as a local interface to avoid a circular import
+	// between pkg/agi and pkg/apiserver (apiserver → sekhem → agi).
+	// The concrete implementation lives in pkg/apiserver.PythonServiceClient;
+	// we bind it at construction time via the pythonCaller interface below.
+	python     pythonCaller
 	hunter     *vuln.Hunter         // Vulnerability Hunter
 	forensics  *forensics.Collector // Digital Forensics
 	ir         *ir.Manager          // Incident Response Manager
@@ -94,6 +97,25 @@ type Task struct {
 	Description string
 	Priority    string // HIGH, MED, LOW
 	Symbol      string // Associated Adinkra Symbol (e.g., Eban)
+}
+
+// PredictResponse is a local copy of apiserver.PredictResponse.
+// Duplicating this small struct avoids a circular import:
+//
+//	pkg/agi → pkg/apiserver → pkg/sekhem → pkg/agi
+//
+// If the upstream struct changes, update this one to match.
+type PredictResponse struct {
+	AnomalyScore       float64            `json:"anomaly_score"`
+	IsAnomaly          bool               `json:"is_anomaly"`
+	Confidence         float64            `json:"confidence"`
+	ArchetypeInfluence map[string]float64 `json:"archetype_influence"`
+}
+
+// pythonCaller is satisfied by *apiserver.PythonServiceClient.
+// Keeping it as an interface here means pkg/agi never needs to import pkg/apiserver.
+type pythonCaller interface {
+	GetIntuition(features []float64, metadata map[string]string) (*PredictResponse, error)
 }
 
 // NewEngine creates a new Khepra AGI Engine
@@ -138,7 +160,7 @@ func NewEngine(store dag.Store) *Engine {
 		intel:              intel.NewKnowledgeBase(),
 		scanner:            scanner.New(),
 		llm:                cognitiveLayer,
-		python:             apiserver.NewPythonServiceClient("http://localhost:8000"), // Motherboard Link
+		python:             NewMotherboardClient("http://localhost:8000"), // Motherboard Link
 		hunter:             hunter,
 		forensics:          forensicsCollector,
 		arsenal:            arsenal.NewInventory(),
@@ -787,7 +809,7 @@ func (e *Engine) performAIThreatAnalysis(target string, results []scanner.Result
 	return analysis
 }
 
-func (e *Engine) getAGIIntuition(target string, results []scanner.Result) *apiserver.PredictResponse {
+func (e *Engine) getAGIIntuition(target string, results []scanner.Result) *PredictResponse {
 	if e.python == nil {
 		return nil
 	}
@@ -797,6 +819,13 @@ func (e *Engine) getAGIIntuition(target string, results []scanner.Result) *apise
 		return nil
 	}
 	return pred
+}
+
+// SetPythonCaller injects the ML service client after construction.
+// Call this from pkg/apiserver or the main binary to avoid the circular
+// import that would arise if pkg/agi imported pkg/apiserver directly.
+func (e *Engine) SetPythonCaller(c pythonCaller) {
+	e.python = c
 }
 
 // cryptoAgilityScore derives a PQC readiness score from a service banner.
@@ -820,7 +849,7 @@ func (e *Engine) cryptoAgilityScore(banner string) string {
 	}
 }
 
-func (e *Engine) formatIntuitionScore(intuition *apiserver.PredictResponse) string {
+func (e *Engine) formatIntuitionScore(intuition *PredictResponse) string {
 	if intuition != nil {
 		return fmt.Sprintf("%.4f", intuition.AnomalyScore)
 	}
