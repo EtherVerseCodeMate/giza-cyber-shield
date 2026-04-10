@@ -70,7 +70,10 @@ if [ "$HTTP_STATUS" != "201" ]; then
 fi
 
 RELEASE_ID=$(echo "$RELEASE" | grep '"id"' | head -1 | grep -o '[0-9]*' | head -1)
-UPLOAD_URL=$(echo "$RELEASE" | grep '"upload_url"' | head -1 | sed 's/.*"upload_url": *"\([^"]*\)".*/\1/' | sed 's/{.*}//')
+UPLOAD_URL=$(echo "$RELEASE" | grep '"upload_url"' | head -1 \
+  | sed 's/.*"upload_url": *"\([^"]*\)".*/\1/' \
+  | sed 's/{.*}//' \
+  | tr -d '\r\n')
 
 echo "      Release ID: $RELEASE_ID"
 echo "      Upload URL: $UPLOAD_URL"
@@ -82,11 +85,17 @@ upload() {
   local file="$1"
   local name=$(basename "$file")
   echo "      Uploading $name ($(du -sh "$file" | cut -f1))..."
-  curl -sf -X POST \
+  HTTP=$(curl -S -X POST \
     -H "$AUTH" \
     -H "Content-Type: application/octet-stream" \
     --data-binary @"$file" \
-    "${UPLOAD_URL}?name=${name}" > /dev/null
+    -w "%{http_code}" \
+    -o /dev/null \
+    "${UPLOAD_URL}?name=${name}")
+  if [ "$HTTP" != "201" ]; then
+    echo "      [ERROR] Upload failed HTTP $HTTP for $name"
+    exit 1
+  fi
   echo "      ✓ $name"
 }
 
