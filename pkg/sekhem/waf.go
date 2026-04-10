@@ -259,8 +259,8 @@ func (ws *WAFShield) ThreatChan() <-chan maat.Isfet {
 	return ws.threatChan
 }
 
-// Metrics returns a snapshot of current WAF metrics.
-func (ws *WAFShield) Metrics() WAFMetrics {
+// Metrics returns a mutex-free snapshot of current WAF metrics.
+func (ws *WAFShield) Metrics() WAFSnapshot {
 	return ws.metrics.Snapshot()
 }
 
