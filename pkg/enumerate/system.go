@@ -697,38 +697,48 @@ func collectCronJobs() ([]audit.CronJob, error) {
 	}
 }
 
+// collectCronDJobs reads all crontab files under /etc/cron.d and parses them as root jobs.
+func collectCronDJobs() []audit.CronJob {
+	files, err := os.ReadDir("/etc/cron.d")
+	if err != nil {
+		return nil
+	}
+	var jobs []audit.CronJob
+	for _, f := range files {
+		if f.IsDir() {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join("/etc/cron.d", f.Name()))
+		if err == nil {
+			jobs = append(jobs, parseCrontab(string(data), "root")...)
+		}
+	}
+	return jobs
+}
+
 func collectCronJobsLinux() ([]audit.CronJob, error) {
 	var cronJobs []audit.CronJob
 
 	// System crontab
 	if data, err := os.ReadFile("/etc/crontab"); err == nil {
-		jobs := parseCrontab(string(data), "root")
-		cronJobs = append(cronJobs, jobs...)
+		cronJobs = append(cronJobs, parseCrontab(string(data), "root")...)
 	}
 
 	// System cron.d directory
-	cronDFiles, err := os.ReadDir("/etc/cron.d")
-	if err == nil {
-		for _, file := range cronDFiles {
-			if file.IsDir() {
-				continue
-			}
-			data, err := os.ReadFile(filepath.Join("/etc/cron.d", file.Name()))
-			if err == nil {
-				jobs := parseCrontab(string(data), "root")
-				cronJobs = append(cronJobs, jobs...)
-			}
-		}
-	}
+	cronJobs = append(cronJobs, collectCronDJobs()...)
 
-	// User crontabs
+	// User crontabs — only check interactive users (UID >= 1000) and root (UID 0).
+	// System service accounts (UID 1-999: daemon, sys, www-data, messagebus, etc.)
+	// have no personal crontabs; calling `crontab -l -u <svcacct>` on each Ouroboros
+	// tick creates one journal entry per account per cycle (20+ entries/10s) because
+	// PAM logs every invocation. Filter them out here.
 	users, _ := collectUsersUnix()
 	for _, u := range users {
-		cmd := exec.Command("crontab", "-u", u.Username, "-l")
-		output, err := cmd.Output()
-		if err == nil {
-			jobs := parseCrontab(string(output), u.Username)
-			cronJobs = append(cronJobs, jobs...)
+		if u.UID > 0 && u.UID < 1000 {
+			continue // skip service accounts
+		}
+		if output, err := exec.Command("crontab", "-u", u.Username, "-l").Output(); err == nil {
+			cronJobs = append(cronJobs, parseCrontab(string(output), u.Username)...)
 		}
 	}
 
