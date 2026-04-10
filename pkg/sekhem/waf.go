@@ -65,6 +65,17 @@ type WAFMetrics struct {
 	RuleHits     map[string]int64
 }
 
+// WAFSnapshot is a mutex-free point-in-time copy of WAFMetrics.
+// Use this type for telemetry, logging, and API responses to avoid
+// copying the embedded sync.Mutex inside WAFMetrics.
+type WAFSnapshot struct {
+	TotalChecked int64
+	Blocked      int64
+	Challenged   int64
+	Bypassed     int64
+	RuleHits     map[string]int64
+}
+
 func newWAFMetrics() *WAFMetrics {
 	return &WAFMetrics{RuleHits: make(map[string]int64)}
 }
@@ -84,11 +95,11 @@ func (m *WAFMetrics) record(ruleID string, action WAFAction) {
 	}
 }
 
-// Snapshot returns a read-safe copy of current metrics.
-func (m *WAFMetrics) Snapshot() WAFMetrics {
+// Snapshot returns a mutex-free, read-safe copy of current metrics.
+func (m *WAFMetrics) Snapshot() WAFSnapshot {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	snap := WAFMetrics{
+	snap := WAFSnapshot{
 		TotalChecked: m.TotalChecked,
 		Blocked:      m.Blocked,
 		Challenged:   m.Challenged,
