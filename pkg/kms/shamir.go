@@ -59,53 +59,58 @@ func SplitAndEncrypt(rootSeed []byte, threshold, total int, outDir string, promp
 	}
 
 	for i, shard := range shards {
-		// Each shard gets its own passphrase
-		passphrase, err := promptFn(fmt.Sprintf("Enter passphrase for shard %d/%d: ", i+1, total))
-		if err != nil {
-			return fmt.Errorf("passphrase prompt for shard %d: %w", i+1, err)
+		if err := encryptAndWriteShard(i, shard, total, threshold, fp, outDir, promptFn); err != nil {
+			return err
 		}
-		if passphrase == "" {
-			return fmt.Errorf("shard %d passphrase cannot be empty", i+1)
-		}
-
-		// Derive a unique encryption key for this shard via Argon2id
-		salt, err := NewSalt()
-		if err != nil {
-			return fmt.Errorf("salt generation for shard %d: %w", i+1, err)
-		}
-		shardKey := DeriveKey([]byte(passphrase), salt, DefaultKDFParams)
-
-		// Encrypt the raw shard bytes
-		encryptedShard, err := aesGCMEncrypt(shardKey[:32], shard)
-		if err != nil {
-			return fmt.Errorf("encrypt shard %d: %w", i+1, err)
-		}
-
-		ks := KeyShard{
-			Index:           i + 1,
-			Total:           total,
-			Threshold:       threshold,
-			EncryptedShard:  encryptedShard,
-			Salt:            salt,
-			KDFAlgorithm:    "argon2id",
-			CreatedAt:       time.Now().UTC(),
-			RootFingerprint: fp,
-		}
-
-		data, err := json.MarshalIndent(ks, "", "  ")
-		if err != nil {
-			return fmt.Errorf("marshal shard %d: %w", i+1, err)
-		}
-
-		path := filepath.Join(outDir, fmt.Sprintf("shard-%d-of-%d.json", i+1, total))
-		if err := os.WriteFile(path, data, 0600); err != nil {
-			return fmt.Errorf("write shard %d to %s: %w", i+1, total, err)
-		}
-		fmt.Printf("  ✓ Shard %d/%d → %s\n", i+1, total, path)
 	}
 
 	fmt.Printf("\n  ⚠️  Store each shard file on a separate encrypted USB or offline location.\n")
 	fmt.Printf("  Any %d of %d passphrases + shard files can reconstruct your root key.\n", threshold, total)
+	return nil
+}
+
+// encryptAndWriteShard encrypts a single Shamir shard and writes it to disk.
+func encryptAndWriteShard(i int, shard []byte, total, threshold int, fp, outDir string, promptFn func(string) (string, error)) error {
+	passphrase, err := promptFn(fmt.Sprintf("Enter passphrase for shard %d/%d: ", i+1, total))
+	if err != nil {
+		return fmt.Errorf("passphrase prompt for shard %d: %w", i+1, err)
+	}
+	if passphrase == "" {
+		return fmt.Errorf("shard %d passphrase cannot be empty", i+1)
+	}
+
+	salt, err := NewSalt()
+	if err != nil {
+		return fmt.Errorf("salt generation for shard %d: %w", i+1, err)
+	}
+	shardKey := DeriveKey([]byte(passphrase), salt, DefaultKDFParams)
+
+	encryptedShard, err := aesGCMEncrypt(shardKey[:32], shard)
+	if err != nil {
+		return fmt.Errorf("encrypt shard %d: %w", i+1, err)
+	}
+
+	ks := KeyShard{
+		Index:           i + 1,
+		Total:           total,
+		Threshold:       threshold,
+		EncryptedShard:  encryptedShard,
+		Salt:            salt,
+		KDFAlgorithm:    "argon2id",
+		CreatedAt:       time.Now().UTC(),
+		RootFingerprint: fp,
+	}
+
+	data, err := json.MarshalIndent(ks, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal shard %d: %w", i+1, err)
+	}
+
+	path := filepath.Join(outDir, fmt.Sprintf("shard-%d-of-%d.json", i+1, total))
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		return fmt.Errorf("write shard %d to %d: %w", i+1, total, err)
+	}
+	fmt.Printf("  ✓ Shard %d/%d → %s\n", i+1, total, path)
 	return nil
 }
 
