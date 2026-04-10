@@ -1303,7 +1303,7 @@ func kmsCmd(args []string) {
 	switch args[0] {
 	case "init":
 		fs := flag.NewFlagSet("kms init", flag.ExitOnError)
-		out := fs.String("output", "master_seed.sealed", "Output path")
+		out := fs.String("output", kms.DefaultSeedPath(), "Output path (default: ~/.asaf/keys/master_seed.sealed)")
 		hw := fs.String("hardware-token", "", "Path to HSM (optional)")
 		fs.Parse(args[1:])
 

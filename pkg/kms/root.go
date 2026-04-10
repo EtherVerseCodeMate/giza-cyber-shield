@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
@@ -76,8 +77,15 @@ func BootstrapTier0(entropySource, password string) (*Tier0Result, error) {
 	return result, nil
 }
 
-// EncodeTier0 saves the result
+// EncodeTier0 saves the result to path, creating parent directories as needed.
+// This ensures the default ~/.asaf/keys/ directory is created automatically
+// even on a fresh install with no prior key material.
 func EncodeTier0(result *Tier0Result, path string) error {
+	if dir := filepath.Dir(path); dir != "." {
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			return fmt.Errorf("create keys dir %s: %w", dir, err)
+		}
+	}
 	data, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		return err
