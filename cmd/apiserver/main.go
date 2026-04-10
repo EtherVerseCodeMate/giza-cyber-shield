@@ -1,11 +1,13 @@
-// DEMARC API Server - Khepra Protocol Secure Gateway
-// "The Mitochondreal-Scarab / The Motherboard"
+// SEKHEM Gateway - Khepra Protocol Secure Gateway
+// "SEKHEM — The Divine Gateway"
+// Sekhem (Egyptian): Power, might, divine authority — the scepter that commands
+// the boundary between chaos and order.
 //
 // The central consciousness hub connecting:
-// - Go AGI (KASA)        - Logic & Execution
+// - Go AGI (KASA)          - Logic & Execution
 // - Python AGI (SouHimBou) - Intuition & Soul
-// - Telemetry Server     - Long-Term Memory
-// - Client API           - User Interface
+// - Telemetry Server       - Long-Term Memory
+// - Client API             - User Interface
 //
 // Environment Variables:
 //   KHEPRA_SERVICE_SECRET     - Shared HMAC secret for service authentication (required)
@@ -82,7 +84,7 @@ func main() {
 
 	// Log service status
 	log.Println("╔═══════════════════════════════════════════════════════════════════╗")
-	log.Println("║                    DEMARC Server Active                           ║")
+	log.Println("║                    SEKHEM Gateway Active                          ║")
 	log.Println("╚═══════════════════════════════════════════════════════════════════╝")
 	log.Printf("  Address:           %s:%d", cfg.host, cfg.port)
 	log.Printf("  TLS:               %v", cfg.tlsEnabled)
@@ -112,7 +114,7 @@ func main() {
 	log.Println("    WS   /ws/dag                      - DAG state changes")
 	log.Println("    WS   /ws/license                  - License events")
 	log.Println("")
-	log.Println("  The Motherboard is online. The Scarab watches.")
+	log.Println("  SEKHEM is online. The Gateway stands.")
 
 	// Graceful shutdown on interrupt
 	quit := make(chan os.Signal, 1)
@@ -133,7 +135,7 @@ func main() {
 	// Stop license heartbeat
 	licMgr.Stop()
 
-	log.Println("DEMARC server exited gracefully. The Scarab rests.")
+	log.Println("SEKHEM gateway exited gracefully. The scepter rests.")
 }
 
 type serverConfig struct {
@@ -350,16 +352,16 @@ func printBanner() {
 	banner := `
 ╔═══════════════════════════════════════════════════════════════════╗
 ║                                                                   ║
-║    ██████╗ ███████╗███╗   ███╗ █████╗ ██████╗  ██████╗            ║
-║    ██╔══██╗██╔════╝████╗ ████║██╔══██╗██╔══██╗██╔════╝            ║
-║    ██║  ██║█████╗  ██╔████╔██║███████║██████╔╝██║                 ║
-║    ██║  ██║██╔══╝  ██║╚██╔╝██║██╔══██║██╔══██╗██║                 ║
-║    ██████╔╝███████╗██║ ╚═╝ ██║██║  ██║██║  ██║╚██████╗            ║
-║    ╚═════╝ ╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝            ║
+║   ███████╗███████╗██╗  ██╗██╗  ██╗███████╗███╗   ███╗            ║
+║   ██╔════╝██╔════╝██║ ██╔╝██║  ██║██╔════╝████╗ ████║            ║
+║   ███████╗█████╗  █████╔╝ ███████║█████╗  ██╔████╔██║            ║
+║   ╚════██║██╔══╝  ██╔═██╗ ██╔══██║██╔══╝  ██║╚██╔╝██║            ║
+║   ███████║███████╗██║  ██╗██║  ██║███████╗██║ ╚═╝ ██║            ║
+║   ╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝            ║
 ║                                                                   ║
-║      "The Mitochondreal-Scarab / The Motherboard"                 ║
+║          "The Divine Gateway — Power Commands the Boundary"       ║
 ║                                                                   ║
-║   Polymorphic API Hub | Service Auth | Telemetry | WebSocket      ║
+║   L7 WAF | PQC Auth | Telemetry | WebSocket | Ouroboros Cycle     ║
 ║                                                                   ║
 ╚═══════════════════════════════════════════════════════════════════╝
 `
