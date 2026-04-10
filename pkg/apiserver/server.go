@@ -146,6 +146,12 @@ func (s *Server) setupRoutes() {
 	pubV1 := s.router.Group("/api/v1")
 	s.setupAuthRoutes(pubV1)
 
+	// Public onboarding scan funnel — no auth required for eval/basic scans.
+	// Gated server-side by ASAF_ALLOW_EVAL_WITHOUT_LICENSE env var.
+	// Uses /onboarding/ prefix to avoid Gin route collision with authenticated /scans/*.
+	pubV1.POST("/onboarding/scan", s.handleTriggerScan)
+	pubV1.GET("/onboarding/scan/:id", s.handleGetScanStatus)
+
 	// API v1 routes — PQC auth when gateway is wired, legacy API key otherwise
 	v1 := s.router.Group("/api/v1")
 	if s.pqcGateway != nil {
