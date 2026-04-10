@@ -8,9 +8,15 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/sekhem"
 )
+
+// wafHandler is satisfied by *sekhem.WAFShield.
+// Keeping this as a local interface prevents the circular import:
+//
+//	pkg/apiserver → pkg/sekhem → pkg/agi → (no pkg/apiserver).
+type wafHandler interface {
+	GinHandler() gin.HandlerFunc
+}
 
 // AuthMiddleware validates API key authentication
 func (s *Server) AuthMiddleware() gin.HandlerFunc {
@@ -241,7 +247,7 @@ func RateLimitMiddleware() gin.HandlerFunc {
 //
 // When shield is nil the middleware is a no-op (safe for tests or environments
 // where SEKHEM is not yet wired).
-func WAFMiddleware(shield *sekhem.WAFShield) gin.HandlerFunc {
+func WAFMiddleware(shield wafHandler) gin.HandlerFunc {
 	if shield == nil {
 		log.Println("[SEKHEM-WAF] WAFMiddleware: shield is nil — L7 inspection DISABLED")
 		return func(c *gin.Context) { c.Next() }
