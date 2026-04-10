@@ -7,12 +7,15 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, Search, CheckCircle, AlertTriangle, XCircle, ArrowRight, Lock, Loader2 } from 'lucide-react';
 
-// Vite: VITE_*; Next-style builds may inject NEXT_PUBLIC_* via host
-// Next.js/Turbopack may not populate `import.meta.env`, so default safely.
+// Next.js inlines process.env.NEXT_PUBLIC_* at build time via webpack.
+// import.meta.env is Vite-only and is empty in Next.js — keep as fallback for hybrid builds.
 const env = (import.meta as any)?.env ?? {};
 const API_BASE =
-  env.VITE_ASAF_API_URL || env.NEXT_PUBLIC_ASAF_API_URL || 'http://localhost:45444';
-const API_KEY = env.VITE_ASAF_API_KEY || env.NEXT_PUBLIC_ASAF_API_KEY || '';
+  process.env.NEXT_PUBLIC_ASAF_API_URL ||
+  env.VITE_ASAF_API_URL ||
+  env.NEXT_PUBLIC_ASAF_API_URL ||
+  'https://agent.souhimbou.org';
+const API_KEY = process.env.NEXT_PUBLIC_ASAF_API_KEY || env.VITE_ASAF_API_KEY || env.NEXT_PUBLIC_ASAF_API_KEY || '';
 
 type Step = 'input' | 'scanning' | 'results' | 'upgrade';
 
