@@ -164,12 +164,23 @@ func (de *DriftEye) Gaze() []maat.Isfet {
 	// 1. Collect current state
 	current := &audit.AuditSnapshot{}
 
-	// Collect network info
+	// Collect network info (open ports / interfaces — stable, not byte counters)
 	ni, _ := enumerate.CollectNetworkIntelligence()
 	current.Network = ni
 
-	// Collect system info
+	// Collect system info, then filter out ephemeral processes before baselining.
+	// Short-lived processes (crontab, sh, grep, etc.) appear and exit within the
+	// ~2s Ouroboros cycle, producing a permanent false-positive storm if included.
 	si, _ := enumerate.CollectSystemIntelligence()
+	if si != nil {
+		filtered := si.Processes[:0]
+		for _, p := range si.Processes {
+			if !transientProcessNames[p.Name] {
+				filtered = append(filtered, p)
+			}
+		}
+		si.Processes = filtered
+	}
 	current.System = si
 
 	// 2. Establish baseline if none exists
@@ -310,12 +321,35 @@ func (fe *FIMEye) Gaze() []maat.Isfet {
 	return isfet
 }
 
+// transientProcessNames is the set of short-lived OS processes that are spawned
+// and exit between Ouroboros cycles (~2s). Including them in the drift baseline
+// produces a permanent false-positive storm ("DRIFT-PROC-NEW") on every cycle.
+// These processes are expected and do NOT indicate a security event.
+var transientProcessNames = map[string]bool{
+	"crontab": true, "cron":    true, "sh":      true, "bash": true,
+	"dash":    true, "python":  true, "python3": true, "perl": true,
+	"grep":    true, "awk":     true, "sed":     true, "find": true,
+	"cat":     true, "ls":      true, "ps":      true, "top":  true,
+	"systemd-run": true, "dbus-daemon": true,
+}
+
 // fimSkipFile returns true for files that change legitimately at runtime
 // and would produce spurious CATASTROPHIC alerts if included in the FIM hash.
 func fimSkipFile(path string) bool {
 	base := filepath.Base(path)
-	return base == "mtab" || base == "adjtime" || base == ".updated" ||
-		strings.HasSuffix(path, "~") || strings.Contains(path, "/run/")
+	if base == "mtab" || base == "adjtime" || base == ".updated" ||
+		strings.HasSuffix(path, "~") || strings.Contains(path, "/run/") {
+		return true
+	}
+	// /etc/resolv.conf is updated by DHCP/NetworkManager dynamically.
+	// /etc/cron.d/* and /etc/crontab have their access times updated on reads.
+	// /etc/systemd/ contains our own deployed service units — changes here are
+	// AUTHORIZED deploys, not tampering; a separate deploy audit covers them.
+	if base == "resolv.conf" || base == "crontab" || strings.Contains(path, "/cron") ||
+		strings.Contains(path, "/etc/systemd/") {
+		return true
+	}
+	return false
 }
 
 // hashFileInto writes path + hash of a single file into hasher.
