@@ -353,7 +353,7 @@ def _run_resilience_validation() -> bool:
     print_step("Resilience", 5, 5, "Running Resilience Validation (TRL-10 Bridging)")
     try:
         from resilience_validation import run_resilience_validation
-        all_passed, results = run_resilience_validation()
+        all_passed, _ = run_resilience_validation()
         if not all_passed:
             print_error("Resilience validation failed — review failure modes above")
         return all_passed
@@ -583,51 +583,50 @@ def main() -> None:
     command = sys.argv[1].lower()
     extra_args = sys.argv[2:]
     
+    match_command(command, extra_args)
+
+def match_command(command: str, extra_args: list[str]) -> None:
+    """Dispatches command to the appropriate handler."""
     if command == "build":
-        fips_mode = "--no-fips" not in extra_args
-        success = build_all_components(fips=fips_mode)
-        sys.exit(0 if success else 1)
-        
+        sys.exit(0 if build_all_components(fips="--no-fips" not in extra_args) else 1)
     elif command == "agent":
         run("adinkhepra-agent", extra_args)
-        
     elif command == "cli":
         run("adinkhepra", extra_args)
-        
     elif command == "scada":
         run("adinkhepra", ["scada"] + extra_args)
-        
     elif command == "launch":
         launch(extra_args)
-        
     elif command == "test":
-        print_info("Running tests...")
-        result = subprocess.call([
-            "go", "test", "-count=1", MOD_VENDOR,
-            "./pkg/...", "./cmd/..."
-        ])
-        sys.exit(result)
-        
+        handle_test_command()
     elif command == "validate":
-        success = validate()
-        if success:
-            # Auto-launch stack after successful validation
-            launch([])
-        else:
-            print_error("Validation failed. Fix errors before deploying.")
-            sys.exit(1)
-        
+        handle_validate_command()
     elif command == "resilience":
-        from resilience_validation import run_resilience_validation
-        all_passed, _ = run_resilience_validation()
-        sys.exit(0 if all_passed else 1)
-
+        handle_resilience_command()
     elif command == "tnok":
         launch_tnok(extra_args)
-        
     else:
-        # Default to CLI if command unknown
-        run("adinkhepra", sys.argv[1:])
+        run("adinkhepra", [command] + extra_args)
+
+def handle_test_command() -> None:
+    print_info("Running tests...")
+    result = subprocess.call([
+        "go", "test", "-count=1", MOD_VENDOR,
+        "./pkg/...", "./cmd/..."
+    ])
+    sys.exit(result)
+
+def handle_validate_command() -> None:
+    if validate():
+        launch([])
+    else:
+        print_error("Validation failed. Fix errors before deploying.")
+        sys.exit(1)
+
+def handle_resilience_command() -> None:
+    from resilience_validation import run_resilience_validation
+    all_passed, _ = run_resilience_validation()
+    sys.exit(0 if all_passed else 1)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 // Package phantom - SmartWatch Integration for Dead Man's Switch
 //
-// Integrates KLGO SmartWatch (and similar BLE watches) with Phantom Network:
+// Integrates Garmin Solar Instinct Tactical watch with Phantom Network:
 //
 // Features:
 // - DEAD MAN'S SWITCH: If watch disconnects > 5 min, wipe all keys
