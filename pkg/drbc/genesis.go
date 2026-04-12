@@ -8,7 +8,6 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha512"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -26,11 +25,12 @@ const (
 func AwakenGenesis(password string) error {
 	// 1. Unlock the Master Seed (Identity Verification)
 	fmt.Println(" [PHOENIX] Verifying Identity...")
-	if _, err := os.Stat("master_seed.sealed"); os.IsNotExist(err) {
-		return errors.New("master_seed.sealed not found. Run 'khepra kms init' first")
+	seedPath := kms.DefaultSeedPath()
+	if _, err := os.Stat(seedPath); os.IsNotExist(err) {
+		return fmt.Errorf("%s not found. Run 'asaf kms init' first", seedPath)
 	}
 
-	seed, err := kms.LoadMasterSeed("master_seed.sealed", password)
+	seed, err := kms.LoadMasterSeed(seedPath, password)
 	if err != nil {
 		return fmt.Errorf("identity verification failed: %v", err)
 	}

@@ -147,3 +147,10 @@ func ASAFKeysDir() string {
 	}
 	return filepath.Join(home, ".asaf", "keys")
 }
+
+// DefaultSeedPath returns the canonical path for the master_seed.sealed file.
+// Use this everywhere instead of the bare filename to keep key material out
+// of the working directory and project root.
+func DefaultSeedPath() string {
+	return filepath.Join(ASAFKeysDir(), "master_seed.sealed")
+}
