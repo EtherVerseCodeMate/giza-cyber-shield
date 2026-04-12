@@ -45,6 +45,7 @@ const (
 	separator          = "---------------------------------------------------"
 	subcommandsHeader  = "Subcommands:"
 	speakSecretNameMsg = "Speak the Secret Name: "
+	headerAPIKey       = "X-API-Key"
 )
 
 func usage() {
@@ -857,7 +858,7 @@ func scanCmd(args []string, mode string) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if *apiKey != "" {
-		req.Header.Set("X-API-Key", *apiKey)
+		req.Header.Set(headerAPIKey, *apiKey)
 	}
 
 	client := &http.Client{Timeout: 120 * time.Second}
@@ -889,7 +890,7 @@ func scanCmd(args []string, mode string) {
 		statusReq, _ := http.NewRequest(http.MethodGet,
 			apiURL+"/api/v1/onboarding/scan/"+queued.ScanID, nil)
 		if *apiKey != "" {
-			statusReq.Header.Set("X-API-Key", *apiKey)
+			statusReq.Header.Set(headerAPIKey, *apiKey)
 		}
 		statusResp, err := client.Do(statusReq)
 		if err != nil {
@@ -960,7 +961,7 @@ func scanCmd(args []string, mode string) {
 
 		licReq, _ := http.NewRequest(http.MethodGet, apiURL+"/api/v1/license/status", nil)
 		if *apiKey != "" {
-			licReq.Header.Set("X-API-Key", *apiKey)
+			licReq.Header.Set(headerAPIKey, *apiKey)
 		}
 		licResp, err := client.Do(licReq)
 		if err != nil {
