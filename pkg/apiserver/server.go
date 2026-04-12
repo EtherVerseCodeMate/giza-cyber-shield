@@ -16,9 +16,10 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/auth"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/mcp"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/sekhem"
 )
 
-// Server represents the Khepra API server
+// Server represents the SEKHEM gateway — the divine boundary between clients and the inner realms.
 type Server struct {
 	router      *gin.Engine
 	wsHub       *WebSocketHub
@@ -29,11 +30,12 @@ type Server struct {
 	version     string
 	httpServer  *http.Server
 	agentMgr    AgentManagerInterface
-	mcpStore    MCPStore             // Supabase MCP persistence layer (optional)
-	nlProcessor *mcp.NLProcessor     // Natural language → tool chain processor (optional)
-	pqcGateway  *auth.PQCAuthGateway // PQC-SAML-OAuth2 auth gateway (optional)
-	sigPrivKey  []byte               // ML-DSA-65 Dilithium3 signing key (server identity)
-	sigPubKey   []byte               // ML-DSA-65 Dilithium3 verification key (server identity)
+	mcpStore    MCPStore              // Supabase MCP persistence layer (optional)
+	nlProcessor *mcp.NLProcessor      // Natural language → tool chain processor (optional)
+	pqcGateway  *auth.PQCAuthGateway  // PQC-SAML-OAuth2 auth gateway (optional)
+	sigPrivKey  []byte                // ML-DSA-65 Dilithium3 signing key (server identity)
+	sigPubKey   []byte                // ML-DSA-65 Dilithium3 verification key (server identity)
+	sekhemTriad *sekhem.SekhemTriad   // Ouroboros cycle, WAF realm, sensor/actuator mesh (optional)
 }
 
 const (
@@ -80,6 +82,9 @@ type LicenseManager interface {
 	Heartbeat() (*license.HeartbeatResponse, error)
 	GetFullStatus() *license.ValidateResponse
 	GetMachineID() string
+
+	// Revocation (called by internal webhook service on subscription cancellation)
+	RevokeLicense(stripeEventID, reason string) error
 }
 
 // NewServer creates a new API server instance
@@ -111,37 +116,65 @@ func NewServer(config *Config, dagStore DAGStore, licMgr LicenseManager) *Server
 		server.sigPubKey = pub
 	}
 
-	// Setup middleware
-	server.setupMiddleware()
-
-	// Setup routes
-	server.setupRoutes()
-
+	// NOTE: setupMiddleware() and setupRoutes() are intentionally NOT called here.
+	// They are called from Start() after all optional dependencies (SekhemTriad,
+	// PQCAuthGateway, MCPStore, NLProcessor) have been injected via With* methods.
 	return server
 }
 
-// setupMiddleware configures all middleware
+// setupMiddleware configures all middleware in the correct SEKHEM order:
+//
+//  1. RecoveryMiddleware  — catches panics from any middleware below it, including WAF
+//  2. LoggingMiddleware   — logs all requests (including blocked ones, before WAF fires)
+//  3. CORSMiddleware      — CORS headers applied first; OPTIONS preflights must get
+//     Access-Control-* headers BEFORE the WAF can reject them
+//  4. WAFMiddleware       — Merkaba L7 perimeter: SQLi/XSS/path traversal/rate-limit
+//  5. AuthMiddleware      — only for authenticated route groups (applied per-group below)
+//
+// RateLimitMiddleware is removed: its function is now handled by SEKHEM-007
+// inside WAFShield (per-IP sync.Map rate limiter, same 100 req/min threshold).
 func (s *Server) setupMiddleware() {
 	s.router.Use(RecoveryMiddleware())
 	s.router.Use(LoggingMiddleware())
-	s.router.Use(CORSMiddleware())
-	s.router.Use(RateLimitMiddleware())
+	s.router.Use(CORSMiddleware(s.config.AllowedOrigins...))
+
+	// WAF — nil-safe: if sekhemTriad is not yet wired (e.g. test mode),
+	// WAFMiddleware logs a warning and is a no-op.
+	var wafShield *sekhem.WAFShield
+	if s.sekhemTriad != nil && s.sekhemTriad.DuatRealm != nil {
+		wafShield = s.sekhemTriad.DuatRealm.WAFShield
+	}
+	s.router.Use(WAFMiddleware(wafShield))
 }
 
 // setupRoutes configures all API routes
 func (s *Server) setupRoutes() {
 	// Public routes (no auth required)
 	s.router.GET("/health", s.handleHealth)
+	s.router.GET("/healthz", s.handleHealth) // alias — frontend probes /healthz
 	s.router.GET("/version", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"version": s.version,
-			"service": "khepra-api",
+			"service": "sekhem-gateway",
 		})
 	})
 
 	// Public auth bootstrap endpoints (no auth required — they create credentials)
 	pubV1 := s.router.Group("/api/v1")
 	s.setupAuthRoutes(pubV1)
+
+	// Public onboarding scan funnel — no auth required for eval/basic scans.
+	// Gated server-side by ASAF_ALLOW_EVAL_WITHOUT_LICENSE env var.
+	// Uses /onboarding/ prefix to avoid Gin route collision with authenticated /scans/*.
+	pubV1.POST("/onboarding/scan", s.handleTriggerScan)
+	pubV1.GET("/onboarding/scan/:id", s.handleGetScanStatus)
+
+	// Stripe webhook — public, no API-key auth. Security is HMAC via STRIPE_WEBHOOK_SECRET.
+	pubV1.POST("/stripe/webhook", s.handleStripeWebhook)
+
+	// Internal license revocation — called by the webhook service on subscription cancellation.
+	// No Bearer auth (webhook has no credentials); protected by localhost-only guard in handler.
+	pubV1.POST("/license/revoke", s.handleRevokeLicense)
 
 	// API v1 routes — PQC auth when gateway is wired, legacy API key otherwise
 	v1 := s.router.Group("/api/v1")
@@ -301,13 +334,20 @@ func (s *Server) setupRoutes() {
 	})
 }
 
-// Start starts the API server
+// Start starts the API server.
+// All With* dependency injections must be called before Start().
+// setupMiddleware and setupRoutes run here so the WAFShield (from SekhemTriad)
+// is available when middleware is configured.
 func (s *Server) Start() error {
+	// Setup middleware and routes now — all dependencies are injected
+	s.setupMiddleware()
+	s.setupRoutes()
+
 	// Start WebSocket hub in background
 	go s.wsHub.Run()
 
 	addr := fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
-	log.Printf("Starting Khepra API Server on %s", addr)
+	log.Printf("[SEKHEM] Starting SEKHEM Gateway on %s", addr)
 	log.Printf("TLS Enabled: %v", s.config.TLSEnabled)
 	log.Printf("Version: %s", s.version)
 
@@ -360,9 +400,16 @@ func (s *Server) startTLS() error {
 	return s.httpServer.ListenAndServeTLS("", "")
 }
 
+// WithSekhemTriad injects the SekhemTriad (Ouroboros + WAF realm) into the gateway.
+// Must be called before Start(). The triad's lifecycle (Harmonize/Stop) is managed
+// by the caller in main.go alongside the server lifecycle.
+func (s *Server) WithSekhemTriad(triad *sekhem.SekhemTriad) {
+	s.sekhemTriad = triad
+}
+
 // Shutdown gracefully shuts down the server
 func (s *Server) Shutdown(ctx context.Context) error {
-	log.Println("Shutting down Khepra API Server...")
+	log.Println("[SEKHEM] Shutting down SEKHEM Gateway...")
 
 	if s.httpServer != nil {
 		if err := s.httpServer.Shutdown(ctx); err != nil {
@@ -370,7 +417,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 		}
 	}
 
-	log.Println("Server shutdown complete")
+	log.Println("[SEKHEM] Gateway shutdown complete")
 	return nil
 }
 

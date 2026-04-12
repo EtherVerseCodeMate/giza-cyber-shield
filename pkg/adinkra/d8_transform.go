@@ -12,9 +12,11 @@ package adinkra
 // d8OpType classifies each of the 16 D₈ elements.
 type d8OpType uint8
 
+// d8 element type constants — kept for documentation; transformIDs 0-7 are
+// rotations, 8-15 are reflections (see permute8).
 const (
-	d8Rotation  d8OpType = 0 // transformIDs 0-7: rotations by k*45°
-	d8Reflection d8OpType = 1 // transformIDs 8-15: reflections
+	_ d8OpType = iota // 0-7: rotations by k*45°
+	_                  // 8-15: reflections
 )
 
 // d8BlockSize is the granularity at which permutations are applied.

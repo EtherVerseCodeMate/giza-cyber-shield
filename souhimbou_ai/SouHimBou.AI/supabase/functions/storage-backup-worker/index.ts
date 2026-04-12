@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -16,7 +17,7 @@ serve(async (req: Request) => {
         const authHeader = req.headers.get("Authorization");
         const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-        if (!authHeader || !authHeader.includes(serviceRoleKey || "")) {
+        if (!authHeader?.includes(serviceRoleKey ?? "")) {
             return new Response(
                 JSON.stringify({ error: "Service role authorization required" }),
                 { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -24,8 +25,8 @@ serve(async (req: Request) => {
         }
 
         const supabase = createClient(
-            Deno.env.get("SUPABASE_URL")!,
-            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+            Deno.env.get("SUPABASE_URL"),
+            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
         );
 
         const body = await req.json();

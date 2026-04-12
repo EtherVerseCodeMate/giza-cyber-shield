@@ -11,7 +11,6 @@ import {
   Users,
   Download,
   RefreshCw,
-  Settings,
   Calendar,
   Target
 } from "lucide-react";
@@ -63,7 +62,7 @@ export const POAMGenerator = () => {
     avg_completion_percentage: 0
   });
   const [generating, setGenerating] = useState(false);
-  const [selectedFramework, setSelectedFramework] = useState<string>('');
+  const [selectedFramework] = useState<string>('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -100,7 +99,7 @@ export const POAMGenerator = () => {
     setGenerating(true);
     try {
       // Call automated-remediation function to generate updated POAM
-      const { data, error } = await supabase.functions.invoke('automated-remediation', {
+      const { error } = await supabase.functions.invoke('automated-remediation', {
         body: {
           action: 'generate_poam',
           framework: selectedFramework || 'cmmc-2.0'
@@ -371,7 +370,7 @@ export const POAMGenerator = () => {
                     <h4 className="text-blue-400 font-medium text-sm mb-2">Milestones</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {item.milestones.map((milestone, index) => (
-                        <div key={index} className="flex items-center space-x-2 text-sm">
+                        <div key={`${item.id}-milestone-${index}`} className="flex items-center space-x-2 text-sm">
                           {milestone.includes('✓') ? (
                             <CheckCircle className="h-4 w-4 text-green-400" />
                           ) : (

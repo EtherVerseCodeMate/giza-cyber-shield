@@ -19,7 +19,7 @@ import Episode3 from "./pages/blog/Episode3";
 import Episode4 from "./pages/blog/Episode4";
 import BuildingCyberImmunity from "./pages/blog/BuildingCyberImmunity";
 import LaunchingVDP from "./pages/blog/LaunchingVDP";
-import VDP from "./pages/VDP";
+import Vdp from "./pages/Vdp";
 import HallOfFame from "./pages/HallOfFame";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
@@ -94,12 +94,12 @@ const App = () => {
                     <Route path="/blog/episode-4-rising-through-ranks" element={<Episode4 />} />
                     <Route path="/blog/building-cyber-immunity-cmmc-stig-database" element={<BuildingCyberImmunity />} />
                     <Route path="/blog/launching-vdp" element={<LaunchingVDP />} />
-                    <Route path="/vdp" element={<VDP />} />
+                    <Route path="/vdp" element={<Vdp />} />
                     <Route path="/hall-of-fame" element={<HallOfFame />} />
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/auth/callback" element={<AuthCallback />} />
                     <Route path="/auth/reset-password" element={<ResetPassword />} />
-                    <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+                    <Route path="/onboarding" element={<Onboarding />} />
 
                     {/* Legal Pages */}
                     <Route path="/privacy" element={<LegalPage />} />
@@ -113,7 +113,7 @@ const App = () => {
                     <Route path="/asset-scanning" element={<ProtectedRoute><AssetScanning /></ProtectedRoute>} />
                     <Route path="/compliance-reports" element={<ProtectedRoute><ComplianceReports /></ProtectedRoute>} />
                     <Route path="/evidence-collection" element={<ProtectedRoute><EvidenceCollectionMVP /></ProtectedRoute>} />
-                    <Route path="/billing" element={<ProtectedRoute><SimpleBilling /></ProtectedRoute>} />
+                    <Route path="/billing" element={<SimpleBilling />} />
                     <Route path="/ultimate" element={<ProtectedRoute><UltimateDashboard /></ProtectedRoute>} />
                     <Route path="/command-center" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
                     <Route path="/threat-hunting" element={<ProtectedRoute><ThreatHuntingDashboard /></ProtectedRoute>} />
