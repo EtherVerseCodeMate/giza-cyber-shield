@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/audit"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/enumerate"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/intel"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/maat"
@@ -164,13 +163,13 @@ func (de *DriftEye) Gaze() []maat.Isfet {
 	// 1. Collect current state
 	current := &audit.AuditSnapshot{}
 
-	// Collect network info
+	// Only collect network intelligence for drift comparison.
+	// Process lists are inherently noisy at 2s cycle intervals: crontab, id, and
+	// other short-lived helpers spawn during CollectSystemIntelligence itself and
+	// produce a guaranteed "new process" on every second Gaze call.
+	// Port changes are stable, meaningful, and worth alerting on.
 	ni, _ := enumerate.CollectNetworkIntelligence()
 	current.Network = ni
-
-	// Collect system info
-	si, _ := enumerate.CollectSystemIntelligence()
-	current.System = si
 
 	// 2. Establish baseline if none exists
 	if de.baseline == nil {
@@ -216,37 +215,82 @@ func (de *DriftEye) Name() string {
 	return de.name
 }
 
+// fimWatchPaths returns the list of paths FIMEye monitors.
+//
+// Monitored: /etc (system config) + the SEKHEM binary.
+// NOT monitored: the process working directory (/opt/nouchix/mesh/) — that is a
+// deployment artifact directory; binary swaps, log writes, and data file changes
+// would all trigger false CATASTROPHIC alerts if we hashed ".".
+//
+// Override via FIM_WATCH_PATHS (colon-separated) and FIM_BASELINE_PATH env vars.
+func fimWatchPaths() []string {
+	if v := os.Getenv("FIM_WATCH_PATHS"); v != "" {
+		return strings.Split(v, ":")
+	}
+	// /etc covers all system configuration (passwd, sudoers, sshd_config, systemd units, etc.)
+	paths := []string{"/etc"}
+	// Add the SEKHEM binary itself — detect tampering of the running binary.
+	binary := os.Getenv("FIM_BINARY_PATH")
+	if binary == "" {
+		binary = "/opt/nouchix/mesh/apiserver"
+	}
+	if _, err := os.Stat(binary); err == nil {
+		paths = append(paths, binary)
+	}
+	return paths
+}
+
+// fimBaselinePath returns the on-disk path for the persisted FIM baseline.
+// Persisting to disk means SEKHEM restarts do NOT re-baseline, so a compromised
+// file replaced before the service restarts will still be detected.
+func fimBaselinePath() string {
+	if v := os.Getenv("FIM_BASELINE_PATH"); v != "" {
+		return v
+	}
+	return "/opt/asaf/fim-baseline"
+}
+
 // FIMEye monitors file integrity
 type FIMEye struct {
-	name     string
-	baseline string
+	name         string
+	baseline     string
+	baselinePath string
 }
 
 func NewFIMEye() *FIMEye {
-	return &FIMEye{
-		name: "wedjat-fim",
+	fe := &FIMEye{
+		name:         "wedjat-fim",
+		baselinePath: fimBaselinePath(),
 	}
+	// Load persisted baseline so restarts don't re-baseline and miss pre-restart tampering.
+	if data, err := os.ReadFile(fe.baselinePath); err == nil {
+		fe.baseline = strings.TrimSpace(string(data))
+		log.Printf("[%s] Loaded persisted FIM baseline from %s", fe.name, fe.baselinePath)
+	}
+	return fe
 }
 
 func (fe *FIMEye) Gaze() []maat.Isfet {
 	log.Printf("[%s] Checking file integrity...", fe.name)
 	isfet := []maat.Isfet{}
 
-	// Calculate recursive hash of current directory
-	currentHash, err := fe.calculateDirectoryHash(".")
+	currentHash, err := fe.calculatePathsHash(fimWatchPaths())
 	if err != nil {
 		log.Printf("[%s] FIM failed: %v", fe.name, err)
 		return isfet
 	}
 
-	// 2. Establish baseline if none exists
 	if fe.baseline == "" {
-		log.Printf("[%s] Establishing initial FIM baseline: %s", fe.name, currentHash)
+		log.Printf("[%s] Establishing initial FIM baseline: %s (watching: %v)",
+			fe.name, currentHash, fimWatchPaths())
 		fe.baseline = currentHash
+		// Persist so the baseline survives restarts.
+		if err := os.WriteFile(fe.baselinePath, []byte(currentHash), 0600); err != nil {
+			log.Printf("[%s] Warning: could not persist baseline to %s: %v", fe.name, fe.baselinePath, err)
+		}
 		return isfet
 	}
 
-	// 3. Compare current state against baseline
 	if currentHash != fe.baseline {
 		log.Printf("[%s] FILE INTEGRITY COMPROMISED! (Old: %s, New: %s)", fe.name, fe.baseline, currentHash)
 		isfet = append(isfet, maat.Isfet{
@@ -257,6 +301,7 @@ func (fe *FIMEye) Gaze() []maat.Isfet {
 			Omens: []maat.Omen{
 				{Name: "OldHash", Value: fe.baseline, Malevolence: 1.0},
 				{Name: "NewHash", Value: currentHash, Malevolence: 1.0},
+				{Name: "WatchedPaths", Value: strings.Join(fimWatchPaths(), ":"), Malevolence: 0},
 			},
 		})
 	}
@@ -264,24 +309,64 @@ func (fe *FIMEye) Gaze() []maat.Isfet {
 	return isfet
 }
 
-func (fe *FIMEye) calculateDirectoryHash(root string) (string, error) {
-	hasher := sha256.New()
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
+// fimSkipFile returns true for files that change legitimately at runtime
+// and would produce spurious CATASTROPHIC alerts if included in the FIM hash.
+func fimSkipFile(path string) bool {
+	base := filepath.Base(path)
+	if base == "mtab" || base == "adjtime" || base == ".updated" ||
+		strings.HasSuffix(path, "~") || strings.Contains(path, "/run/") {
+		return true
+	}
+	// /etc/resolv.conf is updated by DHCP/NetworkManager dynamically.
+	// /etc/cron.d/* and /etc/crontab have their access times updated on reads.
+	// /etc/systemd/ contains our own deployed service units — changes here are
+	// AUTHORIZED deploys, not tampering; a separate deploy audit covers them.
+	if base == "resolv.conf" || base == "crontab" || strings.Contains(path, "/cron") ||
+		strings.Contains(path, "/etc/systemd/") {
+		return true
+	}
+	return false
+}
+
+// hashFileInto writes path + hash of a single file into hasher.
+func hashFileInto(hasher interface{ Write([]byte) (int, error) }, path string) {
+	fileHash, err := scanners.CalculateFileHash(path)
+	if err != nil {
+		return
+	}
+	hasher.Write([]byte(path))
+	hasher.Write([]byte(fileHash))
+}
+
+// walkDirInto walks root recursively, hashing each non-skipped file into hasher.
+func walkDirInto(hasher interface{ Write([]byte) (int, error) }, root string) error {
+	return filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
+		if err != nil || fi.IsDir() || fimSkipFile(path) {
 			return nil
 		}
-		if info.IsDir() || strings.Contains(path, ".git") || strings.Contains(path, "vendor") {
-			return nil
-		}
-
-		// Add filename and hash to directory hash
-		fileHash, _ := scanners.CalculateFileHash(path)
-		hasher.Write([]byte(path))
-		hasher.Write([]byte(fileHash))
-
+		hashFileInto(hasher, path)
 		return nil
 	})
-	return hex.EncodeToString(hasher.Sum(nil)), err
+}
+
+// calculatePathsHash hashes each path in the list; directories are walked recursively.
+// High-churn runtime files (mtab, adjtime, etc.) are excluded to prevent spurious alerts.
+func (fe *FIMEye) calculatePathsHash(paths []string) (string, error) {
+	hasher := sha256.New()
+	for _, root := range paths {
+		info, err := os.Stat(root)
+		if err != nil {
+			continue // path does not exist on this host — skip silently
+		}
+		if !info.IsDir() {
+			hashFileInto(hasher, root)
+			continue
+		}
+		if err := walkDirInto(hasher, root); err != nil {
+			return "", err
+		}
+	}
+	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
 func (fe *FIMEye) Name() string {

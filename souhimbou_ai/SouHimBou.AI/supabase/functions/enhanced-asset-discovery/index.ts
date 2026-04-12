@@ -976,7 +976,7 @@ async function checkIPReputation(ipAddress: string): Promise<any> {
   
   let overallThreat = false;
   let maxConfidence = 0;
-  let threatCategories: string[] = [];
+  const threatCategories: string[] = [];
   
   for (const source of sources) {
     try {

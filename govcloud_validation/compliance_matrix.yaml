@@ -1,0 +1,435 @@
+# Maps govcloud_validation check_id values to indicative framework references.
+# NOT authoritative for audits — your AO / C3PAO / assessor decides control satisfaction.
+# Version when you add checks or change control intent.
+matrix_version: "1.2"
+last_reviewed: "2026-03-24"
+references:
+  nist_sp_800_171_rev2: "Protecting CUI in Nonfederal Systems and Organizations"
+  cmmc_model: "CMMC Model v2.0, Level 2 (selected practices)"
+  nist_sp_800_53_rev5: "Optional cross-reference for SSP language (not 1:1 with checks)"
+
+coverage_types:
+  point_in_time: "State at API call time only; may change before assessor review."
+  configuration: "Configuration present/enabled; effectiveness still needs human review."
+  partial: "Narrow signal; substantial evidence must come from policies, procedures, and sampling."
+
+checks:
+  - id: sts_caller_identity
+    stage_id: step_00_prereqs
+    nist_800_171_rev2: ["3.1.1", "3.1.2", "3.5.1"]
+    cmmc_level_2: ["AC.L2-3.1.1", "AC.L2-3.1.2", "IA.L2-3.5.1"]
+    coverage: point_in_time
+    assessor_notes: "Confirms a session exists; does not prove account issuance, MFA, or US-person attestation."
+
+  - id: expected_govcloud_account_id
+    stage_id: step_00_prereqs
+    nist_800_171_rev2: ["3.1.1"]
+    cmmc_level_2: ["AC.L2-3.1.1"]
+    coverage: configuration
+    assessor_notes: "Drift check vs expected account; scope must match SSP boundary."
+
+  - id: iam_root_mfa_enabled
+    stage_id: step_00_prereqs
+    nist_800_171_rev2: ["3.5.3", "3.1.2"]
+    cmmc_level_2: ["IA.L2-3.5.3", "AC.L2-3.1.2"]
+    coverage: configuration
+    assessor_notes: "IAM summary flag for root MFA; IDC-only shops may still use root rarely — procedure matters."
+
+  - id: iam_root_access_keys_absent
+    stage_id: step_00_prereqs
+    nist_800_171_rev2: ["3.5.1", "3.1.2"]
+    cmmc_level_2: ["IA.L2-3.5.1", "AC.L2-3.1.2"]
+    coverage: configuration
+    assessor_notes: "Counts root access keys; confirm against break-glass policy."
+
+  - id: identity_center_instances
+    stage_id: step_00_2_us_person
+    nist_800_171_rev2: ["3.1.1", "3.1.2", "3.5.1"]
+    cmmc_level_2: ["AC.L2-3.1.1", "IA.L2-3.5.1"]
+    coverage: partial
+    assessor_notes: "Reachability only; review IDC configuration, MFA, and lifecycle in console/docs."
+
+  - id: expected_idc_instance
+    stage_id: step_00_2_us_person
+    nist_800_171_rev2: ["3.1.1"]
+    cmmc_level_2: ["AC.L2-3.1.1"]
+    coverage: configuration
+    assessor_notes: "Instance id drift; not a substitute for access review evidence."
+
+  - id: expected_identity_store
+    stage_id: step_00_2_us_person
+    nist_800_171_rev2: ["3.1.1"]
+    cmmc_level_2: ["AC.L2-3.1.1"]
+    coverage: configuration
+    assessor_notes: "Store id drift."
+
+  - id: expected_permission_set
+    stage_id: step_00_2_us_person
+    nist_800_171_rev2: ["3.1.1", "3.1.2", "3.1.7"]
+    cmmc_level_2: ["AC.L2-3.1.1", "AC.L2-3.1.2", "AC.L2-3.1.7"]
+    coverage: partial
+    assessor_notes: "Permission set presence; does not prove least privilege or separation of duties."
+
+  - id: expected_permission_set_name
+    stage_id: step_00_2_us_person
+    nist_800_171_rev2: ["3.1.2"]
+    cmmc_level_2: ["AC.L2-3.1.2"]
+    coverage: configuration
+    assessor_notes: "Name resolution vs ARN consistency checked separately when both set."
+
+  - id: permission_set_arn_name_consistency
+    stage_id: step_00_2_us_person
+    nist_800_171_rev2: ["3.1.2"]
+    cmmc_level_2: ["AC.L2-3.1.2"]
+    coverage: configuration
+    assessor_notes: "Configuration consistency."
+
+  - id: expected_permission_set_arn
+    stage_id: step_00_2_us_person
+    nist_800_171_rev2: ["3.1.1", "3.1.2"]
+    cmmc_level_2: ["AC.L2-3.1.1", "AC.L2-3.1.2"]
+    coverage: configuration
+    assessor_notes: "ARN listed in Identity Center vs expected."
+
+  - id: permission_set_abac_tag
+    stage_id: step_00_2_us_person
+    nist_800_171_rev2: ["3.1.3", "3.1.4"]
+    cmmc_level_2: ["AC.L2-3.1.3", "AC.L2-3.1.4"]
+    coverage: partial
+    assessor_notes: "Tag on permission set resource; directory-side ABAC is separate."
+
+  - id: identity_center_drift
+    stage_id: step_00_2_us_person
+    nist_800_171_rev2: ["3.1.1"]
+    cmmc_level_2: ["AC.L2-3.1.1"]
+    coverage: configuration
+    assessor_notes: "Optional expected ids vs live."
+
+  - id: organizations_describe
+    stage_id: step_01_organizations
+    nist_800_171_rev2: ["3.1.1", "3.1.2"]
+    cmmc_level_2: ["AC.L2-3.1.1", "AC.L2-3.1.2"]
+    coverage: partial
+    assessor_notes: "Org membership signal; OU/account design lives in SSP/diagrams."
+
+  - id: organizations_roots
+    stage_id: step_01_organizations
+    nist_800_171_rev2: ["3.1.1"]
+    cmmc_level_2: ["AC.L2-3.1.1"]
+    coverage: partial
+    assessor_notes: "Lists root; assessor validates OU model separately."
+
+  - id: expected_organization_id
+    stage_id: step_01_organizations
+    nist_800_171_rev2: ["3.1.1"]
+    cmmc_level_2: ["AC.L2-3.1.1"]
+    coverage: configuration
+    assessor_notes: "Org id drift."
+
+  - id: expected_ou_layout
+    stage_id: step_01_organizations
+    nist_800_171_rev2: ["3.1.1", "3.1.12"]
+    cmmc_level_2: ["AC.L2-3.1.1", "AC.L2-3.1.12"]
+    coverage: partial
+    assessor_notes: "OU ids under root; does not prove SCP effectiveness or account placement."
+
+  - id: expected_ou_ids
+    stage_id: step_01_organizations
+    nist_800_171_rev2: ["3.1.1"]
+    cmmc_level_2: ["AC.L2-3.1.1"]
+    coverage: configuration
+    assessor_notes: "Subset OU presence check when configured."
+
+  - id: expected_root_id
+    stage_id: step_01_organizations
+    nist_800_171_rev2: ["3.1.1"]
+    cmmc_level_2: ["AC.L2-3.1.1"]
+    coverage: configuration
+    assessor_notes: "Root id drift."
+
+  - id: scp_list_root
+    stage_id: step_02_root_guardrails
+    nist_800_171_rev2: ["3.1.2", "3.4.1", "3.13.1"]
+    cmmc_level_2: ["AC.L2-3.1.2", "CM.L2-3.4.1", "SC.L2-3.13.1"]
+    coverage: configuration
+    assessor_notes: "Lists attachments; policy *content* requires separate review (JSON, change tickets)."
+
+  - id: scp_custom_guardrails
+    stage_id: step_02_root_guardrails
+    nist_800_171_rev2: ["3.1.2", "3.4.1"]
+    cmmc_level_2: ["AC.L2-3.1.2", "CM.L2-3.4.1"]
+    coverage: partial
+    assessor_notes: "Custom vs AWS-managed heuristic; not a full guardrail audit."
+
+  - id: expected_scp_names
+    stage_id: step_02_root_guardrails
+    nist_800_171_rev2: ["3.1.2", "3.4.2"]
+    cmmc_level_2: ["AC.L2-3.1.2", "CM.L2-3.4.2"]
+    coverage: configuration
+    assessor_notes: "Name presence at root; attachment scope must match SSP."
+
+  - id: expected_scp_names_workloads_ou
+    stage_id: step_02_root_guardrails
+    nist_800_171_rev2: ["3.1.2", "3.4.2"]
+    cmmc_level_2: ["AC.L2-3.1.2", "CM.L2-3.4.2"]
+    coverage: configuration
+    assessor_notes: "Confirm OU id matches where policies are actually attached."
+
+  - id: expected_rcp_names_security_ou
+    stage_id: step_02_root_guardrails
+    nist_800_171_rev2: ["3.1.3", "3.13.1"]
+    cmmc_level_2: ["AC.L2-3.1.3", "SC.L2-3.13.1"]
+    coverage: configuration
+    assessor_notes: "RCP name presence; GovCloud-specific feature set."
+
+  - id: cloudtrail_describe
+    stage_id: step_03_logging
+    nist_800_171_rev2: ["3.3.1", "3.3.2"]
+    cmmc_level_2: ["AU.L2-3.3.1", "AU.L2-3.3.2"]
+    coverage: partial
+    assessor_notes: "Trails visible to caller; org trails and log consumer protections need separate evidence."
+
+  - id: cloudtrail_named_trail
+    stage_id: step_03_logging
+    nist_800_171_rev2: ["3.3.1"]
+    cmmc_level_2: ["AU.L2-3.3.1"]
+    coverage: configuration
+    assessor_notes: "Named trail exists for session/account view."
+
+  - id: cloudtrail_logging_enabled
+    stage_id: step_03_logging
+    nist_800_171_rev2: ["3.3.1", "3.3.2"]
+    cmmc_level_2: ["AU.L2-3.3.1", "AU.L2-3.3.2"]
+    coverage: point_in_time
+    assessor_notes: "IsLogging at run time; delivery errors need ticket review."
+
+  - id: cloudtrail_log_file_validation
+    stage_id: step_03_logging
+    nist_800_171_rev2: ["3.3.1", "3.14.3"]
+    cmmc_level_2: ["AU.L2-3.3.1", "SI.L2-3.14.3"]
+    coverage: configuration
+    assessor_notes: "Integrity feature flag; not a full log review."
+
+  - id: guardduty_list_detectors
+    stage_id: step_03_logging
+    nist_800_171_rev2: ["3.14.6"]
+    cmmc_level_2: ["SI.L2-3.14.6"]
+    coverage: partial
+    assessor_notes: "API reachability for GuardDuty."
+
+  - id: guardduty_detector_present
+    stage_id: step_03_logging
+    nist_800_171_rev2: ["3.14.6"]
+    cmmc_level_2: ["SI.L2-3.14.6"]
+    coverage: configuration
+    assessor_notes: "At least one detector id in the session region; multi-region and delegated admin out of band."
+
+  - id: config_recorder_status
+    stage_id: step_03_logging
+    nist_800_171_rev2: ["3.4.1", "3.4.2"]
+    cmmc_level_2: ["CM.L2-3.4.1", "CM.L2-3.4.2"]
+    coverage: configuration
+    assessor_notes: "Recorder status API; scope of recorded types not fully validated."
+
+  - id: config_recorder_recording
+    stage_id: step_03_logging
+    nist_800_171_rev2: ["3.4.1"]
+    cmmc_level_2: ["CM.L2-3.4.1"]
+    coverage: point_in_time
+    assessor_notes: "recording flag at run time."
+
+  - id: config_delivery_channel
+    stage_id: step_03_logging
+    nist_800_171_rev2: ["3.4.1", "3.3.1", "3.3.2"]
+    cmmc_level_2: ["CM.L2-3.4.1", "AU.L2-3.3.1", "AU.L2-3.3.2"]
+    coverage: configuration
+    assessor_notes: "Delivery channel exists when a recorder name is in scope; bucket/KMS permissions reviewed separately."
+
+  - id: evidence_bucket_exists
+    stage_id: step_03_logging
+    nist_800_171_rev2: ["3.8.1", "3.13.8"]
+    cmmc_level_2: ["MP.L2-3.8.1", "SC.L2-3.13.8"]
+    coverage: partial
+    assessor_notes: "HeadBucket; bucket policy and data classification out of band."
+
+  - id: evidence_bucket_encryption
+    stage_id: step_03_logging
+    nist_800_171_rev2: ["3.13.8", "3.13.11"]
+    cmmc_level_2: ["SC.L2-3.13.8", "SC.L2-3.13.11"]
+    coverage: configuration
+    assessor_notes: "Default encryption rules returned; KMS grants and key policy reviewed separately."
+
+  - id: evidence_bucket_object_lock
+    stage_id: step_03_logging
+    nist_800_171_rev2: ["3.8.9", "3.13.16"]
+    cmmc_level_2: ["MP.L2-3.8.9", "SC.L2-3.13.16"]
+    coverage: configuration
+    assessor_notes: "Retention mode/days when API permits read; legal hold still procedural."
+
+  - id: evidence_bucket_public_access_block
+    stage_id: step_03_logging
+    nist_800_171_rev2: ["3.1.12", "3.13.1", "3.13.16"]
+    cmmc_level_2: ["AC.L2-3.1.12", "SC.L2-3.13.1", "SC.L2-3.13.16"]
+    coverage: configuration
+    assessor_notes: "Bucket-level PAB four settings; complements account-level PAB check."
+
+  - id: iam_account_password_policy
+    stage_id: step_03_logging
+    nist_800_171_rev2: ["3.5.7", "3.5.8"]
+    cmmc_level_2: ["IA.L2-3.5.7", "IA.L2-3.5.8"]
+    coverage: configuration
+    assessor_notes: "Only when GOVCLOUD_CHECK_IAM_PASSWORD_POLICY=1; IDC-only environments may still want a baseline policy."
+
+  - id: account_alternate_security_contact
+    stage_id: step_03_logging
+    nist_800_171_rev2: ["3.6.1", "3.6.2"]
+    cmmc_level_2: ["IR.L2-3.6.1", "IR.L2-3.6.2"]
+    coverage: configuration
+    assessor_notes: "Opt-in via GOVCLOUD_CHECK_ACCOUNT_SECURITY_CONTACT=1; confirms contact object exists, not content quality."
+
+  - id: s3_named_buckets_public_access_block
+    stage_id: step_03_logging
+    nist_800_171_rev2: ["3.1.12", "3.13.16"]
+    cmmc_level_2: ["AC.L2-3.1.12", "SC.L2-3.13.16"]
+    coverage: configuration
+    assessor_notes: "Up to 20 buckets from GOVCLOUD_S3_BUCKETS_VERIFY_PAB; not a full S3 inventory audit."
+
+  - id: securityhub_enabled_standards_count
+    stage_id: step_03_logging
+    nist_800_171_rev2: ["3.14.1", "3.14.2"]
+    cmmc_level_2: ["SI.L2-3.14.1", "SI.L2-3.14.2"]
+    coverage: partial
+    assessor_notes: "Count of enabled standards is a weak bar; findings triage is the real work."
+
+  - id: account_s3_block_public_access
+    stage_id: step_03_logging
+    nist_800_171_rev2: ["3.1.12", "3.13.1", "3.13.16"]
+    cmmc_level_2: ["AC.L2-3.1.12", "SC.L2-3.13.1", "SC.L2-3.13.16"]
+    coverage: configuration
+    assessor_notes: "Account-level PAB; bucket-level exceptions and SCPs still matter."
+
+  - id: account_ebs_encryption_by_default
+    stage_id: step_03_logging
+    nist_800_171_rev2: ["3.13.8", "3.13.16"]
+    cmmc_level_2: ["SC.L2-3.13.8", "SC.L2-3.13.16"]
+    coverage: configuration
+    assessor_notes: "Regional default; verify CMK policy and volume-level exceptions."
+
+  - id: ec2_vpcs
+    stage_id: step_04_networking
+    nist_800_171_rev2: ["3.13.1", "3.13.5"]
+    cmmc_level_2: ["SC.L2-3.13.1", "SC.L2-3.13.5"]
+    coverage: partial
+    assessor_notes: "VPC list; segmentation and NACL/SG rules need architecture evidence."
+
+  - id: expected_vpc_id
+    stage_id: step_04_networking
+    nist_800_171_rev2: ["3.13.1"]
+    cmmc_level_2: ["SC.L2-3.13.1"]
+    coverage: configuration
+    assessor_notes: "Expected VPC exists."
+
+  - id: expected_vpc_subnet_count
+    stage_id: step_04_networking
+    nist_800_171_rev2: ["3.13.1"]
+    cmmc_level_2: ["SC.L2-3.13.1"]
+    coverage: partial
+    assessor_notes: "Subnet count heuristic only."
+
+  - id: rds_clusters
+    stage_id: step_05_aurora
+    nist_800_171_rev2: ["3.13.8", "3.13.16"]
+    cmmc_level_2: ["SC.L2-3.13.8", "SC.L2-3.13.16"]
+    coverage: partial
+    assessor_notes: "Cluster listing; encryption and access paths assessed elsewhere."
+
+  - id: ecs_list_clusters
+    stage_id: step_06_compute
+    nist_800_171_rev2: ["3.4.1", "3.13.1"]
+    cmmc_level_2: ["CM.L2-3.4.1", "SC.L2-3.13.1"]
+    coverage: partial
+    assessor_notes: "Compute inventory signal."
+
+  - id: elbv2_describe
+    stage_id: step_09_enclave
+    nist_800_171_rev2: ["3.13.1", "3.13.8"]
+    cmmc_level_2: ["SC.L2-3.13.1", "SC.L2-3.13.8"]
+    coverage: partial
+    assessor_notes: "Load balancer presence; TLS and WAF evidence separate."
+
+  - id: cognito_user_pools
+    stage_id: step_07_identity
+    nist_800_171_rev2: ["3.1.1", "3.5.1", "3.5.2"]
+    cmmc_level_2: ["AC.L2-3.1.1", "IA.L2-3.5.1", "IA.L2-3.5.2"]
+    coverage: partial
+    assessor_notes: "Pool listing; MFA and password policy in console/docs."
+
+  - id: kms_list_keys
+    stage_id: step_08_encryption
+    nist_800_171_rev2: ["3.13.8", "3.13.11"]
+    cmmc_level_2: ["SC.L2-3.13.8", "SC.L2-3.13.11"]
+    coverage: partial
+    assessor_notes: "KMS inventory; key policy and rotation procedures separate."
+
+  - id: expected_kms_aliases
+    stage_id: step_08_encryption
+    nist_800_171_rev2: ["3.13.8", "3.13.11"]
+    cmmc_level_2: ["SC.L2-3.13.8", "SC.L2-3.13.11"]
+    coverage: configuration
+    assessor_notes: "Alias presence vs expected list."
+
+  - id: ecr_repositories
+    stage_id: step_10_sdlc
+    nist_800_171_rev2: ["3.4.1", "3.14.2"]
+    cmmc_level_2: ["CM.L2-3.4.1", "SI.L2-3.14.2"]
+    coverage: partial
+    assessor_notes: "Image supply chain controls require pipeline evidence."
+
+  - id: http_health
+    stage_id: step_11_smoke
+    nist_800_171_rev2: ["3.14.6"]
+    cmmc_level_2: ["SI.L2-3.14.6"]
+    coverage: point_in_time
+    assessor_notes: "Smoke test only; not vulnerability management."
+
+  - id: smoke_health_url
+    stage_id: step_11_smoke
+    nist_800_171_rev2: ["3.14.6"]
+    cmmc_level_2: ["SI.L2-3.14.6"]
+    coverage: point_in_time
+    assessor_notes: "Optional URL from ASAF_SMOKE_HEALTH_URL."
+
+  - id: binder_path
+    stage_id: step_12_evidence_binder
+    nist_800_171_rev2: ["3.12.1", "3.12.2"]
+    cmmc_level_2: ["CA.L2-3.12.1", "CA.L2-3.12.2"]
+    coverage: partial
+    assessor_notes: "Local path configuration; formal evidence package is organizational."
+
+  - id: binder_artifacts
+    stage_id: step_12_evidence_binder
+    nist_800_171_rev2: ["3.12.1", "3.12.3"]
+    cmmc_level_2: ["CA.L2-3.12.1", "CA.L2-3.12.3"]
+    coverage: partial
+    assessor_notes: "File presence under binder path; content quality is human-reviewed."
+
+  - id: boundary_diagram
+    stage_id: step_12_evidence_binder
+    nist_800_171_rev2: ["3.13.1", "3.1.3"]
+    cmmc_level_2: ["SC.L2-3.13.1", "AC.L2-3.1.3"]
+    coverage: partial
+    assessor_notes: "Recommends a boundary-named artifact in the binder directory."
+
+  - id: stage_error
+    stage_id: "*"
+    nist_800_171_rev2: []
+    cmmc_level_2: []
+    coverage: point_in_time
+    assessor_notes: "Unexpected exception wrapped as WARN; triage as incident or bug."
+
+  - id: unknown_stage
+    stage_id: "*"
+    nist_800_171_rev2: []
+    cmmc_level_2: []
+    coverage: point_in_time
+    assessor_notes: "Provider/stage mismatch."

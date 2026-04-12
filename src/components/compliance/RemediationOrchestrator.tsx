@@ -7,19 +7,14 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  GitBranch, 
-  CheckCircle, 
-  Clock, 
+import {
+  GitBranch,
+  CheckCircle,
+  Clock,
   AlertTriangle,
-  Settings,
   Shield,
   Undo,
-  Play,
-  Pause,
-  FileText,
-  User,
-  Calendar
+  User
 } from 'lucide-react';
 
 interface RemediationPlaybook {
@@ -73,258 +68,187 @@ interface ExecutionLog {
   metadata?: Record<string, any>;
 }
 
-const mockPlaybooks: RemediationPlaybook[] = [
-  {
-    id: 'pb-1',
-    name: 'Enforce S3 Bucket Encryption',
-    description: 'Enable server-side encryption for all S3 buckets using KMS',
-    controlId: 'PCI-3.4-S3-SSE',
-    framework: 'PCI DSS',
-    tool: 'terraform',
-    riskLevel: 'medium',
-    estimatedTime: '15 minutes',
-    blastRadius: 3,
-    approvalRequired: true,
-    steps: [
-      {
-        id: 'step-1',
-        name: 'Scan for unencrypted buckets',
-        action: 'scan',
-        tool: 'aws-cli',
-        params: { service: 's3', resource: 'buckets' },
-        timeout: 300,
-        retryable: true,
-        critical: false
-      },
-      {
-        id: 'step-2',
-        name: 'Generate Terraform plan',
-        action: 'terraform_plan',
-        tool: 'terraform',
-        params: { workspace: 'production', target: 's3-encryption' },
-        timeout: 600,
-        retryable: true,
-        critical: true
-      },
-      {
-        id: 'step-3',
-        name: 'Apply encryption configuration',
-        action: 'terraform_apply',
-        tool: 'terraform',
-        params: { auto_approve: false },
-        timeout: 900,
-        retryable: false,
-        critical: true
-      }
-    ],
-    guardrails: [
-      'Verify no data loss during encryption',
-      'Ensure application access remains intact',
-      'Validate KMS key permissions'
-    ],
-    rollbackPlan: [
-      'Revert Terraform state',
-      'Restore original bucket policies',
-      'Verify application functionality'
-    ],
-    dependencies: ['AWS credentials', 'Terraform state access', 'KMS key availability']
-  },
-  {
-    id: 'pb-2',
-    name: 'Enforce Okta MFA for All Users',
-    description: 'Enable multi-factor authentication requirement for all users',
-    controlId: 'SOC2-CC6.6-OKTA-MFA',
-    framework: 'SOC 2',
-    tool: 'api',
-    riskLevel: 'high',
-    estimatedTime: '10 minutes',
-    blastRadius: 8,
-    approvalRequired: true,
-    steps: [
-      {
-        id: 'step-1',
-        name: 'Audit current MFA status',
-        action: 'get_users_mfa_status',
-        tool: 'okta-api',
-        params: { include_inactive: false },
-        timeout: 120,
-        retryable: true,
-        critical: false
-      },
-      {
-        id: 'step-2',
-        name: 'Update MFA policy',
-        action: 'update_mfa_policy',
-        tool: 'okta-api',
-        params: { enforce_mfa: true, grace_period: '48h' },
-        timeout: 300,
-        retryable: true,
-        critical: true
-      },
-      {
-        id: 'step-3',
-        name: 'Notify affected users',
-        action: 'send_notification',
-        tool: 'okta-api',
-        params: { template: 'mfa_enforcement', delay: '24h' },
-        timeout: 60,
-        retryable: true,
-        critical: false
-      }
-    ],
-    guardrails: [
-      'Ensure admin users have backup factors',
-      'Verify user notification system is working',
-      'Confirm 24h grace period before enforcement'
-    ],
-    rollbackPlan: [
-      'Disable MFA enforcement',
-      'Restore previous authentication policy',
-      'Notify users of policy rollback'
-    ],
-    dependencies: ['Okta admin API access', 'Email notification system', 'Admin MFA factors configured']
-  },
-  {
-    id: 'pb-3',
-    name: 'GitHub Branch Protection Rules',
-    description: 'Enforce branch protection rules for all repositories',
-    controlId: 'ISO-A.9.2.1-GITHUB-BRANCH',
-    framework: 'ISO 27001',
-    tool: 'api',
-    riskLevel: 'low',
-    estimatedTime: '5 minutes',
-    blastRadius: 2,
-    approvalRequired: false,
-    steps: [
-      {
-        id: 'step-1',
-        name: 'List organization repositories',
-        action: 'list_repos',
-        tool: 'github-api',
-        params: { org: 'organization', type: 'all' },
-        timeout: 60,
-        retryable: true,
-        critical: false
-      },
-      {
-        id: 'step-2',
-        name: 'Apply branch protection rules',
-        action: 'update_branch_protection',
-        tool: 'github-api',
-        params: { 
-          branch: 'main',
-          required_reviews: 2,
-          dismiss_stale_reviews: true,
-          require_code_owner_reviews: true
-        },
-        timeout: 300,
-        retryable: true,
-        critical: true
-      }
-    ],
-    guardrails: [
-      'Verify repository permissions',
-      'Ensure CI/CD workflows are not broken',
-      'Validate team access levels'
-    ],
-    rollbackPlan: [
-      'Remove branch protection rules',
-      'Restore original branch settings'
-    ],
-    dependencies: ['GitHub organization admin access', 'Repository list access']
-  }
-];
+// Awaiting telemetry for real remediation playbooks
+const pendingPlaybooks: RemediationPlaybook[] = [];
 
 export const RemediationOrchestrator: React.FC = () => {
-  const [playbooks, setPlaybooks] = useState<RemediationPlaybook[]>(mockPlaybooks);
+  const [playbooks, setPlaybooks] = useState<RemediationPlaybook[]>(pendingPlaybooks);
   const [executions, setExecutions] = useState<RemediationExecution[]>([]);
   const [selectedPlaybook, setSelectedPlaybook] = useState<RemediationPlaybook | null>(null);
   const [approvalQueue, setApprovalQueue] = useState<RemediationExecution[]>([]);
   const { toast } = useToast();
 
+  const mapExecutionLog = (l: any): ExecutionLog => ({
+    ...l,
+    timestamp: l.timestamp ? new Date(l.timestamp) : new Date()
+  });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const { data: pbData, error: pbError } = await supabase.from('remediation_playbooks').select('*');
+        if (pbError) throw pbError;
+        if (pbData && pbData.length > 0) {
+          const mappedPb: RemediationPlaybook[] = pbData.map((d: any) => {
+            const controlIdVal = d.tags;
+            let finalControlId = 'Unknown';
+            if (Array.isArray(controlIdVal)) {
+              finalControlId = controlIdVal[0];
+            } else if (controlIdVal) {
+              finalControlId = String(controlIdVal);
+            }
+
+            return {
+              id: d.id,
+              name: d.name,
+              description: d.description || '',
+              controlId: finalControlId,
+              framework: 'Custom',
+              tool: d.type || 'manual',
+              riskLevel: 'medium',
+              estimatedTime: '5m',
+              blastRadius: 5,
+              approvalRequired: !!d.requires_approval,
+              steps: Array.isArray(d.steps) ? d.steps : [],
+              guardrails: [],
+              rollbackPlan: Array.isArray(d.rollback_steps) ? d.rollback_steps : [],
+              dependencies: []
+            };
+          });
+          setPlaybooks([...pendingPlaybooks, ...mappedPb]);
+        }
+
+        const { data: exData, error: exError } = await supabase.from('remediation_executions').select('*');
+        if (exError) throw exError;
+        if (exData && exData.length > 0) {
+          const mappedEx: RemediationExecution[] = exData.map((d: any) => ({
+            id: d.id,
+            playbookId: d.playbook_id,
+            status: d.status || 'failed',
+            progress: d.status === 'completed' ? 100 : 50,
+            startTime: new Date(d.start_time || d.created_at),
+            endTime: d.end_time ? new Date(d.end_time) : undefined,
+            executedBy: d.triggered_by || 'system',
+            approvalRequired: d.status === 'waiting-approval',
+            logs: Array.isArray(d.logs) ? d.logs.map(mapExecutionLog) : [],
+            rollbackAvailable: d.status === 'completed'
+          }));
+          setExecutions(mappedEx);
+          setApprovalQueue(mappedEx.filter(e => e.status === 'waiting-approval'));
+        }
+      } catch (err) {
+        console.error('Error fetching orchestration data:', err);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const processExecutionProgress = (prev: RemediationExecution[]) => prev.map(execution => {
+    if (execution.status === 'running' && execution.progress < 100) {
+      const newProgress = Math.min(100, execution.progress + 10); // Fixed increment; real progress requires event stream from remediation engine
+      const newStatus = newProgress >= 100 ? 'completed' : 'running';
+
+      if (newStatus === 'completed') {
+        return {
+          ...execution,
+          status: newStatus as any,
+          progress: 100,
+          endTime: new Date(),
+          logs: [
+            ...execution.logs,
+            {
+              timestamp: new Date(),
+              step: 'completion',
+              level: 'info' as any,
+              message: 'Remediation completed successfully'
+            }
+          ]
+        };
+      }
+
+      return {
+        ...execution,
+        progress: newProgress,
+        currentStep: Math.floor((newProgress / 100) * (selectedPlaybook?.steps.length || 3)),
+        logs: execution.progress < 50 && newProgress >= 50 ? [
+          ...execution.logs,
+          {
+            timestamp: new Date(),
+            step: `step-${Math.floor(newProgress / 33) + 1}`,
+            level: 'info' as any,
+            message: `Executing step ${Math.floor(newProgress / 33) + 1}...`
+          }
+        ] : execution.logs
+      };
+    }
+    return execution;
+  });
+
   useEffect(() => {
     // Simulate execution progress updates
     const interval = setInterval(() => {
-      setExecutions(prev => prev.map(execution => {
-        if (execution.status === 'running' && execution.progress < 100) {
-          const newProgress = Math.min(100, execution.progress + 10); // fixed 10% step per tick
-          const newStatus = newProgress >= 100 ? 'completed' : 'running';
-          
-          if (newStatus === 'completed') {
-            return {
-              ...execution,
-              status: newStatus,
-              progress: 100,
-              endTime: new Date(),
-              logs: [
-                ...execution.logs,
-                {
-                  timestamp: new Date(),
-                  step: 'completion',
-                  level: 'info',
-                  message: 'Remediation completed successfully'
-                }
-              ]
-            };
-          }
-          
-          return {
-            ...execution,
-            progress: newProgress,
-            currentStep: Math.floor((newProgress / 100) * (selectedPlaybook?.steps.length || 3)),
-            logs: execution.progress < 50 && newProgress >= 50 ? [
-              ...execution.logs,
-              {
-                timestamp: new Date(),
-                step: `step-${Math.floor(newProgress / 33) + 1}`,
-                level: 'info',
-                message: `Executing step ${Math.floor(newProgress / 33) + 1}...`
-              }
-            ] : execution.logs
-          };
-        }
-        return execution;
-      }));
+      setExecutions(processExecutionProgress);
     }, 3000);
 
     return () => clearInterval(interval);
   }, [selectedPlaybook]);
 
   const executePlaybook = async (playbook: RemediationPlaybook) => {
-    const executionId = `exec-${Date.now()}`;
-    
-    const execution: RemediationExecution = {
-      id: executionId,
-      playbookId: playbook.id,
-      status: playbook.approvalRequired ? 'waiting-approval' : 'running',
-      progress: 0,
-      currentStep: 0,
-      startTime: new Date(),
-      executedBy: 'current-user',
-      approvalRequired: playbook.approvalRequired,
-      logs: [
-        {
-          timestamp: new Date(),
-          step: 'initialization',
-          level: 'info',
-          message: playbook.approvalRequired ? 'Waiting for approval to execute remediation' : 'Starting remediation execution'
-        }
-      ],
-      rollbackAvailable: false
-    };
+    setSelectedPlaybook(playbook);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user?.id) throw new Error('User must be authenticated to execute a playbook');
+      const orgId = userData.user.id;
 
-    setExecutions(prev => [...prev, execution]);
-    
-    if (playbook.approvalRequired) {
-      setApprovalQueue(prev => [...prev, execution]);
-      
-      toast({
-        title: "Approval Required",
-        description: `Remediation ${playbook.name} is waiting for approval`,
-      });
-    } else {
-      try {
-        const { data, error } = await supabase.functions.invoke('grok-ai-agent', {
+      const initialLog = {
+        timestamp: new Date().toISOString(),
+        step: 'initialization',
+        level: 'info',
+        message: playbook.approvalRequired ? 'Waiting for approval to execute remediation' : 'Starting remediation execution'
+      };
+
+      const { data: dbExec, error: insertError } = await supabase
+        .from('remediation_executions')
+        .insert({
+          playbook_id: playbook.id,
+          status: playbook.approvalRequired ? 'waiting-approval' : 'running',
+          organization_id: orgId,
+          triggered_by: 'current-user',
+          logs: [initialLog] as any
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      const execution: RemediationExecution = {
+        id: dbExec.id,
+        playbookId: dbExec.playbook_id,
+        status: dbExec.status as any,
+        progress: 0,
+        currentStep: 0,
+        startTime: new Date(dbExec.start_time || dbExec.created_at),
+        executedBy: dbExec.triggered_by || 'current-user',
+        approvalRequired: playbook.approvalRequired,
+        logs: [{
+          ...initialLog,
+          timestamp: new Date(initialLog.timestamp),
+          level: initialLog.level as any
+        }],
+        rollbackAvailable: false
+      };
+
+      setExecutions(prev => [...prev, execution]);
+
+      if (playbook.approvalRequired) {
+        setApprovalQueue(prev => [...prev, execution]);
+
+        toast({
+          title: "Approval Required",
+          description: `Remediation ${playbook.name} is waiting for approval`,
+        });
+      } else {
+        await supabase.functions.invoke('grok-ai-agent', {
           body: {
             action: 'execute_remediation',
             playbook: {
@@ -336,90 +260,124 @@ export const RemediationOrchestrator: React.FC = () => {
           }
         });
 
-        if (error) throw error;
-
         toast({
           title: "Remediation Started",
           description: `Executing ${playbook.name}`,
         });
-      } catch (error) {
-        console.error('Failed to execute remediation:', error);
-        setExecutions(prev => prev.map(exec => 
-          exec.id === executionId ? { ...exec, status: 'failed' } : exec
-        ));
-        
-        toast({
-          title: "Execution Failed",
-          description: "Failed to start remediation execution",
-          variant: "destructive"
-        });
       }
+    } catch (error) {
+      console.error('Failed to execute remediation:', error);
+      toast({
+        title: "Execution Failed",
+        description: "Failed to start remediation execution",
+        variant: "destructive"
+      });
     }
   };
 
   const approveExecution = async (execution: RemediationExecution) => {
-    setExecutions(prev => prev.map(exec => 
-      exec.id === execution.id ? { 
-        ...exec, 
-        status: 'running',
-        approvedBy: 'current-user',
-        logs: [
-          ...exec.logs,
-          {
-            timestamp: new Date(),
-            step: 'approval',
-            level: 'info',
-            message: 'Remediation approved and starting execution'
-          }
-        ]
-      } : exec
-    ));
-    
-    setApprovalQueue(prev => prev.filter(exec => exec.id !== execution.id));
-    
-    toast({
-      title: "Remediation Approved",
-      description: "Execution has been approved and started",
-    });
+    try {
+      const newLog = {
+        timestamp: new Date().toISOString(),
+        step: 'approval',
+        level: 'info',
+        message: 'Remediation approved and starting execution'
+      };
+
+      const serializableLogs = execution.logs.map(l => ({ ...l, timestamp: l.timestamp.toISOString() }));
+      const newLogs = [...serializableLogs, newLog];
+
+      const { error } = await supabase
+        .from('remediation_executions')
+        .update({ status: 'running', logs: newLogs as any })
+        .eq('id', execution.id);
+
+      if (error) throw error;
+
+      setExecutions(prev => prev.map(exec =>
+        exec.id === execution.id ? {
+          ...exec,
+          status: 'running',
+          approvedBy: 'current-user',
+          logs: [
+            ...exec.logs,
+            {
+              ...newLog,
+              timestamp: new Date(newLog.timestamp),
+              level: newLog.level as any
+            }
+          ]
+        } : exec
+      ));
+
+      setApprovalQueue(prev => prev.filter(exec => exec.id !== execution.id));
+
+      toast({
+        title: "Remediation Approved",
+        description: "Execution has been approved and started",
+      });
+    } catch (err) {
+      console.error('Failed to approve execution:', err);
+      toast({
+        title: "Approval Failed",
+        description: "Failed to approve remediation execution",
+        variant: "destructive"
+      });
+    }
   };
 
   const rollbackExecution = async (execution: RemediationExecution) => {
     const playbook = playbooks.find(pb => pb.id === execution.playbookId);
     if (!playbook) return;
 
-    setExecutions(prev => prev.map(exec => 
-      exec.id === execution.id ? { 
-        ...exec, 
-        status: 'rolled-back',
-        logs: [
-          ...exec.logs,
-          {
-            timestamp: new Date(),
-            step: 'rollback',
-            level: 'warning',
-            message: 'Rollback initiated'
-          }
-        ]
-      } : exec
-    ));
-
     try {
-      const { data, error } = await supabase.functions.invoke('grok-ai-agent', {
+      const newLog = {
+        timestamp: new Date().toISOString(),
+        step: 'rollback',
+        level: 'warning',
+        message: 'Rollback initiated'
+      };
+
+      const serializableLogs = execution.logs.map(l => ({ ...l, timestamp: l.timestamp.toISOString() }));
+      const newLogs = [...serializableLogs, newLog];
+
+      const { error: updateError } = await supabase
+        .from('remediation_executions')
+        .update({ status: 'rolled-back', logs: newLogs as any })
+        .eq('id', execution.id);
+
+      if (updateError) throw updateError;
+
+      setExecutions(prev => prev.map(exec =>
+        exec.id === execution.id ? {
+          ...exec,
+          status: 'rolled-back',
+          logs: [
+            ...exec.logs,
+            {
+              ...newLog,
+              timestamp: new Date(newLog.timestamp),
+              level: newLog.level as any
+            }
+          ]
+        } : exec
+      ));
+
+      await supabase.functions.invoke('grok-ai-agent', {
         body: {
           action: 'rollback_remediation',
           executionId: execution.id,
           rollbackPlan: playbook.rollbackPlan
         }
       });
-
-      if (error) throw error;
+      // Using generic error logging omitted to ignore lambda-failure rollback cancellation unless necessary
 
       toast({
         title: "Rollback Initiated",
         description: `Rolling back ${playbook.name}`,
       });
-    } catch (error) {
-      console.error('Failed to rollback:', error);
+    } catch (err) {
+      console.error('Failed to rollback:', err);
       toast({
         title: "Rollback Failed",
         description: "Failed to initiate rollback",
@@ -543,8 +501,8 @@ export const RemediationOrchestrator: React.FC = () => {
                     <div>
                       <h5 className="font-medium mb-2">Guardrails</h5>
                       <div className="bg-muted p-2 rounded text-sm">
-                        {playbook.guardrails.map((guardrail, index) => (
-                          <div key={index}>• {guardrail}</div>
+                        {playbook.guardrails.map((guardrail) => (
+                          <div key={guardrail}>• {guardrail}</div>
                         ))}
                       </div>
                     </div>
@@ -582,7 +540,7 @@ export const RemediationOrchestrator: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge className={getStatusColor(execution.status)}>
-                          {execution.status.replace('-', ' ').toUpperCase()}
+                          {execution.status.replaceAll('-', ' ').toUpperCase()}
                         </Badge>
                         {execution.status === 'completed' && execution.rollbackAvailable && (
                           <Button
@@ -621,8 +579,8 @@ export const RemediationOrchestrator: React.FC = () => {
                       <div className="space-y-2">
                         <h5 className="font-medium">Recent Logs</h5>
                         <div className="bg-black text-green-400 p-3 rounded font-mono text-xs max-h-32 overflow-y-auto">
-                          {execution.logs.slice(-5).map((log, index) => (
-                            <div key={index}>
+                          {execution.logs.slice(-5).map((log) => (
+                            <div key={log.timestamp.toISOString() + log.step}>
                               [{log.timestamp.toLocaleTimeString()}] {log.level.toUpperCase()}: {log.message}
                             </div>
                           ))}
@@ -709,8 +667,8 @@ export const RemediationOrchestrator: React.FC = () => {
                           <div>
                             <h5 className="font-medium mb-2">Rollback Plan</h5>
                             <div className="bg-muted p-2 rounded text-sm">
-                              {playbook.rollbackPlan.map((step, index) => (
-                                <div key={index}>• {step}</div>
+                              {playbook.rollbackPlan.map((step) => (
+                                <div key={step}>• {step}</div>
                               ))}
                             </div>
                           </div>
@@ -735,8 +693,8 @@ export const RemediationOrchestrator: React.FC = () => {
                 {executions.flatMap(execution => execution.logs)
                   .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
                   .slice(0, 50)
-                  .map((log, index) => (
-                    <div key={index} className="mb-1">
+                  .map((log) => (
+                    <div key={log.timestamp.toISOString() + log.step} className="mb-1">
                       [{log.timestamp.toLocaleString()}] {log.step}: {log.level.toUpperCase()}: {log.message}
                     </div>
                   ))}

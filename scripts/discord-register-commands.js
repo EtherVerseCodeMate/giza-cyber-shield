@@ -238,4 +238,8 @@ async function registerCommands() {
     });
 }
 
-registerCommands().catch(console.error);
+try {
+    await registerCommands();
+} catch (error) {
+    console.error(error);
+}

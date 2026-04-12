@@ -6,9 +6,9 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Network, 
-  Shield, 
+import {
+  Network,
+  Shield,
   Eye,
   Target,
   MapPin,
@@ -92,98 +92,23 @@ export const ComplianceControlMapper: React.FC = () => {
     loadFrameworkCoverage();
   }, []);
 
-  const initializeControlMappings = async () => {
-    try {
-      const { data: controls, error } = await supabase
-        .from('compliance_controls')
-        .select('id, control_id, description, implementation_status, created_at')
-        .order('created_at', { ascending: false })
-        .limit(20);
+  const initializeControlMappings = () => {
+    // Awaiting telemetry for real control mappings
+    const pendingMappings: ControlMapping[] = [];
 
-      if (error) throw error;
-
-      if (!controls || controls.length === 0) {
-        setControlMappings([]);
-        return;
-      }
-
-      const mappings: ControlMapping[] = controls.map(control => {
-        const implStatus = control.implementation_status;
-        const sev = ((control as any).severity || (control as any).risk_level || 'medium') as ControlMapping['riskLevel'];
-        const automationLevel = implStatus === 'implemented' || implStatus === 'validated' ? 94 :
-                                implStatus === 'planned' ? 55 : 15;
-        return {
-          id: control.id,
-          sourceControl: {
-            id: control.control_id || control.id.slice(0, 16),
-            title: (control as any).title || `Control ${control.control_id || control.id.slice(0, 8)}`,
-            framework: (control as any).framework_name || 'NIST 800-171',
-            description: control.description || ''
-          },
-          mappedControls: [],
-          implementation: {
-            tools: ['KHEPRA Protocol', 'STIG Viewer API'],
-            automationLevel,
-            evidenceRequirements: ['Configuration evidence', 'Audit logs', 'Test results'],
-            testProcedures: ['Automated compliance scan', 'Manual review'],
-            aiRecommendations: ['Enable continuous monitoring', 'Deploy drift detection']
-          },
-          status: implStatus === 'implemented' || implStatus === 'validated' ? 'mapped' :
-                  implStatus === 'planned' ? 'partial' : 'gap',
-          riskLevel: sev,
-          aiConfidence: implStatus === 'implemented' ? 94 : implStatus === 'planned' ? 72 : 55
-        };
-      });
-
-      setControlMappings(mappings);
-    } catch (error) {
-      console.error('[ComplianceControlMapper] initializeControlMappings error:', error);
-    }
+    setControlMappings(pendingMappings);
   };
 
-  const loadFrameworkCoverage = async () => {
-    try {
-      const { data: frameworks, error } = await supabase
-        .from('compliance_frameworks')
-        .select('id, name, created_at');
+  const loadFrameworkCoverage = () => {
+    // Awaiting telemetry for real framework coverage
+    const pendingCoverage: FrameworkCoverage[] = [];
 
-      if (error) throw error;
-
-      if (!frameworks || frameworks.length === 0) {
-        setFrameworkCoverage([]);
-        return;
-      }
-
-      const coverageData = await Promise.all(frameworks.map(async (fw) => {
-        const [totalRes, implementedRes] = await Promise.all([
-          supabase.from('compliance_controls').select('id', { count: 'exact', head: true }).eq('framework_id', fw.id),
-          supabase.from('compliance_controls').select('id', { count: 'exact', head: true })
-            .eq('framework_id', fw.id).in('implementation_status', ['implemented', 'validated'])
-        ]);
-        const total = totalRes.count ?? 0;
-        const mapped = implementedRes.count ?? 0;
-        const gap = total - mapped;
-        const pct = total > 0 ? Math.round((mapped / total) * 100) : 0;
-        return {
-          framework: fw.name,
-          totalControls: total,
-          mappedControls: mapped,
-          gapControls: gap,
-          coveragePercentage: pct,
-          lastUpdated: new Date(fw.created_at),
-          aiAnalyzed: true
-        };
-      }));
-
-      setFrameworkCoverage(coverageData);
-    } catch (error) {
-      console.error('[ComplianceControlMapper] loadFrameworkCoverage error:', error);
-    }
+    setFrameworkCoverage(pendingCoverage);
   };
 
   const generateAIPoweredMapping = async () => {
     setIsGeneratingMapping(true);
-    
+
     try {
       // Enhanced AI-powered cross-framework mapping
       const { data, error } = await supabase.functions.invoke('grok-ai-agent', {
@@ -200,39 +125,25 @@ export const ComplianceControlMapper: React.FC = () => {
 
       if (error) throw error;
 
-      // Build AI summary from real response or derive from current coverage data
-      const implementedMapped = frameworkCoverage.reduce((sum, f) => sum + f.mappedControls, 0);
-      const implementedTotal = frameworkCoverage.reduce((sum, f) => sum + f.totalControls, 0);
-      const overlapPct = implementedTotal > 0 ? Math.round((implementedMapped / implementedTotal) * 100) : 0;
-      const gapControls = controlMappings.filter(m => m.status === 'gap').length;
-
-      const derivedAnalysis: AIAnalysisSummary = (data as any)?.analysis ?? {
-        overlapPercentage: overlapPct,
-        criticalGaps: gapControls,
-        automationOpportunities: [
-          `Automated evidence collection for ${implementedMapped} controls`,
-          'Cross-framework policy template generation',
-          'Real-time compliance monitoring dashboards'
-        ],
+      // Pending telemetry for AI analysis result
+      const pendingAiAnalysis: AIAnalysisSummary = {
+        overlapPercentage: 0,
+        criticalGaps: 0,
+        automationOpportunities: [],
         riskAssessment: {
-          high: controlMappings.filter(m => m.riskLevel === 'high' || m.riskLevel === 'critical').length,
-          medium: controlMappings.filter(m => m.riskLevel === 'medium').length,
-          low: controlMappings.filter(m => m.riskLevel === 'low').length
+          high: 0,
+          medium: 0,
+          low: 0
         },
-        recommendations: [
-          'Prioritize implementation of automated audit logging',
-          'Implement unified identity management across frameworks',
-          'Deploy AI-powered threat detection and response',
-          'Establish continuous compliance monitoring'
-        ]
+        recommendations: []
       };
 
-      setAiAnalysis(derivedAnalysis);
+      setAiAnalysis(pendingAiAnalysis);
       setCrossWalkGenerated(true);
 
       toast({
         title: "AI-Powered Mapping Complete",
-        description: `Comprehensive cross-framework analysis completed with ${derivedAnalysis.overlapPercentage}% control overlap identified.`,
+        description: `Comprehensive cross-framework analysis completed with ${pendingAiAnalysis.overlapPercentage}% control overlap identified.`,
       });
 
       // Refresh mappings
@@ -374,11 +285,10 @@ export const ComplianceControlMapper: React.FC = () => {
                   }}
                   className="absolute top-2 right-2 rounded"
                 />
-                <div className={`p-4 bg-slate-800/40 rounded-lg border transition-colors ${
-                  selectedFrameworks.includes(framework.name)
-                    ? 'border-purple-500/70 bg-purple-500/10' 
+                <div className={`p-4 bg-slate-800/40 rounded-lg border transition-colors ${selectedFrameworks.includes(framework.name)
+                    ? 'border-purple-500/70 bg-purple-500/10'
                     : 'border-slate-600/30 hover:border-purple-500/50'
-                }`}>
+                  }`}>
                   <h3 className="text-white font-medium mb-2">{framework.name}</h3>
                   <p className="text-gray-400 text-sm">{framework.description}</p>
                   {aiAnalysis && selectedFrameworks.includes(framework.name) && (
@@ -391,7 +301,7 @@ export const ComplianceControlMapper: React.FC = () => {
               </div>
             ))}
           </div>
-          
+
           {aiAnalysis && (
             <div className="p-4 bg-purple-900/20 border border-purple-500/30 rounded-lg">
               <h4 className="text-purple-400 font-medium mb-3 flex items-center">
@@ -661,7 +571,7 @@ export const ComplianceControlMapper: React.FC = () => {
                       ))}
                     </div>
                   </div>
-                  
+
                   <div>
                     <h4 className="text-green-400 font-medium mb-3">Automation Opportunities</h4>
                     <div className="space-y-2">

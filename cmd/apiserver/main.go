@@ -1,11 +1,13 @@
-// DEMARC API Server - Khepra Protocol Secure Gateway
-// "The Mitochondreal-Scarab / The Motherboard"
+// SEKHEM Gateway - Khepra Protocol Secure Gateway
+// "SEKHEM — The Divine Gateway"
+// Sekhem (Egyptian): Power, might, divine authority — the scepter that commands
+// the boundary between chaos and order.
 //
 // The central consciousness hub connecting:
-// - Go AGI (KASA)        - Logic & Execution
+// - Go AGI (KASA)          - Logic & Execution
 // - Python AGI (SouHimBou) - Intuition & Soul
-// - Telemetry Server     - Long-Term Memory
-// - Client API           - User Interface
+// - Telemetry Server       - Long-Term Memory
+// - Client API             - User Interface
 //
 // Environment Variables:
 //   KHEPRA_SERVICE_SECRET     - Shared HMAC secret for service authentication (required)
@@ -16,6 +18,8 @@
 //   CERT_CACHE_DIR             - Directory for certificate cache
 //   DEBUG                     - Enable debug mode (default: false)
 //   TELEMETRY_URL             - Telemetry server URL (default: https://telemetry.souhimbou.org)
+//
+//   ASAF_ALLOW_EVAL_WITHOUT_LICENSE - If "true", allow scan_type eval/basic when license invalid (public funnel; set on Fly with care)
 //
 //   PQC Auth (ML-DSA-65 / NIST FIPS 204):
 //   SUPABASE_JWT_SECRET       - Supabase project JWT secret (enables Supabase Auth login)
@@ -49,13 +53,114 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/llm/ollama"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/mcp"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/sekhem"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/supabase"
 )
 
 func main() {
-	// CLI flags
-	// TLS is ON by default — Khepra is a security product, plaintext is unacceptable.
-	// Disable only for local development with --tls=false.
+	cfg, flags := parseConfig()
+
+	printBanner()
+
+	dagStore, licMgr := initInfrastructure(cfg)
+
+	// ── SEKHEM Triad (Ouroboros + WAFShield + Sensor/Actuator mesh) ───────────
+	// Must be created and harmonized BEFORE server.Start() so that WAFShield
+	// exists when setupMiddleware() wires it into the Gin handler chain.
+	triad := initSekhemTriad(dagStore)
+
+	// Create server — dependencies injected before Start()
+	server := initServices(cfg, flags, dagStore, licMgr)
+	server.WithSekhemTriad(triad)
+
+	// ── PQC Auth Gateway (ML-DSA-65 / NIST FIPS 204) ─────────────────────────
+	initPQCAuthGateway(server)
+
+	// ── Supabase MCP Persistence Layer ───────────────────────────────────────
+	initSupabaseMCPStore(server)
+
+	// ── Natural Language Security Engine ─────────────────────────────────────
+	initNLProcessor(server)
+
+	// Start server in background (setupMiddleware runs here with WAFShield ready)
+	go func() {
+		if err := server.Start(); err != nil {
+			log.Fatalf("Server error: %v", err)
+		}
+	}()
+
+	// Log service status
+	log.Println("╔═══════════════════════════════════════════════════════════════════╗")
+	log.Println("║                    SEKHEM Gateway Active                          ║")
+	log.Println("╚═══════════════════════════════════════════════════════════════════╝")
+	log.Printf("  Address:           %s:%d", cfg.host, cfg.port)
+	log.Printf("  TLS:               %v", cfg.tlsEnabled)
+	log.Printf("  Service Auth:      %s", getSecretStatus())
+	log.Printf("  Telemetry Server:  %s", cfg.telemetryURL)
+	log.Println("")
+	log.Println("  Auth Endpoints (public — no auth required):")
+	log.Println("    POST /api/v1/auth/token            - Exchange Supabase JWT → PQC token")
+	log.Println("    POST /api/v1/auth/saml/callback    - SAML 2.0 / Claude Enterprise WorkOS")
+	log.Println("    GET  /api/v1/auth/introspect       - RFC 7662 token introspection")
+	log.Println("    GET  /api/v1/auth/keys/public      - ML-DSA-65 public key")
+	log.Println("")
+	log.Println("  REST Endpoints (authenticated):")
+	log.Println("    GET  /health                      - Health check")
+	log.Println("    GET  /version                     - Version info")
+	log.Println("    POST /api/v1/mcp/ask              - NL security query (ChatGPT moment)")
+	log.Println("    GET  /api/v1/mcp/dashboard        - Security risk dashboard")
+	log.Println("    GET  /api/v1/mcp/alerts           - Active IDS/IPS alerts")
+	log.Println("    GET  /api/v1/mcp/timeline         - Security event timeline")
+	log.Println("    POST /api/v1/telemetry/ingest     - Telemetry ingestion (service auth)")
+	log.Println("    GET  /api/v1/telemetry/stats      - Telemetry statistics")
+	log.Println("    POST /api/v1/scans/trigger        - Trigger crypto scan")
+	log.Println("    GET  /api/v1/license/status       - License status")
+	log.Println("")
+	log.Println("  WebSocket Endpoints:")
+	log.Println("    WS   /ws/scans                    - Real-time scan updates")
+	log.Println("    WS   /ws/dag                      - DAG state changes")
+	log.Println("    WS   /ws/license                  - License events")
+	log.Println("")
+	log.Println("  SEKHEM is online. The Gateway stands.")
+
+	// Graceful shutdown on interrupt
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+
+	log.Println("")
+	log.Println("Received shutdown signal...")
+
+	// Shutdown with 30-second timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		log.Printf("Server forced to shutdown: %v", err)
+	}
+
+	// Stop license heartbeat
+	licMgr.Stop()
+
+	// Stop SEKHEM Triad (Ouroboros cycle + WAFShield rotation + file handles)
+	if triad != nil {
+		triad.Stop()
+	}
+
+	log.Println("SEKHEM gateway exited gracefully. The scepter rests.")
+}
+
+type serverConfig struct {
+	port         int
+	host         string
+	tlsEnabled   bool
+	tlsDomain    string
+	certCacheDir string
+	debug        bool
+	telemetryURL string
+}
+
+func parseConfig() (*serverConfig, map[string]interface{}) {
 	port := flag.Int("port", 443, "Server port (default 443 for TLS)")
 	host := flag.String("host", "0.0.0.0", "Server host")
 	tlsEnabled := flag.Bool("tls", true, "Enable TLS with Let's Encrypt (default: true)")
@@ -65,7 +170,7 @@ func main() {
 	telemetryURL := flag.String("telemetry-url", "https://telemetry.souhimbou.org", "Telemetry server URL")
 	flag.Parse()
 
-	// Environment variable overrides (env vars take precedence over CLI defaults)
+	// Environment variable overrides
 	if envPort := os.Getenv("PORT"); envPort != "" {
 		if p, err := strconv.Atoi(envPort); err == nil {
 			*port = p
@@ -74,11 +179,10 @@ func main() {
 	if envHost := os.Getenv("HOST"); envHost != "" {
 		*host = envHost
 	}
-	// TLS_ENABLED=false explicitly opts out of TLS (local dev only)
 	if os.Getenv("TLS_ENABLED") == "false" {
 		*tlsEnabled = false
 		if *port == 443 {
-			*port = 8080 // revert to dev port when TLS explicitly disabled
+			*port = 8080
 		}
 	}
 	if envDomain := os.Getenv("TLS_DOMAIN"); envDomain != "" {
@@ -96,10 +200,7 @@ func main() {
 
 	// Warn if TLS is enabled but domain is not configured
 	if *tlsEnabled && *tlsDomain == "" {
-		log.Println("WARNING: TLS_DOMAIN not set. Let's Encrypt requires a valid public domain.")
-		log.Println("  Set: export TLS_DOMAIN=api.yourdomain.com")
-		log.Println("  Or disable TLS for local dev: export TLS_ENABLED=false")
-		log.Println("Falling back to HTTP on port 8080 for this session.")
+		log.Println("WARNING: TLS_DOMAIN not set. Falling back to HTTP on port 8080.")
 		*tlsEnabled = false
 		*port = 8080
 	}
@@ -107,66 +208,104 @@ func main() {
 	// Validate service secret
 	if os.Getenv("KHEPRA_SERVICE_SECRET") == "" {
 		log.Println("WARNING: KHEPRA_SERVICE_SECRET not set!")
-		log.Println("Service-to-service authentication will use development defaults.")
-		log.Println("Set this for production: export KHEPRA_SERVICE_SECRET=<your-256-bit-hex-secret>")
 	}
 
-	printBanner()
+	cfg := &serverConfig{
+		port:         *port,
+		host:         *host,
+		tlsEnabled:   *tlsEnabled,
+		tlsDomain:    *tlsDomain,
+		certCacheDir: *certCacheDir,
+		debug:        *debug,
+		telemetryURL: *telemetryURL,
+	}
 
-	// Initialize DAG (global singleton - The Long-Term Memory)
+	return cfg, map[string]interface{}{
+		"host":         host,
+		"port":         port,
+		"tlsEnabled":   tlsEnabled,
+		"tlsDomain":    tlsDomain,
+		"certCacheDir": certCacheDir,
+		"telemetryURL": telemetryURL,
+	}
+}
+
+// initSekhemTriad creates the SekhemTriad in Edge mode and harmonizes all realms.
+// Harmonize() calls DuatRealm.Awaken() which initializes WAFShield, WAFEye,
+// and starts the Ouroboros cycle. Must complete before server.Start() so the
+// WAFShield is available when setupMiddleware() wires it into Gin.
+func initSekhemTriad(dagStore dag.Store) *sekhem.SekhemTriad {
+	triad, err := sekhem.NewSekhemTriad(nil, dagStore, sekhem.ModeEdge)
+	if err != nil {
+		log.Fatalf("SEKHEM Triad init failed: %v", err)
+	}
+	if err := triad.Harmonize(); err != nil {
+		// WAFShield failure is fatal — we never run without the perimeter guard.
+		log.Fatalf("SEKHEM Triad harmonize failed: %v", err)
+	}
+	log.Printf("[SEKHEM] Triad harmonized — mode=%s realms=%d", triad.GetMode(), triad.GetActiveRealmCount())
+	return triad
+}
+
+func initInfrastructure(cfg *serverConfig) (dag.Store, *license.Manager) {
+	// Initialize DAG
 	dagStore := dag.GlobalDAG()
 	log.Printf("DAG initialized with %d nodes", len(dagStore.All()))
 
-	// Initialize license manager (Merkaba Egyptian mythology system)
-	licMgr, err := license.NewManager(*telemetryURL)
+	// Initialize license manager
+	licMgr, err := license.NewManager(cfg.telemetryURL)
 	if err != nil {
 		log.Fatalf("Failed to create license manager: %v", err)
 	}
 
-	// Initialize license (validates with server and starts heartbeat)
 	if err := licMgr.Initialize(); err != nil {
 		log.Printf("License validation failed: %v", err)
-		log.Println("Running in community mode - proprietary features disabled")
 	} else {
 		log.Println("License validated - full features enabled")
 	}
 
-	// Create API server configuration
+	return dagStore, licMgr
+}
+
+func initServices(cfg *serverConfig, flags map[string]interface{}, dagStore dag.Store, licMgr *license.Manager) *apiserver.Server {
 	config := &apiserver.Config{
-		Host:         *host,
-		Port:         *port,
-		TLSEnabled:   *tlsEnabled,
-		TLSDomain:    *tlsDomain,
-		CertCacheDir: *certCacheDir,
+		Host:         cfg.host,
+		Port:         cfg.port,
+		TLSEnabled:   cfg.tlsEnabled,
+		TLSDomain:    cfg.tlsDomain,
+		CertCacheDir: cfg.certCacheDir,
 		AllowedOrigins: []string{
+			// NouchiX / ASAF production origins
+			"https://docs.nouchix.com",        // ASAF NLP UI — served here, fetches localhost agent
+			"https://nouchix.com",
+			"https://www.nouchix.com",
+			"https://adinkhepra.com",
+			"https://www.adinkhepra.com",
+			"https://adinkhepra.dev",
 			"https://souhimbou.org",
 			"https://www.souhimbou.org",
 			"https://gateway.souhimbou.org",
 			"https://telemetry.souhimbou.org",
-			"https://adinkhepra.dev",
+			// Local development
 			"http://localhost:3000",
 			"http://localhost:5173",
+			"http://localhost:7777", // serve-nlp default
 			"http://localhost:8080",
 		},
-		Debug: *debug,
+		Debug: cfg.debug,
 	}
 
-	// Create adapters to bridge existing components with API server
 	dagAdapter := apiserver.NewDAGStoreAdapter(dagStore)
 	licAdapter := apiserver.NewLicenseManagerAdapter(licMgr)
 
-	// Load service accounts (from env or secure defaults)
 	apiserver.LoadDefaultServiceAccounts()
 
-	// Create server (The Motherboard)
-	server := apiserver.NewServer(config, dagAdapter, licAdapter)
+	return apiserver.NewServer(config, dagAdapter, licAdapter)
+}
 
-	// ── PQC Auth Gateway (ML-DSA-65 / NIST FIPS 204) ─────────────────────────
-	// Supports: Supabase JWT (email/Google/GitHub), SAML 2.0 (Claude Enterprise
-	// WorkOS), and native PQC tokens. Issues ML-DSA-65 signed JWTs for every
-	// authenticated session — zero-day proof at NIST Level 3.
+func initPQCAuthGateway(server *apiserver.Server) {
 	pqcGateway, pqcErr := auth.NewPQCAuthGateway(nil, nil, auth.PQCAuthGatewayConfig{
-		Symbol:   "Eban", // Fortress — security gateway symbol
+		Symbol:   "Eban",
 		Issuer:   "khepra-pqc-gateway",
 		TokenTTL: time.Hour,
 	})
@@ -181,8 +320,9 @@ func main() {
 			log.Println("  NOTE: SUPABASE_JWT_SECRET not set — Supabase Auth login disabled")
 		}
 	}
+}
 
-	// ── Supabase MCP Persistence Layer ───────────────────────────────────────
+func initSupabaseMCPStore(server *apiserver.Server) {
 	supabaseURL := os.Getenv("SUPABASE_URL")
 	supabaseKey := os.Getenv("SUPABASE_SERVICE_ROLE_KEY")
 	if supabaseURL != "" && supabaseKey != "" {
@@ -196,13 +336,12 @@ func main() {
 	} else {
 		log.Println("Supabase MCP store: disabled (set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY)")
 	}
+}
 
-	// ── Natural Language Security Engine ─────────────────────────────────────
-	// Converts plain English security questions → tool chains → plain English answers.
-	// "Is my network compromised?" → IDS alerts + threat hunt → synthesized report.
+func initNLProcessor(server *apiserver.Server) {
 	llmProvider := os.Getenv("LLM_PROVIDER")
 	if llmProvider == "" {
-		llmProvider = "ollama" // default: local Ollama (phi4, llama3, etc.)
+		llmProvider = "ollama"
 	}
 	if llmProvider != "none" {
 		llmURL := os.Getenv("LLM_URL")
@@ -229,68 +368,6 @@ func main() {
 	} else {
 		log.Println("NL security engine: disabled (LLM_PROVIDER=none) — keyword routing active")
 	}
-
-	// Start server in background
-	go func() {
-		if err := server.Start(); err != nil {
-			log.Fatalf("Server error: %v", err)
-		}
-	}()
-
-	// Log service status
-	log.Println("╔═══════════════════════════════════════════════════════════════════╗")
-	log.Println("║                    DEMARC Server Active                           ║")
-	log.Println("╚═══════════════════════════════════════════════════════════════════╝")
-	log.Printf("  Address:           %s:%d", *host, *port)
-	log.Printf("  TLS:               %v", *tlsEnabled)
-	log.Printf("  Service Auth:      %s", getSecretStatus())
-	log.Printf("  Telemetry Server:  %s", *telemetryURL)
-	log.Println("")
-	log.Println("  Auth Endpoints (public — no auth required):")
-	log.Println("    POST /api/v1/auth/token            - Exchange Supabase JWT → PQC token")
-	log.Println("    POST /api/v1/auth/saml/callback    - SAML 2.0 / Claude Enterprise WorkOS")
-	log.Println("    GET  /api/v1/auth/introspect       - RFC 7662 token introspection")
-	log.Println("    GET  /api/v1/auth/keys/public      - ML-DSA-65 public key")
-	log.Println("")
-	log.Println("  REST Endpoints (authenticated):")
-	log.Println("    GET  /health                      - Health check")
-	log.Println("    GET  /version                     - Version info")
-	log.Println("    POST /api/v1/mcp/ask              - NL security query (ChatGPT moment)")
-	log.Println("    GET  /api/v1/mcp/dashboard        - Security risk dashboard")
-	log.Println("    GET  /api/v1/mcp/alerts           - Active IDS/IPS alerts")
-	log.Println("    GET  /api/v1/mcp/timeline         - Security event timeline")
-	log.Println("    POST /api/v1/telemetry/ingest     - Telemetry ingestion (service auth)")
-	log.Println("    GET  /api/v1/telemetry/stats      - Telemetry statistics")
-	log.Println("    POST /api/v1/scans/trigger        - Trigger crypto scan")
-	log.Println("    GET  /api/v1/license/status       - License status")
-	log.Println("")
-	log.Println("  WebSocket Endpoints:")
-	log.Println("    WS   /ws/scans                    - Real-time scan updates")
-	log.Println("    WS   /ws/dag                      - DAG state changes")
-	log.Println("    WS   /ws/license                  - License events")
-	log.Println("")
-	log.Println("  The Motherboard is online. The Scarab watches.")
-
-	// Graceful shutdown on interrupt
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
-	<-quit
-
-	log.Println("")
-	log.Println("Received shutdown signal...")
-
-	// Shutdown with 30-second timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("Server forced to shutdown: %v", err)
-	}
-
-	// Stop license heartbeat
-	licMgr.Stop()
-
-	log.Println("DEMARC server exited gracefully. The Scarab rests.")
 }
 
 func getSecretStatus() string {
@@ -304,16 +381,16 @@ func printBanner() {
 	banner := `
 ╔═══════════════════════════════════════════════════════════════════╗
 ║                                                                   ║
-║    ██████╗ ███████╗███╗   ███╗ █████╗ ██████╗  ██████╗            ║
-║    ██╔══██╗██╔════╝████╗ ████║██╔══██╗██╔══██╗██╔════╝            ║
-║    ██║  ██║█████╗  ██╔████╔██║███████║██████╔╝██║                 ║
-║    ██║  ██║██╔══╝  ██║╚██╔╝██║██╔══██║██╔══██╗██║                 ║
-║    ██████╔╝███████╗██║ ╚═╝ ██║██║  ██║██║  ██║╚██████╗            ║
-║    ╚═════╝ ╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝            ║
+║   ███████╗███████╗██╗  ██╗██╗  ██╗███████╗███╗   ███╗            ║
+║   ██╔════╝██╔════╝██║ ██╔╝██║  ██║██╔════╝████╗ ████║            ║
+║   ███████╗█████╗  █████╔╝ ███████║█████╗  ██╔████╔██║            ║
+║   ╚════██║██╔══╝  ██╔═██╗ ██╔══██║██╔══╝  ██║╚██╔╝██║            ║
+║   ███████║███████╗██║  ██╗██║  ██║███████╗██║ ╚═╝ ██║            ║
+║   ╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝            ║
 ║                                                                   ║
-║      "The Mitochondreal-Scarab / The Motherboard"                 ║
+║          "The Divine Gateway — Power Commands the Boundary"       ║
 ║                                                                   ║
-║   Polymorphic API Hub | Service Auth | Telemetry | WebSocket      ║
+║   L7 WAF | PQC Auth | Telemetry | WebSocket | Ouroboros Cycle     ║
 ║                                                                   ║
 ╚═══════════════════════════════════════════════════════════════════╝
 `

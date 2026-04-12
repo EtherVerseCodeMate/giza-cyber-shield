@@ -45,15 +45,13 @@ const SecOpsSovereignty = () => {
                         <svg className="w-full h-full">
                             {/* Draw edges */}
                             {dagData?.edges?.map((edge: any, i: number) => {
-                                const sourceNode = dagData.nodes.find((n: any) => n.id === edge.source);
-                                const targetNode = dagData.nodes.find((n: any) => n.id === edge.target);
                                 const x1 = (i * 200) + 100;
                                 const y1 = 100;
                                 const x2 = ((i + 1) * 200) + 100;
                                 const y2 = 200;
 
                                 return (
-                                    <g key={i}>
+                                    <g key={edge.id || `edge-${i}`}>
                                         <line
                                             x1={x1}
                                             y1={y1}
@@ -74,7 +72,12 @@ const SecOpsSovereignty = () => {
                             {dagData?.nodes?.map((node: any, i: number) => {
                                 const x = (i * 200) + 100;
                                 const y = i % 2 === 0 ? 100 : 200;
-                                const color = node.status === "Critical" ? "#ef4444" : node.status === "Pending" ? "#f59e0b" : "#10b981";
+                                
+                                const colorMap: Record<string, string> = {
+                                    "Critical": "#ef4444",
+                                    "Pending": "#f59e0b"
+                                };
+                                const color = colorMap[node.status] || "#10b981";
 
                                 return (
                                     <g key={node.id} onClick={() => setSelectedNode(node.id)} className="cursor-pointer">
@@ -139,16 +142,20 @@ const SecOpsSovereignty = () => {
                                 className="flex items-center justify-between p-4 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-slate-600 transition-colors"
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-2 h-2 rounded-full ${playbook.risk_level === "CRITICAL" ? "bg-red-500" :
-                                            playbook.risk_level === "HIGH" ? "bg-orange-500" :
-                                                "bg-yellow-500"
-                                        }`} />
+                                    <div className={`w-2 h-2 rounded-full ${
+                                        playbook.risk_level === "CRITICAL" ? "bg-red-500" :
+                                        playbook.risk_level === "HIGH" ? "bg-orange-500" :
+                                        "bg-yellow-500"
+                                    }`} />
                                     <div>
                                         <h4 className="font-medium text-slate-200">{playbook.name}</h4>
                                         <p className="text-xs text-slate-500 mt-1">{playbook.type}</p>
                                     </div>
                                 </div>
-                                <button className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors">
+                                <button 
+                                    className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+                                    aria-label={`Execute ${playbook.name} playbook`}
+                                >
                                     Execute
                                 </button>
                             </div>

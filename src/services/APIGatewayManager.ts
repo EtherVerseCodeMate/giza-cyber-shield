@@ -244,7 +244,7 @@ export class APIGatewayManager {
       // Auto-scaling logic
       let scalingAction: 'scale_up' | 'scale_down' | 'no_action' = 'no_action';
       let reason = 'System operating within normal parameters';
-      let currentCapacity = 100; // Mock current capacity
+      const currentCapacity = 100; // Mock current capacity
       let targetCapacity = currentCapacity;
 
       if (currentLoad > 80 || errorRate > 5 || avgResponseTime > 1000) {

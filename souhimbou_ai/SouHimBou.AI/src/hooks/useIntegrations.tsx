@@ -193,6 +193,10 @@ export const useIntegrations = () => {
     return configuredIntegrations;
   };
 
+  const markIntegrationConnected = (integrationId: string) => {
+    setIntegrations(prev => prev.map(int => int.id === integrationId ? { ...int, status: 'CONNECTED', last_sync: new Date().toISOString() } : int));
+  };
+
   const addIntegration = async (template: IntegrationTemplate, config: Record<string, string>) => {
     try {
       // Call the appropriate integration function based on template type
@@ -233,15 +237,7 @@ export const useIntegrations = () => {
         setIntegrations(prev => [newIntegration, ...prev]);
 
         // Simulate API call delay for non-Splunk integrations
-        setTimeout(() => {
-          setIntegrations(prev =>
-            prev.map(int =>
-              int.id === newIntegration.id
-                ? { ...int, status: 'CONNECTED', last_sync: new Date().toISOString() }
-                : int
-            )
-          );
-        }, 3000);
+        setTimeout(() => markIntegrationConnected(newIntegration.id), 3000);
       }
 
       return { success: true };
@@ -255,7 +251,7 @@ export const useIntegrations = () => {
       setIntegrations(prev => prev.filter(int => int.id !== integrationId));
 
       // Log the action
-      await supabase.rpc('log_user_action', {
+      await (supabase.rpc as any)('log_user_action', {
         action_type: 'INTEGRATION_REMOVED',
         resource_type: 'integration',
         resource_id: integrationId,
