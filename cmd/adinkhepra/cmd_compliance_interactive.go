@@ -82,69 +82,98 @@ func handleInteractiveInput(input string) {
 	case "help":
 		printInteractiveHelp()
 	case "explain":
-		if len(parts) < 2 {
-			fmt.Println("Usage: explain <control_id> (e.g., explain 3.1.1)")
-		} else {
-			explainControl(parts[1])
-		}
+		handleExplainCommand(parts)
 	case "audit":
-		fmt.Println("[AGI] Initiating automated environment probe...")
-		v := nist80171.NewValidator()
-		res := v.ValidateACFamily()
-		fmt.Printf("Audit Complete. Found %d active controls in AC family.\n", len(res))
+		handleAuditCommand()
 	case "status":
 		complianceStatusCmd(nil)
 	case "sync":
-		fmt.Println("[SYNC] Initiating Cloud Sync for most recent attestation...")
-		mockAttest := &attest.RiskAttestation{
-			SnapshotID: "SCAN-2026-01-26-001",
-			Target:     "Local Host",
-		}
-		if err := compliance.GlobalSync(mockAttest, ""); err != nil {
-			fmt.Printf("❌ SYNC FAILED: %v\n", err)
-		}
+		handleSyncCommand()
 	case "ai":
-		fmt.Println("[AI] Connecting to Papyrus-AI (Python ML Service)...")
-		fmt.Println("  > Recommendation: Prioritize 3.1.8 (Logon Attempts) - High risk of brute force.")
-
-	// NEW COMMANDS
+		handleAICommand()
 	case "remediate":
-		if len(parts) < 2 {
-			fmt.Println("Usage: remediate <control_id> (e.g., remediate 3.1.8)")
-		} else {
-			remediateControl(parts[1])
-		}
+		handleRemediateCommand(parts)
 	case "next":
 		navigateControl(1)
 	case "prev":
 		navigateControl(-1)
 	case "family":
-		if len(parts) < 2 {
-			fmt.Printf("Current family: %s\n", controlFamilies[currentFamilyIndex])
-			fmt.Printf("Available: %s\n", strings.Join(controlFamilies, ", "))
-		} else {
-			setFamily(strings.ToUpper(parts[1]))
-		}
+		handleFamilyCommand(parts)
 	case "list":
 		listControls()
 	case "focus":
-		if len(parts) < 2 {
-			fmt.Println("Usage: focus <framework> (e.g., focus 800-172)")
-		} else {
-			focusFramework(parts[1])
-		}
+		handleFocusCommand(parts)
 	case "evidence":
-		if len(parts) < 2 {
-			fmt.Println("Usage: evidence <control_id> (e.g., evidence 3.1.8)")
-		} else {
-			collectEvidence(parts[1])
-		}
+		handleEvidenceCommand(parts)
 	default:
 		fmt.Printf("Unknown command '%s'. Type 'help' for assistance.\n", cmd)
 	}
 }
 
-func printInteractiveHelp() {
+func handleExplainCommand(parts []string) {
+	if len(parts) < 2 {
+		fmt.Println("Usage: explain <control_id> (e.g., explain 3.1.1)")
+		return
+	}
+	explainControl(parts[1])
+}
+
+func handleAuditCommand() {
+	fmt.Println("[AGI] Initiating automated environment probe...")
+	v := nist80171.NewValidator()
+	res := v.ValidateACFamily()
+	fmt.Printf("Audit Complete. Found %d active controls in AC family.\n", len(res))
+}
+
+func handleSyncCommand() {
+	fmt.Println("[SYNC] Initiating Cloud Sync for most recent attestation...")
+	mockAttest := &attest.RiskAttestation{
+		SnapshotID: "SCAN-2026-01-26-001",
+		Target:     "Local Host",
+	}
+	if err := compliance.GlobalSync(mockAttest, ""); err != nil {
+		fmt.Printf("❌ SYNC FAILED: %v\n", err)
+	}
+}
+
+func handleAICommand() {
+	fmt.Println("[AI] Connecting to Papyrus-AI (Python ML Service)...")
+	fmt.Println("  > Recommendation: Prioritize 3.1.8 (Logon Attempts) - High risk of brute force.")
+}
+
+func handleRemediateCommand(parts []string) {
+	if len(parts) < 2 {
+		fmt.Println("Usage: remediate <control_id> (e.g., remediate 3.1.8)")
+		return
+	}
+	remediateControl(parts[1])
+}
+
+func handleFamilyCommand(parts []string) {
+	if len(parts) < 2 {
+		fmt.Printf("Current family: %s\n", controlFamilies[currentFamilyIndex])
+		fmt.Printf("Available: %s\n", strings.Join(controlFamilies, ", "))
+		return
+	}
+	setFamily(strings.ToUpper(parts[1]))
+}
+
+func handleFocusCommand(parts []string) {
+	if len(parts) < 2 {
+		fmt.Println("Usage: focus <framework> (e.g., focus 800-172)")
+		return
+	}
+	focusFramework(parts[1])
+}
+
+func handleEvidenceCommand(parts []string) {
+	if len(parts) < 2 {
+		fmt.Println("Usage: evidence <control_id> (e.g., evidence 3.1.8)")
+		return
+	}
+	collectEvidence(parts[1])
+}
+ func printInteractiveHelp() {
 	fmt.Println(`Available Commands:
   explain <id>    - Get a plain-English explanation of a security control
   audit           - Run automated probes for the current control family

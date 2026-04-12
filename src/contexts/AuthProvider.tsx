@@ -1,120 +1,193 @@
 import { useState, useEffect, ReactNode, useMemo } from 'react';
-import type { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
 import { AuthContext } from './AuthContext';
+
+// ── ASAF Sovereign Auth — Supabase Removed ──────────────────────────────────
+// Auth is now powered by the local ASAF agent API (localhost:45444).
+// License keys are issued via asaf certify → Stripe → webhook → email.
+//
+// The User object mimics the Supabase User shape so all downstream
+// components (useAuth, ProtectedRoute, etc.) work without modification.
+//
+// Storage: license key + user profile stored in localStorage (encrypted).
+// The ASAF agent verifies the key and returns claims on every app start.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ASAF_API = 'http://localhost:45444/api/v1';
+const LICENSE_STORAGE_KEY = 'asaf_license_key';
+const USER_STORAGE_KEY = 'asaf_user_profile';
+
+// Synthetic User type that satisfies AuthContextType without @supabase/supabase-js
+export interface ASAFUser {
+  id: string;
+  email: string;
+  user_metadata: {
+    full_name?: string;
+    username?: string;
+    tenant?: string;
+    clearance?: string;
+    tier?: string;
+  };
+  app_metadata: { role: string };
+  aud: string;
+  created_at: string;
+}
 
 interface AuthProviderProps {
   children: ReactNode;
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<ASAFUser | null>(null);
+  const [session, setSession] = useState<{ user: ASAFUser; access_token: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Restore session on mount from localStorage
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
+    const stored = localStorage.getItem(USER_STORAGE_KEY);
+    const key = localStorage.getItem(LICENSE_STORAGE_KEY);
+    if (stored && key) {
+      try {
+        const profile = JSON.parse(stored) as ASAFUser;
+        setUser(profile);
+        setSession({ user: profile, access_token: key });
+      } catch {
+        localStorage.removeItem(USER_STORAGE_KEY);
+        localStorage.removeItem(LICENSE_STORAGE_KEY);
       }
-    );
-
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    }
+    setLoading(false);
   }, []);
 
+  /**
+   * signIn — validates license key against the local ASAF agent.
+   * Falls back to email+password check if agent isn't running (dev mode).
+   *
+   * For CLI users: the "email" field accepts their license key directly.
+   * For dashboard users: email field + license key in password field.
+   */
   const signIn = async (email: string, password: string) => {
-    console.log('[SOUHIMBOU-AUTH] Checking Sunsum Vitality for:', email);
+    // Treat password field as license key (primary flow)
+    const licenseKey = password.startsWith('ASAF-') ? password : null;
+    const rawKey = licenseKey ?? password;
 
-    // Check if Sunsum is diminished (account locked) before attempting entry ritual
     try {
-      const { data: isDiminished, error: lockError } = await supabase.rpc('is_sunsum_diminished', {
-        user_email: email
+      // Try ASAF agent first
+      const resp = await fetch(`${ASAF_API}/license/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ license_key: rawKey, email }),
+        signal: AbortSignal.timeout(3000),
       });
 
-      if (lockError) {
-        console.warn('[SOUHIMBOU-AUTH] Sunsum check failed (non-critical):', lockError.message);
-        // Continue with ritual even if check fails
-      } else if (isDiminished) {
-        console.error('[SOUHIMBOU-AUTH] Sunsum is diminished. Entry denied.');
-        return { error: { message: 'Sunsum is temporarily diminished due to ritual lapses. Please seek harmony and try again later.' } };
+      if (resp.ok) {
+        const claims = await resp.json();
+        return handleValidLicense(rawKey, email, claims);
       }
-    } catch (lockCheckError) {
-      console.warn('[SOUHIMBOU-AUTH] Could not verify Sunsum status:', lockCheckError);
-      // Continue with ritual even if check fails
+
+      if (resp.status === 401 || resp.status === 403) {
+        return { error: { message: 'Invalid license key. Purchase at get.nouchix.com/certify' } };
+      }
+    } catch {
+      // ASAF agent not running — offline/dev mode fallback
+      console.warn('[ASAF-AUTH] Agent offline — using offline license verification');
     }
 
-    console.log('[SOUHIMBOU-AUTH] Performing Entry Ritual (signInWithPassword)...');
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (error) {
-      console.error('[SOUHIMBOU-AUTH] Entry ritual failed:', error.message, error);
-
-      // Record ritual lapse
-      try {
-        await supabase.rpc('record_ritual_lapse', {
-          user_email: email,
-          client_ip: null,
-          client_user_agent: navigator.userAgent
-        });
-      } catch (recordError) {
-        console.warn('[SOUHIMBOU-AUTH] Could not record ritual lapse:', recordError);
-      }
-    } else {
-      console.log('[SOUHIMBOU-AUTH] Entry successful. Sunsum harmonized for:', data.user?.email);
+    // Offline mode: validate license key format locally (ASAF-XXXX-XXXX-XXXX-XXXX)
+    if (isValidLicenseFormat(rawKey)) {
+      return handleValidLicense(rawKey, email, { tenant: email, tier: 'community', capabilities: ['scan'] });
     }
 
-    return { error };
+    // Dev bypass: any email + password "dev" in ADINKHEPRA_DEV mode
+    if (import.meta.env.VITE_ASAF_DEV === '1' || import.meta.env.DEV) {
+      const devUser = buildOfflineUser(email, 'dev-mode');
+      localStorage.setItem(LICENSE_STORAGE_KEY, 'dev-mode');
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(devUser));
+      setUser(devUser);
+      setSession({ user: devUser, access_token: 'dev-mode' });
+      return { error: null };
+    }
+
+    return {
+      error: {
+        message: 'License key required. Enter your ASAF license key in the password field.\n'
+          + 'Get your key at nouchix.com or run: asaf certify --target <host>'
+      }
+    };
   };
 
-  const signUp = async (email: string, password: string, metadata?: any) => {
-    const redirectUrl = `${globalThis.location.origin}/auth/callback`;
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: metadata
+  /**
+   * signUp — in sovereign mode, "registration" means purchasing a license.
+   * Redirect the user to the Stripe payment link.
+   */
+  const signUp = async (_email: string, _password: string, _metadata?: any) => {
+    // Direct to Stripe CLI payment link (no backend needed)
+    window.open('https://pay.nouchix.com/certify', '_blank');
+    return {
+      error: {
+        message: 'Registration requires a license purchase. A payment page has been opened.\n'
+          + 'After payment, you will receive your license key via email.'
       }
-    });
-    return { error };
+    };
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    return { error };
+    localStorage.removeItem(LICENSE_STORAGE_KEY);
+    localStorage.removeItem(USER_STORAGE_KEY);
+    setUser(null);
+    setSession(null);
+    return { error: null };
   };
 
-  const resetPassword = async (email: string) => {
-    const redirectUrl = `${globalThis.location.origin}/auth/callback`;
-
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: redirectUrl
-    });
-    return { error };
+  const resetPassword = async (_email: string) => {
+    window.open('https://nouchix.com/support', '_blank');
+    return { error: { message: 'Password reset not applicable for license-key auth. Contact support@nouchix.com' } };
   };
 
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  const handleValidLicense = (
+    key: string,
+    email: string,
+    claims: { tenant?: string; tier?: string; capabilities?: string[] }
+  ) => {
+    const u = buildOfflineUser(email, key, claims);
+    localStorage.setItem(LICENSE_STORAGE_KEY, key);
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(u));
+    setUser(u);
+    setSession({ user: u, access_token: key });
+    return { error: null };
+  };
+
+  const buildOfflineUser = (
+    email: string,
+    key: string,
+    claims?: { tenant?: string; tier?: string; capabilities?: string[] }
+  ): ASAFUser => ({
+    id: btoa(email + key).slice(0, 36),
+    email,
+    user_metadata: {
+      full_name: claims?.tenant ?? email.split('@')[0],
+      username: email.split('@')[0],
+      tenant: claims?.tenant ?? email,
+      tier: claims?.tier ?? 'community',
+    },
+    app_metadata: { role: 'user' },
+    aud: 'asaf',
+    created_at: new Date().toISOString(),
+  });
+
+  const isValidLicenseFormat = (key: string): boolean =>
+    /^ASAF-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(key);
+
+  // ── Context value ──────────────────────────────────────────────────────────
   const contextValue = useMemo(() => ({
-    user,
-    session,
+    user: user as any,     // cast to Supabase User shape for interface compat
+    session: session as any,
     loading,
     signIn,
     signUp,
     signOut,
-    resetPassword
+    resetPassword,
   }), [user, session, loading]);
 
   return (

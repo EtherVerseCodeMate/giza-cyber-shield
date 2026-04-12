@@ -305,6 +305,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                 onClick={handleAgentToggle}
                 variant={agentStatus === 'running' ? 'outline' : 'default'}
                 className="flex items-center gap-2"
+                aria-label={agentStatus === 'running' ? 'Pause AI Agent' : 'Start AI Agent'}
               >
                 {agentStatus === 'running' ? (
                   <>
@@ -651,7 +652,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
         <TabsContent value="gaps" className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Active Control Gaps</h3>
-            <Button onClick={fetchControlGaps} disabled={isLoading}>
+            <Button onClick={fetchControlGaps} disabled={isLoading} aria-label="Refresh compliance gaps">
               {isLoading ? 'Scanning...' : 'Refresh'}
             </Button>
           </div>
@@ -779,7 +780,11 @@ export const AgenticComplianceArchitect: React.FC = () => {
                     <div>
                       <CardTitle className="flex items-center gap-2">
                         {mode.name}
-                        <Badge variant={mode.riskLevel === 'high' ? 'destructive' : mode.riskLevel === 'medium' ? 'default' : 'secondary'}>
+                        <Badge variant={
+                          mode.riskLevel === 'high' ? 'destructive' : 
+                          mode.riskLevel === 'medium' ? 'default' : 
+                          'secondary'
+                        }>
                           {mode.riskLevel} risk
                         </Badge>
                       </CardTitle>

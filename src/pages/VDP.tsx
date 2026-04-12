@@ -2,7 +2,7 @@ import { Helmet } from "react-helmet";
 import { Link } from "react-router-dom";
 import { Shield, Mail, Award, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 
-const VDP = () => {
+const Vdp = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background/95 to-secondary/20">
       <Helmet>
@@ -285,4 +285,4 @@ const VDP = () => {
   );
 };
 
-export default VDP;
+export default Vdp;

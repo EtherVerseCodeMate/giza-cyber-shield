@@ -7,12 +7,9 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, Search, CheckCircle, AlertTriangle, XCircle, ArrowRight, Lock, Loader2 } from 'lucide-react';
 
-// Vite: VITE_*; Next-style builds may inject NEXT_PUBLIC_* via host
-// Next.js/Turbopack may not populate `import.meta.env`, so default safely.
-const env = (import.meta as any)?.env ?? {};
-const API_BASE =
-  env.VITE_ASAF_API_URL || env.NEXT_PUBLIC_ASAF_API_URL || 'http://localhost:45444';
-const API_KEY = env.VITE_ASAF_API_KEY || env.NEXT_PUBLIC_ASAF_API_KEY || '';
+
+// Scan requests are proxied server-side through /api/scan (Next.js API route).
+// The backend URL (ASAF_INTERNAL_API_URL) is only used on the server — never exposed to the browser.
 
 type Step = 'input' | 'scanning' | 'results' | 'upgrade';
 
@@ -72,12 +69,15 @@ async function triggerScan(target: string): Promise<string> {
     scan_type: 'eval',
     metadata: { source: 'onboarding', product: 'asaf' },
   };
-  const profile = env.VITE_ASAF_SCAN_PROFILE || env.NEXT_PUBLIC_ASAF_SCAN_PROFILE;
+  const env = (import.meta as any)?.env ?? {};
+  const profile = process.env.NEXT_PUBLIC_ASAF_SCAN_PROFILE || env.VITE_ASAF_SCAN_PROFILE || env.NEXT_PUBLIC_ASAF_SCAN_PROFILE;
   if (profile) body.profile = profile;
 
-  const res = await fetch(`${API_BASE}/api/v1/scans/trigger`, {
+  // Call same-origin Next.js API route — proxies server-side to the ASAF API.
+  // No CORS, no external tunnel dependency.
+  const res = await fetch('/api/scan', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': API_KEY },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`Scan failed: ${res.status}`);
@@ -86,9 +86,7 @@ async function triggerScan(target: string): Promise<string> {
 }
 
 async function pollScan(scanId: string): Promise<ScanStatusPayload> {
-  const res = await fetch(`${API_BASE}/api/v1/scans/${scanId}`, {
-    headers: { 'Authorization': API_KEY },
-  });
+  const res = await fetch(`/api/scan/${scanId}`);
   if (!res.ok) throw new Error(`Poll failed: ${res.status}`);
   return res.json();
 }
@@ -139,7 +137,7 @@ const OnboardingOrchestrator: React.FC = () => {
         const raw = await pollScan(scanId);
         const done = raw.status === 'completed' || raw.status === 'failed';
         if (done) {
-          clearInterval(pollRef.current!);
+          if (pollRef.current) clearInterval(pollRef.current);
           setProgress(100);
           setIsScanning(false);
           setTimeout(() => {
@@ -166,11 +164,11 @@ const OnboardingOrchestrator: React.FC = () => {
     try {
       const id = await triggerScan(target.trim());
       setScanId(id);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
       setError(
         `Scan failed: ${msg}. ` +
-        `Ensure NEXT_PUBLIC_ASAF_API_URL points to your running ASAF backend (currently: ${API_BASE}).`
+        `The scan proxy could not reach the ASAF backend. Check that the API server is running on the VPS.`
       );
       setStep('input');
       setIsScanning(false);
@@ -187,12 +185,13 @@ const OnboardingOrchestrator: React.FC = () => {
       });
       const data = await res.json();
       if (data.url) {
-        window.location.href = data.url;
+        globalThis.location.href = data.url;
       } else {
         throw new Error(data.error || 'Checkout unavailable');
       }
-    } catch (e: any) {
-      toast({ title: 'Checkout error', description: e.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Unknown error';
+      toast({ title: 'Checkout error', description: errMsg, variant: 'destructive' });
       setCheckingOut(false);
     }
   };
@@ -222,8 +221,9 @@ const OnboardingOrchestrator: React.FC = () => {
 
           <div className="space-y-4 bg-[#111] border border-gray-800 rounded-xl p-6">
             <div className="space-y-2">
-              <label className="text-sm text-gray-400 font-medium">Target host or IP</label>
+              <label htmlFor="scan-target" className="text-sm text-gray-400 font-medium">Target host or IP</label>
               <Input
+                id="scan-target"
                 placeholder="192.168.1.100 or myagent.company.com"
                 value={target}
                 onChange={e => setTarget(e.target.value)}
@@ -233,8 +233,9 @@ const OnboardingOrchestrator: React.FC = () => {
               <p className="text-xs text-gray-600">Default probes include 18789 (common agent gateway) and 443. Use https://host:port for a specific URL.</p>
             </div>
             <div className="space-y-2">
-              <label className="text-sm text-gray-400 font-medium">Email <span className="text-gray-600">(optional — to receive your report)</span></label>
+              <label htmlFor="scan-email" className="text-sm text-gray-400 font-medium">Email <span className="text-gray-600">(optional — to receive your report)</span></label>
               <Input
+                id="scan-email"
                 type="email"
                 placeholder="you@company.com"
                 value={email}
@@ -279,10 +280,10 @@ const OnboardingOrchestrator: React.FC = () => {
             <p className="text-sm text-gray-400 font-mono">{SCAN_PHASES[Math.min(phase, SCAN_PHASES.length - 1)]}</p>
           </div>
           <div className="space-y-2 text-left bg-[#111] border border-gray-800 rounded-xl p-4">
-            {SCAN_PHASES.slice(0, phase + 1).map((p, i) => (
-              <div key={i} className="flex items-center gap-2 text-sm">
+            {SCAN_PHASES.slice(0, phase + 1).map((phaseText) => (
+              <div key={phaseText} className="flex items-center gap-2 text-sm">
                 <CheckCircle className="h-3.5 w-3.5 text-green-400 shrink-0" />
-                <span className="text-gray-400">{p}</span>
+                <span className="text-gray-400">{phaseText}</span>
               </div>
             ))}
           </div>
@@ -293,12 +294,24 @@ const OnboardingOrchestrator: React.FC = () => {
 
   // ── Step: Results ────────────────────────────────────────────────────────────
   if (step === 'results' && result) {
-    const riskColor = result.risk_score >= 70 ? 'text-red-400' : result.risk_score >= 40 ? 'text-yellow-400' : 'text-green-400';
+    let riskColor = 'text-green-400';
+    if (result.risk_score >= 70) {
+      riskColor = 'text-red-400';
+    } else if (result.risk_score >= 40) {
+      riskColor = 'text-yellow-400';
+    }
     const severityIcon = (s: string) => {
       if (s === 'critical') return <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />;
       if (s === 'high') return <AlertTriangle className="h-3.5 w-3.5 text-orange-400 shrink-0" />;
       if (s === 'low') return <CheckCircle className="h-3.5 w-3.5 text-emerald-400 shrink-0" />;
       return <AlertTriangle className="h-3.5 w-3.5 text-yellow-400 shrink-0" />;
+    };
+    const badgeClass = (severity: string) => {
+      const base = 'ml-auto shrink-0 text-xs';
+      if (severity === 'critical') return `${base} bg-red-950/40 text-red-400 border-red-500/30`;
+      if (severity === 'high') return `${base} bg-orange-950/40 text-orange-400 border-orange-500/30`;
+      if (severity === 'low') return `${base} bg-emerald-950/40 text-emerald-400 border-emerald-500/30`;
+      return `${base} bg-yellow-950/40 text-yellow-400 border-yellow-500/30`;
     };
 
     return (
@@ -320,16 +333,11 @@ const OnboardingOrchestrator: React.FC = () => {
           {/* Findings */}
           <div className="bg-[#111] border border-gray-800 rounded-xl p-5 space-y-3">
             <div className="text-sm font-semibold text-gray-300">{result.findings.length} findings</div>
-            {result.findings.map((f, i) => (
-              <div key={i} className="flex items-start gap-2 text-sm">
+            {result.findings.map((f) => (
+              <div key={`${result.scan_id}-${f.severity}-${f.text.slice(0, 32)}`} className="flex items-start gap-2 text-sm">
                 {severityIcon(f.severity)}
                 <span className="text-gray-300">{f.text}</span>
-                <Badge className={`ml-auto shrink-0 text-xs ${
-                  f.severity === 'critical' ? 'bg-red-950/40 text-red-400 border-red-500/30' :
-                  f.severity === 'high' ? 'bg-orange-950/40 text-orange-400 border-orange-500/30' :
-                  f.severity === 'low' ? 'bg-emerald-950/40 text-emerald-400 border-emerald-500/30' :
-                  'bg-yellow-950/40 text-yellow-400 border-yellow-500/30'
-                }`}>{f.severity}</Badge>
+                <Badge className={badgeClass(f.severity)}>{f.severity}</Badge>
               </div>
             ))}
           </div>
@@ -370,11 +378,11 @@ const OnboardingOrchestrator: React.FC = () => {
               className="w-full bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-bold py-5"
             >
               {checkingOut ? 'Redirecting to Stripe...' : (
-                <>Get ADINKHEPRA Certified — $99/mo <ArrowRight className="h-4 w-4 ml-2" /></>
+                <>Get ADINKHEPRA Certified — $99 <ArrowRight className="h-4 w-4 ml-2" /></>
               )}
             </Button>
             <p className="text-xs text-center text-gray-600">
-              Billed monthly via Stripe. Cancel anytime. Certification issued within minutes of payment.
+              One-time payment via Stripe. ADINKHEPRA badge issued within minutes.
             </p>
           </div>
 

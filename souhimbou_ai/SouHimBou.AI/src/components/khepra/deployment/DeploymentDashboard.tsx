@@ -14,23 +14,12 @@ import {
   Eye,
   Zap,
   Network,
-  Database,
   Cpu,
-  HardDrive,
-  Users,
-  Globe,
-  Lock,
   Brain,
   TrendingUp,
-  TrendingDown,
   Minus,
   RefreshCw,
-  Settings,
-  Download,
-  Upload,
-  Play,
-  Pause,
-  RotateCcw
+  Settings
 } from 'lucide-react';
 import { AdinkraSymbolDisplay } from '../AdinkraSymbolDisplay';
 
@@ -178,8 +167,8 @@ export const DeploymentDashboard: React.FC<DeploymentDashboardProps> = ({
   if (isLoading) {
     return (
       <div className="space-y-6">
-        {[...new Array(3)].map((_, i) => (
-          <Card key={i} className="border-border">
+        {Array.from({ length: 3 }, (_, i) => (
+          <Card key={`skeleton-${i}`} className="border-border">
             <CardContent className="p-6">
               <div className="animate-pulse space-y-4">
                 <div className="h-6 bg-muted rounded"></div>
