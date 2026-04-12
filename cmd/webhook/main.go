@@ -38,6 +38,7 @@ import (
 // ── Stripe event types we care about ─────────────────────────────────────────
 
 const contentTypeJSON = "application/json"
+const logInfoFmt = "[webhook] [info] %s id=%s"
 
 type StripeEvent struct {
 	ID      string          `json:"id"`
@@ -281,7 +282,7 @@ func processEvent(event StripeEvent) error {
 		return nil
 	case "customer.subscription.pending_update_applied",
 		"customer.subscription.pending_update_expired":
-		log.Printf("[webhook] [info] %s id=%s", event.Type, event.ID)
+		log.Printf(logInfoFmt, event.Type, event.ID)
 		return nil
 
 	// ── Checkout abandonment ──────────────────────────────────────────────────
@@ -310,12 +311,12 @@ func processEvent(event StripeEvent) error {
 		"customer.source.created", "customer.source.deleted", "customer.source.updated", "customer.source.expiring",
 		"customer.tax_id.created", "customer.tax_id.deleted", "customer.tax_id.updated",
 		"customer_cash_balance_transaction.created":
-		log.Printf("[webhook] [info] %s id=%s", event.Type, event.ID)
+		log.Printf(logInfoFmt, event.Type, event.ID)
 		return nil
 
 	// ── Payment methods ───────────────────────────────────────────────────────
 	case "payment_method.attached", "payment_method.detached":
-		log.Printf("[webhook] [info] %s id=%s", event.Type, event.ID)
+		log.Printf(logInfoFmt, event.Type, event.ID)
 		return nil
 	case "payment_intent.partially_funded":
 		log.Printf("[webhook] [info] payment_intent partially funded id=%s", event.ID)
