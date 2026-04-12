@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/audit"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/enumerate"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/intel"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/maat"
@@ -164,13 +163,13 @@ func (de *DriftEye) Gaze() []maat.Isfet {
 	// 1. Collect current state
 	current := &audit.AuditSnapshot{}
 
-	// Collect network info
+	// Only collect network intelligence for drift comparison.
+	// Process lists are inherently noisy at 2s cycle intervals: crontab, id, and
+	// other short-lived helpers spawn during CollectSystemIntelligence itself and
+	// produce a guaranteed "new process" on every second Gaze call.
+	// Port changes are stable, meaningful, and worth alerting on.
 	ni, _ := enumerate.CollectNetworkIntelligence()
 	current.Network = ni
-
-	// Collect system info
-	si, _ := enumerate.CollectSystemIntelligence()
-	current.System = si
 
 	// 2. Establish baseline if none exists
 	if de.baseline == nil {
@@ -314,8 +313,19 @@ func (fe *FIMEye) Gaze() []maat.Isfet {
 // and would produce spurious CATASTROPHIC alerts if included in the FIM hash.
 func fimSkipFile(path string) bool {
 	base := filepath.Base(path)
-	return base == "mtab" || base == "adjtime" || base == ".updated" ||
-		strings.HasSuffix(path, "~") || strings.Contains(path, "/run/")
+	if base == "mtab" || base == "adjtime" || base == ".updated" ||
+		strings.HasSuffix(path, "~") || strings.Contains(path, "/run/") {
+		return true
+	}
+	// /etc/resolv.conf is updated by DHCP/NetworkManager dynamically.
+	// /etc/cron.d/* and /etc/crontab have their access times updated on reads.
+	// /etc/systemd/ contains our own deployed service units — changes here are
+	// AUTHORIZED deploys, not tampering; a separate deploy audit covers them.
+	if base == "resolv.conf" || base == "crontab" || strings.Contains(path, "/cron") ||
+		strings.Contains(path, "/etc/systemd/") {
+		return true
+	}
+	return false
 }
 
 // hashFileInto writes path + hash of a single file into hasher.
