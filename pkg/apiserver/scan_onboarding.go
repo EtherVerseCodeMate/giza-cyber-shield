@@ -1,9 +1,13 @@
 package apiserver
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -102,6 +106,18 @@ func runASAFOnboardingScan(scanID string, req ScanRequest) {
 				Text:   fmt.Sprintf("Port %d on %s is reachable from the scan origin — confirm intended exposure.", p, host),
 			})
 		}
+	}
+
+	// ── Shodan enrichment (SHODAN_API_KEY) ──────────────────────────────────
+	if shodanKey := os.Getenv("SHODAN_API_KEY"); shodanKey != "" {
+		shodanFindings := enrichWithShodan(host, shodanKey)
+		findings = append(findings, shodanFindings...)
+	}
+
+	// ── APIVoid domain reputation (APIVOID_API_KEY) ──────────────────────────
+	if apiVoidKey := os.Getenv("APIVOID_API_KEY"); apiVoidKey != "" {
+		reputationFindings := enrichWithAPIVoid(host, apiVoidKey)
+		findings = append(findings, reputationFindings...)
 	}
 
 	platform := "generic"
@@ -229,3 +245,205 @@ func computeRiskScore(gatewayExposed bool, openCount int, findings []ScanFinding
 	}
 	return score
 }
+
+// ── Shodan enrichment ─────────────────────────────────────────────────────────
+
+// shodanHostResponse is the minimal shape of GET https://api.shodan.io/shodan/host/{ip}.
+type shodanHostResponse struct {
+	IP      string `json:"ip_str"`
+	Org     string `json:"org"`
+	Country string `json:"country_name"`
+	Ports   []int  `json:"ports"`
+	Vulns   map[string]struct {
+		CVSS    float64 `json:"cvss"`
+		Summary string  `json:"summary"`
+	} `json:"vulns"`
+	Data []struct {
+		Port    int    `json:"port"`
+		Product string `json:"product"`
+		Version string `json:"version"`
+		Banner  string `json:"banner"`
+	} `json:"data"`
+}
+
+// enrichWithShodan fetches Shodan intelligence for the target host and converts
+// it to ScanFindingItems. Returns an empty slice on any error (non-fatal).
+func enrichWithShodan(host, apiKey string) []ScanFindingItem {
+	// Resolve hostname → IP (Shodan requires IP).
+	addrs, err := net.LookupHost(host)
+	if err != nil || len(addrs) == 0 {
+		return nil
+	}
+	ip := addrs[0]
+
+	apiURL := fmt.Sprintf("https://api.shodan.io/shodan/host/%s?key=%s", ip, apiKey)
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get(apiURL) //nolint:gosec
+	if err != nil {
+		return []ScanFindingItem{{Severity: "low", Text: fmt.Sprintf("Shodan lookup failed: %v", err)}}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusUnauthorized {
+		return []ScanFindingItem{{Severity: "low", Text: "Shodan API key rejected — check SHODAN_API_KEY."}}
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		// Clean IP — not in Shodan index yet.
+		return []ScanFindingItem{{Severity: "low", Text: fmt.Sprintf("Shodan: %s (%s) has no indexed scan data — host may be new or offline.", host, ip)}}
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	var data shodanHostResponse
+	if err := json.Unmarshal(body, &data); err != nil {
+		return nil
+	}
+
+	var findings []ScanFindingItem
+
+	// Open ports from Shodan's global scan (more thorough than our TCP probe).
+	if len(data.Ports) > 0 {
+		portStrs := make([]string, len(data.Ports))
+		for i, p := range data.Ports {
+			portStrs[i] = strconv.Itoa(p)
+		}
+		findings = append(findings, ScanFindingItem{
+			Severity: "medium",
+			Text: fmt.Sprintf("Shodan: %s (%s, %s) has %d internet-visible ports: %s",
+				host, data.Org, data.Country, len(data.Ports), strings.Join(portStrs, ", ")),
+		})
+	}
+
+	// Software banners.
+	for _, svc := range data.Data {
+		if svc.Product != "" {
+			version := svc.Version
+			if version == "" {
+				version = "unknown version"
+			}
+			findings = append(findings, ScanFindingItem{
+				Severity: "medium",
+				Text: fmt.Sprintf("Shodan: Port %d — %s %s detected. Confirm patch level.",
+					svc.Port, svc.Product, version),
+			})
+		}
+	}
+
+	// CVEs.
+	for cve, vuln := range data.Vulns {
+		sev := "high"
+		if vuln.CVSS >= 9.0 {
+			sev = "critical"
+		} else if vuln.CVSS < 7.0 {
+			sev = "medium"
+		}
+		summary := vuln.Summary
+		if len(summary) > 120 {
+			summary = summary[:120] + "…"
+		}
+		findings = append(findings, ScanFindingItem{
+			Severity: sev,
+			Text:     fmt.Sprintf("Shodan CVE %s (CVSS %.1f): %s", cve, vuln.CVSS, summary),
+		})
+	}
+
+	return findings
+}
+
+// ── APIVoid domain reputation ─────────────────────────────────────────────────
+
+// apiVoidResponse is the minimal shape of APIVoid domain blacklist response.
+type apiVoidResponse struct {
+	Data struct {
+		Report struct {
+			Blacklists struct {
+				DetectionRate string `json:"detection_rate"`
+				Engines       map[string]struct {
+					Detected bool   `json:"detected"`
+					Name     string `json:"name"`
+				} `json:"engines"`
+			} `json:"blacklists"`
+			ServerDetails struct {
+				IP      string `json:"ip"`
+				Country string `json:"country_name"`
+				ISP     string `json:"isp"`
+			} `json:"server_details"`
+		} `json:"report"`
+	} `json:"data"`
+}
+
+// enrichWithAPIVoid checks the domain against APIVoid's blacklist engines.
+// Returns an empty slice on any error (non-fatal).
+func enrichWithAPIVoid(host, apiKey string) []ScanFindingItem {
+	// APIVoid expects a domain, not an IP — strip any port.
+	domain := host
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		domain = h
+	}
+
+	apiURL := fmt.Sprintf(
+		"https://endpoint.apivoid.com/domainbl/v1/pay-as-you-go/?key=%s&host=%s",
+		apiKey, url.QueryEscape(domain),
+	)
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get(apiURL) //nolint:gosec
+	if err != nil {
+		return []ScanFindingItem{{Severity: "low", Text: fmt.Sprintf("APIVoid lookup failed: %v", err)}}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	var data apiVoidResponse
+	if err := json.Unmarshal(body, &data); err != nil {
+		return nil
+	}
+
+	var findings []ScanFindingItem
+	bl := data.Data.Report.Blacklists
+
+	if bl.DetectionRate != "" && bl.DetectionRate != "0%" {
+		// Count blacklist hits.
+		hits := 0
+		var hitNames []string
+		for _, eng := range bl.Engines {
+			if eng.Detected {
+				hits++
+				hitNames = append(hitNames, eng.Name)
+			}
+		}
+		if hits > 0 {
+			sev := "high"
+			if hits >= 5 {
+				sev = "critical"
+			}
+			findings = append(findings, ScanFindingItem{
+				Severity: sev,
+				Text: fmt.Sprintf(
+					"APIVoid: Domain %s is flagged by %d/%d security engines (%s). Immediate investigation required.",
+					domain, hits, len(bl.Engines), strings.Join(hitNames[:min(3, len(hitNames))], ", ")),
+			})
+		}
+	} else {
+		findings = append(findings, ScanFindingItem{
+			Severity: "low",
+			Text:     fmt.Sprintf("APIVoid: Domain %s is clean across all blacklist engines.", domain),
+		})
+	}
+
+	srv := data.Data.Report.ServerDetails
+	if srv.IP != "" {
+		findings = append(findings, ScanFindingItem{
+			Severity: "low",
+			Text:     fmt.Sprintf("APIVoid: Server IP %s hosted by %s (%s).", srv.IP, srv.ISP, srv.Country),
+		})
+	}
+
+	return findings
+}
+

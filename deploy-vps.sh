@@ -231,8 +231,35 @@ SVCEOF
 $SSH << 'SVCSETUP'
 sudo systemctl daemon-reload
 sudo systemctl enable asaf-webhook
-# Only start if binary exists
-[ -f /opt/asaf/bin/asaf-webhook-linux-amd64 ] && sudo systemctl restart asaf-webhook || true
+
+# ── Guard: webhook.env MUST exist before starting the service ─────────────────
+# If this file is missing, the webhook starts but can't validate Stripe signatures
+# or activate licenses. Every webhook event returns 500 — silent revenue failure.
+if [ ! -f /opt/asaf/secrets/webhook.env ]; then
+  echo ""
+  echo "╔══════════════════════════════════════════════════════════════╗"
+  echo "║  FATAL: /opt/asaf/secrets/webhook.env is missing            ║"
+  echo "║                                                              ║"
+  echo "║  The webhook service will NOT be started.                   ║"
+  echo "║  Create the file with your Stripe secrets, then run:        ║"
+  echo "║    sudo systemctl start asaf-webhook                        ║"
+  echo "║                                                              ║"
+  echo "║  Required keys:                                              ║"
+  echo "║    STRIPE_WEBHOOK_SECRET=whsec_...                          ║"
+  echo "║    STRIPE_SECRET_KEY=sk_live_...                            ║"
+  echo "║    ASAF_NOTIFY_EMAIL=support@nouchix.com                    ║"
+  echo "╚══════════════════════════════════════════════════════════════╝"
+  echo ""
+  exit 1
+fi
+
+# Only start if both binary AND secrets file exist
+if [ -f /opt/asaf/bin/asaf-webhook-linux-amd64 ]; then
+  sudo systemctl restart asaf-webhook
+  echo "✓ asaf-webhook started"
+else
+  echo "webhook binary not yet uploaded — service enabled but not started"
+fi
 SVCSETUP
 ok "Webhook service installed"
 
