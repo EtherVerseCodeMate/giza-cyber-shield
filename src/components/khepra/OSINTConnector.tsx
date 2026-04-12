@@ -188,12 +188,7 @@ export const OSINTConnector = () => {
         ...prev.filter(f => f.source !== sourceId),
         {
           source: sourceId,
-          // Indicator count is fixed per source batch; updated on real feed refresh
-          indicators: Array.from({ length: 25 }, (_, i) => ({
-            id: i,
-            type: source.type,
-            value: `indicator-${i}`
-          })),
+          indicators: [], // Real indicators come from the OSINT feed response
           lastUpdate: new Date(),
           khepraFingerprint: fingerprint
         }
@@ -204,7 +199,7 @@ export const OSINTConnector = () => {
           ...s, 
           status: 'active', 
           lastSync: new Date(),
-          records: s.records // updated by real feed ingest response
+          records: s.records // Real record count requires feed response metadata
         } : s
       ));
     }
@@ -375,7 +370,7 @@ export const OSINTConnector = () => {
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
                           <p className="text-muted-foreground">Type</p>
-                          <p className="capitalize">{source.type.replace('_', ' ')}</p>
+                          <p className="capitalize">{source.type.replaceAll('_', ' ')}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground">Records</p>
@@ -434,7 +429,7 @@ export const OSINTConnector = () => {
                         <Button 
                           size="sm" 
                           variant="ghost"
-                          onClick={() => window.open(source.url, '_blank')}
+                          onClick={() => globalThis.open(source.url, '_blank')}
                         >
                           <Globe className="h-3 w-3" />
                         </Button>

@@ -1,0 +1,21 @@
+# ASAF static file server — runs on local ports only.
+# NPM (nginx-proxy-manager) handles TLS and external routing.
+# get.nouchix.com  → NPM → :8080
+# docs.nouchix.com → NPM → :8081
+
+:8080 {
+    root * /var/www/asaf
+
+    @installer path /install-asaf.sh
+    header @installer Content-Type "text/plain; charset=utf-8"
+
+    @releases path /releases/*
+    file_server @releases browse
+
+    file_server browse
+}
+
+:8081 {
+    root * /var/www/asaf/docs
+    file_server browse
+}

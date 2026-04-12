@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Search, Server, Monitor, Shield, Wifi, Database, 
+import {
+  Search, Server, Monitor, Shield, Wifi, Database,
   Cloud, AlertTriangle, CheckCircle, RefreshCw, Settings
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -40,80 +40,70 @@ export const InfrastructureDiscovery = () => {
   const [networks, setNetworks] = useState<NetworkSegment[]>([]);
   const [scanning, setScanning] = useState(false);
   const [discoveryProgress, setDiscoveryProgress] = useState(0);
-  const [discoveryResults, setDiscoveryResults] = useState<any[]>([]);
+  const [, setDiscoveryResults] = useState<any[]>([]);
   const { toast } = useToast();
   const { currentOrganization } = useOrganization();
 
-  // Load discovered assets and network segments from Supabase
-  useEffect(() => {
+  // Fetch assets from database
+  const fetchAssets = async () => {
     if (!currentOrganization?.id) return;
-    const orgId = currentOrganization.id;
 
-    const fetchAssets = async () => {
-      const { data, error } = await supabase
-        .from('discovered_assets')
-        .select('id, asset_identifier, hostname, operating_system, ip_addresses, compliance_status, risk_score, last_discovered, metadata')
-        .eq('organization_id', orgId)
-        .eq('is_active', true)
-        .order('last_discovered', { ascending: false })
-        .limit(100);
+    console.log('Fetching discovered assets for organization:', currentOrganization.id);
+    const { data, error } = await supabase
+      .from('discovered_assets')
+      .select('*')
+      .eq('organization_id', currentOrganization.id)
+      .order('last_discovered', { ascending: false });
 
-      if (error) {
-        console.error('Failed to load discovered assets:', error);
-        return;
-      }
+    if (error) {
+      console.error('Error fetching assets:', error);
+      return;
+    }
 
-      const mapped: Asset[] = (data ?? []).map((row: any) => {
-        const meta = (row.metadata as any) ?? {};
-        const ips: string[] = Array.isArray(row.ip_addresses) ? row.ip_addresses : [];
-        const complianceStatus = (row.compliance_status as any) ?? {};
-        const score = typeof complianceStatus.score === 'number' ? complianceStatus.score : 0;
-        const vulns = typeof complianceStatus.violations === 'number' ? complianceStatus.violations : 0;
-        const risk = Number(row.risk_score ?? 0);
-
+    if (data && data.length > 0) {
+      const mappedAssets: Asset[] = data.map(item => {
+        const meta = item.metadata as Record<string, any> | null;
+        const ipAddresses = item.ip_addresses as string[] | null;
         return {
-          id: row.id,
-          name: row.hostname ?? row.asset_identifier ?? row.id,
-          type: (meta.asset_type as Asset['type']) ?? 'server',
-          ip_address: ips[0] ?? 'Unknown',
-          os: row.operating_system ?? 'Unknown OS',
-          version: meta.stig_version ?? '',
-          status: meta.status ?? 'online',
-          compliance_score: score,
-          vulnerabilities: vulns,
-          last_scan: row.last_discovered ?? new Date().toISOString(),
-          criticality: risk >= 80 ? 'critical' : risk >= 60 ? 'high' : risk >= 40 ? 'medium' : 'low',
+          id: item.asset_identifier,
+          name: item.hostname || item.asset_identifier,
+          type: (item.asset_type as Asset['type']) || 'server',
+          ip_address: ipAddresses?.[0] ?? 'Unknown',
+          os: item.operating_system || 'Unknown',
+          version: item.version || '',
+          status: (meta?.status as Asset['status']) || 'online',
+          compliance_score: meta?.compliance_score ?? 0,
+          vulnerabilities: meta?.vulnerabilities ?? 0,
+          last_scan: item.last_discovered,
+          criticality: (meta?.criticality as Asset['criticality']) || 'medium'
         };
       });
-      setAssets(mapped);
-    };
+      setAssets(mappedAssets);
+    }
+  };
 
-    const fetchNetworks = async () => {
-      const { data, error } = await supabase
-        .from('zero_trust_network_segments')
-        .select('id, segment_name, cidr_range, security_zone, access_policies')
-        .eq('organization_id', orgId)
-        .order('created_at', { ascending: true });
+  // Fetch network segments from Supabase
+  const fetchNetworks = async () => {
+    if (!currentOrganization?.id) return;
+    const { data, error } = await supabase
+      .from('zero_trust_network_segments')
+      .select('*')
+      .eq('organization_id', currentOrganization.id);
 
-      if (error) {
-        console.error('Failed to load network segments:', error);
-        return;
-      }
+    if (!error && data && data.length > 0) {
+      const mappedNetworks: NetworkSegment[] = data.map((seg: any) => ({
+        id: seg.id,
+        name: seg.name,
+        cidr: seg.cidr,
+        assets_count: seg.assets_count ?? 0,
+        compliance_level: seg.compliance_level ?? 0,
+        security_zone: seg.security_zone || 'internal',
+      }));
+      setNetworks(mappedNetworks);
+    }
+  };
 
-      const mapped: NetworkSegment[] = (data ?? []).map((row: any) => {
-        const policies = (row.access_policies as any) ?? {};
-        return {
-          id: row.id,
-          name: row.segment_name ?? 'Unnamed Segment',
-          cidr: row.cidr_range ?? 'N/A',
-          assets_count: policies.assets_count ?? 0,
-          compliance_level: policies.compliance_level ?? 0,
-          security_zone: (row.security_zone as NetworkSegment['security_zone']) ?? 'internal',
-        };
-      });
-      setNetworks(mapped);
-    };
-
+  useEffect(() => {
     fetchAssets();
     fetchNetworks();
   }, [currentOrganization?.id]);
@@ -152,7 +142,7 @@ export const InfrastructureDiscovery = () => {
     setScanning(true);
     setDiscoveryProgress(0);
     console.log(`Starting STIG ${type} fingerprinting...`);
-    
+
     try {
       const { data, error } = await supabase.functions.invoke('infrastructure-discovery', {
         body: {
@@ -164,26 +154,20 @@ export const InfrastructureDiscovery = () => {
         }
       });
 
-      if (error) {
-        console.error('Discovery error:', error);
-        toast({
-          title: "Discovery Failed",
-          description: "Failed to perform infrastructure discovery. Please try again.",
-          variant: "destructive",
-        });
-        return;
-      }
+      if (error) throw error;
 
       setDiscoveryResults(data.results || []);
+      await fetchAssets();
+
       toast({
         title: "Discovery Complete",
         description: `Found ${data.discovered_count || 0} assets`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Discovery error:', error);
       toast({
         title: "Discovery Failed",
-        description: "An unexpected error occurred during discovery.",
+        description: error.message || "Failed to perform infrastructure discovery.",
         variant: "destructive",
       });
     } finally {
@@ -195,16 +179,16 @@ export const InfrastructureDiscovery = () => {
   const startSTIGDiscovery = async () => {
     setScanning(true);
     setDiscoveryProgress(0);
-    
+
     // Run STIG-targeted fingerprinting for supported systems
     const stigTypes = ['windows_server_2019', 'ubuntu_22_04', 'iis_10', 'apache_2_4'];
     let completed = 0;
-    
+
     for (const type of stigTypes) {
       performSTIGFingerprinting(type).finally(() => {
         completed++;
         setDiscoveryProgress((completed / stigTypes.length) * 100);
-        
+
         if (completed === stigTypes.length) {
           setScanning(false);
           toast({
@@ -237,7 +221,7 @@ export const InfrastructureDiscovery = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="card-cyber">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -249,7 +233,7 @@ export const InfrastructureDiscovery = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="card-cyber">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -261,7 +245,7 @@ export const InfrastructureDiscovery = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="card-cyber">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -288,8 +272,8 @@ export const InfrastructureDiscovery = () => {
                 STIG-targeted fingerprinting and compliance assessment for critical systems
               </CardDescription>
             </div>
-            <Button 
-              variant="cyber" 
+            <Button
+              variant="cyber"
               onClick={startSTIGDiscovery}
               disabled={scanning}
             >
@@ -307,7 +291,7 @@ export const InfrastructureDiscovery = () => {
             </Button>
           </div>
         </CardHeader>
-        
+
         {scanning && (
           <CardContent>
             <div className="space-y-2">
@@ -364,7 +348,7 @@ export const InfrastructureDiscovery = () => {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center space-x-2">
                         <Button variant="outline" size="sm">
                           <Settings className="h-3 w-3 mr-1" />
@@ -411,7 +395,7 @@ export const InfrastructureDiscovery = () => {
                           </div>
                         </div>
                       </div>
-                      
+
                       <Button variant="outline" size="sm">
                         <Search className="h-3 w-3 mr-1" />
                         Analyze

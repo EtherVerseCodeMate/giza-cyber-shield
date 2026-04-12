@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
@@ -144,7 +145,7 @@ func (sc *SecureSupabaseClient) SelectBatch(ctx context.Context, table string, c
 	for i, v := range values {
 		valStrs[i] = fmt.Sprintf("%v", v)
 	}
-	filter := fmt.Sprintf("%s=in.(%s)", column, joinStrings(valStrs, ","))
+	filter := fmt.Sprintf("%s=in.(%s)", column, strings.Join(valStrs, ","))
 
 	body, err := sc.client.Select(ctx, table, filter, "*")
 	if err != nil {
@@ -315,14 +316,3 @@ func (sc *SecureSupabaseClient) processEncryptedRows(ctx context.Context, table 
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
-
-func joinStrings(ss []string, sep string) string {
-	result := ""
-	for i, s := range ss {
-		if i > 0 {
-			result += sep
-		}
-		result += s
-	}
-	return result
-}

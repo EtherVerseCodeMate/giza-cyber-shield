@@ -1,6 +1,5 @@
 {
   "include": [
-    "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
@@ -8,6 +7,7 @@
   ],
   "exclude": [
     "node_modules",
+    "next-env.d.ts",
     "supabase/functions",
     "vendor",
     "souhimbou_ai",

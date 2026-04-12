@@ -175,7 +175,7 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
                     className={`
                       w-full justify-start relative overflow-hidden
                       ${isActive ? 'bg-primary/10 text-primary border border-primary/20' : ''}
-                      ${!isSidebarOpen ? 'px-3' : ''}
+                      ${isSidebarOpen ? '' : 'px-3'}
                     `}
                   >
                     <Icon className="h-5 w-5 mr-3 flex-shrink-0" />
@@ -272,7 +272,7 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => window.location.reload()}
+                    onClick={() => globalThis.location.reload()}
                   >
                     <Activity className="h-4 w-4 mr-2" />
                     Refresh

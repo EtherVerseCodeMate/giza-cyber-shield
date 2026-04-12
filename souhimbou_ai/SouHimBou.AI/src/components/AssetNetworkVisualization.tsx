@@ -236,8 +236,8 @@ export const AssetNetworkVisualization = ({
     };
 
     updateCanvasSize();
-    window.addEventListener('resize', updateCanvasSize);
-    return () => window.removeEventListener('resize', updateCanvasSize);
+    globalThis.addEventListener('resize', updateCanvasSize);
+    return () => globalThis.removeEventListener('resize', updateCanvasSize);
   }, []);
 
   // Generate layout when assets change

@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Database, Cloud, HardDrive, Zap, RefreshCw, AlertCircle, 
+import {
+  Database, Cloud, HardDrive, Zap, RefreshCw, AlertCircle,
   CheckCircle, Settings, TrendingUp, BarChart3
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -39,76 +39,20 @@ export const DataLakeManager = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Initialize with mock data representing the complete data lake stack
-    const mockDataSources: DataSource[] = [
-      {
-        id: '1',
-        name: 'PostgreSQL Primary',
-        type: 'PostgreSQL',
-        status: 'connected',
-        size: '2.4 TB',
-        records: 15420000,
-        lastSync: '2024-01-13T15:45:00Z',
-        health: 98,
-        throughput: '850 MB/s'
-      },
-      {
-        id: '2',
-        name: 'Elasticsearch Cluster',
-        type: 'Elasticsearch',
-        status: 'connected',
-        size: '8.7 TB',
-        records: 125000000,
-        lastSync: '2024-01-13T15:44:30Z',
-        health: 95,
-        throughput: '1.2 GB/s'
-      },
-      {
-        id: '3',
-        name: 'MinIO Object Storage',
-        type: 'MinIO',
-        status: 'connected',
-        size: '45.2 TB',
-        records: 580000,
-        lastSync: '2024-01-13T15:43:15Z',
-        health: 99,
-        throughput: '2.8 GB/s'
-      },
-      {
-        id: '4',
-        name: 'Redis Cache Cluster',
-        type: 'Redis',
-        status: 'connected',
-        size: '128 GB',
-        records: 12500000,
-        lastSync: '2024-01-13T15:45:10Z',
-        health: 97,
-        throughput: '450 MB/s'
-      },
-      {
-        id: '5',
-        name: 'Kafka Event Stream',
-        type: 'Kafka',
-        status: 'connected',
-        size: '3.2 TB',
-        records: 890000000,
-        lastSync: '2024-01-13T15:44:45Z',
-        health: 96,
-        throughput: '15 GB/s'
-      }
-    ];
+    // Awaiting telemetry for real data lake components
+    const pendingDataSources: DataSource[] = [];
 
-    const mockMetrics: StorageMetrics = {
-      totalStorage: '59.7 TB',
-      usedStorage: '44.2 TB',
-      availableStorage: '15.5 TB',
-      dataIngestionRate: '20.3 GB/s',
-      queryPerformance: '< 50ms avg',
-      compressionRatio: '3.2:1'
+    const pendingMetrics: StorageMetrics = {
+      totalStorage: '0 TB',
+      usedStorage: '0 TB',
+      availableStorage: '0 TB',
+      dataIngestionRate: '0 GB/s',
+      queryPerformance: 'pending',
+      compressionRatio: '0:1'
     };
 
-    setDataSources(mockDataSources);
-    setMetrics(mockMetrics);
+    setDataSources(pendingDataSources);
+    setMetrics(pendingMetrics);
     setLoading(false);
   }, []);
 
@@ -145,7 +89,7 @@ export const DataLakeManager = () => {
 
   const optimizeDataLake = async () => {
     setOptimizing(true);
-    
+
     // Simulate optimization process
     setTimeout(() => {
       setOptimizing(false);
@@ -158,14 +102,14 @@ export const DataLakeManager = () => {
   };
 
   const syncDataSource = async (sourceId: string, sourceName: string) => {
-    setDataSources(prev => 
-      prev.map(ds => 
-        ds.id === sourceId 
+    setDataSources(prev =>
+      prev.map(ds =>
+        ds.id === sourceId
           ? { ...ds, lastSync: new Date().toISOString() }
           : ds
       )
     );
-    
+
     toast({
       title: "Sync Complete",
       description: `${sourceName} has been synchronized`,
@@ -197,7 +141,7 @@ export const DataLakeManager = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="card-cyber">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -210,7 +154,7 @@ export const DataLakeManager = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="card-cyber">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -238,8 +182,8 @@ export const DataLakeManager = () => {
                 Multi-tiered storage architecture with PostgreSQL, Elasticsearch, and MinIO
               </CardDescription>
             </div>
-            <Button 
-              variant="cyber" 
+            <Button
+              variant="cyber"
               onClick={optimizeDataLake}
               disabled={optimizing}
             >
@@ -262,11 +206,11 @@ export const DataLakeManager = () => {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Storage Utilization</span>
-                <span>74%</span>
+                <span>{metrics?.totalStorage !== '0 TB' ? '74%' : '0%'}</span>
               </div>
-              <Progress value={74} className="h-2" />
+              <Progress value={metrics?.totalStorage !== '0 TB' ? 74 : 0} className="h-2" />
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <div className="space-y-1">
                 <span className="text-muted-foreground">Compression Ratio</span>
@@ -326,7 +270,7 @@ export const DataLakeManager = () => {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center space-x-2">
                         <Button
                           variant="outline"

@@ -57,7 +57,7 @@ export const ConsoleHome: React.FC = () => {
 
   // Check URL params for view switching
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(globalThis.location.search);
     const view = urlParams.get('view');
     if (view) {
       setCurrentView(view);
@@ -254,7 +254,7 @@ export const ConsoleHome: React.FC = () => {
             <div className="mt-6">
               <Button 
                 className="bg-amber-600 hover:bg-amber-700 text-white"
-                onClick={() => window.location.href = '/asset-scanning'}
+                onClick={() => globalThis.location.href = '/asset-scanning'}
               >
                 <Server className="h-4 w-4 mr-2" />
                 Start Infrastructure Discovery

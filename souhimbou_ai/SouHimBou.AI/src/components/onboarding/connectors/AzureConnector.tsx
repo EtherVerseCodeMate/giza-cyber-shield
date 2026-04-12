@@ -249,7 +249,7 @@ Write-Host "⚠️  IMPORTANT: Save the Client Secret now - it cannot be retriev
 
       <Button
         variant="link"
-        onClick={() => window.open('https://learn.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal', '_blank')}
+        onClick={() => globalThis.open('https://learn.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal', '_blank')}
       >
         <ExternalLink className="mr-2 h-4 w-4" />
         How to create a Service Principal

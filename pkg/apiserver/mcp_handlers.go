@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -31,6 +32,12 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/mcp"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/supabase"
+)
+
+// Protocol and algorithm constants used across MCP handlers.
+const (
+	protocolVersion = "AdinKhepra-v1"
+	pqcAlgorithm    = "ML-DSA-65"
 )
 
 // ─── Server Extension ─────────────────────────────────────────────────────────
@@ -109,7 +116,7 @@ func (s *Server) handleMCPHealth(c *gin.Context) {
 		"pqc_signing": "enabled",
 		"dag_audit":   "enabled",
 		"supabase":    "unconfigured",
-		"protocol":    "AdinKhepra-v1",
+		"protocol":    protocolVersion,
 		"mcp_version": "2024-11-05",
 		"timestamp":   time.Now().UTC(),
 	}
@@ -228,13 +235,13 @@ func (s *Server) handleMCPToolCall(c *gin.Context) {
 
 	sigHex, pubKeyHex, signed := s.signPayload(result)
 	c.JSON(http.StatusOK, gin.H{
-		"result":          result,
-		"dag_node_id":     dagNodeID,
-		"duration_ms":     durationMS,
-		"pqc_signed":      signed,
-		"pqc_signature":   sigHex,
-		"pqc_public_key":  pubKeyHex,
-		"pqc_algorithm":   "ML-DSA-65",
+		"result":         result,
+		"dag_node_id":    dagNodeID,
+		"duration_ms":    durationMS,
+		"pqc_signed":     signed,
+		"pqc_signature":  sigHex,
+		"pqc_public_key": pubKeyHex,
+		"pqc_algorithm":  pqcAlgorithm,
 	})
 }
 
@@ -328,7 +335,7 @@ func (s *Server) handleMCPDAGChain(c *gin.Context) {
 	payload["pqc_signed"] = signed
 	payload["pqc_signature"] = sigHex
 	payload["pqc_public_key"] = pubKeyHex
-	payload["pqc_algorithm"] = "ML-DSA-65"
+	payload["pqc_algorithm"] = pqcAlgorithm
 	c.JSON(http.StatusOK, payload)
 }
 
@@ -476,13 +483,13 @@ func (s *Server) handleMCPNaturalLanguageQuery(c *gin.Context) {
 				"duration_ms":  nlResp.DurationMS,
 				"dag_node_id":  dagNodeID,
 				"engine":       "nl_processor_v1",
-				"protocol":     "AdinKhepra-v1",
+				"protocol":     protocolVersion,
 			}
 			sigHex, pubKeyHex, signed := s.signPayload(nlPayload)
 			nlPayload["pqc_signed"] = signed
 			nlPayload["pqc_signature"] = sigHex
 			nlPayload["pqc_public_key"] = pubKeyHex
-			nlPayload["pqc_algorithm"] = "ML-DSA-65"
+			nlPayload["pqc_algorithm"] = pqcAlgorithm
 			c.JSON(http.StatusOK, nlPayload)
 			return
 		}
@@ -503,68 +510,70 @@ func (s *Server) handleMCPNaturalLanguageQuery(c *gin.Context) {
 		"dag_node_id": dagNodeID,
 		"duration_ms": time.Since(start).Milliseconds(),
 		"engine":      "keyword_router_v1",
-		"protocol":    "AdinKhepra-v1",
+		"protocol":    protocolVersion,
 		"note":        "Set LLM_PROVIDER=ollama + LLM_URL env vars to enable AI synthesis",
 	}
 	sigHex2, pubKeyHex2, signed2 := s.signPayload(kwPayload)
 	kwPayload["pqc_signed"] = signed2
 	kwPayload["pqc_signature"] = sigHex2
 	kwPayload["pqc_public_key"] = pubKeyHex2
-	kwPayload["pqc_algorithm"] = "ML-DSA-65"
+	kwPayload["pqc_algorithm"] = pqcAlgorithm
 	c.JSON(http.StatusOK, kwPayload)
 }
 
 // keywordRouteQuery provides fast keyword-based tool routing.
-func keywordRouteQuery(query string, ctx map[string]string) []gin.H {
-	import_lower := func(s string) string {
-		result := make([]byte, len(s))
-		for i, c := range s {
-			if c >= 'A' && c <= 'Z' {
-				result[i] = byte(c + 32)
-			} else {
-				result[i] = byte(c)
-			}
-		}
-		return string(result)
-	}
-	lower := import_lower(query)
+func keywordRouteQuery(query string, _ map[string]string) []gin.H {
+	lower := strings.ToLower(query)
 
-	type route struct {
-		keywords []string
-		tools    []string
-	}
-	routes := []route{
-		{[]string{"compromised", "hacked", "breach", "attack"}, []string{"khepra_get_ids_alerts", "khepra_hunt_threats"}},
-		{[]string{"threat", "hunt", "lateral", "ttp", "apt"}, []string{"khepra_hunt_threats", "khepra_analyze_iocs"}},
-		{[]string{"incident", "ransomware", "malware", "emergency"}, []string{"khepra_declare_incident", "khepra_collect_forensics"}},
-		{[]string{"compliance", "cmmc", "stig", "nist", "ready"}, []string{"khepra_get_compliance_score", "khepra_run_compliance_scan"}},
-		{[]string{"pentest", "vulnerability", "cve", "exploit"}, []string{"khepra_check_vulnerabilities", "khepra_enumerate_services"}},
-		{[]string{"block", "firewall", "rule", "ban"}, []string{"khepra_create_ips_rule", "khepra_update_firewall_rule"}},
-		{[]string{"report", "dashboard", "risk", "posture"}, []string{"khepra_get_risk_dashboard", "khepra_generate_report"}},
-		{[]string{"board", "executive", "ceo", "slide"}, []string{"khepra_export_executive_brief"}},
-		{[]string{"backup", "recover", "rto", "rpo", "dr"}, []string{"khepra_get_rto_rpo", "khepra_test_recovery"}},
-		{[]string{"traffic", "anomal", "exfil", "beacon"}, []string{"khepra_analyze_traffic"}},
-		{[]string{"log", "search", "happened", "timeline"}, []string{"khepra_search_logs", "khepra_get_security_timeline"}},
-		{[]string{"attest", "c3pao", "audit", "artifact"}, []string{"khepra_export_attestation", "khepra_get_dag_chain"}},
-		{[]string{"alert", "ids", "ips", "detection"}, []string{"khepra_get_ids_alerts"}},
+	// Keyword to tools mapping
+	keywordMap := map[string][]string{
+		"compromised": {"khepra_get_ids_alerts", "khepra_hunt_threats"},
+		"hacked":      {"khepra_get_ids_alerts", "khepra_hunt_threats"},
+		"breach":      {"khepra_get_ids_alerts", "khepra_hunt_threats"},
+		"attack":      {"khepra_get_ids_alerts", "khepra_hunt_threats"},
+		"threat":      {"khepra_hunt_threats", "khepra_analyze_iocs"},
+		"hunt":        {"khepra_hunt_threats", "khepra_analyze_iocs"},
+		"ttp":         {"khepra_hunt_threats", "khepra_analyze_iocs"},
+		"apt":         {"khepra_hunt_threats", "khepra_analyze_iocs"},
+		"incident":    {"khepra_declare_incident", "khepra_collect_forensics"},
+		"ransomware":  {"khepra_declare_incident", "khepra_collect_forensics"},
+		"malware":     {"khepra_declare_incident", "khepra_collect_forensics"},
+		"compliance":  {"khepra_get_compliance_score", "khepra_run_compliance_scan"},
+		"cmmc":        {"khepra_get_compliance_score", "khepra_run_compliance_scan"},
+		"stig":        {"khepra_get_compliance_score", "khepra_run_compliance_scan"},
+		"nist":        {"khepra_get_compliance_score", "khepra_run_compliance_scan"},
+		"pentest":     {"khepra_check_vulnerabilities", "khepra_enumerate_services"},
+		"cve":         {"khepra_check_vulnerabilities", "khepra_enumerate_services"},
+		"exploit":     {"khepra_check_vulnerabilities", "khepra_enumerate_services"},
+		"block":       {"khepra_create_ips_rule", "khepra_update_firewall_rule"},
+		"firewall":    {"khepra_create_ips_rule", "khepra_update_firewall_rule"},
+		"ban":         {"khepra_create_ips_rule", "khepra_update_firewall_rule"},
+		"report":      {"khepra_get_risk_dashboard", "khepra_generate_report"},
+		"dashboard":   {"khepra_get_risk_dashboard", "khepra_generate_report"},
+		"risk":        {"khepra_get_risk_dashboard", "khepra_generate_report"},
+		"executive":   {"khepra_export_executive_brief"},
+		"ceo":         {"khepra_export_executive_brief"},
+		"backup":      {"khepra_get_rto_rpo", "khepra_test_recovery"},
+		"recover":     {"khepra_get_rto_rpo", "khepra_test_recovery"},
+		"traffic":     {"khepra_analyze_traffic"},
+		"anomal":      {"khepra_analyze_traffic"},
+		"exfil":       {"khepra_analyze_traffic"},
+		"log":         {"khepra_search_logs", "khepra_get_security_timeline"},
+		"search":      {"khepra_search_logs", "khepra_get_security_timeline"},
+		"timeline":    {"khepra_search_logs", "khepra_get_security_timeline"},
+		"attest":      {"khepra_export_attestation", "khepra_get_dag_chain"},
+		"audit":       {"khepra_export_attestation", "khepra_get_dag_chain"},
+		"alert":       {"khepra_get_ids_alerts"},
+		"ids":         {"khepra_get_ids_alerts"},
 	}
 
-	for _, r := range routes {
-		for _, kw := range r.keywords {
-			found := false
-			for i := 0; i <= len(lower)-len(kw); i++ {
-				if lower[i:i+len(kw)] == kw {
-					found = true
-					break
-				}
+	for kw, tools := range keywordMap {
+		if strings.Contains(lower, kw) {
+			result := make([]gin.H, 0, len(tools))
+			for _, t := range tools {
+				result = append(result, gin.H{"tool": t, "endpoint": "/api/v1/mcp/tool"})
 			}
-			if found {
-				result := make([]gin.H, 0, len(r.tools))
-				for _, t := range r.tools {
-					result = append(result, gin.H{"tool": t, "endpoint": "/api/v1/mcp/tool"})
-				}
-				return result
-			}
+			return result
 		}
 	}
 

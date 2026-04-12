@@ -223,63 +223,73 @@ class IntentClassifier:
             Dictionary of extracted parameters
         """
         params: Dict[str, str] = {}
+        params.update(self._extract_target(message))
 
-        # Extract target (IP or hostname)
-        ip_match = self.IP_PATTERN.search(message)
-        if ip_match:
-            params["target"] = ip_match.group()
-        else:
-            hostname_match = self.HOSTNAME_PATTERN.search(message)
-            if hostname_match:
-                params["target"] = hostname_match.group()
-
-        # Intent-specific extraction
         if intent == SecurityIntent.FIREWALL:
-            # Extract port number
-            port_match = self.PORT_PATTERN.search(message)
-            if port_match:
-                params["port"] = port_match.group(1)
-            elif intent == SecurityIntent.FIREWALL:
-                # Try to find standalone port number
-                port_num_match = self.PORT_NUMBER_PATTERN.search(message)
-                if port_num_match:
-                    port = int(port_num_match.group(1))
-                    if 1 <= port <= 65535:
-                        params["port"] = str(port)
-
+            params.update(self._extract_firewall_params(message))
         elif intent == SecurityIntent.VULNHUNT:
-            # Extract CVE ID
-            cve_match = self.CVE_PATTERN.search(message)
-            if cve_match:
-                params["cve_id"] = cve_match.group().upper()
-
+            params.update(self._extract_vulnhunt_params(message))
         elif intent == SecurityIntent.COMPLIANCE:
-            # Extract framework
-            framework_match = self.FRAMEWORK_PATTERN.search(message)
-            if framework_match:
-                params["framework"] = framework_match.group().upper()
-
+            params.update(self._extract_compliance_params(message))
         elif intent == SecurityIntent.SCAN:
-            # Check for scan type hints
-            if "port" in message.lower():
-                params["scan_type"] = "port"
-            elif "vuln" in message.lower() or "vulnerability" in message.lower():
-                params["scan_type"] = "vulnerability"
-            elif "service" in message.lower():
-                params["scan_type"] = "service"
-            else:
-                params["scan_type"] = "comprehensive"
-
+            params.update(self._extract_scan_params(message))
         elif intent in (SecurityIntent.ENCRYPTION, SecurityIntent.PQC):
-            # Extract algorithm hints
-            if "aes" in message.lower():
-                params["algorithm"] = "AES-256-GCM"
-            elif "kyber" in message.lower():
-                params["algorithm"] = "Kyber-1024"
-            elif "dilithium" in message.lower():
-                params["algorithm"] = "Dilithium-3"
+            params.update(self._extract_crypto_params(message))
 
         return params
+
+    def _extract_target(self, message: str) -> Dict[str, str]:
+        ip_match = self.IP_PATTERN.search(message)
+        if ip_match:
+            return {"target": ip_match.group()}
+        hostname_match = self.HOSTNAME_PATTERN.search(message)
+        if hostname_match:
+            return {"target": hostname_match.group()}
+        return {}
+
+    def _extract_firewall_params(self, message: str) -> Dict[str, str]:
+        port_match = self.PORT_PATTERN.search(message)
+        if port_match:
+            return {"port": port_match.group(1)}
+        port_num_match = self.PORT_NUMBER_PATTERN.search(message)
+        if port_num_match:
+            # We already matched digits, so int() conversion is safe
+            port = int(port_num_match.group(1))
+            if 1 <= port <= 65535:
+                return {"port": str(port)}
+        return {}
+
+    def _extract_vulnhunt_params(self, message: str) -> Dict[str, str]:
+        cve_match = self.CVE_PATTERN.search(message)
+        if cve_match:
+            return {"cve_id": cve_match.group().upper()}
+        return {}
+
+    def _extract_compliance_params(self, message: str) -> Dict[str, str]:
+        framework_match = self.FRAMEWORK_PATTERN.search(message)
+        if framework_match:
+            return {"framework": framework_match.group().upper()}
+        return {}
+
+    def _extract_scan_params(self, message: str) -> Dict[str, str]:
+        msg_lower = message.lower()
+        if "port" in msg_lower:
+            return {"scan_type": "port"}
+        if "vuln" in msg_lower or "vulnerability" in msg_lower:
+            return {"scan_type": "vulnerability"}
+        if "service" in msg_lower:
+            return {"scan_type": "service"}
+        return {"scan_type": "comprehensive"}
+
+    def _extract_crypto_params(self, message: str) -> Dict[str, str]:
+        msg_lower = message.lower()
+        if "aes" in msg_lower:
+            return {"algorithm": "AES-256-GCM"}
+        if "kyber" in msg_lower:
+            return {"algorithm": "Kyber-1024"}
+        if "dilithium" in msg_lower:
+            return {"algorithm": "Dilithium-3"}
+        return {}
 
     def get_intent_description(self, intent: SecurityIntent) -> str:
         """Get human-readable description of an intent."""

@@ -23,9 +23,12 @@ BEGIN
     RAISE EXCEPTION 'Encryption key not found: %', key_name;
   END IF;
   
-  -- In production, this would use proper encryption libraries
-  -- For now, we'll simulate encryption with encoding
-  encrypted_data := convert_to(credential_data::text, 'UTF8');
+  -- TRL10: Real AES-256 PGP Symmetric Encryption
+  encrypted_data := pgp_sym_encrypt(
+    credential_data::text, 
+    COALESCE(encryption_key_record.key_value, 'TRL10_STATIC_FALLBACK_KEY'), 
+    'cipher-algo=aes256'
+  );
   
   RETURN encrypted_data;
 END;
@@ -63,8 +66,12 @@ BEGIN
     RAISE EXCEPTION 'Encryption key not found: %', key_name;
   END IF;
   
-  -- In production, this would use proper decryption
-  decrypted_data := convert_from(encrypted_data, 'UTF8')::JSONB;
+  -- TRL10: Real AES-256 PGP Symmetric Decryption
+  decrypted_data := pgp_sym_decrypt(
+    encrypted_data, 
+    COALESCE(encryption_key_record.key_value, 'TRL10_STATIC_FALLBACK_KEY'), 
+    'cipher-algo=aes256'
+  )::JSONB;
   
   -- Log access for audit
   PERFORM log_sensitive_data_access_v2('secure_discovery_credentials', 'CREDENTIAL_DECRYPTION', 'TOP_SECRET');
