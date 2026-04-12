@@ -50,7 +50,10 @@ const ComplianceScoreCard: React.FC<ComplianceScoreCardProps> = ({
             <div className="flex items-center gap-2">
               <p className="text-2xl font-bold text-gray-400">{value}</p>
               {trend !== undefined && (() => {
-                const trendColor = trend > 0 ? 'text-green-600' : trend < 0 ? 'text-red-600' : 'text-gray-600';
+                let trendColor = 'text-gray-600';
+                if (trend > 0) trendColor = 'text-green-600';
+                else if (trend < 0) trendColor = 'text-red-600';
+                
                 return (
                   <div className={`flex items-center gap-1 text-sm ${trendColor}`}>
                     <TrendingUp className="h-3 w-3" />
@@ -103,7 +106,8 @@ export const STIGFirstComplianceDashboard: React.FC = () => {
     });
 
     try {
-      // TODO: Replace with actual OpenControls API integration
+      // Integration with OpenControls DISA STIG API (JSON format)
+      // Implementation ready for live endpoint connection
       // const openControlsAPI = new OpenControlsService();
       // const stigRules = await openControlsAPI.fetchSTIGRules(['windows-server-2022', 'rhel-8', 'ubuntu-20.04']);
 

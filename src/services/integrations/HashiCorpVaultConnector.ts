@@ -2,8 +2,7 @@
  * HashiCorp Vault Connector
  * ═════════════════════════
  *
- * Replaces INT-009 (credential connectivity test that randomly returned 80% success)
- * with real credential verification via HashiCorp Vault.
+ * Real credential verification via HashiCorp Vault.
  *
  * Architecture:
  *   - Vault runs self-hosted or on HCP (HashiCorp Cloud Platform)
@@ -149,10 +148,6 @@ export class HashiCorpVaultConnector {
 
     /**
      * Test credential connectivity via Vault.
-     * Replaces INT-009: Math.random() > 0.2 (80% fake success rate).
-     *
-     * This performs a REAL read of the secret at the given Vault path
-     * and verifies the credential is accessible and not expired.
      */
     static async testCredential(
         organizationId: string,

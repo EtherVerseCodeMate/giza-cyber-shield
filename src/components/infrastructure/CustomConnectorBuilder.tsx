@@ -133,7 +133,7 @@ class SyslogCollector {
     
     if (match) {
       return {
-        priority: parseInt(match[1]),
+        priority: Number.parseInt(match[1]),
         timestamp: match[2],
         hostname: match[3],
         message: match[4]

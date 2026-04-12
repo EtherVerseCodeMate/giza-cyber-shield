@@ -65,10 +65,10 @@ export const KipIntegrationSettings = () => {
         .order('created_at', { ascending: false })
         .limit(1);
 
-      if (data && data.length > 0 && data[0].context) {
-        const savedSettings = data[0].context as Record<string, any>;
-        setSettings(prev => ({ 
-          ...prev, 
+      if (data && data.length > 0 && (data[0] as any).context) {
+        const savedSettings = (data[0] as any).context as Record<string, any>;
+        setSettings(prev => ({
+          ...prev,
           ...Object.fromEntries(
             Object.entries(savedSettings).filter(([key]) => key in prev)
           )
@@ -88,7 +88,7 @@ export const KipIntegrationSettings = () => {
       // Save settings to ai_agent_chats table
       const { error } = await supabase.from('ai_agent_chats').insert({
         user_id: user.id,
-        organization_id: user.user_metadata?.organization_id || '00000000-0000-0000-0000-000000000000',
+        organization_id: user.user_metadata?.organization_id || user.id,
         message_type: 'kip_integration_settings',
         message: 'KIP Integration Settings Updated',
         response: JSON.stringify(settings),
@@ -247,7 +247,7 @@ export const KipIntegrationSettings = () => {
               onCheckedChange={(checked) => setSettings(prev => ({ ...prev, enableWebhooks: checked }))}
             />
           </div>
-          
+
           {settings.enableWebhooks && (
             <>
               <div className="space-y-2">
@@ -265,12 +265,12 @@ export const KipIntegrationSettings = () => {
                   </Button>
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label>Webhook Endpoints</Label>
                 <div className="bg-muted p-3 rounded-lg text-sm font-mono space-y-1">
-                  <div>Handler: https://{window.location.hostname}/functions/v1/kip-webhook-handler</div>
-                  <div>Matcher: https://{window.location.hostname}/functions/v1/cultural-fingerprint-matcher</div>
+                  <div>Handler: https://{globalThis.location.hostname}/functions/v1/kip-webhook-handler</div>
+                  <div>Matcher: https://{globalThis.location.hostname}/functions/v1/cultural-fingerprint-matcher</div>
                 </div>
               </div>
             </>
@@ -311,11 +311,10 @@ export const KipIntegrationSettings = () => {
                   {AVAILABLE_SYMBOLS.map((symbol) => (
                     <div
                       key={symbol.value}
-                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                        settings.adinkraSymbols.includes(symbol.value)
+                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${settings.adinkraSymbols.includes(symbol.value)
                           ? 'border-primary bg-primary/5'
                           : 'border-border'
-                      }`}
+                        }`}
                       onClick={() => handleSymbolToggle(symbol.value)}
                     >
                       <div className="flex items-center justify-between">
@@ -341,7 +340,7 @@ export const KipIntegrationSettings = () => {
                     min="0"
                     max="100"
                     value={settings.trustScoreThreshold}
-                    onChange={(e) => setSettings(prev => ({ ...prev, trustScoreThreshold: parseInt(e.target.value) }))}
+                    onChange={(e) => setSettings(prev => ({ ...prev, trustScoreThreshold: Number.parseInt(e.target.value) }))}
                     className="w-20"
                   />
                   <span className="text-sm text-muted-foreground">

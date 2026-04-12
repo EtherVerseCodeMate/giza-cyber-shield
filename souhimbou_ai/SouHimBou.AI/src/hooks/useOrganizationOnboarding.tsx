@@ -52,6 +52,7 @@ export function useOrganizationOnboarding(organizationId: string | undefined) {
           .from('organization_onboarding')
           .insert({
             organization_id: organizationId,
+            user_id: organizationId,
             current_phase: 'pre_onboarding',
           })
           .select()
@@ -108,7 +109,7 @@ export function useOrganizationOnboarding(organizationId: string | undefined) {
 
       toast({
         title: 'Phase Updated',
-        description: `Moved to ${phase.replace('_', ' ')} phase`,
+        description: `Moved to ${phase.replaceAll('_', ' ')} phase`,
       });
     } catch (error) {
       console.error('Error updating phase:', error);

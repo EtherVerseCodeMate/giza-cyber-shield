@@ -44,43 +44,42 @@ export const NVIDIAFlare = () => {
         .eq('organization_id', currentOrganization.id)
         .limit(4);
 
-      // Federated node data — accuracy values are trained-model metrics, not random
-      const chatLen = aiChats?.length || 0;
+      // Create federated node data based on real infrastructure
       const nodeData = [
         {
           id: "fed-node-01",
           location: assets?.[0]?.target ? `Location-${assets[0].target.slice(-2)}` : "FOB Alpha",
-          status: chatLen > 10 ? "training" : "idle",
-          clients: Math.max(4, Math.floor(chatLen / 5)),
-          accuracy: "97.3%",
-          rounds: `${Math.min(50, Math.max(40, Math.floor(chatLen * 0.8)))}/50`,
+          status: aiChats?.length > 10 ? "training" : "idle",
+          clients: Math.max(4, Math.floor((aiChats?.length || 0) / 5)),
+          accuracy: 'N/A',
+          rounds: `${Math.min(aiChats?.length ?? 0, 50)}/50`,
           privacy: "Differential Privacy"
         },
         {
           id: "fed-node-02",
           location: assets?.[1]?.target ? `Location-${assets[1].target.slice(-2)}` : "Mobile Command",
-          status: chatLen > 5 ? "syncing" : "idle",
-          clients: Math.max(6, Math.floor(chatLen / 4)),
-          accuracy: "95.8%",
-          rounds: `${Math.min(50, Math.max(35, Math.floor(chatLen * 0.7)))}/50`,
+          status: aiChats?.length > 5 ? "syncing" : "idle",
+          clients: Math.max(6, Math.floor((aiChats?.length || 0) / 4)),
+          accuracy: 'N/A',
+          rounds: `${Math.min(Math.floor((aiChats?.length ?? 0) * 0.8), 50)}/50`,
           privacy: "Homomorphic Encryption"
         },
         {
           id: "fed-node-03",
           location: assets?.[2]?.target ? `Location-${assets[2].target.slice(-2)}` : "Air-Gapped Base",
-          status: chatLen > 15 ? "training" : "idle",
-          clients: Math.max(3, Math.floor(chatLen / 8)),
-          accuracy: "98.1%",
-          rounds: `${Math.min(50, Math.max(42, Math.floor(chatLen * 0.85)))}/50`,
+          status: aiChats?.length > 15 ? "training" : "idle",
+          clients: Math.max(3, Math.floor((aiChats?.length || 0) / 8)),
+          accuracy: 'N/A',
+          rounds: `${Math.min(Math.floor((aiChats?.length ?? 0) * 0.9), 50)}/50`,
           privacy: "Secure Aggregation"
         },
         {
           id: "fed-node-04",
           location: assets?.[3]?.target ? `Location-${assets[3].target.slice(-2)}` : "Edge Tactical",
-          status: chatLen > 20 ? "completed" : "training",
-          clients: Math.max(2, Math.floor(chatLen / 10)),
-          accuracy: "96.7%",
-          rounds: chatLen > 20 ? "50/50" : `${Math.min(50, Math.max(40, Math.floor(chatLen * 0.82)))}/50`,
+          status: aiChats?.length > 20 ? "completed" : "training",
+          clients: Math.max(2, Math.floor((aiChats?.length || 0) / 10)),
+          accuracy: 'N/A',
+          rounds: aiChats?.length > 20 ? "50/50" : `${Math.min(Math.floor((aiChats?.length ?? 0) * 0.7), 50)}/50`,
           privacy: "PSI + DP"
         }
       ];
@@ -123,31 +122,30 @@ export const NVIDIAFlare = () => {
       setPrivacyFeatures(privacyData);
 
       // Create experiments based on AI activity
-      const chatLen2 = aiChats?.length || 0;
       const experimentData = [
         {
           name: "Threat Detection FL",
-          progress: Math.min(100, Math.floor(chatLen2 * 2)),
-          participants: Math.max(2, Math.min(8, Math.floor(chatLen2 / 3))),
-          accuracy: "98.4%"
+          progress: Math.min(100, Math.floor((aiChats?.length || 0) * 2)),
+          participants: Math.max(2, Math.min(8, Math.floor((aiChats?.length || 0) / 3))),
+          accuracy: 'N/A'
         },
         {
           name: "Behavioral Analysis FL",
-          progress: Math.min(100, Math.floor(chatLen2 * 1.5)),
-          participants: Math.max(2, Math.min(6, Math.floor(chatLen2 / 4))),
-          accuracy: "96.2%"
+          progress: Math.min(100, Math.floor((aiChats?.length || 0) * 1.5)),
+          participants: Math.max(2, Math.min(6, Math.floor((aiChats?.length || 0) / 4))),
+          accuracy: 'N/A'
         },
         {
           name: "Anomaly Detection FL",
-          progress: Math.min(100, Math.floor(chatLen2 * 3)),
-          participants: Math.max(2, Math.min(4, Math.floor(chatLen2 / 6))),
-          accuracy: "99.1%"
+          progress: Math.min(100, Math.floor((aiChats?.length || 0) * 3)),
+          participants: Math.max(2, Math.min(4, Math.floor((aiChats?.length || 0) / 6))),
+          accuracy: 'N/A'
         },
         {
           name: "Digital Fingerprint FL",
-          progress: Math.min(100, Math.floor(chatLen2 * 1.2)),
-          participants: Math.max(3, Math.min(12, Math.floor(chatLen2 / 2))),
-          accuracy: "95.6%"
+          progress: Math.min(100, Math.floor((aiChats?.length || 0) * 1.2)),
+          participants: Math.max(3, Math.min(12, Math.floor((aiChats?.length || 0) / 2))),
+          accuracy: 'N/A'
         }
       ];
 
@@ -318,7 +316,7 @@ export const NVIDIAFlare = () => {
               <p>• 100% privacy compliance</p>
             </div>
             <div>
-              <p>• {Math.round(experiments.reduce((sum, exp) => sum + parseFloat(exp.accuracy.replace('%', '')), 0) / experiments.length)}% average model accuracy</p>
+              <p>• {Math.round(experiments.reduce((sum, exp) => sum + Number.parseFloat(exp.accuracy.replaceAll('%', '')), 0) / experiments.length)}% average model accuracy</p>
               <p>• Zero data centralization</p>
               <p>• Cross-domain federation enabled</p>
             </div>
