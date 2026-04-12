@@ -1,8 +1,14 @@
 package ouroboros
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
 	"log"
-	"os/exec"
+	"net/http"
+	"os"
+	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/maat"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
@@ -61,14 +67,39 @@ func (rb *RemediationBlade) Name() string {
 	return rb.name
 }
 
-// FirewallBlade controls firewall rules
+// FirewallBlade submits IP ban decisions to the Crowdsec LAPI bouncer endpoint.
+//
+// Crowdsec is the single enforcement authority for IP blocklists on the VPS.
+// SEKHEM / Ouroboros is a signal source; Crowdsec is the actuator.
+// This replaces the former iptables exec call which conflicted with Crowdsec's
+// own blocklist management (two independent systems → rule conflicts, impossible
+// incident response).
+//
+// Required environment variables:
+//
+//	CROWDSEC_LAPI_URL      — Crowdsec LAPI base URL (default: http://localhost:8080)
+//	CROWDSEC_BOUNCER_KEY   — bouncer API key registered via `cscli bouncers add`
 type FirewallBlade struct {
-	name string
+	name           string
+	crowdsecURL    string
+	crowdsecAPIKey string
+	httpClient     *http.Client
 }
 
 func NewFirewallBlade() *FirewallBlade {
+	csURL := os.Getenv("CROWDSEC_LAPI_URL")
+	if csURL == "" {
+		csURL = "http://localhost:8080"
+	}
+	csKey := os.Getenv("CROWDSEC_BOUNCER_KEY")
+	if csKey == "" {
+		log.Println("[khopesh-firewall] WARNING: CROWDSEC_BOUNCER_KEY not set — IP bans will be logged but not enforced")
+	}
 	return &FirewallBlade{
-		name: "khopesh-firewall",
+		name:           "khopesh-firewall",
+		crowdsecURL:    csURL,
+		crowdsecAPIKey: csKey,
+		httpClient:     &http.Client{Timeout: 5 * time.Second},
 	}
 }
 
@@ -82,29 +113,66 @@ func (fb *FirewallBlade) Strike(heka maat.Heka) error {
 		return nil
 	}
 
-	// Log the banishment action with source details for audit trail
-	log.Printf("[%s] Banishing malicious entities for: %s", fb.name, heka.Isfet.ID)
-
+	// Collect actionable IP omens first — only log if there is at least one.
+	// CVE/STIG findings route here via ActionBanish but carry no IP omens;
+	// logging "Processing banishment" for them produces misleading journal noise.
 	var lastErr error
-	// Extract target from Isfet omens (e.g., IP address, domain)
+	submitted := 0
 	for _, omen := range heka.Isfet.Omens {
-		if omen.Malevolence >= 0.7 {
-			log.Printf("[%s] DISRUPTING MALICIOUS PATH: BLOCK %s=%s (malevolence: %.2f)",
-				fb.name, omen.Name, omen.Value, omen.Malevolence)
-
-			// REAL IMPLEMENTATION: Execute iptables block
-			// Note: In Iron Bank hardened images, we usually need specific capabilities
-			cmd := exec.Command("iptables", "-A", "INPUT", "-s", omen.Value, "-j", "DROP")
-			if err := cmd.Run(); err != nil {
-				log.Printf("[%s] Failed to execute iptables: %v (verify root/CAP_NET_ADMIN)", fb.name, err)
-				lastErr = err
-			} else {
-				log.Printf("[%s] SUCCESS: IP %s blocked via host firewall", fb.name, omen.Value)
-			}
+		if omen.Name != "ip" || omen.Malevolence < 0.7 {
+			continue
+		}
+		if submitted == 0 {
+			log.Printf("[%s] Processing banishment for Isfet: %s", fb.name, heka.Isfet.ID)
+		}
+		ip := omen.Value
+		log.Printf("[%s] Submitting Crowdsec decision: ban ip=%s malevolence=%.2f isfet=%s",
+			fb.name, ip, omen.Malevolence, heka.Isfet.ID)
+		if err := fb.submitCrowdsecDecision(ip, "24h", "ban"); err != nil {
+			log.Printf("[%s] Crowdsec submission failed for %s: %v", fb.name, ip, err)
+			lastErr = err
+		} else {
+			log.Printf("[%s] SUCCESS: ip=%s submitted to Crowdsec (24h ban)", fb.name, ip)
+			submitted++
 		}
 	}
 
 	return lastErr
+}
+
+// submitCrowdsecDecision POSTs a single IP decision to the Crowdsec LAPI.
+func (fb *FirewallBlade) submitCrowdsecDecision(ip, duration, decType string) error {
+	if fb.crowdsecAPIKey == "" {
+		return fmt.Errorf("CROWDSEC_BOUNCER_KEY not configured — cannot enforce ban for %s", ip)
+	}
+
+	payload, err := json.Marshal([]map[string]string{
+		{"duration": duration, "scope": "Ip", "type": decType, "value": ip},
+	})
+	if err != nil {
+		return fmt.Errorf("marshal decision: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost,
+		fb.crowdsecURL+"/v1/decisions",
+		bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("build request: %w", err)
+	}
+	req.Header.Set("X-Api-Key", fb.crowdsecAPIKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := fb.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("Crowdsec LAPI POST: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return fmt.Errorf("Crowdsec returned HTTP %d: %s", resp.StatusCode, body)
+	}
+	return nil
 }
 
 func (fb *FirewallBlade) Name() string {

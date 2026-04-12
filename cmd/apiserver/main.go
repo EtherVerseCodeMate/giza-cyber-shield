@@ -1,11 +1,13 @@
-// DEMARC API Server - Khepra Protocol Secure Gateway
-// "The Mitochondreal-Scarab / The Motherboard"
+// SEKHEM Gateway - Khepra Protocol Secure Gateway
+// "SEKHEM — The Divine Gateway"
+// Sekhem (Egyptian): Power, might, divine authority — the scepter that commands
+// the boundary between chaos and order.
 //
 // The central consciousness hub connecting:
-// - Go AGI (KASA)        - Logic & Execution
+// - Go AGI (KASA)          - Logic & Execution
 // - Python AGI (SouHimBou) - Intuition & Soul
-// - Telemetry Server     - Long-Term Memory
-// - Client API           - User Interface
+// - Telemetry Server       - Long-Term Memory
+// - Client API             - User Interface
 //
 // Environment Variables:
 //   KHEPRA_SERVICE_SECRET     - Shared HMAC secret for service authentication (required)
@@ -51,117 +53,25 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/llm/ollama"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/mcp"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/sekhem"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/supabase"
 )
 
 func main() {
-	// CLI flags
-	// TLS is ON by default — Khepra is a security product, plaintext is unacceptable.
-	// Disable only for local development with --tls=false.
-	port := flag.Int("port", 443, "Server port (default 443 for TLS)")
-	host := flag.String("host", "0.0.0.0", "Server host")
-	tlsEnabled := flag.Bool("tls", true, "Enable TLS with Let's Encrypt (default: true)")
-	tlsDomain := flag.String("tls-domain", "", "Domain for Let's Encrypt (required when TLS enabled)")
-	certCacheDir := flag.String("cert-cache", "/var/cache/khepra-certs", "Certificate cache directory")
-	debug := flag.Bool("debug", false, "Enable debug mode")
-	telemetryURL := flag.String("telemetry-url", "https://telemetry.souhimbou.org", "Telemetry server URL")
-	flag.Parse()
-
-	// Environment variable overrides (env vars take precedence over CLI defaults)
-	if envPort := os.Getenv("PORT"); envPort != "" {
-		if p, err := strconv.Atoi(envPort); err == nil {
-			*port = p
-		}
-	}
-	if envHost := os.Getenv("HOST"); envHost != "" {
-		*host = envHost
-	}
-	// TLS_ENABLED=false explicitly opts out of TLS (local dev only)
-	if os.Getenv("TLS_ENABLED") == "false" {
-		*tlsEnabled = false
-		if *port == 443 {
-			*port = 8080 // revert to dev port when TLS explicitly disabled
-		}
-	}
-	if envDomain := os.Getenv("TLS_DOMAIN"); envDomain != "" {
-		*tlsDomain = envDomain
-	}
-	if envCertDir := os.Getenv("CERT_CACHE_DIR"); envCertDir != "" {
-		*certCacheDir = envCertDir
-	}
-	if os.Getenv("DEBUG") == "true" {
-		*debug = true
-	}
-	if envTelemetry := os.Getenv("TELEMETRY_URL"); envTelemetry != "" {
-		*telemetryURL = envTelemetry
-	}
-
-	// Warn if TLS is enabled but domain is not configured
-	if *tlsEnabled && *tlsDomain == "" {
-		log.Println("WARNING: TLS_DOMAIN not set. Let's Encrypt requires a valid public domain.")
-		log.Println("  Set: export TLS_DOMAIN=api.yourdomain.com")
-		log.Println("  Or disable TLS for local dev: export TLS_ENABLED=false")
-		log.Println("Falling back to HTTP on port 8080 for this session.")
-		*tlsEnabled = false
-		*port = 8080
-	}
-
-	// Validate service secret
-	if os.Getenv("KHEPRA_SERVICE_SECRET") == "" {
-		log.Println("WARNING: KHEPRA_SERVICE_SECRET not set!")
-		log.Println("Service-to-service authentication will use development defaults.")
-		log.Println("Set this for production: export KHEPRA_SERVICE_SECRET=<your-256-bit-hex-secret>")
-	}
+	cfg, flags := parseConfig()
 
 	printBanner()
 
-	// Initialize DAG (global singleton - The Long-Term Memory)
-	dagStore := dag.GlobalDAG()
-	log.Printf("DAG initialized with %d nodes", len(dagStore.All()))
+	dagStore, licMgr := initInfrastructure(cfg)
 
-	// Initialize license manager (Merkaba Egyptian mythology system)
-	licMgr, err := license.NewManager(*telemetryURL)
-	if err != nil {
-		log.Fatalf("Failed to create license manager: %v", err)
-	}
+	// ── SEKHEM Triad (Ouroboros + WAFShield + Sensor/Actuator mesh) ───────────
+	// Must be created and harmonized BEFORE server.Start() so that WAFShield
+	// exists when setupMiddleware() wires it into the Gin handler chain.
+	triad := initSekhemTriad(dagStore)
 
-	// Initialize license (validates with server and starts heartbeat)
-	if err := licMgr.Initialize(); err != nil {
-		log.Printf("License validation failed: %v", err)
-		log.Println("Running in community mode - proprietary features disabled")
-	} else {
-		log.Println("License validated - full features enabled")
-	}
-
-	// Create API server configuration
-	config := &apiserver.Config{
-		Host:         *host,
-		Port:         *port,
-		TLSEnabled:   *tlsEnabled,
-		TLSDomain:    *tlsDomain,
-		CertCacheDir: *certCacheDir,
-		AllowedOrigins: []string{
-			"https://souhimbou.org",
-			"https://www.souhimbou.org",
-			"https://gateway.souhimbou.org",
-			"https://telemetry.souhimbou.org",
-			"https://adinkhepra.dev",
-			"http://localhost:3000",
-			"http://localhost:5173",
-			"http://localhost:8080",
-		},
-		Debug: *debug,
-	}
-
-	// Create adapters to bridge existing components with API server
-	dagAdapter := apiserver.NewDAGStoreAdapter(dagStore)
-	licAdapter := apiserver.NewLicenseManagerAdapter(licMgr)
-
-	// Load service accounts (from env or secure defaults)
-	apiserver.LoadDefaultServiceAccounts()
-
-	// Create server (The Motherboard)
-	server := apiserver.NewServer(config, dagAdapter, licAdapter)
+	// Create server — dependencies injected before Start()
+	server := initServices(cfg, flags, dagStore, licMgr)
+	server.WithSekhemTriad(triad)
 
 	// ── PQC Auth Gateway (ML-DSA-65 / NIST FIPS 204) ─────────────────────────
 	initPQCAuthGateway(server)
@@ -172,7 +82,7 @@ func main() {
 	// ── Natural Language Security Engine ─────────────────────────────────────
 	initNLProcessor(server)
 
-	// Start server in background
+	// Start server in background (setupMiddleware runs here with WAFShield ready)
 	go func() {
 		if err := server.Start(); err != nil {
 			log.Fatalf("Server error: %v", err)
@@ -181,12 +91,12 @@ func main() {
 
 	// Log service status
 	log.Println("╔═══════════════════════════════════════════════════════════════════╗")
-	log.Println("║                    DEMARC Server Active                           ║")
+	log.Println("║                    SEKHEM Gateway Active                          ║")
 	log.Println("╚═══════════════════════════════════════════════════════════════════╝")
-	log.Printf("  Address:           %s:%d", *host, *port)
-	log.Printf("  TLS:               %v", *tlsEnabled)
+	log.Printf("  Address:           %s:%d", cfg.host, cfg.port)
+	log.Printf("  TLS:               %v", cfg.tlsEnabled)
 	log.Printf("  Service Auth:      %s", getSecretStatus())
-	log.Printf("  Telemetry Server:  %s", *telemetryURL)
+	log.Printf("  Telemetry Server:  %s", cfg.telemetryURL)
 	log.Println("")
 	log.Println("  Auth Endpoints (public — no auth required):")
 	log.Println("    POST /api/v1/auth/token            - Exchange Supabase JWT → PQC token")
@@ -211,7 +121,7 @@ func main() {
 	log.Println("    WS   /ws/dag                      - DAG state changes")
 	log.Println("    WS   /ws/license                  - License events")
 	log.Println("")
-	log.Println("  The Motherboard is online. The Scarab watches.")
+	log.Println("  SEKHEM is online. The Gateway stands.")
 
 	// Graceful shutdown on interrupt
 	quit := make(chan os.Signal, 1)
@@ -232,7 +142,165 @@ func main() {
 	// Stop license heartbeat
 	licMgr.Stop()
 
-	log.Println("DEMARC server exited gracefully. The Scarab rests.")
+	// Stop SEKHEM Triad (Ouroboros cycle + WAFShield rotation + file handles)
+	if triad != nil {
+		triad.Stop()
+	}
+
+	log.Println("SEKHEM gateway exited gracefully. The scepter rests.")
+}
+
+type serverConfig struct {
+	port         int
+	host         string
+	tlsEnabled   bool
+	tlsDomain    string
+	certCacheDir string
+	debug        bool
+	telemetryURL string
+}
+
+func parseConfig() (*serverConfig, map[string]interface{}) {
+	port := flag.Int("port", 443, "Server port (default 443 for TLS)")
+	host := flag.String("host", "0.0.0.0", "Server host")
+	tlsEnabled := flag.Bool("tls", true, "Enable TLS with Let's Encrypt (default: true)")
+	tlsDomain := flag.String("tls-domain", "", "Domain for Let's Encrypt (required when TLS enabled)")
+	certCacheDir := flag.String("cert-cache", "/var/cache/khepra-certs", "Certificate cache directory")
+	debug := flag.Bool("debug", false, "Enable debug mode")
+	telemetryURL := flag.String("telemetry-url", "https://telemetry.souhimbou.org", "Telemetry server URL")
+	flag.Parse()
+
+	// Environment variable overrides
+	if envPort := os.Getenv("PORT"); envPort != "" {
+		if p, err := strconv.Atoi(envPort); err == nil {
+			*port = p
+		}
+	}
+	if envHost := os.Getenv("HOST"); envHost != "" {
+		*host = envHost
+	}
+	if os.Getenv("TLS_ENABLED") == "false" {
+		*tlsEnabled = false
+		if *port == 443 {
+			*port = 8080
+		}
+	}
+	if envDomain := os.Getenv("TLS_DOMAIN"); envDomain != "" {
+		*tlsDomain = envDomain
+	}
+	if envCertDir := os.Getenv("CERT_CACHE_DIR"); envCertDir != "" {
+		*certCacheDir = envCertDir
+	}
+	if os.Getenv("DEBUG") == "true" {
+		*debug = true
+	}
+	if envTelemetry := os.Getenv("TELEMETRY_URL"); envTelemetry != "" {
+		*telemetryURL = envTelemetry
+	}
+
+	// Warn if TLS is enabled but domain is not configured
+	if *tlsEnabled && *tlsDomain == "" {
+		log.Println("WARNING: TLS_DOMAIN not set. Falling back to HTTP on port 8080.")
+		*tlsEnabled = false
+		*port = 8080
+	}
+
+	// Validate service secret
+	if os.Getenv("KHEPRA_SERVICE_SECRET") == "" {
+		log.Println("WARNING: KHEPRA_SERVICE_SECRET not set!")
+	}
+
+	cfg := &serverConfig{
+		port:         *port,
+		host:         *host,
+		tlsEnabled:   *tlsEnabled,
+		tlsDomain:    *tlsDomain,
+		certCacheDir: *certCacheDir,
+		debug:        *debug,
+		telemetryURL: *telemetryURL,
+	}
+
+	return cfg, map[string]interface{}{
+		"host":         host,
+		"port":         port,
+		"tlsEnabled":   tlsEnabled,
+		"tlsDomain":    tlsDomain,
+		"certCacheDir": certCacheDir,
+		"telemetryURL": telemetryURL,
+	}
+}
+
+// initSekhemTriad creates the SekhemTriad in Edge mode and harmonizes all realms.
+// Harmonize() calls DuatRealm.Awaken() which initializes WAFShield, WAFEye,
+// and starts the Ouroboros cycle. Must complete before server.Start() so the
+// WAFShield is available when setupMiddleware() wires it into Gin.
+func initSekhemTriad(dagStore dag.Store) *sekhem.SekhemTriad {
+	triad, err := sekhem.NewSekhemTriad(nil, dagStore, sekhem.ModeEdge)
+	if err != nil {
+		log.Fatalf("SEKHEM Triad init failed: %v", err)
+	}
+	if err := triad.Harmonize(); err != nil {
+		// WAFShield failure is fatal — we never run without the perimeter guard.
+		log.Fatalf("SEKHEM Triad harmonize failed: %v", err)
+	}
+	log.Printf("[SEKHEM] Triad harmonized — mode=%s realms=%d", triad.GetMode(), triad.GetActiveRealmCount())
+	return triad
+}
+
+func initInfrastructure(cfg *serverConfig) (dag.Store, *license.Manager) {
+	// Initialize DAG
+	dagStore := dag.GlobalDAG()
+	log.Printf("DAG initialized with %d nodes", len(dagStore.All()))
+
+	// Initialize license manager
+	licMgr, err := license.NewManager(cfg.telemetryURL)
+	if err != nil {
+		log.Fatalf("Failed to create license manager: %v", err)
+	}
+
+	if err := licMgr.Initialize(); err != nil {
+		log.Printf("License validation failed: %v", err)
+	} else {
+		log.Println("License validated - full features enabled")
+	}
+
+	return dagStore, licMgr
+}
+
+func initServices(cfg *serverConfig, flags map[string]interface{}, dagStore dag.Store, licMgr *license.Manager) *apiserver.Server {
+	config := &apiserver.Config{
+		Host:         cfg.host,
+		Port:         cfg.port,
+		TLSEnabled:   cfg.tlsEnabled,
+		TLSDomain:    cfg.tlsDomain,
+		CertCacheDir: cfg.certCacheDir,
+		AllowedOrigins: []string{
+			// NouchiX / ASAF production origins
+			"https://docs.nouchix.com",        // ASAF NLP UI — served here, fetches localhost agent
+			"https://nouchix.com",
+			"https://www.nouchix.com",
+			"https://adinkhepra.com",
+			"https://www.adinkhepra.com",
+			"https://adinkhepra.dev",
+			"https://souhimbou.org",
+			"https://www.souhimbou.org",
+			"https://gateway.souhimbou.org",
+			"https://telemetry.souhimbou.org",
+			// Local development
+			"http://localhost:3000",
+			"http://localhost:5173",
+			"http://localhost:7777", // serve-nlp default
+			"http://localhost:8080",
+		},
+		Debug: cfg.debug,
+	}
+
+	dagAdapter := apiserver.NewDAGStoreAdapter(dagStore)
+	licAdapter := apiserver.NewLicenseManagerAdapter(licMgr)
+
+	apiserver.LoadDefaultServiceAccounts()
+
+	return apiserver.NewServer(config, dagAdapter, licAdapter)
 }
 
 func initPQCAuthGateway(server *apiserver.Server) {
@@ -313,16 +381,16 @@ func printBanner() {
 	banner := `
 ╔═══════════════════════════════════════════════════════════════════╗
 ║                                                                   ║
-║    ██████╗ ███████╗███╗   ███╗ █████╗ ██████╗  ██████╗            ║
-║    ██╔══██╗██╔════╝████╗ ████║██╔══██╗██╔══██╗██╔════╝            ║
-║    ██║  ██║█████╗  ██╔████╔██║███████║██████╔╝██║                 ║
-║    ██║  ██║██╔══╝  ██║╚██╔╝██║██╔══██║██╔══██╗██║                 ║
-║    ██████╔╝███████╗██║ ╚═╝ ██║██║  ██║██║  ██║╚██████╗            ║
-║    ╚═════╝ ╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝            ║
+║   ███████╗███████╗██╗  ██╗██╗  ██╗███████╗███╗   ███╗            ║
+║   ██╔════╝██╔════╝██║ ██╔╝██║  ██║██╔════╝████╗ ████║            ║
+║   ███████╗█████╗  █████╔╝ ███████║█████╗  ██╔████╔██║            ║
+║   ╚════██║██╔══╝  ██╔═██╗ ██╔══██║██╔══╝  ██║╚██╔╝██║            ║
+║   ███████║███████╗██║  ██╗██║  ██║███████╗██║ ╚═╝ ██║            ║
+║   ╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝            ║
 ║                                                                   ║
-║      "The Mitochondreal-Scarab / The Motherboard"                 ║
+║          "The Divine Gateway — Power Commands the Boundary"       ║
 ║                                                                   ║
-║   Polymorphic API Hub | Service Auth | Telemetry | WebSocket      ║
+║   L7 WAF | PQC Auth | Telemetry | WebSocket | Ouroboros Cycle     ║
 ║                                                                   ║
 ╚═══════════════════════════════════════════════════════════════════╝
 `

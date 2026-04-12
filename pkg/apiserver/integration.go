@@ -7,25 +7,25 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 )
 
-// DAGStoreAdapter adapts the PersistentMemory DAG to the DAGStore interface
+// DAGStoreAdapter adapts the DAG store to the DAGStore interface
 type DAGStoreAdapter struct {
-	pm *dag.PersistentMemory
+	store dag.Store
 }
 
 // NewDAGStoreAdapter creates a new DAG store adapter
-func NewDAGStoreAdapter(pm *dag.PersistentMemory) *DAGStoreAdapter {
-	return &DAGStoreAdapter{pm: pm}
+func NewDAGStoreAdapter(store dag.Store) *DAGStoreAdapter {
+	return &DAGStoreAdapter{store: store}
 }
 
 // NodeCount returns the number of nodes in the DAG
 func (a *DAGStoreAdapter) NodeCount() int {
-	nodes := a.pm.All()
+	nodes := a.store.All()
 	return len(nodes)
 }
 
 // All returns all nodes in the DAG mapped to Response objects
 func (a *DAGStoreAdapter) All() []DAGNodeResponse {
-	nodes := a.pm.All()
+	nodes := a.store.All()
 	response := make([]DAGNodeResponse, len(nodes))
 
 	for i, node := range nodes {
@@ -59,12 +59,12 @@ func (a *DAGStoreAdapter) Add(nodeID string, action string, parents []string, pq
 		PQC:     pqc,
 	}
 
-	return a.pm.Add(node, parents)
+	return a.store.Add(node, parents)
 }
 
-// GetPersistentMemory returns the underlying PersistentMemory
-func (a *DAGStoreAdapter) GetPersistentMemory() *dag.PersistentMemory {
-	return a.pm
+// GetStore returns the underlying Store
+func (a *DAGStoreAdapter) GetStore() dag.Store {
+	return a.store
 }
 
 // LicenseManagerAdapter adapts the license.Manager (Merkaba Egyptian system) to the apiserver's LicenseManager interface
@@ -176,4 +176,9 @@ func (a *LicenseManagerAdapter) GetFullStatus() *license.ValidateResponse {
 // GetMachineID returns the machine identity string
 func (a *LicenseManagerAdapter) GetMachineID() string {
 	return a.mgr.GetMachineID()
+}
+
+// RevokeLicense marks the license as revoked in-memory via the underlying manager.
+func (a *LicenseManagerAdapter) RevokeLicense(stripeEventID, reason string) error {
+	return a.mgr.RevokeLicense(stripeEventID, reason)
 }
