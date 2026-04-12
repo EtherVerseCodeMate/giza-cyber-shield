@@ -120,7 +120,7 @@ export const SecurityEventsAdmin = () => {
   const deleteSelectedEvents = async () => {
     if (selectedEvents.length === 0) return;
 
-    const confirmed = window.confirm(`Are you sure you want to permanently delete ${selectedEvents.length} events? This action cannot be undone.`);
+    const confirmed = globalThis.confirm(`Are you sure you want to permanently delete ${selectedEvents.length} events? This action cannot be undone.`);
     if (!confirmed) return;
 
     try {

@@ -2,13 +2,20 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"flag"
 	"fmt"
-	"math/rand"
+	"io"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -27,6 +34,7 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scorpion"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/util"
+	"golang.org/x/crypto/ssh"
 )
 
 const (
@@ -40,35 +48,41 @@ const (
 )
 
 func usage() {
-	fmt.Println(`adinkhepra CLI
+	fmt.Println(`asaf — Agentic Security Attestation Framework
+By NouchiX (Sacred Knowledge Inc) | https://nouchix.com
+
 Usage:
-  adinkhepra keygen [-out /path/to/id_dilithium] [-tenant value]
-  adinkhepra crack        [path/to/public_key]    # attempts quantum brute-force simulation
-  adinkhepra kuntinkantan [path/to/pubkey] [file] # Bends reality (Encrypt)
-  adinkhepra sankofa      [path/to/privkey] [file.adinkhepra] # Retrieves the past (Decrypt)
-  adinkhepra git-remote
-  adinkhepra validate                             # Component smoke tests & health check
-  adinkhepra serve        [-port 8080]            # Start DAG Viewer (Living Trust Constellation)
-  adinkhepra compliance   <subcommand>            # Unified CMMC/STIG/NIST Attestation Suite
-  adinkhepra scada        <subcommand>            # HMADS/ARC Cyber-Physical Resilience Suite
+  asaf scan       --target <host|ip> [--profile nemoclaw]   # Scan an AI agent deployment
+  asaf certify    --target <host|ip> [--profile nemoclaw]   # Full audit + ADINKHEPRA certificate
+  asaf report     --target <host|ip>   # Export PDF compliance report
+  asaf validate                        # Component health check
+  asaf serve      [-port 8080]         # Start local dashboard
 
-  Executive Roundtable (ERT) Analysis:
-  adinkhepra ert          <subcommand>            # Integrated ERT Intelligence Engine
-  adinkhepra ert-readiness [dir]                  # Strategic Weapons System (Mission Assurance)
-  adinkhepra ert-architect [dir]                  # Operational Weapons System (Digital Twin)
-  adinkhepra ert-crypto    [dir]                  # Tactical Weapons System (PQC Analysis)
-  adinkhepra ert-godfather [dir]                  # The Godfather Report (Executive Synthesis)
+  Compliance & Attestation:
+  asaf compliance <subcommand>         # CMMC/STIG/NIST 800-171 audit suite
+  asaf network    <subcommand>         # Network topology & attack path analysis
+  asaf sbom       <subcommand>         # Software Bill of Materials
+  asaf fim        <subcommand>         # File Integrity Monitoring
 
-  Additional Commands:
-  adinkhepra compliance   <subcommand>            # CMMC/NIST 800-171/172 & GSA Readiness
-  adinkhepra drbc         <subcommand>            # Disaster Recovery & Business Continuity (v0.0)
-  adinkhepra fim          <subcommand>            # File Integrity Monitoring
-  adinkhepra network      <subcommand>            # Network Topology & Attack Paths
-  adinkhepra sbom         <subcommand>            # Software Bill of Materials
-  adinkhepra engine       <subcommand>            # DAG Visualization Engine
-  adinkhepra report       <subcommand>            # PDF Report Generation
-  adinkhepra run                                  # [Iron Bank] Run Agent (Foreground)
-  adinkhepra health                               # [Iron Bank] Healthcheck`)
+  Key Management (PQC):
+  asaf keys init                       # Tier 0 key ceremony (Dilithium-3 + Argon2id)
+  asaf keys status                     # Key status and storage backend
+  asaf keys backup [--shares N]        # Shamir 2-of-3 backup shards
+  asaf keys recover --shards s1,s2     # Reconstruct from shards
+
+  Local LLM (NLP Platform):
+  asaf llm install [--model mistral]   # Download bundled llamafile model
+  asaf llm status                      # Check available LLM backends
+
+  Agent Service:
+  asaf run                             # Run attestation agent (port 45444)
+  asaf health                          # Healthcheck
+
+  Key Management (legacy):
+  asaf keygen     [-out /path/to/key] [-tenant value]
+
+Free scan at https://app.nouchix.com — no account required.
+Earn your ADINKHEPRA certification badge for $99/mo.`)
 }
 
 func main() {
@@ -125,6 +139,10 @@ func handlePrimaryCmds(cmd string, args []string) bool {
 		auditCmd(args)
 	case "scada":
 		scadaCmd(args)
+	case "scan":
+		scanCmd(args, "full")
+	case "certify":
+		scanCmd(args, "certify")
 	default:
 		return false
 	}
@@ -151,6 +169,10 @@ func handleSecondaryCmds(cmd string, args []string) bool {
 		attestCmd(args)
 	case "kms":
 		kmsCmd(args)
+	case "keys":
+		keysCmd(args)
+	case "llm":
+		llmCmd(args)
 	case "drbc":
 		drbcCmd(args)
 	case "agent":
@@ -742,54 +764,393 @@ func crackCmd(args []string) {
 	fmt.Println("===============================================================")
 }
 
+// asafAPIURL returns the ASAF gateway URL from env or the production default.
+func asafAPIURL() string {
+	if v := os.Getenv("ASAF_API_URL"); v != "" {
+		return strings.TrimRight(v, "/")
+	}
+	return "https://agent.souhimbou.org"
+}
+
+// stripePriceID returns the Stripe price ID to charge for certification.
+func stripePriceID() string {
+	if v := os.Getenv("ASAF_STRIPE_PRICE_ID"); v != "" {
+		return v
+	}
+	return "price_REDACTED" // ADINKHEPRA Certification Badge $99/mo
+}
+
+// stripeSecretKey returns the Stripe secret key from env; exits if absent.
+func stripeSecretKey() string {
+	v := os.Getenv("STRIPE_SECRET_KEY")
+	if v == "" {
+		fmt.Fprintln(os.Stderr, "[certify] STRIPE_SECRET_KEY is not set. Export it before running asaf certify.")
+		os.Exit(1)
+	}
+	return v
+}
+
+// scanQueued is the initial response from POST /api/v1/onboarding/scan (async — status="queued").
+type scanQueued struct {
+	ScanID string `json:"scan_id"`
+	Status string `json:"status"`
+}
+
+// scanStatusResp is the polled response from GET /api/v1/onboarding/scan/:id.
+type scanStatusResp struct {
+	ScanID    string `json:"scan_id"`
+	Status    string `json:"status"`
+	RiskScore int    `json:"risk_score"`
+	Results   struct {
+		PassedChecks int `json:"passed_checks"`
+		FailedChecks int `json:"failed_checks"`
+	} `json:"results"`
+}
+
+// licenseStatus is the minimal shape of GET /api/v1/license/status.
+type licenseStatus struct {
+	Valid      bool   `json:"valid"`
+	LicenseTier string `json:"license_tier"`
+	LicenseID  string `json:"license_id"`
+	ExpiresAt  string `json:"expires_at"`
+}
+
+// stripeCheckoutSession is what Stripe returns on session creation.
+type stripeCheckoutSession struct {
+	ID  string `json:"id"`
+	URL string `json:"url"`
+}
+
+// scanCmd runs a scan (mode="full") or a full certify flow (mode="certify").
+func scanCmd(args []string, mode string) {
+	fs := flag.NewFlagSet(mode, flag.ExitOnError)
+	target  := fs.String("target", "", "Target host or IP to scan")
+	profile := fs.String("profile", "", "Scan profile (e.g. nemoclaw)")
+	apiKey  := fs.String("api-key", os.Getenv("ASAF_API_KEY"), "ASAF API key (or set ASAF_API_KEY)")
+	fs.Parse(args)
+
+	if *target == "" {
+		fmt.Printf("Usage: asaf %s --target <host|ip> [--profile nemoclaw] [--api-key <key>]\n", mode)
+		os.Exit(1)
+	}
+
+	apiURL := asafAPIURL()
+
+	// ── Step 1: Run the compliance scan ──────────────────────────────────────
+	fmt.Printf("\n  ADINKHEPRA — Agentic Security Attestation Framework\n")
+	fmt.Printf("  ─────────────────────────────────────────────────────\n")
+	fmt.Printf("  Target  : %s\n", *target)
+	fmt.Printf("  Profile : %s\n", coalesce(*profile, "default"))
+	fmt.Printf("  Mode    : %s\n\n", mode)
+	fmt.Printf("  [1/4] Initiating compliance scan...\n")
+
+	scanPayload, _ := json.Marshal(map[string]interface{}{
+		"target_url": *target,
+		"scan_type":  mode,
+		"profile":    *profile,
+	})
+
+	req, err := http.NewRequest(http.MethodPost, apiURL+"/api/v1/onboarding/scan", bytes.NewReader(scanPayload))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  [ERROR] failed to build scan request: %v\n", err)
+		os.Exit(1)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if *apiKey != "" {
+		req.Header.Set("X-API-Key", *apiKey)
+	}
+
+	client := &http.Client{Timeout: 120 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  [ERROR] scan request failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "  Is the ASAF gateway reachable at %s?\n", apiURL)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	var queued scanQueued
+	if err := json.NewDecoder(resp.Body).Decode(&queued); err != nil {
+		fmt.Fprintf(os.Stderr, "  [ERROR] could not parse scan response: %v\n", err)
+		os.Exit(1)
+	}
+	if queued.ScanID == "" {
+		fmt.Fprintf(os.Stderr, "  [ERROR] server returned no scan_id (status %d)\n", resp.StatusCode)
+		os.Exit(1)
+	}
+
+	// Poll GET /api/v1/onboarding/scan/:id until the async scan finishes.
+	fmt.Printf("  [2/4] Waiting for scan to complete")
+	var scanStatus scanStatusResp
+	pollDeadline := time.Now().Add(90 * time.Second)
+	for time.Now().Before(pollDeadline) {
+		time.Sleep(2 * time.Second)
+		fmt.Printf(".")
+		statusReq, _ := http.NewRequest(http.MethodGet,
+			apiURL+"/api/v1/onboarding/scan/"+queued.ScanID, nil)
+		if *apiKey != "" {
+			statusReq.Header.Set("X-API-Key", *apiKey)
+		}
+		statusResp, err := client.Do(statusReq)
+		if err != nil {
+			continue
+		}
+		json.NewDecoder(statusResp.Body).Decode(&scanStatus) //nolint:errcheck
+		statusResp.Body.Close()
+		if scanStatus.Status == "completed" || scanStatus.Status == "failed" {
+			break
+		}
+	}
+	fmt.Printf(" done.\n")
+
+	// Build a display-friendly score: server returns risk_score (0–100, higher=riskier).
+	// Convert to a compliance score (100 - risk) so higher feels better to the user.
+	displayScore := 100 - scanStatus.RiskScore
+	if displayScore < 0 {
+		displayScore = 0
+	}
+
+	fmt.Printf("\n  ┌─ Compliance Results ──────────────────────────────┐\n")
+	fmt.Printf("  │  Scan ID  : %-37s│\n", queued.ScanID)
+	fmt.Printf("  │  Score    : %-3d/100                                │\n", displayScore)
+	fmt.Printf("  │  Passed   : %-3d controls                           │\n", scanStatus.Results.PassedChecks)
+	fmt.Printf("  │  Failed   : %-3d controls                           │\n", scanStatus.Results.FailedChecks)
+	fmt.Printf("  │  Status   : %-37s│\n", scanStatus.Status)
+	fmt.Printf("  └───────────────────────────────────────────────────┘\n\n")
+
+	// For plain scan, stop here.
+	if mode != "certify" {
+		fmt.Println("  Run 'asaf certify --target', to issue your ADINKHEPRA badge.")
+		return
+	}
+
+	// ── Step 2: Create Stripe Checkout Session ────────────────────────────────
+	fmt.Printf("  [3/4] Creating secure payment session...\n")
+
+	machineID := getMachineID()
+	sessionURL, sessionID, err := createStripeCheckoutSession(machineID, queued.ScanID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  [ERROR] Stripe session creation failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	const boxBlank = "  │                                                   │\n"
+	fmt.Printf("\n  ┌─ Payment Required ────────────────────────────────┐\n")
+	fmt.Printf("  │  ADINKHEPRA Certification Badge — $99/month       │\n")
+	fmt.Print(boxBlank)
+	fmt.Printf("  │  Open this URL to complete payment:               │\n")
+	fmt.Print(boxBlank)
+	fmt.Printf("  │  %s\n", sessionURL)
+	fmt.Print(boxBlank)
+	fmt.Printf("  │  Session : %-37s│\n", sessionID)
+	fmt.Printf("  │  Token   : %-37s│\n", machineID)
+	fmt.Printf("  └───────────────────────────────────────────────────┘\n\n")
+
+	// Try to open in default browser
+	openBrowser(sessionURL)
+
+	// ── Step 3: Poll for license activation ──────────────────────────────────
+	fmt.Printf("  [4/4] Waiting for payment confirmation")
+	fmt.Printf(" (press Ctrl+C to exit and re-run later)...\n\n")
+
+	deadline := time.Now().Add(30 * time.Minute)
+	for time.Now().Before(deadline) {
+		time.Sleep(8 * time.Second)
+		fmt.Printf("  .")
+
+		licReq, _ := http.NewRequest(http.MethodGet, apiURL+"/api/v1/license/status", nil)
+		if *apiKey != "" {
+			licReq.Header.Set("X-API-Key", *apiKey)
+		}
+		licResp, err := client.Do(licReq)
+		if err != nil {
+			continue
+		}
+		var lic licenseStatus
+		json.NewDecoder(licResp.Body).Decode(&lic) //nolint:errcheck
+		licResp.Body.Close()
+
+		if lic.Valid {
+			fmt.Printf("\n\n  ╔══════════════════════════════════════════════════╗\n")
+			fmt.Printf("  ║        ADINKHEPRA BADGE ISSUED                  ║\n")
+			fmt.Printf("  ╠══════════════════════════════════════════════════╣\n")
+			fmt.Printf("  ║  License   : %-35s║\n", lic.LicenseID)
+			fmt.Printf("  ║  Tier      : %-35s║\n", lic.LicenseTier)
+			fmt.Printf("  ║  Expires   : %-35s║\n", lic.ExpiresAt)
+			fmt.Printf("  ╠══════════════════════════════════════════════════╣\n")
+			fmt.Printf("  ║  Certificate delivered to your email.           ║\n")
+			fmt.Printf("  ║  Verify:  asaf verify --cert %s\n", lic.LicenseID)
+			fmt.Printf("  ╚══════════════════════════════════════════════════╝\n\n")
+			return
+		}
+	}
+
+	fmt.Printf("\n\n  Payment not confirmed within 30 minutes.\n")
+	fmt.Printf("  Your session URL remains active — complete payment and re-run:\n")
+	fmt.Printf("    asaf certify --target %s\n\n", *target)
+}
+
+// createStripeCheckoutSession creates a Stripe Checkout Session via the API.
+// machineID is embedded as client_reference_id so the webhook can activate
+// the correct machine's license after payment.
+func createStripeCheckoutSession(machineID, scanID string) (url, id string, err error) {
+	sk := stripeSecretKey()
+	priceID := stripePriceID()
+
+	// Stripe API uses application/x-www-form-urlencoded
+	form := strings.NewReader(strings.Join([]string{
+		"mode=subscription",
+		"line_items[0][price]=" + priceID,
+		"line_items[0][quantity]=1",
+		"client_reference_id=" + machineID,
+		"metadata[machine_id]=" + machineID,
+		"metadata[scan_id]=" + scanID,
+		"metadata[framework]=CMMC_L2",
+		"success_url=https://app.nouchix.com/certified?session_id={CHECKOUT_SESSION_ID}",
+		"cancel_url=https://app.nouchix.com/pricing",
+	}, "&"))
+
+	req, err := http.NewRequest(http.MethodPost, "https://api.stripe.com/v1/checkout/sessions", form)
+	if err != nil {
+		return "", "", fmt.Errorf("build request: %w", err)
+	}
+	req.SetBasicAuth(sk, "")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", "", fmt.Errorf("stripe API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", "", fmt.Errorf("stripe returned HTTP %d: %s", resp.StatusCode, string(body))
+	}
+
+	var session stripeCheckoutSession
+	if err := json.NewDecoder(resp.Body).Decode(&session); err != nil {
+		return "", "", fmt.Errorf("decode session: %w", err)
+	}
+	return session.URL, session.ID, nil
+}
+
+// getMachineID returns the machine ID used as the Stripe client_reference_id.
+// Prefers ASAF_MACHINE_ID env var, falls back to /etc/machine-id, then hostname.
+func getMachineID() string {
+	if v := os.Getenv("ASAF_MACHINE_ID"); v != "" {
+		return v
+	}
+	if data, err := os.ReadFile("/etc/machine-id"); err == nil {
+		id := strings.TrimSpace(string(data))
+		if id != "" {
+			return id
+		}
+	}
+	if h, err := os.Hostname(); err == nil {
+		return h
+	}
+	return "unknown-machine"
+}
+
+// openBrowser attempts to open url in the system default browser.
+// Non-fatal — the URL is always printed to stdout regardless.
+func openBrowser(url string) {
+	// Attempt silently; ignore errors — URL is already printed.
+	_ = func() error {
+		switch {
+		case isCommandAvailable("xdg-open"):
+			return exec.Command("xdg-open", url).Start()
+		case isCommandAvailable("open"):
+			return exec.Command("open", url).Start()
+		}
+		return nil
+	}()
+}
+
+func isCommandAvailable(name string) bool {
+	_, err := exec.LookPath(name)
+	return err == nil
+}
+
+func coalesce(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
+}
+
 func keygenCmd(args []string) {
 	cfg := config.Load()
 	fs := flag.NewFlagSet("keygen", flag.ExitOnError)
-	out := fs.String("out", filepath.Join(util.HomeDir(), ".ssh", "id_dilithium"), "private key output path")
+	out := fs.String("out", filepath.Join(util.HomeDir(), ".ssh", "id_hybrid"), "private key output path")
 	tenant := fs.String("tenant", cfg.Tenant, "boundary semantics (Eban)")
 	comment := fs.String("comment", cfg.Comment, "OpenSSH comment")
 	rotateDays := fs.Int("rotate", cfg.RotateDays, "rotation after N days")
 	fs.Parse(args)
 
-	// [PQC]: Generate Dilithium Keypair (Quantum Resistant Identity)
-	signPub, signPriv, err := adinkra.GenerateDilithiumKey()
+	fmt.Println("[PQC] INITIATING SPECTRAL HYBRID KEY CEREMONY...")
+
+	// [PQC]: Generate Hybrid Keypair (Triple-Layer Defense)
+	// Passes rotateDays/30 as expiration in months
+	kp, err := adinkra.GenerateHybridKeyPair("pqc-auth", *tenant, *rotateDays/30)
 	if err != nil {
-		fatal("generate identity (dilithium)", err)
+		fatal("generate hybrid keypair", err)
 	}
 
-	// [PQC]: Generate Kyber Keypair (Quantum Resistant Encryption)
-	encPub, encPriv, err := adinkra.GenerateKyberKey()
-	if err != nil {
-		fatal("generate encryption (kyber)", err)
-	}
-
-	// Write Identity Keys (Signing)
+	// 1. Identity Keys (Dilithium / ML-DSA)
 	signPrivPath := *out + "_dilithium"
 	signPubPath := *out + "_dilithium.pub"
-
 	if err := util.EnsureDir(filepath.Dir(signPrivPath), 0o700); err != nil {
 		fatal("mkdir", err)
 	}
+	os.WriteFile(signPrivPath, kp.DilithiumPrivate, 0600)
+	os.WriteFile(signPubPath, kp.DilithiumPublic, 0644)
 
-	if err := os.WriteFile(signPrivPath, signPriv, 0600); err != nil {
-		fatal("write identity private", err)
-	}
-	if err := os.WriteFile(signPubPath, signPub, 0644); err != nil {
-		fatal("write identity public", err)
-	}
-
-	// Write Encryption Keys (KEM)
+	// 2. Encryption Keys (Kyber / ML-KEM)
 	encPrivPath := *out + "_kyber"
 	encPubPath := *out + "_kyber.pub"
+	os.WriteFile(encPrivPath, kp.KyberPrivate, 0600)
+	os.WriteFile(encPubPath, kp.KyberPublic, 0644)
 
-	if err := os.WriteFile(encPrivPath, encPriv, 0600); err != nil {
-		fatal("write encryption private", err)
-	}
-	if err := os.WriteFile(encPubPath, encPub, 0644); err != nil {
-		fatal("write encryption public", err)
+	// 3. Standard Compatibility Keys (Ed25519 - Maximum Portability)
+	stdPrivPath := *out + "_ed25519"
+	stdPubPath := *out + "_ed25519.pub"
+	
+	// Generate Ed25519 Keypair
+	edPub, edPriv, err := ed25519.GenerateKey(rand.Reader)
+	if err == nil {
+		// Write Private Key (OpenSSH Format)
+		// We use the util.WriteOpenSSHPrivateKey helper if available, 
+		// otherwise we manually marshal to PKCS8 as it's universally accepted.
+		edPrivBytes, _ := x509.MarshalPKCS8PrivateKey(edPriv)
+		block := &pem.Block{Type: "PRIVATE KEY", Bytes: edPrivBytes}
+		os.WriteFile(stdPrivPath, pem.EncodeToMemory(block), 0600)
+
+		// Marshall Public Key to OpenSSH format
+		sshPub, err := ssh.NewPublicKey(edPub)
+		if err == nil {
+			pubLine := ssh.MarshalAuthorizedKey(sshPub)
+			pubLine = bytes.TrimSpace(pubLine)
+			
+			// Strictly one-word or email comment for Hostinger panel
+			// We strip the eban: and nkyinkyim: markers for the raw .pub file
+			cleanComment := *comment
+			if i := strings.Index(cleanComment, " "); i != -1 {
+				cleanComment = cleanComment[:i]
+			}
+
+			if cleanComment != "" {
+				pubLine = append(pubLine, ' ')
+				pubLine = append(pubLine, []byte(cleanComment)...)
+			}
+			pubLine = append(pubLine, '\n')
+			os.WriteFile(stdPubPath, pubLine, 0644)
+		}
 	}
 
-	binding := util.SHA256Hex(signPub)
+	binding := util.SHA256Hex(kp.DilithiumPublic)
 
 	ka := attest.Assertion{
 		Schema: "https://adinkhepra.dev/attest/v2-pqc",
@@ -819,6 +1180,10 @@ func keygenCmd(args []string) {
 	fmt.Printf(" [ENCRYPTION] (Kyber-1024 / ML-KEM-1024)\n")
 	fmt.Printf("   - Private: %s\n   - Public : %s\n", encPrivPath, encPubPath)
 	fmt.Println("   - Symbol : Kuntinkantan (The Riddle) - Unbreakable Privacy")
+	fmt.Println(separator)
+	fmt.Printf(" [COMPAT]     (Ed25519 - Standard OpenSSH)\n")
+	fmt.Printf("   - Private: %s\n", stdPrivPath)
+	fmt.Printf("   - Public : %s (For Hostinger Panel)\n", stdPubPath)
 	fmt.Println(separator)
 	fmt.Printf(" [ASSERTION]  (JSON provenance)\n")
 	fmt.Printf("   - Path   : %s\n", assertPath)

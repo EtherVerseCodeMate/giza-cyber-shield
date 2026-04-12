@@ -1,0 +1,63 @@
+[project]
+name = "tnok"
+version = "0.3.0"
+description = "TOTP Port knocking client and server"
+authors = [
+    {name = "AIS", email = "laplantes@ainfosec.com"},
+    {name = "Sean LaPlante", email = "laplantes@ainfosec.com"},
+]
+dependencies = [
+    "pyqrcode>=1.2.1",
+    "pyotp>=2.9.0",
+    "scapy>=2.5.0",
+    "cincoconfig>=0.9.0",
+    "sqlalchemy>=2.0.30",
+    "requests>=2.32.3",
+    "types-requests>=2.32.0.20240712",
+    "netaddr>=1.3.0",
+    "cryptography>=44.0.1",
+    "tabulate>=0.9.0",
+    "pypng>=0.20220715.0",
+]
+requires-python = "<3.14,>=3.10"
+readme = "README.md"
+license = {text = "MIT"}
+
+[project.scripts]
+tnok = "tnok.__main__:main_cli"
+tnokd = "tnokd.__main__:main_cli"
+tssh = "tnok.wrappers.ssh:main_cli"
+tscp = "tnok.wrappers.scp:main_cli"
+
+[tool.pdm.build]
+package-dir = "src"
+includes = ["src/tnok", "src/tnokd", "src/tnoklib"]
+
+[tool.pdm]
+distribution = true
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[dependency-groups]
+dev = [
+    "pylint>=3.1.0",
+    "pycodestyle>=2.11.1",
+    "pydocstyle>=6.3.0",
+    "mypy>=1.10.0",
+    "flake8>=7.0.0",
+    "monkeytype>=23.3.0",
+    "cyclonedx-py>=1.0.1",
+    "pyinstaller>=6.12.0",
+]
+
+[tool.pdm.scripts]
+pycodestyle = "pycodestyle src"
+pydocstyle = "pydocstyle src"
+pylint = "pylint --rcfile=setup.cfg src"
+mypy = "mypy src"
+flake = "flake8 src"
+quality = {composite = ["pycodestyle", "pydocstyle", "pylint", "flake", "mypy"]}
+pyinstaller = "python scripts/pyinstaller_build.py"
+sbom = {cmd = "cyclonedx-py environment"}

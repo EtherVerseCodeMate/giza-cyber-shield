@@ -8,9 +8,9 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useIndustryIntegrations } from '@/hooks/useIndustryIntegrations';
 import { InfrastructureDiscovery } from '@/components/InfrastructureDiscovery';
-import { 
-  Database, 
-  FileCheck, 
+import {
+  Database,
+  FileCheck,
   Shield,
   Cloud,
   Server,
@@ -115,168 +115,17 @@ export const EvidenceCollectionEngine: React.FC = () => {
 
   const initializeEvidenceSystem = () => {
     // STIG rule ID tracking with configuration state deltas
-    const mockEvidence: EvidenceItem[] = [
-      {
-        id: 'stig-ev-1',
-        controlId: 'NIST.800-171.3.1.1',
-        stigId: 'WS19-DC-000001',
-        framework: 'Windows Server 2019 STIG',
-        evidenceType: 'stig_rule',
-        source: 'STIG Viewer API',
-        collectedAt: new Date(Date.now() - 1000 * 60 * 30),
-        status: 'verified',
-        metadata: {
-          hash: 'sha256:a1b2c3...',
-          size: 2048,
-          integrity: true,
-          automationSource: 'stig-viewer-integration',
-          integrationSource: 'STIG Viewer API',
-          stigRuleId: 'WS19-DC-000001',
-          stigFingerprint: 'windows-server-2019-v2r6'
-        },
-        description: 'STIG Rule: Account logon events must be audited (WS19-DC-000001)',
-        path: '/evidence/stig-ws19-dc-000001-2024-01-15.json'
-      },
-      {
-        id: 'stig-ev-2',
-        controlId: 'NIST.800-171.3.3.1',
-        stigId: 'UB22-230001',
-        framework: 'Ubuntu 22.04 STIG',
-        evidenceType: 'config_state',
-        source: 'Configuration Delta Scanner',
-        collectedAt: new Date(Date.now() - 1000 * 60 * 15),
-        status: 'verified',
-        metadata: {
-          hash: 'sha256:d4e5f6...',
-          size: 15432,
-          integrity: true,
-          automationSource: 'config-delta-scanner',
-          integrationSource: 'STIG Configuration Monitor',
-          stigRuleId: 'UB22-230001',
-          configStateBefore: { audit_enabled: false, audit_rules: [] },
-          configStateAfter: { audit_enabled: true, audit_rules: ['LOGIN', 'LOGOUT', 'FAILED_LOGIN'] },
-          stigFingerprint: 'ubuntu-22-04-v1r2'
-        },
-        description: 'STIG Rule: Audit system login/logout events (UB22-230001) - Configuration Delta',
-        path: '/evidence/stig-ub22-230001-config-delta-2024-01-15.json'
-      },
-      {
-        id: 'stig-ev-3',
-        controlId: 'NIST.800-171.3.13.11',
-        stigId: 'IIS10-SV-106523',
-        framework: 'IIS 10.0 STIG',
-        evidenceType: 'stig_rule',
-        source: 'STIG Remediation Engine',
-        collectedAt: new Date(Date.now() - 1000 * 60 * 45),
-        status: 'verified',
-        metadata: {
-          hash: 'sha256:g7h8i9...',
-          size: 3276,
-          integrity: true,
-          automationSource: 'stig-remediation-engine',
-          integrationSource: 'IIS Configuration Scanner',
-          stigRuleId: 'IIS10-SV-106523',
-          configStateBefore: { ssl_enabled: false, cipher_suites: 'weak' },
-          configStateAfter: { ssl_enabled: true, cipher_suites: 'FIPS-validated' },
-          stigFingerprint: 'iis-10-v2r5'
-        },
-        description: 'STIG Rule: IIS must use FIPS-validated cipher suites (IIS10-SV-106523)',
-        path: '/evidence/stig-iis10-sv-106523-config-2024-01-15.json'
-      },
-      {
-        id: 'stig-ev-4',
-        controlId: 'NIST.800-171.3.4.2',
-        stigId: 'AP24-SV-214232',
-        framework: 'Apache 2.4 STIG',
-        evidenceType: 'config_state',
-        source: 'Apache Configuration Monitor',
-        collectedAt: new Date(Date.now() - 1000 * 60 * 10),
-        status: 'verified',
-        metadata: {
-          hash: 'sha256:i1j2k3...',
-          size: 12456,
-          integrity: true,
-          automationSource: 'apache-config-scanner',
-          integrationSource: 'Apache STIG Scanner',
-          assetId: 'Apache-01',
-          stigRuleId: 'AP24-SV-214232',
-          configStateBefore: { server_tokens: 'Full', server_signature: 'On' },
-          configStateAfter: { server_tokens: 'Prod', server_signature: 'Off' },
-          stigFingerprint: 'apache-2-4-v2r4'
-        },
-        description: 'STIG Rule: Apache server information disclosure (AP24-SV-214232) - Before/After Config',
-        path: '/evidence/stig-ap24-sv-214232-config-delta-2024-01-15.json'
-      },
-      {
-        id: 'stig-ev-5',
-        controlId: 'CMMC.SC.3.177',
-        stigId: 'MULTI-STIG-CRYPTO',
-        framework: 'Multi-Platform STIG',
-        evidenceType: 'stig_rule',
-        source: 'Cross-Platform STIG Scanner',
-        collectedAt: new Date(Date.now() - 1000 * 60 * 5),
-        status: 'processing',
-        metadata: {
-          hash: 'sha256:j1k2l3...',
-          size: 8965,
-          integrity: true,
-          automationSource: 'cross-platform-stig-scanner',
-          integrationSource: 'STIG Compliance Engine',
-          stigRuleId: 'MULTI-STIG-CRYPTO',
-          stigFingerprint: 'cross-platform-crypto-validation'
-        },
-        description: 'Cross-Platform STIG Rule: FIPS-validated cryptography across all systems'
-      }
-    ];
+    // Awaiting telemetry for real evidence
+    const pendingEvidence: EvidenceItem[] = [];
 
-    setEvidenceItems(mockEvidence);
+    setEvidenceItems(pendingEvidence);
   };
 
   const loadIntegrationStatus = () => {
-    const mockIntegrations: IntegrationStatus[] = [
-      {
-        source: 'STIG Viewer API',
-        status: 'connected',
-        lastSync: new Date(Date.now() - 1000 * 60 * 5),
-        evidenceCount: 284,
-        automationLevel: 98,
-        infrastructureAccess: true
-      },
-      {
-        source: 'STIG Configuration Scanner',
-        status: 'connected',
-        lastSync: new Date(Date.now() - 1000 * 60 * 2),
-        evidenceCount: 156,
-        automationLevel: 94,
-        infrastructureAccess: true
-      },
-      {
-        source: 'Configuration Delta Monitor',
-        status: 'connected',
-        lastSync: new Date(Date.now() - 1000 * 60 * 1),
-        evidenceCount: 89,
-        automationLevel: 92,
-        infrastructureAccess: true
-      },
-      {
-        source: 'KHEPRA Drift Detection',
-        status: 'connected',
-        lastSync: new Date(Date.now() - 1000 * 60 * 3),
-        evidenceCount: 67,
-        automationLevel: 96,
-        infrastructureAccess: true
-      },
-      {
-        source: 'PQC Evidence Signing',
-        status: 'connected',
-        lastSync: new Date(Date.now() - 1000 * 60 * 10),
-        evidenceCount: 234,
-        automationLevel: 99,
-        infrastructureAccess: false
-      },
-    ];
+    // Awaiting telemetry for real integrations
+    const pendingIntegrations: IntegrationStatus[] = [];
 
-    setIntegrations(mockIntegrations);
+    setIntegrations(pendingIntegrations);
   };
 
   const runEvidenceCollection = async (framework: string = 'CMMC 2.0') => {
@@ -291,7 +140,7 @@ export const EvidenceCollectionEngine: React.FC = () => {
             clearInterval(progressInterval);
             return 100;
           }
-          return Math.min(prev + 10, 100); // fixed 10% step per 500ms tick
+          return prev + 15; // Fixed increment; real progress tracking requires event stream from edge function
         });
       }, 500);
 
@@ -311,7 +160,7 @@ export const EvidenceCollectionEngine: React.FC = () => {
       setTimeout(() => {
         clearInterval(progressInterval);
         setCollectionProgress(100);
-        
+
         toast({
           title: "Enhanced Evidence Collection Complete",
           description: `Collected evidence from ${integrations.filter(i => i.status === 'connected').length} integrated systems including infrastructure discovery`,
@@ -334,7 +183,7 @@ export const EvidenceCollectionEngine: React.FC = () => {
   };
 
   const downloadEvidencePackage = (controlId?: string) => {
-    const filteredEvidence = controlId 
+    const filteredEvidence = controlId
       ? evidenceItems.filter(item => item.controlId === controlId)
       : evidenceItems;
 
@@ -594,8 +443,8 @@ export const EvidenceCollectionEngine: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <Badge className={
                         integration.status === 'connected' ? 'bg-green-500/20 text-green-400' :
-                        integration.status === 'error' ? 'bg-red-500/20 text-red-400' :
-                        'bg-gray-500/20 text-gray-400'
+                          integration.status === 'error' ? 'bg-red-500/20 text-red-400' :
+                            'bg-gray-500/20 text-gray-400'
                       }>
                         {integration.status.toUpperCase()}
                       </Badge>

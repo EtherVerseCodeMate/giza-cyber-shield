@@ -35,7 +35,7 @@ export const EnhancedSTIGConnector: React.FC<EnhancedSTIGConnectorProps> = ({ or
     discoverLocalAssets,
   } = useRealTimeAssetDiscovery();
 
-  const [, setDiscoveryJobs] = useState<any[]>([]);
+
   const [discoveredAssetsDB, setDiscoveredAssetsDB] = useState<any[]>([]);
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [newTarget, setNewTarget] = useState('');
@@ -67,14 +67,14 @@ export const EnhancedSTIGConnector: React.FC<EnhancedSTIGConnectorProps> = ({ or
 
   const fetchDiscoveryJobs = async () => {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('discovery_jobs')
         .select('*')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setDiscoveryJobs(data || []);
+
     } catch (error) {
       console.error('Failed to fetch discovery jobs:', error);
     }
@@ -108,11 +108,11 @@ export const EnhancedSTIGConnector: React.FC<EnhancedSTIGConnectorProps> = ({ or
         const totalAssets = assets.length;
         const totalStigs = assets.reduce((sum, asset) => sum + (asset.applicable_stigs?.length || 0), 0);
         const complianceSum = assets.reduce((sum, asset) => {
-          const status = asset.compliance_status as any;
+          const status = asset.compliance_status;
           return sum + (status?.compliant || 0);
         }, 0);
         const complianceTotal = assets.reduce((sum, asset) => {
-          const status = asset.compliance_status as any;
+          const status = asset.compliance_status;
           return sum + (status?.total_stigs || 0);
         }, 0);
 

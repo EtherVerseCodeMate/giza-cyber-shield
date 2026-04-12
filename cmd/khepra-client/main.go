@@ -198,7 +198,7 @@ func buildHTML(cfg Config) string {
   h1 { font-size: 15px; font-weight: 600; }
   .badge { font-size: 11px; padding: 2px 8px; border-radius: 12px;
            background: #1f3044; color: var(--accent); border: 1px solid #1f4878; }
-  .status-dot { width: 8px; height: 8px; border-radius: 50%; margin-left: auto;
+  .status-dot { width: 8px; height: 8px; border-radius: 50%%; margin-left: auto;
                 background: var(--muted); transition: background 0.3s; }
   .status-dot.online { background: var(--green); }
   .status-dot.error  { background: var(--red); }
@@ -207,7 +207,7 @@ func buildHTML(cfg Config) string {
          flex-direction: column; gap: 12px; }
   .msg { display: flex; gap: 10px; max-width: 900px; width: 100%%; }
   .msg.user { align-self: flex-end; flex-direction: row-reverse; }
-  .avatar { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  .avatar { width: 32px; height: 32px; border-radius: 50%%; flex-shrink: 0;
              display: flex; align-items: center; justify-content: center;
              font-size: 14px; font-weight: 600; }
   .msg.user .avatar { background: var(--accent); }
@@ -227,7 +227,7 @@ func buildHTML(cfg Config) string {
   .thinking { display: flex; align-items: center; gap: 6px; color: var(--muted);
               font-size: 13px; padding: 8px 0; }
   .dot-pulse { display: flex; gap: 4px; }
-  .dot-pulse span { width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+  .dot-pulse span { width: 6px; height: 6px; border-radius: 50%%; background: var(--accent);
                     animation: pulse 1.2s infinite; }
   .dot-pulse span:nth-child(2) { animation-delay: 0.2s; }
   .dot-pulse span:nth-child(3) { animation-delay: 0.4s; }
@@ -478,52 +478,53 @@ func handleAsk(cfg Config) http.HandlerFunc {
 		}
 
 		// Build upstream request to DEMARC /api/v1/mcp/ask
-		upstream := map[string]interface{}{
-			"query":      req.Query,
-			"session_id": req.SessionID,
-			"max_tools":  req.MaxTools,
-		}
-		if req.Context != nil {
-			upstream["context"] = req.Context
-		}
-
-		upstreamBody, _ := json.Marshal(upstream)
-		apiReq, err := http.NewRequestWithContext(r.Context(), http.MethodPost,
-			cfg.APIBaseURL+"/api/v1/mcp/ask", bytes.NewReader(upstreamBody))
+		apiReq, err := cfg.buildUpstreamRequest(r.Context(), req)
 		if err != nil {
 			jsonErr(w, "build request: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-		apiReq.Header.Set(contentTypeHeader, contentTypeJSON)
-		if cfg.PQCToken != "" {
-			apiReq.Header.Set("X-Khepra-PQC-Token", cfg.PQCToken)
-		}
 
 		resp, err := httpClient.Do(apiReq)
 		if err != nil {
-			// DEMARC unavailable — fall back to direct Ollama
-			log.Printf("[khepra-client] DEMARC unavailable (%v), falling back to Ollama", err)
-			answer, ollamaErr := queryOllamaDirect(r.Context(), httpClient, cfg, req.Query)
-			if ollamaErr != nil {
-				jsonErr(w, fmt.Sprintf("DEMARC offline, Ollama also failed: %v", ollamaErr), http.StatusServiceUnavailable)
-				return
-			}
-			w.Header().Set(contentTypeHeader, contentTypeJSON)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"answer":       answer,
-				"source":       "ollama-direct",
-				"tools_called": []string{},
-				"confidence":   0.5,
-			})
+			cfg.handleFallback(w, r, req.Query, httpClient)
 			return
 		}
 		defer resp.Body.Close()
 
-		// Stream response back to browser
 		w.Header().Set(contentTypeHeader, contentTypeJSON)
 		w.WriteHeader(resp.StatusCode)
 		io.Copy(w, resp.Body)
 	}
+}
+
+func (cfg Config) handleFallback(w http.ResponseWriter, r *http.Request, query string, httpClient *http.Client) {
+	log.Printf("[khepra-client] DEMARC unavailable, falling back to Ollama")
+	answer, ollamaErr := queryOllamaDirect(r.Context(), httpClient, cfg, query)
+	if ollamaErr != nil {
+		jsonErr(w, fmt.Sprintf("DEMARC offline, Ollama also failed: %v", ollamaErr), http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set(contentTypeHeader, contentTypeJSON)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"answer":       answer,
+		"source":       "ollama-direct",
+		"tools_called": []string{},
+		"confidence":   0.5,
+	})
+}
+
+func (cfg Config) buildUpstreamRequest(ctx context.Context, req interface{}) (*http.Request, error) {
+	upstreamBody, _ := json.Marshal(req)
+	apiReq, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		cfg.APIBaseURL+"/api/v1/mcp/ask", bytes.NewReader(upstreamBody))
+	if err != nil {
+		return nil, err
+	}
+	apiReq.Header.Set(contentTypeHeader, contentTypeJSON)
+	if cfg.PQCToken != "" {
+		apiReq.Header.Set("X-Khepra-PQC-Token", cfg.PQCToken)
+	}
+	return apiReq, nil
 }
 
 // queryOllamaDirect calls Ollama directly when the DEMARC API is unreachable.

@@ -4,13 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
-  Search, Shield, Mail, Target, TrendingUp, Clock, CheckCircle,
-  AlertTriangle, ExternalLink, Database, Zap, Bot, Play, Pause
+  Search, Mail, TrendingUp, Clock, CheckCircle,
+  AlertTriangle, ExternalLink, Database, Bot, Play, Pause
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useThreatIntelligence } from '@/hooks/useThreatIntelligence';
 
@@ -47,7 +45,7 @@ interface SplunkIntegration {
 export const AutomatedThreatHunting = () => {
   const [huntQueries, setHuntQueries] = useState<HuntQuery[]>([]);
   const [reports, setReports] = useState<HuntReport[]>([]);
-  const [splunkIntegration, setSplunkIntegration] = useState<SplunkIntegration>({
+  const [splunkIntegration] = useState<SplunkIntegration>({
     connected: true,
     baseUrl: 'https://splunk.enterprise.local:8000',
     status: 'online',
@@ -384,7 +382,7 @@ export const AutomatedThreatHunting = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => window.open(
+                            onClick={() => globalThis.open(
                               `${splunkIntegration.baseUrl}/app/search/search?q=${encodeURIComponent(query.splunkQuery)}`,
                               '_blank'
                             )}
@@ -451,7 +449,7 @@ export const AutomatedThreatHunting = () => {
                       size="sm"
                       variant="outline"
                       className="w-full mt-3"
-                      onClick={() => window.open(report.reportUrl, '_blank')}
+                      onClick={() => globalThis.open(report.reportUrl, '_blank')}
                     >
                       <ExternalLink className="h-4 w-4 mr-2" />
                       View in Splunk

@@ -174,7 +174,7 @@ export const ThreatInvestigation = () => {
     return (
       <Badge variant={config.variant} className="flex items-center gap-1">
         <Icon className="h-3 w-3" />
-        {status.replace('_', ' ').toUpperCase()}
+        {status.replaceAll('_', ' ').toUpperCase()}
       </Badge>
     );
   };

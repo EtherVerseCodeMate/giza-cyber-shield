@@ -192,7 +192,7 @@ export const RiskBasedAutomationEngine: React.FC<RiskBasedAutomationEngineProps>
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-2xl font-bold text-secondary">
-                  {deploymentProfile.riskTolerance.replace('_', ' ')}
+                  {deploymentProfile.riskTolerance.replaceAll('_', ' ')}
                 </div>
                 <div className="text-sm text-muted-foreground">
                   Risk Profile

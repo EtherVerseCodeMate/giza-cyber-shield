@@ -316,7 +316,7 @@ export const NVIDIAFlare = () => {
               <p>• 100% privacy compliance</p>
             </div>
             <div>
-              <p>• {Math.round(experiments.reduce((sum, exp) => sum + parseFloat(exp.accuracy.replace('%', '')), 0) / experiments.length)}% average model accuracy</p>
+              <p>• {Math.round(experiments.reduce((sum, exp) => sum + Number.parseFloat(exp.accuracy.replaceAll('%', '')), 0) / experiments.length)}% average model accuracy</p>
               <p>• Zero data centralization</p>
               <p>• Cross-domain federation enabled</p>
             </div>

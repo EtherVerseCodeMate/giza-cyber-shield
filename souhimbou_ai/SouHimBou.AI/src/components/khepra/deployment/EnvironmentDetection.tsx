@@ -209,12 +209,12 @@ export const EnvironmentDetection: React.FC<EnvironmentDetectionProps> = ({
     let score = 65; // Base score for unknown device state
     
     // Check HTTPS
-    if (window.location.protocol === 'https:') score += 15;
+    if (globalThis.location.protocol === 'https:') score += 15;
     
     // Check for security features
-    if (window.isSecureContext) score += 10;
+    if (globalThis.isSecureContext) score += 10;
     if ('serviceWorker' in navigator) score += 5;
-    if ('crypto' in window && 'subtle' in window.crypto) score += 5;
+    if ('crypto' in window && 'subtle' in globalThis.crypto) score += 5;
     
     return Math.min(score, 100);
   };
@@ -222,11 +222,11 @@ export const EnvironmentDetection: React.FC<EnvironmentDetectionProps> = ({
   const detectDeviceVulnerabilities = async (): Promise<string[]> => {
     const vulns: string[] = [];
     
-    if (window.location.protocol !== 'https:') {
+    if (globalThis.location.protocol !== 'https:') {
       vulns.push('insecure_connection');
     }
     
-    if (!window.isSecureContext) {
+    if (!globalThis.isSecureContext) {
       vulns.push('insecure_context');
     }
     
@@ -242,8 +242,8 @@ export const EnvironmentDetection: React.FC<EnvironmentDetectionProps> = ({
     let score = 60;
     
     if ('serviceWorker' in navigator) score += 10;
-    if ('crypto' in window && 'subtle' in window.crypto) score += 15;
-    if (window.isSecureContext) score += 15;
+    if ('crypto' in window && 'subtle' in globalThis.crypto) score += 15;
+    if (globalThis.isSecureContext) score += 15;
     
     return Math.min(score, 100);
   };
@@ -251,7 +251,7 @@ export const EnvironmentDetection: React.FC<EnvironmentDetectionProps> = ({
   const detectBrowserVulnerabilities = async (): Promise<string[]> => {
     const vulns: string[] = [];
     
-    if (!window.isSecureContext) vulns.push('insecure_context');
+    if (!globalThis.isSecureContext) vulns.push('insecure_context');
     if (!('serviceWorker' in navigator)) vulns.push('no_service_worker');
     if (document.referrer && !document.referrer.startsWith('https:')) vulns.push('insecure_referrer');
     

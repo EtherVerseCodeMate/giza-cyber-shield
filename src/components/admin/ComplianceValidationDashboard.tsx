@@ -194,7 +194,7 @@ export const ComplianceValidationDashboard = () => {
               <CardTitle className="flex items-center justify-between">
                 <span className="text-lg">{framework.name}</span>
                 <Badge className={getStatusColor(framework.status)}>
-                  {framework.status.replace('_', ' ')}
+                  {framework.status.replaceAll('_', ' ')}
                 </Badge>
               </CardTitle>
               <CardDescription>

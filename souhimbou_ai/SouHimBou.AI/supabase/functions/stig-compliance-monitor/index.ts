@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+declare const Deno: any;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -42,7 +43,7 @@ async function getActualComplianceFinding(
       riskScore: data.risk_score || severityToRisk[data.severity?.toLowerCase()] || 5,
       lastChecked: data.updated_at
     };
-  } catch {
+  } catch (error_) {
     return null;
   }
 }
@@ -63,7 +64,7 @@ async function getAssetSecurityConfig(
 
     if (error) return null;
     return data;
-  } catch {
+  } catch (error_) {
     return null;
   }
 }
@@ -73,7 +74,7 @@ function generateDeterministicHash(data: any): string {
   const str = JSON.stringify(data);
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
+    const char = str.codePointAt(i) || 0;
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash;
   }
@@ -100,14 +101,200 @@ interface ComplianceResult {
   evidence_collected: any[];
 }
 
-serve(async (req) => {
+async function fetchAssets(supabase: any, organization_id: string, asset_ids?: string[]) {
+  if (asset_ids && asset_ids.length > 0) {
+    const { data: assetsData, error: assetsError } = await supabase
+      .from('environment_assets')
+      .select('*')
+      .eq('organization_id', organization_id)
+      .in('id', asset_ids);
+    if (assetsError) throw assetsError;
+    return assetsData || [];
+  } else {
+    const { data: assetsData, error: assetsError } = await supabase
+      .from('environment_assets')
+      .select('*')
+      .eq('organization_id', organization_id);
+    if (assetsError) throw assetsError;
+    return assetsData || [];
+  }
+}
+
+async function fetchStigRules(supabase: any, stig_rule_ids?: string[]) {
+  if (stig_rule_ids && stig_rule_ids.length > 0) {
+    const { data: rulesData, error: rulesError } = await supabase
+      .from('stig_rules')
+      .select('*')
+      .in('rule_id', stig_rule_ids);
+    if (rulesError) throw rulesError;
+    return rulesData || [];
+  } else {
+    const { data: rulesData, error: rulesError } = await supabase
+      .from('stig_rules')
+      .select('*')
+      .limit(50);
+    if (rulesError) throw rulesError;
+    return rulesData || [];
+  }
+}
+
+async function sendStigDiscordWebhook(params: any) {
+  const stigWebhookUrl = Deno.env.get('STIG_WEBHOOK_URL');
+  if (!stigWebhookUrl) return;
+
+  try {
+    let color = 0xFF0000;
+    let statusEmoji = '🔴';
+    if (params.compliancePercentage >= 80) {
+      color = 0x00CC66;
+      statusEmoji = '✅';
+    } else if (params.compliancePercentage >= 50) {
+      color = 0xFFD700;
+      statusEmoji = '⚠️';
+    }
+
+    const embed: any = {
+      title: `📜 STIG Compliance Scan Complete ${statusEmoji}`,
+      description: `Scanned **${params.assets.length}** assets against **${params.stigRules.length}** STIG rules`,
+      color,
+      fields: [
+        { name: '📊 Compliance', value: `**${params.compliancePercentage.toFixed(1)}%**`, inline: true },
+        { name: '✅ Passing', value: `${params.compliantChecks}/${params.totalChecks}`, inline: true },
+        { name: '🔴 Critical', value: `${params.criticalFindings}`, inline: true },
+        { name: '🟠 High', value: `${params.highFindings}`, inline: true },
+        { name: '🔄 Drift Events', value: `${params.driftEvents.length}`, inline: true },
+        { name: '📎 Evidence', value: `${params.evidenceCollected.length} items`, inline: true },
+      ],
+      footer: { text: `Org: ${params.organization_id} | Scan: ${params.scan_type}` },
+      timestamp: new Date().toISOString(),
+    };
+
+    if (params.criticalFindings > 0) {
+      const criticals = params.complianceResults
+        .filter((r: any) => r.compliance_status !== 'COMPLIANT' && r.risk_score >= 8)
+        .slice(0, 5)
+        .map((r: any) => `\`${r.stig_rule_id}\` — Risk: ${r.risk_score}`)
+        .join('\n');
+      embed.fields.push({ name: '🚨 Critical Findings', value: criticals, inline: false });
+    }
+
+    await fetch(stigWebhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: 'Khepra STIG Monitor',
+        avatar_url: 'https://i.imgur.com/placeholder.png',
+        embeds: [embed],
+      }),
+    });
+  } catch (webhookErr) {
+    console.error('STIG Discord webhook failed:', webhookErr);
+  }
+}
+
+interface ProcessContext {
+  supabase: any;
+  organization_id: string;
+  remediation_mode: string;
+  complianceResults: any[];
+  driftEvents: any[];
+  evidenceCollected: any[];
+}
+
+async function processAssetRule(asset: any, stigRule: any, ctx: ProcessContext) {
+  const { supabase, organization_id, remediation_mode, complianceResults, driftEvents, evidenceCollected } = ctx;
+  const result = await performSTIGComplianceCheck(supabase, asset, stigRule);
+  complianceResults.push(result);
+
+  await supabase.from('stig_rule_implementations').upsert({
+    organization_id,
+    asset_id: asset.id,
+    stig_rule_id: stigRule.rule_id,
+    rule_title: stigRule.title,
+    severity: stigRule.severity,
+    implementation_method: 'automated',
+    implementation_status: result.compliance_status === 'COMPLIANT' ? 'IMPLEMENTED' : 'PENDING',
+    compliance_status: result.compliance_status,
+    last_checked: new Date().toISOString(),
+    evidence_collected: result.evidence_collected
+  });
+
+  const { data: lastSnapshot } = await supabase
+    .from('asset_configuration_snapshots')
+    .select('*')
+    .eq('asset_id', asset.id)
+    .order('captured_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (lastSnapshot && result.compliance_status !== 'COMPLIANT') {
+    const driftEvent = {
+      organization_id,
+      asset_id: asset.id,
+      stig_rule_id: stigRule.rule_id,
+      drift_type: 'configuration_change',
+      severity: stigRule.severity,
+      previous_state: lastSnapshot.stig_compliance_status[stigRule.rule_id] || {},
+      current_state: result.current_configuration,
+      detection_method: 'automated_scan'
+    };
+
+    await supabase.from('compliance_drift_events').insert(driftEvent);
+    driftEvents.push(driftEvent);
+  }
+
+  for (const evidence of result.evidence_collected) {
+    const evidenceRecord = {
+      organization_id,
+      asset_id: asset.id,
+      stig_rule_id: stigRule.rule_id,
+      evidence_type: evidence.type,
+      evidence_data: evidence.data,
+      collection_method: 'automated'
+    };
+
+    await supabase.from('stig_evidence').insert(evidenceRecord);
+    evidenceCollected.push(evidenceRecord);
+  }
+
+  if (remediation_mode === 'safe' && result.compliance_status === 'NOT_COMPLIANT') {
+    const { data: playbook } = await supabase
+      .from('remediation_playbooks')
+      .select('*')
+      .eq('stig_rule_id', stigRule.rule_id)
+      .eq('platform', asset.platform)
+      .eq('auto_execute', true)
+      .single();
+
+    if (playbook && playbook.risk_level === 'LOW') {
+      console.log(`Auto-remediation triggered for ${asset.asset_name} - ${stigRule.rule_id}`);
+      const { error: remediationError } = await supabase.functions.invoke(
+        'automated-remediation-engine',
+        {
+          body: {
+            organization_id,
+            asset_id: asset.id,
+            stig_rule_id: stigRule.rule_id,
+            playbook_id: playbook.id
+          }
+        }
+      );
+      if (remediationError) {
+        console.error('Remediation failed:', remediationError);
+      }
+    }
+  }
+}
+
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
+      supabaseUrl,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
@@ -121,147 +308,28 @@ serve(async (req) => {
 
     console.log(`Starting STIG compliance monitoring for org: ${organization_id}, scan type: ${scan_type}`);
 
-    // Get assets to scan
-    let assets;
-    if (asset_ids && asset_ids.length > 0) {
-      const { data: assetsData, error: assetsError } = await supabase
-        .from('environment_assets')
-        .select('*')
-        .eq('organization_id', organization_id)
-        .in('id', asset_ids);
-
-      if (assetsError) throw assetsError;
-      assets = assetsData || [];
-    } else {
-      const { data: assetsData, error: assetsError } = await supabase
-        .from('environment_assets')
-        .select('*')
-        .eq('organization_id', organization_id);
-
-      if (assetsError) throw assetsError;
-      assets = assetsData || [];
-    }
-
-    // Get STIG rules to check
-    let stigRules;
-    if (stig_rule_ids && stig_rule_ids.length > 0) {
-      const { data: rulesData, error: rulesError } = await supabase
-        .from('stig_rules')
-        .select('*')
-        .in('rule_id', stig_rule_ids);
-
-      if (rulesError) throw rulesError;
-      stigRules = rulesData || [];
-    } else {
-      const { data: rulesData, error: rulesError } = await supabase
-        .from('stig_rules')
-        .select('*')
-        .limit(50); // Limit for demo
-
-      if (rulesError) throw rulesError;
-      stigRules = rulesData || [];
-    }
+    const assets = await fetchAssets(supabase, organization_id, asset_ids);
+    const stigRules = await fetchStigRules(supabase, stig_rule_ids);
 
     console.log(`Scanning ${assets.length} assets against ${stigRules.length} STIG rules`);
 
-    // Perform compliance checks
     const complianceResults: ComplianceResult[] = [];
-    const driftEvents = [];
-    const evidenceCollected = [];
+    const driftEvents: any[] = [];
+    const evidenceCollected: any[] = [];
 
     for (const asset of assets) {
       for (const stigRule of stigRules) {
-        const result = await performSTIGComplianceCheck(supabase, asset, stigRule);
-        complianceResults.push(result);
-
-        // Store implementation tracking
-        await supabase.from('stig_rule_implementations').upsert({
+        const ctx: ProcessContext = {
+          supabase,
           organization_id,
-          asset_id: asset.id,
-          stig_rule_id: stigRule.rule_id,
-          rule_title: stigRule.title,
-          severity: stigRule.severity,
-          implementation_method: 'automated',
-          implementation_status: result.compliance_status === 'COMPLIANT' ? 'IMPLEMENTED' : 'PENDING',
-          compliance_status: result.compliance_status,
-          last_checked: new Date().toISOString(),
-          evidence_collected: result.evidence_collected
-        });
-
-        // Check for compliance drift
-        const { data: lastSnapshot } = await supabase
-          .from('asset_configuration_snapshots')
-          .select('*')
-          .eq('asset_id', asset.id)
-          .order('captured_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        if (lastSnapshot && result.compliance_status !== 'COMPLIANT') {
-          const driftEvent = {
-            organization_id,
-            asset_id: asset.id,
-            stig_rule_id: stigRule.rule_id,
-            drift_type: 'configuration_change',
-            severity: stigRule.severity,
-            previous_state: lastSnapshot.stig_compliance_status[stigRule.rule_id] || {},
-            current_state: result.current_configuration,
-            detection_method: 'automated_scan'
-          };
-
-          await supabase.from('compliance_drift_events').insert(driftEvent);
-          driftEvents.push(driftEvent);
-        }
-
-        // Collect evidence
-        for (const evidence of result.evidence_collected) {
-          const evidenceRecord = {
-            organization_id,
-            asset_id: asset.id,
-            stig_rule_id: stigRule.rule_id,
-            evidence_type: evidence.type,
-            evidence_data: evidence.data,
-            collection_method: 'automated'
-          };
-
-          await supabase.from('stig_evidence').insert(evidenceRecord);
-          evidenceCollected.push(evidenceRecord);
-        }
-
-        // Auto-remediation if enabled
-        if (remediation_mode === 'safe' && result.compliance_status === 'NOT_COMPLIANT') {
-          const { data: playbook } = await supabase
-            .from('remediation_playbooks')
-            .select('*')
-            .eq('stig_rule_id', stigRule.rule_id)
-            .eq('platform', asset.platform)
-            .eq('auto_execute', true)
-            .single();
-
-          if (playbook && playbook.risk_level === 'LOW') {
-            console.log(`Auto-remediation triggered for ${asset.asset_name} - ${stigRule.rule_id}`);
-
-            // Trigger remediation function
-            const { error: remediationError } = await supabase.functions.invoke(
-              'automated-remediation-engine',
-              {
-                body: {
-                  organization_id,
-                  asset_id: asset.id,
-                  stig_rule_id: stigRule.rule_id,
-                  playbook_id: playbook.id
-                }
-              }
-            );
-
-            if (remediationError) {
-              console.error('Remediation failed:', remediationError);
-            }
-          }
-        }
+          remediation_mode,
+          complianceResults,
+          driftEvents,
+          evidenceCollected
+        };
+        await processAssetRule(asset, stigRule, ctx);
       }
 
-      // Create configuration snapshot
       const configSnapshot = {
         organization_id,
         asset_id: asset.id,
@@ -269,7 +337,7 @@ serve(async (req) => {
         configuration_data: generateConfigurationData(asset),
         stig_compliance_status: complianceResults
           .filter(r => r.asset_id === asset.id)
-          .reduce((acc, r) => ({
+          .reduce((acc: any, r: any) => ({
             ...acc,
             [r.stig_rule_id]: {
               status: r.compliance_status,
@@ -282,7 +350,6 @@ serve(async (req) => {
       await supabase.from('asset_configuration_snapshots').insert(configSnapshot);
     }
 
-    // Generate compliance summary
     const totalChecks = complianceResults.length;
     const compliantChecks = complianceResults.filter(r => r.compliance_status === 'COMPLIANT').length;
     const compliancePercentage = totalChecks > 0 ? (compliantChecks / totalChecks) * 100 : 0;
@@ -295,13 +362,12 @@ serve(async (req) => {
       r.compliance_status !== 'COMPLIANT' && r.risk_score >= 6 && r.risk_score < 8
     ).length;
 
-    // Generate compliance report
     const report = {
       organization_id,
       report_type: 'stig_compliance',
       report_name: `STIG Compliance Scan - ${new Date().toISOString()}`,
-      scope_assets: asset_ids || assets.map(a => a.id),
-      scope_stigs: stig_rule_ids || stigRules.map(r => r.rule_id),
+      scope_assets: asset_ids || assets.map((a: any) => a.id),
+      scope_stigs: stig_rule_ids || stigRules.map((r: any) => r.rule_id),
       compliance_percentage: compliancePercentage,
       critical_findings: criticalFindings,
       high_findings: highFindings,
@@ -326,59 +392,13 @@ serve(async (req) => {
       }
     };
 
-    await supabase.from('compliance_reports').insert(report);
+    const { data: insertedReport } = await supabase.from('compliance_reports').insert(report).select().single();
 
-    console.log(`Compliance monitoring completed: ${compliancePercentage.toFixed(2)}% compliant`);
-
-    // --- Send Discord Webhook to #stig-updates ---
-    const stigWebhookUrl = Deno.env.get('STIG_WEBHOOK_URL');
-    if (stigWebhookUrl) {
-      try {
-        const color = compliancePercentage >= 80 ? 0x00CC66
-          : compliancePercentage >= 50 ? 0xFFD700
-            : 0xFF0000;
-
-        const statusEmoji = compliancePercentage >= 80 ? '✅' : compliancePercentage >= 50 ? '⚠️' : '🔴';
-
-        const embed = {
-          title: `📜 STIG Compliance Scan Complete ${statusEmoji}`,
-          description: `Scanned **${assets.length}** assets against **${stigRules.length}** STIG rules`,
-          color,
-          fields: [
-            { name: '📊 Compliance', value: `**${compliancePercentage.toFixed(1)}%**`, inline: true },
-            { name: '✅ Passing', value: `${compliantChecks}/${totalChecks}`, inline: true },
-            { name: '🔴 Critical', value: `${criticalFindings}`, inline: true },
-            { name: '🟠 High', value: `${highFindings}`, inline: true },
-            { name: '🔄 Drift Events', value: `${driftEvents.length}`, inline: true },
-            { name: '📎 Evidence', value: `${evidenceCollected.length} items`, inline: true },
-          ],
-          footer: { text: `Org: ${organization_id} | Scan: ${scan_type}` },
-          timestamp: new Date().toISOString(),
-        };
-
-        // Add critical findings details if any
-        if (criticalFindings > 0) {
-          const criticals = complianceResults
-            .filter(r => r.compliance_status !== 'COMPLIANT' && r.risk_score >= 8)
-            .slice(0, 5)
-            .map(r => `\`${r.stig_rule_id}\` — Risk: ${r.risk_score}`)
-            .join('\n');
-          embed.fields.push({ name: '🚨 Critical Findings', value: criticals, inline: false });
-        }
-
-        await fetch(stigWebhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username: 'Khepra STIG Monitor',
-            avatar_url: 'https://i.imgur.com/placeholder.png',
-            embeds: [embed],
-          }),
-        });
-      } catch (webhookErr) {
-        console.error('STIG Discord webhook failed:', webhookErr);
-      }
-    }
+    await sendStigDiscordWebhook({
+      assets, stigRules, compliancePercentage, compliantChecks, totalChecks,
+      criticalFindings, highFindings, driftEvents, evidenceCollected,
+      complianceResults, organization_id, scan_type
+    });
 
     return new Response(JSON.stringify({
       success: true,
@@ -389,13 +409,13 @@ serve(async (req) => {
       high_findings: highFindings,
       drift_events_detected: driftEvents.length,
       evidence_collected: evidenceCollected.length,
-      report_id: report.id || 'generated',
+      report_id: insertedReport?.id || 'generated',
       results: complianceResults
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('STIG compliance monitoring error:', error);
     return new Response(JSON.stringify({
       error: error.message,

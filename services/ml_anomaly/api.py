@@ -232,7 +232,47 @@ app = FastAPI(
 
 # --- Endpoints ---
 
-@app.get("/api/v1/dag/visualize", response_model=TrustConstellation)
+@app.get("/api/v1/asset/{asset_id}", responses={
+    200: {"description": "Asset found"},
+    404: {"description": "Asset not found"},
+    500: {"description": "Internal server error"}
+})
+async def get_asset_details(asset_id: str):
+    """
+    Retrieves details for a specific asset by its ID.
+    Calls 'khepra asset get --json {asset_id}' to get the latest state.
+    """
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "khepra", "asset", "get", "--json", asset_id,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=10)
+
+        if proc.returncode != 0:
+            error_msg = stderr.decode().strip()
+            logger.error(f"Asset details for {asset_id} failed: {error_msg}")
+            if "not found" in error_msg.lower():
+                raise HTTPException(status_code=404, detail=f"Asset with ID '{asset_id}' not found")
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve asset details: {error_msg}")
+
+        asset_data = json.loads(stdout.decode())
+        return asset_data
+
+    except subprocess.TimeoutExpired:
+        logger.error(f"Asset details for {asset_id} timed out")
+        raise HTTPException(status_code=500, detail="Asset details retrieval timed out")
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse asset JSON for {asset_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to parse asset data: {e}")
+    except HTTPException:
+        raise # Re-raise HTTPExceptions
+    except Exception as e:
+        logger.error(f"Asset details for {asset_id} failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/dag/visualize", response_model=TrustConstellation, responses={500: {"detail": "Internal Server Error"}})
 async def get_dag_visualize():
     """
     Returns the Trust Constellation (DAG) graph for visualization.
@@ -283,7 +323,10 @@ async def get_dag_visualize():
         logger.error(f"DAG Export Failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/v1/compliance/cmmc")
+@app.get("/api/v1/compliance/cmmc", responses={
+    200: {"description": "CMMC status retrieved"},
+    500: {"description": "Internal server error"}
+})
 async def get_cmmc_status():
     """
     Returns the CMMC Level 2 Compliance Scorecard.
@@ -332,7 +375,10 @@ async def get_cmmc_status():
             "error": str(e)
         }
 
-@app.get("/api/v1/ir/playbooks")
+@app.get("/api/v1/ir/playbooks", responses={
+    200: {"description": "Incident response playbooks retrieved"},
+    500: {"description": "Internal server error"}
+})
 async def get_ir_playbooks():
     """
     Returns available Incident Response Playbooks.
@@ -363,7 +409,10 @@ async def get_ir_playbooks():
         logger.error(f"IR playbooks error: {e}")
         return []
 
-@app.post("/api/v1/papyrus/chat")
+@app.post("/api/v1/papyrus/chat", responses={
+    200: {"description": "Papyrus chat response generated"},
+    500: {"description": "Internal server error"}
+})
 async def papyrus_chat(request: dict):
     """
     Papyrus AI Chat - Contextual help powered by SouHimBou AGI.
@@ -409,7 +458,7 @@ async def papyrus_chat(request: dict):
 
 # --- License & Telemetry Endpoints ---
 
-@app.get("/api/v1/license/status")
+@app.get("/api/v1/license/status", responses={500: {"detail": "License service unavailable"}})
 async def get_license_status():
     """
     Returns the current license status.
@@ -441,7 +490,10 @@ async def get_license_status():
         logger.error(f"License API Error: {e}")
         raise HTTPException(status_code=500, detail="License service unavailable")
 
-@app.get("/api/v1/license/telemetry/status")
+@app.get("/api/v1/license/telemetry/status", responses={
+    200: {"description": "Telemetry status retrieved"},
+    500: {"description": "Internal server error"}
+})
 async def get_telemetry_status():
     """
     Returns telemetry connection status.
@@ -520,7 +572,7 @@ async def get_current_dag() -> dict:
     return {"nodes": [], "edges": [], "stats": {"nodes": 0, "critical": 0}}
 
 # --- PDF Export for Compliance Reports ---
-@app.get("/api/v1/export/compliance-report")
+@app.get("/api/v1/export/compliance-report", responses={500: {"detail": "Failed to generate PDF"}})
 async def export_compliance_report():
     """Generate PDF compliance report from current CMMC status."""
     try:
@@ -589,7 +641,7 @@ async def export_compliance_report():
         raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}")
 
 # --- STIG Gateway Proxy ---
-@app.get("/api/stigs")
+@app.get("/api/stigs", responses={503: {"detail": "STIG Gateway service is currently unavailable"}})
 async def proxy_stig_gateway(request: Request):
     """
     Proxy request to the local Go STIG Gateway.
@@ -622,7 +674,7 @@ async def proxy_stig_gateway(request: Request):
             detail="STIG Gateway service is currently unavailable. Please ensure the Go connector is running."
         )
 
-@app.get("/")
+@app.get("/", responses={200: {"description": "Root service status retrieved"}})
 async def root():
     return {
         "service": "SouHimBou AI",
@@ -630,7 +682,7 @@ async def root():
         "soul_integrity": "STABLE" if model_state["soul_embedding"] else "FRAGMENTED"
     }
 
-@app.get("/soul")
+@app.get("/soul", responses={200: {"description": "Soul embedding retrieved"}})
 async def get_soul():
     """Returns the current Soul Embedding (Adinkra + Persona mapping)"""
     return {
@@ -638,20 +690,17 @@ async def get_soul():
         "dominant_archetype": max(model_state["soul_embedding"], key=model_state["soul_embedding"].get) if model_state["soul_embedding"] else "None"
     }
 
-@app.post("/predict", response_model=PredictResponse)
+@app.post("/predict", response_model=PredictResponse, responses={503: {"detail": "Model not loaded"}, 500: {"detail": "Internal Server Error"}})
 async def predict(request: PredictRequest):
     """
     Get an anomaly score for a feature vector.
     This is the "Intuition" query from the Motherboard.
     """
     if not model_instance or not model_state["model_loaded"]:
-         # Mock response for dev/testing if model not ready
-         logger.warning("Model not ready. Returning mock prediction.")
-         return PredictResponse(
-             anomaly_score=0.0,
-             is_anomaly=False,
-             confidence=0.0,
-             archetype_influence={"Note": 0.0} # Fixed Validation Error
+         logger.error("Model not ready. TRL10 mandate: No mocks allowed.")
+         raise HTTPException(
+             status_code=503,
+             detail="Model not loaded. Service unavailable."
          )
     
     try:
@@ -741,7 +790,7 @@ def run_training_task():
         logger.error(f"Training Failed: {e}")
         model_state["status"] = "TRAINING_FAILED"
 
-@app.post("/train")
+@app.post("/train", responses={409: {"detail": "Training already in progress"}})
 async def trigger_training(request: TrainingRequest, background_tasks: BackgroundTasks):
     """Triggers the 'Awakening' (Retraining) process in the background."""
     if model_state["status"] == "TRAINING":
@@ -754,7 +803,7 @@ async def trigger_training(request: TrainingRequest, background_tasks: Backgroun
 
 # --- SouHimBou AGI Endpoints (BabyAGI Pattern) ---
 
-@app.post("/chat", response_model=ChatResponse)
+@app.post("/chat", response_model=ChatResponse, responses={500: {"detail": "Internal Server Error"}})
 async def chat(request: ChatRequest):
     """
     Process user chat message - replaces LLM-based chat.
@@ -829,7 +878,7 @@ async def chat(request: ChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/recommend_tasks", response_model=RecommendTasksResponse)
+@app.post("/recommend_tasks", response_model=RecommendTasksResponse, responses={500: {"detail": "Internal Server Error"}})
 async def recommend_tasks(request: RecommendTasksRequest):
     """
     Generate task recommendations from analysis results.
@@ -887,7 +936,7 @@ async def recommend_tasks(request: RecommendTasksRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/prioritize", response_model=PrioritizeResponse)
+@app.post("/prioritize", response_model=PrioritizeResponse, responses={500: {"detail": "Internal Server Error"}})
 async def prioritize_tasks(request: PrioritizeRequest):
     """
     Reorder task list by risk priority.
@@ -960,7 +1009,7 @@ async def prioritize_tasks(request: PrioritizeRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/v1/agi/status")
+@app.get("/api/v1/agi/status", responses={200: {"description": "AGI system status retrieved"}})
 async def get_agi_status():
     """
     Returns SouHimBou AGI system status.
