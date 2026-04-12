@@ -478,52 +478,53 @@ func handleAsk(cfg Config) http.HandlerFunc {
 		}
 
 		// Build upstream request to DEMARC /api/v1/mcp/ask
-		upstream := map[string]interface{}{
-			"query":      req.Query,
-			"session_id": req.SessionID,
-			"max_tools":  req.MaxTools,
-		}
-		if req.Context != nil {
-			upstream["context"] = req.Context
-		}
-
-		upstreamBody, _ := json.Marshal(upstream)
-		apiReq, err := http.NewRequestWithContext(r.Context(), http.MethodPost,
-			cfg.APIBaseURL+"/api/v1/mcp/ask", bytes.NewReader(upstreamBody))
+		apiReq, err := cfg.buildUpstreamRequest(r.Context(), req)
 		if err != nil {
 			jsonErr(w, "build request: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-		apiReq.Header.Set(contentTypeHeader, contentTypeJSON)
-		if cfg.PQCToken != "" {
-			apiReq.Header.Set("X-Khepra-PQC-Token", cfg.PQCToken)
-		}
 
 		resp, err := httpClient.Do(apiReq)
 		if err != nil {
-			// DEMARC unavailable — fall back to direct Ollama
-			log.Printf("[khepra-client] DEMARC unavailable (%v), falling back to Ollama", err)
-			answer, ollamaErr := queryOllamaDirect(r.Context(), httpClient, cfg, req.Query)
-			if ollamaErr != nil {
-				jsonErr(w, fmt.Sprintf("DEMARC offline, Ollama also failed: %v", ollamaErr), http.StatusServiceUnavailable)
-				return
-			}
-			w.Header().Set(contentTypeHeader, contentTypeJSON)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"answer":       answer,
-				"source":       "ollama-direct",
-				"tools_called": []string{},
-				"confidence":   0.5,
-			})
+			cfg.handleFallback(w, r, req.Query, httpClient)
 			return
 		}
 		defer resp.Body.Close()
 
-		// Stream response back to browser
 		w.Header().Set(contentTypeHeader, contentTypeJSON)
 		w.WriteHeader(resp.StatusCode)
 		io.Copy(w, resp.Body)
 	}
+}
+
+func (cfg Config) handleFallback(w http.ResponseWriter, r *http.Request, query string, httpClient *http.Client) {
+	log.Printf("[khepra-client] DEMARC unavailable, falling back to Ollama")
+	answer, ollamaErr := queryOllamaDirect(r.Context(), httpClient, cfg, query)
+	if ollamaErr != nil {
+		jsonErr(w, fmt.Sprintf("DEMARC offline, Ollama also failed: %v", ollamaErr), http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set(contentTypeHeader, contentTypeJSON)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"answer":       answer,
+		"source":       "ollama-direct",
+		"tools_called": []string{},
+		"confidence":   0.5,
+	})
+}
+
+func (cfg Config) buildUpstreamRequest(ctx context.Context, req interface{}) (*http.Request, error) {
+	upstreamBody, _ := json.Marshal(req)
+	apiReq, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		cfg.APIBaseURL+"/api/v1/mcp/ask", bytes.NewReader(upstreamBody))
+	if err != nil {
+		return nil, err
+	}
+	apiReq.Header.Set(contentTypeHeader, contentTypeJSON)
+	if cfg.PQCToken != "" {
+		apiReq.Header.Set("X-Khepra-PQC-Token", cfg.PQCToken)
+	}
+	return apiReq, nil
 }
 
 // queryOllamaDirect calls Ollama directly when the DEMARC API is unreachable.

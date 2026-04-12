@@ -146,7 +146,7 @@ export default function SimpleBilling() {
 
   const handleAdvisory = () => {
     // Mirrors the existing enterprise contact intent.
-    window.location.href =
+    globalThis.location.href =
       'mailto:skone@alumni.albany.edu?subject=ASAF%20Request%20Assessment';
   };
 
@@ -159,7 +159,7 @@ export default function SimpleBilling() {
         body: JSON.stringify({}),
       });
       const data = await res.json();
-      if (data.url) window.location.href = data.url;
+      if (data.url) globalThis.location.href = data.url;
       else throw new Error(data.error || 'Checkout unavailable');
     } catch (e: any) {
       // Avoid bringing toast infrastructure into this pure inline-styles page.
@@ -227,6 +227,8 @@ export default function SimpleBilling() {
           {PLANS.map((plan) => (
             <div
               key={plan.id}
+              role="button"
+              tabIndex={0}
               style={{
                 ...styles.enterpriseCard,
                 ...(plan.headline ? styles.headlineCard : {}),
@@ -234,6 +236,7 @@ export default function SimpleBilling() {
               }}
               onMouseEnter={() => setHoveredPlan(plan.id)}
               onMouseLeave={() => setHoveredPlan(null)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleEnterpriseCTA(plan.ctaAction); }}
             >
               <div style={styles.cardBadgeRow}>
                 <span
@@ -257,8 +260,8 @@ export default function SimpleBilling() {
               <p style={styles.cardDesc}>{plan.description}</p>
 
               <ul style={styles.featureList}>
-                {plan.features.map((f, i) => (
-                  <li key={i} style={styles.featureItem}>
+                {plan.features.map((f) => (
+                  <li key={f} style={styles.featureItem}>
                     <span style={styles.checkWrap}>
                       <CheckIcon />
                     </span>
@@ -324,6 +327,8 @@ export default function SimpleBilling() {
           {SELF_SERVE.map((plan) => (
             <div
               key={plan.id}
+              role="button"
+              tabIndex={0}
               style={{
                 ...styles.agentCard,
                 ...(plan.highlight ? styles.agentHighlight : {}),
@@ -331,6 +336,7 @@ export default function SimpleBilling() {
               }}
               onMouseEnter={() => setHoveredPlan(plan.id)}
               onMouseLeave={() => setHoveredPlan(null)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSelfServeCTA(plan.ctaAction); }}
             >
               <h3 style={styles.agentCardName}>{plan.name}</h3>
               <div style={styles.priceRow}>
@@ -341,8 +347,8 @@ export default function SimpleBilling() {
               </div>
               <p style={styles.agentCardDesc}>{plan.description}</p>
               <ul style={styles.featureList}>
-                {plan.features.map((f, i) => (
-                  <li key={i} style={styles.featureItemLight}>
+                {plan.features.map((f) => (
+                  <li key={f} style={styles.featureItemLight}>
                     <span style={styles.checkWrapLight}>
                       <CheckIcon />
                     </span>
@@ -388,6 +394,11 @@ export default function SimpleBilling() {
             <ShieldIcon /> ASAF — Agentic Security Attestation Framework
           </span>
           <span style={styles.footerRight}>SecRed Knowledge Inc. (NouchiX) · SDVOSB · Albany, NY</span>
+        </div>
+        <div style={{ textAlign: 'center', marginTop: 10, fontSize: 11, color: '#5c6478' }}>
+          <a href="https://nouchix.com/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#5c6478', textDecoration: 'underline', marginRight: 16 }}>Privacy Policy</a>
+          <a href="https://nouchix.com/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#5c6478', textDecoration: 'underline', marginRight: 16 }}>Terms of Service</a>
+          <a href="mailto:security@nouchix.com" style={{ color: '#5c6478', textDecoration: 'underline' }}>security@nouchix.com</a>
         </div>
       </footer>
     </div>

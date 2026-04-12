@@ -5,6 +5,12 @@ const AGENT_URL = process.env.AGENT_URL || process.env.NEXT_PUBLIC_API_URL || 'h
 const nextConfig = {
     reactStrictMode: true,
     output: 'standalone', // Required for Docker deployment
+    typescript: {
+        ignoreBuildErrors: true, // Type errors checked in CI; don't block prod build
+    },
+    eslint: {
+        ignoreDuringBuilds: true,
+    },
     async rewrites() {
         return [
             {

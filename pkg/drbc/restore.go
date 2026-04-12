@@ -20,11 +20,12 @@ import (
 func RestoreGenesis(password string, targetDir string) error {
 	// 1. Unlock Identity
 	fmt.Println(" [PHOENIX] Verifying Identity for Restoration...")
-	if _, err := os.Stat("master_seed.sealed"); os.IsNotExist(err) {
-		return errors.New("master_seed.sealed required for key derivation")
+	seedPath := kms.DefaultSeedPath()
+	if _, err := os.Stat(seedPath); os.IsNotExist(err) {
+		return fmt.Errorf("%s not found. Run 'asaf kms init' first", seedPath)
 	}
 
-	seed, err := kms.LoadMasterSeed("master_seed.sealed", password)
+	seed, err := kms.LoadMasterSeed(seedPath, password)
 	if err != nil {
 		return fmt.Errorf("identity verification failed: %v", err)
 	}

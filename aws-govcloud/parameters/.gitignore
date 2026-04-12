@@ -1,0 +1,11 @@
+# Local parameter variants
+*.local.json
+*.local.yml
+*.local.yaml
+*.private.json
+*.private.yml
+*.private.yaml
+
+# Dotenv-style files
+.env
+.env.*
