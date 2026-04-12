@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AssetNetworkVisualization } from '@/components/AssetNetworkVisualization';
+
 import { TRL10DiscoveryConsole } from './TRL10DiscoveryConsole';
 import { ServiceMapper } from './ServiceMapper';
 import useRealTimeAssetDiscovery from '@/hooks/useRealTimeAssetDiscovery';
@@ -15,12 +16,11 @@ import {
   Search,
   Settings,
   Network,
-  Eye,
   Plus,
   RefreshCw,
   AlertTriangle,
   CheckCircle,
-  Clock,
+
   Server,
   Terminal
 } from 'lucide-react';
@@ -31,25 +31,20 @@ interface EnhancedSTIGConnectorProps {
 
 export const EnhancedSTIGConnector: React.FC<EnhancedSTIGConnectorProps> = ({ organizationId }) => {
   const {
-    discoveredAssets,
-    networkInfo,
     isScanning,
-    lastScanTime,
-    nodes,
-    edges,
     discoverLocalAssets,
-    protectAsset,
-    scanAsset
   } = useRealTimeAssetDiscovery();
 
-  const [discoveryJobs, setDiscoveryJobs] = useState<any[]>([]);
+  const [, setDiscoveryJobs] = useState<any[]>([]);
   const [discoveredAssetsDB, setDiscoveredAssetsDB] = useState<any[]>([]);
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [newTarget, setNewTarget] = useState('');
-  const [selectedCredentials, setSelectedCredentials] = useState<string[]>([]);
+
   const [targets, setTargets] = useState<string[]>([]);
-  const [showConsole, setShowConsole] = useState(true);
+  const [showConsole] = useState(true);
   const [statistics, setStatistics] = useState<any>(null);
+
+  const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
     if (organizationId) {
@@ -58,6 +53,17 @@ export const EnhancedSTIGConnector: React.FC<EnhancedSTIGConnectorProps> = ({ or
       fetchStatistics();
     }
   }, [organizationId]);
+
+  useEffect(() => {
+    if (searchParams.get('runScan') === 'true' && !isScanning) {
+      toast.info('Initiating scan from global dashboard...');
+      discoverLocalAssets();
+      // Remove the param so it doesn't re-trigger on refresh
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('runScan');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, isScanning, discoverLocalAssets, setSearchParams]);
 
   const fetchDiscoveryJobs = async () => {
     try {
@@ -109,7 +115,7 @@ export const EnhancedSTIGConnector: React.FC<EnhancedSTIGConnectorProps> = ({ or
           const status = asset.compliance_status as any;
           return sum + (status?.total_stigs || 0);
         }, 0);
-        
+
         const riskDistribution = assets.reduce((dist, asset) => {
           const risk = asset.risk_score || 0;
           if (risk >= 90) dist.critical++;
@@ -138,13 +144,13 @@ export const EnhancedSTIGConnector: React.FC<EnhancedSTIGConnectorProps> = ({ or
       toast.error('Please enter a target IP or hostname');
       return;
     }
-    
-    if (!targets.includes(newTarget)) {
+
+    if (targets.includes(newTarget)) {
+      toast.error('Target already added');
+    } else {
       setTargets([...targets, newTarget]);
       setNewTarget('');
       toast.success('Target added to scan list');
-    } else {
-      toast.error('Target already added');
     }
   };
 
@@ -160,7 +166,7 @@ export const EnhancedSTIGConnector: React.FC<EnhancedSTIGConnectorProps> = ({ or
 
     setIsDiscovering(true);
     try {
-      const { data, error } = await supabase.functions.invoke('enhanced-asset-discovery', {
+      const { error } = await supabase.functions.invoke('enhanced-asset-discovery', {
         body: {
           action: 'start_discovery',
           organization_id: organizationId,
@@ -178,7 +184,7 @@ export const EnhancedSTIGConnector: React.FC<EnhancedSTIGConnectorProps> = ({ or
       await fetchDiscoveryJobs();
       await fetchAssets();
       await fetchStatistics();
-      
+
     } catch (error) {
       console.error('Discovery error:', error);
       toast.error('Failed to start discovery');
@@ -292,9 +298,9 @@ export const EnhancedSTIGConnector: React.FC<EnhancedSTIGConnectorProps> = ({ or
                         value={newTarget}
                         onChange={(e) => setNewTarget(e.target.value)}
                         className="flex-1"
-                        onKeyPress={(e) => e.key === 'Enter' && addTarget()}
+                        onKeyDown={(e) => e.key === 'Enter' && addTarget()}
                       />
-                      <Button 
+                      <Button
                         onClick={addTarget}
                         variant="outline"
                         className="min-w-[100px]"
@@ -309,9 +315,9 @@ export const EnhancedSTIGConnector: React.FC<EnhancedSTIGConnectorProps> = ({ or
                         <h4 className="text-sm font-medium text-slate-400">Scan Targets ({targets.length})</h4>
                         <div className="flex flex-wrap gap-2">
                           {targets.map((target) => (
-                            <Badge 
-                              key={target} 
-                              variant="outline" 
+                            <Badge
+                              key={target}
+                              variant="outline"
                               className="flex items-center gap-1"
                             >
                               {target}
@@ -329,7 +335,7 @@ export const EnhancedSTIGConnector: React.FC<EnhancedSTIGConnectorProps> = ({ or
                       </div>
                     )}
 
-                    <Button 
+                    <Button
                       onClick={startDiscovery}
                       disabled={isDiscovering || targets.length === 0}
                       className="w-full"
@@ -407,19 +413,19 @@ export const EnhancedSTIGConnector: React.FC<EnhancedSTIGConnectorProps> = ({ or
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-300">Security Clearance Level</label>
+                        <label htmlFor="clearance-level" className="text-sm font-medium text-slate-300">Security Clearance Level</label>
                         <Badge variant="outline" className="bg-green-500/20 text-green-400 border-green-500/30">
                           TOP SECRET
                         </Badge>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-300">TRL Compliance</label>
+                        <label htmlFor="trl-compliance" className="text-sm font-medium text-slate-300">TRL Compliance</label>
                         <Badge variant="outline" className="bg-blue-500/20 text-blue-400 border-blue-500/30">
                           TRL-10 OPERATIONAL
                         </Badge>
                       </div>
                     </div>
-                    
+
                     <div className="pt-4 border-t border-slate-700">
                       <h4 className="text-sm font-medium text-slate-300 mb-2">Discovery Engines Status</h4>
                       <div className="grid grid-cols-2 gap-4">

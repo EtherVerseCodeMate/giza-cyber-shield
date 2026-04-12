@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Shield, Brain, Zap, Eye, User, Database, FileText } from "lucide-react";
+import { Activity, Shield, Brain, Eye, User, Database, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { formatDistanceToNow } from "date-fns";
@@ -99,7 +99,7 @@ export const ActivityFeed = () => {
         case 'document_access':
           return `Document accessed: ${resourceType || 'Unknown'}`;
         default:
-          return `${action.replace('_', ' ')} - ${resourceType || 'System'}`;
+          return `${action.replaceAll('_', ' ')} - ${resourceType || 'System'}`;
       }
     };
 
@@ -145,13 +145,17 @@ export const ActivityFeed = () => {
             return (
               <div key={activity.id} className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg border border-border/50 hover:bg-muted/70 transition-colors">
                 <div className={`w-2 h-2 rounded-full ${
-                  activity.type === 'security' ? 'bg-red-500' :
-                  activity.type === 'investigation' ? 'bg-yellow-500' :
-                  activity.type === 'auth' ? 'bg-blue-500' :
-                  activity.type === 'data' ? 'bg-cyan-500' :
-                  activity.type === 'ai' ? 'bg-purple-500' :
-                  activity.type === 'document' ? 'bg-green-500' :
-                  'bg-gray-500'
+                  (() => {
+                    const typeColorMap: Record<string, string> = {
+                      'security': 'bg-red-500',
+                      'investigation': 'bg-yellow-500',
+                      'auth': 'bg-blue-500',
+                      'data': 'bg-cyan-500',
+                      'ai': 'bg-purple-500',
+                      'document': 'bg-green-500'
+                    };
+                    return typeColorMap[activity.type] || 'bg-gray-500';
+                  })()
                 }`} />
                 <IconComponent className={`h-4 w-4 ${activity.color}`} />
                 <div className="flex-1">

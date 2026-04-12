@@ -277,8 +277,8 @@ function getOSByFingerprint(ip: string, services: any[]): string {
 }
 
 function calculateRiskLevel(ports: number[], services: any[]) {
-  const highRiskPorts = [23, 1433, 3306, 3389]; // Telnet, SQL Server, MySQL, RDP
-  const hasHighRiskPort = ports.some(port => highRiskPorts.includes(port));
+  const highRiskPorts = new Set([23, 1433, 3306, 3389]); // Telnet, SQL Server, MySQL, RDP
+  const hasHighRiskPort = ports.some(port => highRiskPorts.has(port));
 
   if (hasHighRiskPort) return 'HIGH';
   if (ports.length > 5) return 'MEDIUM';
@@ -323,7 +323,7 @@ async function performSTIGFingerprinting(target: string): Promise<DiscoveredAsse
   // Generate deterministic IP based on target hash
   let ipHash = 0;
   for (let i = 0; i < target.length; i++) {
-    ipHash = ((ipHash << 5) - ipHash) + target.charCodeAt(i);
+    ipHash = ((ipHash << 5) - ipHash) + (target.codePointAt(i) || 0);
     ipHash = ipHash & ipHash;
   }
   const octet3 = Math.abs(ipHash % 255);

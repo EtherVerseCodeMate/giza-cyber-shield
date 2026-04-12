@@ -1,16 +1,13 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Shield, 
-  AlertTriangle, 
-  CheckCircle, 
-  Clock, 
-  TrendingUp, 
+import {
+  Shield,
+  AlertTriangle,
+  CheckCircle,
+  TrendingUp,
   FileText,
-  Play,
   Settings,
   Eye,
   Wrench,
@@ -52,14 +49,15 @@ const ComplianceScoreCard: React.FC<ComplianceScoreCardProps> = ({
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
             <div className="flex items-center gap-2">
               <p className="text-2xl font-bold text-gray-400">{value}</p>
-              {trend !== undefined && (
-                <div className={`flex items-center gap-1 text-sm ${
-                  trend > 0 ? 'text-green-600' : trend < 0 ? 'text-red-600' : 'text-gray-600'
-                }`}>
-                  <TrendingUp className="h-3 w-3" />
-                  <span>{Math.abs(trend)}%</span>
-                </div>
-              )}
+              {trend !== undefined && (() => {
+                const trendColor = trend > 0 ? 'text-green-600' : trend < 0 ? 'text-red-600' : 'text-gray-600';
+                return (
+                  <div className={`flex items-center gap-1 text-sm ${trendColor}`}>
+                    <TrendingUp className="h-3 w-3" />
+                    <span>{Math.abs(trend)}%</span>
+                  </div>
+                );
+              })()}
             </div>
           </div>
           <Icon className="h-8 w-8 opacity-30" />
@@ -71,12 +69,13 @@ const ComplianceScoreCard: React.FC<ComplianceScoreCardProps> = ({
 
 export const STIGFirstComplianceDashboard: React.FC = () => {
   const { currentOrganization } = useOrganization();
+  const organizationId = currentOrganization?.organization_id || '';
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
   const [showDataSourcesWizard, setShowDataSourcesWizard] = useState(false);
 
   const handleConnectDataSources = async () => {
-    if (!currentOrganization?.id) {
+    if (!organizationId) {
       toast({
         title: "Organization Required",
         description: "Please select an organization to connect data sources.",
@@ -84,12 +83,12 @@ export const STIGFirstComplianceDashboard: React.FC = () => {
       });
       return;
     }
-    
+
     setShowDataSourcesWizard(true);
   };
 
   const handleLoadSTIGRules = async () => {
-    if (!currentOrganization?.id) {
+    if (!organizationId) {
       toast({
         title: "Organization Required",
         description: "Please select an organization to load STIG rules.",
@@ -107,7 +106,7 @@ export const STIGFirstComplianceDashboard: React.FC = () => {
       // TODO: Replace with actual OpenControls API integration
       // const openControlsAPI = new OpenControlsService();
       // const stigRules = await openControlsAPI.fetchSTIGRules(['windows-server-2022', 'rhel-8', 'ubuntu-20.04']);
-      
+
       // Simulate STIG rule loading for now
       setTimeout(() => {
         toast({
@@ -116,8 +115,9 @@ export const STIGFirstComplianceDashboard: React.FC = () => {
         });
       }, 3000);
     } catch (error) {
+      console.error('Failed to load STIG rules:', error);
       toast({
-        title: "Rule Loading Failed", 
+        title: "Rule Loading Failed",
         description: "Failed to fetch STIG rules from OpenControls API. Please verify API connectivity.",
         variant: "destructive"
       });
@@ -147,18 +147,6 @@ export const STIGFirstComplianceDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 p-6">
-      {/* Critical Warning Banner */}
-      <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4">
-        <div className="flex items-center space-x-3">
-          <AlertTriangle className="h-6 w-6 text-red-400" />
-          <div>
-            <h3 className="font-bold text-red-400 text-lg">⚠️ DEMO MODE - NO REAL DATA CONNECTED</h3>
-            <p className="text-sm text-red-300">
-              This dashboard shows mock data only. Connect your infrastructure and security tools to begin real STIG compliance monitoring.
-            </p>
-          </div>
-        </div>
-      </div>
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -195,7 +183,7 @@ export const STIGFirstComplianceDashboard: React.FC = () => {
           color="gray"
         />
         <ComplianceScoreCard
-          title="Assets Scanned" 
+          title="Assets Scanned"
           value="0"
           icon={CheckCircle}
           color="gray"

@@ -49,7 +49,11 @@ func (aw *AnubisWeigher) WeighHeart(isfet Isfet) []HeartOption {
 		})
 
 	case SeveritySevere:
-		// Strong action needed
+		// Strong action needed.
+		// Banish (IP block via Crowdsec) is cheap and reversible — low burden.
+		// Purify (package install, service enable, kernel change) is expensive
+		// and potentially disruptive — burden 0.6 prevents autonomous execution
+		// on all deployment targets. Human approval required before purification.
 		options = append(options, HeartOption{
 			Action:            ActionBanish,
 			OperationalBurden: 0.3,
@@ -58,16 +62,19 @@ func (aw *AnubisWeigher) WeighHeart(isfet Isfet) []HeartOption {
 		})
 		options = append(options, HeartOption{
 			Action:            ActionPurify,
-			OperationalBurden: 0.2,
+			OperationalBurden: 0.6,
 			RestorationPower:  0.7,
 			Certainty:         0.7,
 		})
 
 	case SeverityModerate:
-		// Remediation preferred
+		// Remediation preferred but not autonomous — system-level changes
+		// (package installs, sysctl, service enables) risk breaking production
+		// regardless of deployment mode. Burden 0.5 keeps them in the queue
+		// for human review while Observe runs autonomously as a safe fallback.
 		options = append(options, HeartOption{
 			Action:            ActionPurify,
-			OperationalBurden: 0.1,
+			OperationalBurden: 0.5,
 			RestorationPower:  0.8,
 			Certainty:         0.75,
 		})
@@ -79,7 +86,7 @@ func (aw *AnubisWeigher) WeighHeart(isfet Isfet) []HeartOption {
 		})
 
 	case SeverityMinor:
-		// Monitor or light remediation
+		// Monitor autonomously; light remediation queued for human review.
 		options = append(options, HeartOption{
 			Action:            ActionObserve,
 			OperationalBurden: 0.0,
@@ -88,7 +95,7 @@ func (aw *AnubisWeigher) WeighHeart(isfet Isfet) []HeartOption {
 		})
 		options = append(options, HeartOption{
 			Action:            ActionPurify,
-			OperationalBurden: 0.05,
+			OperationalBurden: 0.45,
 			RestorationPower:  0.6,
 			Certainty:         0.8,
 		})

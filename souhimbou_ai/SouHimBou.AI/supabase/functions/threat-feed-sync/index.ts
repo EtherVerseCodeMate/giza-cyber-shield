@@ -215,58 +215,66 @@ async function syncThreatFeed(feed: ThreatFeedConfig) {
   }
 }
 
-async function parseFeedData(data: any, feed: ThreatFeedConfig): Promise<ThreatIndicator[]> {
+async function parseAlienVault(data: any, feed: ThreatFeedConfig): Promise<ThreatIndicator[]> {
   const indicators: ThreatIndicator[] = [];
+  if (data.results) {
+    for (const item of data.results) {
+      indicators.push({
+        source: feed.source,
+        indicator_type: item.type || 'Unknown',
+        indicator_value: item.indicator,
+        threat_level: mapThreatLevel(item.type, item.false_positive),
+        description: item.description,
+        confidence: item.confidence || 50
+      });
+    }
+  }
+  return indicators;
+}
 
-  // Parse different feed formats
+async function parseAbuseIPDB(data: any, feed: ThreatFeedConfig): Promise<ThreatIndicator[]> {
+  const indicators: ThreatIndicator[] = [];
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      indicators.push({
+        source: feed.source,
+        indicator_type: 'IP',
+        indicator_value: item.ipAddress,
+        threat_level: item.abuseConfidencePercentage > 75 ? 'HIGH' : 'MEDIUM',
+        description: `AbuseIPDB confidence: ${item.abuseConfidencePercentage}%`,
+        confidence: item.abuseConfidencePercentage
+      });
+    }
+  }
+  return indicators;
+}
+
+async function parseGeneric(data: any, feed: ThreatFeedConfig): Promise<ThreatIndicator[]> {
+  const indicators: ThreatIndicator[] = [];
+  console.log(`No specific parser for ${feed.source}, using generic parser`);
+  if (Array.isArray(data)) {
+    for (const item of data.slice(0, 10)) {
+      indicators.push({
+        source: feed.source,
+        indicator_type: 'Generic',
+        indicator_value: String(item.value || item.indicator || item.ip || 'unknown'),
+        threat_level: 'MEDIUM',
+        description: `Generic indicator from ${feed.source}`
+      });
+    }
+  }
+  return indicators;
+}
+
+async function parseFeedData(data: any, feed: ThreatFeedConfig): Promise<ThreatIndicator[]> {
   switch (feed.source) {
     case 'AlienVault OTX':
-      if (data.results) {
-        for (const item of data.results) {
-          indicators.push({
-            source: feed.source,
-            indicator_type: item.type || 'Unknown',
-            indicator_value: item.indicator,
-            threat_level: mapThreatLevel(item.type, item.false_positive),
-            description: item.description,
-            confidence: item.confidence || 50
-          });
-        }
-      }
-      break;
-
+      return parseAlienVault(data, feed);
     case 'AbuseIPDB':
-      if (Array.isArray(data)) {
-        for (const item of data) {
-          indicators.push({
-            source: feed.source,
-            indicator_type: 'IP',
-            indicator_value: item.ipAddress,
-            threat_level: item.abuseConfidencePercentage > 75 ? 'HIGH' : 'MEDIUM',
-            description: `AbuseIPDB confidence: ${item.abuseConfidencePercentage}%`,
-            confidence: item.abuseConfidencePercentage
-          });
-        }
-      }
-      break;
-
+      return parseAbuseIPDB(data, feed);
     default:
-      console.log(`No specific parser for ${feed.source}, using generic parser`);
-      // Generic parser for unknown sources
-      if (Array.isArray(data)) {
-        for (const item of data.slice(0, 10)) { // Limit to prevent overflow
-          indicators.push({
-            source: feed.source,
-            indicator_type: 'Generic',
-            indicator_value: String(item.value || item.indicator || item.ip || 'unknown'),
-            threat_level: 'MEDIUM',
-            description: `Generic indicator from ${feed.source}`
-          });
-        }
-      }
+      return parseGeneric(data, feed);
   }
-
-  return indicators;
 }
 
 function mapThreatLevel(type: string, false_positive?: boolean): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
@@ -342,8 +350,6 @@ async function processIndicators() {
 
   // Simple correlation logic
   const correlations = [];
-  const ipIndicators = recentIndicators.filter(i => i.indicator_type === 'IP');
-  const domainIndicators = recentIndicators.filter(i => i.indicator_type === 'Domain');
 
   // Generate security events for high-confidence threats
   for (const indicator of recentIndicators) {

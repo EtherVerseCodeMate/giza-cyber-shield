@@ -20,14 +20,10 @@ import {
   Upload,
   QrCode,
   Lock,
-  Unlock,
   Hash,
   Eye,
   EyeOff,
-  Fingerprint,
-  Calendar,
-  User,
-  Building
+  Fingerprint
 } from 'lucide-react';
 
 interface AttestationRecord {
@@ -87,17 +83,18 @@ export const AttestationEngine: React.FC = () => {
   const [selectedAttestation, setSelectedAttestation] = useState<AttestationRecord | null>(null);
   const [isGeneratingPackage, setIsGeneratingPackage] = useState(false);
   const [showSignatureDetails, setShowSignatureDetails] = useState(false);
-  const [adinkraEngine] = useState(new AdinkraAlgebraicEngine());
   const { toast } = useToast();
+
+  const refreshAttestations = () => {
+    setAttestations(prev => prev.map(att => ({
+      ...att,
+      trustScore: att.trustScore // Trust score is static until re-attested; real updates require re-running attestation
+    })));
+  };
 
   useEffect(() => {
     // Simulate real-time attestation updates
-    const interval = setInterval(() => {
-      setAttestations(prev => prev.map(att => ({
-        ...att,
-        trustScore: att.trustScore // Trust score is static until re-attested; real updates require re-running attestation
-      })));
-    }, 30000);
+    const interval = setInterval(refreshAttestations, 30000);
 
     return () => clearInterval(interval);
   }, []);
@@ -131,15 +128,15 @@ export const AttestationEngine: React.FC = () => {
         attestedBy: 'ai-agent@company.com',
         attestedAt: new Date(),
         validUntil: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90),
-        evidenceHash: data?.evidenceHash || `sha256:${crypto.randomUUID().replace(/-/g, '')}`,
-        signature: data?.signature || `khepra:sig:${crypto.randomUUID().replace(/-/g, '')}`,
+        evidenceHash: data?.evidenceHash || `sha256:${crypto.randomUUID().replaceAll('-', '')}`,
+        signature: data?.signature || `khepra:sig:${crypto.randomUUID().replaceAll('-', '')}`,
         culturalFingerprint: fingerprint,
         trustScore: data?.trustScore || 0, // Real trust score comes from attestation service
         metadata: {
           evidenceCount: data?.evidenceCount || 0, // Real count from evidence collection
           testResults: data?.testResults || 0, // Real results from test execution
           remediationActions: data?.remediationActions || 0, // Real count from remediation engine
-          riskLevel: (data?.riskLevel || 'low') as any
+          riskLevel: (data?.riskLevel ?? 'low') as 'low' | 'medium' | 'high' | 'critical'
         }
       };
 
@@ -175,8 +172,8 @@ export const AttestationEngine: React.FC = () => {
         attestations: frameworkAttestations.map(att => att.id),
         totalControls: frameworkAttestations.length,
         compliantControls: compliantCount,
-        packageHash: `sha256:package:${crypto.randomUUID().replace(/-/g, '')}`,
-        downloadUrl: `/downloads/${framework.toLowerCase().replace(' ', '-')}-${Date.now()}.zip`,
+        packageHash: `sha256:package:${crypto.randomUUID().replaceAll('-', '')}`,
+        downloadUrl: `/downloads/${framework.toLowerCase().replaceAll(' ', '-')}-${Date.now()}.zip`,
         expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90)
       };
 
@@ -680,12 +677,12 @@ export const AttestationEngine: React.FC = () => {
                 </Alert>
 
                 <div className="space-y-3">
-                  {[...Array(5)].map((_, index) => {
+                  {Array.from({ length: 5 }).map((_, index) => {
                     const timestamp = new Date(Date.now() - index * 1000 * 60 * 60 * 6);
                     const blockId = `block-${5 - index}`;
 
                     return (
-                      <div key={index} className="border rounded-lg p-4">
+                      <div key={blockId} className="border rounded-lg p-4">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
                             <Lock className="h-4 w-4 text-blue-500" />

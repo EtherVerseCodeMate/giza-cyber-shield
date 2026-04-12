@@ -210,7 +210,7 @@ const InteractiveDemoVideo = () => {
                                 key={actionIndex}
                                 className="text-xs bg-purple-600/30 text-purple-300 px-2 py-1 rounded border border-purple-500/30"
                               >
-                                {action.replace('_', ' ')}
+                                {action.replaceAll('_', ' ')}
                               </span>
                             ))}
                           </div>
@@ -246,7 +246,7 @@ const InteractiveDemoVideo = () => {
                             key={action}
                             className="text-xs bg-purple-600/30 text-purple-300 px-2 py-1 rounded border border-purple-500/30"
                           >
-                            {action.replace('_', ' ')}
+                            {action.replaceAll('_', ' ')}
                           </span>
                         ))}
                       </div>

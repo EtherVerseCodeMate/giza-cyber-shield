@@ -497,7 +497,7 @@ async function detectComplianceDrift(
   // Determine if drift occurred based on real data
   let detected = false;
   let driftType = 'configuration_change';
-  let currentCompliance = currentFindings.status;
+  const currentCompliance = currentFindings.status;
   let impact = 'MEDIUM';
 
   // Check for status change from compliant to non-compliant

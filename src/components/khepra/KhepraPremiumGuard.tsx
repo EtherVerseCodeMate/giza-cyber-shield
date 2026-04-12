@@ -1,129 +1,120 @@
-import { type ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Lock, Shield, Crown, Zap } from 'lucide-react';
-import { useSubscription } from '@/hooks/useSubscription';
-import { useTrialStatus } from '@/hooks/useTrialStatus';
+import { Lock, Shield, Crown, AlertCircle } from 'lucide-react';
+import { useKhepraAPI } from '@/hooks/useKhepraAPI';
 
 interface KhepraPremiumGuardProps {
   children: React.ReactNode;
   feature?: string;
+  requiredTier?: 'khepri' | 'ra' | 'atum' | 'osiris';
+  deploymentUrl: string;
+  apiKey: string;
 }
 
-export const KhepraPremiumGuard: React.FC<KhepraPremiumGuardProps> = ({ 
-  children, 
-  feature = 'khepra-protocol' 
+export const KhepraPremiumGuard: React.FC<KhepraPremiumGuardProps> = ({
+  children,
+  feature = 'khepra-protocol',
+  requiredTier = 'ra',
+  deploymentUrl,
+  apiKey
 }) => {
-  const { subscribed, subscription_tier, createCheckout } = useSubscription();
-  const { canAccessFeature } = useTrialStatus();
+  const { license } = useKhepraAPI(deploymentUrl, apiKey);
 
-  // KHEPRA requires Standard+ licensing (not available in trial)
-  const hasAccess = subscribed && (
-    subscription_tier === 'Standard' || 
-    subscription_tier === 'Premium'
-  );
+  const data = license.data;
+  const isLoading = license.isLoading;
+  const isError = license.isError;
+
+  // Tier Hierarchy (weights)
+  const tierWeights: Record<string, number> = {
+    'community': 0,
+    'khepri': 1,
+    'ra': 2,
+    'atum': 3,
+    'osiris': 4
+  };
+
+  const currentTier = data?.tier || 'community';
+  const hasAccess = data?.is_valid && (tierWeights[currentTier] >= tierWeights[requiredTier]);
+
+  if (isLoading) {
+    return (
+      <div className="p-8 text-center animate-pulse">
+        <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
+        <p className="text-muted-foreground">Validating Khepra Authorization...</p>
+      </div>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <Card className="border-red-200 bg-red-50/50">
+        <CardContent className="p-6 flex items-center gap-4">
+          <AlertCircle className="h-8 w-8 text-red-600" />
+          <div>
+            <h4 className="font-bold text-red-900">Connection Failed</h4>
+            <p className="text-sm text-red-700">Unable to verify license status with the Khepra deployment.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (hasAccess) {
     return <>{children}</>;
   }
 
-  const handleUpgrade = async () => {
-    try {
-      await createCheckout('standard');
-    } catch (error) {
-      console.error('Failed to create checkout:', error);
-    }
+  const handleUpgrade = () => {
+    // Redirect to billing or show enrollment dialog
+    globalThis.location.href = `https://souhimbou.ai/billing?tier=${requiredTier}`;
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      <div className="container mx-auto px-4 py-16">
-        <div className="max-w-4xl mx-auto text-center space-y-8">
+    <div className="py-12 bg-gradient-to-br from-background via-background to-muted/20 rounded-xl border border-border shadow-soft">
+      <div className="container mx-auto px-4">
+        <div className="max-w-2xl mx-auto text-center space-y-8">
           {/* Header */}
           <div className="space-y-4">
             <div className="flex items-center justify-center space-x-3">
-              <Shield className="h-12 w-12 text-primary" />
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                KHEPRA Protocol
-              </h1>
-              <Badge variant="outline" className="text-xs font-semibold">
-                Patent Pending
-              </Badge>
+              <Shield className="h-10 w-10 text-primary" />
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                Tier Restricted: {requiredTier.toUpperCase()}
+              </h2>
             </div>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Afrofuturist Cryptographic Framework for Agentic AI Security
+            <p className="text-muted-foreground">
+              Feature: <span className="font-mono text-foreground">{feature}</span> requires {requiredTier} tier clearance.
             </p>
           </div>
 
-          {/* Premium Lock Card */}
-          <Card className="border-primary/20 bg-card/50 backdrop-blur-sm shadow-2xl">
-            <CardHeader className="pb-8">
-              <div className="flex items-center justify-center mb-4">
-                <div className="p-4 rounded-full bg-primary/10 border border-primary/20">
-                  <Lock className="h-8 w-8 text-primary" />
+          {/* Locked Card */}
+          <Card className="border-primary/20 bg-card/50 backdrop-blur-sm shadow-xl">
+            <CardHeader>
+              <div className="flex items-center justify-center mb-2">
+                <div className="p-3 rounded-full bg-primary/10 border border-primary/20">
+                  <Lock className="h-6 w-6 text-primary" />
                 </div>
               </div>
-            <CardTitle className="text-2xl flex items-center justify-center space-x-2">
-                <Crown className="h-6 w-6 text-amber-500" />
-                <span>Advanced Feature</span>
-              </CardTitle>
+              <CardTitle className="text-xl">Authorization Required</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-8">
-              <div className="space-y-4">
-                <p className="text-muted-foreground">
-                  The KHEPRA Protocol is our cutting-edge, patent-pending technology that provides:
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div className="flex items-center space-x-2">
-                    <Zap className="h-4 w-4 text-primary" />
-                    <span>Adinkra Algebraic Encoding</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Zap className="h-4 w-4 text-primary" />
-                    <span>Cultural Threat Intelligence</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Zap className="h-4 w-4 text-primary" />
-                    <span>Quantum-Resilient Security</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Zap className="h-4 w-4 text-primary" />
-                    <span>Trusted Agent Registry</span>
-                  </div>
-                </div>
-              </div>
+            <CardContent className="space-y-6">
+              <p className="text-sm text-muted-foreground">
+                The current license ({currentTier}) does not have sufficient deity authority for this operation.
+                Upgrade to the {requiredTier} (Solar Ascendant) tier to unlock full PQC and STIG-NIST capabilities.
+              </p>
 
-              <div className="border-t border-border pt-6">
-                <p className="text-sm text-muted-foreground mb-6">
-                  Upgrade to Standard to unlock access to this revolutionary cybersecurity framework.
-                </p>
-                <Button 
-                  onClick={handleUpgrade}
-                  size="lg"
-                  className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
-                >
-                  <Crown className="h-5 w-5 mr-2" />
-                  Upgrade to Standard
-                </Button>
-              </div>
+              <Button
+                onClick={handleUpgrade}
+                size="lg"
+                className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+              >
+                <Crown className="h-5 w-5 mr-2" />
+                Unlock {requiredTier.toUpperCase()} Capabilities
+              </Button>
 
-              <div className="text-xs text-muted-foreground/70 border-t border-border pt-4">
-                <p>
-                  <strong>Legal Notice:</strong> KHEPRA Protocol technology is patent-pending intellectual property. 
-                  Access is restricted to licensed Premium subscribers during the patent filing process.
-                </p>
-              </div>
+              <p className="text-xs text-muted-foreground/70">
+                Machine ID: {data.machine_id} | Mode: Premium Hardened
+              </p>
             </CardContent>
           </Card>
-
-          {/* Current Status */}
-          <div className="text-sm text-muted-foreground space-y-1">
-            <p>Current Plan: {subscription_tier || 'Free'}</p>
-            {subscribed && (
-              <p>Status: {hasAccess ? 'Access Granted' : 'Upgrade Required'}</p>
-            )}
-          </div>
         </div>
       </div>
     </div>

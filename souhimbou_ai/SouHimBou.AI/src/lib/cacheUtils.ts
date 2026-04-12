@@ -69,8 +69,8 @@ export const preventBrowserCache = (): void => {
   if (process.env.NODE_ENV !== 'development') return;
   
   // Override fetch to add cache busting
-  const originalFetch = window.fetch;
-  window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
     if (typeof input === 'string' && !input.includes('?v=')) {
       input = `${input}?v=${Date.now()}`;
     } else if (input instanceof Request && !input.url.includes('?v=')) {

@@ -319,7 +319,7 @@ export const STIGConnectorDashboard: React.FC<STIGConnectorDashboardProps> = ({ 
                         {asset.hostname || asset.asset_identifier}
                       </CardTitle>
                       <Badge variant="outline" className="capitalize">
-                        {asset.asset_type.replace('_', ' ')}
+                        {asset.asset_type.replaceAll('_', ' ')}
                       </Badge>
                     </div>
                     <CardDescription className="text-sm">
@@ -383,7 +383,7 @@ export const STIGConnectorDashboard: React.FC<STIGConnectorDashboardProps> = ({ 
                       <div>
                         <CardTitle className="text-base">{job.job_name}</CardTitle>
                         <CardDescription>
-                          {job.discovery_type.replace('_', ' ')} • 
+                          {job.discovery_type.replaceAll('_', ' ')} • 
                           Created {new Date(job.created_at).toLocaleDateString()}
                         </CardDescription>
                       </div>
@@ -416,7 +416,7 @@ export const STIGConnectorDashboard: React.FC<STIGConnectorDashboardProps> = ({ 
                       <div>
                         <span className="text-muted-foreground">Type:</span>
                         <div className="font-medium capitalize">
-                          {job.discovery_type.replace('_', ' ')}
+                          {job.discovery_type.replaceAll('_', ' ')}
                         </div>
                       </div>
                       <div>

@@ -152,13 +152,12 @@ export const CMMCIntegrationDashboard: React.FC = () => {
       control_id: `AC.${Math.floor(i / 10) + 1}.${(i % 10) + 1}`,
       family: controlFamilies[i % controlFamilies.length],
       title: `Control ${i + 1} - ${controlFamilies[i % controlFamilies.length]}`,
-      // Deterministic assignments: cycle through levels/statuses/families by index
-      level: (i % 3) + 1,
-      implementation_status: (['not_implemented', 'planned', 'implemented', 'validated'] as const)[i % 4],
-      stig_mappings: mappings.slice(0, (i % 3) + 1).map(m => m.stig_rule_id),
-      nist_mapping: `SP 800-53 ${['AC', 'AU', 'CM', 'IA', 'IR'][i % 5]}-${i + 1}`,
-      evidence_count: i % 5,
-      last_assessed: new Date(Date.now() - (i % 30) * 24 * 60 * 60 * 1000).toISOString()
+      level: (i % 3) + 1, // Level determined by control index grouping
+      implementation_status: 'not_implemented' as any, // Real status requires cmmc_assessments query
+      stig_mappings: [], // Real mappings require stig_assessments join
+      nist_mapping: `SP 800-53 AC-${i + 1}`, // Real mapping requires controls database
+      evidence_count: 0, // Real count requires evidence collection query
+      last_assessed: new Date(0).toISOString() // Real date requires cmmc_assessments query
     }));
   };
 
@@ -347,7 +346,7 @@ export const CMMCIntegrationDashboard: React.FC = () => {
 
                 <div className="flex items-center justify-between">
                   <Badge variant={getStatusColor(level.certification_status) as any}>
-                    {level.certification_status.replace('_', ' ').toUpperCase()}
+                    {level.certification_status.replaceAll('_', ' ').toUpperCase()}
                   </Badge>
                   {level.expiration_date && (
                     <span className="text-xs text-muted-foreground">
@@ -430,7 +429,7 @@ export const CMMCIntegrationDashboard: React.FC = () => {
                           </Badge>
                           {getStatusIcon(control.implementation_status)}
                           <Badge variant={getStatusColor(control.implementation_status) as any}>
-                            {control.implementation_status.replace('_', ' ').toUpperCase()}
+                            {control.implementation_status.replaceAll('_', ' ').toUpperCase()}
                           </Badge>
                         </div>
                       </div>
@@ -510,7 +509,7 @@ export const CMMCIntegrationDashboard: React.FC = () => {
                         </Badge>
                         {getStatusIcon(req.compliance_status)}
                         <Badge variant={getStatusColor(req.compliance_status) as any}>
-                          {req.compliance_status.replace('_', ' ').toUpperCase()}
+                          {req.compliance_status.replaceAll('_', ' ').toUpperCase()}
                         </Badge>
                       </div>
                     </div>

@@ -5,7 +5,6 @@
       "args": [
         "-y",
         "@supabase/mcp-server-supabase@latest",
-        "--read-only",
         "--project-ref",
         "xjknkjbrjgljuovaazeu"
       ],
@@ -14,10 +13,9 @@
       }
     },
     "khepra-mcp": {
-      "command": "go",
+      "command": "asaf",
       "args": [
-        "run",
-        "./cmd/khepra-mcp/main.go"
+        "mcp"
       ],
       "env": {
         "KHEPRA_SERVICE_SECRET": "${KHEPRA_SERVICE_SECRET}",

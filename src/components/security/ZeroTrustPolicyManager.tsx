@@ -382,7 +382,7 @@ const ZeroTrustPolicyManager = () => {
                       min="0"
                       max="100"
                       value={newPolicy.risk_threshold}
-                      onChange={(e) => setNewPolicy(prev => ({ ...prev, risk_threshold: parseInt(e.target.value) }))}
+                      onChange={(e) => setNewPolicy(prev => ({ ...prev, risk_threshold: Number.parseInt(e.target.value) }))}
                     />
                   </div>
                   <div className="flex justify-end space-x-2">
@@ -430,7 +430,7 @@ const ZeroTrustPolicyManager = () => {
                         <div>
                           <h3 className="font-semibold">{policy.policy_name}</h3>
                           <p className="text-sm text-muted-foreground capitalize">
-                            {policy.policy_type.replace('_', ' ')} • Risk threshold: {policy.risk_threshold}%
+                            {policy.policy_type.replaceAll('_', ' ')} • Risk threshold: {policy.risk_threshold}%
                           </p>
                         </div>
                       </div>

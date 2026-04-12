@@ -19,6 +19,21 @@
 !pkg/
 !cmd/
 
+# Include Next.js dashboard source (for Dockerfile.dashboard)
+!package.json
+!package-lock.json
+!src/
+!public/
+!next.config.js
+!next.config.ts
+!next.config.mjs
+!tsconfig.json
+!postcss.config.js
+!postcss.config.mjs
+!tailwind.config.js
+!tailwind.config.ts
+!components.json
+
 # CRITICAL: Exclude large cached model files (12GB+)
 pkg/llm/ollama/blobs/
 pkg/llm/ollama/models/

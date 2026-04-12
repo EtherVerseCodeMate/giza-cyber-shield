@@ -1,6 +1,7 @@
 package sekhem
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/agi"
@@ -18,6 +19,10 @@ type DuatRealm struct {
 	Cycle    *ouroboros.Cycle
 	Eyes     []ouroboros.WedjatEye
 	Blades   []ouroboros.KhopeshBlade
+
+	// WAFShield is the Merkaba L7 perimeter guard. Initialized during Awaken().
+	// Exposed so apiserver.Server can pass it into WAFMiddleware.
+	WAFShield *WAFShield
 
 	// Service integrations
 	KASA      *agi.Engine
@@ -50,8 +55,20 @@ func NewDuatRealm(kasa *agi.Engine, dagStore dag.Store) *DuatRealm {
 func (dr *DuatRealm) Awaken() error {
 	log.Printf("[Duat] Awakening the foundational realm...")
 
+	// Initialize WAFShield (Merkaba L7 perimeter).
+	// Config is read from environment: CROWDSEC_LAPI_URL, CROWDSEC_BOUNCER_KEY.
+	waf, err := NewWAFShield(WAFShieldConfig{})
+	if err != nil {
+		return fmt.Errorf("duat: WAFShield init failed: %w", err)
+	}
+	dr.WAFShield = waf
+	log.Printf("[Duat] WAFShield online")
+
 	// Initialize Wedjat Eyes (sensors)
+	// WAFEye drains the WAFShield threat channel + tails Suricata EVE JSON.
+	wafEye := ouroboros.NewWAFEye(dr.WAFShield.ThreatChan(), "")
 	dr.Eyes = append(dr.Eyes,
+		wafEye,
 		ouroboros.NewSTIGEye(),
 		ouroboros.NewVulnEye(),
 		ouroboros.NewDriftEye(),
@@ -130,9 +147,18 @@ func (dr *DuatRealm) GetName() string {
 	return dr.name
 }
 
-// Stop halts the Ouroboros Cycle
+// Stop halts the Ouroboros Cycle and closes all resources.
 func (dr *DuatRealm) Stop() {
 	if dr.Cycle != nil {
 		dr.Cycle.Stop()
+	}
+	// Close WAFShield rotation goroutine and file handles on Eyes.
+	if dr.WAFShield != nil {
+		dr.WAFShield.Close()
+	}
+	for _, eye := range dr.Eyes {
+		if closer, ok := eye.(interface{ Close() }); ok {
+			closer.Close()
+		}
 	}
 }

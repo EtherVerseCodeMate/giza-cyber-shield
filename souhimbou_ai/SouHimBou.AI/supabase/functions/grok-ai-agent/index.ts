@@ -177,11 +177,17 @@ serve(async (req: Request) => {
 
     const { message, sessionId, organizationId, userId, context } = validation.sanitized!;
 
+    // Connector analysis mode: disables all autonomous execution.
+    // Set by mitochondrial-proxy when routing connector SDK requests.
+    const connectorAnalysisMode = context?.connector_analysis_mode === true;
+
     // Get security context for the organization
     const securityContext = await getSecurityContext(organizationId);
 
-    // Build enhanced system prompt with security context
-    const systemPrompt = buildSecuritySystemPrompt(securityContext);
+    // Build system prompt — connector mode omits autonomous execution language
+    const systemPrompt = connectorAnalysisMode
+      ? buildConnectorAnalysisPrompt(securityContext, context)
+      : buildSecuritySystemPrompt(securityContext);
 
     // Call GrokAI API
     const grokResponse = await fetch('https://api.x.ai/v1/chat/completions', {
@@ -228,21 +234,42 @@ serve(async (req: Request) => {
           message: agentResponse,
           response: agentResponse,
           message_type: 'agent',
-          context: { model: 'grok-4-0709', temperature: 0.3 },
+          context: { model: 'grok-4-0709', temperature: 0.3, connector_analysis_mode: connectorAnalysisMode },
         }
       ]);
 
     // Analyze response for actionable security recommendations
-    const actionableItems = await analyzeForActions(agentResponse, securityContext);
+    const allActionableItems = await analyzeForActions(agentResponse, securityContext);
+
+    // In connector analysis mode: return only items that require human approval.
+    // Never auto-execute — execution decisions belong to the operator.
+    if (connectorAnalysisMode) {
+      const approvalItems = allActionableItems.filter(item => item.requiresApproval === true);
+      return new Response(
+        JSON.stringify({
+          response: agentResponse,
+          sessionId,
+          actionableItems: approvalItems,
+          executionResults: [],   // no autonomous execution in connector mode
+          connectorAnalysisMode: true,
+          securityContext: {
+            alertsCount: securityContext.recentAlerts.length,
+            threatsCount: securityContext.threatIntelligence.length,
+            complianceScore: calculateComplianceScore(securityContext.complianceStatus)
+          }
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Execute autonomous actions that are safe to auto-execute
-    const executionResults = await executeAutonomousActions(actionableItems, organizationId);
+    const executionResults = await executeAutonomousActions(allActionableItems, organizationId);
 
     return new Response(
       JSON.stringify({
         response: agentResponse,
         sessionId,
-        actionableItems,
+        actionableItems: allActionableItems,
         executionResults,
         securityContext: {
           alertsCount: securityContext.recentAlerts.length,
@@ -391,6 +418,53 @@ EXECUTION EXAMPLES:
 - "Investigate suspicious domain malicious.example.com" → Auto-generates threat intel queries
 
 Remember: You now have AUTONOMOUS EXECUTION CAPABILITIES. Your recommendations will be directly implemented in live environments when safe to do so. Always provide specific, actionable instructions that can be automatically converted to production-ready scripts.`;
+}
+
+/**
+ * Connector analysis prompt — read-only advisory mode.
+ * Used when connector_analysis_mode === true (called via mitochondrial-proxy).
+ * Deliberately omits autonomous execution language to prevent shouldAutoExecute()
+ * from triggering live iptables/nmap commands on connector test failures.
+ */
+function buildConnectorAnalysisPrompt(securityContext: SecurityContext, requestContext: any): string {
+  const provider = requestContext?.connector_provider || 'an external API connector';
+  const failureContext = requestContext?.failure_context || '';
+  const connectorType = requestContext?.connector_type || 'compliance';
+
+  const activeAlertsSummary = securityContext.recentAlerts.length > 0
+    ? 'Active alerts: ' + securityContext.recentAlerts.map((a: any) => `[${a.severity}] ${a.title}`).join(', ')
+    : 'No active alerts';
+
+  return `You are ARGUS, an AI Security Advisor for Khepra Protocol, analyzing a ${connectorType} connector integration with ${provider}.
+
+ROLE: Read-only advisory analysis. You identify issues and recommend fixes for human review.
+You do NOT execute commands. You do NOT have access to live systems. All recommendations require operator approval.
+
+CONNECTOR CONTEXT:
+- Provider: ${provider}
+- Connector type: ${connectorType}
+${failureContext ? `- Recent failure: ${failureContext}` : ''}
+- Active alerts: ${securityContext.recentAlerts.length}
+
+CURRENT SECURITY STATUS:
+${activeAlertsSummary}
+
+ANALYSIS CAPABILITIES:
+- Diagnose API authentication failures (OAuth, mTLS, API key rotation)
+- Identify network/firewall configuration issues
+- Detect schema mismatches and version incompatibilities
+- Assess connector security posture and PQC compliance
+- Suggest configuration remediation steps (for operator review)
+- Recommend retry strategies and circuit breaker patterns
+
+RESPONSE FORMAT:
+- Clearly label recommendations as "RECOMMENDED ACTION (requires operator approval)"
+- Do NOT suggest live system commands as auto-executable
+- Provide root cause analysis with confidence level (0-100%)
+- List ordered remediation steps from least to most disruptive
+- Flag any security implications of the connector failure
+
+Remember: You are an advisor only. No action will be taken without explicit operator approval.`;
 }
 
 async function analyzeForActions(response: string, context: SecurityContext): Promise<any[]> {

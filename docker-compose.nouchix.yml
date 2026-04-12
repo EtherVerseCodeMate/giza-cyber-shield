@@ -1,0 +1,181 @@
+services:
+  phantom:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nouchix-phantom
+    restart: always
+    command: ["nouchix-phantom", "--symbol", "Eban", "--mode", "stealth"]
+    environment:
+      PHANTOM_NETWORK_MODE: stealth
+    networks:
+      - nouchix-tactical
+    volumes:
+      - phantom-keys:/root/.khepra/keys
+
+  motherboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nouchix-motherboard
+    restart: always
+    command: ["nouchix-motherboard"]
+    environment:
+      DATABASE_URL: postgres://nouchix:${POSTGRES_PASSWORD}@postgres:5432/nouchix
+      REDIS_URL: redis://redis:6379
+      PHANTOM_NODE_URL: http://phantom:8080
+      SUPABASE_URL: ${VITE_SUPABASE_URL}
+      SUPABASE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
+    volumes:
+      - ./data/agi:/app/data
+      - ./models:/app/models
+    networks:
+      - nouchix-tactical
+      - nouchix-dmz
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      phantom: { condition: service_started }
+
+  sonar-hunt:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nouchix-sonar
+    restart: always
+    command: ["nouchix-sonar", "--mode", "hunt", "--interval", "15m"]
+    environment:
+      DB_URL: postgres://nouchix:${POSTGRES_PASSWORD}@postgres:5432/nouchix
+    networks:
+      - nouchix-tactical
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  pentest-arsenal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nouchix-pentest
+    restart: "no"
+    entrypoint: ["tail", "-f", "/dev/null"]
+    networks:
+      - nouchix-tactical
+
+  suricata:
+    image: jasonish/suricata:latest
+    container_name: nouchix-suricata
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_NICE
+    environment:
+      # Override in .env if VPS NIC is not eth0 (check with: ip -br link show)
+      SURICATA_INTERFACE: ${SURICATA_INTERFACE:-eth0}
+    # String form so compose expands ${SURICATA_INTERFACE} before passing to container.
+    # -i <iface> selects af-packet runmode automatically — --af-packet flag is redundant
+    # and triggers a Suricata warning when combined with -i. Drop it.
+    # WAFEye tails /var/log/suricata/eve.json; default jasonish config writes it there.
+    command: "-i ${SURICATA_INTERFACE:-eth0}"
+    volumes:
+      # Bind to host-standard path so the SEKHEM binary (running outside Docker)
+      # can tail /var/log/suricata/eve.json without any symlink indirection.
+      # WAFEye hardcodes this path — do NOT change the host-side mount point.
+      - /var/log/suricata:/var/log/suricata
+      # Rules persistence at standard host path; avoids re-downloading ET Open
+      # ruleset on every container restart.
+      - /var/lib/suricata:/var/lib/suricata
+    restart: always
+
+  crowdsec:
+    image: crowdsecurity/crowdsec:latest
+    container_name: nouchix-crowdsec
+    environment:
+      COLLECTIONS: "crowdsecurity/linux crowdsecurity/sshd crowdsecurity/nginx-proxy-manager"
+    ports:
+      # Expose LAPI on loopback only so the SEKHEM systemd service (outside Docker)
+      # can submit IP ban decisions via http://127.0.0.1:8090/v1/decisions.
+      # Port 8090 on host (not 8080) because Caddy owns *:8080 on this host.
+      # NOT exposed on 0.0.0.0 — UFW already blocks 8090 from public internet.
+      - "127.0.0.1:8090:8080"
+    volumes:
+      - /var/log/auth.log:/var/log/auth.log:ro
+      - ./data/crowdsec/config:/etc/crowdsec
+      - ./data/crowdsec/data:/var/lib/crowdsec/data
+    networks:
+      - nouchix-dmz
+    restart: always
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: nouchix-n8n
+    restart: always
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_USER: nouchix
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      N8N_HOST: n8n.adinkhepra.com
+      N8N_PROTOCOL: https
+    volumes:
+      - ./data/n8n:/home/node/.n8n
+    networks:
+      - nouchix-tactical
+      - nouchix-dmz
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: nouchix-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: nouchix
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - nouchix-tactical
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nouchix"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: nouchix-redis
+    restart: always
+    networks:
+      - nouchix-tactical
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  npm:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: nouchix-npm
+    restart: always
+    ports:
+      - '80:80'
+      - '81:81'
+      - '443:443'
+    volumes:
+      - ./data/npm/config:/data
+      - ./data/npm/letsencrypt:/etc/letsencrypt
+    networks:
+      - nouchix-dmz
+
+networks:
+  nouchix-tactical:
+    driver: bridge
+  nouchix-dmz:
+    driver: bridge
+
+volumes:
+  phantom-keys:

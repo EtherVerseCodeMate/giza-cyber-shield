@@ -48,10 +48,9 @@ export const DOCAArgus = () => {
         node: asset.target.includes('.') ? asset.target : `k8s-node-${index + 1}`,
         status: asset.compliance_status === 'COMPLIANT' ? "protected" : "warning",
         threats: securityEvents?.filter(e => e.source_system === asset.target).length || 0,
-        // Process/memory figures are static representative values per node type
-        processes: 500 + (index % 3) * 50,
-        memory: `${55 + (index % 4) * 5}%`,
-        network: securityEvents?.some(e => e.source_system === asset.target && e.severity === 'critical') ? "anomaly" : "normal",
+        processes: 0, // Requires DPU runtime agent — not available from browser
+        memory: 'N/A', // Requires DPU runtime agent — not available from browser
+        network: "normal", // Default; anomaly detection requires runtime DPU agent
         dpu: index % 2 === 0 ? "BlueField-3" : "BlueField-2"
       })) || [];
 

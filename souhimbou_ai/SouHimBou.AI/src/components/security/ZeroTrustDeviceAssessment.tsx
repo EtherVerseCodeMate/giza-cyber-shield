@@ -150,7 +150,7 @@ const ZeroTrustDeviceAssessment = () => {
 
     // Browser security checks
     const browserChecks = {
-      secure_context: window.isSecureContext,
+      secure_context: globalThis.isSecureContext,
       private_browsing: false, // Would need more advanced detection
       extensions_detected: navigator.plugins?.length > 3,
       cookies_enabled: navigator.cookieEnabled,

@@ -76,9 +76,7 @@ func NewKeycloakProvider(config *KeycloakConfig) (*KeycloakProvider, error) {
 
 	return &KeycloakProvider{
 		BaseAuthProvider: BaseAuthProvider{
-			name:     string(ProviderKeycloak),
-			endpoint: config.RealmURL,
-			timeout:  timeout,
+			name: string(ProviderKeycloak),
 		},
 		realmURL:     config.RealmURL,
 		clientID:     config.ClientID,
@@ -465,9 +463,7 @@ func NewCACProvider(config *CACConfig) (*CACProvider, error) {
 
 	return &CACProvider{
 		BaseAuthProvider: BaseAuthProvider{
-			name:     string(ProviderCAC),
-			endpoint: "DoD CAC",
-			timeout:  timeout,
+			name: string(ProviderCAC),
 		},
 		trustedCertPath: config.TrustedCertPath,
 		crlURL:          config.CRLURL,
@@ -670,8 +666,7 @@ type LocalProvider struct {
 func NewLocalProvider() *LocalProvider {
 	return &LocalProvider{
 		BaseAuthProvider: BaseAuthProvider{
-			name:     string(ProviderLocal),
-			endpoint: "localhost",
+			name: string(ProviderLocal),
 		},
 		users: make(map[string]*User),
 	}
@@ -686,7 +681,18 @@ func (lp *LocalProvider) Authenticate(ctx context.Context, creds *Credentials) (
 
 	// In a real local provider, creds.Password would be compared against a stored Argon2 hash
 	// For this implementation, we simulate secure comparison
-	if !lp.verifyPassword(creds.Password, user.Attributes["password_hash"].(string)) {
+	var hash string
+	if user.Attributes != nil {
+		if h, ok := user.Attributes["password_hash"].(string); ok {
+			hash = h
+		}
+	}
+
+	if hash == "" {
+		return nil, errors.New("invalid user configuration: missing password hash")
+	}
+
+	if !lp.verifyPassword(creds.Password, hash) {
 		return nil, errors.New("invalid credentials")
 	}
 

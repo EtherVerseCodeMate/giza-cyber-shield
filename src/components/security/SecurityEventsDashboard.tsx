@@ -220,12 +220,12 @@ export const SecurityEventsDashboard = () => {
       ].join('\n');
 
       const blob = new Blob([csvContent], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
+      const url = globalThis.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `security-events-${new Date().toISOString().split('T')[0]}.csv`;
       a.click();
-      window.URL.revokeObjectURL(url);
+      globalThis.URL.revokeObjectURL(url);
 
       toast({
         title: "Export Complete",
@@ -361,7 +361,7 @@ export const SecurityEventsDashboard = () => {
               {
                 label: "Monitoring Best Practices",
                 description: "Learn about optimal security monitoring strategies",
-                action: () => window.open('https://docs.khepraprotocol.com/security-monitoring', '_blank'),
+                action: () => globalThis.open('/docs/security-monitoring', '_blank'),
                 icon: <Shield className="h-3 w-3" />,
                 type: 'link'
               }
@@ -727,19 +727,12 @@ export const SecurityEventsDashboard = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        {(['login_failure', 'suspicious_activity', 'session_timeout'] as const).map((type) => {
-                          const EVENT_COUNTS: Record<string, number> = {
-                            login_failure: 12,
-                            suspicious_activity: 4,
-                            session_timeout: 8,
-                          };
-                          return (
-                            <div key={type} className="flex justify-between items-center">
-                              <span className="text-sm">{type.replace(/_/g, ' ')}</span>
-                              <Badge variant="secondary">{EVENT_COUNTS[type] ?? 0}</Badge>
-                            </div>
-                          );
-                        })}
+                        {['login_failure', 'suspicious_activity', 'session_timeout'].map((type, index) => (
+                          <div key={type} className="flex justify-between items-center">
+                            <span className="text-sm">{type.replaceAll('_', ' ')}</span>
+                            <Badge variant="secondary">{'N/A'}</Badge>
+                          </div>
+                        ))}
                       </div>
                     </CardContent>
                   </Card>
@@ -836,7 +829,7 @@ export const SecurityEventsDashboard = () => {
                                 {threat.timestamp.toLocaleString()}
                               </span>
                             </div>
-                            <h4 className="font-semibold">{threat.type.replace('_', ' ').toUpperCase()}</h4>
+                            <h4 className="font-semibold">{threat.type.replaceAll('_', ' ').toUpperCase()}</h4>
                             <p className="text-sm text-muted-foreground">{threat.description}</p>
                           </div>
                         ))}

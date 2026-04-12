@@ -1,11 +1,8 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { ChevronRight, Award, Globe, BookOpen, Shield } from 'lucide-react';
-// Support both Vite (string) and Next.js (StaticImageData) import shapes
-import _founderBanner from '@/assets/founder-veteran-banner.png';
-import _founderMrap from '@/assets/founder-mrap.png';
-const founderBanner = typeof _founderBanner === 'string' ? _founderBanner : (_founderBanner as { src: string }).src;
-const founderMrap = typeof _founderMrap === 'string' ? _founderMrap : (_founderMrap as { src: string }).src;
+import founderBanner from '@/assets/founder-veteran-banner.png';
+import founderMrap from '@/assets/founder-mrap.png';
 
 export const FounderNarrative = () => {
   const achievements = [
@@ -162,10 +159,10 @@ export const FounderNarrative = () => {
             {/* CTA */}
             <Button
               size="lg"
-              onClick={() => window.open('https://calendly.com/cybersouhimbou', '_blank')}
+              onClick={() => globalThis.open('https://calendly.com/cybersouhimbou', '_blank')}
               className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] hover:from-[#c49b2d] hover:to-[#9d7509] text-black font-semibold mt-4"
             >
-              Join the Mission
+                Book Advisory Call
               <ChevronRight className="ml-2 h-5 w-5" />
             </Button>
           </motion.div>

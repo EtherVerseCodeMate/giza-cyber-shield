@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 
 interface BrandingConfig {
@@ -20,7 +20,7 @@ interface BrandingConfig {
 
 interface WhiteLabelContextType {
   branding: BrandingConfig;
-  updateBranding: (updates: Partial<BrandingConfig>) => void;
+  updateBranding: (updates: Partial<BrandingConfig>) => Promise<void> | void;
   isPartnerBranded: boolean;
   loading: boolean;
 }
@@ -30,7 +30,7 @@ const defaultBranding: BrandingConfig = {
   primary_color: '#3b82f6',
   secondary_color: '#1e40af',
   accent_color: '#06b6d4',
-  platform_name: 'SouHimBou AI | Agentic Cybersecurity & Compliance Platform',
+  platform_name: 'SouHimBou AI | CMMC & NIST 800-172 Evidence & Audit Readiness',
   support_email: 'support@souhimbou.ai',
   white_label_enabled: false,
   theme_mode: 'dark'
@@ -48,12 +48,12 @@ export const useWhiteLabel = () => {
 
 interface WhiteLabelProviderProps {
   children: ReactNode;
-  partnerId?: string; // For HostBreach integration
+  partnerId?: string; // For third-party partner integration
 }
 
-export const WhiteLabelProvider = ({ 
-  children, 
-  partnerId 
+export const WhiteLabelProvider = ({
+  children,
+  partnerId
 }: WhiteLabelProviderProps) => {
   const [branding, setBranding] = useState<BrandingConfig>(defaultBranding);
   const [loading, setLoading] = useState(true);
@@ -65,26 +65,26 @@ export const WhiteLabelProvider = ({
   const loadBrandingConfig = async () => {
     try {
       setLoading(true);
-      
-      // Check if this is a partner-branded instance
-      if (partnerId === 'hostbreach' || window.location.hostname.includes('hostbreach')) {
-        const hostbreachBranding: BrandingConfig = {
-          organization_name: 'HostBreach',
-          logo_url: '/hostbreach-logo.png',
-          primary_color: '#dc2626',
-          secondary_color: '#991b1b',
-          accent_color: '#ea580c',
-          platform_name: 'HostBreach Compliance Platform',
-          support_email: 'support@hostbreach.com',
-          documentation_url: 'https://docs.hostbreach.com',
+
+      // Check if this is a partner-branded instance (Example: Ananse Sentinel)
+      if (partnerId === 'ananse' || (typeof globalThis !== 'undefined' && globalThis.location?.hostname.includes('sentinel'))) {
+        const sentinelBranding: BrandingConfig = {
+          organization_name: 'Ananse Sentinel',
+          logo_url: '/sentinel-logo.png',
+          primary_color: '#4f46e5',
+          secondary_color: '#312e81',
+          accent_color: '#818cf8',
+          platform_name: 'Ananse Sentinel Intelligence Platform',
+          support_email: 'support@ananse-sentinel.io',
+          documentation_url: 'https://docs.ananse-sentinel.io',
           white_label_enabled: true,
-          partner_name: 'HostBreach',
-          partner_logo_url: '/hostbreach-logo.png',
-          footer_text: 'Powered by HostBreach Intelligence & SouHimBou AI',
+          partner_name: 'Ananse Sentinel',
+          partner_logo_url: '/sentinel-logo.png',
+          footer_text: 'Powered by AdinKhepra Sentinel Intelligence & SouHimBou AI',
           theme_mode: 'dark'
         };
-        setBranding(hostbreachBranding);
-        applyTheme(hostbreachBranding);
+        setBranding(sentinelBranding);
+        applyTheme(sentinelBranding);
         return;
       }
 
@@ -119,12 +119,12 @@ export const WhiteLabelProvider = ({
 
   const applyTheme = (brandingConfig: BrandingConfig) => {
     const root = document.documentElement;
-    
+
     // Convert hex to HSL for CSS custom properties
     const hexToHsl = (hex: string) => {
-      const r = parseInt(hex.slice(1, 3), 16) / 255;
-      const g = parseInt(hex.slice(3, 5), 16) / 255;
-      const b = parseInt(hex.slice(5, 7), 16) / 255;
+      const r = Number.parseInt(hex.slice(1, 3), 16) / 255;
+      const g = Number.parseInt(hex.slice(3, 5), 16) / 255;
+      const b = Number.parseInt(hex.slice(5, 7), 16) / 255;
 
       const max = Math.max(r, g, b);
       const min = Math.min(r, g, b);
@@ -151,14 +151,14 @@ export const WhiteLabelProvider = ({
     root.style.setProperty('--primary-foreground', '210 40% 98%');
     root.style.setProperty('--secondary', hexToHsl(brandingConfig.secondary_color));
     root.style.setProperty('--accent', hexToHsl(brandingConfig.accent_color));
-    
+
     // Update document title
     document.title = brandingConfig.platform_name;
-    
+
     // Update meta tags
     const metaDescription = document.querySelector('meta[name="description"]');
     if (metaDescription) {
-      metaDescription.setAttribute('content', 
+      metaDescription.setAttribute('content',
         `${brandingConfig.platform_name} - Advanced Cybersecurity Operations and Compliance Platform`
       );
     }
@@ -199,13 +199,15 @@ export const WhiteLabelProvider = ({
 
   const isPartnerBranded = branding.white_label_enabled && !!branding.partner_name;
 
+  const contextValue = useMemo(() => ({
+    branding,
+    updateBranding,
+    isPartnerBranded,
+    loading
+  }), [branding, updateBranding, isPartnerBranded, loading]);
+
   return (
-    <WhiteLabelContext.Provider value={{ 
-      branding, 
-      updateBranding, 
-      isPartnerBranded,
-      loading 
-    }}>
+    <WhiteLabelContext.Provider value={contextValue}>
       {children}
     </WhiteLabelContext.Provider>
   );

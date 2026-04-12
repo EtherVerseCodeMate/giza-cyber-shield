@@ -12,12 +12,10 @@ import {
   Shield,
   CheckCircle,
   AlertTriangle,
-  Clock,
   GitBranch,
   Eye,
   Play,
   Pause,
-  Settings,
   FileCheck,
   Network
 } from 'lucide-react';
@@ -29,7 +27,6 @@ import { AttestationEngine } from './AttestationEngine';
 import { EvidenceCollectionEngine } from './EvidenceCollectionEngine';
 import { ComplianceControlMapper } from './ComplianceControlMapper';
 import { POAMGenerator } from '../automation/POAMGenerator';
-import { EnhancedPOAMTracker } from '../automation/EnhancedPOAMTracker';
 import { ComplianceDemoScenarios } from '../demo/ComplianceDemoScenarios';
 
 interface AgentMode {
@@ -102,7 +99,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
   const [activeMode, setActiveMode] = useState<string>('observe');
   const [controlGaps, setControlGaps] = useState<ControlGap[]>([]);
   const [capabilities, setCapabilities] = useState<AgentCapability[]>([]);
-  const [overallCompliance, setOverallCompliance] = useState(78);
+  const [overallCompliance] = useState(78);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -115,8 +112,8 @@ export const AgenticComplianceArchitect: React.FC = () => {
   const initializeAgent = async () => {
     try {
       // Initialize agent with existing KHEPRA components
-      const { data: frameworks } = await supabase
-        .from('compliance_frameworks')
+      const { data: frameworks } = await (supabase
+        .from('compliance_frameworks') as any)
         .select('*')
         .eq('enabled', true);
 
@@ -130,13 +127,43 @@ export const AgenticComplianceArchitect: React.FC = () => {
     }
   };
 
+  const updateGapStatus = (gapId: string, status: ControlGap['status']) => {
+    setControlGaps(prev => prev.map(g => g.id === gapId ? { ...g, status } : g));
+  };
+
+  const mapToControlGap = (d: any): ControlGap => {
+    let remediationPlan = undefined;
+    if (d.remediation_plan) {
+      remediationPlan = typeof d.remediation_plan === 'string' 
+        ? JSON.parse(d.remediation_plan) 
+        : d.remediation_plan;
+    }
+
+    return {
+      id: d.id,
+      controlId: d.control_id,
+      framework: 'SOC2 / TBD',
+      severity: d.severity || 'medium',
+      status: d.status || 'detected',
+      description: d.description || '',
+      affectedAssets: 0,
+      estimatedTime: '4h',
+      blastRadius: 5,
+      remediationPlan
+    };
+  };
+
   const fetchControlGaps = async () => {
     setIsLoading(true);
     try {
-      // Awaiting telemetry for real control gaps
-      const pendingGaps: ControlGap[] = [];
+      const { data, error } = await supabase.from('compliance_control_gaps').select('*');
+      if (error) throw error;
 
-      setControlGaps(pendingGaps);
+      if (data && data.length > 0) {
+        setControlGaps(data.map(mapToControlGap));
+      } else {
+        setControlGaps([]);
+      }
     } catch (error) {
       console.error('Failed to fetch control gaps:', error);
     } finally {
@@ -171,7 +198,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
 
   const triggerComplianceScan = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('grok-ai-agent', {
+      const { error } = await supabase.functions.invoke('grok-ai-agent', {
         body: {
           action: 'compliance_scan',
           mode: activeMode,
@@ -207,11 +234,11 @@ export const AgenticComplianceArchitect: React.FC = () => {
     if (!gap.remediationPlan) return;
 
     try {
-      setControlGaps(prev => prev.map(g =>
-        g.id === gap.id ? { ...g, status: 'remediating' } : g
-      ));
+      await supabase.from('compliance_control_gaps').update({ status: 'remediating' }).eq('id', gap.id);
 
-      const { data, error } = await supabase.functions.invoke('grok-ai-agent', {
+      updateGapStatus(gap.id, 'remediating');
+
+      const { error } = await supabase.functions.invoke('grok-ai-agent', {
         body: {
           action: 'execute_remediation',
           controlId: gap.controlId,
@@ -227,12 +254,9 @@ export const AgenticComplianceArchitect: React.FC = () => {
         description: `Successfully executed remediation for ${gap.controlId}`,
       });
 
-      // Update status after execution
-      setTimeout(() => {
-        setControlGaps(prev => prev.map(g =>
-          g.id === gap.id ? { ...g, status: 'verified' } : g
-        ));
-      }, 2000);
+      await supabase.from('compliance_control_gaps').update({ status: 'verified' }).eq('id', gap.id);
+
+      updateGapStatus(gap.id, 'verified');
     } catch (error) {
       console.error('Failed to execute remediation:', error);
       toast({
@@ -653,7 +677,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                       <CardDescription>{gap.description}</CardDescription>
                     </div>
                     <Badge variant="outline" className={getStatusColor(gap.status)}>
-                      {gap.status.replace('-', ' ').toUpperCase()}
+                      {gap.status.replaceAll('-', ' ').toUpperCase()}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -678,7 +702,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                       <h5 className="font-medium">Remediation Plan ({gap.remediationPlan.tool})</h5>
                       <div className="bg-muted p-3 rounded space-y-1">
                         {gap.remediationPlan.steps.map((step, index) => (
-                          <div key={index} className="text-sm">
+                          <div key={`remediation-step-${gap.id}-${index}`} className="text-sm">
                             {index + 1}. {step}
                           </div>
                         ))}
@@ -722,8 +746,8 @@ export const AgenticComplianceArchitect: React.FC = () => {
 
         <TabsContent value="capabilities" className="space-y-4">
           <div className="grid gap-4">
-            {capabilities.map((capability, index) => (
-              <Card key={index}>
+            {capabilities.map((capability) => (
+              <Card key={capability.name}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
@@ -761,7 +785,13 @@ export const AgenticComplianceArchitect: React.FC = () => {
                     <div>
                       <CardTitle className="flex items-center gap-2">
                         {mode.name}
-                        <Badge variant={mode.riskLevel === 'high' ? 'destructive' : mode.riskLevel === 'medium' ? 'default' : 'secondary'}>
+                        <Badge variant={
+                          (({
+                            high: 'destructive',
+                            medium: 'default',
+                            low: 'secondary'
+                          } as const)[mode.riskLevel] || 'secondary')
+                        }>
                           {mode.riskLevel} risk
                         </Badge>
                       </CardTitle>

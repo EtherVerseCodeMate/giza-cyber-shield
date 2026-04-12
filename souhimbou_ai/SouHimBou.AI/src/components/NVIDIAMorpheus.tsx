@@ -229,13 +229,13 @@ export const NVIDIAMorpheus = () => {
           </div>
           <div className="grid grid-cols-2 gap-4 text-xs text-gray-300">
             <div>
-              <p>• {Math.floor((workflows.reduce((sum, w) => sum + parseInt(w.processed.replace('K', '')), 0) / workflows.length) * 1000)} events processed (last hour)</p>
-              <p>• {Math.round(workflows.reduce((sum, w) => sum + parseFloat(w.accuracy.replace('%', '') || '0'), 0) / workflows.filter(w => w.accuracy !== 'N/A').length)}% accuracy across all models</p>
+              <p>• {Math.floor((workflows.reduce((sum, w) => sum + Number.parseInt(w.processed.replaceAll('K', '')), 0) / workflows.length) * 1000)} events processed (last hour)</p>
+              <p>• {Math.round(workflows.reduce((sum, w) => sum + Number.parseFloat(w.accuracy.replaceAll('%', '') || '0'), 0) / workflows.filter(w => w.accuracy !== 'N/A').length)}% accuracy across all models</p>
               <p>• {workflows.filter(w => w.status === 'active').length} active workflows</p>
             </div>
             <div>
               <p>• {infrastructure.filter(i => i.status === 'operational').length} operational components</p>
-              <p>• {workflows.reduce((sum, w) => sum + parseInt(w.processed.replace('K', '') || '0'), 0)}K total samples processed</p>
+              <p>• {workflows.reduce((sum, w) => sum + Number.parseInt(w.processed.replaceAll('K', '') || '0'), 0)}K total samples processed</p>
               <p>• Zero false positives detected</p>
             </div>
           </div>

@@ -104,14 +104,14 @@ export const ModularConnectorSDK: React.FC = () => {
                             <div className="flex items-center gap-1">
                               {getStatusIcon(connector.status)}
                               <Badge variant={getStatusColor(connector.status)}>
-                                {connector.status.replace('_', ' ').toUpperCase()}
+                                {connector.status.replaceAll('_', ' ').toUpperCase()}
                               </Badge>
                             </div>
                             <Badge variant={getTierBadgeColor(connector.tier)}>
                               Tier {connector.tier}
                             </Badge>
                             <Badge variant="outline">
-                              {connector.plugin_type.replace('_', ' ')}
+                              {connector.plugin_type.replaceAll('_', ' ')}
                             </Badge>
                           </div>
 

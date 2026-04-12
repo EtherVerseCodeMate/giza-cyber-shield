@@ -56,15 +56,15 @@ export const BrowserNavigation: React.FC<BrowserNavigationProps> = ({
   const [searchValue, setSearchValue] = useState('');
 
   const handleBack = () => {
-    window.history.back();
+    globalThis.history.back();
   };
 
   const handleForward = () => {
-    window.history.forward();
+    globalThis.history.forward();
   };
 
   const handleRefresh = () => {
-    window.location.reload();
+    globalThis.location.reload();
   };
 
   const handleHome = () => {
@@ -88,10 +88,10 @@ export const BrowserNavigation: React.FC<BrowserNavigationProps> = ({
 
   const quickActions = [
     { label: 'Papyrus Guidance', icon: <HelpCircle className="h-4 w-4" />, action: () => navigate('/papyrus') },
-    { label: 'Documentation', icon: <HelpCircle className="h-4 w-4" />, action: () => window.open('/docs', '_blank') },
-    { label: 'Support Center', icon: <ExternalLink className="h-4 w-4" />, action: () => window.open('/support', '_blank') },
-    { label: 'API Reference', icon: <ExternalLink className="h-4 w-4" />, action: () => window.open('/api-docs', '_blank') },
-    { label: 'System Status', icon: <ExternalLink className="h-4 w-4" />, action: () => window.open('/status', '_blank') },
+    { label: 'Documentation', icon: <HelpCircle className="h-4 w-4" />, action: () => globalThis.open('/docs', '_blank') },
+    { label: 'Support Center', icon: <ExternalLink className="h-4 w-4" />, action: () => globalThis.open('/support', '_blank') },
+    { label: 'API Reference', icon: <ExternalLink className="h-4 w-4" />, action: () => globalThis.open('/api-docs', '_blank') },
+    { label: 'System Status', icon: <ExternalLink className="h-4 w-4" />, action: () => globalThis.open('/status', '_blank') },
   ];
 
   const toolsMenu = [

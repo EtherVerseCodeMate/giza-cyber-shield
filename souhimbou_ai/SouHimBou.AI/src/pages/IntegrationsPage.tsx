@@ -15,6 +15,7 @@ import { useIndustryIntegrations } from '@/hooks/useIndustryIntegrations';
 import { useIntegrations } from '@/hooks/useIntegrations';
 import { useToast } from '@/hooks/use-toast';
 import { useOrganizationContext } from '@/components/OrganizationProvider';
+import { useKhepraDeployment } from '@/hooks/useKhepraDeployment';
 import { PolymorphicIngestionEngine } from '@/components/discovery/PolymorphicIngestionEngine';
 import {
   Plug,
@@ -30,7 +31,15 @@ import {
   Zap
 } from 'lucide-react';
 
-const IntegrationStatusCard = ({ title, value, icon: Icon, status = 'normal', description }: any) => (
+interface IntegrationStatusCardProps {
+  title: string;
+  value: string | number;
+  icon: any;
+  status?: 'normal' | 'success' | 'warning' | 'error';
+  description?: string;
+}
+
+const IntegrationStatusCard = ({ title, value, icon: Icon, status = 'normal', description }: IntegrationStatusCardProps) => (
   <Card>
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
       <CardTitle className="text-sm font-medium">{title}</CardTitle>
@@ -199,7 +208,7 @@ const IntegrationRecommendations = ({ setActiveTab }: { setActiveTab: (tab: stri
         });
         break;
       case 'learn':
-        window.open('/integration-guide/custom-api', '_blank');
+        globalThis.open('/integration-guide/custom-api', '_blank');
         break;
       case 'explore':
         setActiveTab('marketplace');
@@ -248,6 +257,11 @@ export default function IntegrationsPage() {
   const { toast } = useToast();
   const { userIntegrations } = useIndustryIntegrations();
   const { currentOrganization } = useOrganizationContext();
+  const { config, updateConfig, isUpdating } = useKhepraDeployment();
+
+  const handleKhepraUpdate = async (url: string, key: string) => {
+    await updateConfig({ deploymentUrl: url, apiKey: key });
+  };
 
   const handleSettings = () => {
     toast({
@@ -343,7 +357,14 @@ export default function IntegrationsPage() {
                   <Shield className="h-5 w-5 text-primary" />
                   Private Infrastructure (Hybrid Model)
                 </h3>
-                <KhepraVPSIntegration />
+                <KhepraVPSIntegration 
+                  config={{ 
+                    deploymentUrl: config?.deploymentUrl || '', 
+                    apiKey: config?.apiKey || '' 
+                  }} 
+                  updateConfig={handleKhepraUpdate}
+                  isUpdating={isUpdating}
+                />
               </div>
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">

@@ -7,13 +7,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { 
-  Server, 
-  Database, 
-  Cloud, 
-  Shield, 
-  AlertTriangle, 
-  CheckCircle, 
+import {
+  Server,
+  Database,
+  Cloud,
+  Shield,
+  AlertTriangle,
+  CheckCircle,
   XCircle,
   Terminal,
   Settings,
@@ -62,11 +62,11 @@ const DeploymentOrchestrationDashboard = () => {
     protectAsset
   } = useRealTimeAssetDiscovery();
 
-  const { 
-    connection, 
-    recentTransformations, 
+  const {
+    connection,
+    recentTransformations,
     isLoading: kipLoading,
-    syncCulturalTransformations 
+    syncCulturalTransformations
   } = useKipConnection();
 
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
@@ -94,25 +94,25 @@ const DeploymentOrchestrationDashboard = () => {
       ]);
     }
   }, [discoveredAssets]);
-  
+
   // Listen for protection changes from UI components
   useEffect(() => {
     const handleProtectionChange = () => {
       console.log('Protection changed, refreshing assets...');
       discoverLocalAssets();
     };
-    
-    window.addEventListener('khepra-protection-changed', handleProtectionChange);
-    return () => window.removeEventListener('khepra-protection-changed', handleProtectionChange);
+
+    globalThis.addEventListener('khepra-protection-changed', handleProtectionChange);
+    return () => globalThis.removeEventListener('khepra-protection-changed', handleProtectionChange);
   }, [discoverLocalAssets]);
 
   const executeCommand = (command: string) => {
     const timestamp = new Date().toLocaleTimeString();
     const newOutput = [...terminalOutput, `[${timestamp}] $ ${command}`];
-    
+
     const args = command.toLowerCase().split(' ');
     const cmd = args[0];
-    
+
     switch (cmd) {
       case 'help':
         newOutput.push('Available commands:');
@@ -133,7 +133,7 @@ const DeploymentOrchestrationDashboard = () => {
           ]);
         }, 2000);
         break;
-      case 'protect':
+      case 'protect': {
         const assetId = args[1];
         if (assetId) {
           const asset = discoveredAssets.find(a => a.id === assetId);
@@ -158,20 +158,22 @@ const DeploymentOrchestrationDashboard = () => {
           });
         }
         break;
-      case 'status':
+      }
+      case 'status': {
         const protectedCount = discoveredAssets.filter(a => a.protectionLevel !== 'none').length;
         const vulnerableCount = discoveredAssets.filter(a => a.protectionLevel === 'none' && a.vulnerabilities.length > 0).length;
         const totalCount = discoveredAssets.length;
-        
+
         newOutput.push('📊 Real-Time Environment Status:');
         newOutput.push(`   Protected Assets: ${protectedCount}`);
         newOutput.push(`   Vulnerable Assets: ${vulnerableCount}`);
         newOutput.push(`   Total Assets: ${totalCount}`);
         newOutput.push(`   Last Scan: ${lastScanTime?.toLocaleTimeString() || 'Never'}`);
-        
+
         // Trigger a background scan to refresh data
         setTimeout(() => discoverLocalAssets(), 100);
         break;
+      }
       case 'deploy':
         newOutput.push('🚀 Launching KHEPRA deployment wizard...');
         setShowDeploymentWizard(true);
@@ -182,7 +184,7 @@ const DeploymentOrchestrationDashboard = () => {
       default:
         newOutput.push(`❌ Unknown command: ${cmd}. Type "help" for available commands.`);
     }
-    
+
     newOutput.push('');
     setTerminalOutput(newOutput);
   };
@@ -193,7 +195,7 @@ const DeploymentOrchestrationDashboard = () => {
     const warning = discoveredAssets.filter(a => a.status === 'vulnerable' && a.vulnerabilities.length <= 2).length;
     const healthy = discoveredAssets.filter(a => a.status === 'monitoring').length;
     const protectedCount = discoveredAssets.filter(a => a.protectionLevel !== 'none').length;
-    
+
     return { total, critical, warning, healthy, protected: protectedCount };
   }, [discoveredAssets]);
 
@@ -248,7 +250,7 @@ const DeploymentOrchestrationDashboard = () => {
             </Badge>
           </div>
         </div>
-        
+
         {/* Decorative Adinkra symbols */}
         <div className="absolute top-0 right-0 w-24 h-24 opacity-10">
           <AdinkraSymbolDisplay symbolName="Nkyinkyim" size="large" showMatrix={false} />
@@ -270,18 +272,18 @@ const DeploymentOrchestrationDashboard = () => {
 
           {/* KHEPRA-Enhanced Floating Action Buttons */}
           <div className="absolute top-4 left-4 flex gap-2">
-            <Button 
-              size="sm" 
-              variant="outline" 
+            <Button
+              size="sm"
+              variant="outline"
               className="bg-primary/10 border-primary/30 hover:bg-primary/20"
               onClick={() => setShowDeploymentWizard(true)}
             >
               <Sparkles className="h-4 w-4 mr-2" />
               One-Click Deploy
             </Button>
-            <Button 
-              size="sm" 
-              variant="outline" 
+            <Button
+              size="sm"
+              variant="outline"
               className="bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20"
               onClick={discoverLocalAssets}
               disabled={isScanning}
@@ -300,7 +302,7 @@ const DeploymentOrchestrationDashboard = () => {
               lastScanTime={lastScanTime?.toLocaleTimeString() || '10:37:47'}
               networkType={networkInfo.isPublic ? 'Public WiFi' : 'Private'}
             />
-            
+
             <div className="bg-card/95 backdrop-blur-sm rounded-lg p-4 border border-primary/20 shadow-lg">
               <div className="space-y-2">
                 <div className="flex items-center gap-4 text-sm">
@@ -366,14 +368,14 @@ const DeploymentOrchestrationDashboard = () => {
                         <div className="text-sm text-muted-foreground">Total Assets</div>
                       </div>
                     </div>
-                    
+
                     <Separator />
-                    
+
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <h4 className="font-medium">Real-Time Environment</h4>
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           variant="outline"
                           onClick={discoverLocalAssets}
                           disabled={isScanning}
@@ -381,16 +383,16 @@ const DeploymentOrchestrationDashboard = () => {
                           {isScanning ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Rescan'}
                         </Button>
                       </div>
-                      
+
                       {lastScanTime && (
                         <div className="text-xs text-muted-foreground">
                           Last scan: {lastScanTime.toLocaleString()}
                         </div>
                       )}
-                      
+
                       <div className="space-y-2 max-h-60 overflow-y-auto">
                         {discoveredAssets.map((asset) => (
-                          <div 
+                          <div
                             key={asset.id}
                             className="p-3 bg-card rounded border text-sm"
                           >
@@ -436,7 +438,7 @@ const DeploymentOrchestrationDashboard = () => {
                     <Input
                       value={commandInput}
                       onChange={(e) => setCommandInput(e.target.value)}
-                      onKeyPress={handleKeyPress}
+                      onKeyDown={handleKeyPress}
                       placeholder="Enter command..."
                       className="font-mono"
                     />
@@ -515,7 +517,7 @@ const DeploymentOrchestrationDashboard = () => {
                   </div>
                 </CardContent>
               </Card>
-              
+
               <Card className="border-primary/20 bg-card/50 backdrop-blur-sm">
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center space-x-2">
@@ -545,7 +547,7 @@ const DeploymentOrchestrationDashboard = () => {
                   });
                 }
                 setShowDeploymentWizard(false);
-                
+
                 // Update terminal with deployment success
                 setTerminalOutput(prev => [
                   ...prev,

@@ -17,7 +17,7 @@ export interface ValidationSchema {
 export class SecurityValidator {
   private static readonly SQL_INJECTION_PATTERNS = [
     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE|UNION|SCRIPT)\b)/gi,
-    /(;|\-\-|\*|\/\*|\*\/)/g,
+    /(;|--|\*|\/\*|\*\/)/g,
     /(\b(OR|AND)\s+\d+\s*=\s*\d+)/gi,
     /(\b(OR|AND)\s+['"]?\w+['"]?\s*=\s*['"]?\w+['"]?)/gi,
     /(WAITFOR|DELAY|BENCHMARK|SLEEP)/gi,
@@ -36,7 +36,7 @@ export class SecurityValidator {
   ];
 
   private static readonly COMMAND_INJECTION_PATTERNS = [
-    /(\||&|;|\$\(|\`)/g,
+    /(\||&|;|\$\(|`)/g,
     /(wget|curl|nc|netcat|bash|sh|cmd|powershell)/gi,
     /(\.\.|\/etc\/|\/bin\/|\/usr\/)/gi
   ];
@@ -138,7 +138,7 @@ export class SecurityValidator {
         }
         break;
       case 'number':
-        if (typeof value !== 'number' || Number.isNaN(value)) {
+        if (typeof value !== 'number' || isNaN(value)) {
           return `${field} must be a valid number`;
         }
         break;
@@ -211,15 +211,15 @@ export class SecurityValidator {
 
     // HTML encode special characters
     sanitized = sanitized
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#x27;')
-      .replaceAll('/', '&#x2F;');
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;')
+      .replace(/\//g, '&#x2F;');
 
     // Remove null bytes
-    sanitized = sanitized.replaceAll('\0', '');
+    sanitized = sanitized.replace(/\0/g, '');
 
     // Normalize unicode
     sanitized = sanitized.normalize('NFKC');
@@ -241,7 +241,6 @@ export class SecurityValidator {
   static createRateLimiter(maxRequests: number, windowMs: number) {
     const requests = new Map<string, number[]>();
     let callCount = 0;
-    const CLEANUP_INTERVAL = 100; // clean every 100 calls
 
     return (identifier: string): boolean => {
       const now = Date.now();
@@ -262,9 +261,9 @@ export class SecurityValidator {
       recentRequests.push(now);
       requests.set(identifier, recentRequests);
 
-      // Cleanup stale entries every CLEANUP_INTERVAL calls
+      // Cleanup old entries every 100 calls (deterministic, no Math.random)
       callCount++;
-      if (callCount % CLEANUP_INTERVAL === 0) {
+      if (callCount % 100 === 0) {
         for (const [key, times] of requests.entries()) {
           const recentTimes = times.filter(time => time > windowStart);
           if (recentTimes.length === 0) {
