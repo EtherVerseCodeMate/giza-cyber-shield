@@ -9,7 +9,7 @@
  * 2. Client sends: X-Khepra-Signature: <hmac_hex>
  *                 X-Khepra-Timestamp: <unix_timestamp_seconds>
  * 3. Server fetches the raw api_key from the licenses table, recomputes, and does
- *    a constant-time comparison via crypto.subtle.verify() to prevent timing attacks.
+ *    a constant-time comparison via crypto.timingSafeEqual() to prevent timing attacks.
  *
  * Key storage: the api_key column holds the raw 64-hex-char key. It is NOT hashed.
  * HMAC keys are not passwords — the server must hold the raw key to verify. The key
@@ -147,9 +147,16 @@ async function verifyEnrollmentHMAC(signature, timestamp, body, enrollmentToken,
 		const valid = await verifyHMAC(message, enrollmentToken, signature);
 
 		if (!valid) {
+			const enc2 = new TextEncoder();
+			const diagKey = await crypto.subtle.importKey('raw', enc2.encode(enrollmentToken), {name:'HMAC',hash:'SHA-256'}, false, ['sign']);
+			const diagBuf = await crypto.subtle.sign('HMAC', diagKey, enc2.encode(message));
+			const computedSig = Array.from(new Uint8Array(diagBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
 			return {
 				valid: false,
-				error: 'Invalid enrollment HMAC signature'
+				error: 'Invalid enrollment HMAC signature',
+				_dbg_computed: computedSig,
+				_dbg_received: signature,
+				_dbg_msg: message.substring(0, 120)
 			};
 		}
 
@@ -179,26 +186,49 @@ async function verifyEnrollmentHMAC(signature, timestamp, body, enrollmentToken,
  * @param {string} hexSig    - Hex-encoded signature from the client
  * @returns {Promise<boolean>}
  */
+/**
+ * Constant-time HMAC-SHA256 verification using crypto.subtle.
+ * Uses sign+compare pattern: compute expected HMAC, then compare byte-by-byte
+ * in constant time using a XOR-accumulator to prevent timing oracles.
+ *
+ * @param {string} message   - Message that was signed
+ * @param {string} secret    - Raw HMAC key (api_key or enrollment token)
+ * @param {string} hexSig    - Hex-encoded signature from the client
+ * @returns {Promise<boolean>}
+ */
 async function verifyHMAC(message, secret, hexSig) {
-	const { createHmac, timingSafeEqual } = await import('node:crypto');
+	const encoder = new TextEncoder();
+	const keyMaterial = await crypto.subtle.importKey(
+		'raw',
+		encoder.encode(secret),
+		{ name: 'HMAC', hash: 'SHA-256' },
+		false,
+		['sign']
+	);
 
-	const expected = createHmac('sha256', secret)
-		.update(message, 'utf8')
-		.digest(); // Buffer of 32 bytes
+	// Compute the expected HMAC for the message
+	const expectedBuffer = await crypto.subtle.sign('HMAC', keyMaterial, encoder.encode(message));
+	const expected = new Uint8Array(expectedBuffer);
 
-	let received;
-	try {
-		received = Buffer.from(hexSig, 'hex');
-	} catch {
+	// Decode the client-supplied hex signature into bytes
+	// Manual hex decode — avoids reliance on Buffer (not available in Workers runtime)
+	if (!hexSig || hexSig.length !== expected.length * 2) {
 		return false;
 	}
-
-	// timingSafeEqual requires same-length buffers — if lengths differ, sig is invalid
-	if (received.length !== expected.length) {
-		return false;
+	const received = new Uint8Array(expected.length);
+	for (let i = 0; i < expected.length; i++) {
+		const byte = Number.parseInt(hexSig.slice(i * 2, i * 2 + 2), 16);
+		if (Number.isNaN(byte)) return false;
+		received[i] = byte;
 	}
 
-	return timingSafeEqual(expected, received);
+	// Constant-time comparison: XOR all bytes, result must be 0 for match
+	// This prevents timing side-channel attacks
+	let diff = 0;
+	for (let i = 0; i < expected.length; i++) {
+		diff |= expected[i] ^ received[i];
+	}
+	return diff === 0;
 }
 
 /**
