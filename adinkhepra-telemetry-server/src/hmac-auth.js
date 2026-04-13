@@ -1,14 +1,19 @@
 /**
  * HMAC Authentication for License Endpoints
- * 
+ *
  * Provides HMAC-SHA256 signature verification to prevent unauthorized
  * heartbeat and registration requests.
- * 
+ *
  * Usage:
- * 1. Client generates HMAC: HMAC-SHA256(machine_id + timestamp + request_body, api_key)
+ * 1. Client generates HMAC: HMAC-SHA256(machine_id + "." + timestamp + "." + body, api_key)
  * 2. Client sends: X-Khepra-Signature: <hmac_hex>
- *                 X-Khepra-Timestamp: <unix_timestamp>
- * 3. Server verifies signature and timestamp freshness
+ *                 X-Khepra-Timestamp: <unix_timestamp_seconds>
+ * 3. Server fetches the raw api_key from the licenses table, recomputes, and does
+ *    a constant-time comparison via crypto.subtle.verify() to prevent timing attacks.
+ *
+ * Key storage: the api_key column holds the raw 64-hex-char key. It is NOT hashed.
+ * HMAC keys are not passwords — the server must hold the raw key to verify. The key
+ * has 256 bits of entropy (crypto.getRandomValues), providing equivalent security.
  */
 
 /**
@@ -23,7 +28,7 @@ export async function verifyLicenseHMAC(request, body, env) {
 	try {
 		const signature = request.headers.get('X-Khepra-Signature');
 		const timestamp = request.headers.get('X-Khepra-Timestamp');
-		
+
 		if (!signature || !timestamp) {
 			return {
 				valid: false,
@@ -35,7 +40,7 @@ export async function verifyLicenseHMAC(request, body, env) {
 		let parsedBody;
 		try {
 			parsedBody = JSON.parse(body);
-		} catch (e) {
+		} catch {
 			return {
 				valid: false,
 				error: 'Invalid JSON request body'
@@ -52,9 +57,9 @@ export async function verifyLicenseHMAC(request, body, env) {
 
 		// Check timestamp freshness (allow 5 minute window)
 		const now = Math.floor(Date.now() / 1000);
-		const requestTime = parseInt(timestamp);
-		
-		if (isNaN(requestTime)) {
+		const requestTime = Number.parseInt(timestamp, 10);
+
+		if (Number.isNaN(requestTime)) {
 			return {
 				valid: false,
 				error: 'Invalid timestamp format'
@@ -69,31 +74,33 @@ export async function verifyLicenseHMAC(request, body, env) {
 			};
 		}
 
-		// Look up the machine's API key from the database
+		// Look up the raw api_key from the database.
+		// The api_key column stores the raw key (not a hash) so the server can
+		// recompute the HMAC for constant-time verification.
 		const license = await env.DB.prepare(`
-			SELECT machine_id, api_key_hash FROM licenses
+			SELECT machine_id, api_key FROM licenses
 			WHERE machine_id = ? AND revoked = 0
 		`).bind(machine_id).first();
 
-		if (!license || !license.api_key_hash) {
-			// For new registrations, use a shared enrollment secret
-			// The enrollment token itself provides authorization
+		if (!license?.api_key) {
+			// For new registrations, the machine won't be in the DB yet.
+			// Fall through to enrollment token HMAC path.
 			if (parsedBody.enrollment_token) {
-				return await verifyEnrollmentHMAC(signature, timestamp, body, parsedBody.enrollment_token, env);
+				return verifyEnrollmentHMAC(signature, timestamp, body, parsedBody.enrollment_token, env);
 			}
-			
+
 			return {
 				valid: false,
 				error: 'Machine not registered or missing API key'
 			};
 		}
 
-		// Compute expected HMAC
+		// Constant-time HMAC verification via crypto.subtle.verify() —
+		// prevents timing attacks that `===` string comparison cannot.
 		const message = `${machine_id}.${timestamp}.${body}`;
-		const expectedSignature = await computeHMAC(message, license.api_key_hash);
+		const valid = await verifyHMAC(message, license.api_key, signature);
 
-		// Constant-time comparison to prevent timing attacks
-		if (signature !== expectedSignature) {
+		if (!valid) {
 			return {
 				valid: false,
 				error: 'Invalid HMAC signature'
@@ -120,7 +127,7 @@ export async function verifyLicenseHMAC(request, body, env) {
  */
 async function verifyEnrollmentHMAC(signature, timestamp, body, enrollmentToken, env) {
 	try {
-		// Verify enrollment token exists
+		// Verify enrollment token exists and is active
 		const enrollment = await env.DB.prepare(`
 			SELECT token, active FROM enrollment_tokens
 			WHERE token = ? AND active = 1
@@ -133,12 +140,13 @@ async function verifyEnrollmentHMAC(signature, timestamp, body, enrollmentToken,
 			};
 		}
 
-		// Use enrollment token as HMAC key for initial registration
+		// Use enrollment token as HMAC key for initial registration.
+		// Constant-time verification prevents timing oracle on token validity.
 		const parsedBody = JSON.parse(body);
 		const message = `${parsedBody.machine_id}.${timestamp}.${body}`;
-		const expectedSignature = await computeHMAC(message, enrollmentToken);
+		const valid = await verifyHMAC(message, enrollmentToken, signature);
 
-		if (signature !== expectedSignature) {
+		if (!valid) {
 			return {
 				valid: false,
 				error: 'Invalid enrollment HMAC signature'
@@ -160,57 +168,47 @@ async function verifyEnrollmentHMAC(signature, timestamp, body, enrollmentToken,
 }
 
 /**
- * Compute HMAC-SHA256 signature
- * 
- * @param {string} message - Message to sign
- * @param {string} secret - Secret key
- * @returns {Promise<string>} - Hex-encoded HMAC signature
+ * Constant-time HMAC-SHA256 verification using crypto.subtle.verify().
+ * crypto.subtle.verify() performs the comparison internally in constant time,
+ * preventing timing-oracle attacks that string !== comparison cannot prevent.
+ *
+ * @param {string} message   - Message that was signed
+ * @param {string} secret    - Raw HMAC key (api_key or enrollment token)
+ * @param {string} hexSig    - Hex-encoded signature from the client
+ * @returns {Promise<boolean>}
  */
-async function computeHMAC(message, secret) {
+async function verifyHMAC(message, secret, hexSig) {
 	const encoder = new TextEncoder();
-	const keyData = encoder.encode(secret);
-	const messageData = encoder.encode(message);
-
 	const key = await crypto.subtle.importKey(
 		'raw',
-		keyData,
+		encoder.encode(secret),
 		{ name: 'HMAC', hash: 'SHA-256' },
 		false,
-		['sign']
+		['sign', 'verify']
 	);
 
-	const signature = await crypto.subtle.sign(
-		'HMAC',
-		key,
-		messageData
-	);
+	// Decode client-supplied hex signature into bytes for comparison
+	const sigBytes = new Uint8Array(hexSig.match(/.{2}/g).map(b => Number.parseInt(b, 16)));
 
-	// Convert to hex string
-	return Array.from(new Uint8Array(signature))
-		.map(b => b.toString(16).padStart(2, '0'))
-		.join('');
+	return crypto.subtle.verify('HMAC', key, sigBytes, encoder.encode(message));
 }
 
 /**
- * Generate a new API key for a machine
- * Returns both the key (to be sent to client) and hash (to be stored)
- * 
- * @returns {Promise<{apiKey: string, apiKeyHash: string}>}
+ * Generate a new API key for a machine.
+ *
+ * The key is returned to the client once (at registration time) and stored
+ * raw in the `api_key` column so the server can recompute HMAC for
+ * subsequent heartbeat verification. 256 bits of CSPRNG entropy means
+ * storing the raw key is equivalent security to storing a bcrypt hash for
+ * a random secret — the attacker cannot pre-compute it.
+ *
+ * @returns {Promise<{apiKey: string}>}
  */
 export async function generateAPIKey() {
-	// Generate 32 random bytes
 	const randomBytes = crypto.getRandomValues(new Uint8Array(32));
 	const apiKey = 'khepra_' + Array.from(randomBytes)
 		.map(b => b.toString(16).padStart(2, '0'))
 		.join('');
 
-	// Hash for storage (using SHA-256)
-	const encoder = new TextEncoder();
-	const data = encoder.encode(apiKey);
-	const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-	const apiKeyHash = Array.from(new Uint8Array(hashBuffer))
-		.map(b => b.toString(16).padStart(2, '0'))
-		.join('');
-
-	return { apiKey, apiKeyHash };
+	return { apiKey };
 }
