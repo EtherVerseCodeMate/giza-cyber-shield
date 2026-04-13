@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/audit"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/enumerate"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/intel"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/maat"
