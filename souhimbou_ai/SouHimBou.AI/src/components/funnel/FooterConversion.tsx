@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Shield, Mail, ChevronRight, Linkedin, Twitter, Github } from 'lucide-react';
+import { Shield, Mail, ChevronRight, Link2, MessageCircle, Code } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -152,14 +152,14 @@ export const FooterConversion = () => {
               </p>
             </div>
             <div className="flex items-center gap-4">
-              <a href="https://www.linkedin.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-[#00ffff] transition-colors">
-                <Linkedin className="h-5 w-5" />
+              <a href="https://www.linkedin.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-[#00ffff] transition-colors" aria-label="LinkedIn">
+                <Link2 className="h-5 w-5" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-[#00ffff] transition-colors">
-                <Twitter className="h-5 w-5" />
+              <a href="#" className="text-gray-400 hover:text-[#00ffff] transition-colors" aria-label="Social">
+                <MessageCircle className="h-5 w-5" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-[#00ffff] transition-colors">
-                <Github className="h-5 w-5" />
+              <a href="#" className="text-gray-400 hover:text-[#00ffff] transition-colors" aria-label="Code repository">
+                <Code className="h-5 w-5" />
               </a>
             </div>
           </div>
