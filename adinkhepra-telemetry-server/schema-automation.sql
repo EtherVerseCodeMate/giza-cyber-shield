@@ -83,12 +83,7 @@ CREATE INDEX IF NOT EXISTS idx_pilot_status ON pilot_signups(status);
 CREATE INDEX IF NOT EXISTS idx_pilot_expires ON pilot_signups(expires_at);
 CREATE INDEX IF NOT EXISTS idx_pilot_enrollment ON pilot_signups(enrollment_token);
 
--- Add columns to licenses table for signing and source tracking
--- (SQLite doesn't support IF NOT EXISTS for ALTER TABLE, so wrap in try/catch in application)
--- ALTER TABLE licenses ADD COLUMN signature TEXT;
--- ALTER TABLE licenses ADD COLUMN license_blob TEXT;
--- ALTER TABLE licenses ADD COLUMN stripe_customer_id TEXT;
--- ALTER TABLE licenses ADD COLUMN pilot_id TEXT;
+-- signature, license_blob, stripe_customer_id, pilot_id are declared in schema-license.sql
 
 -- Views for Automation Analytics
 

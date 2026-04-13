@@ -633,7 +633,9 @@ export async function handleStripeWebhook(request, env, corsHeaders) {
 			});
 		}
 
-		// Compute expected signature
+		// Constant-time Stripe signature verification.
+		// crypto.subtle.verify() prevents timing oracles that `===` string comparison cannot.
+		// Stripe signs: HMAC-SHA256("t=<ts>.<rawBody>", STRIPE_WEBHOOK_SECRET)
 		const signedPayload = `${timestamp}.${rawBody}`;
 		const encoder = new TextEncoder();
 		const key = await crypto.subtle.importKey(
@@ -641,18 +643,20 @@ export async function handleStripeWebhook(request, env, corsHeaders) {
 			encoder.encode(env.STRIPE_WEBHOOK_SECRET),
 			{ name: 'HMAC', hash: 'SHA-256' },
 			false,
-			['sign']
+			['verify']
 		);
-		const signatureBuffer = await crypto.subtle.sign(
+		// Decode Stripe's expected hex signature to bytes for crypto.subtle.verify()
+		const expectedSigBytes = new Uint8Array(
+			expectedSig.match(/.{2}/g).map(b => Number.parseInt(b, 16))
+		);
+		const sigValid = await crypto.subtle.verify(
 			'HMAC',
 			key,
+			expectedSigBytes,
 			encoder.encode(signedPayload)
 		);
-		const computedSig = Array.from(new Uint8Array(signatureBuffer))
-			.map(b => b.toString(16).padStart(2, '0'))
-			.join('');
 
-		if (computedSig !== expectedSig) {
+		if (!sigValid) {
 			console.error('Invalid Stripe webhook signature');
 			return new Response(JSON.stringify({
 				error: 'Invalid signature'
@@ -974,23 +978,24 @@ export async function handleLicensesPending(request, env, corsHeaders, admin) {
 		const limit = Number.parseInt(url.searchParams.get('limit') || '10');
 		const source = url.searchParams.get('source'); // Optional: filter by source
 
-		let query = `
-			SELECT
-				request_id, machine_id, organization, customer_email,
+		// Parameterized query — source filter uses a bound parameter to prevent SQL injection.
+		const query = source
+			? `SELECT request_id, machine_id, organization, customer_email,
 				stripe_session_id, stripe_customer_id, pilot_id,
-				license_tier, features, limits,
-				requested_at, source
+				license_tier, features, limits, requested_at, source
+			FROM license_requests
+			WHERE status = 'pending' AND source = ?
+			ORDER BY requested_at ASC LIMIT ?`
+			: `SELECT request_id, machine_id, organization, customer_email,
+				stripe_session_id, stripe_customer_id, pilot_id,
+				license_tier, features, limits, requested_at, source
 			FROM license_requests
 			WHERE status = 'pending'
-		`;
+			ORDER BY requested_at ASC LIMIT ?`;
 
-		if (source) {
-			query += ` AND source = '${source}'`;
-		}
-
-		query += ` ORDER BY requested_at ASC LIMIT ?`;
-
-		const pending = await env.DB.prepare(query).bind(limit).all();
+		const pending = source
+			? await env.DB.prepare(query).bind(source, limit).all()
+			: await env.DB.prepare(query).bind(limit).all();
 
 		return new Response(JSON.stringify({
 			pending: pending.results.map(req => ({
