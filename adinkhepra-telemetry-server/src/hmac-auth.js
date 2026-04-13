@@ -168,9 +168,11 @@ async function verifyEnrollmentHMAC(signature, timestamp, body, enrollmentToken,
 }
 
 /**
- * Constant-time HMAC-SHA256 verification using crypto.subtle.verify().
- * crypto.subtle.verify() performs the comparison internally in constant time,
+ * Constant-time HMAC-SHA256 verification using Node.js crypto.timingSafeEqual().
+ * timingSafeEqual() performs byte comparison in constant time,
  * preventing timing-oracle attacks that string !== comparison cannot prevent.
+ * Uses node:crypto (available via nodejs_compat flag) instead of crypto.subtle
+ * to avoid Web Crypto API incompatibilities under the nodejs_compat runtime.
  *
  * @param {string} message   - Message that was signed
  * @param {string} secret    - Raw HMAC key (api_key or enrollment token)
@@ -178,19 +180,25 @@ async function verifyEnrollmentHMAC(signature, timestamp, body, enrollmentToken,
  * @returns {Promise<boolean>}
  */
 async function verifyHMAC(message, secret, hexSig) {
-	const encoder = new TextEncoder();
-	const key = await crypto.subtle.importKey(
-		'raw',
-		encoder.encode(secret),
-		{ name: 'HMAC', hash: 'SHA-256' },
-		false,
-		['sign', 'verify']
-	);
+	const { createHmac, timingSafeEqual } = await import('node:crypto');
 
-	// Decode client-supplied hex signature into bytes for comparison
-	const sigBytes = new Uint8Array(hexSig.match(/.{2}/g).map(b => Number.parseInt(b, 16)));
+	const expected = createHmac('sha256', secret)
+		.update(message, 'utf8')
+		.digest(); // Buffer of 32 bytes
 
-	return crypto.subtle.verify('HMAC', key, sigBytes, encoder.encode(message));
+	let received;
+	try {
+		received = Buffer.from(hexSig, 'hex');
+	} catch {
+		return false;
+	}
+
+	// timingSafeEqual requires same-length buffers — if lengths differ, sig is invalid
+	if (received.length !== expected.length) {
+		return false;
+	}
+
+	return timingSafeEqual(expected, received);
 }
 
 /**
