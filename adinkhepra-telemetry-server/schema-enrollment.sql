@@ -28,12 +28,7 @@ CREATE INDEX IF NOT EXISTS idx_enrollment_token ON enrollment_tokens(token);
 CREATE INDEX IF NOT EXISTS idx_enrollment_org ON enrollment_tokens(organization);
 CREATE INDEX IF NOT EXISTS idx_enrollment_active ON enrollment_tokens(active);
 
--- Add columns to licenses table for tracking enrollment source
--- (Run this if the columns don't exist)
--- ALTER TABLE licenses ADD COLUMN enrollment_token_id INTEGER;
--- ALTER TABLE licenses ADD COLUMN hostname TEXT;
--- ALTER TABLE licenses ADD COLUMN platform TEXT;
--- ALTER TABLE licenses ADD COLUMN agent_version TEXT;
+-- enrollment_token_id, hostname, platform, agent_version are declared in schema-license.sql
 
 -- View: Enrollment token usage summary
 CREATE VIEW IF NOT EXISTS v_enrollment_summary AS
