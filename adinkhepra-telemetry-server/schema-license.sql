@@ -14,6 +14,14 @@ CREATE TABLE IF NOT EXISTS licenses (
     retention_days INTEGER DEFAULT 1,        -- 1 for Starter, 7 for Pro, 30 for Business
     ai_credits_monthly INTEGER DEFAULT 50,   -- TBot queries
     tier_config TEXT,                        -- JSON: extra overrides
+    -- Registration metadata (populated by handleLicenseRegister)
+    enrollment_token_id INTEGER,             -- FK → enrollment_tokens.id
+    hostname TEXT,
+    platform TEXT,
+    agent_version TEXT,
+    -- HMAC authentication: raw api_key stored so the server can verify
+    -- client heartbeat signatures. 256-bit CSPRNG key; not a user password.
+    api_key TEXT,
     revoked INTEGER DEFAULT 0,
     revoked_at INTEGER,
     revoked_reason TEXT,
