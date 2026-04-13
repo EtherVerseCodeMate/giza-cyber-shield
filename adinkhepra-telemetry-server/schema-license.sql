@@ -22,6 +22,12 @@ CREATE TABLE IF NOT EXISTS licenses (
     -- HMAC authentication: raw api_key stored so the server can verify
     -- client heartbeat signatures. 256-bit CSPRNG key; not a user password.
     api_key TEXT,
+    -- ML-DSA-65 signed license fields (populated by handleLicenseComplete)
+    signature TEXT,
+    license_blob TEXT,
+    -- Payment and pilot tracking
+    stripe_customer_id TEXT,
+    pilot_id TEXT,
     revoked INTEGER DEFAULT 0,
     revoked_at INTEGER,
     revoked_reason TEXT,
