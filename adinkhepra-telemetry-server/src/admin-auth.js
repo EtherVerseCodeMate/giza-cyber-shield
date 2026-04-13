@@ -424,24 +424,32 @@ async function verifyJWT(token, secret) {
 }
 
 /**
- * Base64URL encode
+ * Base64URL encode.
+ * Uses a loop instead of spread+String.fromCodePoint to avoid call-stack overflow
+ * on large payloads (spread has a ~65k arg limit in most JS engines).
  */
 function base64urlEncode(data) {
+	let bytes;
 	if (typeof data === 'string') {
-		data = new TextEncoder().encode(data);
+		bytes = new TextEncoder().encode(data);
 	} else if (data instanceof ArrayBuffer) {
-		data = new Uint8Array(data);
+		bytes = new Uint8Array(data);
+	} else {
+		bytes = data;
 	}
 
-	let base64 = btoa(String.fromCharCode(...data));
-	return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+	let binary = '';
+	for (const byte of bytes) {
+		binary += String.fromCodePoint(byte);
+	}
+	return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
 }
 
 /**
  * Base64URL decode to ArrayBuffer
  */
 function base64urlDecode(str) {
-	str = str.replace(/-/g, '+').replace(/_/g, '/');
+	str = str.replaceAll('-', '+').replaceAll('_', '/');
 	const pad = str.length % 4;
 	if (pad) {
 		str += '='.repeat(4 - pad);
@@ -449,7 +457,7 @@ function base64urlDecode(str) {
 	const binary = atob(str);
 	const bytes = new Uint8Array(binary.length);
 	for (let i = 0; i < binary.length; i++) {
-		bytes[i] = binary.charCodeAt(i);
+		bytes[i] = binary.codePointAt(i);
 	}
 	return bytes.buffer;
 }
