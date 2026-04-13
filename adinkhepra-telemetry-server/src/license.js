@@ -11,6 +11,8 @@
  * - DoD unit tracking and audit logging
  */
 
+import { verifyLicenseHMAC, generateAPIKey } from './hmac-auth.js';
+
 /**
  * Validate license for premium PQC features
  *
@@ -115,9 +117,6 @@ export async function handleLicenseValidate(request, env, corsHeaders) {
 export async function handleLicenseHeartbeat(request, env, corsHeaders) {
 	try {
 		const body = await request.text();
-
-		// Import HMAC verification
-		const { verifyLicenseHMAC } = await import('./hmac-auth.js');
 
 		// Verify HMAC signature
 		const authResult = await verifyLicenseHMAC(request, body, env);
@@ -301,9 +300,6 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 	try {
 		const body = await request.text();
 
-		// Import HMAC verification
-		const { verifyLicenseHMAC, generateAPIKey } = await import('./hmac-auth.js');
-
 		// Verify HMAC signature
 		const authResult = await verifyLicenseHMAC(request, body, env);
 		if (!authResult.valid) {
@@ -377,8 +373,8 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 		const trialDays = 30;
 		const expiresAt = now + (trialDays * 86400);
 
-		// Generate API key
-		const { apiKey, apiKeyHash } = await generateAPIKey();
+		// Generate API key — raw key stored in DB for HMAC verification
+		const { apiKey } = await generateAPIKey();
 
 		// Create new license
 		await env.DB.prepare(`
@@ -386,7 +382,7 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 				machine_id, organization, features, license_tier,
 				issued_at, expires_at, max_devices, revoked, validation_count,
 				enrollment_token_id, hostname, platform, agent_version,
-				max_concurrent_scans, retention_days, ai_credits_monthly, api_key_hash
+				max_concurrent_scans, retention_days, ai_credits_monthly, api_key
 			) VALUES (?, ?, ?, ?, ?, ?, 1, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT(machine_id) DO UPDATE SET
 				organization = excluded.organization,
@@ -398,7 +394,7 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 				hostname = excluded.hostname,
 				platform = excluded.platform,
 				agent_version = excluded.agent_version,
-				api_key_hash = excluded.api_key_hash
+				api_key = excluded.api_key
 		`).bind(
 			machine_id,
 			enrollment.organization,
@@ -413,7 +409,7 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 			getTierLimit(enrollment.license_tier, 'max_devices'),
 			getTierLimit(enrollment.license_tier, 'max_concurrent_scans'),
 			getTierLimit(enrollment.license_tier, 'retention_days'),
-			apiKeyHash
+			apiKey
 		).run();
 
 		// Increment registration count
