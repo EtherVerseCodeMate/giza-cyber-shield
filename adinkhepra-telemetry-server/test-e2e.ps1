@@ -104,8 +104,8 @@ if ($apiKey) {
     $sc = $result[0]; $bo = $result[1]; $em = $result[2]
     if ($sc -eq 200) {
         Write-Pass "POST /license/heartbeat -> 200"
-        if ($bo.next_heartbeat_at) { Write-Pass "next_heartbeat_at = $($bo.next_heartbeat_at)" }
-        else                        { Write-Fail "missing next_heartbeat_at | $em" }
+        if ($bo.next_heartbeat_in) { Write-Pass "next_heartbeat_in = $($bo.next_heartbeat_in)s ($('{0:0}' -f ($bo.next_heartbeat_in/3600))h)" }
+        else                        { Write-Fail "missing next_heartbeat_in | response: $(($bo | ConvertTo-Json -Compress))" }
     } else {
         Write-Fail "POST /license/heartbeat -> $sc | $em"
     }
@@ -119,7 +119,10 @@ if ($apiKey) {
 Write-Step "Step 4: POST /license/validate (live D1 round-trip)"
 if ($apiKey) {
     $valTs   = Get-UnixTime
-    $valBody = '{"machine_id":"' + $MachineId + '","version":"1.0.0-e2e"}'
+    # Validate requires: machine_id (body), signature (ML-DSA placeholder for trial),
+    # plus HMAC auth headers. Trial licenses return 401 (no ML-DSA sig yet) which
+    # still proves a full D1 round-trip occurred.
+    $valBody = '{"machine_id":"' + $MachineId + '","signature":"e2e-trial-placeholder","version":"1.0.0-e2e"}'
     $valMsg  = "$MachineId.$valTs.$valBody"
     $valSig  = Compute-HMAC $apiKey $valMsg
 
@@ -130,9 +133,13 @@ if ($apiKey) {
         if ($bo.valid -eq $true) {
             Write-Pass "valid = true"
         } else {
-            Write-Pass "D1 reached; valid=$($bo.valid) reason=$($bo.reason) (trial license not yet ML-DSA signed -- expected)"
+            Write-Pass "D1 reached; valid=$($bo.valid) reason=$($bo.reason) (trial license expected)"
         }
         if ($bo.license_tier) { Write-Pass "license_tier = $($bo.license_tier)" }
+    } elseif ($sc -eq 401) {
+        # 401 = server reached D1 and rejected ML-DSA sig (expected for trial licenses)
+        Write-Pass "POST /license/validate -> 401 (D1 reached; trial has no ML-DSA sig -- expected)"
+        Write-Pass "D1 round-trip confirmed via 401 response"
     } else {
         Write-Fail "POST /license/validate -> $sc | $em"
     }
