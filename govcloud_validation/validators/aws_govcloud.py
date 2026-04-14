@@ -345,20 +345,23 @@ class AWSGovCloudValidator(GovCloudValidator):
     provider_id = "aws-govcloud"
 
     STAGES: List[Tuple[str, str]] = [
-        ("step_00_prereqs", "0) Pre-Reqs — Account Pairing (Runbook v2.1)"),
-        ("step_00_2_us_person", "0.2) US-Person Enforcement — IAM Identity Center"),
-        ("step_01_organizations", "1) Landing Zone — Organizations & OUs"),
-        ("step_02_root_guardrails", "2) Root Hygiene & SCPs"),
-        ("step_03_logging", "3) Centralized Logging & Immutable Evidence"),
-        ("step_04_networking", "4) Networking Baseline (VPC)"),
-        ("step_05_aurora", "5) Aurora PostgreSQL"),
-        ("step_06_compute", "6) ECS Fargate Compute"),
-        ("step_07_identity", "7) Cognito + Aurora RLS"),
-        ("step_08_encryption", "8) Secrets, Keys & Crypto"),
-        ("step_09_enclave", "9) Secure Enclave API (CUI boundary)"),
-        ("step_10_sdlc", "10) SDLC — Evidence-First"),
-        ("step_11_smoke", "11) First Smoke Test"),
-        ("step_12_evidence_binder", "12) C3PAO Evidence Binder"),
+        ("step_00_prereqs",        "0) Pre-Reqs — Account Pairing (Runbook v2.1)"),
+        ("step_00_2_us_person",    "0.2) US-Person Enforcement — IAM Identity Center"),
+        ("step_01_organizations",  "1) Landing Zone — Organizations & OUs"),
+        ("step_02_root_guardrails","2) Root Hygiene & SCPs"),
+        ("step_03_logging",        "3) Centralized Logging & Immutable Evidence"),
+        ("step_04_networking",     "4) Networking Baseline (VPC)"),
+        ("step_05_aurora",         "5) Aurora PostgreSQL"),
+        ("step_06_compute",        "6) ECS Fargate Compute"),
+        ("step_06a_lambda",        "6A) Lambda + DynamoDB (replaces Cloudflare Workers)"),
+        ("step_06b_frontend",      "6B) Frontend Hosting (replaces Vercel)"),
+        ("step_07_identity",       "7) Cognito + Aurora RLS (replaces Supabase Auth)"),
+        ("step_08_encryption",     "8) Secrets, Keys & Crypto"),
+        ("step_08a_bedrock",       "8A) Bedrock AI (replaces OpenAI/xAI)"),
+        ("step_09_enclave",        "9) Secure Enclave API (CUI boundary)"),
+        ("step_10_sdlc",           "10) SDLC — Evidence-First"),
+        ("step_11_smoke",          "11) First Smoke Test"),
+        ("step_12_evidence_binder","12) C3PAO Evidence Binder"),
     ]
 
     def get_stages(self) -> List[Tuple[str, str]]:
@@ -381,23 +384,42 @@ class AWSGovCloudValidator(GovCloudValidator):
             )
 
         handlers: dict[str, Callable[[ValidationContext], List[CheckResult]]] = {
-            "step_00_prereqs": self._step_00,
-            "step_00_2_us_person": self._step_00_2,
-            "step_01_organizations": self._step_01,
-            "step_02_root_guardrails": self._step_02,
-            "step_03_logging": self._step_03,
-            "step_04_networking": self._step_04,
-            "step_05_aurora": self._step_05,
-            "step_06_compute": self._step_06,
-            "step_07_identity": self._step_07,
-            "step_08_encryption": self._step_08,
-            "step_09_enclave": self._step_09,
-            "step_10_sdlc": self._step_10,
-            "step_11_smoke": self._step_11,
-            "step_12_evidence_binder": self._step_12,
+            "step_00_prereqs":        self._step_00,
+            "step_00_2_us_person":    self._step_00_2,
+            "step_01_organizations":  self._step_01,
+            "step_02_root_guardrails":self._step_02,
+            "step_03_logging":        self._step_03,
+            "step_04_networking":     self._step_04,
+            "step_05_aurora":         self._step_05,
+            "step_06_compute":        self._step_06,
+            "step_07_identity":       self._step_07,
+            "step_08_encryption":     self._step_08,
+            "step_09_enclave":        self._step_09,
+            "step_10_sdlc":           self._step_10,
+            "step_11_smoke":          self._step_11,
+            "step_12_evidence_binder":self._step_12,
         }
         fn = handlers.get(stage_id)
         if not fn:
+            # Fall back to a registered StageValidator (e.g. step_06a_lambda,
+            # step_06b_frontend, step_08a_bedrock and any future additions).
+            from govcloud_validation.registry import get_stage_validator
+            stage_v = get_stage_validator(stage_id)
+            if stage_v is not None:
+                stage_v.region = ctx.region
+                try:
+                    checks = stage_v.checks()
+                except Exception as e:  # noqa: BLE001
+                    checks = [
+                        CheckResult(
+                            "stage_error",
+                            "stage execution",
+                            CheckStatus.WARN,
+                            _aws_error_detail(e),
+                        )
+                    ]
+                return StageResult(stage_id=stage_id, title=title, checks=checks)
+
             return StageResult(
                 stage_id=stage_id,
                 title=title,
@@ -1869,6 +1891,218 @@ class AWSGovCloudValidator(GovCloudValidator):
                     CheckStatus.SKIP,
                     "Could not resolve STS account id for EBS default encryption check.",
                     control_hints=["SC-13"],
+                )
+            )
+
+        # ── Gap checks from Runbook v2.1 Step 3 (4 pending items) ────────────
+
+        # Gap 1 — GuardDuty findings not yet exported to evidence bucket
+        if ev_bucket:
+            try:
+                gd = s.client("guardduty")
+                det_ids = gd.list_detectors().get("DetectorIds", [])
+                if det_ids:
+                    pubs = gd.list_publishing_destinations(DetectorId=det_ids[0])
+                    dests = pubs.get("Destinations", [])
+                    active = [
+                        d for d in dests
+                        if d.get("DestinationType") == "S3"
+                        and d.get("Status") in ("PUBLISHING_SUCCEEDED", "PENDING_VERIFICATION")
+                    ]
+                    checks.append(
+                        CheckResult(
+                            "guardduty_findings_export",
+                            "GuardDuty findings export to S3 evidence bucket",
+                            CheckStatus.PASS if active else CheckStatus.FAIL,
+                            f"Active S3 publishing destination found" if active
+                            else f"Configure GuardDuty → Settings → Export findings → {ev_bucket}",
+                            control_hints=["AU-9", "AU-11", "SI-4"],
+                        )
+                    )
+                else:
+                    checks.append(
+                        CheckResult(
+                            "guardduty_findings_export",
+                            "GuardDuty findings export to S3 evidence bucket",
+                            CheckStatus.SKIP,
+                            "No GuardDuty detector found",
+                            control_hints=["AU-9"],
+                        )
+                    )
+            except (BotoCoreError, ClientError) as e:
+                checks.append(
+                    CheckResult(
+                        "guardduty_findings_export",
+                        "GuardDuty findings export to S3 evidence bucket",
+                        CheckStatus.WARN,
+                        _aws_error_detail(e),
+                        control_hints=["AU-9"],
+                    )
+                )
+        else:
+            checks.append(
+                CheckResult(
+                    "guardduty_findings_export",
+                    "GuardDuty findings export to S3 evidence bucket",
+                    CheckStatus.SKIP,
+                    "Set GOVCLOUD_EXPECTED_EVIDENCE_BUCKET to verify findings export.",
+                    control_hints=["AU-9", "AU-11"],
+                )
+            )
+
+        # Gap 2 — Config delivery channel still points to CloudTrail bucket
+        if ev_bucket:
+            try:
+                dc_resp = s.client("config").describe_delivery_channels()
+                chans = dc_resp.get("DeliveryChannels", [])
+                if chans:
+                    wrong = [
+                        c.get("s3BucketName", "") for c in chans
+                        if c.get("s3BucketName", "") != ev_bucket
+                    ]
+                    checks.append(
+                        CheckResult(
+                            "config_delivery_channel_evidence_bucket",
+                            "AWS Config delivery channel → evidence bucket",
+                            CheckStatus.PASS if not wrong else CheckStatus.FAIL,
+                            f"All delivery channels target {ev_bucket!r}" if not wrong
+                            else f"Channels targeting wrong bucket: {wrong} — update to {ev_bucket!r}",
+                            control_hints=["CM-2", "AU-12"],
+                        )
+                    )
+                else:
+                    checks.append(
+                        CheckResult(
+                            "config_delivery_channel_evidence_bucket",
+                            "AWS Config delivery channel → evidence bucket",
+                            CheckStatus.FAIL,
+                            "No Config delivery channel configured",
+                            control_hints=["CM-2", "AU-12"],
+                        )
+                    )
+            except (BotoCoreError, ClientError) as e:
+                checks.append(
+                    CheckResult(
+                        "config_delivery_channel_evidence_bucket",
+                        "AWS Config delivery channel → evidence bucket",
+                        CheckStatus.WARN,
+                        _aws_error_detail(e),
+                        control_hints=["CM-2"],
+                    )
+                )
+        else:
+            checks.append(
+                CheckResult(
+                    "config_delivery_channel_evidence_bucket",
+                    "AWS Config delivery channel → evidence bucket",
+                    CheckStatus.SKIP,
+                    "Set GOVCLOUD_EXPECTED_EVIDENCE_BUCKET to validate delivery channel.",
+                    control_hints=["CM-2", "AU-12"],
+                )
+            )
+
+        # Gap 3 — GuardDuty Malware Protection for S3 not on evidence bucket
+        if ev_bucket:
+            try:
+                gd2 = s.client("guardduty")
+                det_ids2 = gd2.list_detectors().get("DetectorIds", [])
+                if det_ids2:
+                    try:
+                        plans = gd2.list_malware_protection_plans().get(
+                            "MalwareProtectionPlans", []
+                        )
+                        checks.append(
+                            CheckResult(
+                                "s3_malware_protection",
+                                "GuardDuty Malware Protection for S3 evidence bucket",
+                                CheckStatus.PASS if plans else CheckStatus.FAIL,
+                                f"{len(plans)} Malware Protection plan(s) configured" if plans
+                                else f"Enable GuardDuty → Malware Protection → S3 → {ev_bucket}",
+                                control_hints=["SI-3", "SI-4"],
+                            )
+                        )
+                    except (BotoCoreError, ClientError) as e:
+                        # API may not be available in all GovCloud regions/configs
+                        checks.append(
+                            CheckResult(
+                                "s3_malware_protection",
+                                "GuardDuty Malware Protection for S3 evidence bucket",
+                                CheckStatus.WARN,
+                                f"Cannot query Malware Protection plans: {_aws_error_detail(e)}",
+                                control_hints=["SI-3"],
+                            )
+                        )
+                else:
+                    checks.append(
+                        CheckResult(
+                            "s3_malware_protection",
+                            "GuardDuty Malware Protection for S3 evidence bucket",
+                            CheckStatus.SKIP,
+                            "No GuardDuty detector found",
+                            control_hints=["SI-3"],
+                        )
+                    )
+            except (BotoCoreError, ClientError) as e:
+                checks.append(
+                    CheckResult(
+                        "s3_malware_protection",
+                        "GuardDuty Malware Protection for S3 evidence bucket",
+                        CheckStatus.WARN,
+                        _aws_error_detail(e),
+                        control_hints=["SI-3"],
+                    )
+                )
+        else:
+            checks.append(
+                CheckResult(
+                    "s3_malware_protection",
+                    "GuardDuty Malware Protection for S3 evidence bucket",
+                    CheckStatus.SKIP,
+                    "Set GOVCLOUD_EXPECTED_EVIDENCE_BUCKET to check Malware Protection coverage.",
+                    control_hints=["SI-3", "SI-4"],
+                )
+            )
+
+        # Gap 4 — NIST 800-171 conformance pack not deployed
+        try:
+            cfg3 = s.client("config")
+            packs: List[dict] = []
+            token3: Optional[str] = None
+            while True:
+                kwargs3: dict[str, Any] = {}
+                if token3:
+                    kwargs3["NextToken"] = token3
+                resp3 = cfg3.describe_conformance_packs(**kwargs3)
+                packs.extend(resp3.get("ConformancePackDetails", []))
+                token3 = resp3.get("NextToken")
+                if not token3:
+                    break
+            nist_packs = [
+                p for p in packs
+                if "800-171" in p.get("ConformancePackName", "").replace("-", " ")
+                or ("nist" in p.get("ConformancePackName", "").lower()
+                    and "171" in p.get("ConformancePackName", ""))
+            ]
+            checks.append(
+                CheckResult(
+                    "nist_800171_conformance_pack",
+                    "NIST 800-171 AWS Config conformance pack",
+                    CheckStatus.PASS if nist_packs else CheckStatus.FAIL,
+                    f"Pack(s): {', '.join(p.get('ConformancePackName','') for p in nist_packs)}"
+                    if nist_packs
+                    else "Deploy NIST 800-171 conformance pack: "
+                         "aws configservice put-conformance-pack --conformance-pack-name secred-nist-800-171",
+                    control_hints=["CM-2", "CM-6", "SI-4"],
+                )
+            )
+        except (BotoCoreError, ClientError) as e:
+            checks.append(
+                CheckResult(
+                    "nist_800171_conformance_pack",
+                    "NIST 800-171 AWS Config conformance pack",
+                    CheckStatus.WARN,
+                    _aws_error_detail(e),
+                    control_hints=["CM-2"],
                 )
             )
 
