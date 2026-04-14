@@ -468,13 +468,33 @@ class Step03Logging(StageValidator):
                     controls=[SI_L2_3_14_2, SI_L2_3_14_6, SI_4],
                 )]
             except Exception as exc:
+                # Distinguish AccessDenied (IAM gap → FAIL) from service unavailability
+                # in a GovCloud region tier (expected GovCloud limitation → WARN).
+                err_str = str(exc)
+                if "AccessDenied" in err_str or "Unauthorized" in err_str:
+                    return [self._fail(
+                        "s3_malware_protection",
+                        "GuardDuty Malware Protection for S3 evidence bucket",
+                        f"Access denied checking Malware Protection plans — "
+                        f"verify IAM permissions for guardduty:ListMalwareProtectionPlans: {exc}",
+                        controls=[SI_L2_3_14_2, SI_4],
+                    )]
+                # Not AccessDenied — likely service not available in this GovCloud tier.
                 return [self._warn(
                     "s3_malware_protection",
                     "GuardDuty Malware Protection for S3 evidence bucket",
-                    f"Cannot query Malware Protection plans: {exc}",
+                    f"Cannot query Malware Protection plans (may not be available in this GovCloud tier): {exc}",
                     controls=[SI_L2_3_14_2],
                 )]
         except Exception as exc:
+            err_str = str(exc)
+            if "AccessDenied" in err_str or "Unauthorized" in err_str:
+                return [self._fail(
+                    "s3_malware_protection",
+                    "GuardDuty Malware Protection for S3 evidence bucket",
+                    f"Access denied listing GuardDuty detectors: {exc}",
+                    controls=[SI_L2_3_14_2],
+                )]
             return [self._warn(
                 "s3_malware_protection",
                 "GuardDuty Malware Protection for S3 evidence bucket",

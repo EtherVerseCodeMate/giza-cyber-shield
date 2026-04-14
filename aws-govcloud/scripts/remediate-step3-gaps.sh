@@ -25,15 +25,20 @@
 
 set -euo pipefail
 
-# ── Config — override with env vars if needed ─────────────────────────────────
+# ── Config — all required vars must be set; no production defaults ─────────────
 REGION="${AWS_REGION:-us-gov-west-1}"
-ACCOUNT_ID="${GOVCLOUD_EXPECTED_ACCOUNT_ID:-483774310865}"
-EVIDENCE_BUCKET="${GOVCLOUD_EXPECTED_EVIDENCE_BUCKET:-secred-evidence-${ACCOUNT_ID}}"
+
+# GOVCLOUD_EXPECTED_ACCOUNT_ID must be set explicitly — no hardcoded default.
+# Sourcing a test env without this set would otherwise silently target production.
+# Set it in secred-govcloud.env.local.sh before sourcing this script.
+ACCOUNT_ID="${GOVCLOUD_EXPECTED_ACCOUNT_ID:?'ERROR: GOVCLOUD_EXPECTED_ACCOUNT_ID must be set. Source your secred-govcloud.env.local.sh first.'}"
+
+EVIDENCE_BUCKET="${GOVCLOUD_EXPECTED_EVIDENCE_BUCKET:?'ERROR: GOVCLOUD_EXPECTED_EVIDENCE_BUCKET must be set. Source your secred-govcloud.env.local.sh first.'}"
 EVIDENCE_CMK_ALIAS="${GOVCLOUD_EXPECTED_EVIDENCE_CMK_ALIAS:-alias/secred-evidence-cmk}"
 CONFIG_RECORDER_NAME="${GOVCLOUD_EXPECTED_CONFIG_RECORDER_NAME:-default}"
 NIST_PACK_NAME="secred-nist-800-171"
-# S3 bucket for conformance pack templates (must be in same region)
-PACK_DELIVERY_BUCKET="${GOVCLOUD_EXPECTED_EVIDENCE_BUCKET:-secred-evidence-${ACCOUNT_ID}}"
+# S3 bucket for conformance pack templates (same bucket as evidence — must be in same region)
+PACK_DELIVERY_BUCKET="$EVIDENCE_BUCKET"
 
 DRY_RUN=false
 if [[ "${1:-}" == "--dry-run" ]]; then
@@ -56,7 +61,8 @@ run() {
     if [[ "$DRY_RUN" == "true" ]]; then
         echo "[DRY-RUN] $*"
     else
-        eval "$@"
+        # Execute arguments directly as a command — no eval to avoid injection risk.
+        "$@"
     fi
 }
 
@@ -125,8 +131,8 @@ EXISTING_DEST=$(aws guardduty list-publishing-destinations \
     --query "Destinations[?DestinationType=='S3'] | [0].Status" \
     --output text 2>/dev/null || echo "")
 
-if [[ "$EXISTING_DEST" == "PUBLISHING_SUCCEEDED" ]]; then
-    log_ok "GuardDuty → S3 publishing already active. Skipping."
+if [[ "$EXISTING_DEST" == "PUBLISHING_SUCCEEDED" || "$EXISTING_DEST" == "PENDING_VERIFICATION" ]]; then
+    log_ok "GuardDuty → S3 publishing already configured (status: $EXISTING_DEST). Skipping."
 else
     log_info "Creating GuardDuty S3 publishing destination..."
     EVIDENCE_BUCKET_ARN="arn:aws-us-gov:s3:::${EVIDENCE_BUCKET}"
@@ -385,18 +391,34 @@ Resources:
 YAML
 )
 
+    # Write template to a temp file so we can validate and upload it safely.
+    YAML_TMPFILE=$(mktemp /tmp/nist-800-171-govcloud-XXXXXX.yaml)
+    # shellcheck disable=SC2064  # we want the current value of YAML_TMPFILE in the trap
+    trap "rm -f '$YAML_TMPFILE'" EXIT
+    printf '%s\n' "$PACK_TEMPLATE" > "$YAML_TMPFILE"
+
+    # Validate YAML syntax before uploading — a bash heredoc does not validate
+    # whitespace/indentation, so a malformed template would fail silently inside
+    # CloudFormation with a cryptic error. Fail loudly here instead.
+    log_info "Validating conformance pack YAML syntax..."
+    if python3 -c "import yaml, sys; yaml.safe_load(open('$YAML_TMPFILE'))" 2>/dev/null; then
+        log_ok "YAML syntax valid"
+    else
+        log_err "NIST pack template YAML is invalid — check for indentation or variable substitution errors in the heredoc."
+    fi
+
     # Upload template to evidence bucket
     TEMPLATE_KEY="conformance-packs/nist-800-171-govcloud.yaml"
     TEMPLATE_S3_URI="s3://${PACK_DELIVERY_BUCKET}/${TEMPLATE_KEY}"
 
     log_info "Uploading conformance pack template to $TEMPLATE_S3_URI..."
     if [[ "$DRY_RUN" == "false" ]]; then
-        echo "$PACK_TEMPLATE" | aws s3 cp - "$TEMPLATE_S3_URI" \
+        aws s3 cp "$YAML_TMPFILE" "$TEMPLATE_S3_URI" \
             --region "$REGION" \
             --sse aws:kms \
             --sse-kms-key-id "$EVIDENCE_CMK_ARN"
     else
-        echo "[DRY-RUN] aws s3 cp <template> $TEMPLATE_S3_URI"
+        echo "[DRY-RUN] aws s3 cp $YAML_TMPFILE $TEMPLATE_S3_URI"
     fi
 
     run aws configservice put-conformance-pack \

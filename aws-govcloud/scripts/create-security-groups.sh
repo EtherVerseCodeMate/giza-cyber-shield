@@ -51,7 +51,8 @@ run() {
         echo "sg-dryrun000000000"   # fake SG ID for dry-run chaining
         return 0
     fi
-    eval "$@"
+    # Execute arguments directly as a command — no eval to avoid injection risk.
+    "$@"
 }
 
 # ── Preamble ──────────────────────────────────────────────────────────────────

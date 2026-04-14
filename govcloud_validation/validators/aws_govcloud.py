@@ -342,6 +342,33 @@ def _check_expected_ou_layout(s: Any) -> List[CheckResult]:
 
 
 class AWSGovCloudValidator(GovCloudValidator):
+    """AWS GovCloud validator — monolithic System A implementation.
+
+    Architecture note — System A vs System B
+    -----------------------------------------
+    This class (System A) contains built-in ``_step_XX()`` handler methods for
+    most runbook steps.  A parallel per-step module system (System B) lives in
+    the ``step_XX.py`` files alongside this one.  Currently:
+
+    * Steps 0–5, 7–12 → handled by System A ``_step_XX()`` methods.
+    * Steps 6A, 6B, 8A → handled by System B (no built-in handler here;
+      ``validate_stage()`` falls back to ``_STAGE_REGISTRY``).
+
+    Committed migration plan (approved sprint plan):
+    1. Each sprint, migrate one System A ``_step_XX()`` method to a System B
+       ``step_XX.py`` module and delete the built-in handler from ``handlers``
+       dict in ``validate_stage()``.  Start with the smallest handlers first.
+    2. Target removal of all built-in handlers by the end of the sprint after
+       Step 12 (C3PAO Evidence Binder) is fully deployed.
+    3. Once all handlers are removed, ``validate_stage()`` exclusively delegates
+       to ``_STAGE_REGISTRY`` and System A becomes a thin orchestration layer.
+
+    Rationale: a C3PAO reviewing the JSON evidence artifact cannot determine
+    which system produced a result.  Consolidating to System B makes each
+    step's logic isolated, independently reviewable, and traceable to a
+    single file per runbook step.
+    """
+
     provider_id = "aws-govcloud"
 
     STAGES: List[Tuple[str, str]] = [
@@ -1956,6 +1983,12 @@ class AWSGovCloudValidator(GovCloudValidator):
                 dc_resp = s.client("config").describe_delivery_channels()
                 chans = dc_resp.get("DeliveryChannels", [])
                 if chans:
+                    # ``wrong`` holds channels NOT targeting the evidence bucket.
+                    # PASS means ALL existing channels target ev_bucket (``not wrong``).
+                    # The zero-channel case (no delivery channel at all) is a FAIL handled
+                    # by the ``else`` branch below — it cannot reach this code path.
+                    # A mixed state (some channels correct, some not) produces a non-empty
+                    # ``wrong`` list and therefore a FAIL, as intended.
                     wrong = [
                         c.get("s3BucketName", "") for c in chans
                         if c.get("s3BucketName", "") != ev_bucket
@@ -2022,16 +2055,32 @@ class AWSGovCloudValidator(GovCloudValidator):
                             )
                         )
                     except (BotoCoreError, ClientError) as e:
-                        # API may not be available in all GovCloud regions/configs
-                        checks.append(
-                            CheckResult(
-                                "s3_malware_protection",
-                                "GuardDuty Malware Protection for S3 evidence bucket",
-                                CheckStatus.WARN,
-                                f"Cannot query Malware Protection plans: {_aws_error_detail(e)}",
-                                control_hints=["SI-3"],
+                        # Distinguish AccessDenied (IAM gap → FAIL) from service unavailability
+                        # in a GovCloud region tier (expected limitation → WARN).
+                        err_code = ""
+                        if HAS_BOTO3 and isinstance(e, ClientError):
+                            err_code = e.response.get("Error", {}).get("Code", "")
+                        if "AccessDenied" in err_code or "Unauthorized" in err_code:
+                            checks.append(
+                                CheckResult(
+                                    "s3_malware_protection",
+                                    "GuardDuty Malware Protection for S3 evidence bucket",
+                                    CheckStatus.FAIL,
+                                    f"Access denied checking Malware Protection plans — verify IAM permissions: {_aws_error_detail(e)}",
+                                    control_hints=["SI-3", "SI-4"],
+                                )
                             )
-                        )
+                        else:
+                            # Service may not be available in all GovCloud region tiers.
+                            checks.append(
+                                CheckResult(
+                                    "s3_malware_protection",
+                                    "GuardDuty Malware Protection for S3 evidence bucket",
+                                    CheckStatus.WARN,
+                                    f"Cannot query Malware Protection plans (may not be available in this GovCloud tier): {_aws_error_detail(e)}",
+                                    control_hints=["SI-3"],
+                                )
+                            )
                 else:
                     checks.append(
                         CheckResult(
@@ -2043,11 +2092,19 @@ class AWSGovCloudValidator(GovCloudValidator):
                         )
                     )
             except (BotoCoreError, ClientError) as e:
+                err_code = ""
+                if HAS_BOTO3 and isinstance(e, ClientError):
+                    err_code = e.response.get("Error", {}).get("Code", "")
+                status = (
+                    CheckStatus.FAIL
+                    if ("AccessDenied" in err_code or "Unauthorized" in err_code)
+                    else CheckStatus.WARN
+                )
                 checks.append(
                     CheckResult(
                         "s3_malware_protection",
                         "GuardDuty Malware Protection for S3 evidence bucket",
-                        CheckStatus.WARN,
+                        status,
                         _aws_error_detail(e),
                         control_hints=["SI-3"],
                     )

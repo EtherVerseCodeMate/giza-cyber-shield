@@ -57,13 +57,22 @@ class StageResult:
 
 @dataclass
 class ValidationReport:
-    """Full run output (one provider, many stages)."""
+    """Full run output (one provider, many stages).
+
+    ``validator_version``, ``git_sha``, and ``boto3_version`` are recorded so
+    a C3PAO assessor reviewing a JSON evidence artifact months later can
+    determine exactly which version of the validation logic produced each result.
+    """
 
     provider: str
     region: str
     generated_at: str
     stages: List[StageResult] = field(default_factory=list)
     skipped_stages: List[str] = field(default_factory=list)
+    # Evidence traceability — populated by __main__.py at runtime.
+    validator_version: str = ""   # semver of this package (e.g. "2.1.0")
+    git_sha: str = ""             # short git commit SHA of the running code
+    boto3_version: str = ""       # installed boto3 version (e.g. "1.34.69")
 
     def to_dict(self) -> Dict[str, Any]:
         def check_dict(c: CheckResult) -> Dict[str, Any]:
@@ -75,6 +84,9 @@ class ValidationReport:
             "provider": self.provider,
             "region": self.region,
             "generated_at": self.generated_at,
+            "validator_version": self.validator_version,
+            "git_sha": self.git_sha,
+            "boto3_version": self.boto3_version,
             "skipped_stages": self.skipped_stages,
             "stages": [
                 {

@@ -1,0 +1,15 @@
+# govcloud_validation — pinned runtime dependencies
+#
+# The exact boto3 version used for each validation run is captured in the
+# ValidationReport JSON (boto3_version field) so evidence artifacts are
+# reproducible and auditable. Pin to a known-good range and update deliberately.
+#
+# Install: pip install -r govcloud_validation/requirements.txt
+
+boto3>=1.34.0,<2.0.0
+botocore>=1.34.0,<2.0.0
+
+# PyYAML is used only for local YAML syntax validation of compliance_matrix.yaml.
+# The conformance pack template is validated at runtime via python3 -c "import yaml..."
+# in remediate-step3-gaps.sh before upload.
+PyYAML>=6.0,<7.0

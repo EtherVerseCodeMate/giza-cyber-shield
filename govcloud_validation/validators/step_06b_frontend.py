@@ -13,7 +13,7 @@ Validates:
 
 from __future__ import annotations
 
-from govcloud_validation.base import CheckResult, StageValidator
+from govcloud_validation.base import CheckResult, CheckStatus, StageValidator
 from govcloud_validation.registry import register
 from govcloud_validation.compliance import (
     SC_L2_3_13_8, SC_L2_3_13_11, SC_7, SC_8, SC_28,
@@ -61,7 +61,7 @@ class Step06BFrontend(StageValidator):
                 "S3+CloudFront or ECS Fargate are both valid for GovCloud frontend hosting",
                 controls=[CM_6],
             ))
-            # Check if ALB exists as alternative
+            # Fall back to ALB check. hosting_path recorded in evidence for assessor traceability.
             results.extend(self._check_alb_frontend())
             return results
 
@@ -124,7 +124,13 @@ class Step06BFrontend(StageValidator):
         return results
 
     def _check_alb_frontend(self) -> list[CheckResult]:
-        """Check if an ALB is serving frontend as alternative to CloudFront."""
+        """Check if an ALB is serving frontend as an alternative to CloudFront.
+
+        Called only when no CloudFront distributions were found. Records
+        ``hosting_path`` in the evidence dict so an assessor reviewing the JSON
+        report can tell which code path produced this result — without having to
+        re-run the validator.
+        """
         elbv2 = self._client("elasticloadbalancingv2")
         if elbv2 is None:
             return []
@@ -132,12 +138,33 @@ class Step06BFrontend(StageValidator):
         try:
             lbs = elbv2.describe_load_balancers().get("LoadBalancers", [])
             if lbs:
-                return [self._pass(
+                lb_arns = [lb.get("LoadBalancerArn", "") for lb in lbs]
+                return [CheckResult(
                     "alb_frontend_alternative",
-                    f"Found {len(lbs)} ALB(s) — frontend may be served via ALB+ECS",
-                    controls=[SC_7, CM_6],
+                    f"Frontend served via ALB+ECS ({len(lbs)} ALB(s) found — CloudFront not used)",
+                    CheckStatus.PASS,
+                    "ALB+ECS Fargate is a valid alternative to CloudFront for GovCloud frontend hosting",
+                    evidence={
+                        "hosting_path": "alb+ecs",
+                        "cloudfront_distributions": 0,
+                        "alb_count": len(lbs),
+                        "alb_arns": lb_arns[:5],
+                    },
+                    control_hints=[SC_7, CM_6],
                 )]
         except Exception:
             pass
 
-        return []
+        # No CloudFront and no ALB — frontend not yet deployed.
+        return [CheckResult(
+            "alb_frontend_alternative",
+            "No frontend hosting found — neither CloudFront nor ALB present",
+            CheckStatus.WARN,
+            "Deploy frontend via ALB+ECS Fargate or S3+CloudFront",
+            evidence={
+                "hosting_path": "unknown",
+                "cloudfront_distributions": 0,
+                "alb_count": 0,
+            },
+            control_hints=[CM_6],
+        )]

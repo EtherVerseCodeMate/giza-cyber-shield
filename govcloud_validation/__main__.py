@@ -5,11 +5,36 @@ CLI: python -m govcloud_validation [options]
 from __future__ import annotations
 
 import argparse
+import subprocess
 import sys
 from pathlib import Path
 
 from govcloud_validation.base import CheckStatus, StageResult, ValidationContext, ValidationReport, utc_now_iso
 from govcloud_validation.registry import get_validator, list_providers
+
+# Validator semver — bump on every release that changes check logic.
+VALIDATOR_VERSION = "2.1.0"
+
+
+def _get_git_sha() -> str:
+    """Return short HEAD SHA of the running code, or empty string on failure."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, timeout=5,
+        )
+        return result.stdout.strip() if result.returncode == 0 else ""
+    except Exception:
+        return ""
+
+
+def _get_boto3_version() -> str:
+    """Return the installed boto3 version string, or 'not-installed'."""
+    try:
+        import boto3  # noqa: PLC0415
+        return boto3.__version__
+    except ImportError:
+        return "not-installed"
 
 
 def _parse_id_list(raw: list[str] | None) -> set[str]:
@@ -54,6 +79,9 @@ def run_validation(
         provider=provider,
         region=region,
         generated_at=utc_now_iso(),
+        validator_version=VALIDATOR_VERSION,
+        git_sha=_get_git_sha(),
+        boto3_version=_get_boto3_version(),
         stages=[],
         skipped_stages=[],
     )
