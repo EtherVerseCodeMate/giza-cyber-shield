@@ -20,11 +20,11 @@ from govcloud_validation.base import CheckResult, StageValidator
 from govcloud_validation.registry import register
 from govcloud_validation.compliance import (
     AU_L2_3_3_1, AU_L2_3_3_2, AU_2, AU_3, AU_6, AU_9, AU_11, AU_12,
-    SI_L2_3_14_6, SI_4,
+    SI_L2_3_14_2, SI_L2_3_14_6, SI_4,
     CM_L2_3_4_1, CM_2,
     IR_L2_3_6_1, IR_4,
-    SOC2_CC7_1, SOC2_CC7_2, SOC2_CC7_3, SOC2_CC7_4,
-    ISO_A8_15, ISO_A5_28,
+    SOC2_CC7_1, SOC2_CC7_2, SOC2_CC7_3, SOC2_CC7_4, SOC2_CC8_1,
+    ISO_A8_9, ISO_A8_15, ISO_A5_28,
     IL_SRG_APP_000014,
     SC_28,
 )
@@ -41,16 +41,24 @@ class Step03Logging(StageValidator):
         # 3-1  CloudTrail
         results.extend(self._check_cloudtrail())
 
-        # 3-2  GuardDuty
+        # 3-2  GuardDuty detector + findings export (Gap 1)
         results.extend(self._check_guardduty())
+        results.extend(self._check_guardduty_export())
 
         # 3-3  Security Hub
         results.extend(self._check_security_hub())
 
-        # 3-4  AWS Config
+        # 3-4  AWS Config recorder + delivery channel (Gap 2)
         results.extend(self._check_config())
+        results.extend(self._check_config_delivery_channel())
 
-        # 3-5  CloudWatch log retention
+        # 3-5  GuardDuty Malware Protection for S3 (Gap 3)
+        results.extend(self._check_s3_malware_protection())
+
+        # 3-6  NIST 800-171 conformance pack (Gap 4)
+        results.extend(self._check_nist_conformance_packs())
+
+        # 3-7  CloudWatch log retention
         results.extend(self._check_log_retention())
 
         return results
@@ -307,6 +315,222 @@ class Step03Logging(StageValidator):
         except Exception as exc:
             return [self._warn("config_recorder",
                                "Cannot check AWS Config", str(exc))]
+
+    # ── Gap checks (Step 3 — 4 pending items per runbook v2.1) ──────────────
+
+    def _check_guardduty_export(self) -> list[CheckResult]:
+        """Gap 1 — GuardDuty findings not yet exported to evidence bucket."""
+        ev_bucket = self._env("GOVCLOUD_EXPECTED_EVIDENCE_BUCKET")
+        if not ev_bucket:
+            return [self._skip(
+                "guardduty_findings_export",
+                "GuardDuty findings export to S3 evidence bucket",
+                "Set GOVCLOUD_EXPECTED_EVIDENCE_BUCKET to verify",
+                controls=[AU_9, AU_11],
+            )]
+
+        gd = self._client("guardduty")
+        if gd is None:
+            return [self._skip("guardduty_findings_export",
+                               "Cannot create GuardDuty client")]
+        try:
+            det_ids = gd.list_detectors().get("DetectorIds", [])
+            if not det_ids:
+                return [self._skip(
+                    "guardduty_findings_export",
+                    "GuardDuty findings export to S3 evidence bucket",
+                    "No GuardDuty detector found",
+                    controls=[AU_9],
+                )]
+            pubs = gd.list_publishing_destinations(DetectorId=det_ids[0])
+            dests = pubs.get("Destinations", [])
+            active = [
+                d for d in dests
+                if d.get("DestinationType") == "S3"
+                and d.get("Status") in ("PUBLISHING_SUCCEEDED",
+                                         "PENDING_VERIFICATION")
+            ]
+            if active:
+                return [self._pass(
+                    "guardduty_findings_export",
+                    "GuardDuty findings export to S3 evidence bucket",
+                    f"Active S3 publishing destination configured",
+                    controls=[AU_9, AU_11, SI_L2_3_14_6, SI_4,
+                              SOC2_CC7_2, ISO_A8_15],
+                )]
+            return [self._fail(
+                "guardduty_findings_export",
+                "GuardDuty findings export to S3 evidence bucket",
+                f"No active S3 destination — "
+                f"GuardDuty → Settings → Export findings → {ev_bucket}",
+                controls=[AU_9, AU_11, SI_L2_3_14_6, ISO_A8_15],
+            )]
+        except Exception as exc:
+            return [self._warn(
+                "guardduty_findings_export",
+                "GuardDuty findings export to S3 evidence bucket",
+                str(exc),
+                controls=[AU_9],
+            )]
+
+    def _check_config_delivery_channel(self) -> list[CheckResult]:
+        """Gap 2 — Config delivery channel still points to CloudTrail bucket."""
+        ev_bucket = self._env("GOVCLOUD_EXPECTED_EVIDENCE_BUCKET")
+        if not ev_bucket:
+            return [self._skip(
+                "config_delivery_channel_evidence_bucket",
+                "AWS Config delivery channel → evidence bucket",
+                "Set GOVCLOUD_EXPECTED_EVIDENCE_BUCKET to validate",
+                controls=[CM_L2_3_4_1, AU_12],
+            )]
+
+        cfg = self._client("config")
+        if cfg is None:
+            return [self._skip("config_delivery_channel_evidence_bucket",
+                               "Cannot create Config client")]
+        try:
+            chans = cfg.describe_delivery_channels().get(
+                "DeliveryChannels", [])
+            if not chans:
+                return [self._fail(
+                    "config_delivery_channel_evidence_bucket",
+                    "AWS Config delivery channel → evidence bucket",
+                    "No Config delivery channel configured",
+                    controls=[CM_L2_3_4_1, CM_2, AU_12],
+                )]
+            wrong = [
+                c.get("s3BucketName", "") for c in chans
+                if c.get("s3BucketName", "") != ev_bucket
+            ]
+            if wrong:
+                return [self._fail(
+                    "config_delivery_channel_evidence_bucket",
+                    "AWS Config delivery channel → evidence bucket",
+                    f"Channel(s) targeting wrong bucket {wrong} — "
+                    f"run: aws configservice put-delivery-channel "
+                    f"--delivery-channel s3BucketName={ev_bucket}",
+                    controls=[CM_L2_3_4_1, CM_2, AU_12, SOC2_CC8_1],
+                )]
+            return [self._pass(
+                "config_delivery_channel_evidence_bucket",
+                "AWS Config delivery channel → evidence bucket",
+                f"Delivery channel correctly targets {ev_bucket!r}",
+                controls=[CM_L2_3_4_1, CM_2, AU_12, SOC2_CC8_1, ISO_A8_9],
+            )]
+        except Exception as exc:
+            return [self._warn(
+                "config_delivery_channel_evidence_bucket",
+                "AWS Config delivery channel → evidence bucket",
+                str(exc),
+                controls=[CM_L2_3_4_1],
+            )]
+
+    def _check_s3_malware_protection(self) -> list[CheckResult]:
+        """Gap 3 — GuardDuty Malware Protection for S3 not on evidence bucket."""
+        ev_bucket = self._env("GOVCLOUD_EXPECTED_EVIDENCE_BUCKET")
+        if not ev_bucket:
+            return [self._skip(
+                "s3_malware_protection",
+                "GuardDuty Malware Protection for S3 evidence bucket",
+                "Set GOVCLOUD_EXPECTED_EVIDENCE_BUCKET to check coverage",
+                controls=[SI_L2_3_14_2, SI_L2_3_14_6],
+            )]
+
+        gd = self._client("guardduty")
+        if gd is None:
+            return [self._skip("s3_malware_protection",
+                               "Cannot create GuardDuty client")]
+        try:
+            det_ids = gd.list_detectors().get("DetectorIds", [])
+            if not det_ids:
+                return [self._skip(
+                    "s3_malware_protection",
+                    "GuardDuty Malware Protection for S3 evidence bucket",
+                    "No GuardDuty detector found",
+                    controls=[SI_L2_3_14_2],
+                )]
+            try:
+                plans = gd.list_malware_protection_plans().get(
+                    "MalwareProtectionPlans", [])
+                if plans:
+                    return [self._pass(
+                        "s3_malware_protection",
+                        "GuardDuty Malware Protection for S3 evidence bucket",
+                        f"{len(plans)} Malware Protection plan(s) active",
+                        controls=[SI_L2_3_14_2, SI_L2_3_14_6, SI_4,
+                                  SOC2_CC7_2, ISO_A8_15],
+                    )]
+                return [self._fail(
+                    "s3_malware_protection",
+                    "GuardDuty Malware Protection for S3 evidence bucket",
+                    f"No Malware Protection plans — "
+                    f"GuardDuty → Malware Protection → S3 → enable on {ev_bucket}",
+                    controls=[SI_L2_3_14_2, SI_L2_3_14_6, SI_4],
+                )]
+            except Exception as exc:
+                return [self._warn(
+                    "s3_malware_protection",
+                    "GuardDuty Malware Protection for S3 evidence bucket",
+                    f"Cannot query Malware Protection plans: {exc}",
+                    controls=[SI_L2_3_14_2],
+                )]
+        except Exception as exc:
+            return [self._warn(
+                "s3_malware_protection",
+                "GuardDuty Malware Protection for S3 evidence bucket",
+                str(exc),
+                controls=[SI_L2_3_14_2],
+            )]
+
+    def _check_nist_conformance_packs(self) -> list[CheckResult]:
+        """Gap 4 — NIST 800-171 conformance pack not deployed."""
+        cfg = self._client("config")
+        if cfg is None:
+            return [self._skip("nist_800171_conformance_pack",
+                               "Cannot create Config client")]
+        try:
+            packs: list[dict] = []
+            token = None
+            while True:
+                kwargs: dict = {}
+                if token:
+                    kwargs["NextToken"] = token
+                resp = cfg.describe_conformance_packs(**kwargs)
+                packs.extend(resp.get("ConformancePackDetails", []))
+                token = resp.get("NextToken")
+                if not token:
+                    break
+
+            nist_packs = [
+                p for p in packs
+                if "800-171" in p.get("ConformancePackName", "").replace("-", " ")
+                or ("nist" in p.get("ConformancePackName", "").lower()
+                    and "171" in p.get("ConformancePackName", ""))
+            ]
+            if nist_packs:
+                return [self._pass(
+                    "nist_800171_conformance_pack",
+                    "NIST 800-171 AWS Config conformance pack",
+                    f"Pack(s): {', '.join(p.get('ConformancePackName','') for p in nist_packs)}",
+                    controls=[CM_L2_3_4_1, CM_2, AU_L2_3_3_1, SOC2_CC7_1,
+                              ISO_A8_9, IL_SRG_APP_000014],
+                )]
+            return [self._fail(
+                "nist_800171_conformance_pack",
+                "NIST 800-171 AWS Config conformance pack",
+                "Deploy from scripts/remediate-step3-gaps.sh "
+                "(aws configservice put-conformance-pack ...)",
+                controls=[CM_L2_3_4_1, CM_2, SOC2_CC7_1, IL_SRG_APP_000014],
+            )]
+        except Exception as exc:
+            return [self._warn(
+                "nist_800171_conformance_pack",
+                "NIST 800-171 AWS Config conformance pack",
+                str(exc),
+                controls=[CM_L2_3_4_1],
+            )]
+
+    # ── Original checks ───────────────────────────────────────────────────────
 
     def _check_log_retention(self) -> list[CheckResult]:
         logs = self._client("logs")
