@@ -15,7 +15,7 @@ function Write-Step([string]$msg) { Write-Host ""; Write-Host "==> $msg" -Foregr
 function Get-UnixTime { return [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() }
 
 # HMAC-SHA256 hex
-function Compute-HMAC([string]$key, [string]$message) {
+function Invoke-HmacSha256([string]$key, [string]$message) {
     $keyBytes = [System.Text.Encoding]::UTF8.GetBytes($key)
     $msgBytes = [System.Text.Encoding]::UTF8.GetBytes($message)
     $hmac = New-Object System.Security.Cryptography.HMACSHA256
@@ -73,7 +73,7 @@ $ts = Get-UnixTime
 # Build the exact body string — must be what server receives
 $registerBody = '{"machine_id":"' + $MachineId + '","enrollment_token":"' + $EnrollmentToken + '","hostname":"e2e-test-host","platform":"windows","agent_version":"1.0.0-e2e"}'
 $sigMsg = "$MachineId.$ts.$registerBody"
-$sig    = Compute-HMAC $EnrollmentToken $sigMsg
+$sig    = Invoke-HmacSha256 $EnrollmentToken $sigMsg
 Write-Host "  [DBG] timestamp=$ts" -ForegroundColor DarkGray
 Write-Host "  [DBG] sig_msg preview: $($sigMsg.Substring(0, [Math]::Min(80, $sigMsg.Length)))..." -ForegroundColor DarkGray
 Write-Host "  [DBG] hmac=$sig" -ForegroundColor DarkGray
@@ -98,7 +98,7 @@ if ($apiKey) {
     $hbTs   = Get-UnixTime
     $hbBody = '{"machine_id":"' + $MachineId + '","timestamp":' + $hbTs + ',"status_data":"{\"uptime\":999}"}'
     $hbMsg  = "$MachineId.$hbTs.$hbBody"
-    $hbSig  = Compute-HMAC $apiKey $hbMsg
+    $hbSig  = Invoke-HmacSha256 $apiKey $hbMsg
 
     $result = Invoke-Post "$BaseUrl/license/heartbeat" $hbBody @{ "X-Khepra-Signature" = $hbSig; "X-Khepra-Timestamp" = "$hbTs" }
     $sc = $result[0]; $bo = $result[1]; $em = $result[2]
@@ -124,7 +124,7 @@ if ($apiKey) {
     # still proves a full D1 round-trip occurred.
     $valBody = '{"machine_id":"' + $MachineId + '","signature":"e2e-trial-placeholder","version":"1.0.0-e2e"}'
     $valMsg  = "$MachineId.$valTs.$valBody"
-    $valSig  = Compute-HMAC $apiKey $valMsg
+    $valSig  = Invoke-HmacSha256 $apiKey $valMsg
 
     $result = Invoke-Post "$BaseUrl/license/validate" $valBody @{ "X-Khepra-Signature" = $valSig; "X-Khepra-Timestamp" = "$valTs" }
     $sc = $result[0]; $bo = $result[1]; $em = $result[2]
