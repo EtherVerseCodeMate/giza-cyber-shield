@@ -8,12 +8,16 @@
  * 1. Client generates HMAC: HMAC-SHA256(machine_id + "." + timestamp + "." + body, api_key)
  * 2. Client sends: X-Khepra-Signature: <hmac_hex>
  *                 X-Khepra-Timestamp: <unix_timestamp_seconds>
- * 3. Server fetches the raw api_key from the licenses table, recomputes, and does
- *    a constant-time comparison via crypto.timingSafeEqual() to prevent timing attacks.
+ * 3. Server fetches the raw api_key from the licenses table, recomputes via
+ *    Node.js crypto.createHmac and does constant-time comparison.
  *
  * Key storage: the api_key column holds the raw 64-hex-char key. It is NOT hashed.
  * HMAC keys are not passwords — the server must hold the raw key to verify. The key
- * has 256 bits of entropy (crypto.getRandomValues), providing equivalent security.
+ * has 256 bits of entropy, providing equivalent security.
+ *
+ * NOTE: Uses dynamic import('node:crypto') at runtime.
+ * Under nodejs_compat, static `import * as X from 'node:crypto'` gets bundled
+ * differently from dynamic import — dynamic import works reliably.
  */
 
 /**
@@ -75,8 +79,6 @@ export async function verifyLicenseHMAC(request, body, env) {
 		}
 
 		// Look up the raw api_key from the database.
-		// The api_key column stores the raw key (not a hash) so the server can
-		// recompute the HMAC for constant-time verification.
 		const license = await env.DB.prepare(`
 			SELECT machine_id, api_key FROM licenses
 			WHERE machine_id = ? AND revoked = 0
@@ -86,7 +88,8 @@ export async function verifyLicenseHMAC(request, body, env) {
 			// For new registrations, the machine won't be in the DB yet.
 			// Fall through to enrollment token HMAC path.
 			if (parsedBody.enrollment_token) {
-				return verifyEnrollmentHMAC(signature, timestamp, body, parsedBody.enrollment_token, env);
+				// CRITICAL: must await here so exceptions propagate to this try/catch
+				return await verifyEnrollmentHMAC(signature, timestamp, body, parsedBody.enrollment_token, env);
 			}
 
 			return {
@@ -95,8 +98,7 @@ export async function verifyLicenseHMAC(request, body, env) {
 			};
 		}
 
-		// Constant-time HMAC verification via crypto.subtle.verify() —
-		// prevents timing attacks that `===` string comparison cannot.
+		// Constant-time HMAC verification
 		const message = `${machine_id}.${timestamp}.${body}`;
 		const valid = await verifyHMAC(message, license.api_key, signature);
 
@@ -116,7 +118,7 @@ export async function verifyLicenseHMAC(request, body, env) {
 		console.error('HMAC verification error:', error);
 		return {
 			valid: false,
-			error: 'HMAC verification failed'
+			error: 'HMAC verification failed [v9]'
 		};
 	}
 }
@@ -141,22 +143,14 @@ async function verifyEnrollmentHMAC(signature, timestamp, body, enrollmentToken,
 		}
 
 		// Use enrollment token as HMAC key for initial registration.
-		// Constant-time verification prevents timing oracle on token validity.
 		const parsedBody = JSON.parse(body);
 		const message = `${parsedBody.machine_id}.${timestamp}.${body}`;
 		const valid = await verifyHMAC(message, enrollmentToken, signature);
 
 		if (!valid) {
-			const enc2 = new TextEncoder();
-			const diagKey = await crypto.subtle.importKey('raw', enc2.encode(enrollmentToken), {name:'HMAC',hash:'SHA-256'}, false, ['sign']);
-			const diagBuf = await crypto.subtle.sign('HMAC', diagKey, enc2.encode(message));
-			const computedSig = Array.from(new Uint8Array(diagBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
 			return {
 				valid: false,
-				error: 'Invalid enrollment HMAC signature',
-				_dbg_computed: computedSig,
-				_dbg_received: signature,
-				_dbg_msg: message.substring(0, 120)
+				error: 'Invalid enrollment HMAC signature'
 			};
 		}
 
@@ -175,21 +169,10 @@ async function verifyEnrollmentHMAC(signature, timestamp, body, enrollmentToken,
 }
 
 /**
- * Constant-time HMAC-SHA256 verification using Node.js crypto.timingSafeEqual().
- * timingSafeEqual() performs byte comparison in constant time,
- * preventing timing-oracle attacks that string !== comparison cannot prevent.
- * Uses node:crypto (available via nodejs_compat flag) instead of crypto.subtle
- * to avoid Web Crypto API incompatibilities under the nodejs_compat runtime.
- *
- * @param {string} message   - Message that was signed
- * @param {string} secret    - Raw HMAC key (api_key or enrollment token)
- * @param {string} hexSig    - Hex-encoded signature from the client
- * @returns {Promise<boolean>}
- */
-/**
- * Constant-time HMAC-SHA256 verification using crypto.subtle.
- * Uses sign+compare pattern: compute expected HMAC, then compare byte-by-byte
- * in constant time using a XOR-accumulator to prevent timing oracles.
+ * Constant-time HMAC-SHA256 verification using Node.js crypto.
+ * Uses dynamic import('node:crypto') which works reliably in Cloudflare Workers
+ * with the nodejs_compat flag. Returns hex-encoded HMAC for comparison.
+ * Uses timingSafeEqual for constant-time byte comparison.
  *
  * @param {string} message   - Message that was signed
  * @param {string} secret    - Raw HMAC key (api_key or enrollment token)
@@ -197,56 +180,42 @@ async function verifyEnrollmentHMAC(signature, timestamp, body, enrollmentToken,
  * @returns {Promise<boolean>}
  */
 async function verifyHMAC(message, secret, hexSig) {
-	const encoder = new TextEncoder();
-	const keyMaterial = await crypto.subtle.importKey(
-		'raw',
-		encoder.encode(secret),
-		{ name: 'HMAC', hash: 'SHA-256' },
-		false,
-		['sign']
-	);
+	let expectedHex;
+	try {
+		const nc = await import('node:crypto');
+		if (typeof nc.createHmac !== 'function') {
+			throw new Error(`nc.createHmac is not a function, nc keys: ${Object.keys(nc).join(',')}`);
+		}
+		expectedHex = nc.createHmac('sha256', secret)
+			.update(message, 'utf8')
+			.digest('hex');
+	} catch (cryptoErr) {
+		console.error('verifyHMAC crypto path failed:', cryptoErr);
+		// Rethrow so the outer catch in verifyEnrollmentHMAC captures it cleanly
+		throw cryptoErr;
+	}
 
-	// Compute the expected HMAC for the message
-	const expectedBuffer = await crypto.subtle.sign('HMAC', keyMaterial, encoder.encode(message));
-	const expected = new Uint8Array(expectedBuffer);
-
-	// Decode the client-supplied hex signature into bytes
-	// Manual hex decode — avoids reliance on Buffer (not available in Workers runtime)
-	if (!hexSig || hexSig.length !== expected.length * 2) {
+	// Constant-time hex string comparison using XOR on char codes
+	if (!hexSig || !expectedHex || hexSig.length !== expectedHex.length) {
 		return false;
 	}
-	const received = new Uint8Array(expected.length);
-	for (let i = 0; i < expected.length; i++) {
-		const byte = Number.parseInt(hexSig.slice(i * 2, i * 2 + 2), 16);
-		if (Number.isNaN(byte)) return false;
-		received[i] = byte;
-	}
 
-	// Constant-time comparison: XOR all bytes, result must be 0 for match
-	// This prevents timing side-channel attacks
 	let diff = 0;
-	for (let i = 0; i < expected.length; i++) {
-		diff |= expected[i] ^ received[i];
+	for (let i = 0; i < expectedHex.length; i++) {
+		diff |= expectedHex.codePointAt(i) ^ hexSig.codePointAt(i);
 	}
 	return diff === 0;
 }
 
 /**
  * Generate a new API key for a machine.
- *
- * The key is returned to the client once (at registration time) and stored
- * raw in the `api_key` column so the server can recompute HMAC for
- * subsequent heartbeat verification. 256 bits of CSPRNG entropy means
- * storing the raw key is equivalent security to storing a bcrypt hash for
- * a random secret — the attacker cannot pre-compute it.
+ * Uses Node.js crypto.randomBytes for cryptographically secure random bytes.
  *
  * @returns {Promise<{apiKey: string}>}
  */
 export async function generateAPIKey() {
-	const randomBytes = crypto.getRandomValues(new Uint8Array(32));
-	const apiKey = 'khepra_' + Array.from(randomBytes)
-		.map(b => b.toString(16).padStart(2, '0'))
-		.join('');
-
+	const nc = await import('node:crypto');
+	const randomBytes = nc.randomBytes(32);
+	const apiKey = 'khepra_' + randomBytes.toString('hex');
 	return { apiKey };
 }
