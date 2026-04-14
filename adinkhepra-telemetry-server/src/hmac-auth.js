@@ -8,21 +8,21 @@
  * 1. Client generates HMAC: HMAC-SHA256(machine_id + "." + timestamp + "." + body, api_key)
  * 2. Client sends: X-Khepra-Signature: <hmac_hex>
  *                 X-Khepra-Timestamp: <unix_timestamp_seconds>
- * 3. Server fetches the raw api_key from the licenses table, recomputes via
- *    Node.js crypto.createHmac and does constant-time comparison.
+ * 3. Server fetches the raw api_key from the licenses table, recomputes, and does
+ *    a constant-time comparison via XOR accumulator to prevent timing attacks.
  *
  * Key storage: the api_key column holds the raw 64-hex-char key. It is NOT hashed.
  * HMAC keys are not passwords — the server must hold the raw key to verify. The key
- * has 256 bits of entropy, providing equivalent security.
+ * has 256 bits of entropy (crypto.getRandomValues), providing equivalent security.
  *
- * NOTE: Uses dynamic import('node:crypto') at runtime.
- * Under nodejs_compat, static `import * as X from 'node:crypto'` gets bundled
- * differently from dynamic import — dynamic import works reliably.
+ * NOTE: Uses dynamic import('node:crypto') at runtime. Under nodejs_compat,
+ * static ESM imports of node builtins get bundled differently; dynamic import
+ * resolves to the unenv crypto shim which provides createHmac/randomBytes.
  */
 
 /**
  * Verify HMAC signature for license endpoint requests
- * 
+ *
  * @param {Request} request - HTTP request
  * @param {string} body - Request body as string
  * @param {Env} env - Environment variables
@@ -59,7 +59,7 @@ export async function verifyLicenseHMAC(request, body, env) {
 			};
 		}
 
-		// Check timestamp freshness (allow 5 minute window)
+		// Check timestamp freshness (5 minute window prevents replay attacks)
 		const now = Math.floor(Date.now() / 1000);
 		const requestTime = Number.parseInt(timestamp, 10);
 
@@ -70,8 +70,7 @@ export async function verifyLicenseHMAC(request, body, env) {
 			};
 		}
 
-		const timeDiff = Math.abs(now - requestTime);
-		if (timeDiff > 300) { // 5 minutes
+		if (Math.abs(now - requestTime) > 300) {
 			return {
 				valid: false,
 				error: 'Request timestamp expired (must be within 5 minutes)'
@@ -85,10 +84,10 @@ export async function verifyLicenseHMAC(request, body, env) {
 		`).bind(machine_id).first();
 
 		if (!license?.api_key) {
-			// For new registrations, the machine won't be in the DB yet.
-			// Fall through to enrollment token HMAC path.
+			// For new registrations, machine won't be in DB yet.
+			// Fall through to enrollment token HMAC verification.
 			if (parsedBody.enrollment_token) {
-				// CRITICAL: must await here so exceptions propagate to this try/catch
+				// CRITICAL: must await so exceptions propagate to this try/catch
 				return await verifyEnrollmentHMAC(signature, timestamp, body, parsedBody.enrollment_token, env);
 			}
 
@@ -98,7 +97,7 @@ export async function verifyLicenseHMAC(request, body, env) {
 			};
 		}
 
-		// Constant-time HMAC verification
+		// Constant-time HMAC verification for established machines
 		const message = `${machine_id}.${timestamp}.${body}`;
 		const valid = await verifyHMAC(message, license.api_key, signature);
 
@@ -118,14 +117,14 @@ export async function verifyLicenseHMAC(request, body, env) {
 		console.error('HMAC verification error:', error);
 		return {
 			valid: false,
-			error: 'HMAC verification failed [v9]'
+			error: 'HMAC verification failed'
 		};
 	}
 }
 
 /**
- * Verify HMAC for enrollment/registration requests
- * Uses enrollment token as shared secret
+ * Verify HMAC for enrollment/registration requests.
+ * Uses enrollment token as shared secret for the initial registration handshake.
  */
 async function verifyEnrollmentHMAC(signature, timestamp, body, enrollmentToken, env) {
 	try {
@@ -142,7 +141,7 @@ async function verifyEnrollmentHMAC(signature, timestamp, body, enrollmentToken,
 			};
 		}
 
-		// Use enrollment token as HMAC key for initial registration.
+		// Build the signed message and verify the HMAC
 		const parsedBody = JSON.parse(body);
 		const message = `${parsedBody.machine_id}.${timestamp}.${body}`;
 		const valid = await verifyHMAC(message, enrollmentToken, signature);
@@ -169,34 +168,25 @@ async function verifyEnrollmentHMAC(signature, timestamp, body, enrollmentToken,
 }
 
 /**
- * Constant-time HMAC-SHA256 verification using Node.js crypto.
- * Uses dynamic import('node:crypto') which works reliably in Cloudflare Workers
- * with the nodejs_compat flag. Returns hex-encoded HMAC for comparison.
- * Uses timingSafeEqual for constant-time byte comparison.
+ * Constant-time HMAC-SHA256 verification.
  *
- * @param {string} message   - Message that was signed
- * @param {string} secret    - Raw HMAC key (api_key or enrollment token)
- * @param {string} hexSig    - Hex-encoded signature from the client
+ * Uses dynamic import('node:crypto') which resolves at runtime to the unenv
+ * crypto shim providing createHmac. Constant-time XOR accumulator comparison
+ * on hex strings prevents timing-oracle attacks.
+ *
+ * @param {string} message  - Message that was signed
+ * @param {string} secret   - Raw HMAC key (api_key or enrollment token)
+ * @param {string} hexSig   - Hex-encoded signature from the client
  * @returns {Promise<boolean>}
  */
 async function verifyHMAC(message, secret, hexSig) {
-	let expectedHex;
-	try {
-		const nc = await import('node:crypto');
-		if (typeof nc.createHmac !== 'function') {
-			throw new Error(`nc.createHmac is not a function, nc keys: ${Object.keys(nc).join(',')}`);
-		}
-		expectedHex = nc.createHmac('sha256', secret)
-			.update(message, 'utf8')
-			.digest('hex');
-	} catch (cryptoErr) {
-		console.error('verifyHMAC crypto path failed:', cryptoErr);
-		// Rethrow so the outer catch in verifyEnrollmentHMAC captures it cleanly
-		throw cryptoErr;
-	}
+	const nc = await import('node:crypto');
+	const expectedHex = nc.createHmac('sha256', secret)
+		.update(message, 'utf8')
+		.digest('hex');
 
-	// Constant-time hex string comparison using XOR on char codes
-	if (!hexSig || !expectedHex || hexSig.length !== expectedHex.length) {
+	// Constant-time hex comparison — all chars must match
+	if (!hexSig || hexSig.length !== expectedHex.length) {
 		return false;
 	}
 
@@ -208,14 +198,13 @@ async function verifyHMAC(message, secret, hexSig) {
 }
 
 /**
- * Generate a new API key for a machine.
- * Uses Node.js crypto.randomBytes for cryptographically secure random bytes.
+ * Generate a cryptographically secure API key for a newly registered machine.
+ * Uses 256-bit CSPRNG entropy; stored raw so the server can verify HMAC.
  *
  * @returns {Promise<{apiKey: string}>}
  */
 export async function generateAPIKey() {
 	const nc = await import('node:crypto');
-	const randomBytes = nc.randomBytes(32);
-	const apiKey = 'khepra_' + randomBytes.toString('hex');
+	const apiKey = 'khepra_' + nc.randomBytes(32).toString('hex');
 	return { apiKey };
 }
