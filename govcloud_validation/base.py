@@ -117,3 +117,117 @@ class GovCloudValidator(ABC):
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+# ---------------------------------------------------------------------------
+# StageValidator — base class for per-step validators (Steps 0–12)
+# ---------------------------------------------------------------------------
+
+import os as _os
+
+try:
+    import boto3 as _boto3
+    _HAS_BOTO3 = True
+except ImportError:  # pragma: no cover
+    _boto3 = None  # type: ignore
+    _HAS_BOTO3 = False
+
+
+class StageValidator:
+    """Base class for runbook step validators.
+
+    Subclasses declare ``stage_id`` and ``title`` as class attributes and
+    implement ``checks()``.  The ``@register`` decorator (from
+    ``govcloud_validation.registry``) wires each subclass into the stage
+    registry so ``AWSGovCloudValidator`` can delegate to it when no built-in
+    handler covers the stage.
+
+    Usage::
+
+        @register
+        class Step06ALambda(StageValidator):
+            stage_id = "step_06a_lambda"
+            title    = "6A) Lambda + DynamoDB"
+
+            def checks(self) -> list[CheckResult]:
+                ...
+    """
+
+    stage_id: str = ""
+    title: str = ""
+
+    def __init__(self, region: str = "us-gov-west-1") -> None:
+        self.region = region
+
+    # ── boto3 helpers ─────────────────────────────────────────────────────────
+
+    def _client(self, service: str):
+        """Return a boto3 client or ``None`` when boto3 is unavailable."""
+        if not _HAS_BOTO3 or _boto3 is None:
+            return None
+        try:
+            return _boto3.client(service, region_name=self.region)
+        except Exception:  # noqa: BLE001
+            return None
+
+    def _env(self, name: str) -> str:
+        """Return stripped env-var value or empty string."""
+        return (_os.environ.get(name) or "").strip()
+
+    # ── CheckResult factory methods ───────────────────────────────────────────
+
+    def _pass(
+        self,
+        check_id: str,
+        name: str,
+        detail: str = "",
+        controls: Optional[List[str]] = None,
+    ) -> "CheckResult":
+        return CheckResult(check_id, name, CheckStatus.PASS, detail,
+                           control_hints=controls or [])
+
+    def _fail(
+        self,
+        check_id: str,
+        name: str,
+        detail: str = "",
+        controls: Optional[List[str]] = None,
+    ) -> "CheckResult":
+        return CheckResult(check_id, name, CheckStatus.FAIL, detail,
+                           control_hints=controls or [])
+
+    def _warn(
+        self,
+        check_id: str,
+        name: str,
+        detail: str = "",
+        controls: Optional[List[str]] = None,
+    ) -> "CheckResult":
+        return CheckResult(check_id, name, CheckStatus.WARN, detail,
+                           control_hints=controls or [])
+
+    def _skip(
+        self,
+        check_id: str,
+        name: str,
+        detail: str = "",
+        controls: Optional[List[str]] = None,
+    ) -> "CheckResult":
+        return CheckResult(check_id, name, CheckStatus.SKIP, detail,
+                           control_hints=controls or [])
+
+    # ── Abstract interface ────────────────────────────────────────────────────
+
+    def checks(self) -> "List[CheckResult]":
+        """Override in subclass — return all CheckResult objects for this stage."""
+        raise NotImplementedError(
+            f"{type(self).__name__}.checks() not implemented"
+        )
+
+    def run(self) -> "StageResult":
+        """Execute ``checks()`` and wrap in a ``StageResult``."""
+        return StageResult(
+            stage_id=self.stage_id,
+            title=self.title,
+            checks=self.checks(),
+        )
