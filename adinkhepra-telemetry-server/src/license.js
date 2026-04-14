@@ -306,8 +306,8 @@ export async function handleLicenseRegister(request, env, corsHeaders) {
 			console.error('Registration authentication failed:', authResult.error);
 			return new Response(JSON.stringify({
 				error: 'Authentication required',
+				hmac_error: authResult.error,
 				message: 'Registration requires HMAC authentication',
-				...authResult,
 				help: 'Include X-Khepra-Signature (HMAC using enrollment token) and X-Khepra-Timestamp headers.'
 			}), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 		}
