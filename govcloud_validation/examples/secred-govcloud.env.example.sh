@@ -49,5 +49,20 @@ export GOVCLOUD_MIN_ENABLED_SECURITY_HUB_STANDARDS=7
 export GOVCLOUD_EXPECTED_VPC_ID=vpc-0123456789abcdef0
 export GOVCLOUD_EXPECTED_VPC_SUBNET_COUNT=6
 
+# Step 3 — Gap checks (GuardDuty export, Config channel, Malware Protection, NIST pack)
+export GOVCLOUD_EXPECTED_EVIDENCE_CMK_ALIAS=alias/secred-evidence-cmk   # used by remediate-step3-gaps.sh
+export GOVCLOUD_EXPECTED_EVIDENCE_CMK_ID=arn:aws-us-gov:kms:us-gov-west-1:483774310865:key/0ad63ea9-xxxx  # override if alias lookup fails
+
+# Step 4 — Security group IDs (populated by create-security-groups.sh)
+# export GOVCLOUD_EXPECTED_ALB_SG_ID=sg-xxxxxxxxxxxx
+# export GOVCLOUD_EXPECTED_ECS_SG_ID=sg-xxxxxxxxxxxx
+# export GOVCLOUD_EXPECTED_AURORA_SG_ID=sg-xxxxxxxxxxxx
+
+# Step 6A — PQC Lambda telemetry port
+# export ASAF_APP_PORT=8080
+
+# Step 11 — Smoke test URL
+# export ASAF_SMOKE_HEALTH_URL=https://api.your-govcloud-domain.gov/health
+
 # Step 8 — KMS aliases (with or without alias/ prefix)
 export GOVCLOUD_EXPECTED_KMS_ALIASES=your-cloudtrail-cmk,your-evidence-cmk
