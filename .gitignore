@@ -68,3 +68,17 @@ ANONYMOUS_GIT_*.md
 pkg/llm/ollama/manifests/registry.ollama.ai/library/gemma3/4b
 .vercel
 .env*.local
+
+# ── Trestle / OSCAL compliance workspace ──────────────────────────────────────
+# Public NIST catalogs — re-downloadable, too large to commit (10MB+)
+catalogs/
+# Trestle dist output — regenerated from source
+dist/
+# Downloaded/temporary artifacts
+mapping-collections/
+# Local env overrides for govcloud validator (contains real resource IDs)
+secred-govcloud.env.local.sh
+*.env.local.sh
+# KEEP in git: profiles/, ASAF-GovCloud-SSP/, system-security-plans/,
+#              assessment-plans/, assessment-results/, plan-of-action-and-milestones/,
+#              component-definitions/ — these are the compliance evidence artifacts
