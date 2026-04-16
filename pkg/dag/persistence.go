@@ -132,7 +132,9 @@ func (pm *PersistentMemory) FlushAll() error {
 	return nil
 }
 
-// LoadFromDisk loads all nodes from disk into memory
+// LoadFromDisk loads all nodes from disk into memory.
+// Corrupted or empty node files are quarantined (renamed with a .corrupted.{ns} suffix)
+// rather than aborting startup — a single bad file on disk must never crash the server.
 func (pm *PersistentMemory) LoadFromDisk() error {
 	// Read all .json files in storePath
 	entries, err := os.ReadDir(pm.storePath)
@@ -141,7 +143,7 @@ func (pm *PersistentMemory) LoadFromDisk() error {
 		return nil
 	}
 
-	loadedCount := 0
+	var loadedCount, corruptedCount int
 	for _, entry := range entries {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
 			continue
@@ -153,9 +155,19 @@ func (pm *PersistentMemory) LoadFromDisk() error {
 			return fmt.Errorf("failed to read node file %s: %w", entry.Name(), err)
 		}
 
+		// Empty file — zero-byte writes happen when the process is killed mid-flush.
+		// Quarantine rather than abort so other healthy nodes still load.
+		if len(data) == 0 {
+			corruptedCount++
+			pm.quarantineFile(nodePath, entry.Name(), "empty file (truncated write)")
+			continue
+		}
+
 		var node Node
 		if err := json.Unmarshal(data, &node); err != nil {
-			return fmt.Errorf("failed to unmarshal node %s: %w", entry.Name(), err)
+			corruptedCount++
+			pm.quarantineFile(nodePath, entry.Name(), fmt.Sprintf("json parse error: %v", err))
+			continue
 		}
 
 		// Add to in-memory DAG (bypass Add() to avoid re-flushing)
@@ -166,7 +178,25 @@ func (pm *PersistentMemory) LoadFromDisk() error {
 		loadedCount++
 	}
 
+	if corruptedCount > 0 {
+		fmt.Fprintf(os.Stderr,
+			"[DAG] WARN: %d corrupted node file(s) quarantined during startup. Loaded %d healthy nodes. Review *.corrupted.* files in %s\n",
+			corruptedCount, loadedCount, pm.storePath)
+	}
+
 	return nil
+}
+
+// quarantineFile renames a corrupt DAG node file to prevent future load failures.
+// The original is preserved with a .corrupted.{nanoseconds} suffix for forensic review.
+func (pm *PersistentMemory) quarantineFile(nodePath, entryName, reason string) {
+	quarantinePath := fmt.Sprintf("%s.corrupted.%d", nodePath, time.Now().UnixNano())
+	if renameErr := os.Rename(nodePath, quarantinePath); renameErr != nil {
+		fmt.Fprintf(os.Stderr, "[DAG] WARN: cannot quarantine %s (%s): %v\n", entryName, reason, renameErr)
+	} else {
+		fmt.Fprintf(os.Stderr, "[DAG] WARN: quarantined %s → %s (%s)\n",
+			entryName, filepath.Base(quarantinePath), reason)
+	}
 }
 
 // StartAutoFlushDaemon starts a background goroutine that periodically flushes dirty nodes
