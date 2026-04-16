@@ -1,0 +1,347 @@
+# =============================================================================
+# AdinKhepra Protocol — OSCAL Organization-Defined Parameter (ODP) Register
+# =============================================================================
+# Classification : CUI // SP-CMMC
+# System         : ASAF (AdinKhepra Secure Application Framework)
+# Organization   : SecRed Knowledge Inc. (NouchiX)
+# NIST Baseline  : SP 800-171 Rev 3 / CMMC Level 2
+# Last Updated   : 2026-04-16
+#
+# HOW TO USE
+#   Each parameter maps an ODP ID (from the NIST 800-171r3 catalog) to the
+#   value SecRed Knowledge Inc. has selected for that parameter.  These values
+#   are injected into the SSP Markdown via trestle author ssp-generate and
+#   into the assembled SSP JSON via trestle author ssp-assemble.
+#
+#   When the C3PAO asks "what is your organization-defined value for X?",
+#   this file is the authoritative answer.  Update it when policy changes.
+#   Version-control diffs are the audit trail.
+# =============================================================================
+
+organization: SecRed Knowledge Inc. (NouchiX)
+system-name: AdinKhepra Secure Application Framework (ASAF)
+system-owner: Souhimbou Doh Kone, CEO
+authorizing-official: Souhimbou Doh Kone, CEO/System Owner
+date-established: "2026-04-16"
+classification: CUI // SP-CMMC
+
+parameters:
+
+  # ── 03.01 Access Control ───────────────────────────────────────────────────
+
+  A.03.01.01.ODP.01:
+    control: "Account Management"
+    usage: "time period of inactivity before account disable"
+    value: "90 days"
+    rationale: "Aligns with DISA STIG V-220709 (Windows) and DoD 8570 baseline."
+
+  A.03.01.01.ODP.02:
+    control: "Account Management"
+    usage: "time period to notify when accounts no longer required"
+    value: "24 hours"
+    rationale: "Immediate notification upon contract end or role change."
+
+  A.03.01.01.ODP.03:
+    control: "Account Management"
+    usage: "time period to notify when users are terminated or transferred"
+    value: "24 hours"
+    rationale: "SECRED-POL-001 requires same-day access revocation for terminations."
+
+  A.03.01.01.ODP.04:
+    control: "Account Management"
+    usage: "time period to notify when system usage or need-to-know changes"
+    value: "72 hours"
+    rationale: "Allows for role transition review while maintaining least-privilege."
+
+  A.03.01.01.ODP.05:
+    control: "Account Management"
+    usage: "system account types allowed"
+    value: "individual, service"
+    rationale: "Cognito User Pool allows individual accounts; ECS task roles are service accounts. All other types prohibited."
+
+  A.03.01.01.ODP.06:
+    control: "Account Management"
+    usage: "system account types prohibited"
+    value: "group, emergency, guest, anonymous, temporary"
+    rationale: "Prohibited types increase attack surface. DenyCUIWithoutUSPersonTag SCP enforces this at the AWS policy layer."
+
+  A.03.01.05.ODP.01:
+    control: "Least Privilege"
+    usage: "security functions requiring restricted access"
+    value: "IAM Identity Center administration, KMS key management, CloudTrail configuration, GuardDuty configuration, Security Hub administration, Cognito User Pool administration, Aurora database administration"
+    rationale: "These functions directly control the CUI boundary and audit chain."
+
+  A.03.01.05.ODP.02:
+    control: "Least Privilege"
+    usage: "security-relevant information requiring restricted access"
+    value: "CloudTrail logs, GuardDuty findings, Security Hub findings, KMS key material, Aurora credentials in Secrets Manager, Cognito app client secrets, PQC signing key seeds"
+    rationale: "Compromise of this information would undermine the entire CUI protection posture."
+
+  A.03.01.05.ODP.03:
+    control: "Least Privilege"
+    usage: "frequency of privilege review"
+    value: "quarterly"
+    rationale: "Quarterly review aligns with NIST 800-53 AC-6(7) and DoD baseline."
+
+  A.03.01.06.ODP.01:
+    control: "Least Privilege — Privileged Accounts"
+    usage: "personnel or roles authorized to hold privileged accounts"
+    value: "System Owner (Souhimbou Doh Kone), designated Security Engineers with documented need-to-know and active US Person attestation on file"
+    rationale: "SECRED-POL-001 restricts GovCloud administrative access to US Persons only."
+
+  A.03.01.08.ODP.01:
+    control: "Unsuccessful Logon Attempts"
+    usage: "number of consecutive invalid logon attempts allowed"
+    value: "5"
+    rationale: "Balances usability with brute-force protection. Consistent with DISA STIG AC-7."
+
+  A.03.01.08.ODP.02:
+    control: "Unsuccessful Logon Attempts"
+    usage: "time period for counting consecutive invalid attempts"
+    value: "15 minutes"
+    rationale: "Short window prevents distributed low-rate attacks while minimizing legitimate lockouts."
+
+  A.03.01.08.ODP.03:
+    control: "Unsuccessful Logon Attempts"
+    usage: "action taken when maximum attempts exceeded"
+    value: "lock account for 30 minutes, then notify system administrator via SNS secred-cloudtrail-alerts"
+    rationale: "Automatic temporary lockout with human notification. Cognito Advanced Security Mode ENFORCED."
+
+  A.03.01.08.ODP.04:
+    control: "Unsuccessful Logon Attempts"
+    usage: "time period for account lock (if temporary lockout selected)"
+    value: "30 minutes"
+    rationale: "Sufficient to defeat automated attacks; short enough to minimize impact on legitimate users."
+
+  A.03.01.10.ODP.01:
+    control: "Device Lock"
+    usage: "time period of inactivity before device lock is initiated"
+    value: "15 minutes"
+    rationale: "DISA STIG Windows baseline. Applies to developer workstations (CRMAs) connecting to GovCloud."
+
+  A.03.01.10.ODP.02:
+    control: "Device Lock"
+    usage: "time period of inactivity (if selection applies)"
+    value: "15 minutes"
+    rationale: "Consistent with ODP.01."
+
+  A.03.01.11.ODP.01:
+    control: "Session Termination"
+    usage: "conditions or trigger events requiring automatic session termination"
+    value: "15 minutes of user inactivity; closure of authenticated client session; Cognito access token expiry (1 hour); administrative account revocation event"
+    rationale: "Cognito access token TTL is 1 hour. ASAF gateway enforces session timeout at 15 minutes of inactivity."
+
+  A.03.01.12.ODP.01:
+    control: "Remote Access"
+    usage: "authorized remote access types"
+    value: "Tailscale mesh VPN (administrative SSH to GovCloud bastion, restricted to souhimbou-admin with MFA); Cognito JWT over HTTPS/TLS 1.2+ (user data-plane access via ALB); mTLS client certificate (service-to-service within GovCloud VPC)"
+    rationale: "All remote access routes through authenticated, encrypted channels. No direct SSH to production from public internet."
+
+  A.03.01.16.ODP.01:
+    control: "Wireless Access"
+    usage: "authorized wireless access types"
+    value: "None — GovCloud infrastructure has no wireless interfaces. Developer workstations connect via enterprise WiFi with WPA3-Enterprise where available, WPA2-PSK with 20+ character passphrase minimum otherwise."
+    rationale: "GovCloud ECS/Aurora/Lambda have no wireless exposure. Developer workstation wireless is CRMA-scoped."
+
+  # ── 03.02 Awareness and Training ──────────────────────────────────────────
+
+  A.03.02.01.ODP.01:
+    control: "Role-Based Risk Awareness"
+    usage: "frequency of security awareness training"
+    value: "annually, with role-change triggered re-training within 30 days of role assignment"
+    rationale: "Annual cadence meets CMMC L2 minimum; role-change trigger ensures new responsibilities are understood."
+
+  A.03.02.02.ODP.01:
+    control: "Role-Based Training"
+    usage: "frequency of role-based security training"
+    value: "annually, plus within 30 days of assignment to a new security-relevant role"
+    rationale: "Consistent with 03.02.01 cadence."
+
+  # ── 03.03 Audit and Accountability ────────────────────────────────────────
+
+  A.03.03.01.ODP.01:
+    control: "System Auditing"
+    usage: "event types to be logged"
+    value: "authentication successes and failures; privileged function execution; account creation/modification/deletion/enabling/disabling; object access to CUI resources; configuration changes; key management operations; network connections to/from GovCloud boundary; GuardDuty findings; Security Hub findings; Lambda invocations; ECS task start/stop"
+    rationale: "Comprehensive audit coverage for NIST AU-2 and DFARS 252.204-7012 incident reporting requirements."
+
+  A.03.03.03.ODP.01:
+    control: "Event Review"
+    usage: "frequency of audit log review"
+    value: "weekly for security events; real-time for HIGH GuardDuty findings via SNS; daily Security Hub score review"
+    rationale: "Risk-tiered review cadence. Real-time alerting via SNS secred-cloudtrail-alerts for critical findings."
+
+  A.03.03.04.ODP.01:
+    control: "Audit Failure Alerting"
+    usage: "personnel or roles to be alerted on audit failure"
+    value: "System Owner (Souhimbou Doh Kone) via SNS secred-cloudtrail-alerts email subscription"
+    rationale: "Single point of contact for a small team. Will expand to security team distribution list as headcount grows."
+
+  A.03.03.07.ODP.01:
+    control: "Authoritative Time Source"
+    usage: "authoritative time source for audit records"
+    value: "AWS Time Sync Service (Amazon Time Sync, based on GPS + atomic clock ensemble). All ECS tasks, Lambda functions, and Aurora instances use this source by default."
+    rationale: "AWS-native time sync is authoritative within GovCloud. No additional configuration required."
+
+  A.03.03.08.ODP.01:
+    control: "Audit Protection"
+    usage: "audit log retention period"
+    value: "7 years (2555 days) — enforced by S3 Object Lock Compliance mode on secred-evidence-483774310865"
+    rationale: "DFARS 252.204-7012 requires 6-year retention for incident data. 7 years adds 1-year buffer for litigation hold."
+
+  # ── 03.04 Configuration Management ───────────────────────────────────────
+
+  A.03.04.01.ODP.01:
+    control: "System Baselining"
+    usage: "frequency of baseline configuration review"
+    value: "quarterly, plus after any significant system change or security incident"
+    rationale: "Quarterly review aligns with NIST CM-2 organizational baseline."
+
+  A.03.04.09.ODP.01:
+    control: "User-Installed Software"
+    usage: "software installation policy"
+    value: "Users may not install software on GovCloud systems (ECS tasks are immutable containers from ECR). Developer workstations require IT approval for new software. Unapproved software is subject to Bitdefender quarantine."
+    rationale: "Container immutability eliminates user-installed software risk on CUI systems."
+
+  # ── 03.05 Identification and Authentication ────────────────────────────────
+
+  A.03.05.07.ODP.01:
+    control: "Password Complexity"
+    usage: "minimum password length"
+    value: "14 characters"
+    rationale: "DISA STIG IA-5 baseline. Cognito User Pool enforces 14-char minimum with upper, lower, number, symbol."
+
+  A.03.05.08.ODP.01:
+    control: "Password Reuse"
+    usage: "number of previous passwords that cannot be reused"
+    value: "24"
+    rationale: "DISA STIG baseline. Cognito PasswordHistoryPolicy configured accordingly."
+
+  A.03.05.09.ODP.01:
+    control: "Temporary Passwords"
+    usage: "time period for temporary password change requirement"
+    value: "24 hours"
+    rationale: "Cognito temporary password expiry set to 24 hours."
+
+  # ── 03.06 Incident Response ───────────────────────────────────────────────
+
+  A.03.06.01.ODP.01:
+    control: "Incident Handling"
+    usage: "incident categories requiring response"
+    value: "unauthorized access; malware infection; denial of service; improper CUI disclosure; loss or theft of CUI media; insider threat indicators; supply chain compromise indicators"
+    rationale: "Categories align with CISA Incident Response Guide and DFARS 252.204-7012 reportable incident categories."
+
+  A.03.06.02.ODP.01:
+    control: "Incident Reporting"
+    usage: "time period for reporting incidents to authorities"
+    value: "72 hours to DIBNet/DC3 for CUI incidents, per DFARS 252.204-7012. Immediate (within 1 hour) internal escalation to System Owner."
+    rationale: "DFARS 252.204-7012(c) requires 72-hour reporting. Internal 1-hour escalation ensures the System Owner can coordinate the external report."
+
+  A.03.06.03.ODP.01:
+    control: "Incident Response Testing"
+    usage: "frequency of incident response testing"
+    value: "annually — tabletop exercise covering at least two incident scenarios from the 03.06.01 categories"
+    rationale: "Annual testing meets CMMC L2 minimum. First exercise scheduled before C3PAO assessment."
+
+  # ── 03.11 Risk Assessment ─────────────────────────────────────────────────
+
+  A.03.11.01.ODP.01:
+    control: "Risk Assessments"
+    usage: "frequency of risk assessments"
+    value: "annually, plus when significant changes occur to the system or threat environment"
+    rationale: "Annual cadence with event-triggered reassessment."
+
+  A.03.11.02.ODP.01:
+    control: "Vulnerability Scan"
+    usage: "frequency of vulnerability scanning"
+    value: "monthly for infrastructure (AWS Inspector2 continuous); on every ECR image push (scanOnPush=true); weekly for GovCloud network configuration drift (govcloud_validation)"
+    rationale: "Continuous Inspector2 scanning for EC2/ECS/Lambda; image scanning at build time; weekly validator for configuration drift."
+
+  A.03.11.02.ODP.02:
+    control: "Vulnerability Scan"
+    usage: "response time for remediating identified vulnerabilities"
+    value: "CRITICAL: 72 hours; HIGH: 7 days; MEDIUM: 30 days; LOW: 90 days"
+    rationale: "Tiered SLA based on CVSS severity. Aligns with DoD RMF vulnerability management guidance."
+
+  # ── 03.12 Security Assessment and Monitoring ──────────────────────────────
+
+  A.03.12.03.ODP.01:
+    control: "Security Control Monitoring"
+    usage: "frequency of security control monitoring"
+    value: "continuous — AWS Config records all 348 resource types continuously; Security Hub aggregates findings in real time; govcloud_validation runs on every git push to main"
+    rationale: "Continuous monitoring via AWS native services satisfies the requirement. Manual review weekly."
+
+  A.03.12.04.ODP.01:
+    control: "System Security Plan"
+    usage: "frequency of SSP review and update"
+    value: "annually, plus within 30 days of any significant system change, C3PAO finding, or GovCloud architecture change"
+    rationale: "Annual review minimum with event-triggered updates to keep SSP current."
+
+  # ── 03.13 System and Communications Protection ────────────────────────────
+
+  A.03.13.08.ODP.01:
+    control: "Data in Transit"
+    usage: "cryptographic mechanisms for data in transit"
+    value: "TLS 1.2 minimum (TLS 1.3 preferred) with AEAD cipher suites (AES-256-GCM, CHACHA20-POLY1305). Additional ML-KEM-1024 (CRYSTALS-Kyber) encapsulation layer for PQC forward secrecy on agent telemetry channels."
+    rationale: "TLS 1.2 minimum enforced by ALB policy and ForceTLS SCP. PQC layer provides additional protection against harvest-now-decrypt-later attacks."
+
+  A.03.13.11.ODP.01:
+    control: "CUI Encryption"
+    usage: "cryptographic mechanisms for CUI at rest"
+    value: "AES-256-GCM via AWS KMS CMK secred-evidence-cmk (0ad63ea9) for S3/Aurora/DynamoDB. AES-256-GCM in-process for ASAF DAG nodes. Annual KMS key rotation enabled."
+    rationale: "FIPS 140-2 validated AES-256 via AWS KMS. All CUI data paths encrypted at rest."
+
+  A.03.13.16.ODP.01:
+    control: "Data at Rest"
+    usage: "cryptographic mechanisms for data at rest"
+    value: "SSE-KMS with CMK secred-evidence-cmk on all S3 buckets, Aurora cluster, and DynamoDB tables in GovCloud. Developer workstation full-disk encryption via BitLocker (required per CRMA policy)."
+    rationale: "AWS KMS provides centralized key management with audit trail. BitLocker on workstations extends coverage to CRMA tier."
+
+  # ── 03.14 System and Information Integrity ────────────────────────────────
+
+  A.03.14.03.ODP.01:
+    control: "Security Alerts and Advisories"
+    usage: "personnel or roles to receive security alerts"
+    value: "System Owner (Souhimbou Doh Kone) via SNS secred-cloudtrail-alerts; Security Hub email digest weekly"
+    rationale: "Small team — single distribution point for now. Expand to security team DL as headcount grows."
+
+  A.03.14.06.ODP.01:
+    control: "Monitor Communications for Attacks"
+    usage: "types of communications to monitor"
+    value: "All inbound/outbound traffic at the GovCloud VPC boundary (VPC Flow Logs); DNS queries (Route53 Resolver logs); API calls (CloudTrail); Container network traffic (GuardDuty Runtime Monitoring for Fargate)"
+    rationale: "Comprehensive network monitoring via AWS native services."
+
+  # ── 03.15 Planning ────────────────────────────────────────────────────────
+
+  A.03.15.02.ODP.01:
+    control: "Rules of Behavior"
+    usage: "frequency of rules of behavior review and re-acknowledgement"
+    value: "annually, and upon hire/role change"
+    rationale: "Annual re-acknowledgement creates an evidence trail for C3PAO."
+
+  A.03.15.03.ODP.01:
+    control: "System Use Notification"
+    usage: "system use notification content"
+    value: |
+      "WARNING: This system processes Controlled Unclassified Information (CUI)
+      under CMMC Level 2 / NIST SP 800-171. Access is restricted to authorized
+      US Persons only. All activity is monitored and logged. Unauthorized access
+      is a federal offense under 18 U.S.C. § 1030. By continuing, you acknowledge
+      these terms. — SecRed Knowledge Inc. / AdinKhepra Protocol"
+    rationale: "Displayed before first authenticated API request via ASAF gateway pre-auth endpoint."
+
+  # ── 03.16 Supply Chain Risk Management ───────────────────────────────────
+
+  A.03.16.01.ODP.01:
+    control: "Supply Chain Risk Management"
+    usage: "supply chain risk management controls"
+    value: "Iron Bank container images (registry1.dso.mil) for all GovCloud ECS tasks; CIRCL library pinned to verified commit hash; Go module vendoring (vendor/ directory committed); Semgrep SAST on all PRs; ECR image signing via AWS Signer + Cosign"
+    rationale: "DoD Iron Bank provides hardened, continuously scanned base images. Vendoring prevents supply chain substitution attacks."
+
+  # ── 03.17 System and Services Acquisition ────────────────────────────────
+
+  A.03.17.01.ODP.01:
+    control: "Security Engineering Principles"
+    usage: "security engineering principles applied"
+    value: "Zero-trust architecture; defense-in-depth (4-layer gateway); least privilege; separation of duties; secure defaults; fail-safe defaults; economy of mechanism; complete mediation; PQC forward secrecy (ML-KEM-1024); supply chain integrity (Iron Bank + vendoring)"
+    rationale: "Principles embedded in system design and enforced structurally, not procedurally."
