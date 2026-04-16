@@ -1,0 +1,21 @@
+{
+  "profile": {
+    "uuid": "787dc877-8089-4a78-a514-c4bd6d43e2c3",
+    "metadata": {
+      "title": "ASAF CMMC Level 2 Profile — AdinKhepra Protocol (SecRed Knowledge Inc.)",
+      "last-modified": "2026-04-15T22:45:50.479781-04:00",
+      "version": "1.0.0",
+      "oscal-version": "1.2.1",
+      "remarks": "Selects all NIST SP 800-171 Rev 3 controls for CMMC Level 2 compliance. CMMC L2 is formally assessed against Rev 2 per 32 CFR Part 170; this profile uses Rev 3 (superset) for forward compatibility. All Rev 2 controls are covered. Classification: CUI // SP-CMMC."
+    },
+    "imports": [
+      {
+        "href": "trestle://catalogs/NIST_SP-800-171_rev3/catalog.json",
+        "include-all": {}
+      }
+    ],
+    "merge": {
+      "as-is": true
+    }
+  }
+}
