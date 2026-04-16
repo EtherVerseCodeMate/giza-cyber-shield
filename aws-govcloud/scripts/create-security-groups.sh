@@ -132,7 +132,7 @@ else
     log_info "Creating $ALB_SG_NAME..."
     if [[ "$DRY_RUN" == "false" ]]; then
         ALB_SG_ID=$(create_sg "$ALB_SG_NAME" \
-            "ASAF ALB — HTTPS 443 ingress from internet (CUI boundary)")
+            "ASAF ALB - HTTPS 443 ingress from internet (CUI boundary)")
         tag_sg "$ALB_SG_ID" "$ALB_SG_NAME"
 
         # Ingress: HTTPS from anywhere (ALB handles TLS termination)
@@ -169,7 +169,7 @@ else
     log_info "Creating $ECS_SG_NAME..."
     if [[ "$DRY_RUN" == "false" ]]; then
         ECS_SG_ID=$(create_sg "$ECS_SG_NAME" \
-            "ASAF ECS Fargate tasks — ingress from ALB-SG on port ${APP_PORT}")
+            "ASAF ECS Fargate tasks - ingress from ALB-SG on port ${APP_PORT}")
         tag_sg "$ECS_SG_ID" "$ECS_SG_NAME"
 
         # Ingress: app port from ALB-SG only
@@ -226,7 +226,7 @@ else
     log_info "Creating $AURORA_SG_NAME..."
     if [[ "$DRY_RUN" == "false" ]]; then
         AURORA_SG_ID=$(create_sg "$AURORA_SG_NAME" \
-            "ASAF Aurora PostgreSQL — ingress from ECS-SG on port 5432 only")
+            "ASAF Aurora PostgreSQL - ingress from ECS-SG on port 5432 only")
         tag_sg "$AURORA_SG_ID" "$AURORA_SG_NAME"
 
         # Ingress: PostgreSQL from ECS-SG only

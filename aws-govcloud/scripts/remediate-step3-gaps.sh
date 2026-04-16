@@ -331,13 +331,7 @@ Resources:
       Source:
         Owner: AWS
         SourceIdentifier: MULTI_REGION_CLOUD_TRAIL_ENABLED
-  RootAccountMfaEnabled:
-    Type: AWS::Config::ConfigRule
-    Properties:
-      ConfigRuleName: root-account-mfa-enabled
-      Source:
-        Owner: AWS
-        SourceIdentifier: ROOT_ACCOUNT_MFA_ENABLED
+  # ROOT_ACCOUNT_MFA_ENABLED removed — sourceIdentifier invalid in GovCloud Config rule set
   S3BucketPublicReadProhibited:
     Type: AWS::Config::ConfigRule
     Properties:
