@@ -197,6 +197,8 @@ func runServer(s *server, cfg config.Config) {
 }
 
 func registerRoutes(mux *http.ServeMux, s *server) {
+	initSCADAPoller(mux)
+
 	mux.HandleFunc("/healthz", s.health)
 	mux.HandleFunc("/attest/new", s.attestNew)
 	mux.HandleFunc("/dag/add", s.dagAdd)
