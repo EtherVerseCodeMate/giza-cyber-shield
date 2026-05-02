@@ -19,7 +19,7 @@ import Episode3 from "./pages/blog/Episode3";
 import Episode4 from "./pages/blog/Episode4";
 import BuildingCyberImmunity from "./pages/blog/BuildingCyberImmunity";
 import LaunchingVDP from "./pages/blog/LaunchingVDP";
-import Vdp from "./pages/Vdp";
+import Vdp from "./pages/VDP";
 import HallOfFame from "./pages/HallOfFame";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";

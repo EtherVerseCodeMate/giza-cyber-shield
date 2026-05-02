@@ -267,7 +267,7 @@ func cmdKeysBackup(outDir string, shares, threshold int) error {
 
 	sealed, err := kms.LoadKey()
 	if err != nil {
-		return fmt.Errorf("load key: %w")
+		return fmt.Errorf("load key: %w", err)
 	}
 
 	// Decrypt the sealed key to get the raw private key
