@@ -258,11 +258,12 @@ else
     log_ok "KMS key policy updated — Config service can encrypt deliveries"
 
     # ── 2c: Update the delivery channel ───────────────────────────────────────
-    log_info "Updating Config delivery channel to $EVIDENCE_BUCKET..."
+    log_info "Updating Config delivery channel to $EVIDENCE_BUCKET (KMS: $EVIDENCE_CMK_ARN)..."
     DELIVERY_CHANNEL_JSON=$(jq -cn \
         --arg name "$CONFIG_RECORDER_NAME" \
         --arg bucket "$EVIDENCE_BUCKET" \
-        '{"name":$name,"s3BucketName":$bucket,"configSnapshotDeliveryProperties":{"deliveryFrequency":"TwentyFour_Hours"}}')
+        --arg kms "$EVIDENCE_CMK_ARN" \
+        '{"name":$name,"s3BucketName":$bucket,"s3KmsKeyArn":$kms,"configSnapshotDeliveryProperties":{"deliveryFrequency":"TwentyFour_Hours"}}')
 
     if [[ "$DRY_RUN" == "true" ]]; then
         echo "[DRY-RUN] aws configservice put-delivery-channel --delivery-channel '$DELIVERY_CHANNEL_JSON' --region $REGION"
