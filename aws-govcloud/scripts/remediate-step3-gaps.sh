@@ -168,9 +168,97 @@ if [[ "$CURRENT_BUCKET" == "$EVIDENCE_BUCKET" ]]; then
     log_ok "Config delivery channel already targets $EVIDENCE_BUCKET. Skipping."
 else
     log_info "Current delivery bucket: '${CURRENT_BUCKET:-<none>}'"
-    log_info "Updating Config delivery channel to $EVIDENCE_BUCKET..."
 
-    # Build the JSON payload
+    # ── 2a: Grant AWS Config write access to the evidence bucket ─────────────
+    log_info "Granting AWS Config PutObject permission on $EVIDENCE_BUCKET..."
+    EXISTING_POLICY=$(aws s3api get-bucket-policy \
+        --bucket "$EVIDENCE_BUCKET" \
+        --region "$REGION" \
+        --query Policy \
+        --output text 2>/dev/null || echo '{"Version":"2012-10-17","Statement":[]}')
+
+    CONFIG_POLICY=$(jq -cn \
+        --arg bucket "$EVIDENCE_BUCKET" \
+        --arg account "$ACCOUNT_ID" \
+        '{
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Sid": "AWSConfigBucketPermissionsCheck",
+                    "Effect": "Allow",
+                    "Principal": {"Service": "config.amazonaws.com"},
+                    "Action": "s3:GetBucketAcl",
+                    "Resource": ("arn:aws-us-gov:s3:::" + $bucket),
+                    "Condition": {"StringEquals": {"AWS:SourceAccount": $account}}
+                },
+                {
+                    "Sid": "AWSConfigBucketDelivery",
+                    "Effect": "Allow",
+                    "Principal": {"Service": "config.amazonaws.com"},
+                    "Action": "s3:PutObject",
+                    "Resource": ("arn:aws-us-gov:s3:::" + $bucket + "/AWSLogs/" + $account + "/Config/*"),
+                    "Condition": {
+                        "StringEquals": {
+                            "s3:x-amz-acl": "bucket-owner-full-control",
+                            "AWS:SourceAccount": $account
+                        }
+                    }
+                }
+            ]
+        }')
+
+    # Merge new statements into existing policy
+    MERGED_POLICY=$(echo "$EXISTING_POLICY" | jq \
+        --argjson new "$(echo "$CONFIG_POLICY" | jq '.Statement')" \
+        '.Statement += $new | .Statement |= unique_by(.Sid)')
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "[DRY-RUN] aws s3api put-bucket-policy --bucket $EVIDENCE_BUCKET --policy <merged>"
+    else
+        aws s3api put-bucket-policy \
+            --bucket "$EVIDENCE_BUCKET" \
+            --policy "$MERGED_POLICY" \
+            --region "$REGION"
+    fi
+    log_ok "S3 bucket policy updated — Config service can now deliver to $EVIDENCE_BUCKET"
+
+    # ── 2b: Grant AWS Config use of the evidence CMK ──────────────────────────
+    log_info "Granting AWS Config GenerateDataKey on evidence CMK..."
+    EXISTING_KMS_POLICY=$(aws kms get-key-policy \
+        --key-id "$EVIDENCE_CMK_ARN" \
+        --policy-name default \
+        --region "$REGION" \
+        --query Policy \
+        --output text 2>/dev/null || echo '{"Version":"2012-10-17","Statement":[]}')
+
+    CONFIG_KMS_STMT=$(jq -cn --arg account "$ACCOUNT_ID" '{
+        "Sid": "AllowAWSConfigKMS",
+        "Effect": "Allow",
+        "Principal": {"Service": "config.amazonaws.com"},
+        "Action": ["kms:GenerateDataKey","kms:Decrypt"],
+        "Resource": "*",
+        "Condition": {"StringEquals": {"AWS:SourceAccount": $account}}
+    }')
+
+    MERGED_KMS_POLICY=$(echo "$EXISTING_KMS_POLICY" | jq \
+        --argjson stmt "$CONFIG_KMS_STMT" \
+        'if (.Statement | map(select(.Sid == "AllowAWSConfigKMS")) | length) > 0
+         then .
+         else .Statement += [$stmt] end')
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "[DRY-RUN] aws kms put-key-policy --key-id $EVIDENCE_CMK_ARN --policy <merged>"
+    else
+        aws kms put-key-policy \
+            --key-id "$EVIDENCE_CMK_ARN" \
+            --policy-name default \
+            --policy "$MERGED_KMS_POLICY" \
+            --region "$REGION"
+    fi
+    log_ok "KMS key policy updated — Config service can encrypt deliveries"
+
+    # ── 2c: Update the delivery channel ───────────────────────────────────────
+    log_info "Updating Config delivery channel to $EVIDENCE_BUCKET..."
     DELIVERY_CHANNEL_JSON=$(jq -cn \
         --arg name "$CONFIG_RECORDER_NAME" \
         --arg bucket "$EVIDENCE_BUCKET" \
