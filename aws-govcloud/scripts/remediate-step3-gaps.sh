@@ -176,7 +176,7 @@ else
         --arg bucket "$EVIDENCE_BUCKET" \
         '{"name":$name,"s3BucketName":$bucket,"configSnapshotDeliveryProperties":{"deliveryFrequency":"TwentyFour_Hours"}}')
 
-    DELIVERY_CHANNEL_TMPFILE=$(mktemp /tmp/delivery-channel-XXXXXX.json)
+    DELIVERY_CHANNEL_TMPFILE="$(pwd)/delivery-channel-tmp.json"
     echo "$DELIVERY_CHANNEL_JSON" > "$DELIVERY_CHANNEL_TMPFILE"
     if [[ "$DRY_RUN" == "true" ]]; then
         echo "[DRY-RUN] aws configservice put-delivery-channel --delivery-channel file://$DELIVERY_CHANNEL_TMPFILE --region $REGION"
