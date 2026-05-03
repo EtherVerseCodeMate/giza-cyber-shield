@@ -119,14 +119,20 @@ echo "  GAP 1 — GuardDuty findings export to evidence bucket"
 echo "────────────────────────────────────────────────────────────"
 
 # Check existing publishing destinations
-EXISTING_DEST=$(aws guardduty list-publishing-destinations \
+EXISTING_DEST_ID=$(aws guardduty list-publishing-destinations \
+    --detector-id "$DETECTOR_ID" \
+    --region "$REGION" \
+    --query "Destinations[?DestinationType=='S3'] | [0].DestinationId" \
+    --output text 2>/dev/null || echo "")
+
+EXISTING_DEST_STATUS=$(aws guardduty list-publishing-destinations \
     --detector-id "$DETECTOR_ID" \
     --region "$REGION" \
     --query "Destinations[?DestinationType=='S3'] | [0].Status" \
     --output text 2>/dev/null || echo "")
 
-if [[ "$EXISTING_DEST" == "PUBLISHING_SUCCEEDED" ]]; then
-    log_ok "GuardDuty → S3 publishing already active. Skipping."
+if [[ -n "$EXISTING_DEST_ID" && "$EXISTING_DEST_ID" != "None" ]]; then
+    log_ok "GuardDuty → S3 publishing destination already exists (id: ${EXISTING_DEST_ID}, status: ${EXISTING_DEST_STATUS}). Skipping."
 else
     log_info "Creating GuardDuty S3 publishing destination..."
     EVIDENCE_BUCKET_ARN="arn:aws-us-gov:s3:::${EVIDENCE_BUCKET}"
@@ -165,16 +171,10 @@ else
     log_info "Updating Config delivery channel to $EVIDENCE_BUCKET..."
 
     # Build the JSON payload
-    DELIVERY_CHANNEL_JSON=$(jq -n \
+    DELIVERY_CHANNEL_JSON=$(jq -cn \
         --arg name "$CONFIG_RECORDER_NAME" \
         --arg bucket "$EVIDENCE_BUCKET" \
-        '{
-            name:         $name,
-            s3BucketName: $bucket,
-            configSnapshotDeliveryProperties: {
-                deliveryFrequency: "TwentyFour_Hours"
-            }
-        }')
+        '{"name":$name,"s3BucketName":$bucket,"configSnapshotDeliveryProperties":{"deliveryFrequency":"TwentyFour_Hours"}}')
 
     run aws configservice put-delivery-channel \
         --delivery-channel "$DELIVERY_CHANNEL_JSON" \
