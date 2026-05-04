@@ -218,11 +218,22 @@ else
     # Merge: evict any existing statements whose Sid conflicts with the new set,
     # then append the new (correct) statements. unique_by keeps first-seen, so
     # we must remove old conflicting entries before adding new ones.
+    # Also patch DenyNonUSPersons to add aws:PrincipalIsAWSService exemption so
+    # Config, GuardDuty, and CloudTrail are not caught by the USPerson deny.
     MERGED_POLICY=$(echo "$EXISTING_POLICY" | jq \
         --argjson new "$(echo "$CONFIG_POLICY" | jq '.Statement')" \
         'reduce $new[] as $s (.;
            .Statement |= map(select(.Sid != $s.Sid))
-         ) | .Statement += $new')
+         ) | .Statement += $new
+         | .Statement |= map(
+             if .Sid == "DenyNonUSPersons" then
+                 if .Condition then
+                     .Condition.Bool["aws:PrincipalIsAWSService"] = "false"
+                 else
+                     .Condition = {"Bool": {"aws:PrincipalIsAWSService": "false"}}
+                 end
+             else . end
+         )')
 
     if [[ "$DRY_RUN" == "true" ]]; then
         echo "[DRY-RUN] aws s3api put-bucket-policy --bucket $EVIDENCE_BUCKET --policy <merged>"
