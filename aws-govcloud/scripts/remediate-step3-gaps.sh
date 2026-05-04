@@ -177,6 +177,12 @@ else
         --query Policy \
         --output text 2>/dev/null || echo '{"Version":"2012-10-17","Statement":[]}')
 
+    # AWS official Config bucket policy format — no AWS:SourceAccount on the service-principal
+    # statements. Config's writability probe in GovCloud does not set aws:SourceAccount as a
+    # request context key, so requiring it in StringEquals causes the ALLOW to never match.
+    # The AllowConfigSLRPutObject statement (already in the bucket policy) covers real delivery
+    # via the SLR; these three statements cover Config's validation probe which runs as the
+    # config.amazonaws.com service principal.
     CONFIG_POLICY=$(jq -cn \
         --arg bucket "$EVIDENCE_BUCKET" \
         --arg account "$ACCOUNT_ID" \
@@ -188,16 +194,14 @@ else
                     "Effect": "Allow",
                     "Principal": {"Service": "config.amazonaws.com"},
                     "Action": "s3:GetBucketAcl",
-                    "Resource": ("arn:aws-us-gov:s3:::" + $bucket),
-                    "Condition": {"StringEquals": {"AWS:SourceAccount": $account}}
+                    "Resource": ("arn:aws-us-gov:s3:::" + $bucket)
                 },
                 {
                     "Sid": "AWSConfigBucketExistenceCheck",
                     "Effect": "Allow",
                     "Principal": {"Service": "config.amazonaws.com"},
                     "Action": "s3:ListBucket",
-                    "Resource": ("arn:aws-us-gov:s3:::" + $bucket),
-                    "Condition": {"StringEquals": {"AWS:SourceAccount": $account}}
+                    "Resource": ("arn:aws-us-gov:s3:::" + $bucket)
                 },
                 {
                     "Sid": "AWSConfigBucketDelivery",
@@ -207,8 +211,7 @@ else
                     "Resource": ("arn:aws-us-gov:s3:::" + $bucket + "/AWSLogs/" + $account + "/Config/*"),
                     "Condition": {
                         "StringEquals": {
-                            "s3:x-amz-acl": "bucket-owner-full-control",
-                            "AWS:SourceAccount": $account
+                            "s3:x-amz-acl": "bucket-owner-full-control"
                         }
                     }
                 }
