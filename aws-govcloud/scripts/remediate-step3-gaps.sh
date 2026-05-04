@@ -208,12 +208,7 @@ else
                     "Effect": "Allow",
                     "Principal": {"Service": "config.amazonaws.com"},
                     "Action": "s3:PutObject",
-                    "Resource": ("arn:aws-us-gov:s3:::" + $bucket + "/AWSLogs/" + $account + "/Config/*"),
-                    "Condition": {
-                        "StringEquals": {
-                            "s3:x-amz-acl": "bucket-owner-full-control"
-                        }
-                    }
+                    "Resource": ("arn:aws-us-gov:s3:::" + $bucket + "/AWSLogs/" + $account + "/Config/*")
                 }
             ]
         }')
