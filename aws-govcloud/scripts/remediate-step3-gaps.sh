@@ -216,12 +216,15 @@ else
         }')
 
     # Merge: evict any existing statements whose Sid conflicts with the new set,
-    # then append the new (correct) statements. unique_by keeps first-seen, so
-    # we must remove old conflicting entries before adding new ones.
-    # Also patch DenyNonUSPersons to add aws:PrincipalIsAWSService exemption so
-    # Config, GuardDuty, and CloudTrail are not caught by the USPerson deny.
+    # then append the new (correct) statements.
+    # Also patch DenyNonUSPersons with two exemptions:
+    #   1. Bool/aws:PrincipalIsAWSService=false — exempts direct service-principal calls
+    #   2. ArnNotLike/aws:PrincipalArn — exempts SLRs (Config, GuardDuty, etc.) because
+    #      SLRs are IAM roles so PrincipalIsAWSService=false for them; ArnNotLike on the
+    #      aws-service-role/* namespace is the correct exemption path for SLR principals.
     MERGED_POLICY=$(echo "$EXISTING_POLICY" | jq \
         --argjson new "$(echo "$CONFIG_POLICY" | jq '.Statement')" \
+        --arg account "$ACCOUNT_ID" \
         'reduce $new[] as $s (.;
            .Statement |= map(select(.Sid != $s.Sid))
          ) | .Statement += $new
@@ -229,8 +232,14 @@ else
              if .Sid == "DenyNonUSPersons" then
                  if .Condition then
                      .Condition.Bool["aws:PrincipalIsAWSService"] = "false"
+                     | .Condition.ArnNotLike["aws:PrincipalArn"] =
+                         ("arn:aws-us-gov:iam::" + $account + ":role/aws-service-role/*")
                  else
-                     .Condition = {"Bool": {"aws:PrincipalIsAWSService": "false"}}
+                     .Condition = {
+                         "Bool": {"aws:PrincipalIsAWSService": "false"},
+                         "ArnNotLike": {"aws:PrincipalArn":
+                             ("arn:aws-us-gov:iam::" + $account + ":role/aws-service-role/*")}
+                     }
                  end
              else . end
          )')
