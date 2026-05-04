@@ -192,6 +192,14 @@ else
                     "Condition": {"StringEquals": {"AWS:SourceAccount": $account}}
                 },
                 {
+                    "Sid": "AWSConfigBucketExistenceCheck",
+                    "Effect": "Allow",
+                    "Principal": {"Service": "config.amazonaws.com"},
+                    "Action": "s3:ListBucket",
+                    "Resource": ("arn:aws-us-gov:s3:::" + $bucket),
+                    "Condition": {"StringEquals": {"AWS:SourceAccount": $account}}
+                },
+                {
                     "Sid": "AWSConfigBucketDelivery",
                     "Effect": "Allow",
                     "Principal": {"Service": "config.amazonaws.com"},
@@ -207,10 +215,14 @@ else
             ]
         }')
 
-    # Merge new statements into existing policy
+    # Merge: evict any existing statements whose Sid conflicts with the new set,
+    # then append the new (correct) statements. unique_by keeps first-seen, so
+    # we must remove old conflicting entries before adding new ones.
     MERGED_POLICY=$(echo "$EXISTING_POLICY" | jq \
         --argjson new "$(echo "$CONFIG_POLICY" | jq '.Statement')" \
-        '.Statement += $new | .Statement |= unique_by(.Sid)')
+        'reduce $new[] as $s (.;
+           .Statement |= map(select(.Sid != $s.Sid))
+         ) | .Statement += $new')
 
     if [[ "$DRY_RUN" == "true" ]]; then
         echo "[DRY-RUN] aws s3api put-bucket-policy --bucket $EVIDENCE_BUCKET --policy <merged>"
@@ -242,9 +254,7 @@ else
 
     MERGED_KMS_POLICY=$(echo "$EXISTING_KMS_POLICY" | jq \
         --argjson stmt "$CONFIG_KMS_STMT" \
-        'if (.Statement | map(select(.Sid == "AllowAWSConfigKMS")) | length) > 0
-         then .
-         else .Statement += [$stmt] end')
+        '.Statement |= map(select(.Sid != "AllowAWSConfigKMS")) | .Statement += [$stmt]')
 
     if [[ "$DRY_RUN" == "true" ]]; then
         echo "[DRY-RUN] aws kms put-key-policy --key-id $EVIDENCE_CMK_ARN --policy <merged>"
@@ -294,11 +304,18 @@ else
     # IAM role for Malware Protection (must already exist or create inline)
     MP_ROLE_ARN="arn:aws-us-gov:iam::${ACCOUNT_ID}:role/aws-service-role/malware-protection.guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDutyMalwareProtection"
 
-    run aws guardduty create-malware-protection-plan \
-        --role "$MP_ROLE_ARN" \
-        --protected-resource "{\"S3Bucket\":{\"BucketName\":\"${EVIDENCE_BUCKET}\",\"ObjectPrefixes\":[]}}" \
-        --tags "Project=AdinKhepra,Environment=production,CUI=true" \
-        --region "$REGION" || log_warn "Malware Protection plan creation failed — may require service-linked role. See runbook."
+    MP_PROTECTED_RESOURCE=$(jq -cn --arg b "$EVIDENCE_BUCKET" \
+        '{"S3Bucket":{"BucketName":$b,"ObjectPrefixes":[]}}')
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "[DRY-RUN] aws guardduty create-malware-protection-plan --role $MP_ROLE_ARN --protected-resource '$MP_PROTECTED_RESOURCE' --region $REGION"
+    else
+        aws guardduty create-malware-protection-plan \
+            --role "$MP_ROLE_ARN" \
+            --protected-resource "$MP_PROTECTED_RESOURCE" \
+            --tags "Project=AdinKhepra,Environment=production,CUI=true" \
+            --region "$REGION" || log_warn "Malware Protection plan creation failed — may require service-linked role. See runbook."
+    fi
     log_ok "Malware Protection for S3 configured on $EVIDENCE_BUCKET"
 fi
 
