@@ -1,0 +1,72 @@
+# AdinKhepra ASAF Engine — Cursor Rules
+# Place this file at: giza-cyber-shield/.cursorrules
+
+## Project identity
+
+AdinKhepra is the security camera AND the flight recorder for AI agents.
+
+Security camera: watches what AI agents do in real time, alerts on anomalies.
+Flight recorder: creates a permanent, tamper-proof record that proves what
+happened — for auditors, forensics, compliance, and incident response.
+
+Never describe this product using the words "cryptographic attestation" without
+immediately adding plain-English translation. "Permanently records and signs every
+AI action so it can't be denied or altered" is always better than "cryptographic
+attestation framework."
+
+## Core architecture rules
+
+Go + Next.js/TypeScript monorepo. Single static binary output. Zero CGO. No
+external AI API dependencies in core engine. All AI provider calls are isolated
+to pkg/g0dm0d3/ only.
+
+The DAG (pkg/dag/) is sacred. Every significant operation writes a signed node.
+Use dag.GlobalDAG() — never instantiate a new Memory directly.
+
+## What I'm building right now
+
+1. pkg/asaf/wrapper.go — MCP interceptor that wraps any AI agent transparently
+2. CLI simplification — fewer commands, cleaner surface
+3. VPS deployment to root@187.124.225.91
+4. G0DM0D3 provider abstraction (Anthropic/OpenRouter/Offline, no Ollama needed)
+
+## Build commands
+
+Development: go build -o bin/adinkhepra.exe ./cmd/adinkhepra
+Linux VPS: GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/adinkhepra-linux-amd64 ./cmd/adinkhepra
+Deploy: scp bin/adinkhepra-linux-amd64 root@187.124.225.91:/opt/adinkhepra/bin/adinkhepra && ssh root@187.124.225.91 "systemctl restart adinkhepra"
+
+## Security invariants — never break these
+
+- CGO_ENABLED=0 always
+- No external AI API calls outside pkg/g0dm0d3/
+- No plaintext secrets on disk
+- master_seed.sealed lives at ~/.asaf/keys/ never in project root
+- Dilithium3 sign every DAG node
+- FIPS 203/204/205 only for new crypto features
+- Return errors, never panic() in production paths
+
+## Code conventions
+
+Go error format: fmt.Errorf("FunctionName: %w", err)
+Logging: use pkg/logging/dod_logger.go, never fmt.Println
+DAG write functions: prefix with Record (RecordSTIGFinding, RecordAgentAction)
+ASAF wrappers: prefix with Wrap (WrapMCPAgent, WrapHTTPAgent)
+Function max size: 60 lines before splitting
+
+## Accurate product facts — never change these
+
+Patent: USPTO #73565085
+Signing algorithm: Dilithium3 (NIST FIPS 204 / ML-DSA)
+KEM algorithm: Kyber-1024 (NIST FIPS 203 / ML-KEM)
+Compliance mappings: 36,195
+Company: SecRed Knowledge Inc. (NouchiX)
+Product name: AdinKhepra (capital A, capital K, one word)
+Framework: ASAF — Agentic Security Attestation Framework
+Founder: SGT Souhimbou "Cyber" Doh Kone, SDVOSB
+
+## The demo we're always building toward
+
+User runs `adinkhepra watch`, uses Claude Code for 5 minutes, opens
+http://localhost:45444, sees signed tamper-proof record of every AI action.
+"That's what an auditor sees. Can you show them this without us?" That's the close.
