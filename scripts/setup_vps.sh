@@ -7,7 +7,7 @@
 # =============================================================
 set -euo pipefail
 DOMAIN="srv1494994.hstgr.cloud"
-EMAIL="contact@nouchix.com"          # For Let's Encrypt cert
+EMAIL="cyber@nouchix.com"          # For Let's Encrypt cert
 KHEPRA_PORT=45444
 TELEMETRY_PORT=8443
 DEPLOY_DIR="/opt/adinkhepra"
