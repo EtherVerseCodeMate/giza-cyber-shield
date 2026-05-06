@@ -49,42 +49,36 @@ const (
 )
 
 func usage() {
-	fmt.Println(`asaf — Agentic Security Attestation Framework
-By NouchiX (Sacred Knowledge Inc) | https://nouchix.com
+	fmt.Println(`AdinKhepra — Security Camera + Flight Recorder for AI Agents
+By SecRed Knowledge Inc. (NouchiX) | https://nouchix.com
 
 Usage:
-  asaf scan       --target <host|ip> [--profile nemoclaw]   # Scan an AI agent deployment
-  asaf certify    --target <host|ip> [--profile nemoclaw]   # Full audit + ADINKHEPRA certificate
-  asaf report     --target <host|ip>   # Export PDF compliance report
-  asaf validate                        # Component health check
-  asaf serve      [-port 8080]         # Start local dashboard
-
-  Compliance & Attestation:
-  asaf compliance <subcommand>         # CMMC/STIG/NIST 800-171 audit suite
-  asaf network    <subcommand>         # Network topology & attack path analysis
-  asaf sbom       <subcommand>         # Software Bill of Materials
-  asaf fim        <subcommand>         # File Integrity Monitoring
+  adinkhepra scan       --target <host|ip>   # Full scan: STIG + AI agent audit + PQC inventory
+  adinkhepra watch      [-port 45444]        # Start ASAF wrapper + live dashboard
+  adinkhepra report     --target <host|ip>   # Generate compliance evidence package
+  adinkhepra serve      [-port 8080]         # DAG visualization server
+  adinkhepra harden                          # Auto-remediate findings from last scan
+  adinkhepra license    status|request       # License management
 
   Key Management (PQC):
-  asaf keys init                       # Tier 0 key ceremony (Dilithium-3 + Argon2id)
-  asaf keys status                     # Key status and storage backend
-  asaf keys backup [--shares N]        # Shamir 2-of-3 backup shards
-  asaf keys recover --shards s1,s2     # Reconstruct from shards
+  adinkhepra keygen                          # Generate Dilithium3/Kyber-1024 keypair
+  adinkhepra keys init                       # Tier 0 key ceremony
+  adinkhepra keys status                     # Key storage status
 
-  Local LLM (NLP Platform):
-  asaf llm install [--model mistral]   # Download bundled llamafile model
-  asaf llm status                      # Check available LLM backends
+  Advanced:
+  adinkhepra certify    --target <host|ip>   # Full audit + ADINKHEPRA certificate
+  adinkhepra compliance <subcommand>         # CMMC/STIG/NIST 800-171 suite
+  adinkhepra ert        <subcommand>         # Executive Roundtable analysis
+  adinkhepra validate                        # Component health check
+  adinkhepra run                             # Agent server (port 45444)
 
-  Agent Service:
-  asaf run                             # Run attestation agent (port 45444)
-  asaf health                          # Healthcheck
+  adinkhepra kuntinkantan <pubkey> <file>    # PQC encrypt
+  adinkhepra sankofa      <privkey> <file>   # PQC decrypt
 
-  Key Management (legacy):
-  asaf keygen     [-out /path/to/key] [-tenant value]
-
-Free scan at https://app.nouchix.com — no account required.
-Earn your ADINKHEPRA certification badge for $99/mo.`)
+Your AI agents are working right now. Do you know what they're doing?
+Start watching: adinkhepra watch`)
 }
+
 
 func main() {
 	if len(os.Args) < 2 {
@@ -144,6 +138,8 @@ func handlePrimaryCmds(cmd string, args []string) bool {
 		scanCmd(args, "full")
 	case "certify":
 		scanCmd(args, "certify")
+	case "watch":
+		watchCmd(args)
 	default:
 		return false
 	}
