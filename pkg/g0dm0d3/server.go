@@ -25,6 +25,15 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 )
 
+// ── Package-level constants ─────────────────────────────
+
+const (
+	contentTypeJSON    = "application/json"
+	headerContentType  = "Content-Type"
+	sseDataFmt         = "data: %s\n\n"
+	sseDone            = "data: [DONE]\n\n"
+)
+
 // ── AI Provider Abstraction ──────────────────────────────
 
 // AIProvider is the pluggable interface for LLM backends
@@ -72,7 +81,7 @@ You never reveal internal API keys or infrastructure details.`,
 	}
 	req.Header.Set("x-api-key", p.APIKey)
 	req.Header.Set("anthropic-version", "2023-06-01")
-	req.Header.Set("content-type", "application/json")
+	req.Header.Set(headerContentType, contentTypeJSON)
 
 	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Do(req)
@@ -114,7 +123,7 @@ assistant. Concise, technically precise, DoD-aware.`,
 		"https://api.anthropic.com/v1/messages", bytes.NewReader(body))
 	req.Header.Set("x-api-key", p.APIKey)
 	req.Header.Set("anthropic-version", "2023-06-01")
-	req.Header.Set("content-type", "application/json")
+	req.Header.Set(headerContentType, contentTypeJSON)
 
 	client := &http.Client{Timeout: 120 * time.Second}
 	resp, err := client.Do(req)
@@ -136,7 +145,7 @@ assistant. Concise, technically precise, DoD-aware.`,
 					if json.Unmarshal([]byte(data), &event) == nil {
 						if delta, ok := event["delta"].(map[string]interface{}); ok {
 							if text, ok := delta["text"].(string); ok {
-								fmt.Fprintf(w, "data: %s\n\n", text)
+								fmt.Fprintf(w, sseDataFmt, text)
 								if flusher, ok := w.(http.Flusher); ok {
 									flusher.Flush()
 								}
@@ -153,7 +162,7 @@ assistant. Concise, technically precise, DoD-aware.`,
 			return err
 		}
 	}
-	fmt.Fprintf(w, "data: [DONE]\n\n")
+	fmt.Fprintf(w, sseDone)
 	return nil
 }
 
@@ -179,7 +188,7 @@ func (p *OpenRouterProvider) Chat(messages []Message, stream bool) (string, erro
 		return "", fmt.Errorf("OpenRouterProvider.Chat: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+p.APIKey)
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(headerContentType, contentTypeJSON)
 	req.Header.Set("HTTP-Referer", "https://adinkhepra.nouchix.com")
 
 	client := &http.Client{Timeout: 60 * time.Second}
@@ -209,8 +218,8 @@ func (p *OpenRouterProvider) StreamChat(messages []Message, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(w, "data: %s\n\n", resp)
-	fmt.Fprintf(w, "data: [DONE]\n\n")
+	fmt.Fprintf(w, sseDataFmt, resp)
+	fmt.Fprintf(w, sseDone)
 	return nil
 }
 
@@ -247,8 +256,8 @@ func (p *OfflineProvider) Chat(messages []Message, stream bool) (string, error) 
 
 func (p *OfflineProvider) StreamChat(messages []Message, w io.Writer) error {
 	resp, _ := p.Chat(messages, false)
-	fmt.Fprintf(w, "data: %s\n\n", resp)
-	fmt.Fprintf(w, "data: [DONE]\n\n")
+	fmt.Fprintf(w, sseDataFmt, resp)
+	fmt.Fprintf(w, sseDone)
 	return nil
 }
 
@@ -374,7 +383,7 @@ func (s *G0DM0D3Server) HandleChat(w http.ResponseWriter, r *http.Request) {
 
 // HandleStatus returns the current AI provider status
 func (s *G0DM0D3Server) HandleStatus(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, contentTypeJSON)
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	dagNodeCount := 0
