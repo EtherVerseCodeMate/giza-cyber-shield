@@ -202,13 +202,13 @@ func (sla *SovereignLicenseAuthority) RevokeLicense(licenseID, reason string) er
 
 // ─── License Verification ─────────────────────────────────────────────────────
 
-// VerifyLicense performs the full 4-step offline verification chain.
+// VerifySovereignLicense performs the full 4-step offline verification chain.
 // Steps:
 //  1. Verify ML-DSA-65 signature (offline, uses embedded master public key)
 //  2. Check device binding (current machine matches license DeviceID)
 //  3. Check expiry
 //  4. Check revocation via IPFS CRL (fail-open if offline: logs, does not block)
-func VerifyLicense(lic *KhepraLicense, masterPublicKey []byte) error {
+func VerifySovereignLicense(lic *KhepraLicense, masterPublicKey []byte) error {
 	if lic == nil {
 		return errors.New("sovereign: license is nil")
 	}

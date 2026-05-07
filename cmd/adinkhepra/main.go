@@ -158,6 +158,8 @@ func handleSecondaryCmds(cmd string, args []string) bool {
 		explainCmd(args)
 	case "hostid":
 		printHostID()
+	case "license":
+		licenseDispatchCmd(args)
 	case "license-gen":
 		licenseGenCmd(args)
 	case "arsenal":
@@ -174,6 +176,8 @@ func handleSecondaryCmds(cmd string, args []string) bool {
 		drbcCmd(args)
 	case "agent":
 		agentCmd(args)
+	case "ea":
+		eaCmd(args)
 	case "fim":
 		fimCmd(args)
 	case "network":
