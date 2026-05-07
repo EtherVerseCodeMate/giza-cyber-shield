@@ -316,7 +316,8 @@ type G0DM0D3Server struct {
 	DAG      *dag.PersistentMemory // Live DAG for system context
 
 	mu      sync.Mutex
-	History []Message // In-memory session history
+	History []Message        // In-memory session history
+	tools   map[string]Tool  // KHEPRA native tool panel (keyed by tool name)
 }
 
 // NewServer creates a G0DM0D3 server with the best available AI provider
@@ -371,11 +372,14 @@ func (s *G0DM0D3Server) HandleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Auto-execute any [TOOL:xxx] directives the AI embedded in its response.
+	resp = s.executeToolDirectives(resp)
+
 	s.mu.Lock()
 	s.History = append(s.History, Message{Role: "assistant", Content: resp})
 	s.mu.Unlock()
 
-	json.NewEncoder(w).Encode(map[string]string{
+	json.NewEncoder(w).Encode(map[string]string{ //nolint:errcheck
 		"response": resp,
 		"provider": s.Provider.Name(),
 	})
