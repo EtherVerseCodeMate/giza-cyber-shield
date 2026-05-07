@@ -320,7 +320,7 @@ func licenseInstallCmd(args []string) {
 		masterPubKey = findMasterPubKey()
 	}
 
-	lic, err := license.InstallLicenseCapsule(capsule, &session, masterPubKey, outputPath)
+	lic, err := license.InstallLicenseCapsule(capsule, &session, masterPubKey, outputPath, sessionPath)
 	if err != nil {
 		fatal("install capsule", err)
 	}
