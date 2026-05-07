@@ -1,21 +1,56 @@
+// Package telemetry provides ML-DSA-65-signed anonymous usage telemetry for
+// AdinKhepra v2.0.
+//
+// Two transports are supported:
+//
+//  1. Legacy endpoint (SendBeacon): original Khepra telemetry server;
+//     signature goes in the X-Khepra-Signature HTTP header.
+//
+//  2. Sovereign endpoint (SendSovereignBeacon): the self-hosted VPS server
+//     defined in cmd/telemetry-server; signature + ephemeral public key are
+//     embedded in the JSON body so the server can verify each beacon without
+//     a pre-shared key registry.
 package telemetry
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/types"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 )
 
-// Beacon represents anonymous telemetry data
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const (
+	// TelemetryVersion is the wire-protocol version sent in every beacon.
+	TelemetryVersion = "2.0"
+
+	// defaultSovereignURL is the self-hosted telemetry server for sovereign deployments.
+	// Override with KHEPRA_SOVEREIGN_TELEMETRY_URL.
+	defaultSovereignURL = "https://telemetry.souhimbou.org/beacon"
+
+	// defaultLegacyURL is the original telemetry endpoint (kept for backwards compat).
+	defaultLegacyURL = "https://telemetry.khepra.io/beacon"
+
+	beaconHTTPTimeout = 10 * time.Second
+)
+
+// ─── Beacon Types ─────────────────────────────────────────────────────────────
+
+// Beacon carries the legacy telemetry payload (original Khepra server format).
 type Beacon struct {
 	TelemetryVersion string          `json:"telemetry_version"`
 	Timestamp        string          `json:"timestamp"`
@@ -23,13 +58,11 @@ type Beacon struct {
 	ScanMetadata     ScanMetadata    `json:"scan_metadata"`
 	CryptoInventory  CryptoInventory `json:"cryptographic_inventory"`
 	GeographicHint   string          `json:"geographic_hint,omitempty"`
-
-	// NEW: License information (for enterprise users)
-	LicenseTier string `json:"license_tier,omitempty"` // 'community', 'dod_premium'
-	LicenseHash string `json:"license_hash,omitempty"` // SHA256 of machine_id
+	LicenseTier      string          `json:"license_tier,omitempty"`
+	LicenseHash      string          `json:"license_hash,omitempty"`
 }
 
-// ScanMetadata contains information about the scan execution
+// ScanMetadata contains information about the scan execution.
 type ScanMetadata struct {
 	ScanDuration         int      `json:"scan_duration_seconds"`
 	TargetsScanned       int      `json:"targets_scanned"`
@@ -40,7 +73,7 @@ type ScanMetadata struct {
 	DeploymentEnv        string   `json:"deployment_environment"`
 }
 
-// CryptoInventory contains cryptographic asset counts (NOT actual keys)
+// CryptoInventory contains cryptographic asset counts (never actual key material).
 type CryptoInventory struct {
 	RSA2048Keys       int `json:"rsa_2048_keys"`
 	RSA3072Keys       int `json:"rsa_3072_keys"`
@@ -53,234 +86,395 @@ type CryptoInventory struct {
 	DeprecatedCiphers int `json:"deprecated_ciphers"`
 }
 
-// GenerateAnonymousID creates a privacy-safe device identifier
-// This allows counting unique installations without collecting PII
-func GenerateAnonymousID() string {
-	hostname, _ := os.Hostname()
-
-	// Get primary MAC address (first non-loopback interface)
-	mac := getMACAddress()
-
-	// Static salt to prevent rainbow table attacks
-	salt := "khepra-telemetry-v1-2026"
-
-	// Hash: SHA256(MAC + hostname + salt)
-	data := fmt.Sprintf("%s:%s:%s", mac, hostname, salt)
-	hash := sha256.Sum256([]byte(data))
-
-	return hex.EncodeToString(hash[:])
+// SovereignBeaconPayload is the JSON body for POST /beacon on the sovereign
+// telemetry server.  The Signature and SignerPublicKey fields are populated
+// by SendSovereignBeacon; all other fields are set by the caller.
+//
+// Wire format MUST stay in sync with incomingBeacon in cmd/telemetry-server.
+type SovereignBeaconPayload struct {
+	TelemetryVersion string `json:"telemetry_version"`
+	AnonymousID      string `json:"anonymous_id"`
+	LicenseTier      string `json:"license_tier,omitempty"`
+	ScanCount        int    `json:"scan_count"`
+	FindingCount     int    `json:"finding_count"`
+	Timestamp        string `json:"timestamp"`
+	// Signature and SignerPublicKey are set by SendSovereignBeacon.
+	Signature       []byte `json:"signature"`
+	SignerPublicKey []byte `json:"signer_public_key"`
 }
 
-// getMACAddress retrieves the first non-loopback MAC address
-func getMACAddress() string {
-	// Simplified implementation - in production, use net.Interfaces()
-	// For now, use hostname as fallback
+// canonical returns the deterministic JSON payload that must be signed — must
+// exactly match canonicalBeaconBytes() in cmd/telemetry-server/main.go.
+func (p *SovereignBeaconPayload) canonical() ([]byte, error) {
+	return json.Marshal(map[string]interface{}{
+		"telemetry_version": p.TelemetryVersion,
+		"anonymous_id":      p.AnonymousID,
+		"license_tier":      p.LicenseTier,
+		"scan_count":        p.ScanCount,
+		"finding_count":     p.FindingCount,
+		"timestamp":         p.Timestamp,
+	})
+}
+
+// ─── Anonymous ID ─────────────────────────────────────────────────────────────
+
+// GenerateAnonymousID produces a privacy-safe, stable device identifier.
+// The ID is a SHA-256 hash of (primaryMAC + hostname + fixed salt) — no PII.
+func GenerateAnonymousID() string {
+	mac := primaryMACAddress()
+	hostname, _ := os.Hostname()
+	const salt = "khepra-telemetry-v2-2026"
+	raw := fmt.Sprintf("%s:%s:%s", mac, hostname, salt)
+	h := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(h[:])
+}
+
+// primaryMACAddress returns the hardware address of the first non-loopback,
+// UP network interface with a non-empty MAC. Falls back to hostname if none
+// found — still privacy-safe because both paths are hashed before transmission.
+func primaryMACAddress() string {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		hostname, _ := os.Hostname()
+		return hostname
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		if iface.Flags&net.FlagUp == 0 {
+			continue
+		}
+		if mac := iface.HardwareAddr.String(); mac != "" {
+			return mac
+		}
+	}
 	hostname, _ := os.Hostname()
 	return hostname
 }
 
-// SendBeacon transmits telemetry to collection server
-func SendBeacon(beacon *Beacon, privateKeyHex string) error {
-	// Check if telemetry is enabled (Option C: Hybrid approach)
+// ─── Sovereign Beacon Transport ───────────────────────────────────────────────
+
+// SendSovereignBeacon signs and transmits a beacon to the sovereign VPS
+// telemetry server (cmd/telemetry-server).
+//
+// An ephemeral ML-DSA-65 key pair is generated per call so that beacons
+// cannot be linked across sessions via the signing key.  The signature
+// covers only the non-signature fields, matching the server's verification.
+//
+// Telemetry is suppressed in the same conditions as SendBeacon: community
+// mode requires KHEPRA_TELEMETRY=true; enterprise mode honours
+// KHEPRA_TELEMETRY=false.
+func SendSovereignBeacon(payload *SovereignBeaconPayload) error {
+	if err := checkTelemetryEnabled(); err != nil {
+		return err
+	}
+	if err := validateAnonymousID(payload.AnonymousID); err != nil {
+		return fmt.Errorf("invalid anonymous_id: %w", err)
+	}
+
+	// Ephemeral ML-DSA-65 key pair — one per session, never reused.
+	epkBytes, eskBytes, err := adinkra.GenerateDilithiumKey()
+	if err != nil {
+		return fmt.Errorf("sovereign beacon: generate ephemeral key: %w", err)
+	}
+
+	payload.TelemetryVersion = TelemetryVersion
+	payload.Timestamp = time.Now().UTC().Format(time.RFC3339)
+
+	canonical, err := payload.canonical()
+	if err != nil {
+		return fmt.Errorf("sovereign beacon: canonical payload: %w", err)
+	}
+
+	sig, err := adinkra.Sign(eskBytes, canonical)
+	if err != nil {
+		return fmt.Errorf("sovereign beacon: sign: %w", err)
+	}
+
+	payload.Signature = sig
+	payload.SignerPublicKey = epkBytes
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("sovereign beacon: marshal: %w", err)
+	}
+
+	serverURL := os.Getenv("KHEPRA_SOVEREIGN_TELEMETRY_URL")
+	if serverURL == "" {
+		serverURL = defaultSovereignURL
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), beaconHTTPTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, serverURL, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("sovereign beacon: build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("sovereign beacon: send: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return fmt.Errorf("sovereign beacon: server returned %d: %s", resp.StatusCode, respBody)
+	}
+	return nil
+}
+
+// validateAnonymousID enforces the server's requirement that anonymous_id is
+// a hex-encoded string of at least 32 characters (≥16 raw bytes = 128-bit).
+func validateAnonymousID(id string) error {
+	if len(id) < 32 {
+		return fmt.Errorf("must be ≥32 hex chars, got %d", len(id))
+	}
+	if _, err := hex.DecodeString(id); err != nil {
+		return fmt.Errorf("must be hex-encoded: %w", err)
+	}
+	return nil
+}
+
+// checkTelemetryEnabled returns an error if telemetry should be suppressed
+// based on KHEPRA_MODE and KHEPRA_TELEMETRY environment variables.
+func checkTelemetryEnabled() error {
 	mode := os.Getenv("KHEPRA_MODE")
 	if mode == "" {
-		mode = "community" // Default from container ENV
+		mode = "community"
 	}
-
 	telemetryEnv := os.Getenv("KHEPRA_TELEMETRY")
+	if mode == "community" && telemetryEnv != "true" {
+		return fmt.Errorf("telemetry disabled (community mode requires KHEPRA_TELEMETRY=true)")
+	}
+	if mode != "community" && telemetryEnv == "false" {
+		return fmt.Errorf("telemetry disabled by user")
+	}
+	return nil
+}
 
-	if mode == "community" {
-		// Community: Opt-IN required
-		if telemetryEnv != "true" {
-			return fmt.Errorf("telemetry disabled (community mode requires KHEPRA_TELEMETRY=true)")
-		}
-	} else {
-		// Enterprise: Opt-OUT allowed
-		if telemetryEnv == "false" {
-			return fmt.Errorf("telemetry disabled by user")
-		}
+// ─── Legacy Beacon Transport ──────────────────────────────────────────────────
+
+// SendBeacon transmits a legacy beacon to the original Khepra telemetry server.
+// The ML-DSA-65 signature is sent in the X-Khepra-Signature HTTP header.
+// Use SendSovereignBeacon for the v2.0 sovereign server.
+func SendBeacon(beacon *Beacon, privateKeyHex string) error {
+	if err := checkTelemetryEnabled(); err != nil {
+		return err
 	}
 
-	// Serialize beacon to JSON
 	payload, err := json.Marshal(beacon)
 	if err != nil {
-		return fmt.Errorf("failed to marshal beacon: %w", err)
+		return fmt.Errorf("marshal beacon: %w", err)
 	}
 
-	// Sign with Dilithium3 (anti-spoofing)
-	signature, err := signWithDilithium(payload, privateKeyHex)
+	signature, err := signLegacy(payload, privateKeyHex)
 	if err != nil {
-		return fmt.Errorf("failed to sign beacon: %w", err)
+		return fmt.Errorf("sign beacon: %w", err)
 	}
 
-	// Send to telemetry server
 	serverURL := os.Getenv("ADINKHEPRA_TELEMETRY_SERVER")
 	if serverURL == "" {
-		serverURL = "https://telemetry.khepra.io/beacon"
+		serverURL = defaultLegacyURL
 	}
 
-	req, err := http.NewRequest("POST", serverURL, bytes.NewBuffer(payload))
+	ctx, cancel := context.WithTimeout(context.Background(), beaconHTTPTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, serverURL, bytes.NewReader(payload))
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return fmt.Errorf("build request: %w", err)
 	}
-
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Khepra-Signature", hex.EncodeToString(signature))
 	req.Header.Set("X-Khepra-Version", beacon.ScanMetadata.ScannerVersion)
 
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		// Non-fatal: telemetry failure should not break scans
-		return fmt.Errorf("failed to send beacon: %w", err)
+		return fmt.Errorf("send beacon: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body)
-		return fmt.Errorf("telemetry server returned %d: %s", resp.StatusCode, string(body))
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return fmt.Errorf("telemetry server returned %d: %s", resp.StatusCode, respBody)
 	}
-
 	return nil
 }
 
-// SendBeaconWithLicense sends a beacon with additional license context
+// SendBeaconWithLicense attaches license context to a legacy beacon before sending.
 func SendBeaconWithLicense(beacon *Beacon, privateKeyHex string, licMgr *license.Manager) error {
-	// Add license context to beacon (optional, only for premium)
 	if licMgr != nil {
 		beacon.LicenseTier = licMgr.GetTier()
-		beacon.LicenseHash = hashMachineID(licMgr.GetMachineID())
+		beacon.LicenseHash = hashID(licMgr.GetMachineID())
 	}
-
-	// Existing beacon send logic...
 	return SendBeacon(beacon, privateKeyHex)
 }
 
-func hashMachineID(machineID string) string {
-	hash := sha256.Sum256([]byte(machineID))
-	return hex.EncodeToString(hash[:])
-}
-
-// signWithDilithium signs payload with embedded private key (ML-DSA-65)
-func signWithDilithium(payload []byte, privateKeyHex string) ([]byte, error) {
+// signLegacy signs payload with an ML-DSA-65 private key supplied as hex.
+func signLegacy(payload []byte, privateKeyHex string) ([]byte, error) {
 	if privateKeyHex == "" {
-		return nil, fmt.Errorf("no private key provided (telemetry signing disabled)")
+		return nil, fmt.Errorf("no private key provided for telemetry signing")
 	}
-
-	// Decode private key from hex
 	keyBytes, err := hex.DecodeString(privateKeyHex)
 	if err != nil {
 		return nil, fmt.Errorf("invalid private key hex: %w", err)
 	}
-
-	// Load into ML-DSA-65 private key
 	if len(keyBytes) != mldsa65.PrivateKeySize {
-		return nil, fmt.Errorf("invalid private key size: expected %d, got %d",
+		return nil, fmt.Errorf("invalid private key size: want %d, got %d",
 			mldsa65.PrivateKeySize, len(keyBytes))
 	}
-
-	var keyBuf [mldsa65.PrivateKeySize]byte
-	copy(keyBuf[:], keyBytes)
-
-	var privateKey mldsa65.PrivateKey
-	privateKey.Unpack(&keyBuf)
-
-	// Sign payload
-	signature := make([]byte, mldsa65.SignatureSize)
-	mldsa65.SignTo(&privateKey, payload, nil, false, signature)
-
-	return signature, nil
+	var keyArr [mldsa65.PrivateKeySize]byte
+	copy(keyArr[:], keyBytes)
+	var sk mldsa65.PrivateKey
+	sk.Unpack(&keyArr)
+	sig := make([]byte, mldsa65.SignatureSize)
+	mldsa65.SignTo(&sk, payload, nil, false, sig)
+	return sig, nil
 }
 
-// DetectContainerRuntime identifies the container environment
+func hashID(id string) string {
+	h := sha256.Sum256([]byte(id))
+	return hex.EncodeToString(h[:])
+}
+
+// ─── Crypto Inventory ─────────────────────────────────────────────────────────
+
+// ExtractCryptoInventory derives cryptographic asset counts from a live
+// AuditSnapshot.  It scans compliance findings, vulnerability descriptions,
+// and the PQC signature block to produce counts — it never extracts key
+// material, only algorithm-type tallies.
+func ExtractCryptoInventory(snapshot types.AuditSnapshot) CryptoInventory {
+	inv := CryptoInventory{}
+
+	// Count PQC keys from the snapshot's own signature block.
+	if snapshot.PQCSignature != nil {
+		switch snapshot.PQCSignature.Algorithm {
+		case "Dilithium3", "ML-DSA-65":
+			inv.Dilithium3Keys++
+		}
+	}
+
+	// Scan compliance findings for algorithm / configuration keywords.
+	for _, f := range snapshot.Compliance.Findings {
+		desc := strings.ToUpper(f.Description + " " + f.Title)
+		switch {
+		case strings.Contains(desc, "RSA-2048") || strings.Contains(desc, "RSA 2048"):
+			inv.RSA2048Keys++
+		case strings.Contains(desc, "RSA-3072") || strings.Contains(desc, "RSA 3072"):
+			inv.RSA3072Keys++
+		case strings.Contains(desc, "RSA-4096") || strings.Contains(desc, "RSA 4096"):
+			inv.RSA4096Keys++
+		case strings.Contains(desc, "P-256") || strings.Contains(desc, "PRIME256V1"):
+			inv.ECCP256Keys++
+		case strings.Contains(desc, "P-384") || strings.Contains(desc, "SECP384R1"):
+			inv.ECCP384Keys++
+		case strings.Contains(desc, "KYBER") || strings.Contains(desc, "ML-KEM"):
+			inv.Kyber1024Keys++
+		}
+
+		// Weak TLS configurations (CAT I/HIGH severity TLS findings).
+		if f.Severity == "HIGH" || f.Severity == "CRITICAL" {
+			titleUp := strings.ToUpper(f.Title)
+			if strings.Contains(titleUp, "TLS") || strings.Contains(titleUp, "SSL") {
+				inv.TLSWeakConfigs++
+			}
+		}
+	}
+
+	// Scan vulnerability descriptions for deprecated cipher keywords.
+	deprecatedCipherKeywords := []string{
+		"3DES", "RC4", "DES-CBC", "EXPORT", "NULL-CIPHER",
+		"TLS 1.0", "TLS1.0", "SSLV3", "SSL 3.0",
+	}
+	for _, vuln := range snapshot.Vulnerabilities {
+		descUpper := strings.ToUpper(vuln.Description)
+		for _, kw := range deprecatedCipherKeywords {
+			if strings.Contains(descUpper, kw) {
+				inv.DeprecatedCiphers++
+				break // count each vuln once
+			}
+		}
+	}
+
+	// Network interfaces — count hardware network devices that carry keys.
+	// We count NIC-level ML-DSA-65 keys from the device fingerprint MAC list
+	// as a proxy for hardware-bound PQC keys (these come from the licence engine).
+	// Each unique non-loopback MAC that appears in the DeviceFingerprint is a
+	// separate device identity that may hold a device-bound key.
+	seen := make(map[string]bool)
+	for _, mac := range snapshot.DeviceFingerprint.MACAddresses {
+		if mac != "" && !seen[mac] {
+			seen[mac] = true
+			// Not a key count — MACs inform device-bound license cardinality only.
+			// We do NOT increment key counters here.
+		}
+	}
+
+	return inv
+}
+
+// ─── Environment Helpers ──────────────────────────────────────────────────────
+
+// DetectContainerRuntime identifies the container environment.
 func DetectContainerRuntime() string {
-	// Check for Docker
 	if _, err := os.Stat("/.dockerenv"); err == nil {
 		return "docker"
 	}
-
-	// Check for Podman
 	if os.Getenv("container") == "podman" {
 		return "podman"
 	}
-
-	// Check for Kubernetes
 	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
 		return "kubernetes"
 	}
-
 	return "native"
 }
 
-// DetectGeographicHint attempts to identify deployment region (privacy-safe)
+// DetectGeographicHint attempts to identify the deployment region from cloud
+// metadata endpoints.  Returns "on-prem" when no cloud metadata is available.
+// Non-fatal: network failures are silently ignored.
 func DetectGeographicHint() string {
-	// Try AWS metadata service (only works in EC2)
 	client := &http.Client{Timeout: 2 * time.Second}
 
-	resp, err := client.Get("http://169.254.169.254/latest/meta-data/placement/region")
-	if err == nil {
-		defer resp.Body.Close()
-		body, _ := ioutil.ReadAll(resp.Body)
-		region := string(body)
-		if region != "" {
-			return region // e.g., "us-gov-west-1"
-		}
+	// AWS EC2 IMDSv1
+	if region := fetchText(client, "GET",
+		"http://169.254.169.254/latest/meta-data/placement/region", nil); region != "" {
+		return region
 	}
 
-	// Try Azure metadata service
-	req, _ := http.NewRequest("GET", "http://169.254.169.254/metadata/instance/compute/location?api-version=2021-02-01&format=text", nil)
-	req.Header.Set("Metadata", "true")
-	resp, err = client.Do(req)
-	if err == nil {
-		defer resp.Body.Close()
-		body, _ := ioutil.ReadAll(resp.Body)
-		region := string(body)
-		if region != "" {
-			return region // e.g., "usgovvirginia"
-		}
+	// Azure IMDS
+	if region := fetchText(client, "GET",
+		"http://169.254.169.254/metadata/instance/compute/location?api-version=2021-02-01&format=text",
+		map[string]string{"Metadata": "true"}); region != "" {
+		return region
 	}
 
-	// Try GCP metadata service
-	req, _ = http.NewRequest("GET", "http://metadata.google.internal/computeMetadata/v1/instance/zone", nil)
-	req.Header.Set("Metadata-Flavor", "Google")
-	resp, err = client.Do(req)
-	if err == nil {
-		defer resp.Body.Close()
-		body, _ := ioutil.ReadAll(resp.Body)
-		zone := string(body)
-		if zone != "" {
-			return zone // e.g., "us-central1-a"
-		}
+	// GCP metadata server
+	if zone := fetchText(client, "GET",
+		"http://metadata.google.internal/computeMetadata/v1/instance/zone",
+		map[string]string{"Metadata-Flavor": "Google"}); zone != "" {
+		return zone
 	}
 
-	return "on-prem" // Cannot determine cloud region
+	return "on-prem"
 }
 
-// ExtractCryptoInventory analyzes snapshot for cryptographic asset counts
-// NOTE: This does NOT extract actual keys, only counts by type
-func ExtractCryptoInventory(snapshot interface{}) CryptoInventory {
-	// Placeholder implementation
-	// TODO: Parse snapshot data structures to count:
-	// - RSA key sizes (from TLS certificates, SSH keys)
-	// - ECC curve types (from TLS configs)
-	// - PQC algorithm usage (Dilithium, Kyber)
-	// - Weak TLS configurations (SSLv3, TLS 1.0/1.1)
-	// - Deprecated ciphers (3DES, RC4, CBC mode)
-
-	inventory := CryptoInventory{
-		RSA2048Keys:       0,
-		RSA3072Keys:       0,
-		RSA4096Keys:       0,
-		ECCP256Keys:       0,
-		ECCP384Keys:       0,
-		Dilithium3Keys:    0,
-		Kyber1024Keys:     0,
-		TLSWeakConfigs:    0,
-		DeprecatedCiphers: 0,
+func fetchText(client *http.Client, method, url string, headers map[string]string) string {
+	req, err := http.NewRequest(method, url, nil)
+	if err != nil {
+		return ""
 	}
-
-	// Future: Implement actual parsing logic based on snapshot schema
-	// For now, return empty inventory (Phase 1)
-
-	return inventory
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+	return strings.TrimSpace(string(body))
 }
