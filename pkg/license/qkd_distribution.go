@@ -106,10 +106,12 @@ func (c *LicenseCapsule) Bytes() ([]byte, error) {
 // ─── Ephemeral Kyber Session ──────────────────────────────────────────────────
 
 // EphemeralKyberSession holds the client's one-time Kyber keypair for one
-// license request/install cycle. Discard after InstallLicenseCapsule succeeds.
+// license request/install cycle. Both keys are persisted to a mode-0600 file
+// so the install step can complete after the air-gap round-trip.
+// Delete the session file immediately after InstallLicenseCapsule succeeds.
 type EphemeralKyberSession struct {
 	PublicKey  []byte `json:"kyber_public_key"`
-	privateKey []byte // never serialised
+	PrivateKey []byte `json:"kyber_private_key"` // sensitive: file must be mode 0600
 }
 
 // newEphemeralKyberSession generates a fresh Kyber-1024 keypair.
@@ -118,7 +120,7 @@ func newEphemeralKyberSession() (*EphemeralKyberSession, error) {
 	if err != nil {
 		return nil, fmt.Errorf("QKD: ephemeral Kyber keygen: %w", err)
 	}
-	return &EphemeralKyberSession{PublicKey: pk, privateKey: sk}, nil
+	return &EphemeralKyberSession{PublicKey: pk, PrivateKey: sk}, nil
 }
 
 // ─── Client Side ──────────────────────────────────────────────────────────────
@@ -327,7 +329,8 @@ func LoadLicenseCapsule(path string) (*LicenseCapsule, error) {
 //   - session:         the EphemeralKyberSession generated during GenerateLicenseRequestBundle
 //   - masterPublicKey: ML-DSA-65 master public key (embedded in the binary)
 //   - outputPath:      where to write the installed license file
-func InstallLicenseCapsule(capsule *LicenseCapsule, session *EphemeralKyberSession, masterPublicKey []byte, outputPath string) (*KhepraLicense, error) {
+//   - sessionPath:     path of the session file to erase after success (pass "" to skip)
+func InstallLicenseCapsule(capsule *LicenseCapsule, session *EphemeralKyberSession, masterPublicKey []byte, outputPath, sessionPath string) (*KhepraLicense, error) {
 	if capsule == nil {
 		return nil, errors.New("QKD install: capsule is nil")
 	}
@@ -335,61 +338,33 @@ func InstallLicenseCapsule(capsule *LicenseCapsule, session *EphemeralKyberSessi
 		return nil, errors.New("QKD install: ephemeral session is nil — was it discarded?")
 	}
 
-	// ── Step 1: Verify capsule ML-DSA-65 signature ───────────────────────────
-	capsulePayload, err := capsule.Bytes()
-	if err != nil {
-		return nil, fmt.Errorf("QKD install: marshal capsule: %w", err)
-	}
-	verifyKey := masterPublicKey
-	if len(verifyKey) == 0 {
-		verifyKey = capsule.SignerPublicKey
-	}
-	valid, err := adinkra.Verify(verifyKey, capsulePayload, capsule.Signature)
-	if err != nil {
-		return nil, fmt.Errorf("QKD install: capsule signature error: %w", err)
-	}
-	if !valid {
-		return nil, errors.New("QKD install: capsule signature INVALID — do not trust this capsule")
+	// Step 1: Verify capsule ML-DSA-65 signature.
+	if err := verifyCapsuleSignature(capsule, masterPublicKey); err != nil {
+		return nil, err
 	}
 
-	// ── Step 2: Kyber decapsulate — recover shared secret ────────────────────
-	sharedSecret, err := adinkra.KyberDecapsulate(session.privateKey, capsule.KyberCiphertext)
+	// Step 2: Kyber decapsulate — recover shared secret.
+	sharedSecret, err := adinkra.KyberDecapsulate(session.PrivateKey, capsule.KyberCiphertext)
 	if err != nil {
 		return nil, fmt.Errorf("QKD install: Kyber decapsulate: %w", err)
 	}
 
-	// ── Step 3: AES-256-GCM decrypt the license ───────────────────────────────
-	aesKey := sha256.Sum256(sharedSecret)
-	block, err := aes.NewCipher(aesKey[:])
+	// Step 3: AES-256-GCM decrypt the license payload.
+	licBytes, err := aesGCMDecrypt(sharedSecret, capsule.EncryptedLicense)
 	if err != nil {
-		return nil, fmt.Errorf("QKD install: AES cipher: %w", err)
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, fmt.Errorf("QKD install: GCM: %w", err)
-	}
-	if len(capsule.EncryptedLicense) < gcm.NonceSize() {
-		return nil, errors.New("QKD install: encrypted license too short")
-	}
-	nonce := capsule.EncryptedLicense[:gcm.NonceSize()]
-	ciphertext := capsule.EncryptedLicense[gcm.NonceSize():]
-	licBytes, err := gcm.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		return nil, fmt.Errorf("QKD install: AES-GCM decryption failed (authentication tag mismatch): %w", err)
+		return nil, fmt.Errorf("QKD install: %w", err)
 	}
 
-	// ── Step 4: Parse and verify the license ─────────────────────────────────
+	// Step 4: Parse and verify the license.
 	var lic KhepraLicense
 	if err := json.Unmarshal(licBytes, &lic); err != nil {
 		return nil, fmt.Errorf("QKD install: parse license: %w", err)
 	}
-
-	// Run full sovereign verification (sig + device binding + expiry + CRL)
 	if err := VerifySovereignLicense(&lic, masterPublicKey); err != nil {
 		return nil, fmt.Errorf("QKD install: license verification failed: %w", err)
 	}
 
-	// ── Step 5: Write license file ────────────────────────────────────────────
+	// Step 5: Write license file.
 	data, err := json.MarshalIndent(lic, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("QKD install: marshal license: %w", err)
@@ -398,7 +373,78 @@ func InstallLicenseCapsule(capsule *LicenseCapsule, session *EphemeralKyberSessi
 		return nil, fmt.Errorf("QKD install: write license file: %w", err)
 	}
 
+	// Securely erase the session file — private key no longer needed.
+	if sessionPath != "" {
+		if err := secureEraseFile(sessionPath); err != nil {
+			fmt.Printf("[QKD] WARN: could not erase session file %s: %v\n", sessionPath, err)
+		}
+	}
+
 	return &lic, nil
+}
+
+// verifyCapsuleSignature checks the ML-DSA-65 signature on a LicenseCapsule.
+// Falls back to the capsule's embedded signer key when masterPublicKey is empty.
+func verifyCapsuleSignature(capsule *LicenseCapsule, masterPublicKey []byte) error {
+	payload, err := capsule.Bytes()
+	if err != nil {
+		return fmt.Errorf("QKD install: marshal capsule: %w", err)
+	}
+	verifyKey := masterPublicKey
+	if len(verifyKey) == 0 {
+		verifyKey = capsule.SignerPublicKey
+	}
+	valid, err := adinkra.Verify(verifyKey, payload, capsule.Signature)
+	if err != nil {
+		return fmt.Errorf("QKD install: capsule signature error: %w", err)
+	}
+	if !valid {
+		return errors.New("QKD install: capsule signature INVALID — do not trust this capsule")
+	}
+	return nil
+}
+
+// aesGCMDecrypt decrypts ciphertext (nonce-prepended) using AES-256-GCM with
+// a key derived from sharedSecret via SHA-256.
+func aesGCMDecrypt(sharedSecret, encryptedData []byte) ([]byte, error) {
+	aesKey := sha256.Sum256(sharedSecret)
+	block, err := aes.NewCipher(aesKey[:])
+	if err != nil {
+		return nil, fmt.Errorf("AES cipher: %w", err)
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, fmt.Errorf("GCM init: %w", err)
+	}
+	if len(encryptedData) < gcm.NonceSize() {
+		return nil, errors.New("encrypted data too short")
+	}
+	nonce := encryptedData[:gcm.NonceSize()]
+	ct := encryptedData[gcm.NonceSize():]
+	plain, err := gcm.Open(nil, nonce, ct, nil)
+	if err != nil {
+		return nil, fmt.Errorf("AES-GCM decryption failed (tag mismatch): %w", err)
+	}
+	return plain, nil
+}
+
+// secureEraseFile overwrites a file with zeros before removing it,
+// preventing forensic recovery of the ephemeral Kyber private key.
+func secureEraseFile(path string) error {
+	f, err := os.OpenFile(path, os.O_WRONLY, 0)
+	if err != nil {
+		return err
+	}
+	info, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return err
+	}
+	zeros := make([]byte, info.Size())
+	f.Write(zeros) //nolint:errcheck
+	f.Sync()       //nolint:errcheck
+	f.Close()
+	return os.Remove(path)
 }
 
 // LoadInstalledLicense reads a previously installed KhepraLicense from disk and
