@@ -49,31 +49,40 @@ const (
 )
 
 func usage() {
-	fmt.Println(`AdinKhepra — Security Camera + Flight Recorder for AI Agents
+	fmt.Println(`AdinKhepra v2.0 — Security Camera + Flight Recorder for AI Agents
 By SecRed Knowledge Inc. (NouchiX) | https://nouchix.com
 
 Usage:
-  adinkhepra scan       --target <host|ip>   # Full scan: STIG + AI agent audit + PQC inventory
-  adinkhepra watch      [-port 45444]        # Start ASAF wrapper + live dashboard
-  adinkhepra report     --target <host|ip>   # Generate compliance evidence package
-  adinkhepra serve      [-port 8080]         # DAG visualization server
-  adinkhepra harden                          # Auto-remediate findings from last scan
-  adinkhepra license    status|request       # License management
+  adinkhepra scan       --target <host|ip>   Full scan: STIG + AI agent audit + PQC inventory
+  adinkhepra watch      [-port 45444]        Start ASAF wrapper + live dashboard
+  adinkhepra report     --target <host|ip>   Generate compliance evidence package
+  adinkhepra serve      [-port 8080]         DAG visualization server
+  adinkhepra harden                          Auto-remediate findings from last scan
+
+  Evolutionary Algorithm (EA) kernel:
+  adinkhepra ea start   [-generations N] [-pop N]   Start continuous EA evolution loop
+  adinkhepra ea status                               Show current generation + fitness
+  adinkhepra ea evolve  [-n N]                       Run N evolution cycles, export best genome
+
+  Sovereign License (QKD air-gap):
+  adinkhepra license status                        Show host ID and current license
+  adinkhepra license request [-tenant T] [-tier T] Generate QKD license request bundle
+  adinkhepra license install -capsule F -session F Install a license capsule from master authority
 
   Key Management (PQC):
-  adinkhepra keygen                          # Generate Dilithium3/Kyber-1024 keypair
-  adinkhepra keys init                       # Tier 0 key ceremony
-  adinkhepra keys status                     # Key storage status
+  adinkhepra keygen                          Generate Dilithium3/Kyber-1024 keypair
+  adinkhepra keys init                       Tier 0 key ceremony
+  adinkhepra keys status                     Key storage status
 
   Advanced:
-  adinkhepra certify    --target <host|ip>   # Full audit + ADINKHEPRA certificate
-  adinkhepra compliance <subcommand>         # CMMC/STIG/NIST 800-171 suite
-  adinkhepra ert        <subcommand>         # Executive Roundtable analysis
-  adinkhepra validate                        # Component health check
-  adinkhepra run                             # Agent server (port 45444)
+  adinkhepra certify    --target <host|ip>   Full audit + ADINKHEPRA certificate
+  adinkhepra compliance <subcommand>         CMMC/STIG/NIST 800-171 suite
+  adinkhepra ert        <subcommand>         Executive Roundtable analysis
+  adinkhepra validate                        Component health check
+  adinkhepra run                             Agent server (port 45444)
 
-  adinkhepra kuntinkantan <pubkey> <file>    # PQC encrypt
-  adinkhepra sankofa      <privkey> <file>   # PQC decrypt
+  adinkhepra kuntinkantan <pubkey> <file>    PQC encrypt
+  adinkhepra sankofa      <privkey> <file>   PQC decrypt
 
 Your AI agents are working right now. Do you know what they're doing?
 Start watching: adinkhepra watch`)
