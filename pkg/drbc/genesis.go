@@ -72,6 +72,46 @@ func AwakenGenesis(password string) error {
 	return nil
 }
 
+// shouldSkipEntry returns true for paths the Genesis archive should exclude.
+func shouldSkipEntry(info os.FileInfo) bool {
+	if info.Name() == GenesisOutput {
+		return true
+	}
+	if info.Name() == ".git" && info.IsDir() {
+		return true
+	}
+	return false
+}
+
+// addFileToTar writes a single file's contents into the tar writer.
+// Locked or otherwise unreadable files are silently skipped.
+func addFileToTar(tw *tar.Writer, path string, info os.FileInfo) error {
+	header, err := tar.FileInfoHeader(info, info.Name())
+	if err != nil {
+		return nil // skip unusual files (e.g. sockets, devices)
+	}
+	header.Name = filepath.ToSlash(path)
+
+	if err := tw.WriteHeader(header); err != nil {
+		return err
+	}
+
+	if info.IsDir() {
+		return nil
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return nil // skip locked/unreadable files
+	}
+	defer f.Close()
+
+	if _, err = io.Copy(tw, f); err != nil {
+		return nil // skip files that error mid-copy
+	}
+	return nil
+}
+
 func compressProject(w io.Writer) error {
 	gw := gzip.NewWriter(w)
 	defer gw.Close()
@@ -82,43 +122,13 @@ func compressProject(w io.Writer) error {
 		if err != nil {
 			return err
 		}
-
-		// Exclusions
-		if info.Name() == GenesisOutput {
+		if shouldSkipEntry(info) {
 			return nil
 		}
-		if info.Name() == ".git" && info.IsDir() {
-			return nil
-		} // Optional: Keep or Skip. User said "Every single thing". But .git lock files can be tricky. Let's include everything but skip errors.
-
-		// Create header
-		header, err := tar.FileInfoHeader(info, info.Name())
-		if err != nil {
-			return nil
-		} // Skip weird files
-
-		// Use relative path for header name
-		header.Name = filepath.ToSlash(path)
-
-		if err := tw.WriteHeader(header); err != nil {
-			return err
-		}
-
-		if !info.IsDir() {
-			f, err := os.Open(path)
-			if err != nil {
-				return nil
-			} // Skip locked files
-			defer f.Close()
-			_, err = io.Copy(tw, f)
-			if err != nil {
-				return nil
-			}
-		}
-
-		return nil
+		return addFileToTar(tw, path, info)
 	})
 }
+
 
 func encryptStream(key []byte, in io.Reader, out io.Writer) error {
 	block, err := aes.NewCipher(key)
