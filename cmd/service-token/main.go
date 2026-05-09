@@ -40,6 +40,7 @@ func main() {
 			fmt.Println("  - cloudflare-telemetry  (for CloudFlare Worker)")
 			fmt.Println("  - license-signer        (for local license signer)")
 			fmt.Println("  - master-console        (for Master Operator Console)")
+			fmt.Println("  - asaf-bridge           (for Supabase MCP transparent proxy)")
 			os.Exit(1)
 		}
 		generateToken(os.Args[2])
@@ -84,11 +85,12 @@ func generateToken(serviceName string) {
 		"cloudflare-telemetry": true,
 		"license-signer":       true,
 		"master-console":       true,
+		"asaf-bridge":          true,
 	}
 
 	if !validServices[serviceName] {
 		fmt.Printf("Error: Unknown service '%s'\n", serviceName)
-		fmt.Println("\nValid services: cloudflare-telemetry, license-signer, master-console")
+		fmt.Println("\nValid services: cloudflare-telemetry, license-signer, master-console, asaf-bridge")
 		os.Exit(1)
 	}
 
