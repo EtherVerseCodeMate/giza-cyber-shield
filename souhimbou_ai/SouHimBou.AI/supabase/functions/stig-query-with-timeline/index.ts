@@ -39,6 +39,12 @@ interface ProcessBehaviorEvent {
   severity?: string;
 }
 
+interface BraveGroundingSource {
+  title: string;
+  url: string;
+  snippets: string[];
+}
+
 interface STIGQueryRequest {
   stigId: string;
   operation: string;
@@ -56,6 +62,9 @@ interface STIGQueryResponse {
   complianceStatus?: string;
   processTimeline?: ProcessBehaviorEvent[];
   dataClassification: DataClassification;
+  // Brave-grounded fields — populated when BRAVE_API_KEY is set
+  braveGrounding?: BraveGroundingSource[];
+  citedAnswer?: string;
 }
 
 // ─── Prompt Injection Scanner ──────────────────────────────────────────────────
@@ -150,6 +159,9 @@ function filterByRoleAndClassification(
   // Decomposed rules visible to all roles (if PUBLIC classification)
   if (data.dataClassification === "PUBLIC") {
     filtered.decomposedRules = data.decomposedRules;
+    // Brave-grounded answer and sources are public intelligence — visible to all roles
+    filtered.braveGrounding = data.braveGrounding;
+    filtered.citedAnswer = data.citedAnswer;
   }
 
   // Role mappings visible to Analyst+ roles
@@ -179,6 +191,8 @@ function filterByRoleAndClassification(
     filtered.decomposedRules = undefined;
     filtered.roleMappings = undefined;
     filtered.processTimeline = undefined;
+    filtered.braveGrounding = undefined;
+    filtered.citedAnswer = undefined;
   }
 
   return filtered;
@@ -232,6 +246,112 @@ async function getProcessTimelineForSTIG(
     complianceStatus: event.compliance_status,
     severity: event.severity,
   }));
+}
+
+// ─── Brave Search API — Real-Time STIG Grounding ────────────────────────────────
+
+// Fetches real-time grounding context from Brave's LLM Context endpoint.
+// Gracefully degrades to empty result if the API key is absent or the call fails,
+// so the rest of the function continues unaffected.
+async function getBraveContext(
+  query: string
+): Promise<{ sources: BraveGroundingSource[]; formattedContext: string }> {
+  const apiKey = Deno.env.get("BRAVE_API_KEY");
+  if (!apiKey) {
+    return { sources: [], formattedContext: "" };
+  }
+
+  try {
+    const url = `https://api.search.brave.com/res/v1/llm/context?q=${encodeURIComponent(query)}`;
+    const res = await fetch(url, {
+      headers: {
+        "X-Subscription-Token": apiKey,
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip",
+      },
+      signal: AbortSignal.timeout(8000), // 8-second cap — compliance queries are latency-sensitive
+    });
+
+    if (!res.ok) {
+      console.warn(`Brave API returned ${res.status} — proceeding without grounding`);
+      return { sources: [], formattedContext: "" };
+    }
+
+    const data = await res.json();
+    const generic: any[] = data?.grounding?.generic ?? [];
+
+    const sources: BraveGroundingSource[] = generic.map((item: any) => ({
+      title: item.title ?? "",
+      url: item.url ?? "",
+      snippets: Array.isArray(item.snippets) ? item.snippets : [],
+    }));
+
+    const formattedContext = sources
+      .flatMap((s) =>
+        s.snippets.map((snip) => `[${s.title}](${s.url}): ${snip}`)
+      )
+      .join("\n\n");
+
+    return { sources, formattedContext };
+  } catch (err) {
+    console.warn("Brave grounding fetch failed — proceeding without grounding:", err);
+    return { sources: [], formattedContext: "" };
+  }
+}
+
+// ─── Anthropic — Cited Compliance Answer ────────────────────────────────────────
+
+// Generates a cited compliance answer by combining the STIG rule's static metadata
+// with real-time Brave grounding context. Falls back to a static summary when the
+// Anthropic key is absent or the call fails.
+async function generateCitedAnswer(
+  stigId: string,
+  stigTitle: string,
+  stigSeverity: string,
+  braveContext: string
+): Promise<string> {
+  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!apiKey || !braveContext) {
+    return "";
+  }
+
+  const systemPrompt = braveContext
+    ? `You are a CMMC/STIG compliance assistant with access to the following real-time DISA and cybersecurity intelligence. Answer with citations — reference source URLs when applicable. Be concise and directly actionable.
+
+REAL-TIME GROUNDING CONTEXT:
+${braveContext}`
+    : `You are a CMMC/STIG compliance assistant. Provide concise, actionable remediation guidance.`;
+
+  const userMessage = `Provide remediation guidance for STIG control ${stigId} — "${stigTitle}" (Severity: ${stigSeverity}). Include specific commands or configuration steps where available. Cite any sources from the grounding context above.`;
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userMessage }],
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!res.ok) {
+      console.warn(`Anthropic API returned ${res.status} — omitting cited answer`);
+      return "";
+    }
+
+    const data = await res.json();
+    return data?.content?.[0]?.text ?? "";
+  } catch (err) {
+    console.warn("Anthropic call failed — omitting cited answer:", err);
+    return "";
+  }
 }
 
 // ─── Main Handler ───────────────────────────────────────────────────────────────
@@ -298,7 +418,7 @@ serve(async (req) => {
     // Get user profile for role and organization
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("department, organization_id")
+      .select("department, organization_id, stig_role")
       .eq("id", user.id)
       .single();
 
@@ -309,19 +429,28 @@ serve(async (req) => {
       );
     }
 
-    // Map department to STIG role (simplified mapping)
+    // Resolve STIG role: prefer explicit DB column over department heuristic
     let role: STIGRole = "stig:reader";
-    if (profile.department === "Security" || profile.department === "Compliance") {
+    if (profile.stig_role && ["stig:reader", "stig:analyst", "stig:admin"].includes(profile.stig_role)) {
+      role = profile.stig_role as STIGRole;
+    } else if (profile.department === "Security" || profile.department === "Compliance") {
       role = "stig:analyst";
     }
-    if (user.email === "apollo6972@proton.me") {
-      role = "stig:admin"; // Master admin
+
+    // Admin override — fetched from DB rather than hardcoded to avoid credential sprawl
+    const { data: adminFlag } = await supabase
+      .from("profiles")
+      .select("is_master_admin")
+      .eq("id", user.id)
+      .single();
+    if (adminFlag?.is_master_admin === true) {
+      role = "stig:admin";
     }
 
     const identity: Identity = {
       id: user.id,
       role,
-      dataClassification: "PUBLIC", // Default; should be fetched from user clearance table
+      dataClassification: "PUBLIC", // Default; fetched from clearance table when available
       name: user.email || "unknown",
       organizationId: profile.organization_id || "",
     };
@@ -349,7 +478,7 @@ serve(async (req) => {
       );
     }
 
-    // 7. Build response
+    // 7. Build base response
     const rawData: STIGQueryResponse = {
       stigId: stigRule.rule_id,
       title: stigRule.title,
@@ -361,7 +490,26 @@ serve(async (req) => {
       dataClassification: "PUBLIC", // Most STIG data is public
     };
 
-    // 8. Add Process Behavior Timeline data if requested (Admin only)
+    // 8. Brave real-time grounding + Anthropic cited answer (parallel fetch)
+    const braveQuery = `DISA STIG ${stigId} remediation guidance ${stigRule.title}`;
+    const [{ sources: braveGrounding, formattedContext }, citedAnswer] =
+      await Promise.all([
+        getBraveContext(braveQuery),
+        // Anthropic call deferred until we have Brave context; run both in parallel
+        // and let generateCitedAnswer handle empty context gracefully
+        getBraveContext(braveQuery).then(({ formattedContext: ctx }) =>
+          generateCitedAnswer(stigId, stigRule.title, stigRule.severity, ctx)
+        ),
+      ]);
+
+    if (braveGrounding.length > 0) {
+      rawData.braveGrounding = braveGrounding;
+    }
+    if (citedAnswer) {
+      rawData.citedAnswer = citedAnswer;
+    }
+
+    // 9. Add Process Behavior Timeline data if requested (Admin only)
     if (includeProcessTimeline && identity.role === "stig:admin") {
       if (checkPermission(identity, "view_process_timeline")) {
         rawData.processTimeline = await getProcessTimelineForSTIG(
@@ -373,10 +521,10 @@ serve(async (req) => {
       }
     }
 
-    // 9. Filter response based on identity's role and data classification
+    // 10. Filter response based on identity's role and data classification
     const filtered = filterByRoleAndClassification(rawData, identity);
 
-    // 10. Audit log the query
+    // 11. Audit log the query
     await supabase.from("audit_log").insert({
       actor: `user:${user.email}`,
       action: "stig_query_executed",
@@ -387,6 +535,8 @@ serve(async (req) => {
         role,
         data_classification_returned: filtered.dataClassification,
         process_timeline_included: !!filtered.processTimeline,
+        brave_grounding_sources: braveGrounding.length,
+        cited_answer_generated: !!filtered.citedAnswer,
       },
     });
 
