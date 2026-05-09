@@ -39,11 +39,27 @@ import (
 	"os"
 	"time"
 
+	"golang.org/x/crypto/hkdf"
+
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/audit"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/fingerprint"
 	"github.com/google/uuid"
 )
+
+// deriveAESKey derives a 32-byte AES-256 key from a Kyber shared secret using
+// HKDF-SHA-256 with domain separation context per NIST SP 800-56C Rev 2.
+//
+// info string "ADINKHEPRA-QKD-AES256GCM-v1" binds the key to this specific
+// protocol and version, preventing cross-context key reuse.
+func deriveAESKey(sharedSecret []byte) ([32]byte, error) {
+	var key [32]byte
+	reader := hkdf.New(sha256.New, sharedSecret, nil, []byte("ADINKHEPRA-QKD-AES256GCM-v1"))
+	if _, err := io.ReadFull(reader, key[:]); err != nil {
+		return key, fmt.Errorf("HKDF key derivation failed: %w", err)
+	}
+	return key, nil
+}
 
 // ─── Request Bundle ───────────────────────────────────────────────────────────
 
@@ -254,8 +270,11 @@ func (sla *SovereignLicenseAuthority) IssueLicenseCapsule(req *LicenseRequest, t
 	}
 
 	// ── Step 4: AES-256-GCM encrypt license using shared secret ─────────────
-	// Derive 32-byte AES key from shared secret via SHA-256
-	aesKey := sha256.Sum256(sharedSecret)
+	// Derive 32-byte AES key via HKDF-SHA-256 (NIST SP 800-56C Rev 2)
+	aesKey, err := deriveAESKey(sharedSecret)
+	if err != nil {
+		return nil, fmt.Errorf("QKD: key derivation: %w", err)
+	}
 	block, err := aes.NewCipher(aesKey[:])
 	if err != nil {
 		return nil, fmt.Errorf("QKD: AES cipher: %w", err)
@@ -405,9 +424,12 @@ func verifyCapsuleSignature(capsule *LicenseCapsule, masterPublicKey []byte) err
 }
 
 // aesGCMDecrypt decrypts ciphertext (nonce-prepended) using AES-256-GCM with
-// a key derived from sharedSecret via SHA-256.
+// a key derived from sharedSecret via HKDF-SHA-256 (NIST SP 800-56C Rev 2).
 func aesGCMDecrypt(sharedSecret, encryptedData []byte) ([]byte, error) {
-	aesKey := sha256.Sum256(sharedSecret)
+	aesKey, err := deriveAESKey(sharedSecret)
+	if err != nil {
+		return nil, fmt.Errorf("key derivation: %w", err)
+	}
 	block, err := aes.NewCipher(aesKey[:])
 	if err != nil {
 		return nil, fmt.Errorf("AES cipher: %w", err)
