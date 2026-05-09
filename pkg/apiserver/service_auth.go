@@ -60,6 +60,7 @@ func LoadDefaultServiceAccounts() {
 	InitializeServiceAccounts([]ServiceAccount{
 		{Name: "cloudflare-telemetry", Permissions: []string{"telemetry:write", "telemetry:read"}},
 		{Name: "license-signer", Permissions: []string{"license:write", "license:read"}},
+		{Name: "asaf-bridge", Permissions: []string{"asaf:write"}},
 	})
 }
 
