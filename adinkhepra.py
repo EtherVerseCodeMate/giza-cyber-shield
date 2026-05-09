@@ -143,12 +143,12 @@ def build(component: str, fips: bool = True) -> bool:
 
 def build_all_components(fips: bool = True) -> bool:
     """Build all Khepra Protocol components."""
-    components = ["adinkhepra", "adinkhepra-agent"]
-    
+    components = ["adinkhepra", "adinkhepra-agent", "apiserver"]
+
     for component in components:
         if not build(component, fips=fips):
             return False
-    
+
     return True
 
 
@@ -337,6 +337,10 @@ def _test_agent_api() -> bool:
         else:
             print_error(f"DAG write failed: {res.status}")
             return False
+
+        if not _test_asaf_endpoints(conn):
+            return False
+
         return True
     finally:
         print_step("Teardown", 4, 4, "Cleaning up test processes")
@@ -347,6 +351,98 @@ def _test_agent_api() -> bool:
             agent_proc.wait()
         if telemetry_proc:
             telemetry_proc.terminate()
+
+def _test_asaf_endpoints(conn: http.client.HTTPConnection) -> bool:
+    """
+    Smoke-test ASAF flight recorder endpoints.
+
+    Tests exercised:
+      - GET /api/v1/asaf/stream  (public SSE — expects 200 with text/event-stream)
+      - GET /api/v1/asaf/sessions (authenticated — expects 200 with JSON body)
+
+    The record endpoint (POST /api/v1/asaf/record) requires a valid
+    HMAC service token; that path is covered by the integration test
+    in pkg/asaf/recorder_test.go. Here we verify the routes exist and
+    the SSE stream header is correct.
+    """
+    print_step("ASAF Endpoints", 5, 4, "Smoke-testing ASAF flight recorder routes")
+    errors: List[str] = []
+
+    # --- SSE stream (public, no auth) ---
+    try:
+        conn.request("GET", "/api/v1/asaf/stream",
+                     headers={"Accept": "text/event-stream"})
+        res = conn.getresponse()
+        res.read()  # drain to unblock the connection
+        ct = res.getheader("Content-Type", "")
+        if res.status != 200:
+            errors.append(f"/asaf/stream returned HTTP {res.status} (expected 200)")
+        elif "text/event-stream" not in ct:
+            errors.append(f"/asaf/stream Content-Type wrong: {ct!r}")
+        else:
+            print_info("GET /api/v1/asaf/stream → 200 text/event-stream ✓")
+    except Exception as e:
+        errors.append(f"/asaf/stream request failed: {e}")
+
+    # --- Sessions list (requires auth — 401 is the correct response here) ---
+    try:
+        conn.request("GET", "/api/v1/asaf/sessions")
+        res = conn.getresponse()
+        res.read()
+        if res.status in (200, 401):
+            print_info(f"GET /api/v1/asaf/sessions → {res.status} ✓ (route exists)")
+        else:
+            errors.append(f"/asaf/sessions returned unexpected HTTP {res.status}")
+    except Exception as e:
+        errors.append(f"/asaf/sessions request failed: {e}")
+
+    # --- Record endpoint reachability (should return 401 without service token) ---
+    try:
+        payload = json.dumps({"agent_id": "smoke-test", "session_id": "test", "mcp_method": "test/call"})
+        conn.request("POST", "/api/v1/asaf/record", body=payload,
+                     headers={"Content-Type": "application/json"})
+        res = conn.getresponse()
+        res.read()
+        if res.status in (401, 403):
+            print_info(f"POST /api/v1/asaf/record → {res.status} ✓ (service auth active)")
+        else:
+            errors.append(f"/asaf/record returned unexpected HTTP {res.status} (expected 401/403)")
+    except Exception as e:
+        errors.append(f"/asaf/record request failed: {e}")
+
+    if errors:
+        for err in errors:
+            print_error(err)
+        return False
+
+    print_success("ASAF flight recorder endpoints verified")
+    return True
+
+
+def _generate_service_token(service_name: str) -> bool:
+    """Generate a service token using the cmd/service-token binary."""
+    token_bin = get_binary_name("service-token")
+    if not os.path.exists(token_bin):
+        print_info(f"Building service-token tool...")
+        try:
+            subprocess.check_call(["go", "build", MOD_VENDOR, "-o", token_bin, "./cmd/service-token"])
+        except subprocess.CalledProcessError:
+            print_error("Failed to build service-token tool")
+            return False
+
+    try:
+        result = subprocess.check_output([token_bin, "generate", service_name], stderr=subprocess.STDOUT)
+        output = result.decode("utf-8", errors="replace")
+        print_info(f"Service token generated for {service_name}")
+        # Print the token line so the user can copy it
+        for line in output.splitlines():
+            if line.startswith("khepra-svc-"):
+                safe_print(f"      Token: {line}")
+        return True
+    except subprocess.CalledProcessError as e:
+        print_error(f"service-token generate {service_name} failed: {e.output.decode()}")
+        return False
+
 
 def _run_resilience_validation() -> bool:
     """Run the TRL-10 resilience bridging experiment (A7→A8)."""
@@ -566,9 +662,10 @@ def print_usage() -> None:
     print("  agent  [args...] -> Run the ADINKHEPRA agent")
     print("  cli    [args...] -> Run the ADINKHEPRA CLI tool")
     print("  scada  [args...] -> Run the ADINKHEPRA Sacred Nsohia suite")
-    print("  build            -> Rebuild binaries")
+    print("  build            -> Rebuild binaries (adinkhepra + adinkhepra-agent + apiserver)")
     print("  test             -> Run Go tests")
     print("  tnok             -> Start Tnok Stealth Gateway (tnokd)")
+    print("  service-token [name] -> Generate HMAC service token (default: asaf-bridge)")
     print("\nOptions:")
     print("  --no-fips        -> Disable FIPS mode (build command)")
     print("  --llm-port PORT  -> Override LLM port (launch command)")
@@ -605,6 +702,9 @@ def match_command(command: str, extra_args: list[str]) -> None:
         handle_resilience_command()
     elif command == "tnok":
         launch_tnok(extra_args)
+    elif command == "service-token":
+        service_name = extra_args[0] if extra_args else "asaf-bridge"
+        sys.exit(0 if _generate_service_token(service_name) else 1)
     else:
         run("adinkhepra", [command] + extra_args)
 

@@ -48,6 +48,7 @@ import (
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/apiserver"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/auth"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
@@ -72,6 +73,9 @@ func main() {
 	// Create server — dependencies injected before Start()
 	server := initServices(cfg, flags, dagStore, licMgr)
 	server.WithSekhemTriad(triad)
+
+	// ── ASAF Flight Recorder (security camera + DAG-backed audit trail) ─────
+	initASAFRecorder(server)
 
 	// ── PQC Auth Gateway (ML-DSA-65 / NIST FIPS 204) ─────────────────────────
 	initPQCAuthGateway(server)
@@ -301,6 +305,17 @@ func initServices(cfg *serverConfig, flags map[string]interface{}, dagStore dag.
 	apiserver.LoadDefaultServiceAccounts()
 
 	return apiserver.NewServer(config, dagAdapter, licAdapter)
+}
+
+func initASAFRecorder(server *apiserver.Server) {
+	wrapper := asaf.NewASAFWrapper(dag.GlobalDAG(), nil)
+	recorder := asaf.NewRecorder(wrapper)
+	server.WithASAFRecorder(recorder)
+	log.Println("ASAF flight recorder: active")
+	log.Println("  GET  /api/v1/asaf/stream   — SSE live feed (public)")
+	log.Println("  POST /api/v1/asaf/record   — MCP bridge ingestion (service-auth)")
+	log.Println("  GET  /api/v1/asaf/sessions — active session list (authenticated)")
+	log.Println("  GET  /api/v1/asaf/history  — action history by session (authenticated)")
 }
 
 func initPQCAuthGateway(server *apiserver.Server) {
