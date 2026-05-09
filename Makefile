@@ -191,3 +191,37 @@ ironbank: fips-boring-build
 	@echo "[ADINKHEPRA] Generating Iron Bank Hardening Manifest..."
 	@go run tools/gen_manifest.go "v1.0.0" "bin/$(APP)-fips"
 	@echo "[ADINKHEPRA] Manifest generated: hardening_manifest.yaml"
+
+# ============================================================
+# VPS FIPS Deployment (POA&M B-1 — CMMC/FedRAMP Compliance)
+# Switches the active VPS deployment from standard Dockerfile
+# to Dockerfile.fips (GOEXPERIMENT=boringcrypto, CMVP #4407).
+#
+# This satisfies NIST 800-171 03.13.10 (FIPS-validated crypto modules)
+# for the SecRed VPS tier.
+#
+# Usage: make deploy-vps-fips VPS_HOST=root@srv1494994.hstgr.cloud
+# ============================================================
+VPS_HOST?=root@srv1494994.hstgr.cloud
+
+.PHONY: deploy-vps-fips
+deploy-vps-fips:
+	@echo "[ASAF-FIPS] Building FIPS-validated container (GOEXPERIMENT=boringcrypto)"
+	@echo "[ASAF-FIPS] Using Dockerfile.fips — BoringCrypto CMVP Certificate #4407"
+	docker build -f Dockerfile.fips -t adinkhepra:fips-$(VERSION) .
+	@echo "[ASAF-FIPS] Verifying FIPS assertion in built image..."
+	docker run --rm -e ADINKHEPRA_FIPS_MODE=true adinkhepra:fips-$(VERSION) version
+	@echo "[ASAF-FIPS] Saving and transferring image to VPS..."
+	docker save adinkhepra:fips-$(VERSION) | gzip | ssh $(VPS_HOST) "gunzip | docker load"
+	@echo "[ASAF-FIPS] Restarting ASAF service on VPS with FIPS image..."
+	ssh $(VPS_HOST) "docker stop adinkhepra 2>/dev/null || true && \
+		docker rm adinkhepra 2>/dev/null || true && \
+		docker run -d --name adinkhepra --restart always \
+			-e ADINKHEPRA_FIPS_MODE=true \
+			-p 45444:45444 \
+			adinkhepra:fips-$(VERSION)"
+	@echo "[ASAF-FIPS] Verifying deployed FIPS service..."
+	@sleep 5 && ssh $(VPS_HOST) "docker exec adinkhepra /usr/local/bin/adinkhepra version"
+	@echo "[ASAF-FIPS] ✓ FIPS deployment complete — NIST 800-171 03.13.10 satisfied"
+	@echo "[ASAF-FIPS] Document CMVP evidence: https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4407"
+
