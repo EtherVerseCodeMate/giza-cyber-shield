@@ -145,3 +145,107 @@ func (r *Recorder) HandleHistory(w http.ResponseWriter, req *http.Request) {
 		"count":      len(nodes),
 	})
 }
+
+// RecordRequest is the JSON body POSTed by the MCP bridge for each intercepted tool call.
+// params_hash and result_hash are SHA-256 digests — raw params are never stored.
+type RecordRequest struct {
+	Timestamp  string `json:"timestamp"`
+	SessionID  string `json:"session_id"`
+	AgentID    string `json:"agent_id"`
+	AgentType  string `json:"agent_type"`
+	MCPMethod  string `json:"mcp_method"`
+	ToolName   string `json:"tool_name,omitempty"`
+	ParamsHash string `json:"params_hash"`
+	ResultHash string `json:"result_hash,omitempty"`
+	LatencyMS  int64  `json:"latency_ms"`
+}
+
+// RecordResponse is returned to the MCP bridge after a successful record.
+type RecordResponse struct {
+	DAGNodeID string `json:"dag_node_id"`
+	Recorded  bool   `json:"recorded"`
+}
+
+// HandleRecord receives a POST from the MCP bridge for each intercepted tool call.
+// It writes the action to the DAG, broadcasts via SSE, and returns the signed DAG node ID.
+// Endpoint: POST /api/v1/asaf/record  (service-auth required: permission "asaf:write")
+func (r *Recorder) HandleRecord(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+	defer req.Body.Close()
+
+	var entry RecordRequest
+	if err := json.NewDecoder(req.Body).Decode(&entry); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"invalid JSON: %s"}`, err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	if entry.AgentID == "" || entry.SessionID == "" || entry.MCPMethod == "" {
+		http.Error(w, `{"error":"agent_id, session_id, and mcp_method are required"}`, http.StatusBadRequest)
+		return
+	}
+
+	ts, tsErr := time.Parse(time.RFC3339, entry.Timestamp)
+	if tsErr != nil {
+		ts = time.Now().UTC()
+	}
+
+	// Find the session or create a transient one if the bridge started it externally.
+	agent, ok := r.wrapper.GetSession(entry.SessionID)
+	if !ok {
+		agentType := entry.AgentType
+		if agentType == "" {
+			agentType = "custom"
+		}
+		var wrapErr error
+		agent, wrapErr = r.wrapper.WrapMCPAgent(entry.AgentID, agentType)
+		if wrapErr != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"failed to create session: %s"}`, wrapErr.Error()), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	toolName := entry.ToolName
+	if toolName == "" {
+		toolName = entry.MCPMethod
+	}
+
+	action := MCPAction{
+		AgentID:   entry.AgentID,
+		AgentType: entry.AgentType,
+		Tool:      toolName,
+		Parameters: map[string]string{
+			"mcp_method":  entry.MCPMethod,
+			"params_hash": entry.ParamsHash,
+			"latency_ms":  fmt.Sprintf("%d", entry.LatencyMS),
+		},
+		Result:    entry.ResultHash,
+		Timestamp: ts,
+		SessionID: agent.SessionID,
+	}
+
+	node, err := r.wrapper.RecordAction(agent, action)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"record failed: %s"}`, err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	r.Broadcast(ActionEvent{
+		Type:      "action",
+		NodeID:    node.ID,
+		SessionID: agent.SessionID,
+		AgentID:   entry.AgentID,
+		AgentType: entry.AgentType,
+		Tool:      toolName,
+		Timestamp: ts,
+		Details:   fmt.Sprintf("method=%s latency=%dms", entry.MCPMethod, entry.LatencyMS),
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(RecordResponse{
+		DAGNodeID: node.ID,
+		Recorded:  true,
+	})
+}
