@@ -30,7 +30,7 @@ function sanitizeCUIFromQuery(rawQuery: string): string {
     // Strip system identifiers (e.g., SYS-001-RHEL01, HOST-DC-03)
     .replaceAll(/\b[A-Z]{2,}-\d{3,}-[A-Z0-9]+\b/g, "[SYSID]")
     // Strip MAC addresses
-    .replaceAll(/\b(?:[0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}\b/gi, "[MAC]")
+    .replaceAll(/\b(?:[0-9a-fA-F]{2}[-:]){5}[0-9a-fA-F]{2}\b/gi, "[MAC]")
     // Strip internal FQDNs
     .replaceAll(
       /\b[a-z0-9-]+\.(?:internal|local|corp|mil|gov|dod)\b/gi,
