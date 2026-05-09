@@ -13,6 +13,7 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/auth"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/mcp"
@@ -36,6 +37,7 @@ type Server struct {
 	sigPrivKey  []byte                // ML-DSA-65 Dilithium3 signing key (server identity)
 	sigPubKey   []byte                // ML-DSA-65 Dilithium3 verification key (server identity)
 	sekhemTriad *sekhem.SekhemTriad   // Ouroboros cycle, WAF realm, sensor/actuator mesh (optional)
+	recorder    *asaf.Recorder        // ASAF flight recorder — nil until WithASAFRecorder is called
 }
 
 const (
@@ -288,6 +290,9 @@ func (s *Server) setupRoutes() {
 		svc.POST("/ingest", s.handleTelemetryIngest)
 	}
 
+	// ASAF recording routes — nil-safe, no-op when WithASAFRecorder not called
+	s.setupASAFRoutes(pubV1, v1)
+
 	// WebSocket endpoints (auth via query param or first message)
 	var upgrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
@@ -405,6 +410,40 @@ func (s *Server) startTLS() error {
 // by the caller in main.go alongside the server lifecycle.
 func (s *Server) WithSekhemTriad(triad *sekhem.SekhemTriad) {
 	s.sekhemTriad = triad
+}
+
+// WithASAFRecorder injects the ASAF flight recorder into the gateway.
+// Must be called before Start(). When set, four routes are registered:
+//
+//	GET  /api/v1/asaf/stream   — public SSE live feed for dashboards
+//	POST /api/v1/asaf/record   — service-auth (asaf:write) for the MCP bridge
+//	GET  /api/v1/asaf/sessions — authenticated session list
+//	GET  /api/v1/asaf/history  — authenticated action history
+func (s *Server) WithASAFRecorder(r *asaf.Recorder) {
+	s.recorder = r
+}
+
+// setupASAFRoutes registers all ASAF recording endpoints.
+// It is a no-op when no recorder has been injected (WithASAFRecorder not called).
+// Extracted from setupRoutes to keep cognitive complexity within bounds.
+func (s *Server) setupASAFRoutes(pubV1, v1 *gin.RouterGroup) {
+	if s.recorder == nil {
+		return
+	}
+
+	// Public SSE live feed — dashboard clients subscribe here (read-only, no auth required)
+	pubV1.GET("/asaf/stream", gin.WrapF(s.recorder.HandleSSE))
+
+	// Authenticated query endpoints — require the same auth as the rest of v1
+	asafGroup := v1.Group("/asaf")
+	asafGroup.GET("/sessions", gin.WrapF(s.recorder.HandleSessions))
+	asafGroup.GET("/history", gin.WrapF(s.recorder.HandleHistory))
+
+	// Service-auth record endpoint — MCP bridge posts one entry per intercepted tool call
+	asafSvc := s.router.Group("/api/v1/asaf")
+	asafSvc.Use(ServiceAuthMiddleware())
+	asafSvc.Use(RequirePermission("asaf:write"))
+	asafSvc.POST("/record", gin.WrapF(s.recorder.HandleRecord))
 }
 
 // Shutdown gracefully shuts down the server
