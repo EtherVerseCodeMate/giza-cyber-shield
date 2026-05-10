@@ -15,9 +15,9 @@ import platform
 import json
 import time
 import http.client
-import signal
 import socket
-from typing import Optional, List, Tuple
+import tempfile
+from typing import Optional, List
 
 # ============================================================================
 # CONFIGURATION
@@ -55,7 +55,7 @@ def print_header(title: str, char: str = "=") -> None:
     safe_print(f"{char * width}\n")
 
 
-def print_step(step: str, total: int, current: int, message: str) -> None:
+def print_step(_label: str, total: int, current: int, message: str) -> None:
     """Print a formatted step message."""
     print(f"\n[{current}/{total}] {message}...")
 
@@ -261,24 +261,34 @@ def _test_pqc_key_gen() -> bool:
     print_step("PQC Key Generation", 4, 2, "Testing PQC Key Generation (CLI)")
     if not build("adinkhepra"):
         return False
-    cli_bin = get_binary_name("adinkhepra")
-    try:
-        subprocess.check_output([cli_bin, "keygen", "-out", "test_key", "-comment", "validation-test"], stderr=subprocess.STDOUT)
-        expected_files = ["test_key_dilithium", "test_key_dilithium.pub", "test_key_dilithium.pub.adinkhepra.json", "test_key_kyber", "test_key_kyber.pub"]
-        missing_files = [f for f in expected_files if not os.path.exists(f)]
-        if missing_files:
-            print_error(f"PQC key generation failed: missing files {missing_files}")
+    cli_bin = os.path.abspath(get_binary_name("adinkhepra"))
+    # Keys are written to an OS temp directory — NEVER to the repo working tree.
+    # Root cause of the 2026-05-10 key-exposure incident was keygen writing into
+    # the repo root, where `git add .` swept them into history.
+    with tempfile.TemporaryDirectory(prefix="khepra_keygen_") as tmpdir:
+        out_prefix = os.path.join(tmpdir, "test_key")
+        try:
+            subprocess.check_output(
+                [cli_bin, "keygen", "-out", out_prefix, "-comment", "validation-test"],
+                stderr=subprocess.STDOUT,
+                cwd=tmpdir,
+            )
+            expected_files = [
+                f"{out_prefix}_dilithium",
+                f"{out_prefix}_dilithium.pub",
+                f"{out_prefix}_dilithium.pub.adinkhepra.json",
+                f"{out_prefix}_kyber",
+                f"{out_prefix}_kyber.pub",
+            ]
+            missing = [f for f in expected_files if not os.path.exists(f)]
+            if missing:
+                print_error(f"PQC key generation failed: missing {[os.path.basename(f) for f in missing]}")
+                return False
+            print_success("PQC key generation successful (keys in temp dir, never committed)")
+            return True
+        except subprocess.CalledProcessError as e:
+            print_error(f"CLI execution failed: {e.output.decode()}")
             return False
-        print_success("PQC key generation successful")
-        for f in expected_files:
-            try:
-                os.remove(f)
-            except OSError:
-                pass
-        return True
-    except subprocess.CalledProcessError as e:
-        print_error(f"CLI execution failed: {e.output.decode()}")
-        return False
 
 def _wait_for_agent() -> http.client.HTTPConnection:
     attempts = AGENT_STARTUP_TIMEOUT * 2
