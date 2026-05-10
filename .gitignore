@@ -28,6 +28,24 @@ dist-ssr
 .idea
 .DS_Store
 *.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.next/
+
+# Security Artifacts
+keys/
+test_fire/
+# Exposed test private key — revoked; must never be re-committed
+test_key_ed25519
+test_key_ed25519.pub
+
+# Internal
+docs/internal/
+
+
+# Large Assets
 pkg/llm/ollama/blobs/
 pkg/llm/*/blobs/
 pkg/llm/*/blobs/
