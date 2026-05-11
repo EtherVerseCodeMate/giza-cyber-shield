@@ -389,50 +389,58 @@ func (s *Server) handleStripeWebhook(c *gin.Context) {
 
 	switch event.Type {
 	case "checkout.session.completed":
-		machineID := event.Data.Object.ClientReferenceID
-		if machineID == "" {
-			machineID = event.Data.Object.Metadata["machine_id"]
-		}
-		if machineID == "" {
-			// No machine ID — log and ack (avoid Stripe retry storm).
-			fmt.Printf("[STRIPE] checkout.session.completed received but no machine_id in metadata\n")
-			c.JSON(http.StatusOK, gin.H{"received": true})
-			return
-		}
-
-		// Activate a Ra-tier (Hunter) 365-day license for this machine.
-		licenseID := "ra-" + machineID[:min(8, len(machineID))]
-		if _, err := s.licMgr.CreateLicense(licenseID, licenseRaTier, 365); err != nil {
-			fmt.Printf("[STRIPE] license activation failed for machine %s: %v\n", machineID, err)
-			// Still return 200 — Stripe will not retry; log for manual recovery.
-		} else {
-			fmt.Printf("[STRIPE] License activated: %s → machine %s\n", licenseID, machineID)
-		}
-
-		// Broadcast activation over WebSocket so the CLI poll loop sees it.
-		if s.wsHub != nil {
-			s.wsHub.BroadcastScanUpdate(map[string]interface{}{
-				"type":       "license_activated",
-				"machine_id": machineID,
-				"license_id": licenseID,
-				"tier":       "ra",
-			})
-		}
-
+		s.handleCheckoutCompleted(event)
 	case "customer.subscription.deleted":
-		machineID := event.Data.Object.Metadata["machine_id"]
-		if machineID != "" {
-			licenseID := "ra-" + machineID[:min(8, len(machineID))]
-			fmt.Printf("[STRIPE] Subscription cancelled — revoking license %s\n", licenseID)
-			// Upgrade to community (lowest tier) effectively revokes Ra access.
-			_ = s.licMgr.UpgradeLicense(licenseID, licenseCommunityTier)
-		}
-
+		s.handleSubscriptionDeleted(event)
 	default:
 		// Acknowledge unhandled events silently — don't return 4xx (causes Stripe retries).
 	}
 
 	c.JSON(http.StatusOK, gin.H{"received": true})
+}
+
+// handleCheckoutCompleted activates a Ra-tier license for the machine_id in
+// the checkout session metadata and broadcasts the activation over WebSocket.
+func (s *Server) handleCheckoutCompleted(event stripeWebhookEvent) {
+	machineID := event.Data.Object.ClientReferenceID
+	if machineID == "" {
+		machineID = event.Data.Object.Metadata["machine_id"]
+	}
+	if machineID == "" {
+		// No machine ID — log and ack (avoid Stripe retry storm).
+		fmt.Printf("[STRIPE] checkout.session.completed received but no machine_id in metadata\n")
+		return
+	}
+
+	// Activate a Ra-tier (Hunter) 365-day license for this machine.
+	licenseID := "ra-" + machineID[:min(8, len(machineID))]
+	if _, err := s.licMgr.CreateLicense(licenseID, licenseRaTier, 365); err != nil {
+		fmt.Printf("[STRIPE] license activation failed for machine %s: %v\n", machineID, err)
+		// Still return 200 — Stripe will not retry; log for manual recovery.
+	} else {
+		fmt.Printf("[STRIPE] License activated: %s → machine %s\n", licenseID, machineID)
+	}
+
+	// Broadcast activation over WebSocket so the CLI poll loop sees it.
+	if s.wsHub != nil {
+		s.wsHub.BroadcastScanUpdate(map[string]interface{}{
+			"type":       "license_activated",
+			"machine_id": machineID,
+			"license_id": licenseID,
+			"tier":       "ra",
+		})
+	}
+}
+
+// handleSubscriptionDeleted revokes a license when a Stripe subscription ends.
+func (s *Server) handleSubscriptionDeleted(event stripeWebhookEvent) {
+	machineID := event.Data.Object.Metadata["machine_id"]
+	if machineID != "" {
+		licenseID := "ra-" + machineID[:min(8, len(machineID))]
+		fmt.Printf("[STRIPE] Subscription cancelled — revoking license %s\n", licenseID)
+		// Upgrade to community (lowest tier) effectively revokes Ra access.
+		_ = s.licMgr.UpgradeLicense(licenseID, licenseCommunityTier)
+	}
 }
 
 // stripeWebhookEvent is the minimal envelope parsed from a Stripe webhook body.

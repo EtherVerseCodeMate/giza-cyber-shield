@@ -44,6 +44,7 @@ async function getActualComplianceFinding(
       lastChecked: data.updated_at
     };
   } catch (error_) {
+    console.error('Failed to get compliance finding:', error_);
     return null;
   }
 }
@@ -52,7 +53,7 @@ async function getActualComplianceFinding(
 async function getAssetSecurityConfig(
   supabase: any,
   assetId: string
-): Promise<any | null> {
+): Promise<unknown> {
   try {
     const { data, error } = await supabase
       .from('asset_configurations')
@@ -65,6 +66,7 @@ async function getAssetSecurityConfig(
     if (error) return null;
     return data;
   } catch (error_) {
+    console.error('Failed to get asset security config:', error_);
     return null;
   }
 }
@@ -266,7 +268,7 @@ async function processAssetRule(asset: any, stigRule: any, ctx: ProcessContext) 
       .eq('auto_execute', true)
       .single();
 
-    if (playbook && playbook.risk_level === 'LOW') {
+    if (playbook?.risk_level === 'LOW') {
       console.log(`Auto-remediation triggered for ${asset.asset_name} - ${stigRule.rule_id}`);
       const { error: remediationError } = await supabase.functions.invoke(
         'automated-remediation-engine',

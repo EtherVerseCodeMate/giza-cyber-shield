@@ -301,7 +301,12 @@ const OnboardingOrchestrator: React.FC = () => {
 
   // ── Step: Results ────────────────────────────────────────────────────────────
   if (step === 'results' && result) {
-    const riskColor = result.risk_score >= 70 ? 'text-red-400' : result.risk_score >= 40 ? 'text-yellow-400' : 'text-green-400';
+    const getRiskColor = (score: number) => {
+      if (score >= 70) return 'text-red-400';
+      if (score >= 40) return 'text-yellow-400';
+      return 'text-green-400';
+    };
+    const riskColor = getRiskColor(result.risk_score);
     const severityIcon = (s: string) => {
       switch (s) {
         case 'critical': return <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />;

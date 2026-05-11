@@ -273,17 +273,19 @@ export function KhepraDAGVisualization({
           {/* Cyber Overlay Grid */}
           <div className="absolute inset-0 bg-cyber-grid pointer-events-none opacity-20" />
 
-          {dag.isLoading ? (
+          {dag.isLoading && (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-10 w-10 animate-spin text-primary/30" />
             </div>
-          ) : nodes.length === 0 ? (
+          )}
+          {!dag.isLoading && nodes.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
               <Network className="h-12 w-12 mb-2 opacity-20" />
               <p className="font-black italic uppercase tracking-widest text-[10px]">Empty Constellation</p>
               <p className="text-[9px] uppercase tracking-tighter opacity-50">Node deployment pending</p>
             </div>
-          ) : (
+          )}
+          {!dag.isLoading && nodes.length > 0 && (
             <ReactFlow
               nodes={nodes}
               edges={edges}

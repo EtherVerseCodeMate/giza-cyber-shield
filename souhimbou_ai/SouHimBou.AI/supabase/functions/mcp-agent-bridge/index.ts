@@ -193,7 +193,7 @@ async function handleMCPProxy(req: Request): Promise<Response> {
 
   const sessionID =
     req.headers.get("x-asaf-session") ??
-    `asaf-${crypto.randomUUID().replace(/-/g, "")}`;
+    `asaf-${crypto.randomUUID().replaceAll("-", "")}`;
 
   const agentID =
     req.headers.get("x-agent-id") ??

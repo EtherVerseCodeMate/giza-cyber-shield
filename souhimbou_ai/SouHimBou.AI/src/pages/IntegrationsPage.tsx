@@ -39,11 +39,20 @@ interface IntegrationStatusCardProps {
   description?: string;
 }
 
-const IntegrationStatusCard = ({ title, value, icon: Icon, status = 'normal', description }: IntegrationStatusCardProps) => (
+function getStatusColor(status: string): string {
+  switch (status) {
+    case 'success': return 'text-green-500';
+    case 'warning': return 'text-yellow-500';
+    case 'error': return 'text-red-500';
+    default: return 'text-muted-foreground';
+  }
+}
+
+const IntegrationStatusCard = ({ title, value, icon: Icon, status = 'normal', description }: Readonly<IntegrationStatusCardProps>) => (
   <Card>
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
       <CardTitle className="text-sm font-medium">{title}</CardTitle>
-      <Icon className={`h-4 w-4 ${status === 'success' ? 'text-green-500' : status === 'warning' ? 'text-yellow-500' : status === 'error' ? 'text-red-500' : 'text-muted-foreground'}`} />
+      <Icon className={`h-4 w-4 ${getStatusColor(status)}`} />
     </CardHeader>
     <CardContent>
       <div className="text-2xl font-bold">{value}</div>
@@ -83,7 +92,7 @@ const IntegrationHealthDashboard = () => {
           title="Integration Health"
           value={`${healthScore}%`}
           icon={TrendingUp}
-          status={healthScore > 90 ? 'success' : healthScore > 70 ? 'warning' : 'error'}
+          status={(() => { if (healthScore > 90) return 'success'; if (healthScore > 70) return 'warning'; return 'error'; })()}
           description="Overall system health"
         />
         <IntegrationStatusCard
@@ -147,7 +156,7 @@ const QuickSetupCards = ({ setActiveTab }: { setActiveTab: (tab: string) => void
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {popularIntegrations.map((integration, index) => (
-        <Card key={index} className="cursor-pointer hover:shadow-md transition-shadow">
+        <Card key={integration.name} className="cursor-pointer hover:shadow-md transition-shadow">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <span className="text-2xl">{integration.icon}</span>
@@ -223,7 +232,7 @@ const IntegrationRecommendations = ({ setActiveTab }: { setActiveTab: (tab: stri
   return (
     <div className="space-y-4">
       {recommendations.map((rec, index) => (
-        <Card key={index}>
+        <Card key={rec.title}>
           <CardContent className="pt-6">
             <div className="flex items-start justify-between">
               <div className="space-y-2">
