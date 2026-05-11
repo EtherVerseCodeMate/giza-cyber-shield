@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { logAnalyticsAction } from '@/lib/telemetry';
 
 export interface BusinessMetrics {
   totalCustomers: number;
@@ -45,18 +45,12 @@ export const useBusinessMetrics = () => {
     try {
       setLoading(true);
 
-      // Awaiting actual billing and customer telemetry integration
-
-      // Log the metrics fetch for analytics
-      await supabase.rpc('log_user_action', {
-        action_type: 'business_metrics_viewed',
-        resource_type: 'business_analytics',
-        resource_id: 'dashboard',
-        details: {
-          metrics_type: 'overview',
-          timestamp: new Date().toISOString()
-        }
-      });
+      await logAnalyticsAction(
+        'business_metrics_viewed',
+        'business_analytics',
+        'dashboard',
+        { metrics_type: 'overview', timestamp: new Date().toISOString() },
+      );
 
     } catch (error) {
       console.error('Error fetching business metrics:', error);
@@ -80,18 +74,14 @@ export const useBusinessMetrics = () => {
     return avgRevenue / (churnRate / 100);
   };
 
-  const trackBusinessEvent = async (eventType: string, data: any) => {
+  const trackBusinessEvent = async (eventType: string, data: unknown) => {
     try {
-      await supabase.rpc('log_user_action', {
-        action_type: 'business_event_tracked',
-        resource_type: 'business_analytics',
-        resource_id: eventType,
-        details: {
-          event_type: eventType,
-          event_data: data,
-          timestamp: new Date().toISOString()
-        }
-      });
+      await logAnalyticsAction(
+        'business_event_tracked',
+        'business_analytics',
+        eventType,
+        { event_type: eventType, event_data: data, timestamp: new Date().toISOString() },
+      );
     } catch (error) {
       console.error('Error tracking business event:', error);
     }
