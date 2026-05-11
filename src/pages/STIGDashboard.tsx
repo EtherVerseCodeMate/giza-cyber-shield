@@ -4,7 +4,13 @@ import { MVP1Dashboard } from '@/components/compliance/MVP1Dashboard';
 import { DashboardToggle } from '@/components/DashboardToggle';
 import { PapyrusGenie } from '@/components/onboarding/PapyrusGenie';
 import GuidedTour from '@/components/GuidedTour';
+import { DemoBanner } from '@/components/dashboard/DemoBanner';
+import { useDemoMode } from '@/hooks/useDemoMode';
+import { DEMO_METRICS } from '@/lib/demoData';
+
 const STIGDashboard = () => {
+  const demoMode = useDemoMode();
+
   const tabs = [
     { id: 'stig-dashboard', title: 'Dashboard', path: '/stig-dashboard', isActive: true },
     { id: 'asset-scanning', title: 'Drift Detection', path: '/asset-scanning' },
@@ -25,12 +31,14 @@ const STIGDashboard = () => {
         rightContent: <DashboardToggle />
       }}
     >
-      <MVP1Dashboard />
+      {demoMode.isDemoMode && <DemoBanner demoMode={demoMode} />}
 
-      {/* Proactive AI Assistant */}
+      <MVP1Dashboard
+        demoMetrics={demoMode.isDemoMode ? DEMO_METRICS : undefined}
+        onGatedAction={demoMode.isDemoMode ? demoMode.openConnectDialog : undefined}
+      />
+
       <PapyrusGenie />
-
-      {/* Guided Tour - triggered by ?tour=true from onboarding */}
       <GuidedTour />
     </ConsoleLayout>
   );

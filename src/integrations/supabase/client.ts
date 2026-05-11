@@ -92,6 +92,23 @@ const rpc = async (fnName: string, params?: any) => {
   return { data: null, error: null };
 };
 
+// ── Functions stub ────────────────────────────────────────────────────────────
+// Mimics supabase.functions.invoke() for Edge Function calls.
+
+const functionsStub = {
+  invoke: async (fnName: string, options?: { body?: any; headers?: Record<string, string> }) => {
+    const result = await asafFetch(`/functions/${fnName}`, {
+      method: 'POST',
+      body: JSON.stringify(options?.body ?? {}),
+    });
+    if (result !== null) {
+      return { data: result, error: null };
+    }
+    console.debug(`[ASAF-STUB] Edge Function not routed: ${fnName}`);
+    return { data: null, error: null };
+  },
+};
+
 // ── Storage stub ──────────────────────────────────────────────────────────────
 
 const storage = {
@@ -108,6 +125,7 @@ const storage = {
 
 export const supabase = {
   auth: authStub,
+  functions: functionsStub,
   rpc,
   storage,
   from: (table: string) => makeQueryStub(table),
