@@ -54,7 +54,7 @@ export const PolymorphicIngestionEngine: React.FC<PolymorphicIngestionEngineProp
     }, null, 2));
 
     const [isProcessing, setIsProcessing] = useState(false);
-    const [_transformedData, setTransformedData] = useState<any>(null);
+
 
     // Mock transformation preview
     const transformationPreview = useMemo(() => {
@@ -103,7 +103,7 @@ export const PolymorphicIngestionEngine: React.FC<PolymorphicIngestionEngineProp
 
             if (error) throw error;
 
-            setTransformedData(data);
+
             toast.success(`Polymorphic Engine: Successfully ingested ${data.count} assets from ${selectedEnv.name}`);
 
             if (onComplete) {
