@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
 import "../index.css";
 
+const appName = process.env.NEXT_PUBLIC_APP_NAME ?? "AdinKhepra ASAF";
+const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.0";
+
 export const metadata: Metadata = {
-  title: "ASAF by NouchiX — Agentic Security Attestation Framework",
+  title: `${appName} — Agentic Security Attestation Framework`,
   description: "Scan, audit, and certify your AI agent deployments. Get your ADINKHEPRA badge — the enterprise security standard for agentic AI.",
+  other: {
+    "x-app-version": appVersion,
+  },
 };
 
 export default function RootLayout({
