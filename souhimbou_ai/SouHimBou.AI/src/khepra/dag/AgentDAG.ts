@@ -32,9 +32,9 @@ export interface AgentInteraction {
 }
 
 export class AgentDAG {
-  private nodes: Map<string, DAGNode> = new Map();
-  private edges: Map<string, DAGEdge> = new Map();
-  private interactions: AgentInteraction[] = [];
+  private readonly nodes: Map<string, DAGNode> = new Map();
+  private readonly edges: Map<string, DAGEdge> = new Map();
+  private readonly interactions: AgentInteraction[] = [];
 
   /**
    * Add new agent action to the DAG
@@ -321,7 +321,7 @@ export class AgentDAG {
 
     if (agentNodes.length === 0) return false;
 
-    const recentNode = agentNodes[agentNodes.length - 1];
+    const recentNode = agentNodes.at(-1)!;
     const symbol = AdinkraAlgebraicEngine.getAllSymbols()[recentNode.symbol];
 
     // Define action-symbol compatibility

@@ -433,7 +433,7 @@ def _generate_service_token(service_name: str) -> bool:
     """Generate a service token using the cmd/service-token binary."""
     token_bin = get_binary_name("service-token")
     if not os.path.exists(token_bin):
-        print_info(f"Building service-token tool...")
+        print_info("Building service-token tool...")
         try:
             subprocess.check_call(["go", "build", MOD_VENDOR, "-o", token_bin, "./cmd/service-token"])
         except subprocess.CalledProcessError:
