@@ -27,7 +27,7 @@ interface KhepraVPSIntegrationProps {
     isUpdating: boolean;
 }
 
-export function KhepraVPSIntegration({ config, updateConfig, isUpdating }: KhepraVPSIntegrationProps) {
+export function KhepraVPSIntegration({ config, updateConfig, isUpdating }: Readonly<KhepraVPSIntegrationProps>) {
     const [url, setUrl] = useState(config.deploymentUrl);
     const [key, setKey] = useState(config.apiKey);
 
