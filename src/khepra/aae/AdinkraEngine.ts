@@ -58,18 +58,17 @@ export class AdinkraAlgebraicEngine {
 
     const matrix = symbol.matrix;
     const matrixSize = matrix.length;
-    
-    // Ensure input vector matches matrix dimensions
-    if (inputVector.length !== matrix[0].length) {
-      throw new Error(`Input vector dimension mismatch for symbol ${symbolName}`);
-    }
+    const targetCols = matrix[0].length;
+
+    // XOR-fold the input to match the matrix column count
+    const resized = this.resizeVector(inputVector, targetCols);
 
     // Perform matrix multiplication in ℤ₂ (binary field)
     const result: number[] = [];
     for (let i = 0; i < matrixSize; i++) {
       let sum = 0;
-      for (let j = 0; j < inputVector.length; j++) {
-        sum += matrix[i][j] * inputVector[j];
+      for (let j = 0; j < targetCols; j++) {
+        sum += matrix[i][j] * resized[j];
       }
       result.push(sum % 2); // Modulo 2 for binary field
     }
@@ -190,6 +189,15 @@ export class AdinkraAlgebraicEngine {
     } catch {
       return false;
     }
+  }
+
+  private static resizeVector(vec: number[], targetLen: number): number[] {
+    if (vec.length === targetLen) return vec;
+    const result = new Array(targetLen).fill(0);
+    for (let i = 0; i < vec.length; i++) {
+      result[i % targetLen] ^= vec[i];
+    }
+    return result;
   }
 
   private static stringToBinary(str: string): number[] {
