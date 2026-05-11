@@ -190,10 +190,10 @@ serve(async (req: Request) => {
         return await generateHuntQueries(supabase, organizationId);
 
       case 'execute_hunt':
-        return await executeHunt(supabase, indicator!, indicatorType!, organizationId);
+        return await executeHunt(supabase, indicator, indicatorType, organizationId);
 
       case 'generate_report':
-        return await generateDailyReport(supabase, reportDate!, organizationId);
+        return await generateDailyReport(supabase, reportDate, organizationId);
 
       default:
         throw new Error('Invalid action');
