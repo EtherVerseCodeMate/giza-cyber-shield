@@ -1,0 +1,29 @@
+{
+  "name": "adinkhepra-monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "test": "turbo test",
+    "lint": "turbo lint",
+    "type-check": "turbo type-check",
+    "clean": "turbo clean && find . -name 'node_modules' -type d -not -path '*/\\.*' | xargs rm -rf",
+    "deploy:dashboard": "turbo deploy --filter=dashboard",
+    "deploy:agent": "turbo deploy --filter=agent",
+    "deploy:vps": "bash scripts/deploy-vps.sh",
+    "build:go": "turbo build:go --filter=khepra",
+    "build:fips": "turbo build:fips --filter=khepra"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.0.0"
+  },
+  "packageManager": "npm@10.0.0",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**", "bin/**"]
+    },
+    "build:go": {
+      "inputs": ["**/*.go", "go.mod", "go.sum"],
+      "outputs": ["bin/**"],
+      "cache": true
+    },
+    "build:fips": {
+      "inputs": ["**/*.go", "go.mod", "go.sum", "Dockerfile.fips"],
+      "outputs": ["bin/*-fips"],
+      "cache": true
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$"],
+      "outputs": ["coverage/**"]
+    },
+    "lint": {
+      "dependsOn": ["^lint"]
+    },
+    "deploy": {
+      "dependsOn": ["build", "test"],
+      "cache": false
+    },
+    "type-check": {
+      "dependsOn": ["^build"]
+    },
+    "clean": {
+      "cache": false
+    }
+  },
+  "globalEnv": [
+    "NODE_ENV",
+    "ANTHROPIC_API_KEY",
+    "ARENA_API_KEY",
+    "ASAF_URL",
+    "NEXT_PUBLIC_API_URL"
+  ]
+}
