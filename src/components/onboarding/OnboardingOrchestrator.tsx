@@ -115,6 +115,36 @@ const OnboardingOrchestrator: React.FC = () => {
     }
   }, [searchParams, navigate, toast]);
 
+  // Auto-start scan when arriving from PolymorphicIngestionEngine handoff
+  useEffect(() => {
+    const prefill = searchParams.get('prefill_target');
+    if (prefill && step === 'input' && !isScanning) {
+      setTarget(prefill);
+      // Slight delay so the input renders with the value before scan triggers
+      const t = setTimeout(() => {
+        setError(null);
+        setResult(null);
+        setScanId(null);
+        setIsScanning(true);
+        setStep('scanning');
+        setPhase(0);
+        setProgress(5);
+        triggerScan(prefill).then(setScanId).catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : 'Unknown error';
+          setError(
+            `Scan failed: ${msg}. ` +
+            `The scan proxy could not reach the ASAF backend. Check that the API server is running on the VPS.`
+          );
+          setStep('input');
+          setIsScanning(false);
+        });
+      }, 300);
+      return () => clearTimeout(t);
+    }
+  // Run once on mount only — searchParams identity is stable for this effect
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Animate scan phases
   useEffect(() => {
     if (step !== 'scanning') return;

@@ -24,8 +24,15 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+interface IngestionResult {
+    count: number;
+    primaryTarget: string;
+    envType: string;
+}
+
 interface PolymorphicIngestionEngineProps {
     organizationId: string;
+    onComplete?: (result: IngestionResult) => void;
 }
 
 const ENVIRONMENTS = [
@@ -36,7 +43,7 @@ const ENVIRONMENTS = [
     { id: 'api_enclave', name: 'Custom API Enclave', icon: Code, color: 'text-purple-400', profile: 'custom_payload' },
 ];
 
-export const PolymorphicIngestionEngine: React.FC<PolymorphicIngestionEngineProps> = ({ organizationId }) => {
+export const PolymorphicIngestionEngine: React.FC<PolymorphicIngestionEngineProps> = ({ organizationId, onComplete }) => {
     const [selectedEnv, setSelectedEnv] = useState(ENVIRONMENTS[0]);
     const [rawPayload, setRawPayload] = useState(JSON.stringify({
         "InstanceId": "i-0abcdef1234567890",
@@ -47,7 +54,7 @@ export const PolymorphicIngestionEngine: React.FC<PolymorphicIngestionEngineProp
     }, null, 2));
 
     const [isProcessing, setIsProcessing] = useState(false);
-    const [, setTransformedData] = useState<any>(null);
+    const [_transformedData, setTransformedData] = useState<any>(null);
 
     // Mock transformation preview
     const transformationPreview = useMemo(() => {
@@ -81,7 +88,8 @@ export const PolymorphicIngestionEngine: React.FC<PolymorphicIngestionEngineProp
     const handleIngest = async () => {
         setIsProcessing(true);
         try {
-            const sourceData = Array.isArray(JSON.parse(rawPayload)) ? JSON.parse(rawPayload) : [JSON.parse(rawPayload)];
+            const parsed = JSON.parse(rawPayload);
+            const sourceData = Array.isArray(parsed) ? parsed : [parsed];
 
             const { data, error } = await supabase.functions.invoke('polymorphic-schema-engine', {
                 body: {
@@ -89,7 +97,7 @@ export const PolymorphicIngestionEngine: React.FC<PolymorphicIngestionEngineProp
                     organizationId,
                     environmentType: selectedEnv.id,
                     sourceProfile: selectedEnv.profile,
-                    sourceData: sourceData
+                    sourceData,
                 }
             });
 
@@ -97,6 +105,17 @@ export const PolymorphicIngestionEngine: React.FC<PolymorphicIngestionEngineProp
 
             setTransformedData(data);
             toast.success(`Polymorphic Engine: Successfully ingested ${data.count} assets from ${selectedEnv.name}`);
+
+            if (onComplete) {
+                const firstRecord = sourceData[0] ?? {};
+                const primaryTarget =
+                    transformationPreview.ip_addresses?.[0] ||
+                    firstRecord.PrivateIpAddress ||
+                    firstRecord.local_ip ||
+                    firstRecord.ip ||
+                    '';
+                onComplete({ count: data.count, primaryTarget, envType: selectedEnv.id });
+            }
         } catch (error: any) {
             console.error('Ingestion error:', error);
             toast.error(`Ingestion Failed: ${error.message}`);
