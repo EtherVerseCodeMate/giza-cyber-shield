@@ -13,5 +13,10 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: (globalThis as { localStorage?: Storage }).localStorage,
     persistSession: true,
     autoRefreshToken: true,
+    // PKCE exchanges a short-lived code instead of embedding the access token in the
+    // URL hash fragment (implicit flow), preventing token leakage via browser history
+    // and referrer headers.  The client auto-exchanges the ?code= param on redirect.
+    flowType: 'pkce',
+    detectSessionInUrl: true,
   }
 });

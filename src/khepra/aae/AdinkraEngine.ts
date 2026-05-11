@@ -83,12 +83,16 @@ export class AdinkraAlgebraicEngine {
   static generateFingerprint(data: string, symbols: string[] = ['Eban', 'Fawohodie']): string {
     // Convert string to binary vector
     const binaryData = this.stringToBinary(data);
-    
+
     let currentVector = binaryData;
     const transformationPath: string[] = [];
 
     // Apply multiple Adinkra transformations
     for (const symbolName of symbols) {
+      const symbol = this.SYMBOLS[symbolName];
+      if (!symbol) throw new Error(`Unknown Adinkra symbol: ${symbolName}`);
+      // Resize vector to match the symbol's expected input dimension before transforming
+      currentVector = this.resizeVector(currentVector, symbol.matrix[0].length);
       currentVector = this.transform(symbolName, currentVector);
       transformationPath.push(symbolName);
     }
@@ -190,6 +194,19 @@ export class AdinkraAlgebraicEngine {
     } catch {
       return false;
     }
+  }
+
+  // XOR-folds or zero-pads vec to targetLen so it can be fed to any symbol matrix
+  private static resizeVector(vec: number[], targetLen: number): number[] {
+    if (vec.length === targetLen) return vec;
+    if (vec.length < targetLen) {
+      return [...vec, ...new Array(targetLen - vec.length).fill(0)];
+    }
+    const result = vec.slice(0, targetLen);
+    for (let i = targetLen; i < vec.length; i++) {
+      result[i % targetLen] ^= vec[i];
+    }
+    return result;
   }
 
   private static stringToBinary(str: string): number[] {
