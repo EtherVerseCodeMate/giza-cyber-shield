@@ -1,0 +1,43 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**", "bin/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": ["^lint"],
+      "inputs": ["$TURBO_DEFAULT$"]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$"]
+    },
+    "deploy:dashboard": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "inputs": ["src/**", "next.config.mjs", "package.json", "vercel.json"]
+    },
+    "deploy:agent": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "inputs": ["Dockerfile", "fly.toml", "pkg/**", "cmd/**"]
+    },
+    "deploy:vps": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "inputs": ["cmd/adinkhepra/**", "pkg/**"]
+    },
+    "deploy:telemetry": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "inputs": ["adinkhepra-telemetry-server/**"]
+    }
+  }
+}

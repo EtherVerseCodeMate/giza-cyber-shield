@@ -9,7 +9,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy:dashboard": "vercel --prod",
+    "deploy:agent": "fly deploy --config fly.toml",
+    "deploy:vps": "bash build-release.sh && scp bin/adinkhepra-linux-amd64 vps:/usr/local/bin/adinkhepra",
+    "deploy:telemetry": "cd adinkhepra-telemetry-server && npx wrangler deploy"
   },
   "dependencies": {
     "@hookform/resolvers": "3.9.0",
@@ -75,6 +79,7 @@
     "zod": "3.23.8"
   },
   "devDependencies": {
+    "turbo": "2.5.4",
     "@eslint/js": "9.9.0",
     "@tailwindcss/typography": "0.5.15",
     "@types/node": "22.19.2",
