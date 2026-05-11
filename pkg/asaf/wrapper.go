@@ -277,20 +277,38 @@ func (w *ASAFWrapper) DetectDrift(agent *WrappedAgent) (*DriftReport, error) {
 		SessionID: agent.SessionID,
 	}
 
-	// Analyze tool usage patterns for anomalies
+	anomalies := analyzeToolUsage(toolUsage)
+	if len(anomalies) > 0 {
+		report.DriftDetected = true
+		report.Anomalies = anomalies
+		report.Score = float64(len(anomalies)) / 5.0
+		if report.Score > 1.0 {
+			report.Score = 1.0
+		}
+		report.DAGNodeID = w.writeDriftNode(agent, report.Score, anomalies)
+
+		if w.logger != nil {
+			w.logger.Warn("[ASAF] Drift detected",
+				"session_id", agent.SessionID,
+				"score", report.Score,
+				"anomalies", len(anomalies))
+		}
+	}
+
+	return report, nil
+}
+
+// analyzeToolUsage inspects per-tool call counts and returns any detected anomalies.
+func analyzeToolUsage(toolUsage map[string]int) []string {
 	var anomalies []string
 	totalActions := 0
 	writeActions := 0
 
 	for tool, count := range toolUsage {
 		totalActions += count
-
-		// Flag write-heavy sessions
 		if isWriteTool(tool) {
 			writeActions += count
 		}
-
-		// Flag unusual tool usage (more than 50 calls to a single tool)
 		if count > 50 {
 			anomalies = append(anomalies,
 				fmt.Sprintf("High frequency: %s called %d times", tool, count))
@@ -304,42 +322,29 @@ func (w *ASAFWrapper) DetectDrift(agent *WrappedAgent) (*DriftReport, error) {
 				float64(writeActions)/float64(totalActions)*100))
 	}
 
-	if len(anomalies) > 0 {
-		report.DriftDetected = true
-		report.Anomalies = anomalies
-		report.Score = float64(len(anomalies)) / 5.0 // Normalize to 0-1
-		if report.Score > 1.0 {
-			report.Score = 1.0
-		}
+	return anomalies
+}
 
-		// Write drift event to DAG
-		driftNode := &dag.Node{
-			Action: "ASAF_DRIFT_DETECTED",
-			Symbol: SymbolNkyinkyim,
-			Time:   time.Now().UTC().Format(time.RFC3339),
-			PQC: map[string]string{
-				"session_id":  agent.SessionID,
-				"agent_id":    agent.AgentID,
-				"drift_score": fmt.Sprintf("%.3f", report.Score),
-				"anomalies":   strings.Join(anomalies, "; "),
-				"framework":   "ASAF",
-			},
-		}
-
-		parents := latestNodeIDs(w.dagStore, 1)
-		if err := w.dagStore.Add(driftNode, parents); err == nil {
-			report.DAGNodeID = driftNode.ID
-		}
-
-		if w.logger != nil {
-			w.logger.Warn("[ASAF] Drift detected",
-				"session_id", agent.SessionID,
-				"score", report.Score,
-				"anomalies", len(anomalies))
-		}
+// writeDriftNode commits a drift event to the DAG and returns its node ID.
+func (w *ASAFWrapper) writeDriftNode(agent *WrappedAgent, score float64, anomalies []string) string {
+	driftNode := &dag.Node{
+		Action: "ASAF_DRIFT_DETECTED",
+		Symbol: SymbolNkyinkyim,
+		Time:   time.Now().UTC().Format(time.RFC3339),
+		PQC: map[string]string{
+			"session_id":  agent.SessionID,
+			"agent_id":    agent.AgentID,
+			"drift_score": fmt.Sprintf("%.3f", score),
+			"anomalies":   strings.Join(anomalies, "; "),
+			"framework":   "ASAF",
+		},
 	}
 
-	return report, nil
+	parents := latestNodeIDs(w.dagStore, 1)
+	if err := w.dagStore.Add(driftNode, parents); err == nil {
+		return driftNode.ID
+	}
+	return ""
 }
 
 // EndSession closes a recording session and writes a final DAG node

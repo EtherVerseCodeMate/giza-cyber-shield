@@ -17,7 +17,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -207,14 +206,11 @@ func downloadWithProgress(url, dest string) error {
 	for {
 		n, readErr := resp.Body.Read(buf)
 		if n > 0 {
-			if _, werr := f.Write(buf[:n]); werr != nil {
+			written, werr := writeChunk(f, buf[:n], downloaded, total, &lastPrint)
+			if werr != nil {
 				return werr
 			}
-			downloaded += int64(n)
-			if time.Since(lastPrint) > 2*time.Second {
-				printDownloadProgress(downloaded, total)
-				lastPrint = time.Now()
-			}
+			downloaded += written
 		}
 		if readErr == io.EOF {
 			break
@@ -225,6 +221,20 @@ func downloadWithProgress(url, dest string) error {
 	}
 	fmt.Printf("\r   %s downloaded ✓\n", fmtBytes(downloaded))
 	return nil
+}
+
+// writeChunk writes a buffer to f, updates the progress counter, and throttle-prints progress.
+// Returns the number of bytes written.
+func writeChunk(f *os.File, chunk []byte, downloaded, total int64, lastPrint *time.Time) (int64, error) {
+	if _, err := f.Write(chunk); err != nil {
+		return 0, err
+	}
+	n := int64(len(chunk))
+	if time.Since(*lastPrint) > 2*time.Second {
+		printDownloadProgress(downloaded+n, total)
+		*lastPrint = time.Now()
+	}
+	return n, nil
 }
 
 // printDownloadProgress prints the current download progress to stdout.
@@ -269,28 +279,3 @@ func fmtBytes(b int64) string {
 	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
 }
 
-// isLlamafileRunning checks if a llamafile-compatible server is on port 8080
-func isLlamafileRunning() bool {
-	client := &http.Client{Timeout: 500 * time.Millisecond}
-	resp, err := client.Get("http://localhost:8080/v1/models")
-	if err != nil {
-		return false
-	}
-	resp.Body.Close()
-	return resp.StatusCode < 500
-}
-
-// startLlamafileDaemon starts a named llamafile as background daemon.
-// Used by serve-nlp to start the LLM before opening the browser.
-func startLlamafileDaemon(path string, port int) (*exec.Cmd, error) {
-	cmd := exec.Command(path,
-		"--server",
-		"--host", "127.0.0.1",
-		"--port", strconv.Itoa(port),
-		"--nobrowser",
-	)
-	if err := cmd.Start(); err != nil {
-		return nil, err
-	}
-	return cmd, nil
-}

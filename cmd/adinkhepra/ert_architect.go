@@ -134,38 +134,45 @@ type VendorRisk struct {
 func detectDependencies(dir string) []VendorRisk {
 	var risks []VendorRisk
 
-	// Check go.mod for dependencies
 	goModPath := filepath.Join(dir, "go.mod")
 	data, err := os.ReadFile(goModPath)
 	if err != nil {
 		return risks
 	}
 
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "require") || strings.HasPrefix(line, "replace") {
+	for _, line := range strings.Split(string(data), "\n") {
+		risk, ok := parseDependencyLine(line)
+		if !ok {
 			continue
 		}
-
-		// Parse dependency lines
-		if strings.Contains(line, "/") && !strings.HasPrefix(line, "//") {
-			parts := strings.Fields(line)
-			if len(parts) >= 2 {
-				name := parts[0]
-				// Simplified risk assessment based on name patterns
-				risk := assessDependencyRisk(name)
-				if risk.Risk != "" {
-					risks = append(risks, risk)
-					if len(risks) >= 6 {
-						break
-					}
-				}
-			}
+		risks = append(risks, risk)
+		if len(risks) >= 6 {
+			break
 		}
 	}
 
 	return risks
+}
+
+// parseDependencyLine attempts to parse a single go.mod line into a VendorRisk.
+// Returns (risk, true) on success, or (zero, false) if the line should be skipped.
+func parseDependencyLine(line string) (VendorRisk, bool) {
+	line = strings.TrimSpace(line)
+	if strings.HasPrefix(line, "require") || strings.HasPrefix(line, "replace") {
+		return VendorRisk{}, false
+	}
+	if !strings.Contains(line, "/") || strings.HasPrefix(line, "//") {
+		return VendorRisk{}, false
+	}
+	parts := strings.Fields(line)
+	if len(parts) < 2 {
+		return VendorRisk{}, false
+	}
+	risk := assessDependencyRisk(parts[0])
+	if risk.Risk == "" {
+		return VendorRisk{}, false
+	}
+	return risk, true
 }
 
 // assessDependencyRisk provides basic risk classification
@@ -226,13 +233,6 @@ func detectArchitecturalFriction(dir string) {
 	// Generic friction patterns
 	printYellow(">>> HOTSPOT: DevOps Team has 'Accountable' role but limited 'Access' to Prod Keys.")
 	printRed(">>> EXPOSURE: 3rd Party Vendor has Unmonitored Write Access to CI/CD Pipeline.")
-}
-
-// hasVendorDir checks if dependencies are vendored
-func hasVendorDir(dir string) bool {
-	vendorPath := filepath.Join(dir, "vendor")
-	info, err := os.Stat(vendorPath)
-	return err == nil && info.IsDir()
 }
 
 // spinCursor displays an animated spinner

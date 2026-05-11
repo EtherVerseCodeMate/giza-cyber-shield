@@ -13,6 +13,12 @@ import (
 	"time"
 )
 
+const (
+	recContentType = "Content-Type"
+	recAppJSON     = "application/json"
+	recCORSOrigin  = "Access-Control-Allow-Origin"
+)
+
 // ActionEvent is the JSON payload sent to SSE subscribers
 type ActionEvent struct {
 	Type      string    `json:"type"`       // "action", "session_start", "session_end", "drift"
@@ -81,10 +87,10 @@ func (r *Recorder) HandleSSE(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set(recContentType, "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set(recCORSOrigin, "*")
 
 	ch := r.subscribe()
 	defer r.unsubscribe(ch)
@@ -112,8 +118,8 @@ func (r *Recorder) HandleSSE(w http.ResponseWriter, req *http.Request) {
 
 // HandleSessions returns all active ASAF sessions as JSON
 func (r *Recorder) HandleSessions(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set(recContentType, recAppJSON)
+	w.Header().Set(recCORSOrigin, "*")
 
 	sessions := r.wrapper.ListSessions()
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -124,8 +130,8 @@ func (r *Recorder) HandleSessions(w http.ResponseWriter, req *http.Request) {
 
 // HandleHistory returns action history for a specific session
 func (r *Recorder) HandleHistory(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set(recContentType, recAppJSON)
+	w.Header().Set(recCORSOrigin, "*")
 
 	sessionID := req.URL.Query().Get("session_id")
 	if sessionID == "" {
@@ -243,7 +249,7 @@ func (r *Recorder) HandleRecord(w http.ResponseWriter, req *http.Request) {
 		Details:   fmt.Sprintf("method=%s latency=%dms", entry.MCPMethod, entry.LatencyMS),
 	})
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(recContentType, recAppJSON)
 	json.NewEncoder(w).Encode(RecordResponse{
 		DAGNodeID: node.ID,
 		Recorded:  true,
