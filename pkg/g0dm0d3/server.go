@@ -132,28 +132,11 @@ assistant. Concise, technically precise, DoD-aware.`,
 	}
 	defer resp.Body.Close()
 
-	// Stream SSE events to the browser
 	buf := make([]byte, 4096)
 	for {
 		n, err := resp.Body.Read(buf)
 		if n > 0 {
-			chunk := string(buf[:n])
-			for _, line := range strings.Split(chunk, "\n") {
-				if strings.HasPrefix(line, "data: ") {
-					data := strings.TrimPrefix(line, "data: ")
-					var event map[string]interface{}
-					if json.Unmarshal([]byte(data), &event) == nil {
-						if delta, ok := event["delta"].(map[string]interface{}); ok {
-							if text, ok := delta["text"].(string); ok {
-								fmt.Fprintf(w, sseDataFmt, text)
-								if flusher, ok := w.(http.Flusher); ok {
-									flusher.Flush()
-								}
-							}
-						}
-					}
-				}
-			}
+			processStreamChunk(string(buf[:n]), w)
 		}
 		if err == io.EOF {
 			break
@@ -164,6 +147,33 @@ assistant. Concise, technically precise, DoD-aware.`,
 	}
 	fmt.Fprintf(w, sseDone)
 	return nil
+}
+
+// processStreamChunk parses one read-buffer chunk from an Anthropic SSE stream
+// and writes any text deltas to w.
+func processStreamChunk(chunk string, w io.Writer) {
+	for _, line := range strings.Split(chunk, "\n") {
+		if !strings.HasPrefix(line, "data: ") {
+			continue
+		}
+		data := strings.TrimPrefix(line, "data: ")
+		var event map[string]interface{}
+		if json.Unmarshal([]byte(data), &event) != nil {
+			continue
+		}
+		delta, ok := event["delta"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		text, ok := delta["text"].(string)
+		if !ok {
+			continue
+		}
+		fmt.Fprintf(w, sseDataFmt, text)
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+	}
 }
 
 // ── Provider 2: OpenRouter ──────────────────────────────
@@ -333,7 +343,7 @@ func NewServer(dagStore *dag.PersistentMemory) *G0DM0D3Server {
 func (s *G0DM0D3Server) HandleChat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Headers", headerContentType)
 
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
@@ -357,7 +367,7 @@ func (s *G0DM0D3Server) HandleChat(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 
 	if req.Stream {
-		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set(headerContentType, "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
 		if err := s.Provider.StreamChat(history, w); err != nil {
