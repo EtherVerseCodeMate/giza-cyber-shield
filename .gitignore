@@ -81,6 +81,13 @@ pkg/llm/*/blobs/
 *.kpkg
 *.tar.gz
 
+# Stripped from history (2026-05-11) — too large for GitHub
+docs/cyber-brain/
+docs/top-secret/
+data/vulnerabilities.db
+*.exe~
+tools/python4pentesters/Downloads/
+
 # CVE Database (fetched on demand via `make fetch-cve` or build)
 # Run: make fetch-cve OR data/cve-database/fetch-cve-data.sh
 data/cve-database/cve-data/
