@@ -1,1 +1,3 @@
-scan_id,client,severity,title,description,remediation,causal_link_id,stig_reference,risk_score
+version https://git-lfs.github.com/spec/v1
+oid sha256:891acac9ac1d79d03a6603e8317a7a8baf150d50ff0f31777d24e5e2d9c2bdb3
+size 96

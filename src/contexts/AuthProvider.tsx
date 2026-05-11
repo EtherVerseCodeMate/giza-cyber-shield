@@ -98,7 +98,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
 
     // Dev bypass: any email + password "dev" in ADINKHEPRA_DEV mode
-    if (import.meta.env.VITE_ASAF_DEV === '1' || import.meta.env.DEV) {
+    if (process.env.NEXT_PUBLIC_ASAF_DEV === '1' || process.env.NODE_ENV === 'development') {
       const devUser = buildOfflineUser(email, 'dev-mode');
       localStorage.setItem(LICENSE_STORAGE_KEY, 'dev-mode');
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(devUser));
