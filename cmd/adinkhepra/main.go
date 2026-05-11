@@ -845,19 +845,55 @@ func scanCmd(args []string, mode string) {
 	}
 
 	apiURL := asafAPIURL()
+	client := &http.Client{Timeout: 120 * time.Second}
 
 	// ── Step 1: Run the compliance scan ──────────────────────────────────────
+	printScanBanner(*target, *profile, mode)
+	queued := initiateScan(client, apiURL, *target, *profile, *apiKey, mode)
+
+	// ── Step 2: Poll until scan completes ────────────────────────────────────
+	scanStatus := pollScanCompletion(client, apiURL, queued.ScanID, *apiKey)
+	printScanResults(queued.ScanID, scanStatus)
+
+	// For plain scan, stop here.
+	if mode != "certify" {
+		fmt.Println("  Run 'asaf certify --target', to issue your ADINKHEPRA badge.")
+		return
+	}
+
+	// ── Step 3: Create Stripe Checkout Session ────────────────────────────────
+	fmt.Printf("  [3/4] Creating secure payment session...\n")
+
+	machineID := getMachineID()
+	sessionURL, sessionID, err := createStripeCheckoutSession(machineID, queued.ScanID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  [ERROR] Stripe session creation failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	printPaymentBox(sessionURL, sessionID, machineID)
+	openBrowser(sessionURL)
+
+	// ── Step 4: Poll for license activation ──────────────────────────────────
+	pollLicenseActivation(client, apiURL, *apiKey, *target)
+}
+
+// printScanBanner outputs the initial scan header.
+func printScanBanner(target, profile, mode string) {
 	fmt.Printf("\n  ADINKHEPRA — Agentic Security Attestation Framework\n")
 	fmt.Printf("  ─────────────────────────────────────────────────────\n")
-	fmt.Printf("  Target  : %s\n", *target)
-	fmt.Printf("  Profile : %s\n", coalesce(*profile, "default"))
+	fmt.Printf("  Target  : %s\n", target)
+	fmt.Printf("  Profile : %s\n", coalesce(profile, "default"))
 	fmt.Printf("  Mode    : %s\n\n", mode)
 	fmt.Printf("  [1/4] Initiating compliance scan...\n")
+}
 
+// initiateScan POSTs the scan request and returns the queued scan metadata.
+func initiateScan(client *http.Client, apiURL, target, profile, apiKey, mode string) scanQueued {
 	scanPayload, _ := json.Marshal(map[string]interface{}{
-		"target_url": *target,
+		"target_url": target,
 		"scan_type":  mode,
-		"profile":    *profile,
+		"profile":    profile,
 	})
 
 	req, err := http.NewRequest(http.MethodPost, apiURL+"/api/v1/onboarding/scan", bytes.NewReader(scanPayload))
@@ -866,11 +902,10 @@ func scanCmd(args []string, mode string) {
 		os.Exit(1)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if *apiKey != "" {
-		req.Header.Set(headerAPIKey, *apiKey)
+	if apiKey != "" {
+		req.Header.Set(headerAPIKey, apiKey)
 	}
 
-	client := &http.Client{Timeout: 120 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  [ERROR] scan request failed: %v\n", err)
@@ -888,8 +923,12 @@ func scanCmd(args []string, mode string) {
 		fmt.Fprintf(os.Stderr, "  [ERROR] server returned no scan_id (status %d)\n", resp.StatusCode)
 		os.Exit(1)
 	}
+	return queued
+}
 
-	// Poll GET /api/v1/onboarding/scan/:id until the async scan finishes.
+// pollScanCompletion polls GET /api/v1/onboarding/scan/:id until the scan
+// finishes or the 90-second deadline expires.
+func pollScanCompletion(client *http.Client, apiURL, scanID, apiKey string) scanStatusResp {
 	fmt.Printf("  [2/4] Waiting for scan to complete")
 	var scanStatus scanStatusResp
 	pollDeadline := time.Now().Add(90 * time.Second)
@@ -897,9 +936,9 @@ func scanCmd(args []string, mode string) {
 		time.Sleep(2 * time.Second)
 		fmt.Printf(".")
 		statusReq, _ := http.NewRequest(http.MethodGet,
-			apiURL+"/api/v1/onboarding/scan/"+queued.ScanID, nil)
-		if *apiKey != "" {
-			statusReq.Header.Set(headerAPIKey, *apiKey)
+			apiURL+"/api/v1/onboarding/scan/"+scanID, nil)
+		if apiKey != "" {
+			statusReq.Header.Set(headerAPIKey, apiKey)
 		}
 		statusResp, err := client.Do(statusReq)
 		if err != nil {
@@ -912,38 +951,27 @@ func scanCmd(args []string, mode string) {
 		}
 	}
 	fmt.Printf(" done.\n")
+	return scanStatus
+}
 
-	// Build a display-friendly score: server returns risk_score (0–100, higher=riskier).
-	// Convert to a compliance score (100 - risk) so higher feels better to the user.
-	displayScore := 100 - scanStatus.RiskScore
+// printScanResults outputs the compliance results box.
+func printScanResults(scanID string, s scanStatusResp) {
+	displayScore := 100 - s.RiskScore
 	if displayScore < 0 {
 		displayScore = 0
 	}
 
 	fmt.Printf("\n  ┌─ Compliance Results ──────────────────────────────┐\n")
-	fmt.Printf("  │  Scan ID  : %-37s│\n", queued.ScanID)
+	fmt.Printf("  │  Scan ID  : %-37s│\n", scanID)
 	fmt.Printf("  │  Score    : %-3d/100                                │\n", displayScore)
-	fmt.Printf("  │  Passed   : %-3d controls                           │\n", scanStatus.Results.PassedChecks)
-	fmt.Printf("  │  Failed   : %-3d controls                           │\n", scanStatus.Results.FailedChecks)
-	fmt.Printf("  │  Status   : %-37s│\n", scanStatus.Status)
+	fmt.Printf("  │  Passed   : %-3d controls                           │\n", s.Results.PassedChecks)
+	fmt.Printf("  │  Failed   : %-3d controls                           │\n", s.Results.FailedChecks)
+	fmt.Printf("  │  Status   : %-37s│\n", s.Status)
 	fmt.Printf("  └───────────────────────────────────────────────────┘\n\n")
+}
 
-	// For plain scan, stop here.
-	if mode != "certify" {
-		fmt.Println("  Run 'asaf certify --target', to issue your ADINKHEPRA badge.")
-		return
-	}
-
-	// ── Step 2: Create Stripe Checkout Session ────────────────────────────────
-	fmt.Printf("  [3/4] Creating secure payment session...\n")
-
-	machineID := getMachineID()
-	sessionURL, sessionID, err := createStripeCheckoutSession(machineID, queued.ScanID)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "  [ERROR] Stripe session creation failed: %v\n", err)
-		os.Exit(1)
-	}
-
+// printPaymentBox displays the Stripe checkout session info.
+func printPaymentBox(sessionURL, sessionID, machineID string) {
 	const boxBlank = "  │                                                   │\n"
 	fmt.Printf("\n  ┌─ Payment Required ────────────────────────────────┐\n")
 	fmt.Printf("  │  ADINKHEPRA Certification Badge — $99/month       │\n")
@@ -955,11 +983,11 @@ func scanCmd(args []string, mode string) {
 	fmt.Printf("  │  Session : %-37s│\n", sessionID)
 	fmt.Printf("  │  Token   : %-37s│\n", machineID)
 	fmt.Printf("  └───────────────────────────────────────────────────┘\n\n")
+}
 
-	// Try to open in default browser
-	openBrowser(sessionURL)
-
-	// ── Step 3: Poll for license activation ──────────────────────────────────
+// pollLicenseActivation polls the license status endpoint for up to 30 minutes
+// waiting for Stripe webhook activation.
+func pollLicenseActivation(client *http.Client, apiURL, apiKey, target string) {
 	fmt.Printf("  [4/4] Waiting for payment confirmation")
 	fmt.Printf(" (press Ctrl+C to exit and re-run later)...\n\n")
 
@@ -969,8 +997,8 @@ func scanCmd(args []string, mode string) {
 		fmt.Printf("  .")
 
 		licReq, _ := http.NewRequest(http.MethodGet, apiURL+"/api/v1/license/status", nil)
-		if *apiKey != "" {
-			licReq.Header.Set(headerAPIKey, *apiKey)
+		if apiKey != "" {
+			licReq.Header.Set(headerAPIKey, apiKey)
 		}
 		licResp, err := client.Do(licReq)
 		if err != nil {
@@ -981,23 +1009,28 @@ func scanCmd(args []string, mode string) {
 		licResp.Body.Close()
 
 		if lic.Valid {
-			fmt.Printf("\n\n  ╔══════════════════════════════════════════════════╗\n")
-			fmt.Printf("  ║        ADINKHEPRA BADGE ISSUED                  ║\n")
-			fmt.Printf("  ╠══════════════════════════════════════════════════╣\n")
-			fmt.Printf("  ║  License   : %-35s║\n", lic.LicenseID)
-			fmt.Printf("  ║  Tier      : %-35s║\n", lic.LicenseTier)
-			fmt.Printf("  ║  Expires   : %-35s║\n", lic.ExpiresAt)
-			fmt.Printf("  ╠══════════════════════════════════════════════════╣\n")
-			fmt.Printf("  ║  Certificate delivered to your email.           ║\n")
-			fmt.Printf("  ║  Verify:  asaf verify --cert %s\n", lic.LicenseID)
-			fmt.Printf("  ╚══════════════════════════════════════════════════╝\n\n")
+			printCertBadge(lic)
 			return
 		}
 	}
 
 	fmt.Printf("\n\n  Payment not confirmed within 30 minutes.\n")
 	fmt.Printf("  Your session URL remains active — complete payment and re-run:\n")
-	fmt.Printf("    asaf certify --target %s\n\n", *target)
+	fmt.Printf("    asaf certify --target %s\n\n", target)
+}
+
+// printCertBadge outputs the certification badge box after successful payment.
+func printCertBadge(lic licenseStatus) {
+	fmt.Printf("\n\n  ╔══════════════════════════════════════════════════╗\n")
+	fmt.Printf("  ║        ADINKHEPRA BADGE ISSUED                  ║\n")
+	fmt.Printf("  ╠══════════════════════════════════════════════════╣\n")
+	fmt.Printf("  ║  License   : %-35s║\n", lic.LicenseID)
+	fmt.Printf("  ║  Tier      : %-35s║\n", lic.LicenseTier)
+	fmt.Printf("  ║  Expires   : %-35s║\n", lic.ExpiresAt)
+	fmt.Printf("  ╠══════════════════════════════════════════════════╣\n")
+	fmt.Printf("  ║  Certificate delivered to your email.           ║\n")
+	fmt.Printf("  ║  Verify:  asaf verify --cert %s\n", lic.LicenseID)
+	fmt.Printf("  ╚══════════════════════════════════════════════════╝\n\n")
 }
 
 // createStripeCheckoutSession creates a Stripe Checkout Session via the API.
