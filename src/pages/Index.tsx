@@ -22,10 +22,7 @@ import { SecurityEventsPanel } from "@/components/SecurityEventsPanel";
 import { UserManagement } from "@/components/UserManagement";
 import { AuditLog } from "@/components/AuditLog";
 import { RealTimeMetrics } from "@/components/RealTimeMetrics";
-import { LiveThreatFeed } from "@/components/LiveThreatFeed";
-import { SecurityDashboard } from "@/components/SecurityDashboard";
 import { IndustryIntegrationHub } from "@/components/integrations/IndustryIntegrationHub";
-import { OrganizationSwitcher } from "@/components/OrganizationSwitcher";
 import { useOrganizationContext } from "@/components/OrganizationProvider";
 import { ThreatFeedManager } from "@/components/ThreatFeedManager";
 import { AIThreatAnalyzer } from "@/components/AIThreatAnalyzer";
@@ -34,12 +31,12 @@ import { AlertDashboard } from "@/components/AlertDashboard";
 import FeatureGate from "@/components/FeatureGate";
 import { TrialOnboarding } from "@/components/onboarding/TrialOnboarding";
 import { UsageTracker, useUsageTracker } from "@/components/UsageTracker";
-import { Shield, Brain, Activity, Globe, Container, Network, LogOut, Users, FileText, Home, BarChart3, Lock, Plug, Target, Bell, Bot, Scale, CreditCard, Crown } from "lucide-react";
+import { Shield, Brain, Activity, Globe, Network, LogOut, Users, FileText, Home, BarChart3, Lock, Plug, Target, Bell, Bot, Scale, CreditCard, Crown } from "lucide-react";
 import { AISecurityAgent } from "@/components/ai/AISecurityAgent";
 import { AutonomousComplianceAgent } from "@/components/ai/AutonomousComplianceAgent";
 import { AIAgentDeployment } from '@/components/deployment/AIAgentDeployment';
 import { EnterpriseSecurityDashboard } from '@/components/EnterpriseSecurityDashboard';
-import UserTierManager from "@/components/admin/UserTierManager";
+
 import { SplunkDataFeed } from '@/components/SplunkDataFeed';
 import { EmergencyResponseManager } from '@/components/EmergencyResponseManager';
 import { IntegrationStatusWidget, IntegrationQuickActions } from '@/components/IntegrationStatusWidget';
@@ -51,7 +48,7 @@ const Index = () => {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const { profile, loading: profileLoading, canManageUsers } = useUserProfile();
-  const { currentOrganization, subscription } = useOrganizationContext();
+  useOrganizationContext();
   const { trackFeatureAccess } = useUsageTracker();
 
   useEffect(() => {
@@ -75,7 +72,7 @@ const Index = () => {
         <div className="mx-auto flex h-20 max-w-[1600px] items-center justify-between px-8">
           <div className="flex items-center gap-10">
             {/* Branding Core */}
-            <div className="flex items-center gap-4 group cursor-pointer" onClick={() => setActiveTab("dashboard")}>
+            <div className="flex items-center gap-4 group cursor-pointer" role="button" tabIndex={0} onClick={() => setActiveTab("dashboard")} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setActiveTab("dashboard"); }}>
               <div className="relative">
                 <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full group-hover:bg-primary/40 transition-all" />
                 <img
@@ -398,7 +395,9 @@ const Index = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div
                     className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 cursor-pointer hover:bg-slate-700/50 transition-colors"
+                    role="button" tabIndex={0}
                     onClick={() => setActiveTab("users")}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setActiveTab("users"); }}
                   >
                     <div className="flex items-center space-x-2">
                       <Lock className="h-5 w-5 text-blue-400" />
@@ -410,7 +409,9 @@ const Index = () => {
                   </div>
                   <div
                     className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 cursor-pointer hover:bg-slate-700/50 transition-colors"
+                    role="button" tabIndex={0}
                     onClick={() => setActiveTab("alerts")}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setActiveTab("alerts"); }}
                   >
                     <div className="flex items-center space-x-2">
                       <Activity className="h-5 w-5 text-purple-400" />
@@ -422,7 +423,9 @@ const Index = () => {
                   </div>
                   <div
                     className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 cursor-pointer hover:bg-slate-700/50 transition-colors"
+                    role="button" tabIndex={0}
                     onClick={() => navigate('/compliance-automation')}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/compliance-automation'); }}
                   >
                     <div className="flex items-center space-x-2">
                       <FileText className="h-5 w-5 text-cyan-400" />
@@ -434,7 +437,9 @@ const Index = () => {
                   </div>
                   <div
                     className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 cursor-pointer hover:bg-slate-700/50 transition-colors"
+                    role="button" tabIndex={0}
                     onClick={() => setActiveTab("alerts")}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setActiveTab("alerts"); }}
                   >
                     <div className="flex items-center space-x-2">
                       <Shield className="h-5 w-5 text-orange-400" />
@@ -526,7 +531,9 @@ const Index = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div
                   className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 cursor-pointer hover:bg-slate-700/50 transition-colors"
+                  role="button" tabIndex={0}
                   onClick={() => navigate('/dod')}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/dod'); }}
                 >
                   <div className="flex items-center space-x-2">
                     <Shield className="h-5 w-5 text-orange-400" />
@@ -538,7 +545,9 @@ const Index = () => {
                 </div>
                 <div
                   className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 cursor-pointer hover:bg-slate-700/50 transition-colors"
+                  role="button" tabIndex={0}
                   onClick={() => navigate('/infrastructure')}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/infrastructure'); }}
                 >
                   <div className="flex items-center space-x-2">
                     <Network className="h-5 w-5 text-cyan-400" />
@@ -550,7 +559,9 @@ const Index = () => {
                 </div>
                 <div
                   className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 cursor-pointer hover:bg-slate-700/50 transition-colors"
+                  role="button" tabIndex={0}
                   onClick={() => navigate('/security')}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/security'); }}
                 >
                   <div className="flex items-center space-x-2">
                     <Lock className="h-5 w-5 text-purple-400" />
@@ -562,7 +573,9 @@ const Index = () => {
                 </div>
                 <div
                   className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 cursor-pointer hover:bg-slate-700/50 transition-colors"
+                  role="button" tabIndex={0}
                   onClick={() => navigate('/compliance-automation')}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/compliance-automation'); }}
                 >
                   <div className="flex items-center space-x-2">
                     <Scale className="h-5 w-5 text-green-400" />
