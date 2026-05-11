@@ -39,7 +39,7 @@ import {
 	forwardSecurityEvent
 } from './forwarding.js';
 
-import { ml_dsa65 } from "@noble/post-quantum/ml-dsa";
+import { ml_dsa87 } from "@noble/post-quantum/ml-dsa";
 
 export default {
 	// Scheduled trigger for telemetry aggregation (hourly)
@@ -253,15 +253,15 @@ async function handleBeacon(request, env, corsHeaders) {
 
 		if (signatureHex && env.TELEMETRY_PUBLIC_KEY) {
 			try {
-				if (env.TELEMETRY_PUBLIC_KEY.length !== 2624) { // ML-DSA-65 PublicKey Size is 1312 bytes -> 2624 hex
-					console.error("Configuration Error: Invalid Public Key Length (Expected 2624 for ML-DSA-65)");
+				if (env.TELEMETRY_PUBLIC_KEY.length !== 3904) { // ML-DSA-87 (Dilithium3) PublicKey Size is 1952 bytes -> 3904 hex
+					console.error(`Configuration Error: Invalid Public Key Length (Expected 3904 for ML-DSA-87, got ${env.TELEMETRY_PUBLIC_KEY.length})`);
 				} else {
 					const pubKeyBytes = new Uint8Array(env.TELEMETRY_PUBLIC_KEY.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
 					const sigBytes = new Uint8Array(signatureHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
 					const msgBytes = new TextEncoder().encode(rawBody);
 
-					// Verify using @noble/post-quantum
-					if (ml_dsa65.verify(sigBytes, msgBytes, pubKeyBytes)) {
+					// Verify using @noble/post-quantum (ML-DSA-87 / Dilithium3)
+					if (ml_dsa87.verify(pubKeyBytes, msgBytes, sigBytes)) {
 						signatureValid = 1;
 					} else {
 						console.warn(`[Security] Invalid ML-DSA-65 signature for beacon: ${beaconId}`);
