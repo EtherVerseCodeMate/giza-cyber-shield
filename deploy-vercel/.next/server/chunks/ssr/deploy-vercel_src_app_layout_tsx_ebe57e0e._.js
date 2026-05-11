@@ -1,3 +1,0 @@
-module.exports=[68265,a=>{"use strict";var b=a.i(34204);function c({children:a}){return(0,b.jsxs)("html",{lang:"en",suppressHydrationWarning:!0,children:[(0,b.jsxs)("head",{children:[(0,b.jsx)("meta",{charSet:"UTF-8"}),(0,b.jsx)("meta",{name:"viewport",content:"width=device-width, initial-scale=1.0"})]}),(0,b.jsx)("body",{className:"min-h-screen bg-background antialiased",children:a})]})}a.s(["default",()=>c,"metadata",0,{title:"KHEPRA Protocol - Master Operator Console",description:"Sovereign Security Operations Center"}])}];
-
-//# sourceMappingURL=deploy-vercel_src_app_layout_tsx_ebe57e0e._.js.map
