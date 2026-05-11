@@ -69,8 +69,7 @@ async function triggerScan(target: string): Promise<string> {
     scan_type: 'eval',
     metadata: { source: 'onboarding', product: 'asaf' },
   };
-  const env = (import.meta as any)?.env ?? {};
-  const profile = process.env.NEXT_PUBLIC_ASAF_SCAN_PROFILE || env.VITE_ASAF_SCAN_PROFILE || env.NEXT_PUBLIC_ASAF_SCAN_PROFILE;
+  const profile = process.env.NEXT_PUBLIC_ASAF_SCAN_PROFILE;
   if (profile) body.profile = profile;
 
   // Call same-origin Next.js API route — proxies server-side to the ASAF API.
