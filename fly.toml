@@ -7,7 +7,13 @@ primary_region = "iad" # US East (Ashburn, VA)
 
 [env]
   PORT = "8080"
+  TLS_ENABLED = "false"
   PYTHONUNBUFFERED = "1"
+  # Allow eval/basic scans without a paid license (public funnel)
+  ASAF_ALLOW_EVAL_WITHOUT_LICENSE = "true"
+  # LLM provider — set to "none" so SEKHEM starts fast without waiting for Ollama.
+  # BYOK OpenRouter path in /api/v1/mcp/ask is the demo LLM path.
+  LLM_PROVIDER = "none"
   ADINKHEPRA_ML_FEATURE_DIM = "128"
   ADINKHEPRA_ML_HIDDEN_DIM = "64"
   ADINKHEPRA_ML_LATENT_DIM = "32"

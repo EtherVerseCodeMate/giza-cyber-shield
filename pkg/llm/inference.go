@@ -11,8 +11,11 @@
 package llm
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -39,6 +42,80 @@ func (b *Backend) Stop() {
 	if b != nil && b.cmd != nil && b.cmd.Process != nil {
 		b.cmd.Process.Kill() //nolint:errcheck
 	}
+}
+
+// defaultChatModel returns a sensible default chat model for each known backend.
+func (b *Backend) defaultChatModel() string {
+	switch b.Name {
+	case "OpenRouter", "OpenRouter/BYOK":
+		return "openai/gpt-4o-mini"
+	case "Ollama":
+		return "phi4"
+	default:
+		return "phi4"
+	}
+}
+
+// Chat sends a single chat completions request (OpenAI-compatible API) and returns
+// the assistant's reply text. system may be empty. The request times out after 60s.
+func (b *Backend) Chat(ctx context.Context, system, user string) (string, error) {
+	messages := make([]map[string]string, 0, 2)
+	if system != "" {
+		messages = append(messages, map[string]string{"role": "system", "content": system})
+	}
+	messages = append(messages, map[string]string{"role": "user", "content": user})
+
+	body, err := json.Marshal(map[string]interface{}{
+		"model":      b.defaultChatModel(),
+		"messages":   messages,
+		"max_tokens": 1024,
+	})
+	if err != nil {
+		return "", fmt.Errorf("llm chat marshal: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		b.BaseURL+"/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("llm chat request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if b.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+b.APIKey)
+	}
+
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("llm chat do: %w", err)
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("llm chat read: %w", err)
+	}
+
+	var result struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return "", fmt.Errorf("llm chat decode: %w", err)
+	}
+	if result.Error != nil {
+		return "", fmt.Errorf("llm backend error: %s", result.Error.Message)
+	}
+	if len(result.Choices) == 0 {
+		return "", fmt.Errorf("llm returned no choices")
+	}
+	return result.Choices[0].Message.Content, nil
 }
 
 // Detect probes available LLM backends in priority order and returns the

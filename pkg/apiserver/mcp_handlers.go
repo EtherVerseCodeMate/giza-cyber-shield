@@ -30,6 +30,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/llm"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/mcp"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/supabase"
 )
@@ -76,10 +77,8 @@ func (s *Server) setupMCPRoutes(v1 *gin.RouterGroup) {
 		mcp.GET("/health", s.handleMCPHealth)
 		mcp.GET("/tools", s.handleMCPListTools)
 		mcp.POST("/tool", s.handleMCPToolCall)
-
-		// ⭐ Natural Language Security Query — the ChatGPT moment
-		// POST /api/v1/mcp/ask  {"query": "Is my network compromised?"}
-		mcp.POST("/ask", s.handleMCPNaturalLanguageQuery)
+		// /ask is registered on the public route group in setupRoutes()
+		// so it's accessible without authentication for the AI assistant demo.
 
 		// Sessions
 		sessions := mcp.Group("/sessions")
@@ -451,7 +450,7 @@ func (s *Server) handleMCPNaturalLanguageQuery(c *gin.Context) {
 	}
 
 	// ── Path 1: Full NL processing via pkg/mcp.NLProcessor (LLM wired) ─────────
-	if s.nlProcessor != nil {
+	if s.nlProcessor != nil && c.GetHeader("X-OpenRouter-Key") == "" {
 		nlResp, err := s.nlProcessor.Process(c.Request.Context(), mcp.NLQuery{
 			Text:      req.Query,
 			SessionID: c.GetHeader("X-Session-ID"),
@@ -493,7 +492,46 @@ func (s *Server) handleMCPNaturalLanguageQuery(c *gin.Context) {
 			c.JSON(http.StatusOK, nlPayload)
 			return
 		}
-		// LLM call failed — fall through to keyword routing
+		// LLM call failed — fall through to BYOK path or keyword routing
+	}
+
+	// ── Path 1.5: BYOK OpenRouter via X-OpenRouter-Key header ────────────────
+	// Activated when the caller supplies their own OpenRouter API key.
+	// Bypasses Ollama dependency entirely — zero infra required on the server.
+	if userKey := c.GetHeader("X-OpenRouter-Key"); userKey != "" {
+		backend, bErr := llm.DetectWithKey(c.Request.Context(), userKey)
+		if bErr == nil {
+			const systemPrompt = "You are ASAF — the Agentic Security Attestation Framework, " +
+				"a cybersecurity expert specializing in CMMC, NIST 800-171, STIG compliance, " +
+				"and AI agent security attestation. Answer security questions clearly and " +
+				"concisely. Provide actionable remediation steps with specific control IDs " +
+				"(e.g., IR.L3-3.6.1e, AC.L2-3.1.1) when relevant. Keep responses under 400 words."
+			answer, chatErr := backend.Chat(c.Request.Context(), systemPrompt, req.Query)
+			if chatErr == nil {
+				byokPayload := gin.H{
+					"answer":       answer,
+					"tools_called": []interface{}{},
+					"suggestions": []string{
+						"What are my top remediation priorities?",
+						"Run a compliance scan against CMMC Level 2",
+						"Explain the ADINKHEPRA certification process",
+					},
+					"dag_node_id": dagNodeID,
+					"duration_ms": time.Since(start).Milliseconds(),
+					"engine":      "openrouter_byok_v1",
+					"model":       backend.Name,
+					"protocol":    protocolVersion,
+				}
+				sigHex, pubKeyHex, signed := s.signPayload(byokPayload)
+				byokPayload["pqc_signed"] = signed
+				byokPayload["pqc_signature"] = sigHex
+				byokPayload["pqc_public_key"] = pubKeyHex
+				byokPayload["pqc_algorithm"] = pqcAlgorithm
+				c.JSON(http.StatusOK, byokPayload)
+				return
+			}
+			// BYOK call failed — fall through to keyword routing
+		}
 	}
 
 	// ── Path 2: Fast keyword routing (no LLM required) ───────────────────────

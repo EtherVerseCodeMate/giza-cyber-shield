@@ -1,13 +1,22 @@
 #!/bin/bash
-# Khepra Secure Gateway & SouHimBou AI Entrypoint
+# Khepra SEKHEM Gateway — Fly.io container entrypoint
+#
+# Architecture: SEKHEM (Go, port 8080) is the primary API gateway.
+# Python ML anomaly service runs on internal port 8081 as a sidecar.
+# Fly.io routes external HTTPS traffic to internal port 8080.
+# TLS termination is handled by Fly.io — SEKHEM runs plain HTTP inside the container.
 
-# Start the Go Khepra Secure Gateway in the background
-echo "Starting Khepra Secure Gateway on port 8443..."
-/usr/local/bin/khepra-gateway -addr :8443 &
+set -e
 
-# Wait for gateway to be ready
-sleep 2
+# Start Python ML anomaly service on internal port 8081 (background sidecar)
+echo "Starting SouHimBou ML anomaly service on port 8081 (internal)..."
+uvicorn services.ml_anomaly.api:app \
+    --host 127.0.0.1 \
+    --port 8081 \
+    --workers 2 \
+    --log-level warning &
 
-# Start the SouHimBou AI Python API
-echo "Starting SouHimBou AI API on port 8080..."
-exec uvicorn services.ml_anomaly.api:app --host 0.0.0.0 --port 8080 --workers 2
+# Start SEKHEM gateway as the primary service on port 8080
+# PORT and TLS_ENABLED are injected by Fly.io via [env] in fly.toml.
+echo "Starting SEKHEM gateway on port ${PORT:-8080}..."
+exec /usr/local/bin/nouchix-motherboard
