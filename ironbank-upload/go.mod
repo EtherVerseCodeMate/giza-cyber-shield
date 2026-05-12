@@ -4,7 +4,7 @@ go 1.25.3
 
 require (
 	github.com/cloudflare/circl v1.6.3
-	github.com/fsnotify/fsnotify v1.9.0
+	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-pdf/fpdf v0.9.0
 	github.com/golang-jwt/jwt/v5 v5.3.0
@@ -12,17 +12,17 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/masterzen/winrm v0.0.0-20250927112105-5f8e6c707321
 	github.com/mikesmitty/edkey v0.0.0-20170222072505-3356ea4e686a
-	github.com/xuri/excelize/v2 v2.10.0
-	golang.org/x/crypto v0.46.0
-	golang.org/x/sys v0.39.0
-	google.golang.org/grpc v1.59.0
-	modernc.org/sqlite v1.44.3
-	tailscale.com v1.88.1
+	github.com/xuri/excelize/v2 v2.10.1
+	golang.org/x/crypto v0.50.0
+	golang.org/x/sys v0.44.0
+	google.golang.org/grpc v1.80.0
+	modernc.org/sqlite v1.50.0
+	tailscale.com v1.98.1
 )
 
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
-	github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358 // indirect
+	github.com/Azure/go-ntlmssp v0.1.1 // indirect
 	github.com/ChrisTrenkamp/goxpath v0.0.0-20210404020558-97928f7e12b6 // indirect
 	github.com/akutz/memconn v0.1.0 // indirect
 	github.com/alexbrainman/sspi v0.0.0-20231016080023-1a75b4708caa // indirect
@@ -121,7 +121,7 @@ require (
 	golang.org/x/mod v0.30.0 // indirect
 	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/term v0.38.0 // indirect
+	golang.org/x/term v0.42.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
 	golang.org/x/tools v0.39.0 // indirect
