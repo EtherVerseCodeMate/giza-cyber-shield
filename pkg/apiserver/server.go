@@ -171,6 +171,11 @@ func (s *Server) setupRoutes() {
 	pubV1.POST("/onboarding/scan", s.handleTriggerScan)
 	pubV1.GET("/onboarding/scan/:id", s.handleGetScanStatus)
 
+	// NL security query — public so the AI assistant is accessible without auth.
+	// BYOK path uses the caller's own OpenRouter key; keyword-router path exposes
+	// no sensitive data. Authenticated routes (tools, audit, sessions) stay on v1.
+	pubV1.POST("/mcp/ask", s.handleMCPNaturalLanguageQuery)
+
 	// Stripe webhook — public, no API-key auth. Security is HMAC via STRIPE_WEBHOOK_SECRET.
 	pubV1.POST("/stripe/webhook", s.handleStripeWebhook)
 
