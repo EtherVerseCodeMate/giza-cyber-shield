@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { useOpenRouterKey } from '@/hooks/useOpenRouterKey';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -52,6 +53,12 @@ const EmptyState = () => (
   </div>
 );
 
+function bubbleClass(msg: Message): string {
+  if (msg.role === 'user') return 'bg-primary/15 text-foreground rounded-tr-none';
+  if (msg.isError) return 'bg-destructive/15 text-destructive rounded-tl-none border border-destructive/20';
+  return 'bg-secondary text-foreground rounded-tl-none';
+}
+
 interface MessageBubbleProps {
   msg: Message;
 }
@@ -82,11 +89,7 @@ const MessageBubble = ({ msg }: MessageBubbleProps) => (
       <div
         className={cn(
           'px-3 py-2 rounded-lg text-xs leading-relaxed whitespace-pre-wrap break-words',
-          msg.role === 'user'
-            ? 'bg-primary/15 text-foreground rounded-tr-none'
-            : msg.isError
-              ? 'bg-destructive/15 text-destructive rounded-tl-none border border-destructive/20'
-              : 'bg-secondary text-foreground rounded-tl-none'
+          bubbleClass(msg)
         )}
       >
         {msg.text}
@@ -117,6 +120,7 @@ const MAX_MESSAGES = 20;
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const NLChatPanel = () => {
+  const { apiKey: orKey, hasKey: hasOrKey } = useOpenRouterKey();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -157,6 +161,7 @@ const NLChatPanel = () => {
       const pqcToken = localStorage.getItem('khepra_pqc_token');
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (pqcToken) headers['X-Khepra-PQC-Token'] = pqcToken;
+      if (hasOrKey) headers['X-OpenRouter-Key'] = orKey;
 
       const res = await fetch('/api/v1/mcp/ask', {
         method: 'POST',

@@ -27,7 +27,11 @@ import (
 type Backend struct {
 	BaseURL string
 	Name    string
-	cmd     *exec.Cmd // non-nil if we started this process
+	// APIKey is set when the backend requires per-request authentication.
+	// For OpenRouter BYOK this holds the caller-supplied sk-or-* key.
+	// Empty string means: use the OPENROUTER_API_KEY env var or no auth needed.
+	APIKey string
+	cmd    *exec.Cmd // non-nil if we started this process
 }
 
 // Stop terminates a backend process we started. No-op if externally managed.
@@ -84,6 +88,22 @@ func Detect(ctx context.Context) (*Backend, error) {
 			"  → Local: install Ollama (ollama.com) or run 'asaf llm install'\n" +
 			"  → Cloud: set OPENROUTER_API_KEY for instant access to Claude/GPT-4/Mistral",
 	)
+}
+
+// DetectWithKey behaves like Detect but accepts a caller-supplied OpenRouter API
+// key that takes precedence over the OPENROUTER_API_KEY environment variable.
+// Pass this when the key is provided per-request (e.g. BYOK via X-OpenRouter-Key
+// HTTP header). The returned Backend carries the key in APIKey so callers can
+// set the Authorization header on outbound LLM requests.
+func DetectWithKey(ctx context.Context, userKey string) (*Backend, error) {
+	if userKey != "" {
+		return &Backend{
+			BaseURL: "https://openrouter.ai/api/v1",
+			Name:    "OpenRouter/BYOK",
+			APIKey:  userKey,
+		}, nil
+	}
+	return Detect(ctx)
 }
 
 // detectLlamafilePath returns the path of the first llamafile found adjacent
