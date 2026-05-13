@@ -3,6 +3,7 @@ package license
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -111,8 +112,17 @@ func (m *Manager) GetMachineID() string {
 	return m.client.MachineID
 }
 
-// Initialize validates license and starts heartbeat daemon
+// Initialize validates license and starts heartbeat daemon.
+// Offline .khepra files are checked first; the telemetry server is only
+// contacted when no valid offline license is present.
 func (m *Manager) Initialize() error {
+	if resp, err := m.tryOfflineLicense(); err == nil {
+		m.updateCachedValidation(resp)
+		log.Printf("[LICENSE] ✅ Offline license: %s (%s) expires %s",
+			resp.Organization, resp.LicenseTier, resp.ExpiresAt)
+		return nil
+	}
+
 	resp, err := m.client.Validate()
 	if err != nil {
 		log.Printf("[LICENSE] Initial validation failed: %v", err)
@@ -134,6 +144,155 @@ func (m *Manager) Initialize() error {
 	m.heartbeatStopCh = make(chan struct{})
 	m.client.StartHeartbeatDaemon(m.heartbeatStopCh)
 	return nil
+}
+
+// tryOfflineLicense looks for a signed .khepra file and verifies it offline
+// using the master ML-DSA-65 public key. Returns a ValidateResponse on success.
+// Search order: KHEPRA_LICENSE_FILE env → ~/.khepra/license.khepra → any *.khepra in ~/.khepra/.
+func (m *Manager) tryOfflineLicense() (*ValidateResponse, error) {
+	pubKeyBytes, err := loadMasterPublicKey()
+	if err != nil {
+		return nil, fmt.Errorf("no master public key: %w", err)
+	}
+
+	path, err := findKhepraFile()
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+
+	// SignedLicense is the format produced by cmd/keygen/license_gen.go.
+	// ALL fields must match LicenseBlob exactly — the signature covers the full JSON.
+	var signed struct {
+		License struct {
+			Version      string   `json:"version"`
+			MachineID    string   `json:"machine_id"`
+			Organization string   `json:"organization"`
+			Tier         string   `json:"tier"`
+			Features     []string `json:"features"`
+			IssuedAt     int64    `json:"issued_at"`
+			ExpiresAt    int64    `json:"expires_at,omitempty"`
+			Issuer       string   `json:"issuer"`
+			SignedWith   string   `json:"signed_with"`
+		} `json:"license"`
+		Signature string `json:"signature"`
+	}
+	if err := json.Unmarshal(data, &signed); err != nil {
+		return nil, fmt.Errorf("parse %s: %w", path, err)
+	}
+
+	// The signature covers the canonical JSON of the inner license blob.
+	blobJSON, err := json.Marshal(signed.License)
+	if err != nil {
+		return nil, fmt.Errorf("re-marshal license blob: %w", err)
+	}
+
+	sigBytes, err := hex.DecodeString(signed.Signature)
+	if err != nil {
+		return nil, fmt.Errorf("decode signature: %w", err)
+	}
+
+	if len(pubKeyBytes) != mldsa65.PublicKeySize {
+		return nil, fmt.Errorf("master public key wrong size: got %d want %d", len(pubKeyBytes), mldsa65.PublicKeySize)
+	}
+	var pubKey mldsa65.PublicKey
+	var keyBuf [mldsa65.PublicKeySize]byte
+	copy(keyBuf[:], pubKeyBytes)
+	pubKey.Unpack(&keyBuf)
+
+	if !mldsa65.Verify(&pubKey, blobJSON, nil, sigBytes) {
+		return nil, fmt.Errorf("ML-DSA-65 signature invalid for %s", path)
+	}
+
+	// Device binding
+	machineID := GenerateMachineID()
+	if signed.License.MachineID != machineID {
+		return nil, fmt.Errorf("license machine_id %s does not match this node %s",
+			signed.License.MachineID, machineID)
+	}
+
+	// Expiry (0 = perpetual)
+	var expiresStr string
+	if signed.License.ExpiresAt > 0 {
+		exp := time.Unix(signed.License.ExpiresAt, 0)
+		if time.Now().After(exp) {
+			return nil, fmt.Errorf("offline license expired at %s", exp.Format(time.RFC3339))
+		}
+		expiresStr = exp.Format(time.RFC3339)
+	} else {
+		expiresStr = "perpetual"
+	}
+
+	return &ValidateResponse{
+		Valid:        true,
+		Organization: signed.License.Organization,
+		LicenseTier:  signed.License.Tier,
+		Features:     signed.License.Features,
+		IssuedAt:     time.Unix(signed.License.IssuedAt, 0).Format(time.RFC3339),
+		ExpiresAt:    expiresStr,
+		ValidatedAt:  time.Now().Format(time.RFC3339),
+	}, nil
+}
+
+// findKhepraFile returns the path to the first valid .khepra file.
+func findKhepraFile() (string, error) {
+	if p := os.Getenv("KHEPRA_LICENSE_FILE"); p != "" {
+		if _, err := os.Stat(p); err == nil {
+			return p, nil
+		}
+	}
+
+	home, _ := os.UserHomeDir()
+	if home == "" {
+		home = "."
+	}
+
+	// Canonical path first
+	canonical := filepath.Join(home, ".khepra", "license.khepra")
+	if _, err := os.Stat(canonical); err == nil {
+		return canonical, nil
+	}
+
+	// Glob for any *.khepra in ~/.khepra/
+	matches, _ := filepath.Glob(filepath.Join(home, ".khepra", "*.khepra"))
+	if len(matches) > 0 {
+		return matches[0], nil
+	}
+
+	return "", fmt.Errorf("no .khepra license file found in ~/.khepra/")
+}
+
+// loadMasterPublicKey returns the ML-DSA-65 master public key bytes.
+// Sources (in priority order):
+//  1. KHEPRA_MASTER_PUBLIC_KEY env var (hex)
+//  2. KHEPRA_MASTER_PUBLIC_KEY_PATH env var
+//  3. ~/.khepra/master.pub
+//  4. keys/offline/OFFLINE_ROOT_KEY.pub (dev/build machine fallback)
+func loadMasterPublicKey() ([]byte, error) {
+	if raw := os.Getenv("KHEPRA_MASTER_PUBLIC_KEY"); raw != "" {
+		return hex.DecodeString(strings.TrimSpace(raw))
+	}
+
+	paths := []string{}
+	if p := os.Getenv("KHEPRA_MASTER_PUBLIC_KEY_PATH"); p != "" {
+		paths = append(paths, p)
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		paths = append(paths, filepath.Join(home, ".khepra", "master.pub"))
+	}
+	paths = append(paths, "keys/offline/OFFLINE_ROOT_KEY.pub")
+
+	for _, p := range paths {
+		if data, err := os.ReadFile(p); err == nil {
+			return hex.DecodeString(strings.TrimSpace(string(data)))
+		}
+	}
+
+	return nil, fmt.Errorf("master public key not found; set KHEPRA_MASTER_PUBLIC_KEY or place key at ~/.khepra/master.pub")
 }
 
 func (m *Manager) handleInitialFailure() (*ValidateResponse, error) {
