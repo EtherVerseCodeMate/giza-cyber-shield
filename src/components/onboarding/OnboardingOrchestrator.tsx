@@ -227,19 +227,63 @@ const OnboardingOrchestrator: React.FC = () => {
 
   // ── Step: Input ──────────────────────────────────────────────────────────────
   if (step === 'input') {
+    const scanPillars = [
+      {
+        icon: '🔍',
+        title: 'Surface Exposure',
+        desc: 'TCP probes on ports 443 (HTTPS) and 18789 (agent gateway) to detect externally reachable services.',
+      },
+      {
+        icon: '🛰️',
+        title: 'Threat Intelligence (Shodan)',
+        desc: 'Cross-references your IP against Shodan\'s global scan database for open ports, service banners, and known CVEs.',
+      },
+      {
+        icon: '🛡️',
+        title: 'Domain Reputation (APIVoid)',
+        desc: 'Checks your domain against 40+ security blacklist engines for malware, phishing, or spam flags.',
+      },
+      {
+        icon: '🤖',
+        title: 'Agent Compliance (NemoClaw)',
+        desc: 'Audits local AI agent configurations against NMC-001 through NMC-009 security controls, when present.',
+      },
+      {
+        icon: '📋',
+        title: 'CMMC / NIST 800-171 Readiness',
+        desc: 'Evaluates whether your logs, configurations, and change records are assessor-ready for C3PAO intake.',
+      },
+    ];
+
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-4">
-        <div className="w-full max-w-lg space-y-8">
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-2xl space-y-8">
           <div className="text-center space-y-3">
             <div className="flex justify-center">
               <div className="p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/20">
                 <Search className="h-8 w-8 text-[#00ffff]" />
               </div>
             </div>
-            <h1 className="text-3xl font-bold text-white">CMMC & audit readiness scan</h1>
-            <p className="text-gray-400">
-              Free surface check plus assessor-oriented findings. Enter a hostname or IP — we probe from this scanner&apos;s network (e.g. agent gateway 18789, HTTPS). Optional: NemoClaw NMC checks when config exists on the ASAF host.
+            <h1 className="text-3xl font-bold text-white">ASAF Security &amp; Compliance Scan</h1>
+            <p className="text-gray-400 max-w-lg mx-auto">
+              Get a free, instant security assessment of your deployment. We run 5 automated checks from an external vantage point and score your risk posture against CMMC and NIST 800-171 standards.
             </p>
+          </div>
+
+          {/* What we scan */}
+          <div className="bg-[#111] border border-gray-800 rounded-xl p-5">
+            <div className="text-sm font-semibold text-gray-300 mb-3">What the scan checks</div>
+            <div className="space-y-3">
+              {scanPillars.map((p) => (
+                <div key={p.title} className="flex items-start gap-3">
+                  <span className="text-lg shrink-0 mt-0.5">{p.icon}</span>
+                  <div>
+                    <div className="text-sm font-medium text-white">{p.title}</div>
+                    <p className="text-xs text-gray-500 mt-0.5">{p.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {error && (
@@ -250,16 +294,16 @@ const OnboardingOrchestrator: React.FC = () => {
 
           <div className="space-y-4 bg-[#111] border border-gray-800 rounded-xl p-6">
             <div className="space-y-2">
-              <label htmlFor="scan-target" className="text-sm text-gray-400 font-medium">Target host or IP</label>
+              <label htmlFor="scan-target" className="text-sm text-gray-400 font-medium">Target hostname, IP, or URL</label>
               <Input
                 id="scan-target"
-                placeholder="192.168.1.100 or myagent.company.com"
+                placeholder="myagent.company.com or 203.0.113.50"
                 value={target}
                 onChange={e => setTarget(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleScan()}
                 className="bg-[#0a0a0a] border-gray-700 text-white placeholder:text-gray-600 font-mono"
               />
-              <p className="text-xs text-gray-600">Default probes include 18789 (common agent gateway) and 443. Use https://host:port for a specific URL.</p>
+              <p className="text-xs text-gray-600">We probe from our external scanner. Internal-only services won&apos;t appear as reachable — that&apos;s a good thing.</p>
             </div>
             <div className="space-y-2">
               <label htmlFor="scan-email" className="text-sm text-gray-400 font-medium">Email <span className="text-gray-600">(optional — to receive your report)</span></label>
@@ -282,9 +326,9 @@ const OnboardingOrchestrator: React.FC = () => {
               ) : (
                 <Shield className="h-4 w-4 mr-2" />
               )}
-              {isScanning ? 'Starting scan…' : 'Start free scan'}
+              {isScanning ? 'Starting scan…' : 'Run free security scan'}
             </Button>
-            <p className="text-xs text-center text-gray-600">No account required. No credit card. Results in ~60s.</p>
+            <p className="text-xs text-center text-gray-600">No account required. No credit card. Results in ~60 seconds.</p>
           </div>
         </div>
       </div>
@@ -343,9 +387,33 @@ const OnboardingOrchestrator: React.FC = () => {
       return `${base} bg-yellow-950/40 text-yellow-400 border-yellow-500/30`;
     };
 
+    // Categorize findings for display
+    const categorizeFinding = (text: string): string => {
+      if (text.includes('Shodan')) return 'Threat Intelligence';
+      if (text.includes('APIVoid')) return 'Domain Reputation';
+      if (text.includes('NemoClaw') || text.includes('NMC-')) return 'Agent Compliance';
+      if (text.includes('CMMC') || text.includes('NIST') || text.includes('C3PAO')) return 'CMMC Readiness';
+      if (text.includes('TCP') || text.includes('Port') || text.includes('reachable') || text.includes('exposed')) return 'Surface Exposure';
+      return 'General';
+    };
+    const groupedFindings = result.findings.reduce<Record<string, typeof result.findings>>((acc, f) => {
+      const cat = categorizeFinding(f.text);
+      (acc[cat] = acc[cat] || []).push(f);
+      return acc;
+    }, {});
+    const categoryOrder = ['Surface Exposure', 'Threat Intelligence', 'Domain Reputation', 'Agent Compliance', 'CMMC Readiness', 'General'];
+    const categoryIcons: Record<string, string> = {
+      'Surface Exposure': '🔍',
+      'Threat Intelligence': '🛰️',
+      'Domain Reputation': '🛡️',
+      'Agent Compliance': '🤖',
+      'CMMC Readiness': '📋',
+      'General': '📌',
+    };
+
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-lg space-y-6">
+        <div className="w-full max-w-2xl space-y-6">
           {/* Risk score */}
           <div className="text-center space-y-2">
             <h2 className="text-2xl font-bold text-white">Scan complete — <span className="font-mono text-[#00ffff]">{target}</span></h2>
@@ -357,18 +425,38 @@ const OnboardingOrchestrator: React.FC = () => {
                 <Badge className="bg-cyan-950/40 text-cyan-300 border-cyan-500/30">NemoClaw / OpenShell (local config)</Badge>
               )}
             </div>
+            <p className="text-xs text-gray-500 max-w-md mx-auto">
+              Score reflects externally visible risk: open ports, known CVEs, blacklist status, and compliance gaps. Lower is better.
+            </p>
           </div>
 
-          {/* Findings */}
-          <div className="bg-[#111] border border-gray-800 rounded-xl p-5 space-y-3">
-            <div className="text-sm font-semibold text-gray-300">{result.findings.length} findings</div>
-            {result.findings.map((f) => (
-              <div key={`${result.scan_id}-${f.severity}-${f.text.slice(0, 32)}`} className="flex items-start gap-2 text-sm">
-                {severityIcon(f.severity)}
-                <span className="text-gray-300">{f.text}</span>
-                <Badge className={badgeClass(f.severity)}>{f.severity}</Badge>
+          {/* Categorized findings */}
+          <div className="bg-[#111] border border-gray-800 rounded-xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold text-gray-300">{result.findings.length} findings across {Object.keys(groupedFindings).length} categories</div>
+            </div>
+            {categoryOrder.filter(cat => groupedFindings[cat]).map(cat => (
+              <div key={cat} className="space-y-2">
+                <div className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1 border-t border-gray-800">
+                  <span>{categoryIcons[cat]}</span>
+                  <span>{cat}</span>
+                </div>
+                {groupedFindings[cat].map((f) => (
+                  <div key={`${result.scan_id}-${f.severity}-${f.text.slice(0, 32)}`} className="flex items-start gap-2 text-sm pl-6">
+                    {severityIcon(f.severity)}
+                    <span className="text-gray-300">{f.text}</span>
+                    <Badge className={badgeClass(f.severity)}>{f.severity}</Badge>
+                  </div>
+                ))}
               </div>
             ))}
+          </div>
+
+          {/* Scan methodology note */}
+          <div className="bg-[#0d1117] border border-gray-800 rounded-xl p-4">
+            <p className="text-xs text-gray-500">
+              <span className="text-gray-400 font-medium">How this works:</span> We perform non-intrusive TCP probes from our cloud scanner, cross-reference with Shodan and APIVoid threat intelligence APIs, audit any discovered NemoClaw agent configs, and evaluate your evidence posture against NIST 800-171 / CMMC Level 2 requirements. No agents installed, no credentials needed.
+            </p>
           </div>
 
           {/* Free result footer */}
@@ -383,24 +471,13 @@ const OnboardingOrchestrator: React.FC = () => {
                 </p>
               </div>
             </div>
-            {email && (
-              <Input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="your@email.com"
-                className="bg-[#0a0a0a] border-gray-700 text-white"
-              />
-            )}
-            {!email && (
-              <Input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="Enter email to get certified"
-                className="bg-[#0a0a0a] border-gray-700 text-white placeholder:text-gray-600"
-              />
-            )}
+            <Input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="Enter email to get certified"
+              className="bg-[#0a0a0a] border-gray-700 text-white placeholder:text-gray-600"
+            />
             <Button
               onClick={handleCheckout}
               disabled={checkingOut}
