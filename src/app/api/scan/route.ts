@@ -16,15 +16,25 @@ import { NextRequest, NextResponse } from 'next/server';
  * NOTE: 172.19.0.1 is the NPM network gateway (mesh_nouchix-dmz), NOT Docker's default
  * bridge (172.17.0.1). Using the wrong IP causes silent 502s if this env var is unset.
  */
-const INTERNAL_API = process.env.ASAF_INTERNAL_API_URL || 'http://172.19.0.1:45444';
+const INTERNAL_API = process.env.ASAF_INTERNAL_API_URL || 'https://souhimbou-ai.fly.dev';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    const url = `${INTERNAL_API}/api/v1/onboarding/scan`;
 
-    const res = await fetch(`${INTERNAL_API}/api/v1/onboarding/scan`, {
+    // Derive the Host from the target URL so the SEKHEM WAF (SEKHEM-006)
+    // sees a known hostname — NOT Vercel's injected X-Forwarded-Host.
+    // Explicitly set User-Agent so SEKHEM-008 doesn't see Vercel's default.
+    const targetHost = new URL(url).host;
+
+    const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Host': targetHost,
+        'User-Agent': 'ASAF-Onboarding-Proxy/1.0',
+      },
       body: JSON.stringify(body),
     });
 
@@ -38,7 +48,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal proxy error';
     return NextResponse.json(
-      { error: 'scan_proxy_error', message },
+      { error: 'scan_proxy_error', message, target: INTERNAL_API },
       { status: 502 },
     );
   }

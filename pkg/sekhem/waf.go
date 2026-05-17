@@ -211,6 +211,7 @@ func NewWAFShield(cfg WAFShieldConfig) (*WAFShield, error) {
 		bypassPaths: []*bypassPath{
 			{prefix: "/health"},
 			{prefix: "/healthz"},
+			{prefix: "/api/v1/onboarding/"},  // Public scan funnel — intentionally unauthenticated
 		},
 	}
 	shield.rules = defaultRules(shield)
