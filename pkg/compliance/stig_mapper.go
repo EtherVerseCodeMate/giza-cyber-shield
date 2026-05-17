@@ -364,6 +364,49 @@ type CMMCScorecard struct {
 	ControlStatus map[string]string         `json:"control_status"` // Practice → "PASSING" | "FAILING"
 	ControlGaps   []string                  `json:"control_gaps"`
 	DomainScores  map[string]*DomainScore   `json:"domain_scores"`
+	SPRSScore     int                       `json:"sprs_score"` // Supplier Performance Risk System score (-203 to 110)
+}
+
+// SPRS severity weights by domain (CAT I = 5, CAT II = 3, CAT III = 1)
+// Access Control and Identification domains carry the heaviest weight.
+var SPRSDomainWeight = map[string]int{
+	"AC": 5, // Access Control — CAT I
+	"IA": 5, // Identification and Authentication — CAT I
+	"SC": 5, // System and Communications Protection — CAT I
+	"SI": 3, // System and Information Integrity — CAT II
+	"AU": 3, // Audit and Accountability — CAT II
+	"CM": 3, // Configuration Management — CAT II
+	"IR": 3, // Incident Response — CAT II
+	"RA": 3, // Risk Assessment — CAT II
+	"CA": 3, // Security Assessment — CAT II
+	"AT": 1, // Awareness and Training — CAT III
+	"MA": 1, // Maintenance — CAT III
+	"MP": 1, // Media Protection — CAT III
+	"PE": 1, // Physical Protection — CAT III
+	"PS": 1, // Personnel Security — CAT III
+}
+
+// ComputeSPRS calculates the NIST 800-171 DoD Assessment Methodology score.
+// Perfect score is 110 (all 110 controls passing).
+// Each failing control subtracts 1, 3, or 5 points depending on severity.
+// Minimum possible score is -203.
+func (sc *CMMCScorecard) ComputeSPRS() int {
+	sc.SPRSScore = 110
+
+	for _, ds := range sc.DomainScores {
+		weight := SPRSDomainWeight[ds.Domain]
+		if weight == 0 {
+			weight = 1
+		}
+		sc.SPRSScore -= ds.Failing * weight
+	}
+
+	// Floor at -203 (theoretical minimum per DoD methodology)
+	if sc.SPRSScore < -203 {
+		sc.SPRSScore = -203
+	}
+
+	return sc.SPRSScore
 }
 
 // DomainScore tracks per-domain compliance within the scorecard.

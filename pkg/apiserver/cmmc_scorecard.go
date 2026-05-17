@@ -37,6 +37,7 @@ type CMMCScorecardResponse struct {
 
 	// Combined
 	OverallScore     float64 `json:"overall_score"`
+	SPRSScore        int     `json:"sprs_score"` // DoD SPRS score (-203 to 110)
 	CertReadiness    string  `json:"certification_readiness"`
 	MappingStats     map[string]int `json:"mapping_chain_stats"`
 
@@ -84,6 +85,7 @@ func (s *Server) handleCMMCScorecard(c *gin.Context) {
 	// 4. Generate L2 scorecard (110 NIST 800-171 practices)
 	l2Scorecard := mapper.GenerateCMMCScorecard(failedSTIGs)
 	l2Scorecard.ComputeDomainScores()
+	sprsScore := l2Scorecard.ComputeSPRS()
 
 	// 5. Generate L3 scorecard (24 NIST 800-172 enhanced practices)
 	l3Scorecard := s.generateL3Scorecard(report, mapper)
@@ -122,6 +124,7 @@ func (s *Server) handleCMMCScorecard(c *gin.Context) {
 		Level2:        l2Scorecard,
 		Level3:        l3Scorecard,
 		OverallScore:  overallScore,
+		SPRSScore:     sprsScore,
 		CertReadiness: readiness,
 		MappingStats:  mappingStats,
 	}

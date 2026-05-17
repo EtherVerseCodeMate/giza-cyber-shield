@@ -164,6 +164,9 @@ func (s *Server) setupRoutes() {
 		})
 	})
 
+	// Public attestation verification (no auth — C3PAOs verify independently)
+	s.registerPublicVerificationRoute()
+
 	// Public auth bootstrap endpoints (no auth required — they create credentials)
 	pubV1 := s.router.Group("/api/v1")
 	s.setupAuthRoutes(pubV1)
