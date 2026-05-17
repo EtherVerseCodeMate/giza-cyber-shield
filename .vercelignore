@@ -59,8 +59,21 @@ docker-compose*
 
 # Dev/IDE files
 .env.local
+.env.vercel.local
 *.log
 /.git/
 /.idea/
 /.vscode/
 /.agent/
+/.gemini/
+
+# Git submodules
+/adinkhepra-asaf-ironbank/
+
+# Pentesting tools
+/pentesting/
+/G0DM0D/
+
+# Large binary artifacts
+*.kpkg
+/pkg/llm/
