@@ -165,30 +165,56 @@ func (cm *ComplianceMapper) LoadNIST53to171(path string) error {
 	return nil
 }
 
-// buildNIST171toCMMCMap creates NIST 800-171 to CMMC control mapping
-// CMMC 2.0 Level 1-3 directly corresponds to NIST 800-171 controls
+// =============================================================================
+// CMMC 2.0 DOMAIN CODES
+// Maps NIST 800-171 control family names to CMMC 2.0 domain abbreviations.
+// =============================================================================
+var CMMCDomainCode = map[string]string{
+	"Access Control":                       "AC",
+	"Awareness and Training":               "AT",
+	"Audit and Accountability":             "AU",
+	"Configuration Management":             "CM",
+	"Identification and Authentication":    "IA",
+	"Incident Response":                    "IR",
+	"Maintenance":                          "MA",
+	"Media Protection":                     "MP",
+	"Personnel Security":                   "PS",
+	"Physical Protection":                  "PE",
+	"Risk Assessment":                      "RA",
+	"Security Assessment":                  "CA",
+	"System and Communications Protection": "SC",
+	"System and Information Integrity":     "SI",
+}
+
+// CMMC Level 1 (17 practices) — the FCI-only subset of 800-171
+var CMMCLevel1Practices = map[string]bool{
+	"3.1.1": true, "3.1.2": true, "3.1.20": true, "3.1.22": true,
+	"3.4.1": true, "3.4.2": true,
+	"3.5.1": true, "3.5.2": true,
+	"3.11.1": true, "3.11.2": true,
+	"3.12.1": true, "3.12.2": true,
+	"3.13.1": true, "3.13.2": true, "3.13.5": true,
+	"3.14.1": true, "3.14.2": true, "3.14.6": true, "3.14.7": true,
+}
+
+// buildNIST171toCMMCMap creates NIST 800-171 → CMMC 2.0 practice mapping.
+// Every 800-171 r2 control maps 1:1 to a CMMC Level 2 practice.
+// Level 1 practices are a strict subset (17 of 110).
+// Level 3 enhanced practices come from 800-172.
 func (cm *ComplianceMapper) buildNIST171toCMMCMap() {
-	// CMMC Level 1 (17 controls) - subset of 800-171
-	level1Controls := []string{
-		"3.1.1", "3.1.2", "3.1.20", "3.1.22", // Access Control
-		"3.4.1", "3.4.2", // Configuration Management
-		"3.5.1", "3.5.2", // Identification and Authentication
-		"3.11.1", "3.11.2", // Risk Assessment
-		"3.12.1", "3.12.2", // Security Assessment
-		"3.13.1", "3.13.2", "3.13.5", // System and Communications Protection
-		"3.14.1", "3.14.2", "3.14.6", "3.14.7", // System and Information Integrity
-	}
+	// Map every 800-171 control to its CMMC L2 practice ID.
+	// Format: "AC.L2-3.1.1" (domain.level-controlRef)
+	for nist171, family := range cm.ControlFamilies {
+		domain := CMMCDomainCode[family]
+		if domain == "" {
+			domain = "GEN"
+		}
 
-	for _, ctrl := range level1Controls {
-		cm.NIST171toCMMC[ctrl] = fmt.Sprintf("CMMC L1: %s", ctrl)
-	}
-
-	// All 110 NIST 800-171 controls map to CMMC Level 2
-	// (Simplified - full mapping would include all 3.x.x controls)
-	// For now, mark all controls as CMMC Level 2 compliant
-	for nist171 := range cm.ControlFamilies {
-		if cm.NIST171toCMMC[nist171] == "" {
-			cm.NIST171toCMMC[nist171] = fmt.Sprintf("CMMC L2: %s", nist171)
+		// L1 practices get dual-mapped (they satisfy both L1 and L2)
+		if CMMCLevel1Practices[nist171] {
+			cm.NIST171toCMMC[nist171] = fmt.Sprintf("%s.L1-%s|%s.L2-%s", domain, nist171, domain, nist171)
+		} else {
+			cm.NIST171toCMMC[nist171] = fmt.Sprintf("%s.L2-%s", domain, nist171)
 		}
 	}
 }
@@ -255,8 +281,10 @@ func (cm *ComplianceMapper) FindSTIGsByPort(port int) []*STIGRule {
 	return matches
 }
 
-// GenerateCMMCScorecard produces a compliance scorecard for a snapshot
-func (cm *ComplianceMapper) GenerateCMMCScorecard() *CMMCScorecard {
+// GenerateCMMCScorecard evaluates real STIG/CCI findings through the full
+// mapping chain and produces a per-practice compliance scorecard.
+// failedSTIGs is a set of STIG IDs that failed validation.
+func (cm *ComplianceMapper) GenerateCMMCScorecard(failedSTIGs map[string]bool) *CMMCScorecard {
 	scorecard := &CMMCScorecard{
 		Level:          2,
 		TotalControls:  110,
@@ -264,28 +292,109 @@ func (cm *ComplianceMapper) GenerateCMMCScorecard() *CMMCScorecard {
 		FailingCount:   0,
 		ControlStatus:  make(map[string]string),
 		ControlGaps:    []string{},
+		DomainScores:   make(map[string]*DomainScore),
 	}
 
-	// TODO: Map actual snapshot findings to control status
-	// For now, return placeholder scorecard
+	// 1. Trace failed STIGs → CCI → NIST 800-53 to build the set of failed 800-53 controls
+	failedNIST53 := make(map[string]bool)
+	for stigID := range failedSTIGs {
+		rule, ok := cm.STIGRules[stigID]
+		if !ok {
+			continue
+		}
+		if refs, ok := cm.CCItoNIST53[rule.CCIID]; ok {
+			for _, ref := range refs {
+				failedNIST53[ref] = true
+			}
+		}
+	}
+
+	// 2. For each 800-171 control, check if ANY of its underlying 800-53 refs failed
+	for nist171, family := range cm.ControlFamilies {
+		cmmcPractice := cm.NIST171toCMMC[nist171]
+		if cmmcPractice == "" {
+			continue
+		}
+
+		domain := CMMCDomainCode[family]
+		if domain == "" {
+			domain = "GEN"
+		}
+
+		// Initialize domain score tracker
+		if scorecard.DomainScores[domain] == nil {
+			scorecard.DomainScores[domain] = &DomainScore{
+				Domain: domain,
+				Family: family,
+			}
+		}
+		ds := scorecard.DomainScores[domain]
+		ds.Total++
+
+		// Check if this 800-171 control has any failed underlying 800-53 controls
+		failed := false
+		for nist53, nist171Ref := range cm.NIST53to171 {
+			if nist171Ref == nist171 && failedNIST53[nist53] {
+				failed = true
+				break
+			}
+		}
+
+		if failed {
+			scorecard.ControlStatus[cmmcPractice] = "FAILING"
+			scorecard.FailingCount++
+			scorecard.ControlGaps = append(scorecard.ControlGaps, fmt.Sprintf("%s (%s)", cmmcPractice, family))
+			ds.Failing++
+		} else {
+			scorecard.ControlStatus[cmmcPractice] = "PASSING"
+			scorecard.PassingCount++
+			ds.Passing++
+		}
+	}
 
 	return scorecard
 }
 
-// CMMCScorecard represents compliance status
+// CMMCScorecard represents compliance status across the full CMMC 2.0 practice set.
 type CMMCScorecard struct {
-	Level         int
-	TotalControls int
-	PassingCount  int
-	FailingCount  int
-	ControlStatus map[string]string // Control ID → "PASSING" | "FAILING"
-	ControlGaps   []string
+	Level         int                       `json:"level"`
+	TotalControls int                       `json:"total_controls"`
+	PassingCount  int                       `json:"passing_count"`
+	FailingCount  int                       `json:"failing_count"`
+	ControlStatus map[string]string         `json:"control_status"` // Practice → "PASSING" | "FAILING"
+	ControlGaps   []string                  `json:"control_gaps"`
+	DomainScores  map[string]*DomainScore   `json:"domain_scores"`
+}
+
+// DomainScore tracks per-domain compliance within the scorecard.
+type DomainScore struct {
+	Domain  string  `json:"domain"`
+	Family  string  `json:"family"`
+	Total   int     `json:"total"`
+	Passing int     `json:"passing"`
+	Failing int     `json:"failing"`
+	Score   float64 `json:"score"` // 0–100
+}
+
+// ComputeDomainScores calculates percentage scores for each domain.
+func (sc *CMMCScorecard) ComputeDomainScores() {
+	for _, ds := range sc.DomainScores {
+		if ds.Total > 0 {
+			ds.Score = float64(ds.Passing) / float64(ds.Total) * 100
+		}
+	}
 }
 
 // FormatScorecard generates markdown table of compliance status
 func (sc *CMMCScorecard) FormatScorecard() string {
-	passingPct := float64(sc.PassingCount) / float64(sc.TotalControls) * 100
-	failingPct := float64(sc.FailingCount) / float64(sc.TotalControls) * 100
+	sc.ComputeDomainScores()
+
+	evaluated := sc.PassingCount + sc.FailingCount
+	if evaluated == 0 {
+		evaluated = sc.TotalControls
+	}
+	passingPct := float64(sc.PassingCount) / float64(evaluated) * 100
+	failingPct := float64(sc.FailingCount) / float64(evaluated) * 100
 
 	status := "NOT READY FOR CERTIFICATION"
 	if passingPct >= 90 {
@@ -294,22 +403,32 @@ func (sc *CMMCScorecard) FormatScorecard() string {
 		status = "NEAR COMPLIANCE"
 	}
 
-	return fmt.Sprintf(`
-### CMMC Level %d Assessment (%d Controls)
+	out := fmt.Sprintf(`### CMMC Level %d Assessment (%d Practices)
 
-- **Passing:** %d controls (%.0f%%)
-- **Failing:** %d controls (%.0f%%)
-- **Status:** %s
+| Metric | Value |
+|--------|-------|
+| **Passing** | %d practices (%.0f%%) |
+| **Failing** | %d practices (%.0f%%) |
+| **Status** | %s |
+| **Score** | %.1f/100 |
 
-**Compliance Score:** %.1f/100
+#### Domain Breakdown
+
+| Domain | Family | Pass | Fail | Score |
+|--------|--------|------|------|-------|
 `,
 		sc.Level,
-		sc.TotalControls,
-		sc.PassingCount,
-		passingPct,
-		sc.FailingCount,
-		failingPct,
+		evaluated,
+		sc.PassingCount, passingPct,
+		sc.FailingCount, failingPct,
 		status,
 		passingPct,
 	)
+
+	for _, ds := range sc.DomainScores {
+		out += fmt.Sprintf("| %s | %s | %d | %d | %.0f%% |\n",
+			ds.Domain, ds.Family, ds.Passing, ds.Failing, ds.Score)
+	}
+
+	return out
 }
