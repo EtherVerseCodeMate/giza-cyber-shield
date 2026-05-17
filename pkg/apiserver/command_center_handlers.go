@@ -342,10 +342,8 @@ func (s *Server) handleCCCreateAttestation(c *gin.Context) {
 		Metadata:      req.Metadata,
 	}
 
-	// Sign with ML-DSA-65 (Dilithium3)
-	// In production, the system private key is loaded from the license manager or vault
-	_, privKey, _ := adinkra.GenerateDilithiumKey() // Temporary key for demonstration
-	signature, err := adinkra.Sign(privKey, dataHash[:])
+	// Sign with ML-DSA-65 (Dilithium3) using the server's persistent identity key
+	signature, err := adinkra.Sign(s.sigPrivKey, dataHash[:])
 	if err == nil {
 		attestation.Signature = hex.EncodeToString(signature)
 	}
@@ -373,34 +371,40 @@ func (s *Server) handleCCVerifyAttestation(c *gin.Context) {
 		return
 	}
 
-	// Perform actual cryptographic verification
+	// Perform actual cryptographic verification using ML-DSA-65
 	dataBytes := []byte(fmt.Sprintf("%s|%s|%s|%s|%s",
 		attestation.ID, attestation.Type, attestation.DataHash, attestation.Timestamp.Format(time.RFC3339), attestation.ChainPrevious))
 	dataHash := sha256.Sum256(dataBytes)
-	_ = dataHash // Used for actual verification in production
 
-	// Retrieve system public key
-	// In production, this would be retrieved from the license manager or a trusted CA
-	// For this demonstration, we regenerate from a known deterministic seed if necessary
-	// or assume the signature was created with a verifiable key.
+	sigBytes, sigErr := hex.DecodeString(attestation.Signature)
 
-	sigBytes, _ := hex.DecodeString(attestation.Signature)
-
-	// Simulation: For the prototype, we mark as verified if signature exists and is valid length
-	// In production, call: verified, _ := adinkra.Verify(systemPubKey, dataHash[:], sigBytes)
 	verified := false
-	if len(sigBytes) > 0 {
-		verified = true
+	verifyErr := ""
+	if sigErr != nil {
+		verifyErr = "invalid signature encoding"
+	} else if len(sigBytes) == 0 {
+		verifyErr = "empty signature"
+	} else {
+		ok, err := adinkra.Verify(s.sigPubKey, dataHash[:], sigBytes)
+		if err != nil {
+			verifyErr = err.Error()
+		} else {
+			verified = ok
+		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response := gin.H{
 		"attestation":       attestation,
 		"verified":          verified,
 		"algorithm":         "ML-DSA-65 (FIPS 204)",
 		"chain_valid":       attestation.ChainPrevious != "",
-		"integrity":         "verified",
 		"quantum_resistant": true,
-	})
+	}
+	if verifyErr != "" {
+		response["verify_error"] = verifyErr
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func (s *Server) handleCCExportEvidence(c *gin.Context) {
@@ -410,22 +414,38 @@ func (s *Server) handleCCExportEvidence(c *gin.Context) {
 		return
 	}
 
-	exportID := generateID("exp")
-	now := time.Now()
+	report := s.BuildEvidenceReportFromCC(req.Framework)
 
-	exportHash := sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%s|%s",
-		exportID, req.Format, req.Framework, now.Format(time.RFC3339))))
+	// If PDF format requested, generate and stream the PDF
+	if req.Format == "pdf" {
+		pdfBytes, err := GenerateEvidencePDF(report)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "PDF generation failed: " + err.Error()})
+			return
+		}
 
+		c.Header("Content-Type", "application/pdf")
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=adinkhepra-evidence-%s.pdf", report.ExportID))
+		c.Data(http.StatusOK, "application/pdf", pdfBytes)
+		return
+	}
+
+	// JSON-based formats
 	response := gin.H{
-		"export_id":      exportID,
-		"format":         req.Format,
-		"framework":      req.Framework,
-		"status":         "generated",
-		"timestamp":      now,
-		"data_hash":      hex.EncodeToString(exportHash[:]),
-		"attestation":    fmt.Sprintf("att_%s", exportID),
-		"download_url":   fmt.Sprintf("/api/v1/cc/prove/download/%s", exportID),
-		"differentiator": "Cryptographically sealed evidence chain - survives quantum computers",
+		"export_id":    report.ExportID,
+		"format":       req.Format,
+		"framework":    report.Framework,
+		"status":       "generated",
+		"timestamp":    report.Timestamp,
+		"data_hash":    report.DataHash,
+		"signature":    truncateHash(report.Signature),
+		"algorithm":    report.Algorithm,
+		"score":        report.Score,
+		"findings":     len(report.Findings),
+		"attestations": len(report.Attestations),
+		"chain_length": report.ChainLength,
+		"download_url": fmt.Sprintf("/api/v1/cc/prove/download/%s", report.ExportID),
+		"pqc_signed":   report.Signature != "",
 	}
 
 	switch req.Format {
@@ -433,13 +453,14 @@ func (s *Server) handleCCExportEvidence(c *gin.Context) {
 		response["emass_version"] = "3.0"
 		response["poam_included"] = true
 	case "sprs":
-		response["sprs_score"] = 110
-		response["assessment_date"] = now.Format("2006-01-02")
-	case "pdf":
-		response["pages"] = 15
-		response["includes_signatures"] = true
-		response["pqc_signed"] = true
+		response["sprs_score"] = report.Score
+		response["assessment_date"] = report.Timestamp.Format("2006-01-02")
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// signWithAdinkra signs data with ML-DSA-65. Extracted to avoid circular imports.
+func signWithAdinkra(privKey, data []byte) ([]byte, error) {
+	return adinkra.Sign(privKey, data)
 }
