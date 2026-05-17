@@ -86,14 +86,14 @@ const Index = () => {
                   <h1 className="text-2xl font-black tracking-tighter text-white uppercase italic">
                     SouHimBou <span className="text-primary tracking-normal not-italic">AI</span>
                   </h1>
-                  <Badge variant="outline" className="h-4 border-yellow-500/30 bg-yellow-500/10 text-[9px] font-bold text-yellow-500 tracking-widest uppercase py-0 px-1.5">
-                    Ra (Standard)
+                  <Badge variant="outline" className="h-4 border-emerald-500/30 bg-emerald-500/10 text-[9px] font-bold text-emerald-500 tracking-widest uppercase py-0 px-1.5">
+                    PoC Live
                   </Badge>
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">
                   <div className="h-0.5 w-6 bg-gradient-to-r from-primary to-transparent rounded-full" />
                   <span className="text-[9px] font-bold text-muted-foreground whitespace-nowrap uppercase tracking-widest">
-                    TRL-10 Autonomous Operations
+                    PQC-MCP Flight Recorder
                   </span>
                 </div>
               </div>
@@ -166,14 +166,14 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Development Status Banner */}
-      <div className="bg-yellow-900/30 border-b border-yellow-500/30">
+      {/* PoC Status Banner */}
+      <div className="bg-emerald-900/30 border-b border-emerald-500/30">
         <div className="container mx-auto px-6 py-3">
           <div className="flex items-center justify-center gap-3 text-sm">
-            <Shield className="h-4 w-4 text-yellow-400 flex-shrink-0" />
-            <p className="text-yellow-300 text-center">
-              <strong>Development Platform Notice:</strong> This system is in active development. Beta features shown are UI prototypes only.
-              Production CUI workloads require AWS GovCloud deployment (Q2 2025) with full NIST 800-171 compliance.
+            <Shield className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+            <p className="text-emerald-300 text-center">
+              <strong>ASAF Proof of Concept Live:</strong> Flight Recorder deployed on Raspberry Pi Phantom Node.
+              MCP tool calls signed with ML-DSA-65. <a href="https://adinkhepra.com" className="underline">CMMC compliance → adinkhepra.com</a>
             </p>
           </div>
         </div>
