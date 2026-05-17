@@ -407,7 +407,7 @@ func (s *Server) BuildEvidenceReportFromCC(framework string) *EvidenceReport {
 				Title:       f.Title,
 				Severity:    f.Severity,
 				Status:      f.Status,
-				Remediation: f.Remediation,
+				Remediation: f.Description,
 			})
 		}
 	}

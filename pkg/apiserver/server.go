@@ -247,6 +247,17 @@ func (s *Server) setupRoutes() {
 			cc.POST("/prove/export", s.handleCCExportEvidence)
 		}
 
+		// Autopilot — Continuous Compliance Engine (Autopilot tier)
+		ap := v1.Group("/autopilot")
+		{
+			ap.POST("/start", s.handleAutopilotStart)
+			ap.POST("/stop", s.handleAutopilotStop)
+			ap.POST("/pause", s.handleAutopilotPause)
+			ap.POST("/resume", s.handleAutopilotResume)
+			ap.GET("/status", s.handleAutopilotStatus)
+			ap.GET("/events", s.handleAutopilotEvents)
+		}
+
 		// ERT (Evidence Recording Token) endpoints
 		ert := v1.Group("/ert")
 		{
