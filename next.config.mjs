@@ -35,9 +35,6 @@ const nextConfig = {
     typescript: {
         ignoreBuildErrors: true, // Type errors checked in CI; don't block prod build
     },
-    eslint: {
-        ignoreDuringBuilds: true,
-    },
     async headers() {
         return [
             {
