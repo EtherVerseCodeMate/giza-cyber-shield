@@ -64,7 +64,7 @@ const SELF_SERVE = [
     price: '$99',
     priceSuffix: '/attestation',
     description:
-      'Full CMMC compliance audit + ADINKHEPRA certification seal. PQC-signed, tamper-evident.',
+      'One-time CMMC compliance audit + ADINKHEPRA certification seal. PQC-signed, tamper-evident.',
     features: [
       'Everything in Scan',
       'Full NIST 800-171 / STIG audit',
@@ -73,6 +73,27 @@ const SELF_SERVE = [
       'Email support',
     ],
     cta: 'Get Certified',
+    ctaAction: 'checkout',
+    highlight: false,
+  },
+  {
+    id: 'autopilot',
+    name: 'Autopilot',
+    price: '$499',
+    priceSuffix: '/month',
+    description:
+      'Continuous CMMC compliance monitoring. SEKHEM Gateway watches your environment 24/7 and regenerates evidence automatically when drift is detected.',
+    features: [
+      'Everything in Certify',
+      'Continuous SEKHEM Gateway monitoring',
+      'Real-time STIG drift detection + alerts',
+      '4-Quadrant Command Center dashboard',
+      'Monthly attestation auto-renewal',
+      'Evidence API access for C3PAO integration',
+      'Up to 5 team seats',
+      'Priority email + Slack support',
+    ],
+    cta: 'Start Autopilot',
     ctaAction: 'checkout',
     highlight: true,
   },
@@ -304,8 +325,8 @@ export default function SimpleBilling() {
           </div>
           <div style={styles.roiDivider} />
           <div style={styles.roiItem}>
-            <span style={styles.roiValue}>$5,000</span>
-            <span style={styles.roiLabel}>ASAF Readiness Diagnostic — 10–15x ROI</span>
+            <span style={styles.roiValue}>$499/mo</span>
+            <span style={styles.roiLabel}>AdinKhepra Autopilot — continuous compliance</span>
           </div>
         </div>
       </section>
@@ -314,14 +335,14 @@ export default function SimpleBilling() {
       <section style={styles.agentSection}>
         <div style={styles.sectionLabel}>
           <div style={styles.labelLine} />
-          <span style={styles.labelText}>AI AGENT SECURITY</span>
+          <span style={styles.labelText}>SELF-SERVE COMPLIANCE</span>
           <div style={styles.labelLine} />
         </div>
 
         <p style={styles.agentIntro}>
-          Deploying AI agents with NemoClaw, LangChain, or custom orchestration?
+          Scan your environment. Prove compliance once. Or let Autopilot keep you compliant continuously.
           <br />
-          Scan your deployment. Know what's exposed. Certify when you're ready.
+          Every tier builds on the last — upgrade when you're ready.
         </p>
 
         <div style={styles.agentGrid}>
@@ -377,7 +398,7 @@ export default function SimpleBilling() {
 
       {/* Enterprise CTA */}
       <section style={styles.bottomCta}>
-        <p style={styles.bottomCtaText}>Prime contractor? C3PAO looking to reduce failed assessments?</p>
+        <p style={styles.bottomCtaText}>Need hands-on help? The Diagnostic and Sprint tiers include direct founder engagement.</p>
         <button
           style={{ ...styles.ctaButton, ...styles.ctaPrimary, maxWidth: 320 }}
           onClick={handleAdvisory}
@@ -386,6 +407,9 @@ export default function SimpleBilling() {
           Book Advisory Call
           <ArrowIcon />
         </button>
+        <p style={{ fontSize: 13, color: palette.textDim, marginTop: 8, textAlign: 'center' as const }}>
+          Most teams start with Autopilot ($499/mo) and add a Diagnostic when preparing for C3PAO assessment.
+        </p>
       </section>
 
       {/* Footer */}
@@ -592,7 +616,7 @@ const styles: any = {
 
   agentSection: { position: 'relative', zIndex: 1, padding: '64px 24px 48px' },
   agentIntro: { textAlign: 'center', color: palette.textMuted, maxWidth: 560, margin: '-16px auto 40px', fontSize: 15, lineHeight: 1.7 },
-  agentGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, maxWidth: 680, margin: '0 auto' },
+  agentGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, maxWidth: 960, margin: '0 auto' },
   agentCard: { background: palette.surface, border: `1px solid ${palette.border}`, borderRadius: 10, padding: '28px 24px', display: 'flex', flexDirection: 'column', transition: 'border-color 0.25s' },
   agentHighlight: { border: `1px solid ${palette.agentAccent}33`, boxShadow: `0 0 30px ${palette.agentDim}` },
   agentCardHover: { borderColor: `${palette.agentAccent}55` },
