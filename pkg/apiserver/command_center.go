@@ -12,6 +12,7 @@
 package apiserver
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -151,6 +152,20 @@ var commandCenter = &CommandCenter{
 	scans:        make(map[string]*ScanResult),
 	snapshots:    make(map[string]*StateSnapshot),
 	attestations: make(map[string]*Attestation),
+}
+
+// Package-level signing keys — set by the Server during initialization
+// so that standalone HTTP handlers can also produce verifiable attestations.
+var (
+	pkgSigningPrivKey []byte
+	pkgSigningPubKey  []byte
+)
+
+// SetPackageSigningKeys is called by the Server after key generation to share
+// the identity keys with standalone command center handlers.
+func SetPackageSigningKeys(priv, pub []byte) {
+	pkgSigningPrivKey = priv
+	pkgSigningPubKey = pub
 }
 
 // =============================================================================
@@ -509,11 +524,12 @@ func HandleCreateAttestation(w http.ResponseWriter, r *http.Request) {
 		Metadata:      req.Metadata,
 	}
 
-	// Sign with ML-DSA-65 (Dilithium3)
-	_, privKey, _ := adinkra.GenerateDilithiumKey()
-	signature, err := adinkra.Sign(privKey, dataHash[:])
-	if err == nil {
-		attestation.Signature = hex.EncodeToString(signature)
+	// Sign with ML-DSA-65 (Dilithium3) using the shared server identity key
+	if len(pkgSigningPrivKey) > 0 {
+		signature, err := adinkra.Sign(pkgSigningPrivKey, dataHash[:])
+		if err == nil {
+			attestation.Signature = hex.EncodeToString(signature)
+		}
 	}
 
 	commandCenter.mu.Lock()
@@ -546,14 +562,29 @@ func HandleVerifyAttestation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	verified := attestation.Signature != ""
+	// Perform real cryptographic verification if package keys are available
+	verified := false
+	if len(pkgSigningPubKey) > 0 && attestation.Signature != "" {
+		dataBytes := []byte(fmt.Sprintf("%s|%s|%s|%s|%s",
+			attestation.ID, attestation.Type, attestation.DataHash,
+			attestation.Timestamp.Format(time.RFC3339), attestation.ChainPrevious))
+		dataHash := sha256.Sum256(dataBytes)
+		sigBytes, err := hex.DecodeString(attestation.Signature)
+		if err == nil && len(sigBytes) > 0 {
+			ok, verr := adinkra.Verify(pkgSigningPubKey, dataHash[:], sigBytes)
+			if verr == nil {
+				verified = ok
+			}
+		}
+	}
 
 	w.Header().Set(HeaderContentType, ContentTypeJSON)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"attestation": attestation,
-		"verified":    verified,
-		"algorithm":   "ML-DSA-65 (FIPS 204)",
-		"chain_valid": attestation.ChainPrevious != "",
+		"attestation":       attestation,
+		"verified":          verified,
+		"algorithm":         "ML-DSA-65 (FIPS 204)",
+		"chain_valid":       attestation.ChainPrevious != "",
+		"quantum_resistant": true,
 	})
 }
 
@@ -680,7 +711,9 @@ func HandleCommandCenterDashboard(w http.ResponseWriter, r *http.Request) {
 
 func generateID(prefix string) string {
 	now := time.Now()
-	hash := sha256.Sum256([]byte(fmt.Sprintf("%s_%d_%d", prefix, now.UnixNano(), now.Nanosecond())))
+	randBytes := make([]byte, 8)
+	_, _ = rand.Read(randBytes)
+	hash := sha256.Sum256([]byte(fmt.Sprintf("%s_%d_%d_%x", prefix, now.UnixNano(), now.Nanosecond(), randBytes)))
 	return fmt.Sprintf("%s_%s", prefix, hex.EncodeToString(hash[:])[:12])
 }
 

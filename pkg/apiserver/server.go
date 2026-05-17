@@ -117,6 +117,8 @@ func NewServer(config *Config, dagStore DAGStore, licMgr LicenseManager) *Server
 	} else {
 		server.sigPrivKey = priv
 		server.sigPubKey = pub
+		// Share with standalone HTTP handlers in command_center.go
+		SetPackageSigningKeys(priv, pub)
 	}
 
 	// NOTE: setupMiddleware() and setupRoutes() are intentionally NOT called here.
@@ -256,6 +258,26 @@ func (s *Server) setupRoutes() {
 			ap.POST("/resume", s.handleAutopilotResume)
 			ap.GET("/status", s.handleAutopilotStatus)
 			ap.GET("/events", s.handleAutopilotEvents)
+		}
+
+		// Organization & Seat Management
+		org := v1.Group("/org")
+		{
+			org.POST("/create", s.handleCreateOrganization)
+			org.GET("/:org_id", s.handleGetOrganization)
+			org.GET("/:org_id/seats", s.handleListSeats)
+			org.POST("/:org_id/seats/invite", s.handleInviteSeat)
+			org.DELETE("/:org_id/seats/:seat_id", s.handleRevokeSeat)
+			org.POST("/:org_id/upgrade", s.handleUpgradeTier)
+		}
+
+		// Billing & Stripe
+		billing := v1.Group("/billing")
+		{
+			billing.POST("/checkout", s.handleCreateCheckout)
+			billing.POST("/simulate-complete", s.handleSimulateComplete)
+			billing.POST("/webhook", s.handleStripeWebhook)
+			billing.GET("/subscription", s.handleGetSubscriptionStatus)
 		}
 
 		// ERT (Evidence Recording Token) endpoints
