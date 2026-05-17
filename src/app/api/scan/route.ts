@@ -32,13 +32,29 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Host': targetHost,
+        'Accept': 'application/json',
         'User-Agent': 'ASAF-Onboarding-Proxy/1.0',
       },
       body: JSON.stringify(body),
     });
 
-    const data = await res.json();
+    // Read as text first — Fly.io may return HTML error pages or
+    // gzip-encoded responses that res.json() can't decode directly.
+    const text = await res.text();
+    let data: unknown;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return NextResponse.json(
+        {
+          error: 'scan_proxy_parse_error',
+          status: res.status,
+          body: text.slice(0, 500),
+          target: INTERNAL_API,
+        },
+        { status: 502 },
+      );
+    }
 
     if (!res.ok) {
       return NextResponse.json(data, { status: res.status });
