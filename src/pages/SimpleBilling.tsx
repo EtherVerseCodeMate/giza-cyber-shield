@@ -5,19 +5,20 @@ import { useNavigate } from 'react-router-dom';
 const PLANS = [
   {
     id: 'diagnostic',
-    name: 'Readiness Diagnostic',
+    name: 'CMMC Readiness Diagnostic',
     badge: 'ADVISORY',
     price: '$5,000',
     priceSuffix: 'fixed scope',
     headline: true,
     description:
-      'Full-spectrum CMMC readiness assessment with C3PAO-ready evidence package. Delivered in 10 business days.',
+      'Full-spectrum CMMC readiness assessment powered by the SEKHEM Gateway and 4-Quadrant Command Center. C3PAO-ready evidence package in 10 business days.',
     features: [
-      'KHEPRA system scan — live, against your environment',
-      'STIG gap mapping across all applicable NIST 800-171 controls',
-      'DAG-anchored, PQC-signed evidence package',
+      'SEKHEM Gateway live scan against your environment',
+      'STIG gap mapping — 36,000+ NIST 800-171 control checks',
+      '4-Quadrant assessment: Discover → Assess → Rollback → Prove',
+      'DAG-anchored, ML-DSA-65 signed evidence package',
       'Written C3PAO readiness report with prioritized remediation',
-      'ADINKHEPRA attestation seal on evidence artifacts',
+      'ADINKHEPRA attestation seal on all evidence artifacts',
       '30-day follow-up remediation verification call',
     ],
     cta: 'Request Assessment',
@@ -32,11 +33,11 @@ const PLANS = [
     priceSuffix: '14-day delivery',
     headline: false,
     description:
-      'Assessment deadline in under 30 days? War-tested deployment under pressure. Evidence package + remediation in 14 days.',
+      'CMMC deadline in under 30 days? War-tested compliance sprint using the full AdinKhepra stack. Evidence package + remediation in 14 days.',
     features: [
-      'Everything in Readiness Diagnostic',
+      'Everything in CMMC Readiness Diagnostic',
       'Priority 14-day delivery timeline',
-      'Daily remediation check-ins',
+      'Daily remediation check-ins via Command Center',
       'Failure-mode recovery protocol included',
       'Direct founder engagement throughout',
     ],
@@ -51,8 +52,8 @@ const SELF_SERVE = [
     id: 'free',
     name: 'Scan',
     price: '$0',
-    description: "Scan any AI agent deployment. See what's exposed.",
-    features: ['Unlimited scans', 'Exposure report', 'Basic risk score', 'Community support'],
+    description: "Run the SEKHEM Gateway scanner against any target. See what's exposed.",
+    features: ['Unlimited scans', 'Exposure report', 'Basic STIG risk score', 'Community support'],
     cta: 'Run Free Scan',
     ctaAction: 'scan',
     highlight: false,
@@ -63,12 +64,12 @@ const SELF_SERVE = [
     price: '$99',
     priceSuffix: '/attestation',
     description:
-      'Full compliance audit + ADINKHEPRA certification for your AI agent deployment.',
+      'Full CMMC compliance audit + ADINKHEPRA certification seal. PQC-signed, tamper-evident.',
     features: [
       'Everything in Scan',
-      'Full NIST/STIG audit',
-      'ADINKHEPRA badge (PDF + API)',
-      'Shareable attestation report',
+      'Full NIST 800-171 / STIG audit',
+      'ADINKHEPRA badge (PDF + API verifiable)',
+      'Shareable attestation report for C3PAO',
       'Email support',
     ],
     cta: 'Get Certified',
@@ -199,19 +200,19 @@ export default function SimpleBilling() {
       <header style={styles.hero}>
         <div style={styles.logoRow}>
           <ShieldIcon />
-          <span style={styles.logoText}>ASAF</span>
-          <span style={styles.logoSub}>by NouchiX</span>
+          <span style={styles.logoText}>AdinKhepra</span>
+          <span style={styles.logoSub}>CMMC Compliance Autopilot</span>
         </div>
         <h1 style={styles.heroTitle}>
-          Compliance becomes proof.
+          Don't sign what you can't prove.
           <br />
           <span style={styles.heroAccent}>
-            Proof that passes audits under pressure.
+            CMMC compliance with mathematical certainty.
           </span>
         </h1>
         <p style={styles.heroSub}>
-          Agentic Security Attestation Framework — cryptographic evidence your C3PAO can
-          verify on the spot.
+          SEKHEM Gateway • 4-Quadrant Command Center • STIG Automation • PQC-Signed Evidence —
+          cryptographic proof your C3PAO can verify on the spot.
         </p>
       </header>
 
@@ -377,7 +378,7 @@ export default function SimpleBilling() {
       {/* Enterprise CTA */}
       <section style={styles.bottomCta}>
         <p style={styles.bottomCtaText}>Prime contractor? C3PAO looking to reduce failed assessments?</p>
-          <button
+        <button
           style={{ ...styles.ctaButton, ...styles.ctaPrimary, maxWidth: 320 }}
           onClick={handleAdvisory}
           type="button"
@@ -391,14 +392,14 @@ export default function SimpleBilling() {
       <footer style={styles.footer}>
         <div style={styles.footerInner}>
           <span style={styles.footerBrand}>
-            <ShieldIcon /> ASAF — Agentic Security Attestation Framework
+            <ShieldIcon /> AdinKhepra — CMMC Compliance Autopilot by NouchiX
           </span>
-          <span style={styles.footerRight}>SecRed Knowledge Inc. (NouchiX) · SDVOSB · Albany, NY</span>
+          <span style={styles.footerRight}>SecRed Knowledge Inc. (NouchiX) · SDVOSB · Patent Pending USPTO #73565085</span>
         </div>
         <div style={{ textAlign: 'center', marginTop: 10, fontSize: 11, color: '#5c6478' }}>
           <a href="https://nouchix.com/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#5c6478', textDecoration: 'underline', marginRight: 16 }}>Privacy Policy</a>
           <a href="https://nouchix.com/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#5c6478', textDecoration: 'underline', marginRight: 16 }}>Terms of Service</a>
-          <a href="mailto:security@nouchix.com" style={{ color: '#5c6478', textDecoration: 'underline' }}>security@nouchix.com</a>
+          <a href="mailto:support@nouchix.com" style={{ color: '#5c6478', textDecoration: 'underline' }}>security@nouchix.com</a>
         </div>
       </footer>
     </div>

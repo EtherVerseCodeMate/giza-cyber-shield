@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Shield, Brain, Activity, ChevronRight, Crown, Heart, Users, Scan, Database } from "lucide-react";
+import { Shield, Brain, Activity, ChevronRight, Crown, Heart, Users, Scan, Database, Radio, Eye, Lock } from "lucide-react";
 import InteractiveDemoVideo from "@/components/InteractiveDemoVideo";
 import EmailCaptureForm from "@/components/EmailCaptureForm";
 import RevenueStrategies from "@/components/billing/RevenueStrategies";
@@ -20,16 +20,16 @@ const Homepage = () => {
   }, []);
 
   const stats = [
-    { label: "Configuration Baselines", value: "Live", icon: Database, color: "text-green-400" },
+    { label: "ASAF Sessions Recorded", value: "Live", icon: Eye, color: "text-green-400" },
     { label: "Drift Detection", value: "Real-Time", icon: Activity, color: "text-purple-400" },
-    { label: "AI Verification", value: "Active", icon: Brain, color: "text-cyan-400" },
-    { label: "Trusted Registry", value: "Enabled", icon: Shield, color: "text-blue-400" },
+    { label: "PQC Signatures", value: "ML-DSA-65", icon: Lock, color: "text-cyan-400" },
+    { label: "Phantom Node PoC", value: "Active", icon: Radio, color: "text-emerald-400" },
   ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white overflow-hidden">
       {/* Header */}
-      <header className="border-b border-blue-500/20 bg-black/20 backdrop-blur-lg relative z-10">
+      <header className="border-b border-cyan-500/20 bg-black/20 backdrop-blur-lg relative z-10">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -40,10 +40,10 @@ const Homepage = () => {
               />
               <div className="flex items-center space-x-2">
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-                  SouHimBou AI
+                  SouHimBou.ai
                 </h1>
-                <span className="text-xs bg-yellow-600/20 text-yellow-400 px-2 py-1 rounded border border-yellow-500/30">
-                  IN DEVELOPMENT
+                <span className="text-xs bg-emerald-600/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/30">
+                  PROOF OF CONCEPT
                 </span>
               </div>
             </div>
@@ -56,19 +56,19 @@ const Homepage = () => {
                 <div className="text-xs text-gray-400">ZULU TIME</div>
               </div>
               <Button
-                onClick={() => navigate('/dod')}
+                onClick={() => navigate('/billing')}
                 variant="outline"
-                className="border-red-500/50 text-red-400 hover:bg-red-500/10 hidden lg:flex"
+                className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 hidden lg:flex"
               >
                 <Shield className="h-4 w-4 mr-2" />
-                DoD Center
+                Pricing
               </Button>
               <Button
                 onClick={() => navigate('/onboarding')}
-                className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
               >
-                <Scan className="h-4 w-4 mr-2" />
-                Run Read-Only Gap Scan
+                <Eye className="h-4 w-4 mr-2" />
+                Start Recording
               </Button>
             </div>
           </div>
@@ -77,7 +77,7 @@ const Homepage = () => {
 
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-purple-600/10 animate-pulse"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/10 to-blue-600/10 animate-pulse"></div>
         <div className="container mx-auto px-6 py-20 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Left Side - Hero Text */}
@@ -85,75 +85,72 @@ const Homepage = () => {
               <div className="space-y-6">
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-cyan-400 tracking-wide uppercase">
-                    STIG-First Compliance Platform - In Development
+                    PQC-MCP Flight Recorder — Proof of Concept Live
                   </p>
                 </div>
 
                 <h1 className="text-5xl lg:text-6xl font-bold leading-tight">
-                  <span className="text-white">Building the Future of</span>
+                  <span className="text-white">Security Camera for</span>
                   <br />
-                  <span className="bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
-                    CMMC Compliance Automation
+                  <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
+                    AI Agents
                   </span>
                 </h1>
 
                 <p className="text-xl text-gray-300 leading-relaxed">
-                  A compliance-first GRC platform being built specifically for the Defense Industrial Base, featuring STIG automation, AI-powered verification, and AWS GovCloud deployment for CUI handling.
+                  Every MCP tool call from Claude, Cursor, and Copilot — intercepted, signed with Dilithium3, and anchored into a tamper-evident DAG audit chain.
+                  Your AI agents now have a flight recorder.
                 </p>
 
-                {/* Development Status Disclaimer */}
-                <div className="border border-yellow-500/50 rounded-lg bg-yellow-900/20 p-5 space-y-3">
+                {/* PoC Status — replaces old "Development" disclaimer */}
+                <div className="border border-emerald-500/50 rounded-lg bg-emerald-900/20 p-5 space-y-3">
                   <div className="flex items-start gap-3">
                     <div className="flex-shrink-0 mt-1">
-                      <Shield className="h-5 w-5 text-yellow-400" />
+                      <Radio className="h-5 w-5 text-emerald-400" />
                     </div>
                     <div className="space-y-2">
-                      <h3 className="text-base font-semibold text-yellow-400">
-                        🚧 Platform Development Status
+                      <h3 className="text-base font-semibold text-emerald-400">
+                        ✅ Proof of Concept Deployed
                       </h3>
                       <p className="text-gray-300 text-sm leading-relaxed">
-                        <strong>Important:</strong> SouHimBou AI is currently in active development and <strong>NOT ready for production CUI workloads</strong>.
-                        We're building with a secure-enclave architecture using AWS GovCloud (US) for future CMMC Level 2 compliance.
-                        Current prototypes are for demonstration and beta testing only.
+                        The ASAF framework is running live on a <strong>Raspberry Pi Phantom Node</strong> connected to a consumer Spectrum router.
+                        ML-DSA-65 key rotation, spectral fingerprint addressing, and air-gap mode — operational on ARM edge hardware.
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="border border-blue-500/30 rounded-lg bg-blue-900/20 p-6 space-y-3">
-                  <h3 className="text-lg font-semibold text-blue-400">
-                    Current Development Roadmap
+                <div className="border border-cyan-500/30 rounded-lg bg-cyan-900/20 p-6 space-y-3">
+                  <h3 className="text-lg font-semibold text-cyan-400">
+                    What's Running Right Now
                   </h3>
-                  <p className="text-gray-300 text-sm">
-                    <strong>Beta Features (Non-CUI):</strong> STIG configuration search • AI verification prototypes • Dashboard UI • Compliance tracking mockups
-                  </p>
-                  <p className="text-gray-300 text-sm">
-                    <strong>Planned Production (Q2-Q3):</strong> AWS GovCloud deployment • NIST 800-171 controls • Secure evidence collection • C3PAO assessment readiness
-                  </p>
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    <span className="text-xs px-2 py-1 bg-yellow-500/20 text-yellow-300 rounded border border-yellow-500/30">⚠ Beta UI Only</span>
-                    <span className="text-xs px-2 py-1 bg-blue-500/20 text-blue-300 rounded">🔒 GovCloud Q2</span>
-                    <span className="text-xs px-2 py-1 bg-blue-500/20 text-blue-300 rounded">📋 CMMC Assessment Q3</span>
-                    <span className="text-xs px-2 py-1 bg-green-500/20 text-green-300 rounded border border-green-500/30">✓ Accepting Pilot Partners</span>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <span className="text-xs px-2 py-1 bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30">✓ ASAF Session Recording</span>
+                    <span className="text-xs px-2 py-1 bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30">✓ MCP Tool Interception</span>
+                    <span className="text-xs px-2 py-1 bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30">✓ Drift Detection</span>
+                    <span className="text-xs px-2 py-1 bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30">✓ Phantom Node (Raspberry Pi)</span>
+                    <span className="text-xs px-2 py-1 bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30">✓ PQC Key Rotation</span>
+                    <span className="text-xs px-2 py-1 bg-cyan-500/20 text-cyan-300 rounded">🔒 Prompt Injection Scanning</span>
+                    <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-300 rounded">🔬 Accepting Design Partners</span>
                   </div>
                 </div>
               </div>
 
               <EmailCaptureForm />
 
-              {/* DoD STIG-Codex Center CTA */}
+              {/* Primary CTA */}
               <div className="pt-6">
                 <Button
                   size="lg"
-                  onClick={() => navigate('/dod')}
-                  className="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white font-semibold py-4 px-8 text-lg border border-red-500/50"
+                  onClick={() => navigate('/onboarding')}
+                  className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-semibold py-4 px-8 text-lg border border-cyan-500/50"
                 >
-                  <Shield className="h-6 w-6 mr-3" />
-                  Access DoD STIG-Codex Center
+                  <Eye className="h-6 w-6 mr-3" />
+                  Start Free Flight Recording
                   <ChevronRight className="h-5 w-5 ml-2" />
                 </Button>
                 <p className="text-xs text-gray-400 mt-2 text-center">
-                  Unified STIG-First compliance automation platform
+                  Free forever for local recording — upgrade for PQC signing and edge deployment
                 </p>
               </div>
             </div>
@@ -185,22 +182,6 @@ const Homepage = () => {
         </div>
       </section>
 
-      {/* Special Revenue Offers Section */}
-      <section className="py-20 bg-gradient-to-br from-slate-900/50 to-blue-900/20">
-        <div className="container mx-auto px-6">
-          <div className="text-center space-y-4 mb-16">
-            <h2 className="text-4xl font-bold text-white">🚀 Beta Early Access & Pilot Partnership Program</h2>
-            <p className="text-xl text-gray-300">Help shape the future of DoD compliance automation - Current features limited to non-CUI prototyping</p>
-            <div className="inline-block bg-yellow-500/20 border border-yellow-500/50 text-yellow-300 px-4 py-2 rounded-lg text-sm max-w-2xl">
-              <strong>Note:</strong> Beta access provides UI/dashboard prototyping only. Production CUI handling requires AWS GovCloud deployment (Q2 2025).
-            </div>
-          </div>
-
-          {/* Revenue Strategies Component */}
-          <RevenueStrategies />
-        </div>
-      </section>
-
       {/* Referral Program Section */}
       <section className="py-20 bg-black/20">
         <div className="container mx-auto px-6">
@@ -215,182 +196,161 @@ const Homepage = () => {
         </div>
       </section>
 
-      {/* Pricing Section */}
+      {/* Pricing Section — SouHimBou-specific tiers */}
       <section className="py-20 bg-black/10">
         <div className="container mx-auto px-6">
           <div className="text-center space-y-4 mb-16">
-            <h2 className="text-4xl font-bold text-white">Development Partnerships - Limited Availability</h2>
-            <p className="text-xl text-gray-300">Beta UI prototyping now • Production GovCloud deployment Q2 2025</p>
-            <div className="inline-block bg-orange-500/20 border border-orange-500/50 text-orange-300 px-4 py-2 rounded-lg text-sm max-w-3xl">
-              🚀 Seeking 5 pilot partners to co-develop production-ready AWS GovCloud deployment for CUI handling
-            </div>
-            <div className="inline-block bg-yellow-500/20 border border-yellow-500/50 text-yellow-300 px-4 py-2 rounded-lg text-sm max-w-3xl mt-2">
-              ⚠ Current beta pricing is for non-CUI UI/prototype access only. Production CUI workloads require separate GovCloud deployment contract.
-            </div>
+            <h2 className="text-4xl font-bold text-white">PQC-MCP Flight Recorder Plans</h2>
+            <p className="text-xl text-gray-300">From free local recording to sovereign edge deployment</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {/* Beta MVP 1.0 Plan */}
-            <div className="bg-slate-800/50 border border-cyan-500/50 rounded-lg p-6 space-y-6 relative">
-              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-cyan-500 text-black text-xs px-3 py-1 rounded-full font-semibold">
-                MVP 1.0 BETA
+            {/* Scout — Free */}
+            <div className="bg-slate-800/50 border border-slate-600/50 rounded-lg p-6 space-y-6 relative">
+              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-slate-600 text-white text-xs px-3 py-1 rounded-full font-semibold">
+                FREE FOREVER
               </div>
               <div className="space-y-2">
-                <h3 className="text-xl font-bold text-white">Beta Prototyping Access</h3>
-                <div className="text-3xl font-bold text-cyan-400">$497<span className="text-sm text-gray-400">/month</span></div>
-                <p className="text-xs text-gray-400">UI/Dashboard beta • Non-CUI only</p>
-              </div>
-              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded p-3 mb-3">
-                <p className="text-xs text-yellow-300"><strong>Beta Limitation:</strong> Dashboard UI only. No CUI storage or processing.</p>
+                <h3 className="text-xl font-bold text-white">Scout</h3>
+                <div className="text-3xl font-bold text-white">$0<span className="text-sm text-gray-400">/month</span></div>
+                <p className="text-xs text-gray-400">Local ASAF recording — no credit card</p>
               </div>
               <ul className="space-y-3 text-sm text-gray-300">
-                <li className="flex items-center"><div className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></div>STIG Configuration Search (Demo)</li>
-                <li className="flex items-center"><div className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></div>AI Verification (Prototype)</li>
-                <li className="flex items-center"><div className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></div>Dashboard UI Access</li>
-                <li className="flex items-center"><div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>GovCloud Production (Q2 2025)</li>
-                <li className="flex items-center"><div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>CUI Handling (Q2 2025)</li>
+                <li className="flex items-center"><div className="w-2 h-2 bg-emerald-400 rounded-full mr-2"></div>Unlimited ASAF session recording</li>
+                <li className="flex items-center"><div className="w-2 h-2 bg-emerald-400 rounded-full mr-2"></div>MCP tool call interception</li>
+                <li className="flex items-center"><div className="w-2 h-2 bg-emerald-400 rounded-full mr-2"></div>DAG audit trail (local)</li>
+                <li className="flex items-center"><div className="w-2 h-2 bg-emerald-400 rounded-full mr-2"></div>Basic drift detection alerts</li>
+                <li className="flex items-center"><div className="w-2 h-2 bg-emerald-400 rounded-full mr-2"></div>Community support</li>
               </ul>
               <Button
-                className="w-full bg-cyan-600 hover:bg-cyan-700 text-white"
+                className="w-full bg-slate-700 hover:bg-slate-600 text-white"
                 onClick={() => navigate('/onboarding')}
               >
-                Start Beta Access
+                Start Recording
               </Button>
-              <p className="text-xs text-gray-500 text-center">Beta pricing locked for 12 months</p>
             </div>
 
-            {/* MSP Tiered Plan */}
-            <div className="bg-gradient-to-br from-blue-900/50 to-purple-900/50 border border-blue-500 rounded-lg p-6 space-y-6 relative">
-              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs px-3 py-1 rounded-full font-semibold">
-                FOR MSPs/MSSPs
+            {/* Sentinel — $49/mo */}
+            <div className="bg-gradient-to-br from-cyan-900/50 to-blue-900/50 border border-cyan-500 rounded-lg p-6 space-y-6 relative">
+              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-xs px-3 py-1 rounded-full font-semibold">
+                MOST POPULAR
               </div>
               <div className="space-y-2">
-                <h3 className="text-xl font-bold text-white">MSP Beta Partnership</h3>
-                <div className="text-3xl font-bold text-blue-400">$997<span className="text-sm text-gray-400">/month</span></div>
-                <p className="text-xs text-gray-400">Multi-tenant UI beta • Non-CUI</p>
-              </div>
-              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded p-3 mb-3">
-                <p className="text-xs text-yellow-300"><strong>Beta Limitation:</strong> Multi-tenant dashboard UI only. Production requires GovCloud deployment.</p>
+                <h3 className="text-xl font-bold text-white">Sentinel</h3>
+                <div className="text-3xl font-bold text-cyan-400">$49<span className="text-sm text-gray-400">/month</span></div>
+                <p className="text-xs text-gray-400">PQC-signed flight recording</p>
               </div>
               <ul className="space-y-3 text-sm text-gray-300">
-                <li className="flex items-center"><div className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></div>Multi-Asset Dashboard (Demo)</li>
-                <li className="flex items-center"><div className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></div>Drift Detection UI (Prototype)</li>
-                <li className="flex items-center"><div className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></div>Compliance Tracking (Mock Data)</li>
-                <li className="flex items-center"><div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>Multi-Tenant Production (Q2)</li>
-                <li className="flex items-center"><div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>Real CUI Processing (Q2 GovCloud)</li>
+                <li className="flex items-center"><div className="w-2 h-2 bg-cyan-400 rounded-full mr-2"></div>Everything in Scout</li>
+                <li className="flex items-center"><div className="w-2 h-2 bg-cyan-400 rounded-full mr-2"></div>ML-DSA-65 signed DAG nodes</li>
+                <li className="flex items-center"><div className="w-2 h-2 bg-cyan-400 rounded-full mr-2"></div>Prompt injection scanning (6 patterns)</li>
+                <li className="flex items-center"><div className="w-2 h-2 bg-cyan-400 rounded-full mr-2"></div>Real-time SSE event streaming</li>
+                <li className="flex items-center"><div className="w-2 h-2 bg-cyan-400 rounded-full mr-2"></div>Behavioral anomaly scoring</li>
+                <li className="flex items-center"><div className="w-2 h-2 bg-cyan-400 rounded-full mr-2"></div>ADINKHEPRA attestation seal</li>
               </ul>
               <Button
-                className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
+                className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
                 onClick={() => navigate('/onboarding')}
               >
-                Start MSP Beta
+                Upgrade to Sentinel
               </Button>
-              <p className="text-xs text-gray-500 text-center">Volume discounts available</p>
             </div>
 
-            {/* MVP 2.0 Pilot Plan */}
-            <div className="bg-gradient-to-br from-orange-900/50 to-red-900/50 border border-orange-500 rounded-lg p-6 space-y-6 relative">
-              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs px-3 py-1 rounded-full font-semibold">
-                MVP 2.0 PILOT
+            {/* Phantom — $299/mo */}
+            <div className="bg-gradient-to-br from-purple-900/50 to-indigo-900/50 border border-purple-500 rounded-lg p-6 space-y-6 relative">
+              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs px-3 py-1 rounded-full font-semibold">
+                EDGE DEPLOYMENT
               </div>
               <div className="space-y-2">
-                <h3 className="text-xl font-bold text-white">AWS GovCloud Pilot Partner</h3>
-                <div className="text-3xl font-bold text-orange-400">Custom</div>
-                <p className="text-xs text-gray-400">Full production co-development</p>
-              </div>
-              <div className="bg-orange-500/10 border border-orange-500/30 rounded p-3 mb-3">
-                <p className="text-xs text-orange-300"><strong>Production Track:</strong> AWS GovCloud deployment • NIST 800-171 controls • C3PAO assessment readiness</p>
+                <h3 className="text-xl font-bold text-white">Phantom</h3>
+                <div className="text-3xl font-bold text-purple-400">$299<span className="text-sm text-gray-400">/month</span></div>
+                <p className="text-xs text-gray-400">Sovereign edge nodes — air-gapped</p>
               </div>
               <ul className="space-y-3 text-sm text-gray-300">
-                <li className="flex items-center"><div className="w-2 h-2 bg-orange-400 rounded-full mr-2"></div>Dedicated GovCloud Enclave</li>
-                <li className="flex items-center"><div className="w-2 h-2 bg-orange-400 rounded-full mr-2"></div>CUI-Ready Evidence Collection</li>
-                <li className="flex items-center"><div className="w-2 h-2 bg-orange-400 rounded-full mr-2"></div>CMMC Assessment Support</li>
-                <li className="flex items-center"><div className="w-2 h-2 bg-orange-400 rounded-full mr-2"></div>DISA STIG Automation</li>
-                <li className="flex items-center"><div className="w-2 h-2 bg-orange-400 rounded-full mr-2"></div>Co-branded Success Story</li>
+                <li className="flex items-center"><div className="w-2 h-2 bg-purple-400 rounded-full mr-2"></div>Everything in Sentinel</li>
+                <li className="flex items-center"><div className="w-2 h-2 bg-purple-400 rounded-full mr-2"></div>Phantom Node deployment (Pi / ARM)</li>
+                <li className="flex items-center"><div className="w-2 h-2 bg-purple-400 rounded-full mr-2"></div>Auto PQC key rotation (Kyber + Dilithium)</li>
+                <li className="flex items-center"><div className="w-2 h-2 bg-purple-400 rounded-full mr-2"></div>Air-gap / offline mode</li>
+                <li className="flex items-center"><div className="w-2 h-2 bg-purple-400 rounded-full mr-2"></div>Custom Adinkra symbol addressing</li>
+                <li className="flex items-center"><div className="w-2 h-2 bg-purple-400 rounded-full mr-2"></div>Up to 10 team seats + Slack</li>
               </ul>
               <Button
-                className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
+                className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white"
                 onClick={() => navigate('/onboarding')}
               >
-                Apply for Pilot
+                Deploy Phantom Node
               </Button>
-              <p className="text-xs text-gray-500 text-center">Limited to 5 pilot partners in Q1</p>
+              <p className="text-xs text-gray-500 text-center">Includes design partner onboarding</p>
             </div>
           </div>
 
           <div className="mt-12 text-center space-y-3">
             <p className="text-gray-400 text-sm">
-              Beta plans include: Dashboard UI access • Prototype workflows • Mock data visualization • Email support
+              All plans include: DAG audit chain • MCP tool interception • Dilithium3 signing • Community support
             </p>
-            <p className="text-yellow-400 text-sm font-medium">
-              Production CUI handling requires separate AWS GovCloud deployment contract. Contact us for enterprise requirements.
+            <p className="text-cyan-400 text-sm font-medium">
+              Looking for CMMC Compliance instead? Visit <a href="https://adinkhepra.com" className="underline hover:text-cyan-300">adinkhepra.com</a>
             </p>
           </div>
         </div>
       </section>
 
       {/* Final CTA Section */}
-      <section id="demo" className="py-20 bg-gradient-to-r from-blue-900/30 to-purple-900/30">
+      <section id="demo" className="py-20 bg-gradient-to-r from-cyan-900/30 to-blue-900/30">
         <div className="container mx-auto px-6 text-center">
           <div className="max-w-4xl mx-auto space-y-8">
             <h2 className="text-4xl font-bold text-white">
-              🎯 Join Our Development Partnership Program
+              🛡️ Your AI Agents Deserve a Flight Recorder
             </h2>
             <p className="text-xl text-gray-300">
-              Help us build the future of DoD compliance automation. Beta UI access available now.
-              Production AWS GovCloud deployment for CUI handling launching Q2 2025.
+              The ASAF framework is no longer theoretical. Proof of Concept is live on edge hardware.
+              Start recording your AI agent sessions today — free forever at the Scout tier.
             </p>
-            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 max-w-2xl mx-auto">
-              <p className="text-sm text-yellow-300">
-                <strong>Transparency Notice:</strong> Current platform is in active development. Beta features are for UI prototyping and demonstration only.
-                Production workloads handling CUI require our AWS GovCloud deployment (Q2 2025) with full NIST 800-171 controls.
-              </p>
-            </div>
 
             {/* CTA Options */}
             <div className="grid md:grid-cols-3 gap-6 mt-12">
-              {/* Beta Pricing CTA */}
+              {/* Free Recording CTA */}
+              <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-600/50 rounded-lg p-6 space-y-4">
+                <Eye className="h-12 w-12 text-emerald-400 mx-auto" />
+                <h3 className="text-xl font-bold text-emerald-400">Scout — Free</h3>
+                <p className="text-sm text-gray-300">Local flight recording for every AI agent</p>
+                <Button
+                  size="lg"
+                  onClick={() => navigate('/onboarding')}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  Start Recording
+                </Button>
+              </div>
+
+              {/* PQC Signing CTA */}
               <div className="bg-gradient-to-br from-cyan-900/30 to-blue-900/30 border border-cyan-500/50 rounded-lg p-6 space-y-4">
-                <Crown className="h-12 w-12 text-cyan-400 mx-auto" />
-                <h3 className="text-xl font-bold text-cyan-400">MVP 1.0 Beta Access</h3>
-                <p className="text-sm text-gray-300">Starting at $497/month • Beta pricing locked</p>
+                <Lock className="h-12 w-12 text-cyan-400 mx-auto" />
+                <h3 className="text-xl font-bold text-cyan-400">Sentinel — $49/mo</h3>
+                <p className="text-sm text-gray-300">PQC-signed, tamper-evident audit trails</p>
                 <Button
                   size="lg"
-                  onClick={() => navigate('/onboarding')}
-                  className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold"
+                  onClick={() => navigate('/billing')}
+                  className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
                 >
-                  <Crown className="h-4 w-4 mr-2" />
-                  Join Beta Program
+                  <Lock className="h-4 w-4 mr-2" />
+                  Get Sentinel
                 </Button>
               </div>
 
-              {/* Read-Only Gap Scan CTA */}
-              <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 border border-blue-500/50 rounded-lg p-6 space-y-4">
-                <Scan className="h-12 w-12 text-blue-400 mx-auto" />
-                <h3 className="text-xl font-bold text-blue-400">Free STIG Gap Scan</h3>
-                <p className="text-sm text-gray-300">48-hour read-only assessment</p>
+              {/* Edge Deployment CTA */}
+              <div className="bg-gradient-to-br from-purple-900/30 to-indigo-900/30 border border-purple-500/50 rounded-lg p-6 space-y-4">
+                <Radio className="h-12 w-12 text-purple-400 mx-auto" />
+                <h3 className="text-xl font-bold text-purple-400">Phantom — $299/mo</h3>
+                <p className="text-sm text-gray-300">Sovereign edge deployment on your hardware</p>
                 <Button
                   size="lg"
-                  onClick={() => navigate('/onboarding')}
-                  className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                  onClick={() => navigate('/billing')}
+                  className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600"
                 >
-                  <Scan className="h-4 w-4 mr-2" />
-                  Run Gap Scan
-                </Button>
-              </div>
-
-              {/* Pilot Program CTA */}
-              <div className="bg-gradient-to-br from-orange-900/30 to-red-900/30 border border-orange-500/50 rounded-lg p-6 space-y-4">
-                <Heart className="h-12 w-12 text-orange-400 mx-auto" />
-                <h3 className="text-xl font-bold text-orange-400">MVP 2.0 Pilot</h3>
-                <p className="text-sm text-gray-300">Co-development partnership</p>
-                <Button
-                  size="lg"
-                  onClick={() => navigate('/onboarding')}
-                  className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-                >
-                  <Users className="h-4 w-4 mr-2" />
-                  Apply for Pilot
+                  <Radio className="h-4 w-4 mr-2" />
+                  Deploy Phantom
                 </Button>
               </div>
             </div>
@@ -399,10 +359,10 @@ const Homepage = () => {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-blue-500/20 bg-black/20 backdrop-blur-lg py-8">
+      <footer className="border-t border-cyan-500/20 bg-black/20 backdrop-blur-lg py-8">
         <div className="container mx-auto px-6 text-center">
           <div className="text-sm text-gray-400">
-            © 2024 SouHimBou AI. All rights reserved. | DoD Classified System
+            © 2026 SouHimBou.ai — PQC-MCP Flight Recorder by NouchiX (Sacred Knowledge Inc.) | Patent Pending USPTO #73565085
           </div>
         </div>
       </footer>
