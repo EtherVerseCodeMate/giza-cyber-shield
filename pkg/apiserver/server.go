@@ -218,10 +218,12 @@ func (s *Server) setupRoutes() {
 			stig.POST("/remediate", s.handleSTIGRemediation)
 		}
 
-		// CMMC endpoints
+		// CMMC endpoints — protected by Mitochondrial API Gateway (WAF + PQC Auth)
 		compliance := v1.Group("/compliance")
 		{
 			compliance.GET("/cmmc-audit", s.handleCMMCAudit)
+			compliance.GET("/cmmc-scorecard", s.handleCMMCScorecard)
+			compliance.GET("/mapping-chain", s.handleCMMCMappingChain)
 		}
 
 		// Command Center endpoints (4-Quadrant "Compliance in 4 Clicks")
