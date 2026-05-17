@@ -17,31 +17,53 @@ const ASAF_KEY = (import.meta as any).env?.VITE_ASAF_API_KEY
 
 const PLANS = [
   {
-    name: 'Free',
+    name: 'Scout',
     price: '$0',
-    description: "Scan any AI agent deployment. See what’s exposed.",
-    features: ['Unlimited scans', 'Exposure report', 'Basic risk score', 'Community support'],
-    cta: 'Current Plan',
+    description: "ASAF Flight Recorder for your AI agents. Monitor MCP tool calls and detect drift — free forever.",
+    features: [
+      'Unlimited ASAF session recording',
+      'MCP tool call interception (Claude, Cursor, Copilot)',
+      'DAG audit trail (local)',
+      'Basic drift detection alerts',
+      'Community support',
+    ],
+    cta: 'Start Recording',
     ctaVariant: 'outline' as const,
     highlight: false,
     action: 'free' as const,
   },
   {
-    name: 'Certify',
-    price: '$99',
-    description: 'Full NIST 800-171 / STIG readiness audit + ADINKHEPRA certification seal.',
-    features: ['Everything in Free', 'Full NIST/STIG audit', 'ADINKHEPRA badge (PDF + API)', 'Shareable attestation report', 'Email support'],
-    cta: 'Upgrade to Certify',
+    name: 'Sentinel',
+    price: '$49',
+    description: 'PQC-signed flight recording with Dilithium3 signatures on every AI action. Tamper-evident audit trails.',
+    features: [
+      'Everything in Scout',
+      'ML-DSA-65 signed DAG nodes',
+      'Prompt injection scanning (6 patterns)',
+      'Real-time SSE event streaming',
+      'Behavioral anomaly scoring',
+      'ADINKHEPRA attestation seal',
+      'Email support',
+    ],
+    cta: 'Upgrade to Sentinel',
     ctaVariant: 'default' as const,
     highlight: true,
     action: 'checkout' as const,
   },
   {
-    name: 'Enterprise',
-    price: '$499',
-    description: 'Evidence-first scope alignment + readiness advisory for regulated programs.',
-    features: ['Everything in Certify', 'Evidence advisory sessions', 'Attestation API access', 'Up to 10 team seats', 'Priority support', 'Custom compliance frameworks'],
-    cta: 'Book Advisory Call',
+    name: 'Phantom',
+    price: '$299',
+    description: 'Full PQC edge deployment — Phantom Nodes on your hardware. Air-gapped, sovereign, HSM-ready.',
+    features: [
+      'Everything in Sentinel',
+      'Phantom Node edge deployment (Raspberry Pi / ARM)',
+      'Automatic PQC key rotation (Kyber-1024 + Dilithium3)',
+      'Air-gap / offline mode',
+      'Custom Adinkra symbol addressing',
+      'Up to 10 team seats',
+      'Priority support + Slack channel',
+    ],
+    cta: 'Deploy Phantom Node',
     ctaVariant: 'outline' as const,
     highlight: false,
     action: 'contact' as const,
@@ -133,7 +155,7 @@ const SimpleBilling = () => {
       currentSection="billing"
       browserNav={{
         title: 'Plans & Billing',
-        subtitle: 'ASAF by NouchiX — Agentic Security Attestation Framework',
+        subtitle: 'SouHimBou.ai — PQC-MCP Flight Recorder for AI Agents',
         tabs,
         showAddTab: false,
         rightContent: <DashboardToggle />
@@ -144,7 +166,7 @@ const SimpleBilling = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Plans & Billing</h1>
-            <p className="text-muted-foreground">One price. One sell point. Earn your ADINKHEPRA certification.</p>
+            <p className="text-muted-foreground">Security camera + flight recorder for AI agents. Every MCP tool call, signed and sealed.</p>
           </div>
         </div>
 
@@ -190,14 +212,14 @@ const SimpleBilling = () => {
         </div>
 
         {/* ADINKHEPRA badge callout */}
-        <Card className="border-yellow-500/30 bg-yellow-950/10">
+        <Card className="border-cyan-500/30 bg-cyan-950/10">
           <CardContent className="p-6 flex items-center gap-4">
-            <Award className="h-10 w-10 text-yellow-400 shrink-0" />
+            <Award className="h-10 w-10 text-cyan-400 shrink-0" />
             <div>
-              <div className="font-semibold text-yellow-400">What is the ADINKHEPRA badge?</div>
+              <div className="font-semibold text-cyan-400">What is the ASAF Flight Recorder?</div>
               <p className="text-sm text-muted-foreground">
-                A post-quantum cryptographic attestation seal issued by ASAF. Tamper-proof, timestamped, and verifiable by auditors, customers, and insurers.
-                Think SOC2 — but automated, continuous, and built for agentic AI.
+                Every MCP tool call from Claude, Cursor, Copilot, or custom agents is intercepted and recorded as an immutable,
+                Dilithium3-signed DAG node. Drift detection flags behavioral anomalies in real-time. Your AI agents now have a black box.
               </p>
             </div>
           </CardContent>

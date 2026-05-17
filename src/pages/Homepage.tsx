@@ -20,10 +20,10 @@ const Homepage = () => {
   }, []);
 
   const stats = [
-    { label: "Configuration Baselines", value: "Live", icon: Database, color: "text-green-400" },
+    { label: "STIG Controls Mapped", value: "36,000+", icon: Database, color: "text-green-400" },
     { label: "Drift Detection", value: "Real-Time", icon: Activity, color: "text-purple-400" },
-    { label: "AI Verification", value: "Active", icon: Brain, color: "text-cyan-400" },
-    { label: "Trusted Registry", value: "Enabled", icon: Shield, color: "text-blue-400" },
+    { label: "PQC Verification", value: "ML-DSA-65", icon: Brain, color: "text-cyan-400" },
+    { label: "Evidence Signing", value: "Dilithium3", icon: Shield, color: "text-blue-400" },
   ];
 
   return (
@@ -40,10 +40,10 @@ const Homepage = () => {
               />
               <div className="flex items-center space-x-2">
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-                  SouHimBou AI
+                  AdinKhepra
                 </h1>
-                <span className="text-xs bg-yellow-600/20 text-yellow-400 px-2 py-1 rounded border border-yellow-500/30">
-                  IN DEVELOPMENT
+                <span className="text-xs bg-emerald-600/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/30">
+                  PROOF OF CONCEPT
                 </span>
               </div>
             </div>
@@ -68,7 +68,7 @@ const Homepage = () => {
                 className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
               >
                 <Scan className="h-4 w-4 mr-2" />
-                Run Read-Only Gap Scan
+                Run Free CMMC Gap Scan
               </Button>
             </div>
           </div>
@@ -85,36 +85,36 @@ const Homepage = () => {
               <div className="space-y-6">
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-cyan-400 tracking-wide uppercase">
-                    STIG-First Compliance Platform - In Development
+                    CMMC Compliance Autopilot — Proof of Concept Live
                   </p>
                 </div>
 
                 <h1 className="text-5xl lg:text-6xl font-bold leading-tight">
-                  <span className="text-white">Building the Future of</span>
+                  <span className="text-white">Don't Sign What</span>
                   <br />
                   <span className="bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
-                    CMMC Compliance Automation
+                    You Can't Prove
                   </span>
                 </h1>
 
                 <p className="text-xl text-gray-300 leading-relaxed">
-                  A compliance-first GRC platform being built specifically for the Defense Industrial Base, featuring STIG automation, AI-powered verification, and AWS GovCloud deployment for CUI handling.
+                  CMMC compliance with mathematical certainty. The SEKHEM Gateway scans your environment, maps 36,000+ STIG controls,
+                  and generates PQC-signed evidence packages your C3PAO can verify cryptographically.
                 </p>
 
-                {/* Development Status Disclaimer */}
-                <div className="border border-yellow-500/50 rounded-lg bg-yellow-900/20 p-5 space-y-3">
+                {/* PoC Status */}
+                <div className="border border-emerald-500/50 rounded-lg bg-emerald-900/20 p-5 space-y-3">
                   <div className="flex items-start gap-3">
                     <div className="flex-shrink-0 mt-1">
-                      <Shield className="h-5 w-5 text-yellow-400" />
+                      <Shield className="h-5 w-5 text-emerald-400" />
                     </div>
                     <div className="space-y-2">
-                      <h3 className="text-base font-semibold text-yellow-400">
-                        🚧 Platform Development Status
+                      <h3 className="text-base font-semibold text-emerald-400">
+                        ✅ KHEPRA Protocol Proof of Concept Deployed
                       </h3>
                       <p className="text-gray-300 text-sm leading-relaxed">
-                        <strong>Important:</strong> SouHimBou AI is currently in active development and <strong>NOT ready for production CUI workloads</strong>.
-                        We're building with a secure-enclave architecture using AWS GovCloud (US) for future CMMC Level 2 compliance.
-                        Current prototypes are for demonstration and beta testing only.
+                        The ASAF framework is running live on a <strong>Raspberry Pi Phantom Node</strong> connected to a Spectrum router.
+                        CMMC compliance evidence is now generated with ML-DSA-65 cryptographic signatures — tamper-evident and assessor-verifiable.
                       </p>
                     </div>
                   </div>
@@ -122,38 +122,36 @@ const Homepage = () => {
 
                 <div className="border border-blue-500/30 rounded-lg bg-blue-900/20 p-6 space-y-3">
                   <h3 className="text-lg font-semibold text-blue-400">
-                    Current Development Roadmap
+                    4-Quadrant Command Center
                   </h3>
                   <p className="text-gray-300 text-sm">
-                    <strong>Beta Features (Non-CUI):</strong> STIG configuration search • AI verification prototypes • Dashboard UI • Compliance tracking mockups
-                  </p>
-                  <p className="text-gray-300 text-sm">
-                    <strong>Planned Production (Q2-Q3):</strong> AWS GovCloud deployment • NIST 800-171 controls • Secure evidence collection • C3PAO assessment readiness
+                    <strong>Discover:</strong> SEKHEM Gateway live scan • <strong>Assess:</strong> STIG/NIST mapping • <strong>Rollback:</strong> Config snapshots • <strong>Prove:</strong> PQC-signed attestation
                   </p>
                   <div className="flex flex-wrap gap-2 pt-2">
-                    <span className="text-xs px-2 py-1 bg-yellow-500/20 text-yellow-300 rounded border border-yellow-500/30">⚠ Beta UI Only</span>
-                    <span className="text-xs px-2 py-1 bg-blue-500/20 text-blue-300 rounded">🔒 GovCloud Q2</span>
-                    <span className="text-xs px-2 py-1 bg-blue-500/20 text-blue-300 rounded">📋 CMMC Assessment Q3</span>
-                    <span className="text-xs px-2 py-1 bg-green-500/20 text-green-300 rounded border border-green-500/30">✓ Accepting Pilot Partners</span>
+                    <span className="text-xs px-2 py-1 bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30">✓ SEKHEM Gateway Live</span>
+                    <span className="text-xs px-2 py-1 bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30">✓ STIG Validation</span>
+                    <span className="text-xs px-2 py-1 bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30">✓ DAG Audit Chain</span>
+                    <span className="text-xs px-2 py-1 bg-blue-500/20 text-blue-300 rounded">🔒 PQC Evidence Signing</span>
+                    <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-300 rounded">📋 Oct 1 2026 CMMC Deadline: 138 days</span>
                   </div>
                 </div>
               </div>
 
               <EmailCaptureForm />
 
-              {/* DoD STIG-Codex Center CTA */}
+              {/* Primary CTA */}
               <div className="pt-6">
                 <Button
                   size="lg"
-                  onClick={() => navigate('/dod')}
-                  className="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white font-semibold py-4 px-8 text-lg border border-red-500/50"
+                  onClick={() => navigate('/onboarding')}
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-4 px-8 text-lg border border-blue-500/50"
                 >
                   <Shield className="h-6 w-6 mr-3" />
-                  Access DoD STIG-Codex Center
+                  Run Free CMMC Gap Scan
                   <ChevronRight className="h-5 w-5 ml-2" />
                 </Button>
                 <p className="text-xs text-gray-400 mt-2 text-center">
-                  Unified STIG-First compliance automation platform
+                  Free scan — upgrade to Certify for PQC-signed evidence packages
                 </p>
               </div>
             </div>
@@ -189,10 +187,10 @@ const Homepage = () => {
       <section className="py-20 bg-gradient-to-br from-slate-900/50 to-blue-900/20">
         <div className="container mx-auto px-6">
           <div className="text-center space-y-4 mb-16">
-            <h2 className="text-4xl font-bold text-white">🚀 Beta Early Access & Pilot Partnership Program</h2>
-            <p className="text-xl text-gray-300">Help shape the future of DoD compliance automation - Current features limited to non-CUI prototyping</p>
-            <div className="inline-block bg-yellow-500/20 border border-yellow-500/50 text-yellow-300 px-4 py-2 rounded-lg text-sm max-w-2xl">
-              <strong>Note:</strong> Beta access provides UI/dashboard prototyping only. Production CUI handling requires AWS GovCloud deployment (Q2 2025).
+            <h2 className="text-4xl font-bold text-white">🛡️ CMMC Hard Deadline: October 1, 2026</h2>
+            <p className="text-xl text-gray-300">Progressive rollout is already active — contracts are requiring certification now</p>
+            <div className="inline-block bg-blue-500/20 border border-blue-500/50 text-blue-300 px-4 py-2 rounded-lg text-sm max-w-2xl">
+              AdinKhepra's SEKHEM Gateway and 4-Quadrant Command Center provide C3PAO-ready evidence packages with PQC-signed attestation.
             </div>
           </div>
 
@@ -402,7 +400,9 @@ const Homepage = () => {
       <footer className="border-t border-blue-500/20 bg-black/20 backdrop-blur-lg py-8">
         <div className="container mx-auto px-6 text-center">
           <div className="text-sm text-gray-400">
-            © 2024 SouHimBou AI. All rights reserved. | DoD Classified System
+            © 2026 AdinKhepra — CMMC Compliance Autopilot by NouchiX (Sacred Knowledge Inc.) | Patent Pending USPTO #73565085
+            <br />
+            <span className="text-xs text-gray-500">Looking for AI agent flight recording? Visit <a href="https://souhimbou.ai" className="underline hover:text-cyan-300 text-cyan-500">souhimbou.ai</a></span>
           </div>
         </div>
       </footer>
