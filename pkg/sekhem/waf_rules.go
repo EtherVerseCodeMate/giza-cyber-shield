@@ -194,6 +194,7 @@ var defaultAllowedHosts = map[string]bool{
 	"www.souhimbou.org":      true,
 	"adinkhepra.com":         true,
 	"www.adinkhepra.com":     true,
+	"souhimbou-ai.fly.dev":   true,  // Fly.io deployment (Next.js proxy target)
 	"localhost":               true,
 	"localhost:8080":          true,
 	"localhost:45444":         true,
@@ -347,16 +348,16 @@ func (r *maliciousUARule) ID() string { return "SEKHEM-008" }
 
 func (r *maliciousUARule) Inspect(req *http.Request) *WAFRuleResult {
 	ua := req.UserAgent()
-	if ua == "" || maliciousUAPatterns.MatchString(ua) {
-		// Missing UA on non-health paths is suspicious; known scanner UA is a block.
-		severity := maat.SeveritySevere
-		if ua == "" {
-			severity = maat.SeverityMinor
-		}
+	// Empty UA is allowed — server-to-server calls (e.g. Vercel/Next.js proxy,
+	// internal health probes, API clients) legitimately omit User-Agent.
+	if ua == "" {
+		return nil
+	}
+	if maliciousUAPatterns.MatchString(ua) {
 		return &WAFRuleResult{
 			RuleID:        r.ID(),
 			Action:        WAFActionBlock,
-			Severity:      severity,
+			Severity:      maat.SeveritySevere,
 			Certainty:     0.82,
 			CorrelationID: newCorrelationID(),
 		}
