@@ -38,6 +38,7 @@ type Server struct {
 	sigPubKey   []byte                // ML-DSA-65 Dilithium3 verification key (server identity)
 	sekhemTriad *sekhem.SekhemTriad   // Ouroboros cycle, WAF realm, sensor/actuator mesh (optional)
 	recorder    *asaf.Recorder        // ASAF flight recorder — nil until WithASAFRecorder is called
+	autopilot   *AutopilotEngine      // Continuous compliance scheduler (Autopilot tier)
 }
 
 const (
