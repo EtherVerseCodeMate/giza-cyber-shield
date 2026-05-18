@@ -18,16 +18,16 @@ import (
 //
 // The manifest is the sole source of truth for risk classification.
 
-// ToolHandler is the interface that individual tool implementations satisfy.
-type ToolHandler interface {
+// ToolHandlerIface is the interface that individual tool implementations satisfy.
+type ToolHandlerIface interface {
 	// Handle executes the tool and returns a result, optional warnings, and any error.
 	Handle(ctx context.Context, call MCPToolCall) (any, []string, error)
 }
 
-// ToolHandlerFunc adapts a function to the ToolHandler interface.
-type ToolHandlerFunc func(ctx context.Context, call MCPToolCall) (any, []string, error)
+// ToolHandlerFuncAdapter adapts a function to the ToolHandlerIface interface.
+type ToolHandlerFuncAdapter func(ctx context.Context, call MCPToolCall) (any, []string, error)
 
-func (f ToolHandlerFunc) Handle(ctx context.Context, call MCPToolCall) (any, []string, error) {
+func (f ToolHandlerFuncAdapter) Handle(ctx context.Context, call MCPToolCall) (any, []string, error) {
 	return f(ctx, call)
 }
 
@@ -47,7 +47,7 @@ type ConfirmationGate interface {
 // Executor dispatches tool calls according to their risk classification.
 type Executor struct {
 	mu       sync.RWMutex
-	handlers map[string]ToolHandler // In-process tool handlers (read-only + sandboxed wrappers)
+	handlers map[string]ToolHandlerIface // In-process tool handlers (read-only + sandboxed wrappers)
 	sandbox  SandboxRunner          // Sandbox backend for isolated execution
 	confirm  ConfirmationGate       // Approval gate for destructive tools
 	logger   *log.Logger
@@ -67,7 +67,7 @@ func NewExecutor(cfg ExecutorConfig) *Executor {
 		logger = log.Default()
 	}
 	return &Executor{
-		handlers: make(map[string]ToolHandler),
+		handlers: make(map[string]ToolHandlerIface),
 		sandbox:  cfg.Sandbox,
 		confirm:  cfg.Confirm,
 		logger:   logger,
@@ -75,7 +75,7 @@ func NewExecutor(cfg ExecutorConfig) *Executor {
 }
 
 // RegisterHandler registers a tool handler for in-process execution.
-func (e *Executor) RegisterHandler(toolName string, handler ToolHandler) {
+func (e *Executor) RegisterHandler(toolName string, handler ToolHandlerIface) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.handlers[toolName] = handler
@@ -83,7 +83,7 @@ func (e *Executor) RegisterHandler(toolName string, handler ToolHandler) {
 
 // RegisterFunc registers a function as a tool handler.
 func (e *Executor) RegisterFunc(toolName string, fn func(ctx context.Context, call MCPToolCall) (any, []string, error)) {
-	e.RegisterHandler(toolName, ToolHandlerFunc(fn))
+	e.RegisterHandler(toolName, ToolHandlerFuncAdapter(fn))
 }
 
 // Execute dispatches a tool call based on its risk classification.

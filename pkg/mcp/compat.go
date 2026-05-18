@@ -37,11 +37,12 @@ type ToolResult = legacy.ToolResult
 // ContentItem is the legacy content item for tool results.
 type ContentItem = legacy.ContentItem
 
-// LegacyServer is the old MCP server (use Server from server.go for the hardened server).
-type LegacyServer = legacy.Server
+// ToolHandler is the legacy tool handler function type.
+// NOTE: The new handler interface is ToolHandlerIface (executor.go).
+type ToolHandler = legacy.ToolHandler
 
-// LegacyTool is the old tool definition format.
-type LegacyTool = legacy.Tool
+// Tool is the legacy tool definition format.
+type Tool = legacy.Tool
 
 // ToolInvocation is the legacy tool invocation record.
 type ToolInvocation = legacy.ToolInvocation
@@ -49,30 +50,30 @@ type ToolInvocation = legacy.ToolInvocation
 // LLMProvider is the legacy LLM provider interface.
 type LLMProvider = legacy.LLMProvider
 
-// LegacyConfig is the old server configuration.
-type LegacyConfig = legacy.Config
+// Config is the legacy server configuration (used by cmd/khepra-mcp).
+type Config = legacy.Config
 
-// LegacyAuditLogger is the old audit logger interface.
-type LegacyAuditLogger = legacy.AuditLogger
+// AuditLogger is the legacy audit logger interface.
+type AuditLogger = legacy.AuditLogger
 
-// LegacyStore is the old store interface.
-type LegacyStore = legacy.Store
+// Store is the legacy store interface.
+type Store = legacy.Store
 
-// LegacyRequest is the old JSON-RPC request type.
-type LegacyRequest = legacy.Request
+// Request is the legacy JSON-RPC request type.
+type Request = legacy.Request
 
-// LegacyResponse is the old JSON-RPC response type.
-type LegacyResponse = legacy.Response
+// Response is the legacy JSON-RPC response type.
+type Response = legacy.Response
 
 // ─── Re-exported Legacy Functions ──────────────────────────────────────────────
 
-// NewLegacyServer creates a legacy MCP server instance.
-// Deprecated: Use NewServer() from server.go for the hardened implementation.
-var NewLegacyServer = legacy.NewServer
+// NewServer creates a legacy MCP server instance (used by cmd/khepra-mcp).
+// Deprecated: Use NewHardenedServer() from server.go for the new implementation.
+var NewServer = legacy.NewServer
 
-// LegacyKhepraTools returns the legacy tool definitions.
+// KhepraTools returns the legacy tool definitions (used by cmd/khepra-mcp).
 // Deprecated: Tools are now defined in signed manifests.
-var LegacyKhepraTools = legacy.KhepraTools
+var KhepraTools = legacy.KhepraTools
 
-// NewNLProcessor creates a legacy NL processor.
+// NewNLProcessor creates a legacy NL processor (used by apiserver).
 var NewNLProcessor = legacy.NewNLProcessor
