@@ -85,9 +85,10 @@ type EnrichedFinding struct {
 	UserVerdict string `json:"user_verdict,omitempty"` // analyst override
 
 	// ── CMMC / NIST 800-171 Compliance ──────────────────────────────────
-	// Mapped from CCI→NIST 800-53→NIST 800-171→CMMC (docs/CCI_to_NIST53.csv, NIST53_to_171.csv)
+	// Mapped from CCI→NIST 800-53→NIST 800-171/172→CMMC (docs/CCI_to_NIST53.csv, NIST53_to_171.csv, NIST53_to_172.csv)
 	NIST53Controls  []string `json:"nist_53_controls"`  // e.g. ["RA-5", "SI-2"]
 	NIST171Controls []string `json:"nist_171_controls"` // e.g. ["3.11.2", "3.14.1"]
+	NIST172Controls []string `json:"nist_172_controls"` // e.g. ["3.14.1e", "3.11.2e"] (enhanced controls)
 	CMMCDomain      string   `json:"cmmc_domain,omitempty"` // e.g. "Risk Assessment"
 
 	// ── Metadata ───────────────────────────────────────────────────────
@@ -240,6 +241,9 @@ func (f *EnrichedFinding) MarshalJSON() ([]byte, error) {
 	}
 	if f.NIST171Controls == nil {
 		f.NIST171Controls = []string{}
+	}
+	if f.NIST172Controls == nil {
+		f.NIST172Controls = []string{}
 	}
 
 	// Use type alias to avoid infinite recursion
