@@ -14,25 +14,26 @@ import (
 	"time"
 )
 
-// ─── MCP Server (AD-008: stdio default) ────────────────────────────────────────
+// ─── MCP HardenedServer (AD-008: stdio default) ────────────────────────────────
 //
-// The Server owns transport ONLY. It reads JSON-RPC requests from stdin,
+// The HardenedServer owns transport ONLY. It reads JSON-RPC requests from stdin,
 // dispatches them through the Router, and writes JSON-RPC responses to stdout.
 //
 // CRITICAL: stdout = JSON-RPC frames ONLY. stderr = human-readable logs.
 // Any non-JSON output on stdout breaks MCP interoperability.
 
 const (
-	// ServerName identifies this server in the MCP `initialize` response.
-	ServerName = "khepra-mcp"
-	// ServerVersion is the current server version.
-	ServerVersion = "1.0.0"
+	// HardenedServerName identifies this server in the MCP `initialize` response.
+	HardenedServerName = "khepra-mcp"
+	// HardenedServerVersion is the current server version.
+	HardenedServerVersion = "1.0.0"
 	// ProtocolVersion is the MCP protocol version we implement.
 	ProtocolVersion = "2024-11-05"
 )
 
-// Server is the MCP transport layer.
-type Server struct {
+// HardenedServer is the new MCP transport layer (AD-008).
+// Use NewHardenedServer to construct.
+type HardenedServer struct {
 	mode     TransportMode
 	router   *Router
 	logger   *log.Logger
@@ -41,16 +42,16 @@ type Server struct {
 	addr     string // Remote address — "local" for stdio
 }
 
-// ServerConfig configures the MCP Server.
-type ServerConfig struct {
+// HardenedServerConfig configures the hardened MCP server.
+type HardenedServerConfig struct {
 	Mode       TransportMode // Default: TransportStdio
 	Router     *Router
 	Logger     *log.Logger
 	Credential any    // Default session credential (for stdio: pre-authenticated)
 }
 
-// NewServer creates a new MCP Server.
-func NewServer(cfg ServerConfig) (*Server, error) {
+// NewHardenedServer creates a new hardened MCP server.
+func NewHardenedServer(cfg HardenedServerConfig) (*HardenedServer, error) {
 	if cfg.Router == nil {
 		return nil, fmt.Errorf("mcp/server: Router is required")
 	}
@@ -63,7 +64,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		// CRITICAL: Server logs go to stderr, never stdout.
 		logger = log.New(os.Stderr, "[MCP] ", log.LstdFlags|log.Lmicroseconds)
 	}
-	return &Server{
+	return &HardenedServer{
 		mode:   mode,
 		router: cfg.Router,
 		logger: logger,
@@ -74,7 +75,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 
 // Run starts the server on the configured transport.
 // It blocks until the context is cancelled or a shutdown signal is received.
-func (s *Server) Run(ctx context.Context) error {
+func (s *HardenedServer) Run(ctx context.Context) error {
 	s.running.Store(true)
 	defer s.running.Store(false)
 
@@ -90,7 +91,7 @@ func (s *Server) Run(ctx context.Context) error {
 
 // ─── stdio Transport ───────────────────────────────────────────────────────────
 
-func (s *Server) runStdio(ctx context.Context) error {
+func (s *HardenedServer) runStdio(ctx context.Context) error {
 	s.logger.Println("starting MCP server on stdio")
 
 	// Set up signal handling for graceful shutdown.
@@ -144,7 +145,7 @@ func (s *Server) runStdio(ctx context.Context) error {
 
 // ─── Method Dispatch ───────────────────────────────────────────────────────────
 
-func (s *Server) handleRequest(ctx context.Context, req JSONRPCRequest) JSONRPCResponse {
+func (s *HardenedServer) handleRequest(ctx context.Context, req JSONRPCRequest) JSONRPCResponse {
 	if req.JSONRPC != "2.0" {
 		return JSONRPCResponse{
 			JSONRPC: "2.0",
@@ -187,10 +188,10 @@ func (s *Server) handleRequest(ctx context.Context, req JSONRPCRequest) JSONRPCR
 
 // ─── initialize ────────────────────────────────────────────────────────────────
 
-func (s *Server) handleInitialize(req JSONRPCRequest) JSONRPCResponse {
+func (s *HardenedServer) handleInitialize(req JSONRPCRequest) JSONRPCResponse {
 	info := ServerInfo{
-		Name:            ServerName,
-		Version:         ServerVersion,
+		Name:            HardenedServerName,
+		Version:         HardenedServerVersion,
 		ProtocolVersion: ProtocolVersion,
 		Capabilities: Capabilities{
 			Tools: &ToolsCapability{
@@ -207,7 +208,7 @@ func (s *Server) handleInitialize(req JSONRPCRequest) JSONRPCResponse {
 
 // ─── ping ──────────────────────────────────────────────────────────────────────
 
-func (s *Server) handlePing(req JSONRPCRequest) JSONRPCResponse {
+func (s *HardenedServer) handlePing(req JSONRPCRequest) JSONRPCResponse {
 	return JSONRPCResponse{
 		JSONRPC: "2.0",
 		ID:      req.ID,
@@ -217,7 +218,7 @@ func (s *Server) handlePing(req JSONRPCRequest) JSONRPCResponse {
 
 // ─── tools/list ────────────────────────────────────────────────────────────────
 
-func (s *Server) handleToolsList(req JSONRPCRequest) JSONRPCResponse {
+func (s *HardenedServer) handleToolsList(req JSONRPCRequest) JSONRPCResponse {
 	tools := s.router.ListTools()
 	return JSONRPCResponse{
 		JSONRPC: "2.0",
@@ -228,7 +229,7 @@ func (s *Server) handleToolsList(req JSONRPCRequest) JSONRPCResponse {
 
 // ─── tools/call ────────────────────────────────────────────────────────────────
 
-func (s *Server) handleToolsCall(ctx context.Context, req JSONRPCRequest) JSONRPCResponse {
+func (s *HardenedServer) handleToolsCall(ctx context.Context, req JSONRPCRequest) JSONRPCResponse {
 	// Parse tool call parameters.
 	var params struct {
 		Name      string         `json:"name"`
