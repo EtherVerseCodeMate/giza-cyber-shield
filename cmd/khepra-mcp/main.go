@@ -50,21 +50,15 @@ func main() {
 
 	// ── Adinkra PQC Key Setup ────────────────────────────────────────────────
 	symbol := getEnvOr("PHANTOM_SYMBOL", "Eban")
-	fingerprint := adinkra.GetSpectralFingerprint(symbol)
+	_ = adinkra.GetSpectralFingerprint(symbol) // Validate symbol exists
 
-	// Generate PQC keypair seeded by Spectral Fingerprint
-	seed := make([]byte, 64)
-	copy(seed, fingerprint)
-	h := sha256.Sum256(seed)
-
-	pqcPub, pqcPriv, err := adinkra.GenerateAdinkhepraPQCKeyPair(h[:], symbol)
+	// Generate ML-DSA-65 key pair (compatible with adinkra.Sign/Verify)
+	pubKey, privKey, err := adinkra.GenerateDilithiumKey()
 	if err != nil {
 		logger.Fatalf("FATAL: PQC key generation failed: %v", err)
 	}
 
-	privKey := pqcPriv.Raw
-	pubKey := pqcPub.Raw
-	keyHash := sha256.Sum256(pqcPub.Seed[:])
+	keyHash := sha256.Sum256(pubKey)
 	keyID := hex.EncodeToString(keyHash[:8])
 
 	logger.Printf("PQC session initialized | symbol=%s | key_id=%s", symbol, keyID)

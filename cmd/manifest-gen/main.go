@@ -19,21 +19,16 @@ import (
 func main() {
 	symbol := "Eban"
 	fingerprint := adinkra.GetSpectralFingerprint(symbol)
+	_ = fingerprint // Used for provenance only
 
-	// Generate PQC keypair seeded by Spectral Fingerprint
-	seed := make([]byte, 64)
-	copy(seed, fingerprint)
-	h := sha256.Sum256(seed)
-
-	pqcPub, pqcPriv, err := adinkra.GenerateAdinkhepraPQCKeyPair(h[:], symbol)
+	// Generate ML-DSA-65 key pair (compatible with adinkra.Sign/Verify)
+	pubKey, privKey, err := adinkra.GenerateDilithiumKey()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "key generation failed: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Use the Dilithium private key bytes for signing
-	privKey := pqcPriv.Raw
-	keyHash := sha256.Sum256(pqcPub.Seed[:])
+	keyHash := sha256.Sum256(pubKey)
 	keyID := hex.EncodeToString(keyHash[:8])
 
 	hash := func(name string) string {
