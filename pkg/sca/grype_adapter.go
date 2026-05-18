@@ -179,15 +179,21 @@ func (a *GrypeAdapter) MatchVulnerabilities(ctx context.Context, target string) 
 	log.Println("[SCA/GRYPE] DB loaded, resolving packages...")
 
 	// ── Resolve packages from the target ─────────────────────────────
-	// Note: Grype's pkg.Provide() needs scheme prefixes for routing, but
-	// they break on paths with spaces. Pass raw path and let Provide auto-detect.
-	grypeTarget := absTarget
-
-	// Use Grype's package provider to extract packages from the target
-	providerCfg := grypePkg.ProviderConfig{}
-	packages, pkgContext, _, err := grypePkg.Provide(grypeTarget, providerCfg)
-	if err != nil {
-		return nil, nil, fmt.Errorf("sca/grype: failed to resolve packages: %w", err)
+	// Use Syft in-process to generate SBOM, then extract packages directly.
+	// This avoids Grype's pkg.Provide() which requires a fully-configured
+	// SyftProviderConfig and panics with zero-valued config on Windows.
+	syftAdapter := NewSyftAdapter()
+	_, _, sbomErr := syftAdapter.GenerateSBOM(ctx, absTarget)
+	if sbomErr != nil {
+		return nil, nil, fmt.Errorf("sca/grype: failed to generate SBOM for target: %w", sbomErr)
+	}
+	rawSBOM := syftAdapter.GetLastSBOM()
+	if rawSBOM == nil {
+		return nil, nil, fmt.Errorf("sca/grype: SBOM generation returned nil")
+	}
+	packages, pkgContext, extractErr := a.packagesFromSBOMDirect(rawSBOM)
+	if extractErr != nil {
+		return nil, nil, fmt.Errorf("sca/grype: failed to extract packages: %w", extractErr)
 	}
 
 	log.Printf("[SCA/GRYPE] Resolved %d packages, matching vulnerabilities...", len(packages))
