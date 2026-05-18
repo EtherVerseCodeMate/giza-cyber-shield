@@ -156,13 +156,27 @@ type OSFingerprint struct {
 
 // SystemIntelligence contains process, service, and kernel module enumeration
 type SystemIntelligence struct {
-	Processes         []ProcessInfo  `json:"processes"`
-	Services          []ServiceInfo  `json:"services"`
-	KernelModules     []KernelModule `json:"kernel_modules,omitempty"` // Linux only
-	InstalledSoftware []Software     `json:"installed_software,omitempty"`
-	Users             []UserInfo     `json:"users,omitempty"`
-	CronJobs          []CronJob      `json:"cron_jobs,omitempty"`
-	StartupItems      []StartupItem  `json:"startup_items,omitempty"`
+	Processes         []ProcessInfo      `json:"processes"`
+	Services          []ServiceInfo      `json:"services"`
+	KernelModules     []KernelModule     `json:"kernel_modules,omitempty"` // Linux only
+	InstalledSoftware []Software         `json:"installed_software,omitempty"`
+	Users             []UserInfo         `json:"users,omitempty"`
+	CronJobs          []CronJob          `json:"cron_jobs,omitempty"`
+	StartupItems      []StartupItem      `json:"startup_items,omitempty"`
+	DetectedProducts  []CommercialProduct `json:"detected_products,omitempty"`
+}
+
+// CommercialProduct is a commercial security or management product identified
+// by matching running processes, services, and installed software against a
+// known-product signature database. The ParamifyCapability field names the
+// closest Paramify Solution Capability label so exported data can be
+// automatically mapped during SSP onboarding.
+type CommercialProduct struct {
+	Vendor             string   `json:"vendor"`
+	Product            string   `json:"product"`
+	Category           string   `json:"category"`
+	ParamifyCapability string   `json:"paramify_capability,omitempty"`
+	DetectionEvidence  []string `json:"detection_evidence,omitempty"`
 }
 
 // ProcessInfo represents a running process
