@@ -120,19 +120,22 @@ func (p *Pipeline) ScanAndEnrich(ctx context.Context, projectPath string) (*Scan
 	}
 	log.Printf("[SCA] Phase 1/3 complete: %d components in SBOM", componentCount)
 
-	// Save SBOM to temp file for Grype consumption
-	sbomPath, err := p.writeSBOMToTemp(bom, absPath)
-	if err != nil {
-		// Fallback: pass directory to Grype (it will run Syft internally)
-		log.Printf("[SCA] Warning: failed to write SBOM temp file, using directory scan: %v", err)
-		sbomPath = absPath
+	// ── Phase 2: Vulnerability Matching (Grype) ──────────────────────────
+	// Zero-copy SBOM handoff: pass the raw Syft SBOM directly to Grype
+	log.Println("[SCA] Phase 2/3: Matching vulnerabilities via Grype...")
+	var findings []EnrichedFinding
+	var grypeMeta *ScannerMetadata
+
+	rawSBOM := p.syft.GetLastSBOM()
+	if rawSBOM != nil {
+		// Preferred path: direct SBOM handoff, no serialization
+		findings, grypeMeta, err = p.grype.MatchVulnerabilitiesFromSBOM(ctx, rawSBOM)
 	} else {
-		defer os.Remove(sbomPath) // Clean up temp file
+		// Fallback: pass directory directly to Grype
+		log.Println("[SCA] Warning: no cached SBOM, using directory scan")
+		findings, grypeMeta, err = p.grype.MatchVulnerabilities(ctx, absPath)
 	}
 
-	// ── Phase 2: Vulnerability Matching (Grype) ──────────────────────────
-	log.Println("[SCA] Phase 2/3: Matching vulnerabilities via Grype...")
-	findings, grypeMeta, err := p.grype.MatchVulnerabilities(ctx, sbomPath)
 	if err != nil {
 		return nil, fmt.Errorf("sca/pipeline: vulnerability matching failed: %w", err)
 	}
@@ -183,34 +186,8 @@ func (p *Pipeline) ScanAndEnrich(ctx context.Context, projectPath string) (*Scan
 // Helpers
 // ──────────────────────────────────────────────────────────────────────────────
 
-// writeSBOMToTemp serializes a CycloneDX BOM to a temp file for Grype.
-func (p *Pipeline) writeSBOMToTemp(bom *CycloneDXBOM, projectPath string) (string, error) {
-	if bom == nil {
-		return "", fmt.Errorf("nil BOM")
-	}
 
-	// Use project name in the temp file for debugging clarity
-	base := filepath.Base(projectPath)
-	tmpFile, err := os.CreateTemp("", fmt.Sprintf("khepra-sbom-%s-*.json", base))
-	if err != nil {
-		return "", err
-	}
-	defer tmpFile.Close()
 
-	// Re-serialize the BOM
-	data, err := bom.Marshal()
-	if err != nil {
-		os.Remove(tmpFile.Name())
-		return "", err
-	}
-
-	if _, err := tmpFile.Write(data); err != nil {
-		os.Remove(tmpFile.Name())
-		return "", err
-	}
-
-	return tmpFile.Name(), nil
-}
 
 // mergeScannerMeta combines metadata from Syft and Grype into a single record.
 func mergeScannerMeta(syft, grype *ScannerMetadata) ScannerMetadata {
