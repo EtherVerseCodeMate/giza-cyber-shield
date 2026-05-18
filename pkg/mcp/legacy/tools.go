@@ -1,4 +1,4 @@
-// Package mcp — Khepra MCP Tool Definitions
+// package legacy — Khepra MCP Tool Definitions
 //
 // This file registers all built-in MCP tools exposed by the Khepra server.
 // Each tool maps to a capability of the platform:
@@ -23,7 +23,7 @@
 //	INTELLIGENCE
 //	  - khepra_query_threat_intel    Query threat intelligence database
 //	  - khepra_list_vulnerabilities  List active vulnerabilities for an endpoint
-package mcp
+package legacy
 
 // KhepraTools returns the built-in tool definitions for the Khepra MCP server.
 // Handlers are wired in cmd/khepra-mcp/main.go using actual service calls.

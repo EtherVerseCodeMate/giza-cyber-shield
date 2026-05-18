@@ -1,4 +1,4 @@
-// Package mcp — Natural Language Security Processor
+// package legacy — Natural Language Security Processor
 //
 // This is the "ChatGPT moment" for cybersecurity operations.
 //
@@ -35,7 +35,7 @@
 // Security note: The NL processor NEVER passes raw LLM output directly to
 // execution. Tool parameters are extracted and validated before calling handlers.
 // Prompt injection scanning runs on every input via pkg/gateway MCPGateway.
-package mcp
+package legacy
 
 import (
 	"context"

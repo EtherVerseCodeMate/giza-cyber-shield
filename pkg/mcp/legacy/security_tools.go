@@ -1,4 +1,4 @@
-// Package mcp — Security Domain Tool Definitions
+// package legacy — Security Domain Tool Definitions
 //
 // This file extends pkg/mcp/tools.go with all comprehensive security domain tools,
 // creating the world's first Natural Language security operations platform.
@@ -29,7 +29,7 @@
 //
 //	"Run a full pentest on our dev environment"
 //	→ khepra_discover_endpoints + khepra_enumerate_services + khepra_check_vulnerabilities + khepra_run_pentest
-package mcp
+package legacy
 
 // SecurityDomainTools returns all security operation tools beyond the base Khepra compliance tools.
 // These extend KhepraTools() to create a comprehensive zero-day-resistant security platform.
