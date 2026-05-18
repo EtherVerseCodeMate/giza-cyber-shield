@@ -147,7 +147,7 @@ func (a *SyftAdapter) GenerateSBOM(ctx context.Context, projectPath string) (*Cy
 	}
 
 	// Verify path exists
-	info, err := os.Stat(absPath)
+	_, err = os.Stat(absPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("sca/syft: path does not exist: %w", err)
 	}
