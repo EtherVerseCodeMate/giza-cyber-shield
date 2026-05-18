@@ -61,9 +61,10 @@ func TestCalculateThreatScore_MixedFindings(t *testing.T) {
 		{CVEID: "CVE-2024-12345", Severity: "LOW", CVSSv3Score: 2.0, EPSSScore: 0.01},
 	}
 	score := CalculateThreatScore(findings)
-	// Should be elevated due to the critical finding, but moderated by the low finding
-	if score < 0.2 || score > 0.95 {
-		t.Errorf("expected moderate-high threat score for mixed findings, got %f", score)
+	// Should be elevated due to the critical finding dominating the weighted average
+	// (weight 4.0 vs LOW weight 1.0), so aggregate stays high
+	if score < 0.5 || score > 1.0 {
+		t.Errorf("expected elevated threat score for mixed findings, got %f", score)
 	}
 }
 
