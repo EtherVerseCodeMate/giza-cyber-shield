@@ -1,0 +1,201 @@
+// Package sca — SCA Pipeline Orchestrator
+//
+// Pipeline is the high-level public API that chains:
+//   Syft (SBOM generation) → Grype (vulnerability matching) → Enricher (threat intel)
+//
+// This is the single entry point for MCP tools requesting an SCA assessment.
+
+package sca
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/vuln"
+)
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Pipeline
+// ──────────────────────────────────────────────────────────────────────────────
+
+// Pipeline orchestrates the full SCA flow: SBOM → Vulnerability Matching → Enrichment.
+// It is the primary public API surface for ERT integration.
+type Pipeline struct {
+	syft     *SyftAdapter
+	grype    *GrypeAdapter
+	enricher *Enricher
+}
+
+// NewPipeline creates a fully wired SCA pipeline.
+func NewPipeline(feedManager *vuln.IntelFeedManager) *Pipeline {
+	return &Pipeline{
+		syft:     NewSyftAdapter(),
+		grype:    NewGrypeAdapter(),
+		enricher: NewEnricher(feedManager),
+	}
+}
+
+// ScanResult contains the complete output of an SCA pipeline run.
+type ScanResult struct {
+	// Findings are the fully enriched vulnerability findings.
+	Findings []EnrichedFinding `json:"findings"`
+
+	// HighRiskCount is the number of findings that pass IsHighRisk().
+	HighRiskCount int `json:"high_risk_count"`
+
+	// TotalCount is the total number of findings.
+	TotalCount int `json:"total_count"`
+
+	// SBOMComponentCount is the number of components found in the SBOM.
+	SBOMComponentCount int `json:"sbom_component_count"`
+
+	// ScannerMeta records the tool versions used.
+	ScannerMeta ScannerMetadata `json:"scanner_meta"`
+
+	// Duration is the total scan wall time.
+	Duration time.Duration `json:"duration"`
+
+	// ProjectPath is the absolute path that was scanned.
+	ProjectPath string `json:"project_path"`
+}
+
+// ScanAndEnrich runs the full SCA pipeline against a project directory.
+//
+// Flow:
+//  1. Syft generates a CycloneDX SBOM
+//  2. Grype matches vulnerabilities against the SBOM
+//  3. Enricher wires findings with CISA KEV, EPSS, InTheWild data
+//  4. Results are packaged with metadata for ERT consumption
+func (p *Pipeline) ScanAndEnrich(ctx context.Context, projectPath string) (*ScanResult, error) {
+	start := time.Now()
+
+	absPath, err := filepath.Abs(projectPath)
+	if err != nil {
+		return nil, fmt.Errorf("sca/pipeline: invalid path: %w", err)
+	}
+
+	if _, err := os.Stat(absPath); err != nil {
+		return nil, fmt.Errorf("sca/pipeline: project does not exist: %w", err)
+	}
+
+	log.Printf("[SCA] Starting pipeline scan: %s", absPath)
+
+	// ── Phase 1: SBOM Generation (Syft) ──────────────────────────────────
+	log.Println("[SCA] Phase 1/3: Generating SBOM via Syft...")
+	bom, syftMeta, err := p.syft.GenerateSBOM(ctx, absPath)
+	if err != nil {
+		return nil, fmt.Errorf("sca/pipeline: SBOM generation failed: %w", err)
+	}
+
+	componentCount := 0
+	if bom != nil {
+		componentCount = len(bom.Components)
+	}
+	log.Printf("[SCA] Phase 1/3 complete: %d components in SBOM", componentCount)
+
+	// Save SBOM to temp file for Grype consumption
+	sbomPath, err := p.writeSBOMToTemp(bom, absPath)
+	if err != nil {
+		// Fallback: pass directory to Grype (it will run Syft internally)
+		log.Printf("[SCA] Warning: failed to write SBOM temp file, using directory scan: %v", err)
+		sbomPath = absPath
+	} else {
+		defer os.Remove(sbomPath) // Clean up temp file
+	}
+
+	// ── Phase 2: Vulnerability Matching (Grype) ──────────────────────────
+	log.Println("[SCA] Phase 2/3: Matching vulnerabilities via Grype...")
+	findings, grypeMeta, err := p.grype.MatchVulnerabilities(ctx, sbomPath)
+	if err != nil {
+		return nil, fmt.Errorf("sca/pipeline: vulnerability matching failed: %w", err)
+	}
+	log.Printf("[SCA] Phase 2/3 complete: %d raw findings", len(findings))
+
+	// ── Phase 3: Enrichment ──────────────────────────────────────────────
+	log.Println("[SCA] Phase 3/3: Enriching findings with threat intelligence...")
+	enriched, err := p.enricher.Enrich(ctx, findings)
+	if err != nil {
+		// Non-fatal: return unenriched findings rather than failing
+		log.Printf("[SCA] Enrichment warning (using raw findings): %v", err)
+		enriched = findings
+	}
+	log.Printf("[SCA] Phase 3/3 complete: %d enriched findings", len(enriched))
+
+	// ── Build result ─────────────────────────────────────────────────────
+	result := &ScanResult{
+		Findings:           enriched,
+		TotalCount:         len(enriched),
+		SBOMComponentCount: componentCount,
+		Duration:           time.Since(start),
+		ProjectPath:        absPath,
+	}
+
+	// Merge scanner metadata
+	result.ScannerMeta = mergeScannerMeta(syftMeta, grypeMeta)
+
+	// Count high-risk findings
+	for _, f := range enriched {
+		if f.IsHighRisk() {
+			result.HighRiskCount++
+		}
+	}
+
+	log.Printf("[SCA] Pipeline complete: %d findings (%d high-risk) in %s",
+		result.TotalCount, result.HighRiskCount, result.Duration.Round(time.Millisecond))
+
+	return result, nil
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────────────────────────────────────
+
+// writeSBOMToTemp serializes a CycloneDX BOM to a temp file for Grype.
+func (p *Pipeline) writeSBOMToTemp(bom *CycloneDXBOM, projectPath string) (string, error) {
+	if bom == nil {
+		return "", fmt.Errorf("nil BOM")
+	}
+
+	// Use project name in the temp file for debugging clarity
+	base := filepath.Base(projectPath)
+	tmpFile, err := os.CreateTemp("", fmt.Sprintf("khepra-sbom-%s-*.json", base))
+	if err != nil {
+		return "", err
+	}
+	defer tmpFile.Close()
+
+	// Re-serialize the BOM
+	data, err := bom.Marshal()
+	if err != nil {
+		os.Remove(tmpFile.Name())
+		return "", err
+	}
+
+	if _, err := tmpFile.Write(data); err != nil {
+		os.Remove(tmpFile.Name())
+		return "", err
+	}
+
+	return tmpFile.Name(), nil
+}
+
+// mergeScannerMeta combines metadata from Syft and Grype into a single record.
+func mergeScannerMeta(syft, grype *ScannerMetadata) ScannerMetadata {
+	meta := ScannerMetadata{
+		ScannedAt: time.Now().UTC(),
+	}
+
+	if syft != nil {
+		meta.SyftVersion = syft.SyftVersion
+	}
+	if grype != nil {
+		meta.GrypeVersion = grype.GrypeVersion
+		meta.GrypeDBVersion = grype.GrypeDBVersion
+	}
+
+	return meta
+}
