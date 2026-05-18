@@ -354,10 +354,6 @@ func convertMatchesToEnriched(matches *grypeMatch.Matches, provider vulnerabilit
 			f.Severity = string(SeverityFromCVSS(f.CVSSv3Score))
 		}
 
-		// Extract fix versions
-		if len(m.Vulnerability.Fix.Versions) > 0 {
-			f.FixVersion = m.Vulnerability.Fix.Versions[0]
-		}
 
 		findings = append(findings, f)
 	}
@@ -379,8 +375,8 @@ func buildGrypeMetadata(status *vulnerability.ProviderStatus) *ScannerMetadata {
 		GrypeVersion: "embedded",
 		ScannedAt:    time.Now().UTC(),
 	}
-	if status != nil && status.Location != nil {
-		meta.GrypeDBVersion = status.Location.Path
+	if status != nil && status.Path != "" {
+		meta.GrypeDBVersion = status.Path
 	}
 	return meta
 }
