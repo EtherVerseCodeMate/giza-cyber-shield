@@ -325,8 +325,8 @@ func (cm *ComplianceMapper) MapFinding(f *EnrichedFinding) {
 
 	// Map NIST 800-53 → 800-171
 	f.NIST53Controls = scaControls
-	var nist171 []string
-	var nist172 []string
+	nist171 := make([]string, 0)
+	nist172 := make([]string, 0)
 	var domain string
 
 	for _, ctrl := range scaControls {
