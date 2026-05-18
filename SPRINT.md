@@ -33,7 +33,7 @@
 | ID | Decision | Rationale | Decided By |
 |----|----------|-----------|------------|
 | AD-001 | CycloneDX JSON as internal SBOM format | Designed for security; includes VEX support for exploitability annotations | Audit |
-| AD-002 | Shell out to Syft/Grype (not import as Go library) | Avoids module conflicts, keeps binaries independently upgradable, simpler integration | Pending |
+| AD-002 | ~~Shell out to Syft/Grype~~ → Import as Go libraries (in-process) | Full sovereignty: zero external binary dependency, zero-copy SBOM handoff, single-binary distribution | Souhimbou |
 | AD-003 | EPSS as 8th feed source | Replaces "zero-day prediction" claims with defensible exploit probability scoring | Audit |
 | AD-004 | MCP-first delivery (not browser web app) | Zero attack surface expansion, local execution, the demo IS the product | Souhimbou |
 | AD-005 | Start compliance module with 30 high-impact NIST 800-171 controls | Minimum viable control catalog; expand iteratively with auditor feedback | Audit |
