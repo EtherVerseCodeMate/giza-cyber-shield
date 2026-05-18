@@ -167,11 +167,11 @@ func (a *SyftAdapter) GenerateSBOM(ctx context.Context, projectPath string) (*Cy
 		a.cacheMu.RUnlock()
 	}
 
-	// ── Build target string for Syft library ──────────────────────────
+	// ── Resolve target for Syft library ───────────────────────────────
+	// Note: when using the Go library directly, pass the absolute path as-is.
+	// Do NOT add "dir:" prefix — that's for CLI/user-input parsing and breaks
+	// on paths with spaces (e.g., "khepra protocol").
 	target := absPath
-	if info.IsDir() {
-		target = "dir:" + absPath
-	}
 
 	// ── Execute Syft in-process ───────────────────────────────────────
 	cmdCtx, cancel := context.WithTimeout(ctx, a.Timeout)
