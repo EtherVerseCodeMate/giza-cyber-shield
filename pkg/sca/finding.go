@@ -89,6 +89,8 @@ type EnrichedFinding struct {
 	NIST53Controls  []string `json:"nist_53_controls"`  // e.g. ["RA-5", "SI-2"]
 	NIST171Controls []string `json:"nist_171_controls"` // e.g. ["3.11.2", "3.14.1"]
 	NIST172Controls []string `json:"nist_172_controls"` // e.g. ["3.14.1e", "3.11.2e"] (enhanced controls)
+	CCIReferences   []string `json:"cci_references"`    // e.g. ["CCI-001643", "CCI-002605"]
+	STIGFindings    []string `json:"stig_findings"`     // STIG requirement definitions from CCI mapping
 	CMMCDomain      string   `json:"cmmc_domain,omitempty"` // e.g. "Risk Assessment"
 
 	// ── Metadata ───────────────────────────────────────────────────────
@@ -244,6 +246,12 @@ func (f *EnrichedFinding) MarshalJSON() ([]byte, error) {
 	}
 	if f.NIST172Controls == nil {
 		f.NIST172Controls = []string{}
+	}
+	if f.CCIReferences == nil {
+		f.CCIReferences = []string{}
+	}
+	if f.STIGFindings == nil {
+		f.STIGFindings = []string{}
 	}
 
 	// Use type alias to avoid infinite recursion
