@@ -123,14 +123,7 @@ var (
 )
 
 func init() {
-	// Guard against duplicate "sqlite" driver registration.
-	// modernc.org/sqlite and glebarez/go-sqlite both register the same
-	// driver name, causing a fatal panic. This recover guard makes the
-	// second registration a safe no-op.
-	func() {
-		defer func() { recover() }()
-		sql.Register(driverName, newDriver())
-	}()
+	sql.Register(driverName, newDriver())
 }
 
 type result struct {
