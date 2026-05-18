@@ -52,14 +52,19 @@ func main() {
 	symbol := getEnvOr("PHANTOM_SYMBOL", "Eban")
 	fingerprint := adinkra.GetSpectralFingerprint(symbol)
 
-	// Derive signing key from Spectral Fingerprint (deterministic per-symbol session).
+	// Generate PQC keypair seeded by Spectral Fingerprint
 	seed := make([]byte, 64)
 	copy(seed, fingerprint)
 	h := sha256.Sum256(seed)
-	privKey := h[:]
-	pubKey := h[:] // In production, use full key pair from ACP/KMS
 
-	keyHash := sha256.Sum256(pubKey)
+	pqcPub, pqcPriv, err := adinkra.GenerateAdinkhepraPQCKeyPair(h[:], symbol)
+	if err != nil {
+		logger.Fatalf("FATAL: PQC key generation failed: %v", err)
+	}
+
+	privKey := pqcPriv.Raw
+	pubKey := pqcPub.Raw
+	keyHash := sha256.Sum256(pqcPub.Seed[:])
 	keyID := hex.EncodeToString(keyHash[:8])
 
 	logger.Printf("PQC session initialized | symbol=%s | key_id=%s", symbol, keyID)
