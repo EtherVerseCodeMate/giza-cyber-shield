@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -244,6 +245,27 @@ func (ds *DockerSandbox) buildDockerArgs(
 	if !cfg.NetworkAllowed {
 		args = append(args, "--network", "none")
 	}
+
+	// ─── Security Profiles (AD-011) ────────────────────────────────
+	// Apply Seccomp and AppArmor profiles based on tool network policy.
+	var seccompProfile *SeccompProfile
+	var apparmorName string
+	if cfg.NetworkAllowed {
+		seccompProfile = NetworkAllowedSeccompProfile()
+		apparmorName = "khepra-phantom-net"
+	} else {
+		seccompProfile = DefaultSeccompProfile()
+		apparmorName = "khepra-phantom"
+	}
+	// Write seccomp profile to temp dir for Docker to read
+	if seccompPath, err := WriteSeccompProfile(seccompProfile, os.TempDir()); err == nil {
+		args = append(args, "--security-opt", fmt.Sprintf("seccomp=%s", seccompPath))
+	}
+	// AppArmor (Linux only — silently skipped on other platforms)
+	args = append(args, "--security-opt", fmt.Sprintf("apparmor=%s", apparmorName))
+
+	// Drop ALL capabilities then re-add minimal set
+	args = append(args, "--cap-drop=ALL", "--cap-add=SETUID", "--cap-add=SETGID")
 
 	// gVisor runtime (if available and configured)
 	if cfg.UseGVisor {

@@ -45,7 +45,7 @@ func TestE2E_ERTScan_FullChain(t *testing.T) {
 	gateway := NewDefaultMCPGateway()
 
 	// ── DAG Attestor (in-memory) ─────────────────────────────────────
-	dagStore := dag.NewMemoryStore()
+	dagStore := dag.NewMemory()
 	attestor := NewDAGAttestor(dagStore, "Eban", nil)
 
 	// ── Manifest Registry ────────────────────────────────────────────
@@ -131,7 +131,7 @@ func TestE2E_ERTScan_FullChain(t *testing.T) {
 	}
 
 	// Verify DAG has the attestation node
-	nodes := dagStore.Nodes()
+	nodes := dagStore.All()
 	if len(nodes) == 0 {
 		t.Error("expected at least one DAG node from attestation")
 	}
@@ -155,7 +155,7 @@ func TestE2E_InjectionBlocked(t *testing.T) {
 	}
 	poly := &AdinkraPolymorphicEngine{Symbol: "Eban"}
 	gateway := NewDefaultMCPGateway()
-	dagStore := dag.NewMemoryStore()
+	dagStore := dag.NewMemory()
 	attestor := NewDAGAttestor(dagStore, "Eban", nil)
 
 	spec := ToolSpec{
