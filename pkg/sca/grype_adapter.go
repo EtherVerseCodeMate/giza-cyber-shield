@@ -8,14 +8,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	// Grype library imports — direct Go library, no binary required
 	"github.com/anchore/grype/grype"
-	"github.com/anchore/grype/grype/db"
+	v6dist "github.com/anchore/grype/grype/db/v6/distribution"
+	v6inst "github.com/anchore/grype/grype/db/v6/installation"
 	grypeMatch "github.com/anchore/grype/grype/match"
 	grypePkg "github.com/anchore/grype/grype/pkg"
-	"github.com/anchore/grype/grype/store"
 	"github.com/anchore/grype/grype/vulnerability"
 	"github.com/anchore/syft/syft/sbom"
 )
@@ -107,11 +108,11 @@ type GrypeAdapter struct {
 	// Timeout for vulnerability matching. Default: 180s.
 	Timeout time.Duration
 
-	// dbStore caches the vulnerability database across scans.
-	dbStore     *store.Store
-	dbStatus    *db.Status
-	dbLoadOnce  sync.Once
-	dbLoadErr   error
+	// dbProvider caches the vulnerability database provider across scans.
+	dbProvider     vulnerability.Provider
+	dbStatus       *vulnerability.ProviderStatus
+	dbLoadOnce     sync.Once
+	dbLoadErr      error
 }
 
 // NewGrypeAdapter creates a GrypeAdapter with production defaults.
@@ -121,13 +122,28 @@ func NewGrypeAdapter() *GrypeAdapter {
 	}
 }
 
+// loadDB ensures the vulnerability database is loaded exactly once.
+func (a *GrypeAdapter) loadDB() (vulnerability.Provider, *vulnerability.ProviderStatus, error) {
+	a.dbLoadOnce.Do(func() {
+		distCfg := v6dist.DefaultConfig()
+		installCfg := v6inst.DefaultConfig()
+
+		a.dbProvider, a.dbStatus, a.dbLoadErr = grype.LoadVulnerabilityDB(distCfg, installCfg, true)
+	})
+	return a.dbProvider, a.dbStatus, a.dbLoadErr
+}
+
 // MatchVulnerabilities runs Grype vulnerability matching against a target.
 // It accepts either:
-//   - An *sbom.SBOM (direct from SyftAdapter — zero-copy, preferred)
 //   - A file path to a CycloneDX/SPDX SBOM file
 //   - A project directory path
 //
 // Returns pre-enrichment EnrichedFinding structs plus scanner metadata.
+//
+// NOTE: The returned findings are PRE-ENRICHMENT. They contain Grype-sourced
+// data only (CVEID, CVSS, severity, component identity). Enrichment fields
+// (InCISAKEV, EPSSScore, MITRETactics, etc.) are zero-valued and must be
+// populated by the Enricher (pkg/sca/enricher.go) before ERT analysis.
 func (a *GrypeAdapter) MatchVulnerabilities(ctx context.Context, target string) ([]EnrichedFinding, *ScannerMetadata, error) {
 	if target == "" {
 		return nil, nil, fmt.Errorf("sca/grype: target path is required")
@@ -148,18 +164,14 @@ func (a *GrypeAdapter) MatchVulnerabilities(ctx context.Context, target string) 
 
 	// ── Load vulnerability database ──────────────────────────────────
 	log.Println("[SCA/GRYPE] Loading vulnerability database...")
-	dbCfg := db.NewDefaultConfig()
-
-	dbSession, dbStatus, _, err := grype.LoadVulnerabilityDB(dbCfg, true)
+	provider, status, err := a.loadDB()
 	if err != nil {
 		return nil, nil, fmt.Errorf("sca/grype: failed to load vulnerability DB: %w", err)
 	}
-	defer dbSession.Close()
 
 	log.Println("[SCA/GRYPE] DB loaded, resolving packages...")
 
 	// ── Resolve packages from the target ─────────────────────────────
-	// Build the grype target string
 	grypeTarget := absTarget
 	if isSBOMFile(absTarget) {
 		grypeTarget = "sbom:" + absTarget
@@ -183,8 +195,8 @@ func (a *GrypeAdapter) MatchVulnerabilities(ctx context.Context, target string) 
 	log.Printf("[SCA/GRYPE] Resolved %d packages, matching vulnerabilities...", len(packages))
 
 	// ── Run vulnerability matching ───────────────────────────────────
-	vulnMatcher := grype.VulnerabilityMatcher{
-		Store:    *dbSession,
+	vulnMatcher := &grype.VulnerabilityMatcher{
+		Store:    provider,
 		Matchers: grype.DefaultMatchers(grypeMatch.NewDefaultMatcherConfig()),
 	}
 
@@ -194,8 +206,8 @@ func (a *GrypeAdapter) MatchVulnerabilities(ctx context.Context, target string) 
 	}
 
 	// ── Convert to EnrichedFinding ───────────────────────────────────
-	findings := convertMatchesToEnriched(matches, dbSession)
-	meta := buildGrypeMetadata(dbStatus)
+	findings := convertMatchesToEnriched(matches, provider)
+	meta := buildGrypeMetadata(status)
 
 	log.Printf("[SCA/GRYPE] Matching complete: %d findings (in-process)", len(findings))
 	return findings, meta, nil
@@ -214,18 +226,15 @@ func (a *GrypeAdapter) MatchVulnerabilitiesFromSBOM(ctx context.Context, s *sbom
 
 	// ── Load vulnerability database ──────────────────────────────────
 	log.Println("[SCA/GRYPE] Loading vulnerability database...")
-	dbCfg := db.NewDefaultConfig()
-
-	dbSession, dbStatus, _, err := grype.LoadVulnerabilityDB(dbCfg, true)
+	provider, status, err := a.loadDB()
 	if err != nil {
 		return nil, nil, fmt.Errorf("sca/grype: failed to load vulnerability DB: %w", err)
 	}
-	defer dbSession.Close()
 
 	log.Println("[SCA/GRYPE] DB loaded, extracting packages from SBOM...")
 
 	// Extract packages directly from the Syft SBOM
-	packages, pkgContext, err := grypePkg.FromSBOM(cmdCtx, s)
+	packages, pkgContext, _, err := grypePkg.FromSBOM(cmdCtx, s, grypePkg.SynthesisConfig{})
 	if err != nil {
 		return nil, nil, fmt.Errorf("sca/grype: failed to extract packages from SBOM: %w", err)
 	}
@@ -233,8 +242,8 @@ func (a *GrypeAdapter) MatchVulnerabilitiesFromSBOM(ctx context.Context, s *sbom
 	log.Printf("[SCA/GRYPE] Extracted %d packages, matching vulnerabilities...", len(packages))
 
 	// ── Run vulnerability matching ───────────────────────────────────
-	vulnMatcher := grype.VulnerabilityMatcher{
-		Store:    *dbSession,
+	vulnMatcher := &grype.VulnerabilityMatcher{
+		Store:    provider,
 		Matchers: grype.DefaultMatchers(grypeMatch.NewDefaultMatcherConfig()),
 	}
 
@@ -244,8 +253,8 @@ func (a *GrypeAdapter) MatchVulnerabilitiesFromSBOM(ctx context.Context, s *sbom
 	}
 
 	// ── Convert to EnrichedFinding ───────────────────────────────────
-	findings := convertMatchesToEnriched(matches, dbSession)
-	meta := buildGrypeMetadata(dbStatus)
+	findings := convertMatchesToEnriched(matches, provider)
+	meta := buildGrypeMetadata(status)
 
 	log.Printf("[SCA/GRYPE] Matching complete: %d findings (in-process, SBOM path)", len(findings))
 	return findings, meta, nil
@@ -256,7 +265,7 @@ func (a *GrypeAdapter) MatchVulnerabilitiesFromSBOM(ctx context.Context, s *sbom
 // ──────────────────────────────────────────────────────────────────────────────
 
 // convertMatchesToEnriched maps Grype match results to our EnrichedFinding schema.
-func convertMatchesToEnriched(matches *grypeMatch.Matches, store vulnerability.Provider) []EnrichedFinding {
+func convertMatchesToEnriched(matches *grypeMatch.Matches, provider vulnerability.Provider) []EnrichedFinding {
 	if matches == nil {
 		return make([]EnrichedFinding, 0)
 	}
@@ -285,11 +294,6 @@ func convertMatchesToEnriched(matches *grypeMatch.Matches, store vulnerability.P
 			DetectedAt: now,
 		}
 
-		// Extract CVSS data from the vulnerability metadata
-		if store != nil {
-			extractCVSSFromStore(&f, m.Vulnerability, store)
-		}
-
 		// If CVSS populated but severity was empty/unknown, derive it
 		if f.Severity == "UNKNOWN" && f.CVSSv3Score > 0 {
 			f.Severity = string(SeverityFromCVSS(f.CVSSv3Score))
@@ -301,27 +305,6 @@ func convertMatchesToEnriched(matches *grypeMatch.Matches, store vulnerability.P
 	return findings
 }
 
-// extractCVSSFromStore looks up detailed vulnerability metadata including CVSS.
-func extractCVSSFromStore(f *EnrichedFinding, vuln vulnerability.Reference, prov vulnerability.Provider) {
-	// Try to get detailed vulnerability info from the store
-	vulns, err := prov.Get(vuln.ID, vuln.Namespace)
-	if err != nil || len(vulns) == 0 {
-		return
-	}
-
-	// Find best CVSSv3 score
-	for _, v := range vulns {
-		for _, cvss := range v.Cvss {
-			if strings.HasPrefix(cvss.Version, "3") {
-				if cvss.Metrics.BaseScore > f.CVSSv3Score {
-					f.CVSSv3Score = cvss.Metrics.BaseScore
-					f.CVSSv3Vector = cvss.Vector
-				}
-			}
-		}
-	}
-}
-
 // firstCPE extracts the first CPE string from a Grype package.
 func firstCPE(p grypePkg.Package) string {
 	if len(p.CPEs) > 0 {
@@ -330,14 +313,14 @@ func firstCPE(p grypePkg.Package) string {
 	return ""
 }
 
-// buildGrypeMetadata constructs scanner metadata from the DB status.
-func buildGrypeMetadata(status *db.Status) *ScannerMetadata {
+// buildGrypeMetadata constructs scanner metadata from the DB provider status.
+func buildGrypeMetadata(status *vulnerability.ProviderStatus) *ScannerMetadata {
 	meta := &ScannerMetadata{
 		GrypeVersion: "embedded",
 		ScannedAt:    time.Now().UTC(),
 	}
-	if status != nil {
-		meta.GrypeDBVersion = status.Built.String()
+	if status != nil && status.Location != nil {
+		meta.GrypeDBVersion = status.Location.Path
 	}
 	return meta
 }
