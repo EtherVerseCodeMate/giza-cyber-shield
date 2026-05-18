@@ -41,6 +41,27 @@ func NewPipeline(feedManager *vuln.IntelFeedManager) *Pipeline {
 	}
 }
 
+// LoadComplianceData loads all CMMC/NIST/CCI crosswalk CSVs from a docs directory.
+// Expected files: CCI_to_NIST53.csv, NIST53_to_171.csv, NIST53_to_172.csv
+// Non-fatal: if any file is missing, defaults are still active.
+func (p *Pipeline) LoadComplianceData(docsDir string) {
+	if p.compliance == nil {
+		return
+	}
+
+	if err := p.compliance.LoadCSV(filepath.Join(docsDir, "NIST53_to_171.csv")); err != nil {
+		log.Printf("[SCA] Warning: could not load NIST53_to_171.csv: %v (using defaults)", err)
+	}
+	if err := p.compliance.LoadCSV172(filepath.Join(docsDir, "NIST53_to_172.csv")); err != nil {
+		log.Printf("[SCA] Warning: could not load NIST53_to_172.csv: %v (using defaults)", err)
+	}
+	if err := p.compliance.LoadCCICSV(filepath.Join(docsDir, "CCI_to_NIST53.csv")); err != nil {
+		log.Printf("[SCA] Warning: could not load CCI_to_NIST53.csv: %v (CCI/STIG tracing disabled)", err)
+	} else {
+		log.Println("[SCA] CCI→STIG crosswalk loaded successfully")
+	}
+}
+
 // ScanResult contains the complete output of an SCA pipeline run.
 type ScanResult struct {
 	// Findings are the fully enriched vulnerability findings.
