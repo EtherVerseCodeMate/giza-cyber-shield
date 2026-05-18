@@ -53,6 +53,10 @@ type ThreatIntel struct {
 	LastModified     time.Time `json:"last_modified"`
 	Source           string    `json:"source"`
 
+	// EPSS (Exploit Prediction Scoring System) — AD-003
+	EPSSScore      float64 `json:"epss_score"`       // 0.0–1.0 probability of exploitation
+	EPSSPercentile float64 `json:"epss_percentile"`  // 0.0–1.0 relative ranking
+
 	// MITRE ATT&CK Mapping
 	ATTACKTactics    []string `json:"attack_tactics,omitempty"`
 	ATTACKTechniques []string `json:"attack_techniques,omitempty"`
@@ -128,6 +132,14 @@ func DefaultFeeds() []FeedSource {
 			Enabled:     true,
 			Priority:    1, // High priority - these are confirmed exploited
 		},
+		{
+			Name:        "EPSS",
+			URL:         "https://api.first.org/data/v1/epss",
+			Type:        "api",
+			Description: "FIRST.org Exploit Prediction Scoring System (AD-003: primary exploit probability feed)",
+			Enabled:     true,
+			Priority:    1, // Critical enrichment source
+		},
 	}
 }
 
@@ -198,7 +210,7 @@ func (m *IntelFeedManager) FetchAll(ctx context.Context) error {
 	return nil
 }
 
-// fetchAPI handles API-based feeds (NVD, OSV, InTheWild)
+// fetchAPI handles API-based feeds (NVD, OSV, InTheWild, EPSS)
 func (m *IntelFeedManager) fetchAPI(ctx context.Context, feed *FeedSource) error {
 	switch feed.Name {
 	case "NVD":
@@ -210,6 +222,8 @@ func (m *IntelFeedManager) fetchAPI(ctx context.Context, feed *FeedSource) error
 		return m.fetchInTheWild(ctx)
 	case "CISA-KEV":
 		return m.fetchCISAKEV(ctx)
+	case "EPSS":
+		return m.fetchEPSSBulk(ctx)
 	}
 	return nil
 }
@@ -497,6 +511,190 @@ func (m *IntelFeedManager) fetchCISAKEV(ctx context.Context) error {
 
 	log.Printf("[INTEL] CISA-KEV: Processed %d known exploited vulnerabilities", len(kevData.Vulnerabilities))
 	return nil
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// EPSS Feed (AD-003: Primary exploit probability source)
+// ──────────────────────────────────────────────────────────────────────────────
+
+// EPSSResponse represents the FIRST.org EPSS API response.
+type EPSSResponse struct {
+	Status     string     `json:"status"`
+	StatusCode int        `json:"status-code"`
+	Version    string     `json:"version"`
+	Total      int        `json:"total"`
+	Data       []EPSSData `json:"data"`
+}
+
+// EPSSData represents a single CVE's EPSS score.
+type EPSSData struct {
+	CVE        string `json:"cve"`
+	EPSS       string `json:"epss"`       // String in API response
+	Percentile string `json:"percentile"` // String in API response
+	Date       string `json:"date"`
+}
+
+// fetchEPSSBulk fetches EPSS scores for all CVEs currently in the cache.
+// This is called during FetchAll() to bulk-enrich cached intelligence.
+func (m *IntelFeedManager) fetchEPSSBulk(ctx context.Context) error {
+	// Collect all CVE IDs from cache
+	m.cacheMu.RLock()
+	var cveIDs []string
+	for cveID := range m.cache {
+		if strings.HasPrefix(cveID, "CVE-") {
+			cveIDs = append(cveIDs, cveID)
+		}
+	}
+	m.cacheMu.RUnlock()
+
+	if len(cveIDs) == 0 {
+		log.Println("[INTEL] EPSS: No CVEs in cache to enrich")
+		return nil
+	}
+
+	// FIRST.org EPSS API accepts batch queries of up to 30 CVEs per request
+	const batchSize = 30
+	var totalEnriched int
+
+	for i := 0; i < len(cveIDs); i += batchSize {
+		end := i + batchSize
+		if end > len(cveIDs) {
+			end = len(cveIDs)
+		}
+		batch := cveIDs[i:end]
+
+		enriched, err := m.fetchEPSSBatch(ctx, batch)
+		if err != nil {
+			log.Printf("[INTEL] EPSS: Batch %d-%d failed: %v", i, end, err)
+			// Continue with remaining batches — don't fail the whole feed
+			continue
+		}
+		totalEnriched += enriched
+
+		// Rate limiting: FIRST.org recommends reasonable request pacing
+		if end < len(cveIDs) {
+			time.Sleep(500 * time.Millisecond)
+		}
+	}
+
+	log.Printf("[INTEL] EPSS: Enriched %d/%d CVEs with exploit probability scores", totalEnriched, len(cveIDs))
+	return nil
+}
+
+// FetchEPSS queries EPSS scores for specific CVE IDs and updates the cache.
+// This is the public API for on-demand EPSS lookups (used by the Enricher).
+func (m *IntelFeedManager) FetchEPSS(ctx context.Context, cveIDs []string) error {
+	if len(cveIDs) == 0 {
+		return nil
+	}
+
+	// Filter to valid CVE IDs only
+	var validIDs []string
+	for _, id := range cveIDs {
+		if strings.HasPrefix(id, "CVE-") {
+			validIDs = append(validIDs, id)
+		}
+	}
+
+	if len(validIDs) == 0 {
+		return nil
+	}
+
+	const batchSize = 30
+	for i := 0; i < len(validIDs); i += batchSize {
+		end := i + batchSize
+		if end > len(validIDs) {
+			end = len(validIDs)
+		}
+
+		if _, err := m.fetchEPSSBatch(ctx, validIDs[i:end]); err != nil {
+			return fmt.Errorf("EPSS batch query failed: %w", err)
+		}
+
+		if end < len(validIDs) {
+			time.Sleep(500 * time.Millisecond)
+		}
+	}
+
+	return nil
+}
+
+// fetchEPSSBatch queries the FIRST.org EPSS API for a batch of CVE IDs.
+// Returns the number of CVEs successfully enriched.
+func (m *IntelFeedManager) fetchEPSSBatch(ctx context.Context, cveIDs []string) (int, error) {
+	// Build query: https://api.first.org/data/v1/epss?cve=CVE-1,CVE-2,...
+	url := fmt.Sprintf("https://api.first.org/data/v1/epss?cve=%s", strings.Join(cveIDs, ","))
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("User-Agent", "Khepra-ERT/1.0 (EPSS-enrichment)")
+
+	resp, err := m.httpClient.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("EPSS API returned %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, err
+	}
+
+	var epssResp EPSSResponse
+	if err := json.Unmarshal(body, &epssResp); err != nil {
+		return 0, fmt.Errorf("failed to parse EPSS response: %w", err)
+	}
+
+	// Update cache with EPSS scores
+	enriched := 0
+	m.cacheMu.Lock()
+	for _, data := range epssResp.Data {
+		epssScore := parseFloat(data.EPSS)
+		epssPercentile := parseFloat(data.Percentile)
+
+		if intel, exists := m.cache[data.CVE]; exists {
+			intel.EPSSScore = epssScore
+			intel.EPSSPercentile = epssPercentile
+			enriched++
+		} else {
+			// Create a minimal entry for CVEs not yet in cache
+			m.cache[data.CVE] = &ThreatIntel{
+				CVEID:          data.CVE,
+				EPSSScore:      epssScore,
+				EPSSPercentile: epssPercentile,
+				Source:         "EPSS",
+			}
+			enriched++
+		}
+	}
+	m.cacheMu.Unlock()
+
+	return enriched, nil
+}
+
+// LookupEPSS returns EPSS score and percentile for a CVE from the cache.
+// Returns (0, 0, false) if not found.
+func (m *IntelFeedManager) LookupEPSS(cveID string) (score, percentile float64, found bool) {
+	m.cacheMu.RLock()
+	defer m.cacheMu.RUnlock()
+
+	if intel, exists := m.cache[cveID]; exists && intel.EPSSScore > 0 {
+		return intel.EPSSScore, intel.EPSSPercentile, true
+	}
+	return 0, 0, false
+}
+
+// parseFloat safely converts a string to float64, returning 0.0 on failure.
+func parseFloat(s string) float64 {
+	var f float64
+	fmt.Sscanf(s, "%f", &f)
+	return f
 }
 
 // fetchRSS handles RSS-based feeds
