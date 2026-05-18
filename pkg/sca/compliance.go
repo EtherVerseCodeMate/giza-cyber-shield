@@ -36,10 +36,20 @@ type ComplianceMapper struct {
 	// nist53to172 maps NIST 800-53 control → []NIST 800-172 requirement (enhanced)
 	nist53to172 map[string][]string
 
+	// nist53toCCI maps NIST 800-53 control → []CCIEntry (CCI ID + definition)
+	nist53toCCI map[string][]CCIEntry
+
 	// nist171toDomain maps NIST 800-171 requirement → CMMC domain name
 	nist171toDomain map[string]string
 
 	mu sync.RWMutex
+}
+
+// CCIEntry represents a single CCI (Control Correlation Identifier) record.
+// CCIs link NIST 800-53 controls to specific STIG implementation requirements.
+type CCIEntry struct {
+	CCIID      string `json:"cci_id"`     // e.g. "CCI-001643"
+	Definition string `json:"definition"` // STIG requirement text
 }
 
 // SCAControlMapping defines which NIST 800-53 controls are directly implicated
@@ -61,6 +71,7 @@ func NewComplianceMapper() *ComplianceMapper {
 	cm := &ComplianceMapper{
 		nist53to171:     make(map[string][]string),
 		nist53to172:     make(map[string][]string),
+		nist53toCCI:     make(map[string][]CCIEntry),
 		nist171toDomain: make(map[string]string),
 	}
 	// Initialize with hardcoded SCA-relevant mappings
@@ -185,6 +196,79 @@ func (cm *ComplianceMapper) loadCSVInto(path string, is172 bool) error {
 	return nil
 }
 
+// LoadCCICSV loads the CCI → NIST 800-53 crosswalk from a CSV file.
+// Expected format: CCI_ID,NIST_53_Ref,Definition
+// This builds a reverse index: NIST 53 control → []CCIEntry
+func (cm *ComplianceMapper) LoadCCICSV(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	reader := csv.NewReader(bufio.NewReader(f))
+	reader.LazyQuotes = true // CCI CSV has complex quoting
+	// Skip header
+	if _, err := reader.Read(); err != nil {
+		return err
+	}
+
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	seen := make(map[string]bool) // deduplicate CCI IDs per control
+
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			continue
+		}
+		if len(record) < 3 {
+			continue
+		}
+
+		cciID := strings.TrimSpace(record[0])
+		nist53Raw := strings.TrimSpace(record[1])
+		definition := strings.TrimSpace(record[2])
+
+		// Normalize NIST 53 ref: "RA-5(2)" stays, "RA-5 a" → "RA-5"
+		nist53 := normalizeNIST53Ref(nist53Raw)
+
+		key := nist53 + ":" + cciID
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+
+		cm.nist53toCCI[nist53] = append(cm.nist53toCCI[nist53], CCIEntry{
+			CCIID:      cciID,
+			Definition: definition,
+		})
+	}
+
+	return nil
+}
+
+// normalizeNIST53Ref normalizes variant NIST 800-53 references.
+// "RA-5(2)" → "RA-5(2)", "RA-5 a" → "RA-5", "RA-5.1 (ii)" → "RA-5"
+func normalizeNIST53Ref(ref string) string {
+	// Keep parenthetical enhancements like "RA-5(2)"
+	if idx := strings.Index(ref, "("); idx > 0 {
+		// Find closing paren
+		if end := strings.Index(ref[idx:], ")"); end > 0 {
+			return strings.TrimSpace(ref[:idx+end+1])
+		}
+	}
+	// Strip sub-parts: "RA-5 a" → "RA-5", "RA-5.1 (ii)" → "RA-5"
+	if idx := strings.IndexAny(ref, " ."); idx > 0 {
+		return strings.TrimSpace(ref[:idx])
+	}
+	return strings.TrimSpace(ref)
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Mapping API
 // ──────────────────────────────────────────────────────────────────────────────
@@ -241,6 +325,23 @@ func (cm *ComplianceMapper) MapFinding(f *EnrichedFinding) {
 	if domain != "" {
 		f.CMMCDomain = domain
 	}
+
+	// Map CCI references from the matched NIST 800-53 controls
+	var cciRefs []string
+	var stigFindings []string
+	for _, ctrl := range scaControls {
+		if entries, ok := cm.nist53toCCI[ctrl]; ok {
+			for _, e := range entries {
+				cciRefs = appendIfNew(cciRefs, e.CCIID)
+				// Keep first 3 STIG findings max to avoid bloat
+				if len(stigFindings) < 3 {
+					stigFindings = appendIfNew(stigFindings, e.Definition)
+				}
+			}
+		}
+	}
+	f.CCIReferences = cciRefs
+	f.STIGFindings = stigFindings
 }
 
 // MapFindings applies CMMC mapping to a batch of findings.

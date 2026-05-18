@@ -25,17 +25,19 @@ import (
 // Pipeline orchestrates the full SCA flow: SBOM → Vulnerability Matching → Enrichment.
 // It is the primary public API surface for ERT integration.
 type Pipeline struct {
-	syft     *SyftAdapter
-	grype    *GrypeAdapter
-	enricher *Enricher
+	syft       *SyftAdapter
+	grype      *GrypeAdapter
+	enricher   *Enricher
+	compliance *ComplianceMapper
 }
 
 // NewPipeline creates a fully wired SCA pipeline.
 func NewPipeline(feedManager *vuln.IntelFeedManager) *Pipeline {
 	return &Pipeline{
-		syft:     NewSyftAdapter(),
-		grype:    NewGrypeAdapter(),
-		enricher: NewEnricher(feedManager),
+		syft:       NewSyftAdapter(),
+		grype:      NewGrypeAdapter(),
+		enricher:   NewEnricher(feedManager),
+		compliance: NewComplianceMapper(),
 	}
 }
 
@@ -124,6 +126,12 @@ func (p *Pipeline) ScanAndEnrich(ctx context.Context, projectPath string) (*Scan
 		enriched = findings
 	}
 	log.Printf("[SCA] Phase 3/3 complete: %d enriched findings", len(enriched))
+
+	// ── Phase 4: CMMC Compliance Mapping ────────────────────────────────
+	if p.compliance != nil {
+		p.compliance.MapFindings(enriched)
+		log.Println("[SCA] CMMC/CCI/STIG compliance mapping applied")
+	}
 
 	// ── Build result ─────────────────────────────────────────────────────
 	result := &ScanResult{
