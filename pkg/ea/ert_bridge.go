@@ -355,7 +355,7 @@ func (r *KernelRouter) RouteWithFindings(ctx context.Context, input ERTRouteInpu
 
 		// Evolve for the specified number of cycles
 		for i := 0; i < constraints.EvolutionCycles; i++ {
-			if err := eng.Evolve(ctx); err != nil {
+			if _, err := eng.Evolve(); err != nil {
 				// Restore and return partial result
 				eng.mu.Lock()
 				eng.fitnessFunc = originalFitness
@@ -425,10 +425,10 @@ func (r *KernelRouter) securityContextFromFindings(findings []sca.EnrichedFindin
 	// Check for compliance frameworks from findings
 	for _, f := range findings {
 		if len(f.NIST53Controls) > 0 {
-			sec.Frameworks = appendUnique(sec.Frameworks, "nist-800-53")
+			sec.Frameworks = ertAppendUnique(sec.Frameworks, "nist-800-53")
 		}
 		if len(f.NIST171Controls) > 0 {
-			sec.Frameworks = appendUnique(sec.Frameworks, "cmmc")
+			sec.Frameworks = ertAppendUnique(sec.Frameworks, "cmmc")
 		}
 	}
 
@@ -440,8 +440,9 @@ func (r *KernelRouter) securityContextFromFindings(findings []sca.EnrichedFindin
 	return sec
 }
 
-// appendUnique adds a string to a slice if not already present.
-func appendUnique(slice []string, item string) []string {
+// ertAppendUnique adds a string to a slice if not already present.
+// Named with ert prefix to avoid collision with kernel_router.go's containsAny.
+func ertAppendUnique(slice []string, item string) []string {
 	for _, s := range slice {
 		if s == item {
 			return slice
