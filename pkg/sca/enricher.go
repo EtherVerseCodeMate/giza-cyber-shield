@@ -129,26 +129,29 @@ func (e *Enricher) Enrich(ctx context.Context, findings []EnrichedFinding) ([]En
 // enrichSingle enriches one finding from cached threat intelligence.
 // Individual lookup failures are non-fatal (AD-008).
 func (e *Enricher) enrichSingle(ctx context.Context, f *EnrichedFinding) {
-	if f.CVEID == "" || e.feedManager == nil {
+	if f.CVEID == "" {
 		return
 	}
 
-	// 1. Lookup cached threat intel (CISA KEV, InTheWild, NVD data)
-	intel := e.feedManager.LookupCVE(f.CVEID)
-	if intel != nil {
-		e.applyThreatIntel(f, intel)
+	// Feed-dependent enrichment (only when IntelFeedManager is available)
+	if e.feedManager != nil {
+		// 1. Lookup cached threat intel (CISA KEV, InTheWild, NVD data)
+		intel := e.feedManager.LookupCVE(f.CVEID)
+		if intel != nil {
+			e.applyThreatIntel(f, intel)
+		}
+
+		// 2. EPSS (from prefetched cache)
+		if score, percentile, found := e.feedManager.LookupEPSS(f.CVEID); found {
+			f.EPSSScore = score
+			f.EPSSPercentile = percentile
+		}
+
+		// 3. Update sources to reflect enrichment
+		f.Sources = appendUnique(f.Sources, "enriched")
 	}
 
-	// 2. EPSS (from prefetched cache)
-	if score, percentile, found := e.feedManager.LookupEPSS(f.CVEID); found {
-		f.EPSSScore = score
-		f.EPSSPercentile = percentile
-	}
-
-	// 3. Update sources to reflect enrichment
-	f.Sources = appendUnique(f.Sources, "enriched")
-
-	// 4. Apply confidence scoring
+	// 4. Apply confidence scoring (always, even without feeds)
 	f.Confidence = calculateConfidence(f)
 
 	// 5. Set default VEX status if not already set
