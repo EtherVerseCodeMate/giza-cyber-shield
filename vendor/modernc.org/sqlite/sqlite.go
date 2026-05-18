@@ -54,7 +54,14 @@ const (
 )
 
 func init() {
-	sql.Register(driverName, newDriver())
+	// Guard against duplicate "sqlite" driver registration.
+	// When both modernc.org/sqlite and glebarez/go-sqlite are vendored,
+	// their init() order is non-deterministic. This recover guard
+	// prevents the fatal panic from sql.Register's duplicate check.
+	func() {
+		defer func() { recover() }()
+		sql.Register(driverName, newDriver())
+	}()
 	sqlite3.PatchIssue199() // https://gitlab.com/cznic/sqlite/-/issues/199
 
 }
