@@ -144,6 +144,51 @@ type MCPToolResponse struct {
 	ErrorMessage string         `json:"error_message,omitempty"`
 }
 
+// ─── Structured Tool Result (Error-as-Data) ────────────────────────────────────
+
+// HardenedToolResult is the structured output of every hardened tool execution.
+// Errors are returned as DATA, not exceptions, so the agent/router can
+// recover or escalate gracefully.
+// Named "Hardened" to avoid collision with legacy ToolResult alias in compat.go.
+type HardenedToolResult struct {
+	Success     bool     `json:"success"`
+	Data        any      `json:"data,omitempty"`
+	Error       string   `json:"error,omitempty"`
+	IsError     bool     `json:"is_error"`
+	Recoverable bool     `json:"recoverable"`          // false = fatal, stop chain
+	Code        string   `json:"code,omitempty"`        // e.g. "PATH_TRAVERSAL", "TIMEOUT"
+	Warnings    []string `json:"warnings,omitempty"`
+}
+
+// NewSuccessResult creates a successful HardenedToolResult.
+func NewSuccessResult(data any, warnings ...string) *HardenedToolResult {
+	return &HardenedToolResult{
+		Success:  true,
+		Data:     data,
+		Warnings: warnings,
+	}
+}
+
+// NewErrorResult creates a recoverable error HardenedToolResult.
+func NewErrorResult(code, msg string) *HardenedToolResult {
+	return &HardenedToolResult{
+		IsError:     true,
+		Recoverable: true,
+		Error:       msg,
+		Code:        code,
+	}
+}
+
+// NewFatalResult creates a non-recoverable error HardenedToolResult.
+func NewFatalResult(code, msg string) *HardenedToolResult {
+	return &HardenedToolResult{
+		IsError:     false,
+		Recoverable: false,
+		Error:       msg,
+		Code:        code,
+	}
+}
+
 // ─── JSON-RPC 2.0 Wire Types ──────────────────────────────────────────────────
 
 // JSONRPCRequest is the standard JSON-RPC 2.0 request envelope.

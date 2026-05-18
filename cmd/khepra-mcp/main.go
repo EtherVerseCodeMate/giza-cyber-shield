@@ -142,10 +142,41 @@ func main() {
 		logger.Fatalf("FATAL: server construction failed: %v", err)
 	}
 
+	// ── Register Shutdown Hooks ──────────────────────────────────────────────
+	// 1. Zero-out PQC private key material
+	server.OnShutdown(func() {
+		for i := range privKey {
+			privKey[i] = 0
+		}
+		logger.Println("PQC private key material destroyed")
+	})
+
+	// 2. Flush telemetry events
+	server.OnShutdown(func() {
+		events := router.Events().Flush()
+		logger.Printf("flushed %d telemetry events", len(events))
+	})
+
+	// 3. Emit shutdown event
+	router.Events().Emit(khepramcp.MCPEvent{
+		Type:    khepramcp.EventStartup,
+		Success: true,
+		Metadata: map[string]any{
+			"version":  "1.0.0-sovereign-mcp",
+			"symbol":   symbol,
+			"key_id":   keyID,
+			"tools":    registry.ToolCount(),
+			"manifest": registry.Version(),
+		},
+	})
+
 	logger.Printf("starting hardened MCP server (stdio)")
 	if err := server.Run(ctx); err != nil {
+		// Run shutdown hooks even on error
+		server.Shutdown(context.Background())
 		logger.Fatalf("server error: %v", err)
 	}
+	server.Shutdown(context.Background())
 	logger.Printf("shutdown complete")
 }
 
