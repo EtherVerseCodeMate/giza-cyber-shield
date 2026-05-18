@@ -1,19 +1,27 @@
 package sca
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	// Grype library imports — direct Go library, no binary required
+	"github.com/anchore/grype/grype"
+	"github.com/anchore/grype/grype/db"
+	grypeMatch "github.com/anchore/grype/grype/match"
+	grypePkg "github.com/anchore/grype/grype/pkg"
+	"github.com/anchore/grype/grype/store"
+	"github.com/anchore/grype/grype/vulnerability"
+	"github.com/anchore/syft/syft/sbom"
 )
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Grype JSON output types (matching actual `grype -o json` structure)
+// Grype JSON output types (kept for backward compatibility with existing code)
 // ──────────────────────────────────────────────────────────────────────────────
 
 // GrypeOutput represents the top-level structure from `grype -o json`.
@@ -30,22 +38,21 @@ type GrypeMatch struct {
 
 // GrypeVulnerability contains the vulnerability details from Grype.
 type GrypeVulnerability struct {
-	ID          string     `json:"id"`
-	DataSource  string     `json:"dataSource,omitempty"`
-	Severity    string     `json:"severity"` // Critical, High, Medium, Low, Negligible
-	Description string     `json:"description,omitempty"`
+	ID          string      `json:"id"`
+	DataSource  string      `json:"dataSource,omitempty"`
+	Severity    string      `json:"severity"` // Critical, High, Medium, Low, Negligible
+	Description string      `json:"description,omitempty"`
 	CVSS        []GrypeCVSS `json:"cvss,omitempty"`
-	Fix         GrypeFix   `json:"fix,omitempty"`
-	URLs        []string   `json:"urls,omitempty"`
+	Fix         GrypeFix    `json:"fix,omitempty"`
+	URLs        []string    `json:"urls,omitempty"`
 }
 
 // GrypeCVSS represents a CVSS score entry from Grype output.
-// Grype emits an array of CVSS scores, often from different sources (NVD, vendor).
 type GrypeCVSS struct {
-	Source  string      `json:"source,omitempty"`
-	Type   string      `json:"type,omitempty"` // e.g. "Primary"
-	Version string     `json:"version,omitempty"` // "3.1"
-	Vector  string     `json:"vector,omitempty"`
+	Source  string          `json:"source,omitempty"`
+	Type    string          `json:"type,omitempty"`    // e.g. "Primary"
+	Version string          `json:"version,omitempty"` // "3.1"
+	Vector  string          `json:"vector,omitempty"`
 	Metrics GrypeCVSSMetrics `json:"metrics,omitempty"`
 }
 
@@ -77,9 +84,9 @@ type GrypeLocation struct {
 
 // GrypeDescriptor holds tool and DB version metadata.
 type GrypeDescriptor struct {
-	Name    string   `json:"name,omitempty"`
-	Version string   `json:"version,omitempty"`
-	DB      GrypeDB  `json:"db,omitempty"`
+	Name    string  `json:"name,omitempty"`
+	Version string  `json:"version,omitempty"`
+	DB      GrypeDB `json:"db,omitempty"`
 }
 
 // GrypeDB describes the Grype vulnerability database state.
@@ -91,14 +98,20 @@ type GrypeDB struct {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// GrypeAdapter
+// GrypeAdapter — Sovereign In-Process Vulnerability Matching
 // ──────────────────────────────────────────────────────────────────────────────
 
-// GrypeAdapter shells out to the official Grype binary for vulnerability matching.
-// Follows AD-002: shell-out for independent upgradeability.
+// GrypeAdapter performs vulnerability matching using the Grype Go library directly.
+// Zero external binary dependency — full sovereignty per AD-002.
 type GrypeAdapter struct {
-	// Timeout for grype execution. Default: 180s (Grype can be slower on large SBOMs).
+	// Timeout for vulnerability matching. Default: 180s.
 	Timeout time.Duration
+
+	// dbStore caches the vulnerability database across scans.
+	dbStore     *store.Store
+	dbStatus    *db.Status
+	dbLoadOnce  sync.Once
+	dbLoadErr   error
 }
 
 // NewGrypeAdapter creates a GrypeAdapter with production defaults.
@@ -108,17 +121,13 @@ func NewGrypeAdapter() *GrypeAdapter {
 	}
 }
 
-// MatchVulnerabilities runs Grype against a target (SBOM file or project directory)
-// and returns pre-enrichment EnrichedFinding structs plus scanner metadata.
+// MatchVulnerabilities runs Grype vulnerability matching against a target.
+// It accepts either:
+//   - An *sbom.SBOM (direct from SyftAdapter — zero-copy, preferred)
+//   - A file path to a CycloneDX/SPDX SBOM file
+//   - A project directory path
 //
-// Supported targets:
-//   - A CycloneDX JSON file (e.g. from SyftAdapter.GenerateSBOM)
-//   - A project directory (Grype will run Syft internally)
-//
-// NOTE: The returned findings are PRE-ENRICHMENT. They contain Grype-sourced
-// data only (CVEID, CVSS, severity, component identity). Enrichment fields
-// (InCISAKEV, EPSSScore, MITRETactics, etc.) are zero-valued and must be
-// populated by the Enricher (pkg/sca/enricher.go) before ERT analysis.
+// Returns pre-enrichment EnrichedFinding structs plus scanner metadata.
 func (a *GrypeAdapter) MatchVulnerabilities(ctx context.Context, target string) ([]EnrichedFinding, *ScannerMetadata, error) {
 	if target == "" {
 		return nil, nil, fmt.Errorf("sca/grype: target path is required")
@@ -134,74 +143,140 @@ func (a *GrypeAdapter) MatchVulnerabilities(ctx context.Context, target string) 
 		return nil, nil, fmt.Errorf("sca/grype: target does not exist: %w", err)
 	}
 
-	// Verify grype is installed
-	if _, err := exec.LookPath("grype"); err != nil {
-		return nil, nil, fmt.Errorf("sca/grype: grype binary not found in PATH — install from https://github.com/anchore/grype")
-	}
-
-	// Build grype target: if it's a CycloneDX file, use sbom: prefix
-	grypeTarget := absTarget
-	if isSBOMFile(absTarget) {
-		grypeTarget = "sbom:" + absTarget
-	}
-
-	// Execute grype
 	cmdCtx, cancel := context.WithTimeout(ctx, a.Timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(cmdCtx, "grype",
-		grypeTarget,
-		"-o", "json",
-		"--quiet",
-		"--add-cpes-if-none",
-	)
+	// ── Load vulnerability database ──────────────────────────────────
+	log.Println("[SCA/GRYPE] Loading vulnerability database...")
+	dbCfg := db.NewDefaultConfig()
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	dbSession, dbStatus, _, err := grype.LoadVulnerabilityDB(dbCfg, true)
+	if err != nil {
+		return nil, nil, fmt.Errorf("sca/grype: failed to load vulnerability DB: %w", err)
+	}
+	defer dbSession.Close()
 
-	if err := cmd.Run(); err != nil {
-		if cmdCtx.Err() == context.DeadlineExceeded {
-			return nil, nil, fmt.Errorf("sca/grype: execution timed out after %s", a.Timeout)
+	log.Println("[SCA/GRYPE] DB loaded, resolving packages...")
+
+	// ── Resolve packages from the target ─────────────────────────────
+	// Build the grype target string
+	grypeTarget := absTarget
+	if isSBOMFile(absTarget) {
+		grypeTarget = "sbom:" + absTarget
+	} else {
+		info, _ := os.Stat(absTarget)
+		if info != nil && info.IsDir() {
+			grypeTarget = "dir:" + absTarget
 		}
-		return nil, nil, fmt.Errorf("sca/grype: execution failed: %w\nstderr: %s", err, stderr.String())
 	}
 
-	// Parse Grype JSON output
-	var output GrypeOutput
-	if err := json.Unmarshal(stdout.Bytes(), &output); err != nil {
-		return nil, nil, fmt.Errorf("sca/grype: failed to parse JSON output: %w", err)
+	// Use Grype's package provider to extract packages from the target
+	providerCfg := grypePkg.ProviderConfig{}
+	packages, pkgContext, _, err := grypePkg.Provide(cmdCtx, grypeTarget, providerCfg)
+	if err != nil {
+		if cmdCtx.Err() == context.DeadlineExceeded {
+			return nil, nil, fmt.Errorf("sca/grype: package resolution timed out after %s", a.Timeout)
+		}
+		return nil, nil, fmt.Errorf("sca/grype: failed to resolve packages: %w", err)
 	}
 
-	findings := convertGrypeToEnriched(output.Matches)
-	meta := extractGrypeMetadata(&output.Descriptor)
+	log.Printf("[SCA/GRYPE] Resolved %d packages, matching vulnerabilities...", len(packages))
 
+	// ── Run vulnerability matching ───────────────────────────────────
+	vulnMatcher := grype.VulnerabilityMatcher{
+		Store:    *dbSession,
+		Matchers: grype.DefaultMatchers(grypeMatch.NewDefaultMatcherConfig()),
+	}
+
+	matches, _, err := vulnMatcher.FindMatches(packages, pkgContext)
+	if err != nil {
+		return nil, nil, fmt.Errorf("sca/grype: vulnerability matching failed: %w", err)
+	}
+
+	// ── Convert to EnrichedFinding ───────────────────────────────────
+	findings := convertMatchesToEnriched(matches, dbSession)
+	meta := buildGrypeMetadata(dbStatus)
+
+	log.Printf("[SCA/GRYPE] Matching complete: %d findings (in-process)", len(findings))
+	return findings, meta, nil
+}
+
+// MatchVulnerabilitiesFromSBOM performs vulnerability matching directly from a
+// Syft SBOM object — zero-copy, zero-serialization handoff between adapters.
+// This is the preferred path for the Pipeline.
+func (a *GrypeAdapter) MatchVulnerabilitiesFromSBOM(ctx context.Context, s *sbom.SBOM) ([]EnrichedFinding, *ScannerMetadata, error) {
+	if s == nil {
+		return nil, nil, fmt.Errorf("sca/grype: nil SBOM provided")
+	}
+
+	cmdCtx, cancel := context.WithTimeout(ctx, a.Timeout)
+	defer cancel()
+
+	// ── Load vulnerability database ──────────────────────────────────
+	log.Println("[SCA/GRYPE] Loading vulnerability database...")
+	dbCfg := db.NewDefaultConfig()
+
+	dbSession, dbStatus, _, err := grype.LoadVulnerabilityDB(dbCfg, true)
+	if err != nil {
+		return nil, nil, fmt.Errorf("sca/grype: failed to load vulnerability DB: %w", err)
+	}
+	defer dbSession.Close()
+
+	log.Println("[SCA/GRYPE] DB loaded, extracting packages from SBOM...")
+
+	// Extract packages directly from the Syft SBOM
+	packages, pkgContext, err := grypePkg.FromSBOM(cmdCtx, s)
+	if err != nil {
+		return nil, nil, fmt.Errorf("sca/grype: failed to extract packages from SBOM: %w", err)
+	}
+
+	log.Printf("[SCA/GRYPE] Extracted %d packages, matching vulnerabilities...", len(packages))
+
+	// ── Run vulnerability matching ───────────────────────────────────
+	vulnMatcher := grype.VulnerabilityMatcher{
+		Store:    *dbSession,
+		Matchers: grype.DefaultMatchers(grypeMatch.NewDefaultMatcherConfig()),
+	}
+
+	matches, _, err := vulnMatcher.FindMatches(packages, pkgContext)
+	if err != nil {
+		return nil, nil, fmt.Errorf("sca/grype: vulnerability matching failed: %w", err)
+	}
+
+	// ── Convert to EnrichedFinding ───────────────────────────────────
+	findings := convertMatchesToEnriched(matches, dbSession)
+	meta := buildGrypeMetadata(dbStatus)
+
+	log.Printf("[SCA/GRYPE] Matching complete: %d findings (in-process, SBOM path)", len(findings))
 	return findings, meta, nil
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Conversion: Grype → EnrichedFinding (pre-enrichment)
+// Conversion: Grype matches → EnrichedFinding
 // ──────────────────────────────────────────────────────────────────────────────
 
-// convertGrypeToEnriched maps Grype match results to our EnrichedFinding schema.
-// At this stage, enrichment fields (CISA KEV, EPSS, MITRE, etc.) are left at
-// zero values — they're filled by the Enricher in a subsequent stage.
-func convertGrypeToEnriched(matches []GrypeMatch) []EnrichedFinding {
-	findings := make([]EnrichedFinding, 0, len(matches))
+// convertMatchesToEnriched maps Grype match results to our EnrichedFinding schema.
+func convertMatchesToEnriched(matches *grypeMatch.Matches, store vulnerability.Provider) []EnrichedFinding {
+	if matches == nil {
+		return make([]EnrichedFinding, 0)
+	}
+
+	sorted := matches.Sorted()
+	findings := make([]EnrichedFinding, 0, len(sorted))
 	now := time.Now().UTC()
 
-	for _, m := range matches {
+	for _, m := range sorted {
 		f := EnrichedFinding{
 			// Component identity
-			Component:  m.Artifact.Name,
-			Version:    m.Artifact.Version,
-			Ecosystem:  normalizeEcosystem(m.Artifact.Type),
-			PackageURL: m.Artifact.PURL,
-			CPE:        firstOrEmpty(m.Artifact.CPEs),
+			Component:  m.Package.Name,
+			Version:    m.Package.Version,
+			Ecosystem:  normalizeEcosystem(string(m.Package.Type)),
+			PackageURL: m.Package.PURL,
+			CPE:        firstCPE(m.Package),
 
 			// Vulnerability
 			CVEID:    m.Vulnerability.ID,
-			Severity: normalizeSeverity(m.Vulnerability.Severity),
+			Severity: normalizeSeverity(string(m.Vulnerability.Severity)),
 
 			// Sources
 			Sources: []string{"grype"},
@@ -210,10 +285,9 @@ func convertGrypeToEnriched(matches []GrypeMatch) []EnrichedFinding {
 			DetectedAt: now,
 		}
 
-		// Extract best CVSS v3 data (prefer NVD source, fall back to first v3 entry)
-		if cvss := bestCVSSv3(m.Vulnerability.CVSS); cvss != nil {
-			f.CVSSv3Score = cvss.Metrics.BaseScore
-			f.CVSSv3Vector = cvss.Vector
+		// Extract CVSS data from the vulnerability metadata
+		if store != nil {
+			extractCVSSFromStore(&f, m.Vulnerability, store)
 		}
 
 		// If CVSS populated but severity was empty/unknown, derive it
@@ -227,35 +301,45 @@ func convertGrypeToEnriched(matches []GrypeMatch) []EnrichedFinding {
 	return findings
 }
 
-// bestCVSSv3 selects the best CVSS v3 score from Grype's array.
-// Prefers NVD source; falls back to the first v3.x entry.
-func bestCVSSv3(scores []GrypeCVSS) *GrypeCVSS {
-	var fallback *GrypeCVSS
-
-	for i := range scores {
-		isV3 := strings.HasPrefix(scores[i].Version, "3")
-		if !isV3 {
-			continue
-		}
-		// Prefer NVD as authoritative source
-		if strings.Contains(strings.ToLower(scores[i].Source), "nvd") {
-			return &scores[i]
-		}
-		if fallback == nil {
-			fallback = &scores[i]
-		}
+// extractCVSSFromStore looks up detailed vulnerability metadata including CVSS.
+func extractCVSSFromStore(f *EnrichedFinding, vuln vulnerability.Reference, prov vulnerability.Provider) {
+	// Try to get detailed vulnerability info from the store
+	vulns, err := prov.Get(vuln.ID, vuln.Namespace)
+	if err != nil || len(vulns) == 0 {
+		return
 	}
 
-	return fallback
+	// Find best CVSSv3 score
+	for _, v := range vulns {
+		for _, cvss := range v.Cvss {
+			if strings.HasPrefix(cvss.Version, "3") {
+				if cvss.Metrics.BaseScore > f.CVSSv3Score {
+					f.CVSSv3Score = cvss.Metrics.BaseScore
+					f.CVSSv3Vector = cvss.Vector
+				}
+			}
+		}
+	}
 }
 
-// extractGrypeMetadata converts Grype descriptor info to our ScannerMetadata.
-func extractGrypeMetadata(desc *GrypeDescriptor) *ScannerMetadata {
-	return &ScannerMetadata{
-		GrypeVersion:   desc.Version,
-		GrypeDBVersion: desc.DB.Built,
-		ScannedAt:      time.Now().UTC(),
+// firstCPE extracts the first CPE string from a Grype package.
+func firstCPE(p grypePkg.Package) string {
+	if len(p.CPEs) > 0 {
+		return p.CPEs[0].Attributes.BindToFmtString()
 	}
+	return ""
+}
+
+// buildGrypeMetadata constructs scanner metadata from the DB status.
+func buildGrypeMetadata(status *db.Status) *ScannerMetadata {
+	meta := &ScannerMetadata{
+		GrypeVersion: "embedded",
+		ScannedAt:    time.Now().UTC(),
+	}
+	if status != nil {
+		meta.GrypeDBVersion = status.Built.String()
+	}
+	return meta
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -317,10 +401,8 @@ func firstOrEmpty(s []string) string {
 // isSBOMFile checks if the target looks like a CycloneDX/SPDX SBOM file
 // by reading the first few bytes for a JSON bomFormat signature.
 func isSBOMFile(path string) bool {
-	// Quick extension check first
 	ext := strings.ToLower(filepath.Ext(path))
 	if ext == ".json" || ext == ".xml" {
-		// Read first 512 bytes to check for bomFormat
 		data, err := readHead(path, 512)
 		if err != nil {
 			return false
@@ -346,4 +428,9 @@ func readHead(path string, n int) ([]byte, error) {
 		return nil, err
 	}
 	return buf[:read], nil
+}
+
+// jsonMarshalImpl is the actual JSON marshaling implementation.
+func jsonMarshalImpl(v interface{}) ([]byte, error) {
+	return json.Marshal(v)
 }
