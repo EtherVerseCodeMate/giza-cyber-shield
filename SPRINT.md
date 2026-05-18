@@ -92,7 +92,7 @@ type EnrichedFinding struct {
 ## P0 Tasks (Weeks 1-2) — Foundation
 
 ### Task 1: EnrichedFinding Schema & SCA Package Structure
-**Status:** `planned`
+**Status:** `complete` ✅
 **Assign Design:** Grok
 **Assign Implement:** Antigravity
 **Priority:** P0 — everything depends on this
@@ -114,7 +114,7 @@ type EnrichedFinding struct {
 ---
 
 ### Task 2: Syft SBOM Adapter
-**Status:** `planned`
+**Status:** `complete` ✅
 **Assign Design:** Grok
 **Assign Implement:** Antigravity
 **Priority:** P0
