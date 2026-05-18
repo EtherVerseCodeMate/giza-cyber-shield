@@ -80,7 +80,6 @@ func ToEnrichedFinding(f UnifiedFinding) sca.EnrichedFinding {
 
 	case CategoryVulnerability:
 		// Horus vuln findings already have CVE IDs
-		ef.FixedIn = extractStringEvidence(f.Evidence, "fixed_in")
 		ef.Confidence = "medium"
 
 	default:

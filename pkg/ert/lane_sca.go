@@ -11,6 +11,11 @@ import (
 
 // ──────────────────────────────────────────────────────────────────────────────
 // SCA Lane — wraps the sovereign Syft → Grype → Enricher pipeline
+//
+// Uses the actual Go SDK APIs:
+//   SyftAdapter.GenerateSBOM(ctx, path) → (*CycloneDXBOM, *ScannerMetadata, error)
+//   GrypeAdapter.MatchVulnerabilities(ctx, target) → ([]EnrichedFinding, *ScannerMetadata, error)
+//   Enricher.Enrich(ctx, findings) → ([]EnrichedFinding, error)
 // ──────────────────────────────────────────────────────────────────────────────
 
 // SCALane wraps the sovereign SCA pipeline (Syft → Grype → Enricher)
@@ -22,7 +27,7 @@ type SCALane struct {
 }
 
 // NewSCALane creates a new SCA lane with configured adapters.
-// If any adapter is nil, the lane will return an error on Run().
+// syft and grype are required; enricher is optional (EPSS/KEV enrichment).
 func NewSCALane(syft *sca.SyftAdapter, grype *sca.GrypeAdapter, enricher *sca.Enricher) *SCALane {
 	return &SCALane{
 		syft:     syft,
@@ -39,8 +44,8 @@ func (l *SCALane) Name() ScanLane {
 // Run executes the full SCA pipeline: SBOM → Vulnerability Match → Enrichment.
 // The resulting sca.EnrichedFindings are wrapped as UnifiedFindings.
 func (l *SCALane) Run(ctx context.Context, req ScanRequest) ([]UnifiedFinding, error) {
-	if l.syft == nil || l.grype == nil {
-		return nil, fmt.Errorf("sca lane: syft and grype adapters required")
+	if l.grype == nil {
+		return nil, fmt.Errorf("sca lane: grype adapter required")
 	}
 
 	target := req.TargetPath
@@ -50,21 +55,24 @@ func (l *SCALane) Run(ctx context.Context, req ScanRequest) ([]UnifiedFinding, e
 
 	log.Printf("[SCA-LANE] Starting SCA pipeline for: %s", target)
 
-	// Step 1: Generate SBOM via Syft
-	sbom, err := l.syft.GenerateSBOM(ctx, target)
-	if err != nil {
-		return nil, fmt.Errorf("syft sbom generation failed: %w", err)
+	// Step 1: Generate SBOM via Syft (optional — Grype can scan directly)
+	if l.syft != nil {
+		bom, meta, err := l.syft.GenerateSBOM(ctx, target)
+		if err != nil {
+			log.Printf("[SCA-LANE] WARN: Syft SBOM generation failed: %v (falling back to Grype direct scan)", err)
+		} else {
+			log.Printf("[SCA-LANE] SBOM generated: %d components (Syft %s)", len(bom.Components), meta.SyftVersion)
+		}
 	}
 
-	log.Printf("[SCA-LANE] SBOM generated: %d packages", sbom.Source.ID)
-
 	// Step 2: Vulnerability matching via Grype
-	matches, err := l.grype.MatchVulnerabilities(ctx, sbom)
+	// Grype can scan the target directly without requiring a Syft SBOM
+	matches, meta, err := l.grype.MatchVulnerabilities(ctx, target)
 	if err != nil {
 		return nil, fmt.Errorf("grype vulnerability matching failed: %w", err)
 	}
 
-	log.Printf("[SCA-LANE] Grype matched %d vulnerabilities", len(matches))
+	log.Printf("[SCA-LANE] Grype matched %d vulnerabilities (DB: %s)", len(matches), meta.GrypeDBVersion)
 
 	// Step 3: Enrich with EPSS/KEV/CVSS if enricher is available
 	var enrichedFindings []sca.EnrichedFinding
@@ -106,20 +114,28 @@ func scaToUnified(ef sca.EnrichedFinding) UnifiedFinding {
 
 		CVEID:     ef.CVEID,
 		CVSSv3:    ef.CVSSv3Score,
-		FixedIn:   "", // EnrichedFinding doesn't carry FixedIn directly
 		EPSSScore: ef.EPSSScore,
 		InCISAKEV: ef.InCISAKEV,
 
 		Evidence: map[string]interface{}{
-			"ecosystem":        ef.Ecosystem,
-			"cvss_vector":      ef.CVSSv3Vector,
-			"sources":          ef.Sources,
-			"nist_53_controls": ef.NIST53Controls,
+			"ecosystem":         ef.Ecosystem,
+			"cvss_vector":       ef.CVSSv3Vector,
+			"sources":           ef.Sources,
+			"nist_53_controls":  ef.NIST53Controls,
 			"nist_171_controls": ef.NIST171Controls,
-			"stig_findings":    ef.STIGFindings,
+			"stig_findings":     ef.STIGFindings,
 		},
 
 		Timestamp: ef.DetectedAt,
 		Raw:       ef, // Preserve for EA boundary conversion
 	}
+}
+
+// SCALaneTimings returns pipeline stage timings for observability.
+// This is a placeholder for future instrumentation.
+type SCALaneTimings struct {
+	SBOMGeneration time.Duration `json:"sbom_generation"`
+	VulnMatching   time.Duration `json:"vuln_matching"`
+	Enrichment     time.Duration `json:"enrichment"`
+	Normalization  time.Duration `json:"normalization"`
 }
