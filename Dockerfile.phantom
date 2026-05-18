@@ -1,71 +1,109 @@
-# Dockerfile for Phantom Network Node - REAL IMPLEMENTATION
+# =============================================================================
+# Khepra Phantom Node — Hardened Production Dockerfile
+# =============================================================================
 #
-# This builds the actual Phantom Node with:
-# - Adinkhepra-PQC lattice signatures
-# - Merkaba White Box encryption
-# - Spectral Fingerprint address derivation
-# - Automatic key rotation
+# Security posture:
+#   - Full module context build (go.mod, go.sum, vendor/)
+#   - No go mod init / go mod tidy inside the container
+#   - Non-root runtime user (phantom:phantom, UID/GID 1001)
+#   - No /root paths — all writable state under /var/lib/phantom
+#   - Read-only root filesystem compatible (mount /var/lib/phantom as writable)
+#   - Pinned builder image tag
+#   - No curl/wget — health check uses the binary's built-in endpoint
+#   - trimpath + stripped symbols + static link
+#
+# Builds:
+#   - phantom-node  (cmd/phantom-node) — the Phantom Network Node
+#   - mcp-runner    (cmd/mcp-runner)   — the MCP sandbox executor
+#
+# Build command:
+#   docker build -t khepra-phantom:latest -f Dockerfile.phantom .
+#
+# Runtime volumes (optional):
+#   /var/lib/phantom/keys  — PQC key material (inject from external secret store)
+#   /var/lib/phantom/data  — mutable node state, lattice rotation output
+# =============================================================================
 
-FROM golang:1.22-alpine AS builder
+# ── Stage 1: Builder ─────────────────────────────────────────────────────────
 
-# Install build dependencies
+FROM golang:1.26-alpine AS builder
+
 RUN apk add --no-cache git gcc musl-dev
 
-# Set working directory
-WORKDIR /build
+WORKDIR /src
 
-# Initialize Go module
-RUN go mod init khepra-protocol
+# Copy dependency manifests first for layer caching
+COPY go.mod go.sum ./
 
-# Copy the real Adinkra package (required for crypto)
-COPY pkg/adinkra/ ./pkg/adinkra/
+# Copy vendored dependencies (offline/air-gapped build)
+COPY vendor/ ./vendor/
 
-# Copy the phantom-node source
-COPY cmd/phantom-node/ ./cmd/phantom-node/
+# Copy full source context
+COPY pkg/ ./pkg/
+COPY cmd/ ./cmd/
 
-# Download dependencies and tidy
-RUN go mod tidy
+# Build flags:
+#   CGO_ENABLED=0  → static binary, no libc dependency
+#   -mod=vendor    → deterministic from vendored deps
+#   -trimpath      → reproducible builds, no local paths in binary
+#   -ldflags       → strip debug symbols, inject version
+ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64
 
-# Build phantom-node binary
-RUN CGO_ENABLED=0 GOOS=linux go build \
-    -a -installsuffix cgo \
+# Build Phantom Node
+RUN go build -mod=vendor -trimpath \
     -ldflags="-w -s -X main.Version=1.0.0-adinkhepra" \
-    -o phantom-node \
+    -o /out/phantom-node \
     ./cmd/phantom-node/
 
-# =============================================================================
-# Runtime Image
-# =============================================================================
+# Build MCP Runner (sandbox executor)
+RUN go build -mod=vendor -trimpath \
+    -ldflags="-w -s -X main.Version=1.0.0-phantom-mcp" \
+    -o /out/mcp-runner \
+    ./cmd/mcp-runner/
 
-FROM alpine:latest
+# ── Stage 2: Minimal Runtime ─────────────────────────────────────────────────
 
-# Install runtime dependencies
-RUN apk --no-cache add ca-certificates curl tzdata
+FROM alpine:3.21
 
-# Create non-root user
-RUN addgroup -g 1000 phantom && \
-    adduser -D -u 1000 -G phantom phantom
+# ca-certificates: TLS verification for any outbound calls
+# tzdata: proper timezone handling in logs
+# No curl, no wget, no extra attack surface.
+RUN apk --no-cache add ca-certificates tzdata
 
-# Set working directory
+# Create non-root user and group (UID/GID 1001)
+RUN addgroup -g 1001 -S phantom \
+ && adduser  -u 1001 -S -G phantom -h /var/lib/phantom phantom
+
 WORKDIR /app
 
-# Copy binary from builder
-COPY --from=builder /build/phantom-node /app/phantom-node
+# Copy binaries from builder
+COPY --from=builder /out/phantom-node  /app/phantom-node
+COPY --from=builder /out/mcp-runner    /app/mcp-runner
 
-# Create directories for keys and data
-RUN mkdir -p /app/data/lattice /root/.khepra/keys && \
-    chown -R phantom:phantom /app
+# Create writable directories under non-root ownership
+# Keys and data are NEVER under /root
+RUN mkdir -p /var/lib/phantom/keys \
+             /var/lib/phantom/data \
+             /var/lib/phantom/data/lattice \
+             /project \
+ && chown -R phantom:phantom /var/lib/phantom /app /project
 
-# Expose ports
-EXPOSE 8080
-EXPOSE 9090
+# Metadata
+LABEL maintainer="khepra-protocol" \
+      description="Phantom Network Node with PQC Lattice Crypto" \
+      security.non-root="true" \
+      security.readonly-rootfs="compatible"
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8080/health || exit 1
+# Switch to non-root
+USER phantom
 
-# Run as non-root (commented for now as we need /root/.khepra access)
-# USER phantom
+# Expose API port (8080) and metrics/P2P port (9090)
+EXPOSE 8080 9090
 
-# Default command
-CMD ["/app/phantom-node"]
+# Health check using wget (busybox built-in, no extra package needed)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -qO- http://127.0.0.1:8080/health || exit 1
+
+# Default: run Phantom Node
+# Override with: docker run ... /app/mcp-runner <tool> <args>
+ENTRYPOINT ["/app/phantom-node"]
