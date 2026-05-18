@@ -253,20 +253,46 @@ func (cm *ComplianceMapper) LoadCCICSV(path string) error {
 }
 
 // normalizeNIST53Ref normalizes variant NIST 800-53 references.
-// "RA-5(2)" → "RA-5(2)", "RA-5 a" → "RA-5", "RA-5.1 (ii)" → "RA-5"
+// "RA-5(2)" → "RA-5(2)", "RA-5 a" → "RA-5", "AC-1 a.1 (a)" → "AC-1"
+// "RA-5.1 (ii)" → "RA-5"
 func normalizeNIST53Ref(ref string) string {
-	// Keep parenthetical enhancements like "RA-5(2)"
-	if idx := strings.Index(ref, "("); idx > 0 {
-		// Find closing paren
-		if end := strings.Index(ref[idx:], ")"); end > 0 {
-			return strings.TrimSpace(ref[:idx+end+1])
+	ref = strings.TrimSpace(ref)
+
+	// No space and no dot — check for attached parenthetical: "RA-5(2)", "CM-8(1)"
+	spaceIdx := strings.IndexByte(ref, ' ')
+	dotIdx := strings.IndexByte(ref, '.')
+	parenIdx := strings.IndexByte(ref, '(')
+
+	// If parenthetical comes BEFORE any space or dot, it's an enhancement: "RA-5(2)"
+	if parenIdx > 0 {
+		beforeSpace := spaceIdx < 0 || parenIdx < spaceIdx
+		beforeDot := dotIdx < 0 || parenIdx < dotIdx
+		if beforeSpace && beforeDot {
+			if end := strings.IndexByte(ref[parenIdx:], ')'); end > 0 {
+				return ref[:parenIdx+end+1]
+			}
 		}
 	}
-	// Strip sub-parts: "RA-5 a" → "RA-5", "RA-5.1 (ii)" → "RA-5"
-	if idx := strings.IndexAny(ref, " ."); idx > 0 {
-		return strings.TrimSpace(ref[:idx])
+
+	// Find earliest delimiter (space or dot)
+	cutIdx := -1
+	if spaceIdx > 0 && dotIdx > 0 {
+		if spaceIdx < dotIdx {
+			cutIdx = spaceIdx
+		} else {
+			cutIdx = dotIdx
+		}
+	} else if spaceIdx > 0 {
+		cutIdx = spaceIdx
+	} else if dotIdx > 0 {
+		cutIdx = dotIdx
 	}
-	return strings.TrimSpace(ref)
+
+	if cutIdx > 0 {
+		return ref[:cutIdx]
+	}
+
+	return ref
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
