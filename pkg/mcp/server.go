@@ -40,6 +40,9 @@ type HardenedServer struct {
 	running  atomic.Bool
 	cred     any    // Default credential for stdio sessions (e.g. ACP token)
 	addr     string // Remote address — "local" for stdio
+
+	// Production hardening
+	shutdownHooks []func() // Cleanup functions run on shutdown
 }
 
 // HardenedServerConfig configures the hardened MCP server.
@@ -71,6 +74,24 @@ func NewHardenedServer(cfg HardenedServerConfig) (*HardenedServer, error) {
 		cred:   cfg.Credential,
 		addr:   "local",
 	}, nil
+}
+
+// OnShutdown registers a cleanup function to run when the server shuts down.
+// Use this for key destruction, telemetry flush, resource cleanup, etc.
+func (s *HardenedServer) OnShutdown(fn func()) {
+	s.shutdownHooks = append(s.shutdownHooks, fn)
+}
+
+// Shutdown performs graceful shutdown: runs all registered hooks.
+func (s *HardenedServer) Shutdown(ctx context.Context) error {
+	s.logger.Println("running shutdown hooks...")
+	for i, hook := range s.shutdownHooks {
+		s.logger.Printf("shutdown hook %d/%d", i+1, len(s.shutdownHooks))
+		hook()
+	}
+	s.running.Store(false)
+	s.logger.Println("shutdown complete")
+	return nil
 }
 
 // Run starts the server on the configured transport.
