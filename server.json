@@ -1,0 +1,53 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.etherversecodemate/khepra-mcp",
+  "description": "Post-quantum MCP security layer that signs, validates, and records agent tool calls for regulated AI workflows.",
+  "repository": {
+    "url": "https://github.com/EtherVerseCodeMate/giza-cyber-shield",
+    "source": "github"
+  },
+  "version": "1.0.0",
+  "packages": [
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/etherversecodemate/khepra-mcp:1.0.0",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "KHEPRA_MANIFEST_PATH",
+          "description": "Path to the signed KHEPRA MCP tool manifest inside the runtime.",
+          "isRequired": false,
+          "format": "string"
+        },
+        {
+          "name": "PHANTOM_SYMBOL",
+          "description": "Adinkra symbol used for the local PQC session fingerprint.",
+          "isRequired": false,
+          "format": "string"
+        },
+        {
+          "name": "PHANTOM_IMAGE",
+          "description": "Optional Docker image used by sandboxed tools such as ert_scan.",
+          "isRequired": false,
+          "format": "string"
+        },
+        {
+          "name": "KHEPRA_MCP_STRICT_SANDBOX",
+          "description": "Set to true to fail closed when Docker sandbox execution is unavailable.",
+          "isRequired": false,
+          "format": "string"
+        },
+        {
+          "name": "KHEPRA_SERVICE_SECRET",
+          "description": "Optional service secret used by protected KHEPRA integrations.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

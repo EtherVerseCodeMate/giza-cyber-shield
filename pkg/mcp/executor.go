@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"sync"
 	"time"
 )
@@ -48,8 +49,8 @@ type ConfirmationGate interface {
 type Executor struct {
 	mu       sync.RWMutex
 	handlers map[string]ToolHandlerIface // In-process tool handlers (read-only + sandboxed wrappers)
-	sandbox  SandboxRunner          // Sandbox backend for isolated execution
-	confirm  ConfirmationGate       // Approval gate for destructive tools
+	sandbox  SandboxRunner               // Sandbox backend for isolated execution
+	confirm  ConfirmationGate            // Approval gate for destructive tools
 	logger   *log.Logger
 }
 
@@ -132,7 +133,14 @@ func (e *Executor) executeSandboxed(ctx context.Context, spec ToolSpec, call MCP
 	// If a sandbox runner is available and the spec requires full isolation, use it.
 	if e.sandbox != nil && spec.AllowedBackend != "in-process" {
 		e.logger.Printf("[EXEC:SANDBOX] tool=%s agent=%s backend=%s", spec.Name, call.Identity.AgentID, spec.AllowedBackend)
-		return e.sandbox.Run(ctx, spec, call)
+		result, warnings, err := e.sandbox.Run(ctx, spec, call)
+		if err == nil {
+			return result, warnings, nil
+		}
+		if os.Getenv("KHEPRA_MCP_STRICT_SANDBOX") == "true" {
+			return nil, warnings, err
+		}
+		e.logger.Printf("[EXEC:SANDBOX_FALLBACK] tool=%s sandbox failed, attempting in-process fallback: %v", spec.Name, err)
 	}
 
 	// Fallback: use registered in-process handler with sandboxed classification.
