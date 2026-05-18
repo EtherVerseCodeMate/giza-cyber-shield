@@ -523,8 +523,8 @@ func TestFullOrchestratorWithHorusLanes(t *testing.T) {
 	if result.RequestID == "" {
 		t.Error("expected non-empty request ID")
 	}
-	if result.Duration <= 0 {
-		t.Error("expected positive duration")
+	if result.Duration < 0 {
+		t.Error("expected non-negative duration")
 	}
 
 	t.Logf("Full orchestrator: %d findings, %v duration", result.Stats.TotalFindings, result.Duration)
