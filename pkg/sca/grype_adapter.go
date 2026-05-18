@@ -179,15 +179,9 @@ func (a *GrypeAdapter) MatchVulnerabilities(ctx context.Context, target string) 
 	log.Println("[SCA/GRYPE] DB loaded, resolving packages...")
 
 	// ── Resolve packages from the target ─────────────────────────────
+	// Note: Grype's pkg.Provide() needs scheme prefixes for routing, but
+	// they break on paths with spaces. Pass raw path and let Provide auto-detect.
 	grypeTarget := absTarget
-	if isSBOMFile(absTarget) {
-		grypeTarget = "sbom:" + absTarget
-	} else {
-		info, _ := os.Stat(absTarget)
-		if info != nil && info.IsDir() {
-			grypeTarget = "dir:" + absTarget
-		}
-	}
 
 	// Use Grype's package provider to extract packages from the target
 	providerCfg := grypePkg.ProviderConfig{}
@@ -239,16 +233,10 @@ func (a *GrypeAdapter) MatchVulnerabilitiesFromSBOM(ctx context.Context, s *sbom
 
 	log.Println("[SCA/GRYPE] DB loaded, extracting packages from SBOM...")
 
-	// Extract packages from the SBOM by providing it as a reader
-	providerCfg := grypePkg.ProviderConfig{}
-	packages, pkgContext, _, err := grypePkg.Provide("sbom:internal", providerCfg)
+	// Extract packages directly from the Syft SBOM catalog (zero-copy).
+	packages, pkgContext, err := a.packagesFromSBOMDirect(s)
 	if err != nil {
-		// If Provide fails with "internal", fall back to SBOM serialization.
-		// We serialize in-memory and pass through the reader path.
-		packages, pkgContext, err = a.packagesFromSBOMDirect(s)
-		if err != nil {
-			return nil, nil, fmt.Errorf("sca/grype: failed to extract packages from SBOM: %w", err)
-		}
+		return nil, nil, fmt.Errorf("sca/grype: failed to extract packages from SBOM: %w", err)
 	}
 
 	log.Printf("[SCA/GRYPE] Extracted %d packages, matching vulnerabilities...", len(packages))
