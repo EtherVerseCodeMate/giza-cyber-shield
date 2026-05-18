@@ -24,7 +24,7 @@ Proof points:
 - OCI package for registry distribution.
 - Signed tool responses.
 - DAG-oriented audit chain.
-- CMMC / NIST SP 800-171 evidence alignment.
+- CMMC 2.0 / NIST SP 800-171 evidence alignment.
 
 ## Developer Quickstart Section
 
