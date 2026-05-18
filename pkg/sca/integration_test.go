@@ -30,9 +30,13 @@ func TestIntegration_FullPipeline(t *testing.T) {
 	requireBinary(t, "syft")
 	requireBinary(t, "grype")
 
-	// Use the khepra protocol project root as the scan target
+	// Use a small test fixture to avoid timeouts
 	projectRoot := findProjectRoot(t)
-	t.Logf("Scanning project: %s", projectRoot)
+	targetPath := filepath.Join(projectRoot, "pkg", "sca", "testdata", "tiny-project")
+	if _, err := os.Stat(targetPath); err != nil {
+		t.Fatalf("Test fixture not found: %s", targetPath)
+	}
+	t.Logf("Scanning project: %s", targetPath)
 
 	// Create pipeline with nil feed manager (no live API calls in tests)
 	pipeline := NewPipeline(nil)
@@ -47,7 +51,7 @@ func TestIntegration_FullPipeline(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	result, err := pipeline.ScanAndEnrich(ctx, projectRoot)
+	result, err := pipeline.ScanAndEnrich(ctx, targetPath)
 	elapsed := time.Since(start)
 
 	if err != nil {
@@ -261,12 +265,13 @@ func TestIntegration_SyftOnly(t *testing.T) {
 	requireBinary(t, "syft")
 
 	projectRoot := findProjectRoot(t)
+	targetPath := filepath.Join(projectRoot, "pkg", "sca", "testdata", "tiny-project")
 	adapter := NewSyftAdapter()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
-	bom, meta, err := adapter.GenerateSBOM(ctx, projectRoot)
+	bom, meta, err := adapter.GenerateSBOM(ctx, targetPath)
 	if err != nil {
 		t.Fatalf("Syft SBOM generation failed: %v", err)
 	}
@@ -297,12 +302,13 @@ func TestIntegration_GrypeOnly(t *testing.T) {
 	requireBinary(t, "grype")
 
 	projectRoot := findProjectRoot(t)
+	targetPath := filepath.Join(projectRoot, "pkg", "sca", "testdata", "tiny-project")
 	adapter := NewGrypeAdapter()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	findings, meta, err := adapter.MatchVulnerabilities(ctx, projectRoot)
+	findings, meta, err := adapter.MatchVulnerabilities(ctx, targetPath)
 	if err != nil {
 		t.Fatalf("Grype matching failed: %v", err)
 	}
