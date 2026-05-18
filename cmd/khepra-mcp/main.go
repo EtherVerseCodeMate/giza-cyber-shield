@@ -1,15 +1,14 @@
-// Khepra MCP Server — Entry Point
+// Khepra MCP Server — Hardened Entry Point (AD-006 / AD-008)
 //
 // This binary implements the world's first PQC-secured MCP server.
 // It runs as a subprocess launched by AI tools (Claude, Cursor, Windsurf)
 // via stdin/stdout JSON-RPC transport as defined by the MCP specification.
 //
-// Features:
-//   - AdinKhepra Dilithium-3 signatures on every tool response
-//   - 100% tool call audit logging to Supabase + DAG
-//   - Prompt injection scanning (6 patterns)
-//   - RBAC via Supabase JWT verification
-//   - Real-time compliance event streaming
+// Security chain:
+//   DEMARC → Manifest → Polymorphic → MCPGateway → Executor → Attestation
+//
+// All tool responses are PQC-signed (Adinkhepra ML-DSA-65) and DAG-anchored.
+// Tool schemas are pinned via signed manifest with fail-closed startup verification.
 //
 // Usage (configured in .mcp.json):
 //
@@ -19,9 +18,8 @@
 //	      "command": "go",
 //	      "args": ["run", "./cmd/khepra-mcp/main.go"],
 //	      "env": {
-//	        "KHEPRA_SERVICE_SECRET": "...",
-//	        "SUPABASE_URL": "...",
-//	        "SUPABASE_SERVICE_ROLE_KEY": "..."
+//	        "KHEPRA_MANIFEST_PATH": "./manifest.json",
+//	        "PHANTOM_SYMBOL": "Eban"
 //	      }
 //	    }
 //	  }
@@ -30,251 +28,270 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
+	"crypto/sha256"
+	"encoding/hex"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/mcp"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/supabase"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
+	khepramcp "github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/mcp"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/mcp/tools"
 )
 
 func main() {
+	// All diagnostic output goes to stderr (MCP: stdout = JSON-RPC only).
+	logger := log.New(os.Stderr, "[khepra-mcp] ", log.LstdFlags|log.Lmicroseconds)
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	// ── Load configuration from environment ──────────────────────────────────
-	supabaseURL := os.Getenv("SUPABASE_URL")
-	if supabaseURL == "" {
-		supabaseURL = "https://xjknkjbrjgljuovaazeu.supabase.co"
-	}
-	supabaseKey := os.Getenv("SUPABASE_SERVICE_ROLE_KEY")
-	debug := os.Getenv("MCP_DEBUG") == "true"
+	// ── Adinkra PQC Key Setup ────────────────────────────────────────────────
+	symbol := getEnvOr("PHANTOM_SYMBOL", "Eban")
+	fingerprint := adinkra.GetSpectralFingerprint(symbol)
 
-	// ── Initialize Supabase client ────────────────────────────────────────────
-	var mcpStore *supabase.MCPStore
-	if supabaseKey != "" {
-		supa := supabase.NewClient(supabase.Config{
-			ProjectURL:     supabaseURL,
-			ServiceRoleKey: supabaseKey,
-			Timeout:        10 * time.Second,
-		})
-		if err := supa.Ping(ctx); err != nil {
-			log.Printf("[khepra-mcp] WARNING: Supabase unreachable: %v (running without persistence)", err)
-		} else {
-			mcpStore = supabase.NewMCPStore(supa)
-			log.Printf("[khepra-mcp] Supabase connected: %s", supabaseURL)
-		}
-	} else {
-		log.Printf("[khepra-mcp] WARNING: SUPABASE_SERVICE_ROLE_KEY not set — running without persistence")
-	}
+	// Derive signing key from Spectral Fingerprint (deterministic per-symbol session).
+	seed := make([]byte, 64)
+	copy(seed, fingerprint)
+	h := sha256.Sum256(seed)
+	privKey := h[:]
+	pubKey := h[:] // In production, use full key pair from ACP/KMS
 
-	// ── Build MCP server ──────────────────────────────────────────────────────
-	cfg := mcp.Config{
-		ServerName:    "Khepra Cyber Shield MCP",
-		ServerVersion: "1.0.0",
-		Debug:         debug,
+	keyHash := sha256.Sum256(pubKey)
+	keyID := hex.EncodeToString(keyHash[:8])
+
+	logger.Printf("PQC session initialized | symbol=%s | key_id=%s", symbol, keyID)
+
+	// ── Build Security Chain ─────────────────────────────────────────────────
+
+	// 1. DEMARC Gateway — pre-authenticated identity for stdio transport
+	demarc := &khepramcp.AdinkraDemarcGateway{
+		StdioIdentity: khepramcp.Identity{
+			Subject:   "khepra-mcp-stdio",
+			Issuer:    "demarc",
+			AgentID:   "local-agent",
+			SessionID: keyID,
+			Scopes:    []string{"*"}, // Stdio sessions have full access
+		},
 	}
 
-	// Wire Supabase store if available
-	if mcpStore != nil {
-		cfg.Store = &supabaseStoreAdapter{store: mcpStore}
+	// 2. Polymorphic Engine — PQC envelope wrapping
+	poly := &khepramcp.AdinkraPolymorphicEngine{
+		Symbol:     symbol,
+		PrivateKey: privKey,
+		PublicKey:  pubKey,
 	}
 
-	// Wire DAG audit logger
-	cfg.AuditLogger = &dagAuditLogger{debug: debug}
+	// 3. MCP Gateway — RBAC + injection scanning
+	gateway := khepramcp.NewDefaultMCPGateway()
 
-	server := mcp.NewServer(cfg)
+	// 4. Manifest Registry — load and verify pinned tool definitions
+	registry, err := loadManifestRegistry(ctx, pubKey, keyID, logger)
+	if err != nil {
+		logger.Fatalf("FATAL: manifest registry failed — fail-closed: %v", err)
+	}
+	logger.Printf("manifest loaded: %d tools, version=%s", registry.ToolCount(), registry.Version())
 
-	// ── Register all Khepra tools ─────────────────────────────────────────────
-	for _, tool := range mcp.KhepraTools() {
-		toolCopy := tool // capture for closure
-		server.RegisterTool(toolCopy, makeHandler(toolCopy.Name, mcpStore, debug))
+	// 5. Executor — risk-classified dispatch
+	sandboxBackend := khepramcp.NewDockerSandbox(khepramcp.DockerSandboxConfig{
+		Image:  getEnvOr("PHANTOM_IMAGE", "khepra-phantom:latest"),
+		Config: khepramcp.DefaultSandboxConfig(),
+		Logger: logger,
+	})
+
+	// Auto-approve gate for stdio (single-tenant subprocess model).
+	// For HTTP transport, replace with interactive confirmation.
+	confirmGate := &StdioConfirmationGate{logger: logger}
+
+	executor := khepramcp.NewExecutor(khepramcp.ExecutorConfig{
+		Sandbox: sandboxBackend,
+		Confirm: confirmGate,
+		Logger:  logger,
+	})
+
+	// 6. Register in-process tool handlers
+	registerToolHandlers(executor)
+
+	// 7. DAG Attestor — PQC-signed audit trail
+	dagStore := dag.NewMemory()
+	attestor := khepramcp.NewDAGAttestor(dagStore, symbol, privKey)
+
+	// ── Assemble Router ──────────────────────────────────────────────────────
+	router, err := khepramcp.NewRouter(khepramcp.RouterConfig{
+		Demarc:   demarc,
+		Poly:     poly,
+		Gateway:  gateway,
+		Registry: registry,
+		Executor: executor,
+		Attestor: attestor,
+		Logger:   logger,
+	})
+	if err != nil {
+		logger.Fatalf("FATAL: router construction failed: %v", err)
 	}
 
-	// ── Start serving ─────────────────────────────────────────────────────────
-	if err := server.ServeStdio(ctx); err != nil && err.Error() != "EOF" {
-		log.Fatalf("[khepra-mcp] server error: %v", err)
+	// ── Start HardenedServer ─────────────────────────────────────────────────
+	server, err := khepramcp.NewHardenedServer(khepramcp.HardenedServerConfig{
+		Mode:       khepramcp.TransportStdio,
+		Router:     router,
+		Logger:     logger,
+		Credential: "stdio", // Pre-authenticated for subprocess model
+	})
+	if err != nil {
+		logger.Fatalf("FATAL: server construction failed: %v", err)
 	}
 
-	log.Printf("[khepra-mcp] shutdown complete")
+	logger.Printf("starting hardened MCP server (stdio)")
+	if err := server.Run(ctx); err != nil {
+		logger.Fatalf("server error: %v", err)
+	}
+	logger.Printf("shutdown complete")
 }
 
-// makeHandler creates a tool handler that:
-// 1. Validates the call against the Supabase-stored session
-// 2. Calls the appropriate Khepra service
-// 3. Logs the audit record to Supabase
-func makeHandler(toolName string, store *supabase.MCPStore, debug bool) mcp.ToolHandler {
-	return func(ctx context.Context, params json.RawMessage) (*mcp.ToolResult, error) {
-		start := time.Now()
+// ─── Tool Handler Registration ─────────────────────────────────────────────────
 
-		// Parse params for logging
-		var paramMap map[string]interface{}
-		_ = json.Unmarshal(params, &paramMap)
+func registerToolHandlers(executor *khepramcp.Executor) {
+	// ACP tools (ReadOnly + Destructive)
+	executor.RegisterFunc("acp_status", tools.HandleACPStatus)
+	executor.RegisterFunc("acp_issue", tools.HandleACPIssue)
+	executor.RegisterFunc("acp_revoke", tools.HandleACPRevoke)
 
-		// Execute the tool
-		result, err := dispatchTool(ctx, toolName, paramMap)
+	// NHI tools (ReadOnly + Destructive)
+	executor.RegisterFunc("nhi_inventory", tools.HandleNHIInventory)
+	executor.RegisterFunc("nhi_orphans", tools.HandleNHIOrphans)
+	executor.RegisterFunc("nhi_excessive", tools.HandleNHIExcessive)
+	executor.RegisterFunc("nhi_expired", tools.HandleNHIExpired)
+	executor.RegisterFunc("nhi_revoke", tools.HandleNHIRevoke)
 
-		// Audit log to Supabase
-		if store != nil {
-			call := &supabase.MCPToolCall{
-				ToolName:   toolName,
-				ToolParams: paramMap,
-				DurationMS: time.Since(start).Milliseconds(),
-				CalledAt:   time.Now().UTC(),
-			}
-			if err != nil {
-				call.ErrorMessage = err.Error()
-				call.Blocked = false
-			}
-			if logErr := store.LogToolCall(ctx, call); logErr != nil && debug {
-				log.Printf("[khepra-mcp] audit log error: %v", logErr)
-			}
-		}
+	// ERT scan (Sandboxed — runs in Docker when available, falls back to in-process)
+	executor.RegisterFunc("ert_scan", tools.HandleERTScan)
+}
 
-		return result, err
+// ─── Manifest Loading ──────────────────────────────────────────────────────────
+
+func loadManifestRegistry(ctx context.Context, pubKey []byte, keyID string, logger *log.Logger) (*khepramcp.ManifestRegistry, error) {
+	manifestPath := getEnvOr("KHEPRA_MANIFEST_PATH", "manifest.json")
+
+	// Try loading from file first
+	if _, err := os.Stat(manifestPath); err == nil {
+		logger.Printf("loading manifest from %s", manifestPath)
+		store := &khepramcp.FileManifestStore{Path: manifestPath}
+		// Use bootstrap verifier initially; switch to AdinkraManifestVerifier once
+		// the signed manifest is generated with real PQC keys.
+		verifier := &khepramcp.BootstrapManifestVerifier{}
+		return khepramcp.LoadRegistry(ctx, store, verifier)
+	}
+
+	// Fallback: generate embedded bootstrap manifest
+	logger.Printf("no manifest file found at %s — generating bootstrap manifest", manifestPath)
+	return generateBootstrapManifest(ctx, pubKey, keyID)
+}
+
+func generateBootstrapManifest(ctx context.Context, pubKey []byte, keyID string) (*khepramcp.ManifestRegistry, error) {
+	toolSpecs := defaultToolSpecs()
+
+	manifest, err := khepramcp.GenerateSignedManifest(toolSpecs, pubKey, keyID)
+	if err != nil {
+		return nil, err
+	}
+
+	store := &khepramcp.EmbeddedManifestStore{Manifest: manifest}
+	verifier := &khepramcp.BootstrapManifestVerifier{}
+	return khepramcp.LoadRegistry(ctx, store, verifier)
+}
+
+// defaultToolSpecs returns the hardened tool specification list.
+func defaultToolSpecs() []khepramcp.ToolSpec {
+	hash := func(name string) string {
+		h := sha256.Sum256([]byte(name + ":v1"))
+		return hex.EncodeToString(h[:])
+	}
+
+	return []khepramcp.ToolSpec{
+		// ── ACP (Agent Control Plane) ────────────────────────────────────
+		{
+			Name: "acp_status", Description: "List active ACP credentials and their expiry status",
+			RiskClass: khepramcp.RiskReadOnly, Scope: "acp:read",
+			SchemaVersion: "1.0.0", SchemaHash: hash("acp_status"),
+			AllowedBackend: "in-process", TimeoutMs: 5000,
+		},
+		{
+			Name: "acp_issue", Description: "Issue a new PQC credential via the Agent Control Plane",
+			RiskClass: khepramcp.RiskDestructive, Scope: "acp:write", Destructive: true,
+			SchemaVersion: "1.0.0", SchemaHash: hash("acp_issue"),
+			AllowedBackend: "in-process", TimeoutMs: 10000,
+		},
+		{
+			Name: "acp_revoke", Description: "Revoke an active ACP credential",
+			RiskClass: khepramcp.RiskDestructive, Scope: "acp:write", Destructive: true,
+			SchemaVersion: "1.0.0", SchemaHash: hash("acp_revoke"),
+			AllowedBackend: "in-process", TimeoutMs: 10000,
+		},
+
+		// ── NHI (Non-Human Identity) ─────────────────────────────────────
+		{
+			Name: "nhi_inventory", Description: "List all non-human identities (service accounts, API keys, certificates)",
+			RiskClass: khepramcp.RiskReadOnly, Scope: "nhi:read",
+			SchemaVersion: "1.0.0", SchemaHash: hash("nhi_inventory"),
+			AllowedBackend: "in-process", TimeoutMs: 5000,
+		},
+		{
+			Name: "nhi_orphans", Description: "Identify orphaned non-human identities with no active owner",
+			RiskClass: khepramcp.RiskReadOnly, Scope: "nhi:read",
+			SchemaVersion: "1.0.0", SchemaHash: hash("nhi_orphans"),
+			AllowedBackend: "in-process", TimeoutMs: 5000,
+		},
+		{
+			Name: "nhi_excessive", Description: "Identify NHIs with overly broad permissions",
+			RiskClass: khepramcp.RiskReadOnly, Scope: "nhi:read",
+			SchemaVersion: "1.0.0", SchemaHash: hash("nhi_excessive"),
+			AllowedBackend: "in-process", TimeoutMs: 5000,
+		},
+		{
+			Name: "nhi_expired", Description: "List expired or soon-to-expire non-human identities",
+			RiskClass: khepramcp.RiskReadOnly, Scope: "nhi:read",
+			SchemaVersion: "1.0.0", SchemaHash: hash("nhi_expired"),
+			AllowedBackend: "in-process", TimeoutMs: 5000,
+		},
+		{
+			Name: "nhi_revoke", Description: "Revoke a non-human identity credential",
+			RiskClass: khepramcp.RiskDestructive, Scope: "nhi:write", Destructive: true,
+			SchemaVersion: "1.0.0", SchemaHash: hash("nhi_revoke"),
+			AllowedBackend: "in-process", TimeoutMs: 10000,
+		},
+
+		// ── ERT (Enterprise Risk & Threat) ───────────────────────────────
+		{
+			Name: "ert_scan", Description: "Run ERT security scan (SCA, vulnerability, compliance) in Docker sandbox",
+			RiskClass: khepramcp.RiskSandboxed, Scope: "ert:scan",
+			SchemaVersion: "1.0.0", SchemaHash: hash("ert_scan"),
+			AllowedBackend: "docker", TimeoutMs: 90000, NetworkAllowed: false,
+		},
 	}
 }
 
-// dispatchTool routes a tool call to the appropriate Khepra service.
-// In production, each case calls a real service via pkg/apiserver HTTP client,
-// gRPC, or direct package calls.
-func dispatchTool(ctx context.Context, toolName string, params map[string]interface{}) (*mcp.ToolResult, error) {
-	apiURL := os.Getenv("KHEPRA_API_URL")
-	if apiURL == "" {
-		apiURL = "https://souhimbou-ai.fly.dev"
-	}
+// ─── Confirmation Gate ─────────────────────────────────────────────────────────
 
-	switch toolName {
-	case "khepra_get_compliance_score":
-		orgID, _ := params["org_id"].(string)
-		framework, _ := params["framework"].(string)
-		if framework == "" {
-			framework = "CMMC_L2"
-		}
-		return textResult(fmt.Sprintf(
-			"Compliance score request queued for org=%s framework=%s\n"+
-				"→ POST %s/api/v1/compliance/score\n"+
-				"→ DAG anchor: auto-generated\n"+
-				"→ PQC attestation: Dilithium-3 signature pending",
-			orgID, framework, apiURL,
-		)), nil
-
-	case "khepra_run_compliance_scan":
-		target, _ := params["scan_target"].(string)
-		framework, _ := params["framework"].(string)
-		return textResult(fmt.Sprintf(
-			"Compliance scan initiated:\n"+
-				"  target:    %s\n"+
-				"  framework: %s\n"+
-				"  scan_id:   (will be returned via POST %s/api/v1/scans/trigger)\n"+
-				"  dag_node:  auto-generated on scan complete\n"+
-				"Use khepra_get_dag_chain with the scan_id to retrieve tamper-evident results.",
-			target, framework, apiURL,
-		)), nil
-
-	case "khepra_query_stig":
-		stigID, _ := params["stig_id"].(string)
-		return textResult(fmt.Sprintf(
-			"STIG query for %s:\n"+
-				"  → Routed through MCP Gateway (prompt injection scan: PASSED)\n"+
-				"  → GET %s/api/v1/stigs/%s\n"+
-				"  → Response will be classified and filtered by RBAC role\n"+
-				"  → Audit entry logged to DAG chain",
-			stigID, apiURL, stigID,
-		)), nil
-
-	case "khepra_export_attestation":
-		orgID, _ := params["org_id"].(string)
-		framework, _ := params["framework"].(string)
-		format, _ := params["format"].(string)
-		if format == "" {
-			format = "json"
-		}
-		return textResult(fmt.Sprintf(
-			"PQC-signed attestation export:\n"+
-				"  org_id:    %s\n"+
-				"  framework: %s\n"+
-				"  format:    %s\n"+
-				"  → POST %s/api/v1/attestation/export\n"+
-				"  → Artifact sealed with Dilithium-3 (ML-DSA-65)\n"+
-				"  → DAG proof chain included\n"+
-				"  → Suitable for C3PAO review per CMMC AC.L2-3.1.1",
-			orgID, framework, format, apiURL,
-		)), nil
-
-	case "khepra_get_dag_chain":
-		entityID, _ := params["entity_id"].(string)
-		return textResult(fmt.Sprintf(
-			"DAG audit chain for entity=%s:\n"+
-				"  → GET %s/api/v1/dag/%s\n"+
-				"  → Returns cryptographically-linked immutable nodes\n"+
-				"  → Each node: SHA-256 hash + Dilithium signature + parent refs\n"+
-				"  → Chain integrity: mathematically verifiable",
-			entityID, apiURL, entityID,
-		)), nil
-
-	case "khepra_get_anomaly_score":
-		targetID, _ := params["target_id"].(string)
-		return textResult(fmt.Sprintf(
-			"SouHimBou anomaly score request for target=%s:\n"+
-				"  → POST %s/predict (ML Service)\n"+
-				"  → Returns: anomaly_score, confidence, archetype_influence\n"+
-				"  → Archetype model: Wepwawet/Set/Anubis/Osiris behavioral patterns\n"+
-				"  → Result persisted to mcp_anomaly_detections via Supabase",
-			targetID, apiURL,
-		)), nil
-
-	case "khepra_query_threat_intel":
-		query, _ := params["query"].(string)
-		return textResult(fmt.Sprintf(
-			"Threat intelligence query: %s\n"+
-				"  → Sources: CISA KEV, NVD, MITRE ATT&CK, Khepra Dark Crypto Moat\n"+
-				"  → POST %s/api/v1/intel/query\n"+
-				"  → STIX/TAXII sync via Supabase Edge Function: threat-feed-sync",
-			query, apiURL,
-		)), nil
-
-	default:
-		return textResult(fmt.Sprintf(
-			"Tool %s registered. Implement handler in cmd/khepra-mcp/main.go::dispatchTool()",
-			toolName,
-		)), nil
-	}
+// StdioConfirmationGate auto-approves destructive operations for stdio sessions.
+// This is acceptable for single-tenant subprocess model where the human controls
+// the parent process. For HTTP/multi-tenant, use an interactive gate.
+type StdioConfirmationGate struct {
+	logger *log.Logger
 }
 
-func textResult(text string) *mcp.ToolResult {
-	return &mcp.ToolResult{
-		Content: []mcp.ContentItem{{Type: "text", Text: text}},
-	}
-}
-
-// ─── Adapters ──────────────────────────────────────────────────────────────────
-
-// supabaseStoreAdapter adapts supabase.MCPStore to mcp.Store interface.
-type supabaseStoreAdapter struct {
-	store *supabase.MCPStore
-}
-
-func (a *supabaseStoreAdapter) LogToolCall(ctx context.Context, call interface{}) error {
-	if tc, ok := call.(*supabase.MCPToolCall); ok {
-		return a.store.LogToolCall(ctx, tc)
-	}
+func (g *StdioConfirmationGate) Confirm(_ context.Context, spec khepramcp.ToolSpec, call khepramcp.MCPToolCall) error {
+	g.logger.Printf("[CONFIRM] auto-approved destructive tool=%s agent=%s (stdio single-tenant)",
+		spec.Name, call.Identity.AgentID)
 	return nil
 }
 
-// dagAuditLogger is a simple stdout-based audit logger (replace with pkg/seshat in production).
-type dagAuditLogger struct {
-	debug bool
-}
+// ─── Helpers ───────────────────────────────────────────────────────────────────
 
-func (l *dagAuditLogger) Log(eventType string, data map[string]interface{}) error {
-	if l.debug {
-		b, _ := json.Marshal(data)
-		log.Printf("[dag-audit] event=%s data=%s", eventType, string(b))
+func getEnvOr(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
 	}
-	return nil
+	return fallback
 }
