@@ -72,6 +72,11 @@ type CDXProp struct {
 	Value string `json:"value"`
 }
 
+// Marshal serializes the CycloneDX BOM to JSON bytes.
+func (b *CycloneDXBOM) Marshal() ([]byte, error) {
+	return json.Marshal(b)
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // SyftAdapter
 // ──────────────────────────────────────────────────────────────────────────────
