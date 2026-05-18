@@ -41,6 +41,9 @@ type HardenedServer struct {
 	cred     any    // Default credential for stdio sessions (e.g. ACP token)
 	addr     string // Remote address — "local" for stdio
 
+	// Transport config
+	httpConfig HTTPTransportConfig
+
 	// Production hardening
 	shutdownHooks []func() // Cleanup functions run on shutdown
 }
@@ -51,6 +54,7 @@ type HardenedServerConfig struct {
 	Router     *Router
 	Logger     *log.Logger
 	Credential any    // Default session credential (for stdio: pre-authenticated)
+	HTTPConfig HTTPTransportConfig // Used when Mode = TransportHTTP
 }
 
 // NewHardenedServer creates a new hardened MCP server.
@@ -68,11 +72,12 @@ func NewHardenedServer(cfg HardenedServerConfig) (*HardenedServer, error) {
 		logger = log.New(os.Stderr, "[MCP] ", log.LstdFlags|log.Lmicroseconds)
 	}
 	return &HardenedServer{
-		mode:   mode,
-		router: cfg.Router,
-		logger: logger,
-		cred:   cfg.Credential,
-		addr:   "local",
+		mode:       mode,
+		router:     cfg.Router,
+		logger:     logger,
+		cred:       cfg.Credential,
+		addr:       "local",
+		httpConfig: cfg.HTTPConfig,
 	}, nil
 }
 
@@ -104,7 +109,9 @@ func (s *HardenedServer) Run(ctx context.Context) error {
 	case TransportStdio:
 		return s.runStdio(ctx)
 	case TransportHTTP:
-		return fmt.Errorf("mcp/server: HTTP transport not yet implemented (AD-008: stdio recommended)")
+		ht := newHTTPTransport(s.router, s.cred, s.logger, s.httpConfig)
+		s.logger.Println("starting MCP server on HTTP")
+		return ht.Serve(ctx)
 	default:
 		return fmt.Errorf("mcp/server: unsupported transport: %s", s.mode)
 	}
