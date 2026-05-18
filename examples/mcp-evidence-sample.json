@@ -1,0 +1,26 @@
+{
+  "jsonrpc": "2.0",
+  "id": 42,
+  "result": {
+    "envelope": {
+      "request_id": "req-demo-001",
+      "tool_name": "nhi_inventory",
+      "result": {
+        "success": true,
+        "data": {
+          "identities": [],
+          "summary": {
+            "total": 0,
+            "high_risk": 0
+          }
+        }
+      },
+      "attestation_id": "dag-demo-node-001",
+      "signature": "ml-dsa-demo-signature-redacted",
+      "created_at": "2026-05-18T00:00:00Z",
+      "schema_version": "1.0.0",
+      "provenance": "local-stdio-demo"
+    },
+    "warnings": []
+  }
+}
