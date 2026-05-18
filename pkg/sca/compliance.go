@@ -1,0 +1,213 @@
+// Package sca — CMMC / NIST 800-171 Compliance Mapper
+//
+// Maps SCA vulnerability findings to CMMC control families using the
+// CCI → NIST 800-53 → NIST 800-171 crosswalk (docs/CCI_to_NIST53.csv,
+// docs/NIST53_to_171.csv, docs/NIST53_to_172.csv).
+//
+// SCA findings (unpatched vulnerabilities) directly implicate:
+//   - RA-5   (Vulnerability Monitoring and Scanning) → NIST 171 3.11.2
+//   - SI-2   (Flaw Remediation)                      → NIST 171 3.14.1
+//   - CM-8   (System Component Inventory)             → NIST 171 3.4.1
+//   - SA-11  (Developer Testing and Evaluation)       — referenced in 172
+//   - SI-5   (Security Alerts and Advisories)         → NIST 171 3.14.3
+
+package sca
+
+import (
+	"bufio"
+	"encoding/csv"
+	"io"
+	"os"
+	"strings"
+	"sync"
+)
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Compliance Mapper
+// ──────────────────────────────────────────────────────────────────────────────
+
+// ComplianceMapper maps NIST 800-53 controls to NIST 800-171 requirements
+// and CMMC domains, enabling audit-ready compliance tracing from every
+// EnrichedFinding back to the applicable control framework.
+type ComplianceMapper struct {
+	// nist53to171 maps NIST 800-53 control → []NIST 800-171 requirement
+	nist53to171 map[string][]string
+
+	// nist171toDomain maps NIST 800-171 requirement → CMMC domain name
+	nist171toDomain map[string]string
+
+	mu sync.RWMutex
+}
+
+// SCAControlMapping defines which NIST 800-53 controls are directly implicated
+// by SCA findings (vulnerabilities in software dependencies).
+var SCAControlMapping = map[string]string{
+	"RA-5":    "Vulnerability Monitoring and Scanning",
+	"RA-5(2)": "Vulnerability Monitoring and Scanning — Update Vulnerabilities",
+	"RA-5(5)": "Vulnerability Monitoring and Scanning — Privileged Access",
+	"SI-2":    "Flaw Remediation",
+	"SI-3":    "Malicious Code Protection",
+	"SI-5":    "Security Alerts, Advisories, and Directives",
+	"CM-8":    "System Component Inventory",
+	"CM-8(1)": "System Component Inventory — Updates During Installation",
+	"CM-4":    "Impact Analyses",
+}
+
+// NewComplianceMapper creates a new mapper. Optionally loads CSV crosswalk data.
+func NewComplianceMapper() *ComplianceMapper {
+	cm := &ComplianceMapper{
+		nist53to171:     make(map[string][]string),
+		nist171toDomain: make(map[string]string),
+	}
+	// Initialize with hardcoded SCA-relevant mappings
+	cm.initDefaults()
+	return cm
+}
+
+// initDefaults loads the SCA-relevant NIST 800-53 → 171 mappings that we know
+// apply to every vulnerability finding (so the mapper works even without CSV files).
+func (cm *ComplianceMapper) initDefaults() {
+	// From docs/NIST53_to_171.csv — SCA-relevant controls only
+	defaults := map[string][]nist171Entry{
+		"RA-5":    {{"3.11.2", "Risk Assessment"}, {"3.11.3", "Risk Assessment"}},
+		"RA-5(2)": {{"3.11.2", "Risk Assessment"}},
+		"RA-5(5)": {{"3.11.3", "Risk Assessment"}},
+		"RA-3":    {{"3.11.1", "Risk Assessment"}},
+		"RA-3(1)": {{"3.11.1", "Risk Assessment"}},
+		"SI-2":    {{"3.14.1", "System and Information Integrity"}},
+		"SI-3":    {{"3.14.2", "System and Information Integrity"}},
+		"SI-3(1)": {{"3.14.2", "System and Information Integrity"}, {"3.14.5", "System and Information Integrity"}},
+		"SI-5":    {{"3.14.3", "System and Information Integrity"}},
+		"SI-4":    {{"3.14.6", "System and Information Integrity"}, {"3.14.7", "System and Information Integrity"}},
+		"SI-6":    {{"3.14.5", "System and Information Integrity"}},
+		"CM-8":    {{"3.4.1", "Configuration Management"}},
+		"CM-8(1)": {{"3.4.1", "Configuration Management"}},
+		"CM-4":    {{"3.4.3", "Configuration Management"}, {"3.4.4", "Configuration Management"}},
+		"CM-6":    {{"3.4.2", "Configuration Management"}},
+		"CM-7":    {{"3.4.6", "Configuration Management"}},
+		"CA-2":    {{"3.12.1", "Security Assessment"}},
+		"CA-5":    {{"3.12.2", "Security Assessment"}},
+		"CA-7":    {{"3.12.2", "Security Assessment"}, {"3.12.3", "Security Assessment"}},
+	}
+
+	for nist53, entries := range defaults {
+		for _, e := range entries {
+			cm.nist53to171[nist53] = appendIfNew(cm.nist53to171[nist53], e.req)
+			cm.nist171toDomain[e.req] = e.domain
+		}
+	}
+}
+
+type nist171Entry struct {
+	req    string // e.g. "3.11.2"
+	domain string // e.g. "Risk Assessment"
+}
+
+// LoadCSV loads the NIST 800-53 → 800-171 crosswalk from a CSV file.
+// Expected format: NIST_171_Ref,NIST_53_Ref,Control_Family
+func (cm *ComplianceMapper) LoadCSV(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	reader := csv.NewReader(bufio.NewReader(f))
+	// Skip header
+	if _, err := reader.Read(); err != nil {
+		return err
+	}
+
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			continue // skip malformed rows
+		}
+		if len(record) < 3 {
+			continue
+		}
+
+		nist171 := strings.TrimSpace(record[0])
+		nist53 := strings.TrimSpace(record[1])
+		domain := strings.TrimSpace(record[2])
+
+		cm.nist53to171[nist53] = appendIfNew(cm.nist53to171[nist53], nist171)
+		cm.nist171toDomain[nist171] = domain
+	}
+
+	return nil
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Mapping API
+// ──────────────────────────────────────────────────────────────────────────────
+
+// MapFinding applies CMMC compliance mapping to an EnrichedFinding.
+// Every SCA finding (vulnerability in a dependency) maps to at minimum:
+//   - RA-5 (vulnerability scanning) → 3.11.2
+//   - SI-2 (flaw remediation) → 3.14.1
+func (cm *ComplianceMapper) MapFinding(f *EnrichedFinding) {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+
+	// SCA findings always implicate these NIST 800-53 controls
+	scaControls := []string{"RA-5", "SI-2"}
+
+	// If SBOM-generated, also implicate CM-8 (component inventory)
+	for _, src := range f.Sources {
+		if src == "grype" || src == "syft" {
+			scaControls = appendIfNew(scaControls, "CM-8")
+			break
+		}
+	}
+
+	// If threat intel enriched, implicate SI-5 (security alerts)
+	if f.InCISAKEV || f.InTheWild || f.EPSSScore > 0 {
+		scaControls = appendIfNew(scaControls, "SI-5")
+	}
+
+	// Map NIST 800-53 → 800-171
+	f.NIST53Controls = scaControls
+	var nist171 []string
+	var domain string
+
+	for _, ctrl := range scaControls {
+		if reqs, ok := cm.nist53to171[ctrl]; ok {
+			for _, req := range reqs {
+				nist171 = appendIfNew(nist171, req)
+				// Track domain (use the primary one — Risk Assessment for RA-5)
+				if d, ok := cm.nist171toDomain[req]; ok && domain == "" {
+					domain = d
+				}
+			}
+		}
+	}
+
+	f.NIST171Controls = nist171
+	if domain != "" {
+		f.CMMCDomain = domain
+	}
+}
+
+// MapFindings applies CMMC mapping to a batch of findings.
+func (cm *ComplianceMapper) MapFindings(findings []EnrichedFinding) {
+	for i := range findings {
+		cm.MapFinding(&findings[i])
+	}
+}
+
+// appendIfNew adds s to slice if not already present.
+func appendIfNew(slice []string, s string) []string {
+	for _, existing := range slice {
+		if existing == s {
+			return slice
+		}
+	}
+	return append(slice, s)
+}
