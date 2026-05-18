@@ -33,6 +33,9 @@ type ComplianceMapper struct {
 	// nist53to171 maps NIST 800-53 control → []NIST 800-171 requirement
 	nist53to171 map[string][]string
 
+	// nist53to172 maps NIST 800-53 control → []NIST 800-172 requirement (enhanced)
+	nist53to172 map[string][]string
+
 	// nist171toDomain maps NIST 800-171 requirement → CMMC domain name
 	nist171toDomain map[string]string
 
@@ -57,6 +60,7 @@ var SCAControlMapping = map[string]string{
 func NewComplianceMapper() *ComplianceMapper {
 	cm := &ComplianceMapper{
 		nist53to171:     make(map[string][]string),
+		nist53to172:     make(map[string][]string),
 		nist171toDomain: make(map[string]string),
 	}
 	// Initialize with hardcoded SCA-relevant mappings
@@ -96,6 +100,28 @@ func (cm *ComplianceMapper) initDefaults() {
 			cm.nist171toDomain[e.req] = e.domain
 		}
 	}
+
+	// NIST 800-172 enhanced controls relevant to SCA (from docs/NIST53_to_172.csv)
+	defaults172 := map[string][]string{
+		"SI-2(7)":  {"3.14.1e"},
+		"SI-2(8)":  {"3.14.1e"},
+		"RA-5(9)":  {"3.11.2e"},
+		"RA-5(11)": {"3.11.2e"},
+		"RA-3(1)":  {"3.11.1e"},
+		"SI-4(24)": {"3.14.2e"},
+		"SI-4(25)": {"3.14.2e"},
+		"SI-7(15)": {"3.14.3e"},
+		"SI-14":    {"3.14.4e"},
+		"SI-14(1)": {"3.14.4e"},
+		"CA-2(2)":  {"3.12.1e"},
+		"CA-7(4)":  {"3.12.2e"},
+		"RA-9":     {"3.11.3e"},
+	}
+	for nist53, reqs := range defaults172 {
+		for _, req := range reqs {
+			cm.nist53to172[nist53] = appendIfNew(cm.nist53to172[nist53], req)
+		}
+	}
 }
 
 type nist171Entry struct {
@@ -106,6 +132,17 @@ type nist171Entry struct {
 // LoadCSV loads the NIST 800-53 → 800-171 crosswalk from a CSV file.
 // Expected format: NIST_171_Ref,NIST_53_Ref,Control_Family
 func (cm *ComplianceMapper) LoadCSV(path string) error {
+	return cm.loadCSVInto(path, false)
+}
+
+// LoadCSV172 loads the NIST 800-53 → 800-172 crosswalk from a CSV file.
+// Expected format: NIST_172_Ref,NIST_53_Ref,Control_Family
+func (cm *ComplianceMapper) LoadCSV172(path string) error {
+	return cm.loadCSVInto(path, true)
+}
+
+// loadCSVInto is the shared CSV loader for both 171 and 172 mappings.
+func (cm *ComplianceMapper) loadCSVInto(path string, is172 bool) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -133,12 +170,16 @@ func (cm *ComplianceMapper) LoadCSV(path string) error {
 			continue
 		}
 
-		nist171 := strings.TrimSpace(record[0])
+		nistReq := strings.TrimSpace(record[0])
 		nist53 := strings.TrimSpace(record[1])
 		domain := strings.TrimSpace(record[2])
 
-		cm.nist53to171[nist53] = appendIfNew(cm.nist53to171[nist53], nist171)
-		cm.nist171toDomain[nist171] = domain
+		if is172 {
+			cm.nist53to172[nist53] = appendIfNew(cm.nist53to172[nist53], nistReq)
+		} else {
+			cm.nist53to171[nist53] = appendIfNew(cm.nist53to171[nist53], nistReq)
+			cm.nist171toDomain[nistReq] = domain
+		}
 	}
 
 	return nil
@@ -175,21 +216,28 @@ func (cm *ComplianceMapper) MapFinding(f *EnrichedFinding) {
 	// Map NIST 800-53 → 800-171
 	f.NIST53Controls = scaControls
 	var nist171 []string
+	var nist172 []string
 	var domain string
 
 	for _, ctrl := range scaControls {
 		if reqs, ok := cm.nist53to171[ctrl]; ok {
 			for _, req := range reqs {
 				nist171 = appendIfNew(nist171, req)
-				// Track domain (use the primary one — Risk Assessment for RA-5)
 				if d, ok := cm.nist171toDomain[req]; ok && domain == "" {
 					domain = d
 				}
 			}
 		}
+		// Also check enhanced 172 controls
+		if reqs, ok := cm.nist53to172[ctrl]; ok {
+			for _, req := range reqs {
+				nist172 = appendIfNew(nist172, req)
+			}
+		}
 	}
 
 	f.NIST171Controls = nist171
+	f.NIST172Controls = nist172
 	if domain != "" {
 		f.CMMCDomain = domain
 	}
