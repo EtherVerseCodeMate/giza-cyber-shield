@@ -36,7 +36,7 @@ ENV PHANTOM_SYMBOL=Eban
 
 LABEL org.opencontainers.image.title="KHEPRA MCP Server" \
       org.opencontainers.image.description="Post-quantum MCP security layer for signed agent tool calls and audit evidence." \
-      org.opencontainers.image.source="https://github.com/EtherVerseCodeMate/khepra-protocol" \
+      org.opencontainers.image.source="https://github.com/EtherVerseCodeMate/giza-cyber-shield" \
       org.opencontainers.image.licenses="Apache-2.0" \
       io.modelcontextprotocol.server.name="io.github.etherversecodemate/khepra-mcp"
 

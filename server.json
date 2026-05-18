@@ -3,7 +3,7 @@
   "name": "io.github.etherversecodemate/khepra-mcp",
   "description": "Post-quantum MCP security layer that signs, validates, and records agent tool calls for regulated AI workflows.",
   "repository": {
-    "url": "https://github.com/EtherVerseCodeMate/khepra-protocol",
+    "url": "https://github.com/EtherVerseCodeMate/giza-cyber-shield",
     "source": "github"
   },
   "version": "1.0.0",
