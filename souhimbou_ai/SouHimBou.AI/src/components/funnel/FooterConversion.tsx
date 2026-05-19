@@ -137,8 +137,8 @@ export const FooterConversion = () => {
                 </a>
               </p>
               <p className="text-gray-400">
-                <a href="mailto:hello@souhimbou.com" className="hover:text-[#00ffff] transition-colors">
-                  hello@souhimbou.com
+                <a href="mailto:hello@adinkhepra.com" className="hover:text-[#00ffff] transition-colors">
+                  hello@adinkhepra.com
                 </a>
               </p>
               <p className="text-gray-400">
