@@ -449,12 +449,12 @@ const Auth = () => {
         <CardHeader className="text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
             <img
-              src="/lovable-uploads/94f06ba5-2c93-4be0-a03f-e3fff4157ca6.png"
-              alt="SouHimBou AI Logo"
+              src="/lovable-uploads/adinkhepra-asaf-logo.png"
+              alt="AdinKhepra ASAF Logo"
               className="h-10 w-auto"
             />
             <h1 className="text-3xl font-bold bg-gradient-cyber bg-clip-text text-transparent">
-              SouHimBou AI
+              AdinKhepra ASAF
             </h1>
           </div>
           <CardTitle className="text-xl text-foreground">

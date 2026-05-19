@@ -97,13 +97,13 @@ const MasterAdmin = () => {
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-4">
                 <img
-                  src="/lovable-uploads/94f06ba5-2c93-4be0-a03f-e3fff4157ca6.png"
-                  alt="SouHimBou AI Logo"
+                  src="/lovable-uploads/adinkhepra-asaf-logo.png"
+                  alt="AdinKhepra ASAF Logo"
                   className="h-12 w-auto"
                 />
                 <div className="flex items-center space-x-2">
                   <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-                    SouHimBou AI - Master Admin Console
+                    AdinKhepra ASAF - Master Admin Console
                   </h1>
                   <span className="text-xs bg-red-600/20 text-red-400 px-2 py-1 rounded border border-red-500/30">
                     MASTER ADMIN

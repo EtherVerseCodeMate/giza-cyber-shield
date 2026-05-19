@@ -64,7 +64,7 @@ const UltimateDashboard = () => {
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                                SouHimBou AI
+                                AdinKhepra ASAF
                             </h1>
                             <p className="text-sm text-slate-400 mt-1">
                                 Trust Constellation • Single Pane of Glass

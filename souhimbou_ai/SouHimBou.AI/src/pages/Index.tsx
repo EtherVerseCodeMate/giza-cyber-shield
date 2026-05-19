@@ -79,15 +79,15 @@ const Index = () => {
               <div className="relative">
                 <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full group-hover:bg-primary/40 transition-all" />
                 <img
-                  src="/lovable-uploads/94f06ba5-2c93-4be0-a03f-e3fff4157ca6.png"
-                  alt="SouHimBou AI"
+                  src="/lovable-uploads/adinkhepra-asaf-logo.png"
+                  alt="AdinKhepra ASAF"
                   className="relative h-12 w-auto drop-shadow-2xl brightness-110"
                 />
               </div>
               <div className="flex flex-col mt-0.5">
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-black tracking-tighter text-white uppercase italic">
-                    SouHimBou <span className="text-primary tracking-normal not-italic">AI</span>
+                    AdinKhepra <span className="text-primary tracking-normal not-italic">ASAF</span>
                   </h1>
                   <Badge variant="outline" className="h-4 border-yellow-500/30 bg-yellow-500/10 text-[9px] font-bold text-yellow-500 tracking-widest uppercase py-0 px-1.5">
                     Ra (Standard)

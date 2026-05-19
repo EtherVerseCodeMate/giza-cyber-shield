@@ -85,7 +85,7 @@ const NotFound = () => {
         {/* Brand Footer */}
         <div className="mt-10 flex items-center justify-center gap-2 text-gray-600">
           <Shield className="h-4 w-4" />
-          <span className="text-xs uppercase tracking-widest">SouHimBou AI • Secure Navigation</span>
+          <span className="text-xs uppercase tracking-widest">AdinKhepra ASAF • Secure Navigation</span>
         </div>
       </div>
     </div>
