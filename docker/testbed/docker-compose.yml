@@ -1,0 +1,108 @@
+# KHEPRA crash-dummy test harness — intentionally vulnerable targets only.
+# WARNING: never expose these ports to a public network.
+#
+# Usage:
+#   docker compose up -d
+#   docker compose ps          # wait for all services healthy
+#   go test -v -tags integration ./tests/integration/ -timeout 90m
+#   docker compose down -v     # teardown + remove volumes
+#
+# Targets and what they cover:
+#   DVWA          → PHP/MySQL, OWASP Top 10 (SQLi, XSS, CSRF, file upload, command injection)
+#   WebGoat       → Java/Spring, XXE, JWT flaws, REST API, HTTP smuggling, deserialization
+#   Metasploitable2 → Network services (vsftpd CVE-2011-2523, Tomcat, phpMyAdmin, MySQL,
+#                     PostgreSQL, UnrealIRCd) — exercises port scanner + CVE correlation
+
+services:
+
+  # ── DVWA ──────────────────────────────────────────────────────────────────
+  dvwa:
+    image: ghcr.io/digininja/dvwa:latest
+    ports:
+      - "8080:80"
+    environment:
+      DB_SERVER: dvwa-db
+      DB_PORT: "3306"
+      DB_USER: dvwa
+      DB_PASSWORD: p@ssw0rd
+      DB_DATABASE: dvwa
+      RECAPTCHA_PRIV_KEY: ""
+      RECAPTCHA_PUB_KEY: ""
+      SECURITY_LEVEL: low       # all vulnerabilities enabled
+      PHPIDS_ENABLED: "0"
+    depends_on:
+      dvwa-db:
+        condition: service_healthy
+    networks:
+      - testbed
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost/login.php"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  dvwa-db:
+    image: mariadb:10.11
+    environment:
+      MYSQL_ROOT_PASSWORD: dvwa
+      MYSQL_DATABASE: dvwa
+      MYSQL_USER: dvwa
+      MYSQL_PASSWORD: p@ssw0rd
+    networks:
+      - testbed
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # ── WebGoat ───────────────────────────────────────────────────────────────
+  webgoat:
+    image: webgoat/webgoat:latest
+    ports:
+      - "8081:8080"
+    environment:
+      WEBGOAT_HOST: "0.0.0.0"
+      WEBWOLF_HOST: "0.0.0.0"
+    networks:
+      - testbed
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/WebGoat/"]
+      interval: 15s
+      timeout: 10s
+      retries: 15
+
+  # ── Metasploitable 2 ──────────────────────────────────────────────────────
+  # Third target — broadens coverage to network service CVEs and infrastructure
+  # misconfigurations that web-only apps don't exercise.
+  # Notable CVEs present:
+  #   CVE-2011-2523  vsftpd 2.3.4 backdoor            (FTP → port 21)
+  #   CVE-2012-1823  PHP-CGI argument injection        (HTTP → port 80)
+  #   CVE-2009-3843  Tomcat manager default creds      (Tomcat → port 8180)
+  #   CVE-2012-2122  MySQL auth bypass                 (MySQL → port 3306)
+  #   Multiple        UnrealIRCd, distcc, Java RMI, NFS
+  metasploitable:
+    image: tleemcjr/metasploitable2:latest
+    ports:
+      - "2222:22"     # OpenSSH 4.7p1
+      - "8082:80"     # Apache / Mutillidae / phpMyAdmin
+      - "8083:8180"   # Tomcat 5.5
+      - "3307:3306"   # MySQL 5.0.51a
+      - "5433:5432"   # PostgreSQL 8.3.0
+      - "2121:2121"   # ProFTPD 1.3.1
+    networks:
+      - testbed
+    stdin_open: true
+    tty: true
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost/mutillidae/ || curl -sf http://localhost/ || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 15
+
+networks:
+  testbed:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

@@ -36,6 +36,9 @@ type AuditSnapshot struct {
 	Compliance      ComplianceReport   `json:"compliance"`
 	ThreatDetection ThreatIntelligence `json:"threat_detection"`
 
+	// Web application findings from active HTTP scanning (nuclei)
+	WebFindings []WebFinding `json:"web_findings,omitempty"`
+
 	// Verification
 	PQCSignature *PQCSignature `json:"pqc_signature,omitempty"`
 
@@ -198,6 +201,24 @@ type CloudService struct {
 	DetectionSource    string   `json:"detection_source"`    // "terraform-state" | "agent-process" | "config-file"
 	Evidence           []string `json:"evidence,omitempty"`  // file path or process name
 	ParamifyCapability string   `json:"paramify_capability,omitempty"`
+}
+
+// WebFinding is a vulnerability discovered by active HTTP scanning (Nuclei).
+// Each finding maps to a Nuclei template and carries the matched URL, severity,
+// and any extracted evidence so it can be included in OSCAL observations.
+type WebFinding struct {
+	TemplateID         string    `json:"template_id"`
+	Name               string    `json:"name"`
+	Severity           string    `json:"severity"`           // "critical","high","medium","low","info"
+	Tags               []string  `json:"tags,omitempty"`
+	Description        string    `json:"description,omitempty"`
+	CVSS               float64   `json:"cvss,omitempty"`
+	CVEIDs             []string  `json:"cve_ids,omitempty"`
+	URL                string    `json:"url"`
+	MatchedAt          string    `json:"matched_at"`
+	ExtractedResults   []string  `json:"extracted_results,omitempty"`
+	ParamifyCapability string    `json:"paramify_capability,omitempty"`
+	ScannedAt          time.Time `json:"scanned_at"`
 }
 
 // ProcessInfo represents a running process
