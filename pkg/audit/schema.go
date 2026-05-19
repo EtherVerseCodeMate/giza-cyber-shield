@@ -41,5 +41,9 @@ type RiskIntelligence = types.RiskIntelligence
 type ShodanSummary = types.ShodanSummary
 type CensysSummary = types.CensysSummary
 
+type CommercialProduct = types.CommercialProduct
+type CloudService       = types.CloudService
+type WebFinding         = types.WebFinding
+
 // Risk is a type alias for RiskItem for backward compatibility with test files
 type Risk = RiskItem

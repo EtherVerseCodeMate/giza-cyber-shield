@@ -17,24 +17,29 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/audit"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/config"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/enumerate"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner/network"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner/osint"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner/webapp"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanners"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/types"
 )
 
 // ScanType defines the type of scan to perform
 type ScanType string
 
 const (
-	ScanTypePort       ScanType = "port_scan"
-	ScanTypeOSINT      ScanType = "osint"
-	ScanTypeCrawler    ScanType = "crawler"
-	ScanTypeFull       ScanType = "full"
-	ScanTypeVuln       ScanType = "vulnerability" // Horus - vulnerability scan
-	ScanTypeSecrets    ScanType = "secrets"       // Horus - secret detection
-	ScanTypeCompliance ScanType = "compliance"    // Horus - compliance check
-	ScanTypeContainer  ScanType = "container"     // Horus - container scan
+	ScanTypePort             ScanType = "port_scan"
+	ScanTypeOSINT            ScanType = "osint"
+	ScanTypeCrawler          ScanType = "crawler"
+	ScanTypeFull             ScanType = "full"
+	ScanTypeVuln             ScanType = "vulnerability"      // Horus - vulnerability scan
+	ScanTypeSecrets          ScanType = "secrets"            // Horus - secret detection
+	ScanTypeCompliance       ScanType = "compliance"         // Horus - compliance check
+	ScanTypeContainer        ScanType = "container"          // Horus - container scan
+	ScanTypeWebApp           ScanType = "webapp"             // Nuclei web app scan
+	ScanTypeProductInventory ScanType = "product_inventory"  // Commercial product fingerprinting
 )
 
 // UnifiedScanRequest defines a comprehensive scan request
@@ -68,6 +73,11 @@ type UnifiedScanResult struct {
 	Secrets          []audit.SecretFinding       `json:"secrets,omitempty"`
 	ComplianceReport *audit.ComplianceReport     `json:"compliance_report,omitempty"`
 	ContainerFindings *audit.ContainerFindings   `json:"container_findings,omitempty"`
+	// Commercial product & cloud inventory
+	DetectedProducts []types.CommercialProduct   `json:"detected_products,omitempty"`
+	CloudServices    []types.CloudService        `json:"cloud_services,omitempty"`
+	// Web application scan findings (Nuclei)
+	WebFindings      []types.WebFinding          `json:"web_findings,omitempty"`
 	// Metadata
 	Errors      []string            `json:"errors,omitempty"`
 	DAGNodeID   string              `json:"dag_node_id,omitempty"`
@@ -121,7 +131,11 @@ func (u *UnifiedOrchestrator) ExecuteScan(ctx context.Context, req UnifiedScanRe
 	// Determine which scans to run
 	scanTypes := req.ScanTypes
 	if len(scanTypes) == 0 || contains(scanTypes, ScanTypeFull) {
-		scanTypes = []ScanType{ScanTypePort, ScanTypeOSINT}
+		scanTypes = []ScanType{
+			ScanTypePort, ScanTypeOSINT,
+			ScanTypeVuln, ScanTypeSecrets,
+			ScanTypeProductInventory,
+		}
 	}
 
 	var wg sync.WaitGroup
@@ -148,6 +162,10 @@ func (u *UnifiedOrchestrator) ExecuteScan(ctx context.Context, req UnifiedScanRe
 				u.executeComplianceScan(ctx, req, result, &mu)
 			case ScanTypeContainer:
 				u.executeContainerScan(ctx, req, result, &mu)
+			case ScanTypeWebApp:
+				u.executeWebAppScan(ctx, req, result, &mu)
+			case ScanTypeProductInventory:
+				u.executeProductInventory(ctx, req, result, &mu)
 			}
 		}(scanType)
 	}
@@ -392,6 +410,66 @@ func (u *UnifiedOrchestrator) executeContainerScan(ctx context.Context, req Unif
 
 	log.Printf("[SONAR-HORUS] Container scan complete. Found %d misconfigurations",
 		len(findings.Misconfigurations))
+}
+
+func (u *UnifiedOrchestrator) executeWebAppScan(ctx context.Context, req UnifiedScanRequest, result *UnifiedScanResult, mu *sync.Mutex) {
+	log.Printf("[SONAR-WEBAPP] Executing Nuclei scan for %s", req.Target)
+
+	toolsDir := "tools"
+	if req.Options != nil {
+		if d, ok := req.Options["tools_dir"]; ok && d != "" {
+			toolsDir = d
+		}
+	}
+
+	s, err := webapp.New(toolsDir)
+	if err != nil {
+		mu.Lock()
+		result.Errors = append(result.Errors, fmt.Sprintf("webapp scanner init failed: %v", err))
+		mu.Unlock()
+		return
+	}
+
+	timeout := req.Timeout
+	if timeout == 0 {
+		timeout = 20 * time.Minute
+	}
+	scanCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	findings, err := s.Scan(scanCtx, req.Target, webapp.DefaultScanOptions())
+	if err != nil {
+		mu.Lock()
+		result.Errors = append(result.Errors, fmt.Sprintf("webapp scan error: %v", err))
+		mu.Unlock()
+	}
+
+	mu.Lock()
+	result.WebFindings = findings
+	mu.Unlock()
+
+	log.Printf("[SONAR-WEBAPP] Nuclei scan complete. Found %d findings", len(findings))
+}
+
+func (u *UnifiedOrchestrator) executeProductInventory(_ context.Context, _ UnifiedScanRequest, result *UnifiedScanResult, mu *sync.Mutex) {
+	log.Printf("[SONAR-INVENTORY] Detecting commercial products and cloud services")
+
+	// Collect live system intelligence to back the fingerprinting heuristics.
+	snap := &types.AuditSnapshot{}
+	if si, err := enumerate.CollectSystemIntelligence(); err == nil {
+		snap.System = si
+	}
+
+	products := scanners.DetectCommercialProducts(snap)
+	services := scanners.DetectCloudServices(snap)
+
+	mu.Lock()
+	result.DetectedProducts = products
+	result.CloudServices = services
+	mu.Unlock()
+
+	log.Printf("[SONAR-INVENTORY] Products: %d detected, Cloud services: %d detected",
+		len(products), len(services))
 }
 
 func (u *UnifiedOrchestrator) recordToDAG(result *UnifiedScanResult) error {

@@ -183,6 +183,55 @@ func (r *ComprehensiveReport) buildOSCALDocument() OSCALDocument {
 		}
 	}
 
+	// Emit Nuclei web application findings as OSCAL observations.
+	for _, wf := range r.WebFindings {
+		obsUUID := uuid.New().String()
+		findUUID := uuid.New().String()
+
+		obs := oscalObservation{
+			UUID:        obsUUID,
+			Title:       fmt.Sprintf("[WebApp] %s — %s", wf.TemplateID, wf.Name),
+			Description: wf.Description,
+			Methods:     []string{"EXAMINE"},
+			Types:       []string{"finding"},
+			Collected:   wf.ScannedAt,
+		}
+		if wf.MatchedAt != "" {
+			obs.RelevantEvidence = []oscalEvidence{
+				{
+					Description: "Matched at: " + wf.MatchedAt,
+					Remarks:     fmt.Sprintf("CVSS: %.1f | URL: %s", wf.CVSS, wf.URL),
+				},
+			}
+		}
+		if wf.ParamifyCapability != "" {
+			obs.Remarks = "Paramify Capability: " + wf.ParamifyCapability
+		}
+		observations = append(observations, obs)
+
+		controlID := "web-" + strings.ToLower(strings.ReplaceAll(wf.TemplateID, ":", "-"))
+		if len(wf.CVEIDs) > 0 {
+			controlID = strings.ToLower(wf.CVEIDs[0])
+		}
+
+		findings = append(findings, oscalFinding{
+			UUID:        findUUID,
+			Title:       wf.Name,
+			Description: fmt.Sprintf("Severity: %s | URL: %s", wf.Severity, wf.URL),
+			Target: oscalFindingTarget{
+				Type:     "statement-id",
+				TargetID: controlID,
+				Status: oscalTargetStatus{
+					State:   "not-satisfied",
+					Remarks: wf.ParamifyCapability,
+				},
+			},
+			RelatedObservations: []oscalRelatedObservation{
+				{ObservationUUID: obsUUID},
+			},
+		})
+	}
+
 	result := oscalResult{
 		UUID:  uuid.New().String(),
 		Title: "KHEPRA Automated Compliance Assessment",

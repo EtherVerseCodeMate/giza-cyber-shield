@@ -2,7 +2,11 @@
 // Supports multiple frameworks with cross-reference mapping
 package stig
 
-import "time"
+import (
+	"time"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/types"
+)
 
 // Severity levels for STIG findings
 type Severity string
@@ -78,6 +82,9 @@ type ComprehensiveReport struct {
 
 	// Executive Summary
 	ExecutiveSummary ExecutiveSummary // High-level summary for leadership
+
+	// Web Application Scan Findings (from Nuclei scanner)
+	WebFindings []types.WebFinding
 }
 
 // BlastRadiusAnalysis represents PQC migration impact assessment
