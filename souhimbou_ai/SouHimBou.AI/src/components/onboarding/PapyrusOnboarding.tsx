@@ -161,7 +161,7 @@ You're not just getting software. You're inheriting centuries of wisdom.`,
         papyrusSays(
           `No worries! You can always update your profile later.
 
-I'm now your companion throughout SouHimBou AI. Whenever you need guidance, look for me in the corner of your screen.
+I'm now your companion throughout AdinKhepra ASAF. Whenever you need guidance, look for me in the corner of your screen.
 
 What would you like to explore first?`,
           [

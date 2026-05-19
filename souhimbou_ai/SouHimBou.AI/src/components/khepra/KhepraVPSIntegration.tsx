@@ -84,7 +84,7 @@ export function KhepraVPSIntegration({ config, updateConfig, isUpdating }: Khepr
                     <div className="space-y-1">
                         <h4 className="text-xs font-black uppercase tracking-widest text-primary">Hybrid Protocol Active</h4>
                         <p className="text-[11px] text-muted-foreground leading-relaxed">
-                            SouHimBou.AI is currently orchestrating security maneuvers through your private Khepra node.
+                            AdinKhepra ASAF is currently orchestrating security maneuvers through your private Khepra node.
                             All PQC handshakes and audit trails are persisted to your local DAG constellation.
                         </p>
                     </div>

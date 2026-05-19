@@ -26,7 +26,7 @@ export const WelcomeModal = ({ open, onClose, userEmail }: WelcomeModalProps) =>
 
   const slides = [
     {
-      title: "Welcome to SouHimBou AI! 🎉",
+      title: "Welcome to AdinKhepra ASAF! 🎉",
       content: (
         <div className="text-center space-y-4">
           <div className="p-4 bg-primary/10 rounded-full w-fit mx-auto">

@@ -65,7 +65,7 @@ export const KhepraPremiumGuard: React.FC<KhepraPremiumGuardProps> = ({
 
   const handleUpgrade = () => {
     // Redirect to billing or show enrollment dialog
-    globalThis.location.href = `https://souhimbou.ai/billing?tier=${requiredTier}`;
+    globalThis.location.href = `https://adinkhepra.com/billing?tier=${requiredTier}`;
   };
 
   return (

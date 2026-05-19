@@ -162,7 +162,7 @@ export const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({
             <span>Legal Agreement Acceptance</span>
           </DialogTitle>
           <DialogDescription>
-            Acceptance of all legal agreements is required to access SouHimBou AI DoD operations.
+            Acceptance of all legal agreements is required to access AdinKhepra ASAF DoD operations.
           </DialogDescription>
         </DialogHeader>
 

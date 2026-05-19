@@ -96,7 +96,7 @@ const ExperienceSelector: React.FC<ExperienceSelectorProps> = ({ onExperienceSel
           </p>
           <div className="mt-4">
             <Badge variant="outline" className="text-xs uppercase tracking-widest border-primary/30 text-primary px-3 py-1">
-              Powered by SouHimBou AI • Ra (Standard) Enabled
+              Powered by AdinKhepra ASAF • Ra (Standard) Enabled
             </Badge>
           </div>
         </div>

@@ -6,10 +6,10 @@ export default function Episode3() {
   return (
     <>
       <Helmet>
-        <title>Episode 3: Founder Inception Story - The Sacred Cybersecurity Company | SouHimBou AI</title>
+        <title>Episode 3: Founder Inception Story - The Sacred Cybersecurity Company | AdinKhepra ASAF</title>
         <meta name="description" content="Journey through the rise of SecRed Knowledge Inc., from military-grade cyber operations to launching a veteran-owned AI-powered cybersecurity firm." />
         <meta name="keywords" content="SecRed Knowledge Inc, cybersecurity, CMMC, compliance, AI, veteran-owned, Souhimbou Kone, Fit To Think" />
-        <link rel="canonical" href="https://souhimbou.ai/blog/episode-3-founder-inception-story" />
+        <link rel="canonical" href="https://adinkhepra.com/blog/episode-3-founder-inception-story" />
       </Helmet>
 
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">

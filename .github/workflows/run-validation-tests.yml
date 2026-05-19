@@ -42,11 +42,12 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: validation-test-results
           path: tests/validation/results/
           retention-days: 7
+          if-no-files-found: ignore
 
   integration-test:
     name: Integration Test with Real Validators

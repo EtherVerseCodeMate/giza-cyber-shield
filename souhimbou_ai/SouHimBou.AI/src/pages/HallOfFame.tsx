@@ -22,7 +22,7 @@ const HallOfFame = () => {
         <title>Security Hall of Fame | NouchiX</title>
         <meta name="description" content="Recognizing security researchers who have helped make NouchiX more secure through responsible disclosure." />
         <meta name="keywords" content="security researchers, hall of fame, responsible disclosure, bug bounty recognition" />
-        <link rel="canonical" href="https://souhimbou.ai/hall-of-fame" />
+        <link rel="canonical" href="https://adinkhepra.com/hall-of-fame" />
       </Helmet>
 
       <div className="container mx-auto px-4 py-12 max-w-4xl">

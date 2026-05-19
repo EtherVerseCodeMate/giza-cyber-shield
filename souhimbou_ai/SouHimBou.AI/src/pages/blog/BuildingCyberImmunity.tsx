@@ -6,10 +6,10 @@ export default function BuildingCyberImmunity() {
   return (
     <>
       <Helmet>
-        <title>Building The Ultimate CMMC → NIST → STIGs Database with AI | SouHimBou AI Blog</title>
+        <title>Building The Ultimate CMMC → NIST → STIGs Database with AI | AdinKhepra ASAF Blog</title>
         <meta name="description" content="How I used Python and AI to build a free CMMC to STIG mapping database that eliminates compliance spreadsheet chaos." />
         <meta name="keywords" content="CMMC, NIST, STIGs, compliance automation, AI, Python, cybersecurity, CMMC Level 2, database" />
-        <link rel="canonical" href="https://souhimbou.ai/blog/building-cyber-immunity-cmmc-stig-database" />
+        <link rel="canonical" href="https://adinkhepra.com/blog/building-cyber-immunity-cmmc-stig-database" />
       </Helmet>
 
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -132,7 +132,7 @@ export default function BuildingCyberImmunity() {
               I'm making this database <strong>available for FREE</strong> to the DIB community. Because compliance shouldn't be a competitive advantage—it should be a baseline.
             </p>
             <p>
-              You can download it from my website at <a href="https://souhimbou.ai" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-semibold">SouHimBou.ai</a>.
+              You can download it from my website at <a href="https://adinkhepra.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-semibold">adinkhepra.com</a>.
             </p>
 
             <h2>🚀 What's Next</h2>
@@ -147,7 +147,7 @@ export default function BuildingCyberImmunity() {
             <div className="not-prose bg-muted/50 rounded-lg p-6 my-8">
               <p className="text-lg font-semibold mb-4">Join our journey to cyber immunity:</p>
               <div className="space-y-2">
-                <p><strong>🌐 Website:</strong> <a href="https://souhimbou.ai" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">souhimbou.ai</a></p>
+                <p><strong>🌐 Website:</strong> <a href="https://adinkhepra.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">adinkhepra.com</a></p>
                 <p><strong>🎙 Podcast:</strong> <a href="https://fittothinkpodcast.buzzsprout.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Fit to Think – The Philosopher API</a></p>
                 <p><strong>📺 YouTube:</strong> <a href="https://www.youtube.com/@SystemicDominationKing" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">@SystemicDominationKing</a></p>
                 <p><strong>💼 LinkedIn:</strong> <a href="https://www.linkedin.com/in/souhimbou/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Souhimbou Kone</a></p>

@@ -176,13 +176,13 @@ export const AgenticComplianceArchitect: React.FC = () => {
       setAgentStatus('paused');
       toast({
         title: "Agent Paused",
-        description: "SouHimBou AI agent has been paused",
+        description: "AdinKhepra ASAF agent has been paused",
       });
     } else {
       setAgentStatus('running');
       toast({
         title: "Agent Started",
-        description: `SouHimBou AI agent is now running in ${activeMode} mode`,
+        description: `AdinKhepra ASAF agent is now running in ${activeMode} mode`,
       });
 
       // Trigger initial scan
@@ -291,7 +291,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
             <div className="flex items-center gap-3">
               <Brain className="h-8 w-8 text-primary" />
               <div>
-                <CardTitle>SouHimBou AI - Automated Compliance Engine</CardTitle>
+                <CardTitle>AdinKhepra ASAF - Automated Compliance Engine</CardTitle>
                 <CardDescription>
                   AI-powered infrastructure discovery, vulnerability scanning, and automated remediation to achieve CMMC certification in 90 days
                 </CardDescription>
