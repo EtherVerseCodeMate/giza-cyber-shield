@@ -12,7 +12,7 @@ import {
   ArrowRight,
   ExternalLink
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/lib/router-compat';
 import { useExecutiveAI } from '@/hooks/useExecutiveAI';
 
 interface ExecutiveSummaryViewProps {

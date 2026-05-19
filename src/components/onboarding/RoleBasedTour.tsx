@@ -24,7 +24,7 @@ import {
   AlertTriangle,
   Brain
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/lib/router-compat';
 import { useUserProfile } from '@/hooks/useUserProfile';
 
 interface TourStep {

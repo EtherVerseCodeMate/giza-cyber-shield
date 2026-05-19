@@ -22,7 +22,7 @@ import { AdinkraSymbolDisplay } from '@/components/khepra/AdinkraSymbolDisplay';
 import HeaderClock from '@/components/console/HeaderClock';
 import SignOutDialog from '@/components/SignOutDialog';
 import { FloatingAIAssistant } from '@/components/FloatingAIAssistant';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/lib/router-compat';
 import { BrowserNavigation } from '@/components/ui/browser-navigation';
 
 interface ConsoleLayoutProps {

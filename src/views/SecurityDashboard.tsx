@@ -35,7 +35,7 @@ import { BrowserNavigation } from '@/components/ui/browser-navigation';
 import { AutomatedThreatHunting } from '@/components/AutomatedThreatHunting';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/lib/router-compat';
 
 
 export const SecurityDashboard = () => {

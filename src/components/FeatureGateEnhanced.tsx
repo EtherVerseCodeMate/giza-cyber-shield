@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useTrialStatus } from '@/hooks/useTrialStatus';
 import { useUsageTracker } from '@/components/UsageTracker';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/lib/router-compat';
 import { 
   Lock, 
   Crown, 

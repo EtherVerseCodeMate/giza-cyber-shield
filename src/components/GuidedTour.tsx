@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from '@/lib/router-compat';
 import { X, ChevronRight, ChevronLeft, Shield, Activity, Globe, Lock, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from '@/lib/router-compat';
 import { useAuth } from '@/hooks/useAuth';
 import { useSecurityHardening } from '@/hooks/useSecurityHardening';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';

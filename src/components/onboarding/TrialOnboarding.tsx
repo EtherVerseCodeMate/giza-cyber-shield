@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useTrialStatus } from '@/hooks/useTrialStatus';
 import { useUsageTracker } from '@/components/UsageTracker';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/lib/router-compat';
 
 interface OnboardingStep {
   id: string;

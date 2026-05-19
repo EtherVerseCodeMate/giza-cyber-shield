@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from '@/lib/router-compat';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Shield, CheckCircle, AlertTriangle } from 'lucide-react';
