@@ -255,6 +255,7 @@ export default function MCPDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Header row */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-semibold text-white">MCP Dashboard</h1>
@@ -280,6 +281,7 @@ export default function MCPDashboard() {
         </div>
       </div>
 
+      {/* Stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: "Tool Calls", value: calls.length, sub: `${calls.filter(c => c.success).length} successful` },
@@ -295,6 +297,7 @@ export default function MCPDashboard() {
         ))}
       </div>
 
+      {/* Tabs */}
       <div>
         <div className="flex gap-1 border-b border-zinc-800 mb-6">
           {TABS.map(({ id, label, icon, count }) => (
@@ -324,6 +327,7 @@ export default function MCPDashboard() {
         {tab === "acp"   && <AcpTab credentials={acp} loading={loading} />}
       </div>
 
+      {/* Server info footer */}
       <div className="border-t border-zinc-800 pt-4 flex items-center justify-between text-[11px] text-zinc-600 flex-wrap gap-2">
         <span>KHEPRA MCP · io.github.etherversecodemate/khepra-mcp · ML-DSA-65 (FIPS 204)</span>
         <a href="/mcp-quickstart" className="hover:text-zinc-400 transition-colors">
