@@ -10,7 +10,7 @@ const legalPages: Record<string, { title: string; icon: React.ReactNode; descrip
         sections: [
             {
                 heading: 'Data Collection',
-                content: 'SouHimBou AI collects only the information necessary to provide our STIG compliance automation services. This includes account credentials, organization metadata, and compliance scan results. We do not sell or share personal data with third parties.'
+                content: 'AdinKhepra ASAF collects only the information necessary to provide our STIG compliance automation services. This includes account credentials, organization metadata, and compliance scan results. We do not sell or share personal data with third parties.'
             },
             {
                 heading: 'Data Storage & Security',
@@ -18,7 +18,7 @@ const legalPages: Record<string, { title: string; icon: React.ReactNode; descrip
             },
             {
                 heading: 'Your Rights',
-                content: 'You may request data export or deletion at any time by contacting support@souhimbou.ai. We honor all applicable data protection regulations including GDPR and CCPA.'
+                content: 'You may request data export or deletion at any time by contacting support@adinkhepra.com. We honor all applicable data protection regulations including GDPR and CCPA.'
             },
             {
                 heading: 'Cookies & Analytics',
@@ -29,15 +29,15 @@ const legalPages: Record<string, { title: string; icon: React.ReactNode; descrip
     '/terms': {
         title: 'Terms of Service',
         icon: <FileText className="h-8 w-8 text-cyan-400" />,
-        description: 'The agreement governing your use of SouHimBou AI.',
+        description: 'The agreement governing your use of AdinKhepra ASAF.',
         sections: [
             {
                 heading: 'Acceptance of Terms',
-                content: 'By accessing SouHimBou AI, you agree to these Terms of Service and our Privacy Policy. If you are using the platform on behalf of an organization, you represent that you have authority to bind that organization.'
+                content: 'By accessing AdinKhepra ASAF, you agree to these Terms of Service and our Privacy Policy. If you are using the platform on behalf of an organization, you represent that you have authority to bind that organization.'
             },
             {
                 heading: 'Service Description',
-                content: 'SouHimBou AI provides AI-powered STIG compliance automation, configuration drift detection, and audit evidence generation. The platform is currently in active development (Beta). Features marked as "Prototype" or "In Development" are demonstration-only and should not be used for production CUI workloads.'
+                content: 'AdinKhepra ASAF provides AI-powered STIG compliance automation, configuration drift detection, and audit evidence generation. The platform is currently in active development (Beta). Features marked as "Prototype" or "In Development" are demonstration-only and should not be used for production CUI workloads.'
             },
             {
                 heading: 'Acceptable Use',
@@ -45,7 +45,7 @@ const legalPages: Record<string, { title: string; icon: React.ReactNode; descrip
             },
             {
                 heading: 'Limitation of Liability',
-                content: 'SouHimBou AI is provided "as is" during the Beta period. SecRed Knowledge Inc. (dba NouchiX) shall not be liable for any indirect, incidental, or consequential damages arising from your use of the service. Compliance scan results are advisory and do not constitute legal or regulatory certification.'
+                content: 'AdinKhepra ASAF is provided "as is" during the Beta period. SecRed Knowledge Inc. (dba NouchiX) shall not be liable for any indirect, incidental, or consequential damages arising from your use of the service. Compliance scan results are advisory and do not constitute legal or regulatory certification.'
             }
         ]
     },
@@ -56,7 +56,7 @@ const legalPages: Record<string, { title: string; icon: React.ReactNode; descrip
         sections: [
             {
                 heading: 'Security Architecture',
-                content: 'SouHimBou AI is built on a zero-trust architecture with post-quantum cryptographic foundations (Kyber-1024 / Dilithium Mode 3). Our infrastructure follows DoD STIG hardening guidelines and is designed for Iron Bank container ingestion.'
+                content: 'AdinKhepra ASAF is built on a zero-trust architecture with post-quantum cryptographic foundations (Kyber-1024 / Dilithium Mode 3). Our infrastructure follows DoD STIG hardening guidelines and is designed for Iron Bank container ingestion.'
             },
             {
                 heading: 'Vulnerability Disclosure',
@@ -79,7 +79,7 @@ const legalPages: Record<string, { title: string; icon: React.ReactNode; descrip
         sections: [
             {
                 heading: 'NIST Framework Alignment',
-                content: 'SouHimBou AI\'s controls are mapped to NIST SP 800-53 Rev. 5 and NIST Cybersecurity Framework 2.0. Our platform assists organizations in implementing these controls through automated STIG configuration management.'
+                content: 'AdinKhepra ASAF\'s controls are mapped to NIST SP 800-53 Rev. 5 and NIST Cybersecurity Framework 2.0. Our platform assists organizations in implementing these controls through automated STIG configuration management.'
             },
             {
                 heading: 'CMMC Readiness',
@@ -91,7 +91,7 @@ const legalPages: Record<string, { title: string; icon: React.ReactNode; descrip
             },
             {
                 heading: 'Export Controls',
-                content: 'SouHimBou AI complies with all applicable U.S. export control regulations. Post-quantum cryptographic components are subject to EAR classification. Community Edition uses NIST-standardized algorithms only (CIRCL library, MIT licensed).'
+                content: 'AdinKhepra ASAF complies with all applicable U.S. export control regulations. Post-quantum cryptographic components are subject to EAR classification. Community Edition uses NIST-standardized algorithms only (CIRCL library, MIT licensed).'
             }
         ]
     }
@@ -114,11 +114,11 @@ const LegalPage = () => {
                     <div className="flex items-center gap-3">
                         <button onClick={() => navigate('/')} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                             <img
-                                src="/lovable-uploads/94f06ba5-2c93-4be0-a03f-e3fff4157ca6.png"
-                                alt="SouHimBou AI Logo"
+                                src="/lovable-uploads/adinkhepra-asaf-logo.png"
+                                alt="AdinKhepra ASAF Logo"
                                 className="h-8 w-auto"
                             />
-                            <span className="text-lg font-bold text-white">SouHimBou AI</span>
+                            <span className="text-lg font-bold text-white">AdinKhepra ASAF</span>
                         </button>
                     </div>
                     <Button
@@ -164,8 +164,8 @@ const LegalPage = () => {
                 <div className="mt-12 p-6 bg-gradient-to-r from-cyan-500/5 to-purple-500/5 border border-cyan-500/20 rounded-lg text-center">
                     <p className="text-gray-400 text-sm">
                         Questions about this policy? Contact us at{' '}
-                        <a href="mailto:support@souhimbou.ai" className="text-cyan-400 hover:text-cyan-300 transition-colors">
-                            support@souhimbou.ai
+                        <a href="mailto:support@adinkhepra.com" className="text-cyan-400 hover:text-cyan-300 transition-colors">
+                            support@adinkhepra.com
                         </a>
                     </p>
                 </div>

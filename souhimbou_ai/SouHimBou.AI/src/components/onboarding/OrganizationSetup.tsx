@@ -424,13 +424,13 @@ export const OrganizationSetup = () => {
         <CardHeader>
           <CardTitle className="text-center">
             <div className="flex items-center justify-center space-x-2 mb-2">
-              <img 
-                src="/lovable-uploads/94f06ba5-2c93-4be0-a03f-e3fff4157ca6.png" 
-                alt="SouHimBou AI Logo" 
+              <img
+                src="/lovable-uploads/adinkhepra-asaf-logo.png"
+                alt="AdinKhepra ASAF Logo"
                 className="h-8 w-auto"
               />
               <span className="text-2xl font-bold bg-gradient-cyber bg-clip-text text-transparent">
-                SouHimBou AI
+                AdinKhepra ASAF
               </span>
             </div>
             <div className="text-lg">Organization Setup</div>

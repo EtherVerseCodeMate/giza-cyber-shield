@@ -90,7 +90,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                         <div className="mt-12 text-center">
                             <div className="flex items-center justify-center gap-2 text-gray-600">
                                 <Shield className="h-4 w-4" />
-                                <span className="text-xs uppercase tracking-widest">SouHimBou AI • Resilience Protocol Active</span>
+                                <span className="text-xs uppercase tracking-widest">AdinKhepra ASAF • Resilience Protocol Active</span>
                             </div>
                         </div>
                     </div>

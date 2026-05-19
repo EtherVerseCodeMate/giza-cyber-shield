@@ -54,7 +54,7 @@ export const HeroSection = () => {
 
               {/* Subheadline */}
               <p className="text-lg md:text-xl text-gray-300 leading-relaxed max-w-xl">
-                SouHimBou AI helps defense-focused organizations automate STIG compliance workflows, 
+                AdinKhepra ASAF helps defense-focused organizations automate STIG compliance workflows, 
                 validate configurations, and prepare audit-ready evidence — currently in active development 
                 and available for early pilot partners.
               </p>
@@ -93,7 +93,7 @@ export const HeroSection = () => {
                     🚧 Platform Development Status
                   </h3>
                   <p className="text-gray-300 text-sm leading-relaxed">
-                    SouHimBou AI is in active development and <strong>NOT ready for production CUI workloads</strong>. 
+                    AdinKhepra ASAF is in active development and <strong>NOT ready for production CUI workloads</strong>. 
                     Current prototypes are demonstration-only.
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -133,7 +133,7 @@ export const HeroSection = () => {
               {/* Architecture Diagram */}
               <div className="space-y-6 pt-4">
                 <h3 className="text-lg font-semibold text-white text-center mb-6">
-                  SouHimBou AI Architecture
+                  AdinKhepra ASAF Architecture
                 </h3>
 
                 {/* Top Layer - User Interface */}

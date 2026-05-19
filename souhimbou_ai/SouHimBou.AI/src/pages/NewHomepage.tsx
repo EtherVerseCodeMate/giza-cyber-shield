@@ -29,12 +29,12 @@ const NewHomepage = () => {
             {/* Logo */}
             <div className="flex items-center gap-3">
               <img
-                src="/lovable-uploads/94f06ba5-2c93-4be0-a03f-e3fff4157ca6.png"
-                alt="SouHimBou AI Logo"
+                src="/lovable-uploads/adinkhepra-asaf-logo.png"
+                alt="AdinKhepra ASAF Logo"
                 className="h-10 w-auto"
               />
               <div className="flex items-center gap-2">
-                <span className="text-xl font-bold text-white">SouHimBou AI</span>
+                <span className="text-xl font-bold text-white">AdinKhepra ASAF</span>
                 <span className="text-xs bg-yellow-600/20 text-yellow-400 px-2 py-1 rounded border border-yellow-500/30">
                   IN DEVELOPMENT
                 </span>

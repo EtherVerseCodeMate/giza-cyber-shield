@@ -6,10 +6,10 @@ export default function Episode2() {
   return (
     <>
       <Helmet>
-        <title>Fit To Think Episode 2: Autonomous AI, Deepfakes & Leadership | SouHimBou AI Blog</title>
+        <title>Fit To Think Episode 2: Autonomous AI, Deepfakes & Leadership | AdinKhepra ASAF Blog</title>
         <meta name="description" content="Exploring autonomous AI, deepfakes, the empathy crisis, and authentic leadership under the Blood Moon with Souhimbou Kone." />
         <meta name="keywords" content="AI, deepfakes, leadership, empathy crisis, cybersecurity, autonomous AI, digital ethics" />
-        <link rel="canonical" href="https://souhimbou.ai/blog/episode-2-autonomous-ai-deepfakes-leadership" />
+        <link rel="canonical" href="https://adinkhepra.com/blog/episode-2-autonomous-ai-deepfakes-leadership" />
       </Helmet>
 
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -165,7 +165,7 @@ export default function Episode2() {
               </p>
               <ul className="space-y-2">
                 <li>🎙️ <a href="https://fittothinkpodcast.buzzsprout.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Podcast: Fit to Think – The Philosopher API</a></li>
-                <li>🌐 <a href="https://souhimbou.ai" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Website: souhimbou.ai</a></li>
+                <li>🌐 <a href="https://adinkhepra.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Website: adinkhepra.com</a></li>
                 <li>🔗 <a href="https://linktr.ee/cybersouhimbou" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">All Links: LinkTree</a></li>
                 <li>💼 <a href="https://linkedin.com/in/souhimbou-kone" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">LinkedIn: Souhimbou Kone</a></li>
                 <li>📺 <a href="https://www.youtube.com/@systemicdominationking" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">YouTube: @SystemicDominationKing</a></li>

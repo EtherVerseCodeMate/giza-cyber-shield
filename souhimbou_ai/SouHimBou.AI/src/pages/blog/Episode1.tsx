@@ -6,10 +6,10 @@ export default function Episode1() {
   return (
     <>
       <Helmet>
-        <title>Fit To Think Episode 1: Blood Moon & The Philosopher API | SouHimBou AI Blog</title>
+        <title>Fit To Think Episode 1: Blood Moon & The Philosopher API | AdinKhepra ASAF Blog</title>
         <meta name="description" content="The launch episode of Fit To Think podcast exploring The Philosopher API, overcoming imposter syndrome, and thriving in the age of technology." />
         <meta name="keywords" content="Philosopher API, imposter syndrome, AI, cybersecurity, mental resilience, Runfirmation, technology innovation" />
-        <link rel="canonical" href="https://souhimbou.ai/blog/episode-1-blood-moon-philosopher-api" />
+        <link rel="canonical" href="https://adinkhepra.com/blog/episode-1-blood-moon-philosopher-api" />
       </Helmet>
 
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -259,7 +259,7 @@ export default function Episode1() {
               <p className="text-lg font-semibold mb-4">Subscribe, Follow, & Join the Journey</p>
               <ul className="space-y-2">
                 <li>🎙️ <a href="https://fittothinkpodcast.buzzsprout.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Podcast: Fit to Think – The Philosopher API</a></li>
-                <li>🌐 <a href="https://souhimbou.ai" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Website: souhimbou.ai</a></li>
+                <li>🌐 <a href="https://adinkhepra.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Website: adinkhepra.com</a></li>
                 <li>📚 <a href="https://www.amazon.com/Making-Integrity-Great-Once-How-ebook/dp/B0CC1XC7Y3" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Book: Making Integrity Great Once Again</a></li>
                 <li>🔗 <a href="https://linktr.ee/cybersouhimbou" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">All Socials: LinkTree</a></li>
                 <li>💼 <a href="https://linkedin.com/in/souhimbou-kone" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">LinkedIn: Souhimbou Kone</a></li>

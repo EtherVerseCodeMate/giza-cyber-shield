@@ -9,7 +9,7 @@ const VDP = () => {
         <title>Vulnerability Disclosure Program | NouchiX Security</title>
         <meta name="description" content="NouchiX welcomes responsible security research. Learn how to report vulnerabilities and help make critical infrastructure safer." />
         <meta name="keywords" content="vulnerability disclosure, bug bounty, security research, responsible disclosure, VDP" />
-        <link rel="canonical" href="https://souhimbou.ai/vdp" />
+        <link rel="canonical" href="https://adinkhepra.com/vdp" />
       </Helmet>
 
       <div className="container mx-auto px-4 py-12 max-w-4xl">
@@ -65,7 +65,7 @@ const VDP = () => {
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-start gap-2">
                     <span className="text-green-600 dark:text-green-400">✓</span>
-                    <span>Production web applications (souhimbou.ai, secredknowledgeinc.tech)</span>
+                    <span>Production web applications (adinkhepra.com, secredknowledgeinc.tech)</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-green-600 dark:text-green-400">✓</span>
@@ -273,7 +273,7 @@ const VDP = () => {
             <div className="space-y-2">
               <p><strong>Primary:</strong> security@secredknowledgeinc.tech</p>
               <p><strong>Alternate:</strong> cybersouhimbou@secredknowledgeinc.tech</p>
-              <p><strong>Website:</strong> <a href="https://souhimbou.ai" className="text-primary hover:underline">souhimbou.ai</a></p>
+              <p><strong>Website:</strong> <a href="https://adinkhepra.com" className="text-primary hover:underline">adinkhepra.com</a></p>
             </div>
             <p className="text-sm text-muted-foreground italic pt-4">
               This program is part of our Building In Public commitment to transparency and community-driven security.

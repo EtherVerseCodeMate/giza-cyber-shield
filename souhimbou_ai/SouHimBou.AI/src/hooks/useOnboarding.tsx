@@ -51,7 +51,7 @@ export const useOnboarding = () => {
     {
       id: 'aws_setup',
       title: 'Account Creation',
-      description: 'Create your SouHimBou AI account with email verification',
+      description: 'Create your AdinKhepra ASAF account with email verification',
       completed: !!(user && profile?.full_name),
       required: true
     },

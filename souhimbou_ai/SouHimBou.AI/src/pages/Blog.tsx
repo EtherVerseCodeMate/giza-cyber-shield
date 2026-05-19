@@ -47,7 +47,7 @@ export default function BlogList() {
     {
       id: 'building-cyber-immunity-cmmc-stig-database',
       title: 'I Recently Used Python and AI to Build The Ultimate CMMC → NIST → STIGs Database (FREE Download!)',
-      excerpt: 'How SouHimBou AI is redefining compliance with an AI-powered CMMC to STIG mapping database that eliminates spreadsheet chaos.',
+      excerpt: 'How AdinKhepra ASAF is redefining compliance with an AI-powered CMMC to STIG mapping database that eliminates spreadsheet chaos.',
       date: 'January 2025',
       readTime: '12 min read',
       category: 'Building In Public'
@@ -57,10 +57,10 @@ export default function BlogList() {
   return (
     <>
       <Helmet>
-        <title>Blog - SouHimBou AI | Building Cyber Immunity in Public</title>
-        <meta name="description" content="Explore insights on AI, cybersecurity, CMMC compliance, and building in public from SouHimBou AI founder Souhimbou Kone." />
-        <meta name="keywords" content="AI, cybersecurity, CMMC, NIST, STIGs, compliance automation, building in public, SouHimBou AI" />
-        <link rel="canonical" href="https://souhimbou.ai/blog" />
+        <title>Blog - AdinKhepra ASAF | Building Cyber Immunity in Public</title>
+        <meta name="description" content="Explore insights on AI, cybersecurity, CMMC compliance, and building in public from AdinKhepra ASAF founder Souhimbou Kone." />
+        <meta name="keywords" content="AI, cybersecurity, CMMC, NIST, STIGs, compliance automation, building in public, AdinKhepra ASAF" />
+        <link rel="canonical" href="https://adinkhepra.com/blog" />
       </Helmet>
 
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">

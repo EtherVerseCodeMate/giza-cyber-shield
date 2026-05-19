@@ -5,10 +5,10 @@ const LaunchingVDP = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background/95 to-secondary/20">
       <Helmet>
-        <title>Launching Our Vulnerability Disclosure Program | SouHimBou AI Blog</title>
+        <title>Launching Our Vulnerability Disclosure Program | AdinKhepra ASAF Blog</title>
         <meta name="description" content="We're launching a public Vulnerability Disclosure Program — NouchiX welcomes responsible researchers to help us build resilient systems for critical infrastructure." />
         <meta name="keywords" content="vulnerability disclosure program, VDP, bug bounty, security research, building in public, responsible disclosure" />
-        <link rel="canonical" href="https://souhimbou.ai/blog/launching-vdp" />
+        <link rel="canonical" href="https://adinkhepra.com/blog/launching-vdp" />
       </Helmet>
 
       <div className="container mx-auto px-4 py-12 max-w-3xl">
@@ -53,7 +53,7 @@ const LaunchingVDP = () => {
             </p>
 
             <p>
-              As we build SouHimBou AI — a platform designed to bring cyber resilience to critical infrastructure — 
+              As we build AdinKhepra ASAF — a platform designed to bring cyber resilience to critical infrastructure — 
               we recognize that security cannot be achieved in isolation. The most secure systems are those that 
               have been tested, challenged, and hardened by a diverse community of researchers, practitioners, 
               and ethical hackers.
@@ -94,7 +94,7 @@ const LaunchingVDP = () => {
             </p>
 
             <ul className="space-y-2 my-6">
-              <li>✅ Our production web applications (souhimbou.ai, secredknowledgeinc.tech)</li>
+              <li>✅ Our production web applications (adinkhepra.com, secredknowledgeinc.tech)</li>
               <li>✅ Public APIs and demo endpoints we publish</li>
               <li>✅ Our open-source repositories and research materials</li>
               <li>✅ Publicly exposed documentation and CI/CD metadata</li>
@@ -174,7 +174,7 @@ const LaunchingVDP = () => {
             <h2 className="text-2xl font-bold mt-8">💭 A Personal Note from NouchiX</h2>
 
             <p>
-              Building SouHimBou AI has been a journey of learning, iteration, and radical transparency. 
+              Building AdinKhepra ASAF has been a journey of learning, iteration, and radical transparency. 
               This VDP is the natural extension of that philosophy: <strong>we can't secure critical infrastructure 
               alone</strong>.
             </p>
@@ -243,7 +243,7 @@ const LaunchingVDP = () => {
               />
               <div>
                 <p className="font-bold">NouchiX (Jean Derlin Kue)</p>
-                <p className="text-sm text-muted-foreground">Founder & Chief Architect, SouHimBou AI</p>
+                <p className="text-sm text-muted-foreground">Founder & Chief Architect, AdinKhepra ASAF</p>
               </div>
             </div>
 

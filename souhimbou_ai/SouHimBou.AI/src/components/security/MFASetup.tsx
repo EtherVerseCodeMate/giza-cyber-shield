@@ -125,7 +125,7 @@ export const MFASetup = ({ onComplete }: MFASetupProps) => {
   };
 
   const downloadBackupCodes = () => {
-    const codesText = `SouHimBou AI MFA Backup Codes\nGenerated: ${new Date().toISOString()}\n\n${backupCodes.join('\n')}\n\nKeep these codes secure and use them only if you lose access to your authenticator app.`;
+    const codesText = `AdinKhepra ASAF MFA Backup Codes\nGenerated: ${new Date().toISOString()}\n\n${backupCodes.join('\n')}\n\nKeep these codes secure and use them only if you lose access to your authenticator app.`;
     const blob = new Blob([codesText], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

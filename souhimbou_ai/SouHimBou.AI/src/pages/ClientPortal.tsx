@@ -65,7 +65,7 @@ export default function ClientPortal() {
       <div className="flex items-center justify-between bg-black/40 backdrop-blur-md border-b border-white/10 px-6 py-2 -mx-6 -mt-6 mb-6">
         <div className="flex items-center gap-4">
           <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-[10px] uppercase tracking-tighter">
-            SouHimBou AI Core
+            AdinKhepra ASAF Core
           </Badge>
           <div className="h-4 w-px bg-white/20" />
           <span className="text-[10px] text-muted-foreground uppercase tracking-widest">

@@ -6,10 +6,10 @@ export default function Episode4() {
   return (
     <>
       <Helmet>
-        <title>Episode 4: Rising Through Ranks & Expanding Horizons | SouHimBou AI</title>
+        <title>Episode 4: Rising Through Ranks & Expanding Horizons | AdinKhepra ASAF</title>
         <meta name="description" content="Major milestones: Promoted to Sergeant (E5) and strategic partnership with Kaseya/Datto. A new era for SecRed Knowledge Inc." />
         <meta name="keywords" content="SecRed Knowledge Inc, Kaseya, Datto, cybersecurity, CMMC, compliance, military leadership, Souhimbou Kone" />
-        <link rel="canonical" href="https://souhimbou.ai/blog/episode-4-rising-through-ranks" />
+        <link rel="canonical" href="https://adinkhepra.com/blog/episode-4-rising-through-ranks" />
       </Helmet>
 
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -235,7 +235,7 @@ export default function Episode4() {
             <div className="not-prose mt-8 p-6 bg-muted/50 rounded-lg">
               <h3 className="text-xl font-bold mb-4">Connect & Learn More</h3>
               <div className="space-y-2">
-                <p><strong>🌐 Website:</strong> <a href="https://souhimbou.ai" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">souhimbou.ai</a></p>
+                <p><strong>🌐 Website:</strong> <a href="https://adinkhepra.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">adinkhepra.com</a></p>
                 <p><strong>🎙 Podcast:</strong> <a href="https://fittothinkpodcast.buzzsprout.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Fit to Think – The Philosopher API</a></p>
                 <p><strong>📺 YouTube:</strong> <a href="https://www.youtube.com/@SystemicDominationKing" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">@SystemicDominationKing</a></p>
                 <p><strong>💼 LinkedIn:</strong> <a href="https://www.linkedin.com/in/souhimbou/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Souhimbou Kone</a></p>

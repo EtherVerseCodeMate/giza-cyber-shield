@@ -1,0 +1,66 @@
+{
+  "name": "khepra-mcp",
+  "version": "1.0.0",
+  "server": {
+    "name": "io.github.etherversecodemate/khepra-mcp",
+    "transport": "stdio",
+    "protocol_version": "2024-11-05"
+  },
+  "tools": [
+    {
+      "name": "acp_status",
+      "risk_class": "read-only",
+      "timeout_ms": 5000,
+      "description": "List active Agent Control Plane credentials."
+    },
+    {
+      "name": "acp_issue",
+      "risk_class": "destructive",
+      "timeout_ms": 10000,
+      "description": "Issue a new PQC credential."
+    },
+    {
+      "name": "acp_revoke",
+      "risk_class": "destructive",
+      "timeout_ms": 10000,
+      "description": "Revoke an ACP credential."
+    },
+    {
+      "name": "nhi_inventory",
+      "risk_class": "read-only",
+      "timeout_ms": 5000,
+      "description": "List non-human identities."
+    },
+    {
+      "name": "nhi_orphans",
+      "risk_class": "read-only",
+      "timeout_ms": 5000,
+      "description": "Identify identities without active owners."
+    },
+    {
+      "name": "nhi_excessive",
+      "risk_class": "read-only",
+      "timeout_ms": 5000,
+      "description": "Identify identities with broad permissions."
+    },
+    {
+      "name": "nhi_expired",
+      "risk_class": "read-only",
+      "timeout_ms": 5000,
+      "description": "List expired or soon-to-expire identities."
+    },
+    {
+      "name": "nhi_revoke",
+      "risk_class": "destructive",
+      "timeout_ms": 10000,
+      "description": "Revoke a non-human identity credential."
+    },
+    {
+      "name": "ert_scan",
+      "risk_class": "sandboxed",
+      "allowed_backend": "docker",
+      "timeout_ms": 30000,
+      "description": "Run an ERT security scan."
+    }
+  ]
+}
