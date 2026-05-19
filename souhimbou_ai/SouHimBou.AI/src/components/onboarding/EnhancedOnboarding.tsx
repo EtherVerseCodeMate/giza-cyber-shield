@@ -85,7 +85,7 @@ export const EnhancedOnboarding = ({ open, onClose, onComplete }: EnhancedOnboar
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Welcome to SouHimBou AI Platform</DialogTitle>
+          <DialogTitle className="text-2xl">Welcome to AdinKhepra ASAF Platform</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">

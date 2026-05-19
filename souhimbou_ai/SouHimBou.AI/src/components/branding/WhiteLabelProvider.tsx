@@ -26,12 +26,12 @@ interface WhiteLabelContextType {
 }
 
 const defaultBranding: BrandingConfig = {
-  organization_name: 'SouHimBou AI',
+  organization_name: 'AdinKhepra ASAF',
   primary_color: '#3b82f6',
   secondary_color: '#1e40af',
   accent_color: '#06b6d4',
-  platform_name: 'SouHimBou AI | Agentic Cybersecurity & Compliance Platform',
-  support_email: 'support@souhimbou.ai',
+  platform_name: 'AdinKhepra ASAF | CMMC 2.0 Compliance Autopilot',
+  support_email: 'support@adinkhepra.com',
   white_label_enabled: false,
   theme_mode: 'dark'
 };
@@ -80,7 +80,7 @@ export const WhiteLabelProvider = ({
           white_label_enabled: true,
           partner_name: 'Ananse Sentinel',
           partner_logo_url: '/sentinel-logo.png',
-          footer_text: 'Powered by AdinKhepra Sentinel Intelligence & SouHimBou AI',
+          footer_text: 'Powered by AdinKhepra Sentinel Intelligence & AdinKhepra ASAF',
           theme_mode: 'dark'
         };
         setBranding(sentinelBranding);

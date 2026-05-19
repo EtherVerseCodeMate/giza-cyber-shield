@@ -56,7 +56,7 @@ const GlobalIntelligenceDashboard = () => {
                             Global Intelligence Hub
                         </h1>
                         <p className="text-gray-400 mt-2 max-w-2xl">
-                            Enterprise telemetry aggregation powered by Souhimbou-AI. Transforming anonymous metadata into actionable, TRL 10 predictive intelligence.
+                            Enterprise telemetry aggregation powered by AdinKhepra ASAF. Transforming anonymous metadata into actionable, TRL 10 predictive intelligence.
                         </p>
                     </div>
                     <Badge variant="outline" className="border-indigo-500 text-indigo-400 bg-indigo-500/10 px-4 py-1.5 backdrop-blur-md">
@@ -146,7 +146,7 @@ const GlobalIntelligenceDashboard = () => {
                                 <Badge className="bg-cyan-500/20 text-cyan-400">ML Trained</Badge>
                             </div>
                             <CardDescription className="text-gray-400">
-                                Souhimbou-AI continuously learns from global telemetry to predict which configurations most frequently lead to breaches.
+                                AdinKhepra ASAF continuously learns from global telemetry to predict which configurations most frequently lead to breaches.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>

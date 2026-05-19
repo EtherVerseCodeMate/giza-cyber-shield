@@ -13,7 +13,7 @@ interface TourStep {
 
 const tourSteps: TourStep[] = [
     {
-        title: 'Welcome to SouHimBou AI',
+        title: 'Welcome to AdinKhepra ASAF',
         description: 'Your sovereign cybersecurity workspace is ready. Let me walk you through the key areas of your dashboard.',
         icon: Shield,
         position: 'center',

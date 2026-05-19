@@ -18,7 +18,7 @@ export const FooterConversion = () => {
   const footerLinks = {
     solutions: [
       { label: 'HPE GreenLake Solutions', href: 'https://www.hpe.com/greenlake', target: '_blank' },
-      { label: 'SouHimBou AI ASOC', href: '/onboarding' },
+      { label: 'AdinKhepra ASAF', href: '/onboarding' },
       { label: 'Cyber-Rig Formula™', href: '/blog' },
       { label: 'Managed Security', href: '/dod' },
     ],
@@ -121,8 +121,8 @@ export const FooterConversion = () => {
           <div className="space-y-4 md:col-span-2">
             <div className="flex items-center gap-3">
               <img
-                src="/lovable-uploads/94f06ba5-2c93-4be0-a03f-e3fff4157ca6.png"
-                alt="NouchiX - SouHimBou AI"
+                src="/lovable-uploads/adinkhepra-asaf-logo.png"
+                alt="NouchiX - AdinKhepra ASAF"
                 className="h-10 w-auto"
               />
             </div>
@@ -132,8 +132,8 @@ export const FooterConversion = () => {
             </p>
             <div className="space-y-2 text-sm">
               <p className="text-gray-400">
-                <a href="mailto:support@souhimbou.ai" className="hover:text-[#00ffff] transition-colors">
-                  support@souhimbou.ai
+                <a href="mailto:support@adinkhepra.com" className="hover:text-[#00ffff] transition-colors">
+                  support@adinkhepra.com
                 </a>
               </p>
               <p className="text-gray-400">

@@ -24,10 +24,10 @@ export const AWSDeploymentGuide: React.FC = () => {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-4">
-            AWS Deployment Guide - SouHimBou AI Security Platform
+            AWS Deployment Guide - AdinKhepra ASAF Security Platform
           </h1>
           <p className="text-muted-foreground text-lg">
-            Comprehensive security-focused deployment strategy for the complete SouHimBou AI Security Platform on AWS, 
+            Comprehensive security-focused deployment strategy for the complete AdinKhepra ASAF Security Platform on AWS, 
             including KHEPRA Protocol, threat intelligence, compliance automation, and all integrated security services.
             Designed for DoD contractors, critical infrastructure operators, and enterprise AI environments.
           </p>
@@ -41,7 +41,7 @@ export const AWSDeploymentGuide: React.FC = () => {
               Platform Architecture Overview
             </CardTitle>
             <CardDescription>
-              Complete SouHimBou AI Security Platform deployment on AWS with enterprise-grade security
+              Complete AdinKhepra ASAF Security Platform deployment on AWS with enterprise-grade security
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -119,7 +119,7 @@ export const AWSDeploymentGuide: React.FC = () => {
                     "Deploy frontend application to ECS Fargate behind ALB",
                     "Configure CloudFront CDN with AWS Shield Advanced",
                     "Implement SSL/TLS certificates with automatic renewal",
-                    "Set up custom domain routing for souhimbou.ai",
+                    "Set up custom domain routing for adinkhepra.com",
                     "Configure WAF rules for application-layer protection"
                   ]
                 },
@@ -207,7 +207,7 @@ export const AWSDeploymentGuide: React.FC = () => {
                   Monthly Cost Breakdown
                 </CardTitle>
                 <CardDescription>
-                  Estimated monthly costs for production SouHimBou AI deployment
+                  Estimated monthly costs for production AdinKhepra ASAF deployment
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -333,7 +333,7 @@ export const AWSDeploymentGuide: React.FC = () => {
               <CardHeader>
                 <CardTitle>Additional Compliance Frameworks</CardTitle>
                 <CardDescription>
-                  SouHimBou AI supports multiple compliance standards
+                  AdinKhepra ASAF supports multiple compliance standards
                 </CardDescription>
               </CardHeader>
               <CardContent>

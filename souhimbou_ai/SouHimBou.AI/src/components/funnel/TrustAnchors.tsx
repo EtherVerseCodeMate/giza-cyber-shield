@@ -69,11 +69,11 @@ export const TrustAnchors = () => {
                   STIG Viewer Customer Advisory Board
                 </h3>
                 <p className="text-gray-300 leading-relaxed">
-                  SouHimBou AI participates on the <strong className="text-white">STIG Viewer Customer Advisory Board</strong>, 
+                  AdinKhepra ASAF participates on the <strong className="text-white">STIG Viewer Customer Advisory Board</strong>, 
                   collaborating with the team working to improve accessibility to publicly available STIG data.
                 </p>
                 <p className="text-gray-300 leading-relaxed">
-                  Through this collaboration, SouHimBou AI has been granted <strong className="text-[#00ffff]">exclusive API access</strong> for 
+                  Through this collaboration, AdinKhepra ASAF has been granted <strong className="text-[#00ffff]">exclusive API access</strong> for 
                   direct STIG data integration into our compliance engine — enabling:
                 </p>
 
