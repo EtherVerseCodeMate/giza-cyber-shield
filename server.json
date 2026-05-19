@@ -1,0 +1,15 @@
+{
+  "name": "io.github.etherversecodemate/khepra-mcp",
+  "version": "1.0.0",
+  "description": "Post-quantum MCP security layer that wraps agent tool calls with policy enforcement, Dilithium-3 signed execution evidence, and replayable DAG audit provenance for regulated AI systems.",
+  "repository": "https://github.com/EtherVerseCodeMate/giza-cyber-shield",
+  "license": "Apache-2.0",
+  "categories": ["security", "compliance", "ai-agents"],
+  "packages": [
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/etherversecodemate/khepra-mcp:1.0.0",
+      "version": "1.0.0"
+    }
+  ]
+}
