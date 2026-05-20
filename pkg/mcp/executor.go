@@ -10,6 +10,15 @@ import (
 	"time"
 )
 
+// boundaryScoped lists tool names that require a valid BoundaryApproval when
+// the executor is in Phase 03+ mode. khepra_discover_endpoints is excluded
+// because Phase 01 discovery happens before the boundary is signed.
+var boundaryScoped = map[string]bool{
+	"khepra_run_compliance_scan": true,
+	"khepra_export_attestation":  true,
+	"khepra_get_compliance_score": true,
+}
+
 // ─── Risk-Classified Executor (AD-009) ─────────────────────────────────────────
 //
 // The Executor dispatches tool calls based on their ToolRiskClass:
@@ -45,13 +54,22 @@ type ConfirmationGate interface {
 	Confirm(ctx context.Context, spec ToolSpec, call MCPToolCall) error
 }
 
+// BoundaryGuardHook is the interface the cmmc.BoundaryGuard satisfies.
+// Defined here as an interface to avoid an import cycle between pkg/mcp and pkg/cmmc.
+type BoundaryGuardHook interface {
+	// Check returns nil if the target is within the signed assessment boundary.
+	// Returns cmmc.ErrOutOfScope (or a wrapping error) otherwise.
+	Check(ctx context.Context, targetIP, targetHostname string) error
+}
+
 // Executor dispatches tool calls according to their risk classification.
 type Executor struct {
-	mu       sync.RWMutex
-	handlers map[string]ToolHandlerIface // In-process tool handlers (read-only + sandboxed wrappers)
-	sandbox  SandboxRunner               // Sandbox backend for isolated execution
-	confirm  ConfirmationGate            // Approval gate for destructive tools
-	logger   *log.Logger
+	mu            sync.RWMutex
+	handlers      map[string]ToolHandlerIface // In-process tool handlers (read-only + sandboxed wrappers)
+	sandbox       SandboxRunner               // Sandbox backend for isolated execution
+	confirm       ConfirmationGate            // Approval gate for destructive tools
+	boundaryGuard BoundaryGuardHook           // Phase 03+ boundary enforcement (nil = unrestricted)
+	logger        *log.Logger
 }
 
 // ExecutorConfig holds dependencies for constructing an Executor.
@@ -87,6 +105,23 @@ func (e *Executor) RegisterFunc(toolName string, fn func(ctx context.Context, ca
 	e.RegisterHandler(toolName, ToolHandlerFuncAdapter(fn))
 }
 
+// SetBoundaryGuard installs a BoundaryGuard. Once set, any tool call in
+// boundaryScoped that targets an asset outside the signed boundary is rejected
+// before the handler is invoked. Safe to call concurrently.
+func (e *Executor) SetBoundaryGuard(guard BoundaryGuardHook) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.boundaryGuard = guard
+}
+
+// ClearBoundaryGuard removes the boundary enforcement (used when an engagement
+// is completed or the approval is revoked).
+func (e *Executor) ClearBoundaryGuard() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.boundaryGuard = nil
+}
+
 // Execute dispatches a tool call based on its risk classification.
 // This implements the ToolExecutor interface used by the Router.
 func (e *Executor) Execute(ctx context.Context, spec ToolSpec, call MCPToolCall) (any, []string, error) {
@@ -94,6 +129,25 @@ func (e *Executor) Execute(ctx context.Context, spec ToolSpec, call MCPToolCall)
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(spec.TimeoutMs)*time.Millisecond)
 		defer cancel()
+	}
+
+	// BoundaryGuard pre-flight: reject calls targeting out-of-scope assets.
+	if boundaryScoped[spec.Name] {
+		e.mu.RLock()
+		guard := e.boundaryGuard
+		e.mu.RUnlock()
+		if guard != nil {
+			targetIP, _ := call.Params["target_ip"].(string)
+			targetHost, _ := call.Params["scan_target"].(string)
+			if targetHost == "" {
+				targetHost, _ = call.Params["target"].(string)
+			}
+			if err := guard.Check(ctx, targetIP, targetHost); err != nil {
+				e.logger.Printf("[EXEC:BOUNDARY_BLOCKED] tool=%s target=%s/%s: %v",
+					spec.Name, targetHost, targetIP, err)
+				return nil, nil, fmt.Errorf("boundary enforcement: %w", err)
+			}
+		}
 	}
 
 	switch spec.RiskClass {

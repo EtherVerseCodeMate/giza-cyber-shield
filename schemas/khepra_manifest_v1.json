@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.asaf.io/khepra/manifest/v1.json",
+  "title": "KhepraManifest",
+  "description": "Signed payload format for all .khepra files. Shared by license.khepra, boundary_approval.khepra, and audit_package.khepra. The 'signature' field is ML-DSA-65 (NIST FIPS 204) over the canonical JSON of the 'claims' object, base64url encoded.",
+  "type": "object",
+  "required": ["version", "type", "claims", "signature", "issued_at"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema version. Always '1.0' for this format."
+    },
+    "type": {
+      "type": "string",
+      "enum": ["license", "boundary_approval", "audit_package"],
+      "description": "Manifest type. Determines the required shape of 'claims'."
+    },
+    "claims": {
+      "type": "object",
+      "description": "Type-specific claims. See oneOf below based on 'type'."
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]+$",
+      "description": "ML-DSA-65 (Dilithium-3, NIST FIPS 204) signature over the canonical JSON of 'claims', base64url encoded (no padding)."
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp when this manifest was created."
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp after which this manifest is no longer valid. Omitted for non-expiring manifests (e.g., license with no expiry)."
+    }
+  },
+  "if": { "properties": { "type": { "const": "license" } } },
+  "then": {
+    "properties": {
+      "claims": {
+        "type": "object",
+        "required": ["tenant", "host_id", "capabilities"],
+        "properties": {
+          "tenant": { "type": "string" },
+          "host_id": { "type": "string", "description": "SHA-256 hex of the machine fingerprint." },
+          "expiry": { "type": "string", "format": "date-time" },
+          "capabilities": {
+            "type": "array",
+            "items": { "type": "string" },
+            "examples": [["full_suite"], ["cmmc_autopilot"], ["stig_only"]]
+          }
+        }
+      }
+    }
+  },
+  "if": { "properties": { "type": { "const": "boundary_approval" } } },
+  "then": {
+    "properties": {
+      "claims": {
+        "type": "object",
+        "required": ["boundary_approval"],
+        "properties": {
+          "boundary_approval": {
+            "type": "object",
+            "required": [
+              "engagement_id", "boundary_proposal_id", "cage_code",
+              "cmmc_level", "asset_count", "asset_ids_hash",
+              "approved_by_role", "approved_by_user_id",
+              "effective_at", "expires_at", "dag_node_id"
+            ],
+            "properties": {
+              "engagement_id":        { "type": "string", "format": "uuid" },
+              "boundary_proposal_id": { "type": "string", "format": "uuid" },
+              "cage_code":            { "type": "string", "pattern": "^[A-Z0-9]{5}$" },
+              "cmmc_level":           { "type": "integer", "enum": [1, 2, 3] },
+              "asset_count":          { "type": "integer", "minimum": 1 },
+              "asset_ids_hash": {
+                "type": "string",
+                "description": "SHA-256 hex of null-separated sorted asset UUID list."
+              },
+              "approved_by_role": {
+                "type": "string",
+                "const": "Dwennimmen",
+                "description": "Only Dwennimmen (COMPLIANCE_OFFICER) may sign a boundary approval."
+              },
+              "approved_by_user_id":  { "type": "string" },
+              "effective_at":         { "type": "string", "format": "date-time" },
+              "expires_at":           { "type": "string", "format": "date-time" },
+              "dag_node_id": {
+                "type": "string",
+                "description": "SHA-256 content hash of the DAG node recording this governance event."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "if": { "properties": { "type": { "const": "audit_package" } } },
+  "then": {
+    "properties": {
+      "claims": {
+        "type": "object",
+        "required": ["audit_package"],
+        "properties": {
+          "audit_package": {
+            "type": "object",
+            "required": [
+              "engagement_id", "cage_code", "cmmc_level", "format",
+              "package_hash", "dag_root_node", "dag_leaf_node",
+              "total_controls", "compliant_count", "non_compliant_count",
+              "assessment_date", "generated_at"
+            ],
+            "properties": {
+              "engagement_id":      { "type": "string", "format": "uuid" },
+              "cage_code":          { "type": "string", "pattern": "^[A-Z0-9]{5}$" },
+              "cmmc_level":         { "type": "integer", "enum": [1, 2, 3] },
+              "format": {
+                "type": "string",
+                "enum": ["oscal_1_1_2", "emass", "c3pao_pdf", "khepra_bundle"]
+              },
+              "package_hash": {
+                "type": "string",
+                "description": "SHA-256 hex of the exported package content."
+              },
+              "dag_root_node":      { "type": "string", "description": "SHA-256 DAG root node ID." },
+              "dag_leaf_node":      { "type": "string", "description": "SHA-256 DAG leaf node ID at export time." },
+              "total_controls":     { "type": "integer", "minimum": 0 },
+              "compliant_count":    { "type": "integer", "minimum": 0 },
+              "non_compliant_count": { "type": "integer", "minimum": 0 },
+              "assessment_date":    { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+              "oscal_uuid":         { "type": "string", "format": "uuid" },
+              "generated_at":       { "type": "string", "format": "date-time" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "version": "1.0",
+      "type": "boundary_approval",
+      "claims": {
+        "boundary_approval": {
+          "engagement_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "boundary_proposal_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+          "cage_code": "7AB12",
+          "cmmc_level": 2,
+          "asset_count": 47,
+          "asset_ids_hash": "sha256hexhere",
+          "approved_by_role": "Dwennimmen",
+          "approved_by_user_id": "user-uuid",
+          "effective_at": "2026-05-20T00:00:00Z",
+          "expires_at": "2026-08-18T00:00:00Z",
+          "dag_node_id": "sha256ofdag"
+        }
+      },
+      "signature": "base64url-ml-dsa-65-signature",
+      "issued_at": "2026-05-20T00:00:00Z",
+      "expires_at": "2026-08-18T00:00:00Z"
+    }
+  ]
+}
