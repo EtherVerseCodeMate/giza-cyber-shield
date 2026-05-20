@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/lib/router-compat';
 import { Button } from '@/components/ui/button';
 import { Shield, Menu, LogIn, X } from 'lucide-react';
 import { HeroSection } from '@/components/funnel/HeroSection';

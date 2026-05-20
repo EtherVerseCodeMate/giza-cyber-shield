@@ -16,7 +16,7 @@ import {
   Clock,
   ArrowRight
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/lib/router-compat';
 import { useOrganizationContext } from '@/components/OrganizationProvider';
 import { useSTIGCompliance } from '@/hooks/useSTIGCompliance';
 

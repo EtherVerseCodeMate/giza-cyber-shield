@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -16,6 +17,7 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/audit"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/enumerate"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/fingerprint"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner/webapp"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanners"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 )
@@ -31,6 +33,9 @@ var (
 	signOutput     = flag.Bool("sign", false, "Sign output with PQC")
 	outputFile     = flag.String("out", "snapshot.json", "Output file path")
 	verboseOutput  = flag.Bool("verbose", false, "Enable verbose logging")
+	webScan        = flag.Bool("web", false, "Run Nuclei web application scan against -web-target")
+	webTarget      = flag.String("web-target", "", "Target URL for web application scan (e.g. http://app:8080)")
+	toolsDir       = flag.String("tools-dir", "tools", "Directory for downloaded tool binaries (nuclei)")
 )
 
 func main() {
@@ -58,6 +63,11 @@ func runScanStages(snapshot *audit.AuditSnapshot) {
 
 	if !*quickScan {
 		collectSystemIntelligence(snapshot)
+		detectProducts(snapshot)
+	}
+
+	if *webScan && !*noExternal {
+		runWebScan(snapshot)
 	}
 
 	log("Scanning for Dependency Manifests...")
@@ -286,6 +296,44 @@ func generateScanID() string {
 	return hex.EncodeToString(hash[:])[:12]
 }
 
+func detectProducts(snapshot *audit.AuditSnapshot) {
+	log("Detecting installed commercial security products...")
+	products := scanners.DetectCommercialProducts(snapshot)
+	snapshot.System.DetectedProducts = products
+	logSuccess("Product inventory: %d commercial products detected", len(products))
+
+	log("Detecting cloud service usage...")
+	services := scanners.DetectCloudServices(snapshot)
+	snapshot.System.CloudServices = services
+	logSuccess("Cloud inventory: %d cloud service indicators detected", len(services))
+}
+
+func runWebScan(snapshot *audit.AuditSnapshot) {
+	if *webTarget == "" {
+		logWarn("Web scan skipped: no -web-target provided (use -web-target http://host:port)")
+		return
+	}
+	log("Running Web Application Scanner (Nuclei) against %s...", *webTarget)
+
+	s, err := webapp.New(*toolsDir)
+	if err != nil {
+		logWarn("Web scanner init failed: %v", err)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
+	defer cancel()
+
+	findings, err := s.Scan(ctx, *webTarget, webapp.DefaultScanOptions())
+	if err != nil {
+		logWarn("Web scan error (partial results may be present): %v", err)
+	}
+	snapshot.WebFindings = findings
+	counts := webapp.ScanSummary(findings)
+	logSuccess("Web scan: %d findings (critical=%d high=%d medium=%d low=%d)",
+		len(findings), counts["critical"], counts["high"], counts["medium"], counts["low"])
+}
+
 func calculateThreatScore(snapshot audit.AuditSnapshot) int {
 	score := 0
 	score += len(snapshot.DeviceFingerprint.SpoofingIndicators) * 10
@@ -300,6 +348,19 @@ func calculateThreatScore(snapshot audit.AuditSnapshot) int {
 	score += len(snapshot.ThreatDetection.RootkitIndicators) * 15
 	score += len(snapshot.ThreatDetection.MalwareSignatures) * 20
 	score += len(snapshot.Secrets) * 8
+	for _, wf := range snapshot.WebFindings {
+		switch wf.Severity {
+		case "critical":
+			score += 5
+		case "high":
+			score += 3
+		}
+	}
+	for _, p := range snapshot.System.DetectedProducts {
+		if p.LifecycleStatus == "eol" {
+			score += 5
+		}
+	}
 	if score > 100 {
 		score = 100
 	}

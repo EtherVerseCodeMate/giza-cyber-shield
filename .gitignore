@@ -55,6 +55,11 @@ data/cve-database/cve-data/
 
 
 
+# Build output binaries (go build ./cmd/... drops these in repo root)
+/sonar
+/khepra
+/adinkhepra
+
 # Temporary / Garbage
 NUL
 .claude/

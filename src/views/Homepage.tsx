@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from '@/lib/router-compat';
 import { Button } from "@/components/ui/button";
 import { Shield, Brain, Activity, ChevronRight, Crown, Heart, Users, Scan, Database } from "lucide-react";
 import InteractiveDemoVideo from "@/components/InteractiveDemoVideo";

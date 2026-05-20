@@ -1,5 +1,5 @@
 import { Shield, ArrowLeft, FileText, Lock, Scale, CheckCircle } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from '@/lib/router-compat';
 import { Button } from '@/components/ui/button';
 
 const legalPages: Record<string, { title: string; icon: React.ReactNode; description: string; sections: { heading: string; content: string }[] }> = {

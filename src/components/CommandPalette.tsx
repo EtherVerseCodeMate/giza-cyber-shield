@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/lib/router-compat';
 import {
     Shield, Activity, Globe, Lock, Brain, HelpCircle,
     Search, Home, LogIn, FileText, BarChart3,

@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Lock, Crown, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/lib/router-compat';
 import { useTrialStatus } from '@/hooks/useTrialStatus';
 
 interface FeatureGateProps {

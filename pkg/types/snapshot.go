@@ -36,6 +36,9 @@ type AuditSnapshot struct {
 	Compliance      ComplianceReport   `json:"compliance"`
 	ThreatDetection ThreatIntelligence `json:"threat_detection"`
 
+	// Web application findings from active HTTP scanning (nuclei)
+	WebFindings []WebFinding `json:"web_findings,omitempty"`
+
 	// Verification
 	PQCSignature *PQCSignature `json:"pqc_signature,omitempty"`
 
@@ -156,14 +159,15 @@ type OSFingerprint struct {
 
 // SystemIntelligence contains process, service, and kernel module enumeration
 type SystemIntelligence struct {
-	Processes         []ProcessInfo      `json:"processes"`
-	Services          []ServiceInfo      `json:"services"`
-	KernelModules     []KernelModule     `json:"kernel_modules,omitempty"` // Linux only
-	InstalledSoftware []Software         `json:"installed_software,omitempty"`
-	Users             []UserInfo         `json:"users,omitempty"`
-	CronJobs          []CronJob          `json:"cron_jobs,omitempty"`
-	StartupItems      []StartupItem      `json:"startup_items,omitempty"`
+	Processes         []ProcessInfo       `json:"processes"`
+	Services          []ServiceInfo       `json:"services"`
+	KernelModules     []KernelModule      `json:"kernel_modules,omitempty"` // Linux only
+	InstalledSoftware []Software          `json:"installed_software,omitempty"`
+	Users             []UserInfo          `json:"users,omitempty"`
+	CronJobs          []CronJob           `json:"cron_jobs,omitempty"`
+	StartupItems      []StartupItem       `json:"startup_items,omitempty"`
 	DetectedProducts  []CommercialProduct `json:"detected_products,omitempty"`
+	CloudServices     []CloudService      `json:"cloud_services,omitempty"`
 }
 
 // CommercialProduct is a commercial security or management product identified
@@ -177,6 +181,44 @@ type CommercialProduct struct {
 	Category           string   `json:"category"`
 	ParamifyCapability string   `json:"paramify_capability,omitempty"`
 	DetectionEvidence  []string `json:"detection_evidence,omitempty"`
+	// LifecycleStatus is "active", "deprecated", or "eol". Deprecated/EOL
+	// products should be flagged in Paramify SSP imports rather than silently
+	// assigned as satisfying controls.
+	LifecycleStatus string `json:"lifecycle_status,omitempty"`
+	EOLDate         string `json:"eol_date,omitempty"` // ISO 8601 date if known
+}
+
+// CloudService represents a cloud-provider service detected from agent
+// processes, configuration files, or infrastructure-as-code state files.
+// Cloud services are not installed locally so they cannot be detected via
+// process scanning — this struct holds detections from a separate IaC/config
+// enumeration pass.
+type CloudService struct {
+	Provider           string   `json:"provider"`            // "AWS", "Azure", "GCP"
+	ServiceName        string   `json:"service_name"`        // "Amazon CloudTrail"
+	ServiceID          string   `json:"service_id"`          // "cloudtrail"
+	Region             string   `json:"region,omitempty"`    // "us-east-1" if detectable
+	DetectionSource    string   `json:"detection_source"`    // "terraform-state" | "agent-process" | "config-file"
+	Evidence           []string `json:"evidence,omitempty"`  // file path or process name
+	ParamifyCapability string   `json:"paramify_capability,omitempty"`
+}
+
+// WebFinding is a vulnerability discovered by active HTTP scanning (Nuclei).
+// Each finding maps to a Nuclei template and carries the matched URL, severity,
+// and any extracted evidence so it can be included in OSCAL observations.
+type WebFinding struct {
+	TemplateID         string    `json:"template_id"`
+	Name               string    `json:"name"`
+	Severity           string    `json:"severity"`           // "critical","high","medium","low","info"
+	Tags               []string  `json:"tags,omitempty"`
+	Description        string    `json:"description,omitempty"`
+	CVSS               float64   `json:"cvss,omitempty"`
+	CVEIDs             []string  `json:"cve_ids,omitempty"`
+	URL                string    `json:"url"`
+	MatchedAt          string    `json:"matched_at"`
+	ExtractedResults   []string  `json:"extracted_results,omitempty"`
+	ParamifyCapability string    `json:"paramify_capability,omitempty"`
+	ScannedAt          time.Time `json:"scanned_at"`
 }
 
 // ProcessInfo represents a running process

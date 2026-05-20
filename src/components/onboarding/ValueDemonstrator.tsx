@@ -15,7 +15,7 @@ import {
   Users,
   ArrowRight
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/lib/router-compat';
 import { useUsageTracker } from '@/components/UsageTracker';
 
 interface ValueMetric {
