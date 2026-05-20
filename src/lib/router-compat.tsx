@@ -53,7 +53,10 @@ export function useLocation() {
 
 export function useSearchParams(): [
   URLSearchParams,
-  (next: Record<string, string> | ((prev: URLSearchParams) => URLSearchParams)) => void
+  (
+    next: URLSearchParams | Record<string, string> | ((prev: URLSearchParams) => URLSearchParams),
+    options?: { replace?: boolean }
+  ) => void
 ] {
   const raw = useNextSearchParams();
   const router = useRouter();
@@ -64,18 +67,27 @@ export function useSearchParams(): [
   const setParams = useCallback(
     (
       next:
+        | URLSearchParams
         | Record<string, string>
-        | ((prev: URLSearchParams) => URLSearchParams)
+        | ((prev: URLSearchParams) => URLSearchParams),
+      options?: { replace?: boolean }
     ) => {
       const current = new URLSearchParams(raw.toString());
-      const updated =
-        typeof next === "function"
-          ? next(current)
-          : (() => {
-              Object.entries(next).forEach(([k, v]) => current.set(k, v));
-              return current;
-            })();
-      router.push(`${pathname}?${updated.toString()}`);
+      let updated: URLSearchParams;
+      if (typeof next === "function") {
+        updated = next(current);
+      } else if (next instanceof URLSearchParams) {
+        updated = next;
+      } else {
+        Object.entries(next).forEach(([k, v]) => current.set(k, v));
+        updated = current;
+      }
+      const url = `${pathname}?${updated.toString()}`;
+      if (options?.replace) {
+        router.replace(url);
+      } else {
+        router.push(url);
+      }
     },
     [raw, router, pathname]
   );
