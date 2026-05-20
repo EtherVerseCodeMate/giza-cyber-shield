@@ -60,6 +60,9 @@ data/cve-database/cve-data/
 /khepra
 /adinkhepra
 
+# TypeScript incremental build cache
+*.tsbuildinfo
+
 # Temporary / Garbage
 NUL
 .claude/
