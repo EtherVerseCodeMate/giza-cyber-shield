@@ -8,6 +8,27 @@
 
 ---
 
+### QuBit Capital
+**Status:** POST-CALL DILIGENCE — corrections submitted
+**Call date:** May 2026
+**Investor profile:** Micro-VC / angel network; sector focus cybersecurity, defense tech, dual-use, govtech; US + NATO geography
+
+**Call outcome:** Three material misrepresentations identified and corrected (see
+`docs/INVESTOR_DILIGENCE_QUBIT_CAPITAL.md`). Technology foundation validated.
+Open questions: solo founder bandwidth (resolved — both degrees complete May 2026),
+advisory board depth, no signed pilots.
+
+**Action items:**
+- [ ] Send QuBit corrected deck (v4)
+- [ ] Prepare one-page honest traction summary
+- [ ] Prepare written founder bandwidth answer (full-time from May 2026)
+- [ ] Name at least one C3PAO / CMMC advisor being recruited (not just "TBD")
+
+**Funding terms confirmed:** SAFE, $200K initial, $1M step-up on first signed pilot.
+Open to direct equity for strategic investors. Full detail: `docs/INVESTOR_DILIGENCE_QUBIT_CAPITAL.md`
+
+---
+
 ### Army FUZE Program
 **Status:** CLOSED — redirected to CPE ES2
 **Date contacted:** [prior to May 2026]

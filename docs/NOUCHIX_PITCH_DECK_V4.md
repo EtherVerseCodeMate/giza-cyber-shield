@@ -307,7 +307,10 @@ SteelCloud = closest direct competitor. Telos Xacta = federal GRC. Vanta/Drata =
 
 ## Slide 11 — PILOT STRATEGY: Pipeline to First Revenue — Q3 2026
 
-**Current State (May 2026):** Zero signed pilots.
+**Current State (May 2026):** No signed pilots. One early-stage pilot was initiated
+and voluntarily paused while the software was revamped to production quality. LinkedIn
+and QCL outreach campaigns were intentionally held pending that revamp. The binary is
+now deployment-ready.
 **Target:** 3 pilot LOIs by Q3 2026 via QCL outreach, LinkedIn, and university student testing.
 
 ### Pilot Eligibility Criteria
@@ -351,6 +354,17 @@ QCL outreach: 150 targets → 15 qualified (10%) → **3 pilot LOIs [Q3 2026]** 
 ### Codebase as Third Proof Point
 - 85,500+ lines of production Go, 91 test files, 15 binaries
 - Two independent hardware deployments before a single dollar of external funding
+
+### NouchiX Compliance Posture (Honest)
+- **CMMC Level 1:** Self-certified ✓
+- **CMMC Level 2:** Not yet — third-party C3PAO assessment (~$80K) is a funded milestone
+- **SOC 2:** Not certified. NouchiX uses SOC 2-compliant infrastructure tooling. Own
+  certification is a post-funding target.
+- **ISO 27001:** Named future target post-seed close
+- **C3PAO evidence acceptance:** No NouchiX-generated evidence package has been
+  submitted to or accepted by a C3PAO assessor in a live CMMC Level 2 assessment yet.
+  The evidence package design follows DISA STIG and DoD CCI standards — C3PAO
+  validation is a funded milestone (Q1 2027).
 
 ---
 
@@ -475,24 +489,28 @@ End-User SaaS Platform — CMMC Level 2-target DIB contractors with 10+ STIG ass
 ## Slide 16 — TEAM
 
 ### SDK (Souhimbou Doh Kone) — Founder & CEO
-- US Army Signal Corps (25S) — SATCOM deployment
-- Active Secret Security Clearance
-- M.S. Digital Forensics, UAlbany NSA CAE-CDE — May 2026
+- US Army Signal Corps (25S) — SATCOM deployment · Active Secret Security Clearance
+- M.S. Digital Forensics, UAlbany NSA CAE-CDE — completed May 2026
+- MBA — completed May 2026 *(both programs now concluded; full bandwidth on NouchiX)*
 - NSF I-Corps validated — market hypothesis confirmed
-- USPTO Patent Pending #73565085
+- USPTO Patent Pending #73565085 (notification received April 2026; 12 continuation claims)
 - SDVOSB-Eligible (certification in progress) · HPE Tier-2 Partner
 - ICS/SCADA capstone: Raspberry Pi + Modbus + PQC (live deployment)
+- SecRed Knowledge Inc. incorporated Delaware C-Corp January 2, 2024; NY foreign entity
+
+**Bandwidth note for investors:** Both graduate programs completed May 2026. SDK is
+now full-time on NouchiX. First hire (Security Engineer) is the Day 1 use of pre-seed funds.
 
 ### Advisors & Ecosystem
-- MBA Mentor: Startup commercialization
-- UAlbany Professor: Cybersecurity & forensics
-- STIGViewer Contact: DISA STIG database access
-- CMMC Expert (TBD): C3PAO / assessment
+- MBA Program Mentor: Startup commercialization strategy
+- UAlbany Professor (NSA CAE-CDE): Cybersecurity & digital forensics
+- STIGViewer Contact: DISA STIG database access + co-brand partnership
+- CMMC Expert (TBD — hiring priority): C3PAO / Level 2 assessment guidance
 - OT Security Expert (TBD): ICS/SCADA compliance
-- Legal / IP Counsel (TBD): Patent prosecution
+- Legal / IP Counsel (TBD): Patent prosecution (12 continuation claims pending)
 
 ### Hiring Plan
-- Solo founder today
+- Solo founder today (grad school complete — full-time from May 2026)
 - $200K pre-seed: Security Engineer + CTO + Customer Success
 - $1M step-up: Full Year 1 team (5 people)
 
