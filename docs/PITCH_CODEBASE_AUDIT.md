@@ -381,7 +381,7 @@ Reproduced from the pitch with codebase anchors added.
 | KHEPRA MCP server (AI agents) | ✓ | `cmd/khepra-mcp/main.go`, `pkg/mcp/` (23K+ LoC) | **85%** |
 | USPTO patent-pending IP | ✓ | #73565085 (external) | **100%** |
 | OT/ICS + SCADA coverage | ~ | `pkg/scorpion/` demo'd on STM32; SCADA checks in roadmap | **60%** |
-| Veteran-owned SDVOSB | ✓ | External credential | **100%** |
+| Veteran-owned (SDVOSB-Eligible, not yet certified) | ✓ | External credential | **100%** |
 
 ---
 

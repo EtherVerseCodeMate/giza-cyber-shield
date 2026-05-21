@@ -12,7 +12,7 @@
 air-gapped, post-quantum secured, flat-fee, zero token costs.*
 
 **Credentials:**
-- Veteran-Owned (SDVOSB) — US Army Signal Corps (25S), SATCOM deployment
+- Veteran-Owned (SDVOSB-Eligible, not yet certified) — US Army Signal Corps (25S), SATCOM deployment
 - USPTO Patent Pending #73565085 — filed Dec 6, 2025
 - NSF I-Corps Validated — market hypothesis confirmed
 - HPE Tier-2 Partner
@@ -252,7 +252,7 @@ One admin action unblocks the full submission pipeline.
 | KHEPRA MCP server (AI agents) | **✓** | ✗ | ✗ | ✗ | ✗ |
 | USPTO patent-pending IP | **✓** | ✗ | ✗ | ✗ | ✗ |
 | OT/ICS + SCADA coverage | ~ | ~ | ✗ | ✗ | ~ |
-| Veteran-owned SDVOSB | **✓** | ✗ | ✗ | ✗ | ✗ |
+| Veteran-owned (SDVOSB-Eligible) | **✓** | ✗ | ✗ | ✗ | ✗ |
 
 ✓ = Full  ~= Partial  ✗ = None
 SteelCloud = closest direct competitor. Telos Xacta = federal GRC. Vanta/Drata = not DIB-native.
@@ -365,7 +365,7 @@ End-User SaaS Platform — CMMC Level 2-target DIB contractors with 10+ STIG ass
 | KHEPRI SMB Subscription | Small contractors <10 nodes | $50/mo | Active |
 | API Licensing (STIG-Connector) | MSPs, MSSPs, GRC Platforms | $60K–$250K/yr | Year 2+ |
 | Managed Security (NouchiX SOC) | Enterprise OT/ICS operators | $80K–$200K/yr | Year 2+ |
-| Gov Contracts (SDVOSB) | DoD sole-source up to $5M | $250K–$1M+ | Year 2+ |
+| Gov Contracts (SDVOSB-Eligible) | DoD sole-source up to $5M (upon certification) | $250K–$1M+ | Year 2+ |
 
 **Unit Economics:** COGS ≈ $0/scan · Gross margin ~90%+ · CAC ~$15K · LTV ~$475K · LTV/CAC ~31:1
 
@@ -480,7 +480,7 @@ End-User SaaS Platform — CMMC Level 2-target DIB contractors with 10+ STIG ass
 - M.S. Digital Forensics, UAlbany NSA CAE-CDE — May 2026
 - NSF I-Corps validated — market hypothesis confirmed
 - USPTO Patent Pending #73565085
-- SDVOSB certified · HPE Tier-2 Partner
+- SDVOSB-Eligible (certification in progress) · HPE Tier-2 Partner
 - ICS/SCADA capstone: Raspberry Pi + Modbus + PQC (live deployment)
 
 ### Advisors & Ecosystem
@@ -520,7 +520,7 @@ End-User SaaS Platform — CMMC Level 2-target DIB contractors with 10+ STIG ass
 - $85K–$200K Year 1 ARR (base → accelerated)
 - Series A: $5M at $20M post-money, Q3 2027
 
-**Contact:** ai-nativevc@souhimbou.ai · nouchix.com · Patent #73565085 · SDVOSB-Eligible
+**Contact:** ai-nativevc@souhimbou.ai · nouchix.com · Patent #73565085 · SDVOSB-Eligible (not yet certified)
 
 ---
 
