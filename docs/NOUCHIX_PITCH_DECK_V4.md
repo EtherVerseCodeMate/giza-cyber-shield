@@ -419,17 +419,36 @@ End-User SaaS Platform — CMMC Level 2-target DIB contractors with 10+ STIG ass
 
 ## Slide 15 — ROADMAP: Milestone-Gated
 
-### Phase 0 · NOW → Jun 2026 — "Critical = 0" Gate
-*Goal: Zero critical audit findings; Stripe tier live; Iron Bank unblocked*
+### Phase 0 · NOW → Jun 2026 — "Launch-Ready" Gate
+*Goal: Enterprise-grade MVP deployed; MCP server + dashboard integrated; product does what it says*
+
+**Deployment Blockers (from sprint review, May 2026):**
+
+| Blocker | Detail | Owner |
+|---------|--------|-------|
+| **Dashboard ↔ backend full wiring** | Dashboard UI exists; needs complete integration with all backend components before launch | SDK |
+| **MCP server final integration** | khepra-mcp is the primary deployment channel; final integration pass required | SDK |
+| **End-to-end testing cycle** | Final testing and fine-tuning are the last development hurdles before enterprise readiness | SDK |
+| Iron Bank pipeline unblock | Awaiting Jeff Goluba / TRUFFLEHOG_CONFIG variable enable | External |
+
+**Other Phase 0 Milestones:**
 
 | Milestone | Status | File |
 |-----------|--------|------|
-| MVP 1.1 deployment | Live | `cmd/adinkhepra/` |
+| MVP 1.1 binary (text-processing component) | Complete | `cmd/adinkhepra/` |
 | RHEL-09 checks: 8 → 9 live SV-IDs | 8 verified, +1 needed | `pkg/stig/rhel09_stig_checks.go` |
 | CRITICAL audit findings = 0 | In progress | Internal ERT self-scan |
 | KHEPRI $50/mo Stripe tier live | Framework ready | `pkg/billing/`, `pkg/license/` |
-| Iron Bank pipeline unblock | **Blocked — awaiting Jeff Goluba / TRUFFLEHOG_CONFIG enable** | `ironbank-upload/hardening_manifest.yaml` |
-| M.S. Digital Forensics graduation | Complete | May 2026 |
+| M.S. Digital Forensics + MBA graduation | Complete | May 2026 |
+
+**Delivery model (confirmed):** Dual approach — downloadable binary (customers own their
+data locally, zero cloud dependency) + cloud-based login dashboard for monitoring and
+operation. SaaS dashboard kept minimal; downloadable binary is the primary channel.
+MCP server is the primary market-fit channel due to AI agent ecosystem integration.
+
+**Marketing status:** Active outreach campaigns intentionally paused pending product
+stabilization. Resume post-launch with email drip campaigns via Apollo (list building
+underway) and ZoomInfo. No paid advertising until product is market-ready.
 
 ### Phase 1 · Q3 2026 — First Revenue Gate
 *Goal: 3 pilot LOIs; compliance report demo-ready*
@@ -519,10 +538,11 @@ now full-time on NouchiX. First hire (Security Engineer) is the Day 1 use of pre
 ## Slide 17 — THE ASK
 
 ### $200K Pre-Seed (NOW)
-- 40% — Security Engineer hire
-- 25% — CMMC certifications (Level 2)
-- 20% — Cloud infra + AWS Marketplace
-- 15% — BD outreach / QCL campaigns
+- 35% — Security Engineer hire (workload relief + technical depth)
+- 20% — CMMC Level 2 certification + SOC 1 / SOC 2 compliance audits
+- 20% — Cloud infra + AWS Marketplace listing
+- 15% — BD outreach: Apollo/ZoomInfo email campaigns, QCL pipeline
+- 10% — Legal (patent prosecution, 12 continuation claims) + advisory recruitment
 
 ### $1M Step-Up (Post-Pilot)
 *Trigger: 1st signed contract + CRITICAL = 0*
