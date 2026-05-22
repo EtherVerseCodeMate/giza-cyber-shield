@@ -3,6 +3,7 @@ dist/
 vendor/
 *.exe
 *.log
+/soc2-audit
 .vscode/
 
 # Private Documentation
