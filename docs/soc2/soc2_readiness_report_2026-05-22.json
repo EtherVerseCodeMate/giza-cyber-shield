@@ -1,0 +1,865 @@
+{
+  "generated_at": "2026-05-22T18:49:30.032263962Z",
+  "system_name": "KHEPRA / AdinKhepra ASAF Engine",
+  "scope_note": "Security (CC1-CC9) + Availability (A) + Processing Integrity (PI) + Confidentiality (C)",
+  "implementations": {
+    "A1.1": {
+      "criterion_id": "A1.1",
+      "status": "PARTIAL",
+      "narrative": "fly.toml configures auto_start_machines=true with 30-second health checks. Prometheus collects metrics every 15 seconds. Single-region deployment (iad); no auto-scaling rules or capacity alarm thresholds defined. No documented capacity plan or peak-load review process.",
+      "evidence_ids": [
+        "fly.toml",
+        "prometheus.yml"
+      ],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Define capacity thresholds in Prometheus; document auto-scaling policy; review peak load quarterly."
+    },
+    "A1.2": {
+      "criterion_id": "A1.2",
+      "status": "PARTIAL",
+      "narrative": "pkg/drbc/supabase_storage_sync.go implements incremental AES-256-GCM encrypted backup to R2/S3 with backup catalog. pkg/drbc/genesis.go provides full project backup. fly.toml uses persistent volume. No automated backup scheduling, no documented backup frequency, no RPO defined, no restore test records.",
+      "evidence_ids": [
+        "pkg/drbc/supabase_storage_sync.go",
+        "pkg/drbc/genesis.go",
+        "fly.toml"
+      ],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Automate daily encrypted backups; define backup frequency and RPO; run quarterly restore tests."
+    },
+    "A1.3": {
+      "criterion_id": "A1.3",
+      "status": "NOT_IMPLEMENTED",
+      "narrative": "pkg/drbc/restore.go exists but no documented recovery testing plan, no test execution records, and no lessons-learned process. No BCP tabletop exercise has been conducted.",
+      "evidence_ids": [
+        "pkg/drbc/restore.go"
+      ],
+      "owner": "CISO",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Schedule and execute annual BCP/DR tabletop; document results and update BCP."
+    },
+    "C1.1": {
+      "criterion_id": "C1.1",
+      "status": "PARTIAL",
+      "narrative": "SECURITY.md classifies information (proprietary algorithms, DoD CUI, licensed software). AES-256-GCM encryption at rest and in transit. No formal data classification framework with labels applied to all data assets.",
+      "evidence_ids": [
+        "SECURITY.md",
+        "pkg/crypto/",
+        "pkg/drbc/genesis.go"
+      ],
+      "owner": "CISO",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Implement formal data classification taxonomy and apply labels to all data assets."
+    },
+    "C1.2": {
+      "criterion_id": "C1.2",
+      "status": "NOT_IMPLEMENTED",
+      "narrative": "No data disposal, media sanitisation, or secure deletion procedure documented or implemented beyond AES-encrypted backup rotation.",
+      "evidence_ids": [],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Implement NIST 800-88 compliant data disposal procedure; automate secure deletion on data expiry."
+    },
+    "CC1.1": {
+      "criterion_id": "CC1.1",
+      "status": "PARTIAL",
+      "narrative": "SECURITY.md defines vulnerability reporting SLA (24h ack, 5-day assessment, 30-day fix) and proprietary IP protection policy. No employee Code of Conduct document with annual signed acknowledgment process exists.",
+      "evidence_ids": [
+        "SECURITY.md",
+        "docs/SECURE_DEVELOPMENT_LIFECYCLE.md"
+      ],
+      "owner": "ISSO",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Draft Code of Conduct; implement annual employee sign-off workflow."
+    },
+    "CC1.2": {
+      "criterion_id": "CC1.2",
+      "status": "NOT_IMPLEMENTED",
+      "narrative": "No board-level governance or oversight documentation exists. Organisation is a startup; board oversight structure not yet formalised.",
+      "evidence_ids": [],
+      "owner": "CISO",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Define board/advisory oversight structure; document roles and responsibilities."
+    },
+    "CC1.3": {
+      "criterion_id": "CC1.3",
+      "status": "PARTIAL",
+      "narrative": "hardening_manifest.yaml names maintainer and contact. pkg/rbac defines Admin/Operator/Viewer hierarchy. No formal org chart or authority matrix documented.",
+      "evidence_ids": [
+        "hardening_manifest.yaml",
+        "pkg/rbac/rbac.go"
+      ],
+      "owner": "CISO",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Publish org chart and authority matrix; document who can approve production changes."
+    },
+    "CC1.4": {
+      "criterion_id": "CC1.4",
+      "status": "PARTIAL",
+      "narrative": "docs/SECURE_DEVELOPMENT_LIFECYCLE.md defines SSDLC controls and security engineering practices. No competency framework, job descriptions, or training completion tracking.",
+      "evidence_ids": [
+        "docs/SECURE_DEVELOPMENT_LIFECYCLE.md"
+      ],
+      "owner": "ISSO",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Define role-based competency requirements; implement security awareness training tracking."
+    },
+    "CC1.5": {
+      "criterion_id": "CC1.5",
+      "status": "PARTIAL",
+      "narrative": "All compliance-relevant actions are cryptographically signed and logged to the DAG (pkg/audit, pkg/dag). No formal accountability framework or manager attestation process for control responsibilities.",
+      "evidence_ids": [
+        "pkg/audit/",
+        "pkg/dag/dag.go",
+        "pkg/logging/dod_logger.go"
+      ],
+      "owner": "ISSO",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Implement quarterly manager attestation; document individual control ownership in a RACI."
+    },
+    "CC2.1": {
+      "criterion_id": "CC2.1",
+      "status": "IMPLEMENTED",
+      "narrative": "DoD-compliant dual-pipeline logging (pkg/logging/dod_logger.go) outputs structured JSON to EFK stack and writes immutable DAG nodes. Event schema (pkg/audit/schema.go) captures device fingerprints, network intelligence, SBOM, and compliance findings with nanosecond timestamps. Field-level PII redaction is enforced.",
+      "evidence_ids": [
+        "pkg/logging/dod_logger.go",
+        "pkg/audit/schema.go",
+        "pkg/audit/ingest.go",
+        "pkg/dag/dag.go"
+      ],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z"
+    },
+    "CC2.2": {
+      "criterion_id": "CC2.2",
+      "status": "PARTIAL",
+      "narrative": "SECURITY.md and docs/SECURE_DEVELOPMENT_LIFECYCLE.md communicate security objectives and developer responsibilities. No formal annual security awareness training programme or phishing simulation in place.",
+      "evidence_ids": [
+        "SECURITY.md",
+        "docs/SECURE_DEVELOPMENT_LIFECYCLE.md"
+      ],
+      "owner": "ISSO",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Implement security awareness training (Haekka free tier) with completion tracking."
+    },
+    "CC2.3": {
+      "criterion_id": "CC2.3",
+      "status": "PARTIAL",
+      "narrative": "SECURITY.md provides public vulnerability disclosure channel (security@souhimbou.ai, PQC-signed email). No formal external communication plan for incidents affecting customers.",
+      "evidence_ids": [
+        "SECURITY.md"
+      ],
+      "owner": "CISO",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Draft customer incident notification templates and SLA commitments."
+    },
+    "CC3.1": {
+      "criterion_id": "CC3.1",
+      "status": "PARTIAL",
+      "narrative": "Security objectives are stated in SECURITY.md and COMPLIANCE_LIBRARY_ONE_PAGER.md. No formal objective-setting process linked to risk appetite or board approval.",
+      "evidence_ids": [
+        "SECURITY.md",
+        "COMPLIANCE_LIBRARY_ONE_PAGER.md"
+      ],
+      "owner": "CISO",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Document information security objectives formally; link to risk register."
+    },
+    "CC3.2": {
+      "criterion_id": "CC3.2",
+      "status": "PARTIAL",
+      "narrative": "pkg/risk/calculator.go implements CVSS-based financial risk scoring with asset criticality (1–8 scale) and IBM Cost of Data Breach 2024 baselines. pkg/ert/ provides Extended Risk Taxonomy analysis. pkg/attest/ produces PQC-signed RiskAttestations. No persistent risk register or formal annual risk assessment report.",
+      "evidence_ids": [
+        "pkg/risk/calculator.go",
+        "pkg/ert/",
+        "pkg/attest/attest.go"
+      ],
+      "owner": "ISSO",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Conduct and document annual risk assessment; persist findings in risk register with owner/due-date tracking."
+    },
+    "CC3.3": {
+      "criterion_id": "CC3.3",
+      "status": "NOT_IMPLEMENTED",
+      "narrative": "No fraud risk assessment documentation found. Risk scoring in pkg/risk/ covers CVE/technical risk but does not include insider threat, financial fraud, or social engineering scenarios.",
+      "evidence_ids": [],
+      "owner": "CISO",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Add fraud risk section (insider threat, account takeover, billing fraud) to annual risk assessment."
+    },
+    "CC3.4": {
+      "criterion_id": "CC3.4",
+      "status": "PARTIAL",
+      "narrative": ".github/workflows/validate-build-artifacts.yml detects build artifact divergence and hardcoded keys, signalling change impact. No formal process to re-assess risk after significant architectural changes.",
+      "evidence_ids": [
+        ".github/workflows/validate-build-artifacts.yml",
+        ".github/workflows/pre-commit-security.yml"
+      ],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Add change-impact risk review step to major change process; document trigger criteria."
+    },
+    "CC4.1": {
+      "criterion_id": "CC4.1",
+      "status": "PARTIAL",
+      "narrative": "pkg/sonar/ provides real-time STIG/configuration drift detection. prometheus.yml is deployed with 15-second scrape interval and Grafana dashboard. Alertmanager section is empty — no alerting rules are active. DAG-based audit trail provides continuous tamper-evident logging.",
+      "evidence_ids": [
+        "pkg/sonar/",
+        "prometheus.yml",
+        "docker-compose.yml",
+        "pkg/audit/"
+      ],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Configure Prometheus Alertmanager rules for key security events; define escalation to on-call rotation."
+    },
+    "CC4.2": {
+      "criterion_id": "CC4.2",
+      "status": "PARTIAL",
+      "narrative": "GitHub Issues track security findings from CI/CD pipeline. No formal deficiency register with SLA tracking, owner assignment, or management sign-off workflow.",
+      "evidence_ids": [
+        ".github/workflows/pre-commit-security.yml"
+      ],
+      "owner": "ISSO",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Implement a findings register (GitHub Projects or JIRA); require owners to sign off within defined SLAs."
+    },
+    "CC5.1": {
+      "criterion_id": "CC5.1",
+      "status": "PARTIAL",
+      "narrative": "Control activities are implemented across auth, FIM, vuln scanning, and change management. Selection and development rationale is not documented in a formal control catalogue.",
+      "evidence_ids": [
+        "docs/SECURE_DEVELOPMENT_LIFECYCLE.md",
+        "SECURITY.md"
+      ],
+      "owner": "CISO",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Document the control selection rationale tied to risk assessment outputs."
+    },
+    "CC5.2": {
+      "criterion_id": "CC5.2",
+      "status": "PARTIAL",
+      "narrative": "TLS 1.2/1.3 enforced (pkg/gateway), AES-256-GCM at rest, PQC (ML-KEM-1024, ML-DSA-65), FIPS BoringCrypto build. MFA is supported (OAuth2/SAML) but not enforced at the API level for all accounts.",
+      "evidence_ids": [
+        "pkg/gateway/gateway.go",
+        "pkg/crypto/",
+        "Makefile",
+        "fly.toml"
+      ],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Enforce MFA as mandatory for admin accounts; implement policy-as-code for least-privilege enforcement."
+    },
+    "CC5.3": {
+      "criterion_id": "CC5.3",
+      "status": "PARTIAL",
+      "narrative": "SECURITY.md and docs/SECURE_DEVELOPMENT_LIFECYCLE.md are public policy documents. New SOC 2 policies drafted in docs/soc2/policies/. No central policy portal, no annual acknowledgment tracking, no AUP for end-users.",
+      "evidence_ids": [
+        "SECURITY.md",
+        "docs/SECURE_DEVELOPMENT_LIFECYCLE.md",
+        "docs/soc2/policies/"
+      ],
+      "owner": "CISO",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Publish all policies in accessible portal; implement annual employee sign-off."
+    },
+    "CC6.1": {
+      "criterion_id": "CC6.1",
+      "status": "PARTIAL",
+      "narrative": "pkg/auth/pqc_auth.go implements ML-DSA-65 PQC-signed JWT tokens. pkg/apiserver/pqc_auth_middleware.go provides multi-protocol auth gateway (PQC JWT, Bearer/OAuth2, SAML 2.0 SSO). Session expiry and cleanup are implemented. MFA (TOTP/FIDO2) is supported via OAuth2/SAML providers but not enforced — accounts can authenticate with password alone.",
+      "evidence_ids": [
+        "pkg/auth/pqc_auth.go",
+        "pkg/apiserver/pqc_auth_middleware.go",
+        "pkg/auth/provider.go"
+      ],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Enforce MFA at the IdP level for all accounts with production or admin access."
+    },
+    "CC6.2": {
+      "criterion_id": "CC6.2",
+      "status": "PARTIAL",
+      "narrative": "pkg/auth/provider.go defines AuthProvider with Authenticate(), RefreshToken(), ValidateToken(). OAuth2 PKCE flow implemented with state/verifier tracking. No formal documented user-registration and access-approval workflow; provisioning is ad hoc.",
+      "evidence_ids": [
+        "pkg/auth/provider.go",
+        "pkg/apiserver/pqc_auth_middleware.go"
+      ],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Document and implement a formal access-request/approval workflow before credentials are issued."
+    },
+    "CC6.3": {
+      "criterion_id": "CC6.3",
+      "status": "PARTIAL",
+      "narrative": "pkg/rbac/rbac.go implements Admin \u003e Operator \u003e Viewer role hierarchy with wildcard resource/action permissions. Roles are extracted from PQC token claims. API tier enforcement (license-based) in pkg/apiserver/handlers.go. No fine-grained per-resource permission middleware on API endpoints; no quarterly access review process.",
+      "evidence_ids": [
+        "pkg/rbac/rbac.go",
+        "pkg/apiserver/pqc_auth_middleware.go",
+        "pkg/apiserver/handlers.go"
+      ],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Add per-endpoint RBAC middleware; implement quarterly access review reports."
+    },
+    "CC6.4": {
+      "criterion_id": "CC6.4",
+      "status": "PARTIAL",
+      "narrative": "Production infrastructure runs on Cloudflare Workers, Fly.io, and Supabase — all SOC 2 Type 2 certified providers with physical access controls. No evidence of physical access logs reviewed or inherited controls documented.",
+      "evidence_ids": [
+        "fly.toml",
+        "wrangler.mcp.toml"
+      ],
+      "owner": "CISO",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Obtain and retain physical access control sections from Cloudflare/Fly.io/Supabase SOC 2 reports; document inherited controls."
+    },
+    "CC6.5": {
+      "criterion_id": "CC6.5",
+      "status": "NOT_IMPLEMENTED",
+      "narrative": "No documented data sanitisation, media destruction, or account deprovisioning procedure. pkg/drbc/genesis.go implements AES-256-GCM backup/restore but not secure disposal.",
+      "evidence_ids": [],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Document NIST 800-88 media sanitisation procedure; automate account deprovisioning on termination."
+    },
+    "CC6.6": {
+      "criterion_id": "CC6.6",
+      "status": "PARTIAL",
+      "narrative": "pkg/gateway/gateway.go provides TLS termination with firewall layer. cloudflared_config.yml routes all traffic through Cloudflare Tunnel. fly.toml sets force_https=true. Cloudflare WAF is used. Network segmentation between services is not documented; zero-trust architecture is referenced but not formally evidenced.",
+      "evidence_ids": [
+        "pkg/gateway/gateway.go",
+        "cloudflared_config.yml",
+        "fly.toml"
+      ],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Document network topology and zero-trust segmentation; export Cloudflare WAF rule configuration as evidence."
+    },
+    "CC6.7": {
+      "criterion_id": "CC6.7",
+      "status": "IMPLEMENTED",
+      "narrative": "pkg/gateway/gateway.go enforces TLS 1.2 minimum with TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305_SHA256 cipher suites and mTLS support. pkg/crypto/interface.go implements ML-KEM-1024 (FIPS 203) and ML-DSA-65 (FIPS 204). Makefile fips-boring-build uses BoringCrypto (FIPS 140-3). fly.toml: force_https=true. docs/SECURE_DEVELOPMENT_LIFECYCLE.md documents AES-256-GCM at rest. Cloudflare Tunnel encrypts all transport.",
+      "evidence_ids": [
+        "pkg/gateway/gateway.go",
+        "pkg/crypto/interface.go",
+        "Makefile",
+        "fly.toml",
+        "cloudflared_config.yml"
+      ],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z"
+    },
+    "CC6.8": {
+      "criterion_id": "CC6.8",
+      "status": "PARTIAL",
+      "narrative": "pkg/fim/watcher.go implements SHA-256 baseline FIM with real-time fsnotify monitoring of /etc/passwd, /etc/shadow, /etc/sudoers, SSH configs (Linux) and registry keys (Windows). STIG control mapping and severity classification. DAG-based immutable FIM audit trail (pkg/fim/dag_integration.go). GitHub Actions pre-commit scan detects hardcoded keys and injection patterns. No antivirus/EDR engine or behavioral threat detection.",
+      "evidence_ids": [
+        "pkg/fim/watcher.go",
+        "pkg/fim/baseline.go",
+        "pkg/fim/dag_integration.go",
+        ".github/workflows/pre-commit-security.yml"
+      ],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Integrate EDR or antivirus engine (ClamAV/Defender) for real-time malware detection on endpoints."
+    },
+    "CC7.1": {
+      "criterion_id": "CC7.1",
+      "status": "IMPLEMENTED",
+      "narrative": "pkg/vuln/hunter.go provides CVE discovery with CVSS scoring and CISA KEV integration. pkg/sbom/generator.go generates CycloneDX/SPDX SBOMs with component-level CVE correlation and exploitability flagging. Makefile fetch-cve target automates CISA KEV updates. pkg/stig/ and pkg/stigs/ implement STIG control scanning. .github/workflows/pre-commit-security.yml scans for secrets, SQL injection, command injection on every PR. pkg/ert/ provides Extended Risk Taxonomy analysis.",
+      "evidence_ids": [
+        "pkg/vuln/hunter.go",
+        "pkg/sbom/generator.go",
+        "Makefile",
+        ".github/workflows/pre-commit-security.yml",
+        "pkg/stig/",
+        "pkg/ert/"
+      ],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z"
+    },
+    "CC7.2": {
+      "criterion_id": "CC7.2",
+      "status": "PARTIAL",
+      "narrative": "pkg/sonar/orchestrator.go and pkg/sonar/unified.go provide anomaly scoring and multi-stage drift detection against STIG baselines. prometheus.yml collects metrics every 15 seconds with Grafana dashboards. pkg/audit/ and pkg/logging/dod_logger.go provide dual-pipeline audit logging. Alertmanager is configured in prometheus.yml but has no alert rules defined — no automated security alerting.",
+      "evidence_ids": [
+        "pkg/sonar/",
+        "prometheus.yml",
+        "docker-compose.yml",
+        "pkg/logging/dod_logger.go"
+      ],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Define Prometheus alert rules for authentication failures, privilege escalation, data exfil patterns; configure Alertmanager."
+    },
+    "CC7.3": {
+      "criterion_id": "CC7.3",
+      "status": "PARTIAL",
+      "narrative": "pkg/ir/manager.go implements incident severity classification (Critical/High/Medium/Low matching NIST 800-61) and status lifecycle (Open, In Progress, Contained, Closed). No escalation runbooks, severity-to-response-time SLAs, or documented evaluation criteria.",
+      "evidence_ids": [
+        "pkg/ir/manager.go",
+        "pkg/ir/types.go"
+      ],
+      "owner": "ISSO",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Document escalation runbooks with severity tiers and response SLAs; link to IR system."
+    },
+    "CC7.4": {
+      "criterion_id": "CC7.4",
+      "status": "PARTIAL",
+      "narrative": "pkg/ir/ provides incident lifecycle management (CreateIncident, AddIOC, UpdateStatus), event log chains with actor tracking, and DAG-based immutable logging of all incident changes. pkg/ir/remediation.go implements automated remediation orchestration. No formal Incident Response Plan document, no notification automation, no table-top exercise records.",
+      "evidence_ids": [
+        "pkg/ir/manager.go",
+        "pkg/ir/remediation.go",
+        "pkg/ir/types.go"
+      ],
+      "owner": "ISSO",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Complete and test the Incident Response Plan (IRP-001 in docs/soc2/policies/); configure automated notification; run annual table-top exercise."
+    },
+    "CC7.5": {
+      "criterion_id": "CC7.5",
+      "status": "PARTIAL",
+      "narrative": "pkg/drbc/genesis.go implements AES-256-GCM encrypted backup. pkg/drbc/supabase_storage_sync.go provides incremental off-platform backup to R2/S3 with ETag-based skipping and backup catalog. pkg/drbc/restore.go implements restore points. fly.toml mounts persistent souhimbou_data volume. RTO/RPO not defined; no automated restore validation testing.",
+      "evidence_ids": [
+        "pkg/drbc/genesis.go",
+        "pkg/drbc/restore.go",
+        "pkg/drbc/supabase_storage_sync.go",
+        "fly.toml"
+      ],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Define and document RTO/RPO; schedule quarterly automated restore validation tests."
+    },
+    "CC8.1": {
+      "criterion_id": "CC8.1",
+      "status": "PARTIAL",
+      "narrative": ".github/workflows/ contains pre-commit-security.yml (secrets/injection scanning), validate-build-artifacts.yml (build artifact divergence and hardcoded key detection), run-validation-tests.yml, and publish-mcp-registry.yml. Makefile has secure-build, fips-boring-build, ci-test targets. CHANGELOG.md maintained. No branch protection rules or required-reviewer counts visible in code; no formal Change Advisory Board (CAB) process documented.",
+      "evidence_ids": [
+        ".github/workflows/",
+        "Makefile",
+        "CHANGELOG.md"
+      ],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Enable branch protection with ≥2 required reviewers; document emergency change procedure."
+    },
+    "CC9.1": {
+      "criterion_id": "CC9.1",
+      "status": "PARTIAL",
+      "narrative": "pkg/drbc/ provides disaster recovery and business continuity capabilities (encrypted backup, off-platform sync, restore). No formal Business Continuity Plan (BCP) or Disaster Recovery Plan (DRP) document. No documented RTO/RPO or BCP tabletop test records.",
+      "evidence_ids": [
+        "pkg/drbc/"
+      ],
+      "owner": "CISO",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Draft BCP/DRP documents; define RTO/RPO; schedule annual tabletop exercise."
+    },
+    "CC9.2": {
+      "criterion_id": "CC9.2",
+      "status": "PARTIAL",
+      "narrative": "pkg/sbom/generator.go generates supply chain SBOM (CycloneDX/SPDX) with vendor component tracking. hardening_manifest.yaml documents base image provenance (UBI9 minimal). Makefile uses go mod vendor for dependency locking. Vendor list (Cloudflare, Supabase, Fly.io, GitHub, Vercel, Tailscale) identified. No DPA, BAA, or SLAs executed for any vendor.",
+      "evidence_ids": [
+        "pkg/sbom/generator.go",
+        "hardening_manifest.yaml",
+        "Makefile",
+        "go.mod"
+      ],
+      "owner": "Legal/CISO",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Execute DPAs with Cloudflare, Supabase, Fly.io, Vercel; complete vendor security questionnaires; obtain SOC 2 reports from each."
+    },
+    "PI1.1": {
+      "criterion_id": "PI1.1",
+      "status": "PARTIAL",
+      "narrative": "DAG-based integrity chain provides PQC-signed evidence of processing events. pkg/audit/ captures input/output data with device fingerprints. No formal input completeness/accuracy validation framework across all processing pipelines.",
+      "evidence_ids": [
+        "pkg/dag/dag.go",
+        "pkg/audit/"
+      ],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Implement input validation and checksum verification on all data processing pipelines."
+    },
+    "PI1.2": {
+      "criterion_id": "PI1.2",
+      "status": "PARTIAL",
+      "narrative": ".github/workflows/pre-commit-security.yml detects SQL injection and command injection in code. API input validation exists in pkg/apiserver/. No comprehensive input validation policy or schema enforcement across all service boundaries.",
+      "evidence_ids": [
+        ".github/workflows/pre-commit-security.yml",
+        "pkg/apiserver/"
+      ],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Enforce schema validation at all API entry points; add integration tests for boundary conditions."
+    },
+    "PI1.3": {
+      "criterion_id": "PI1.3",
+      "status": "PARTIAL",
+      "narrative": "pkg/dag/ provides cryptographic integrity verification via PQC-signed DAG nodes at each processing stage. pkg/fim/ verifies file integrity with SHA-256 baselines. No end-to-end processing integrity policy across all pipelines.",
+      "evidence_ids": [
+        "pkg/dag/dag.go",
+        "pkg/fim/watcher.go"
+      ],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Document processing integrity controls; add hash verification at each pipeline stage."
+    },
+    "PI1.4": {
+      "criterion_id": "PI1.4",
+      "status": "NOT_IMPLEMENTED",
+      "narrative": "No output validation, delivery confirmation, or completeness checking framework identified in the codebase for system outputs delivered to customers.",
+      "evidence_ids": [],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Implement output validation and delivery confirmation for customer-facing data outputs."
+    },
+    "PI1.5": {
+      "criterion_id": "PI1.5",
+      "status": "PARTIAL",
+      "narrative": "pkg/drbc/genesis.go stores backups with AES-256-GCM encryption. DAG store (pkg/dag/) provides immutable, PQC-signed data retention. No comprehensive data classification policy or retention schedule documented.",
+      "evidence_ids": [
+        "pkg/drbc/genesis.go",
+        "pkg/dag/dag.go"
+      ],
+      "owner": "Engineering",
+      "last_reviewed": "2026-05-22T00:00:00Z",
+      "gap_notes": "Define data retention schedule and classification policy; align storage controls to data sensitivity."
+    }
+  },
+  "gaps": [
+    {
+      "CriterionID": "CC3.2",
+      "Title": "Risk Identification and Analysis",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Conduct and document a formal risk assessment using ISO 27005 or NIST RMF methodology.",
+      "Priority": "HIGH"
+    },
+    {
+      "CriterionID": "CC4.1",
+      "Title": "Selection and Development of Ongoing Evaluations",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Deploy continuous monitoring (SIEM, Khepra Sonar agent) and set alert thresholds.",
+      "Priority": "HIGH"
+    },
+    {
+      "CriterionID": "CC6.1",
+      "Title": "Logical Access Security — Implementation",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Enforce MFA for all user accounts; implement SSO with JIT provisioning.",
+      "Priority": "HIGH"
+    },
+    {
+      "CriterionID": "CC6.2",
+      "Title": "Logical Access Security — Prior to Access",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Create a formal access-request and approval workflow (JIRA, ServiceNow, or equivalent).",
+      "Priority": "HIGH"
+    },
+    {
+      "CriterionID": "CC6.3",
+      "Title": "Logical Access Security — Role-Based Access",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Implement quarterly access reviews; deprovision unnecessary accounts within 24 h of departure.",
+      "Priority": "HIGH"
+    },
+    {
+      "CriterionID": "CC6.6",
+      "Title": "Logical Access Security — External Threats",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Deploy WAF, IDS/IPS, and enforce network segmentation per zero-trust principles.",
+      "Priority": "HIGH"
+    },
+    {
+      "CriterionID": "CC7.4",
+      "Title": "Incident Response",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Document and table-top-test the incident response plan at least annually.",
+      "Priority": "HIGH"
+    },
+    {
+      "CriterionID": "CC8.1",
+      "Title": "Change Management Process",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Enforce peer-reviewed PRs with required approvals, staging deploys, and rollback procedures.",
+      "Priority": "HIGH"
+    },
+    {
+      "CriterionID": "A1.3",
+      "Title": "Availability — Recovery Plan Testing",
+      "Family": "A",
+      "Status": "NOT_IMPLEMENTED",
+      "Remediation": "Schedule annual BCP tabletop exercises; document lessons learned and update the plan.",
+      "Priority": "MEDIUM"
+    },
+    {
+      "CriterionID": "C1.2",
+      "Title": "Confidentiality — Disposal",
+      "Family": "C",
+      "Status": "NOT_IMPLEMENTED",
+      "Remediation": "Enforce certified media sanitisation (NIST 800-88) before disposal or reuse.",
+      "Priority": "MEDIUM"
+    },
+    {
+      "CriterionID": "CC1.2",
+      "Title": "Board Independence and Oversight",
+      "Family": "CC",
+      "Status": "NOT_IMPLEMENTED",
+      "Remediation": "Document and implement controls satisfying CC1.2 — Board Independence and Oversight.",
+      "Priority": "MEDIUM"
+    },
+    {
+      "CriterionID": "CC3.3",
+      "Title": "Fraud Risk Assessment",
+      "Family": "CC",
+      "Status": "NOT_IMPLEMENTED",
+      "Remediation": "Add fraud risk scenarios to the annual risk assessment and document mitigating controls.",
+      "Priority": "MEDIUM"
+    },
+    {
+      "CriterionID": "CC6.5",
+      "Title": "Logical and Physical Access — Discontinuation",
+      "Family": "CC",
+      "Status": "NOT_IMPLEMENTED",
+      "Remediation": "Use certified data destruction (NIST 800-88) for all decommissioned storage.",
+      "Priority": "MEDIUM"
+    },
+    {
+      "CriterionID": "PI1.4",
+      "Title": "Processing Integrity — System Outputs",
+      "Family": "PI",
+      "Status": "NOT_IMPLEMENTED",
+      "Remediation": "Document and implement controls satisfying PI1.4 — Processing Integrity — System Outputs.",
+      "Priority": "MEDIUM"
+    },
+    {
+      "CriterionID": "A1.1",
+      "Title": "Availability — Capacity Management",
+      "Family": "A",
+      "Status": "PARTIAL",
+      "Remediation": "Implement auto-scaling and capacity alarms; review peak-load thresholds quarterly.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "A1.2",
+      "Title": "Availability — Environmental Protections",
+      "Family": "A",
+      "Status": "PARTIAL",
+      "Remediation": "Automate daily encrypted backups to geo-redundant storage; test restoration quarterly.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "C1.1",
+      "Title": "Confidentiality — Identification and Maintenance",
+      "Family": "C",
+      "Status": "PARTIAL",
+      "Remediation": "Classify and label all data assets; apply confidentiality controls proportional to sensitivity.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "CC1.1",
+      "Title": "Commitment to Integrity and Ethical Values",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Draft and distribute a Code of Conduct; collect signed employee acknowledgments annually.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "CC1.3",
+      "Title": "Organizational Structure and Authority",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Document and implement controls satisfying CC1.3 — Organizational Structure and Authority.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "CC1.4",
+      "Title": "Commitment to Competence",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Define role-based competency requirements and link them to hiring and performance reviews.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "CC1.5",
+      "Title": "Accountability for Internal Controls",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Implement quarterly manager attestation that staff understand their control responsibilities.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "CC2.2",
+      "Title": "Internal Communication of Objectives and Responsibilities",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Establish a security awareness training programme (e.g., annual + phishing simulation).",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "CC2.3",
+      "Title": "External Communication of Relevant Information",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Document and implement controls satisfying CC2.3 — External Communication of Relevant Information.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "CC3.1",
+      "Title": "Specification of Objectives",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Document and implement controls satisfying CC3.1 — Specification of Objectives.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "CC3.4",
+      "Title": "Changes Affecting Internal Control",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Integrate change-impact review into the risk assessment cycle.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "CC4.2",
+      "Title": "Evaluation and Communication of Deficiencies",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Establish a findings-tracking register; require owners to sign off on remediation within SLA.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "CC5.1",
+      "Title": "Selection and Development of Control Activities",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Document and implement controls satisfying CC5.1 — Selection and Development of Control Activities.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "CC5.2",
+      "Title": "Selection of Technology Controls",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Enforce least-privilege, MFA, and encryption controls via IaC and policy-as-code.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "CC5.3",
+      "Title": "Deployment Through Policies and Procedures",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Publish security policies in a central knowledge base; require annual sign-off.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "CC6.4",
+      "Title": "Physical Access Restrictions",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Restrict data-centre access to badge + biometric; log all entries.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "CC6.8",
+      "Title": "Logical Access Security — Malicious Software Prevention",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Deploy EDR on all endpoints; enable real-time malware scanning in CI/CD pipeline.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "CC7.2",
+      "Title": "Anomaly and Threat Detection",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Configure SIEM correlation rules for account brute-force, data exfil, and privilege escalation.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "CC7.3",
+      "Title": "Incident Evaluation and Escalation",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Define security event severity tiers and escalation runbooks.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "CC7.5",
+      "Title": "Post-Incident Recovery",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Define RTO/RPO; test backup restoration quarterly.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "CC9.1",
+      "Title": "Risk Mitigation Activities",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Develop a Business Continuity Plan (BCP) and Disaster Recovery Plan (DRP); test annually.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "CC9.2",
+      "Title": "Vendor and Business Partner Risk Management",
+      "Family": "CC",
+      "Status": "PARTIAL",
+      "Remediation": "Complete security reviews and BAAs/DPAs for all third-party vendors handling customer data.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "PI1.1",
+      "Title": "Processing Integrity — Complete and Accurate Processing",
+      "Family": "PI",
+      "Status": "PARTIAL",
+      "Remediation": "Implement input validation, checksums, and audit logging for all data processing pipelines.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "PI1.2",
+      "Title": "Processing Integrity — System Inputs",
+      "Family": "PI",
+      "Status": "PARTIAL",
+      "Remediation": "Document and implement controls satisfying PI1.2 — Processing Integrity — System Inputs.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "PI1.3",
+      "Title": "Processing Integrity — System Processing",
+      "Family": "PI",
+      "Status": "PARTIAL",
+      "Remediation": "Add automated integrity checks (hash verification) on data at every processing stage.",
+      "Priority": "LOW"
+    },
+    {
+      "CriterionID": "PI1.5",
+      "Title": "Processing Integrity — Stored Items",
+      "Family": "PI",
+      "Status": "PARTIAL",
+      "Remediation": "Document and implement controls satisfying PI1.5 — Processing Integrity — Stored Items.",
+      "Priority": "LOW"
+    }
+  ],
+  "score_pct": 6.976744186046512,
+  "readiness_level": "EARLY_STAGE",
+  "summary": "KHEPRA / AdinKhepra ASAF Engine has implemented 3 of 43 SOC 2 TSC criteria (7%). There are 40 open gap findings. Readiness level: EARLY_STAGE.",
+  "next_steps": [
+    "Assign a SOC 2 project owner and establish a steering committee.",
+    "Complete the free SOC 2 masterclass (Scytale / StrongDM) to train the core team.",
+    "Remediate the 8 HIGH-priority gaps before scheduling the auditor.",
+    "Collect the required evidence artefacts listed by RequiredEvidence().",
+    "Engage a SOC 2-qualified CPA firm for a Type 1 readiness assessment (costs ~$5 k–$15 k).",
+    "Target a Type 2 observation window of 6 months once Type 1 is clean.",
+    "Integrate the Khepra continuous-monitoring agent (CC4.1, CC7.1) to auto-collect evidence."
+  ]
+}
