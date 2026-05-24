@@ -1,0 +1,827 @@
+# ============================================================
+# CMMC Autopilot Workbench API — OpenAPI 3.1 Extension
+# File: openapi-ea-extension.yaml
+#
+# Adds: EA Kernel endpoints, corrected G0DM0D3 tool panel (6 tools),
+# [TOOL:xxx] auto-execution schema, quantum posture endpoints.
+#
+# CORRECTION FROM 002 EXTENSION:
+#   Tool names use hyphen format (dag-summary, not dagSummary)
+#   Tool panel has 6 tools, not 4 (adds license-status, ea-status)
+# ============================================================
+
+paths:
+
+  # ── EA ENGINE STATUS ────────────────────────────────────────
+  /ea/status:
+    get:
+      tags: [EA]
+      summary: Get live EA engine snapshot
+      operationId: getEAStatus
+      description: |
+        Returns the current state of the Evolutionary Algorithm engine.
+        This is the same data available via the `[TOOL:ea-status]`
+        tool call in G0DM0D3 chat.
+        
+        Key fields:
+        - `current_generation`: how many evolution cycles have run
+        - `best_symbol`: the Adinkra symbol (Eban/Fawohodie/Nkyinkyim/Dwennimmen)
+          governing the current champion genome's lattice parameters
+        - `best_fitness`: composite score (0.0–1.0+)
+        - `status`: idle | evolving | paused | error
+        - `quantum_scores`: live resistance scores from all 5 attack simulators
+        
+        **For auditors**: the `last_generation_dag_node` field links to the
+        DAG record proving this generation was cryptographically committed.
+      parameters:
+        - $ref: "#/components/parameters/TenantIdHeader"
+        - $ref: "#/components/parameters/EngagementIdQuery"
+      responses:
+        "200":
+          description: EA engine status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EAStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── EA GENERATION HISTORY ───────────────────────────────────
+  /ea/generations:
+    get:
+      tags: [EA]
+      summary: List EA generation history
+      operationId: listEAGenerations
+      description: |
+        Returns the per-generation evolution history, most recent first.
+        Each row is a complete snapshot of the champion genome, fitness
+        breakdown, quantum scores, capability flags, and PQC attestation.
+        
+        Use `?limit=20` for the fitness trend chart (last 20 generations).
+        Use `?symbol=Eban` to filter periods when Eban governed the champion.
+      parameters:
+        - $ref: "#/components/parameters/TenantIdHeader"
+        - $ref: "#/components/parameters/EngagementIdQuery"
+        - name: symbol
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [Eban, Fawohodie, Nkyinkyim, Dwennimmen]
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Generation history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedEAGenerations"
+
+  /ea/generations/{generationId}:
+    get:
+      tags: [EA]
+      summary: Get full generation detail including genome
+      operationId: getEAGeneration
+      parameters:
+        - name: generationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Generation detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EAGenerationDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /ea/generations/{generationId}/verify:
+    post:
+      tags: [EA]
+      summary: Verify PQC signature of a generation record
+      operationId: verifyEAGeneration
+      description: |
+        Verifies the ML-DSA-65 signature over the canonical JSON of
+        a generation record. Returns the verification result.
+        
+        **For C3PAOs**: use this to confirm that the evolution history
+        is tamper-evident and that each generation was produced by
+        the legitimate KHEPRA engine, not manually inserted.
+      parameters:
+        - name: generationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EAGenerationVerification"
+
+  # ── EA EVOLUTION CONTROL ────────────────────────────────────
+  /ea/evolve:
+    post:
+      tags: [EA]
+      summary: Trigger manual evolution cycle
+      operationId: triggerEAEvolve
+      description: |
+        Triggers an immediate Evolve() cycle outside of the scheduled
+        cadence. Useful when:
+        - New critical ERT findings should immediately influence strategy
+        - Operator wants to force re-optimization after remediation
+        - Testing EA behavior during pilot demonstration
+        
+        Returns 202 Accepted — poll /jobs/{jobId} for completion.
+        On completion, /ea/status reflects the new generation.
+        
+        **Note**: The EA evolves automatically on schedule and on certain
+        events (new ERT findings, anomaly detection, critical CVE match).
+        Manual triggering is typically not needed in production.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EAEvolveRequest"
+      responses:
+        "202":
+          description: Evolution job accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobAccepted"
+        "409":
+          description: Evolution already in progress
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+
+  /ea/evolve/pause:
+    post:
+      tags: [EA]
+      summary: Pause/resume automated EA evolution
+      operationId: pauseEAEvolution
+      description: |
+        Pauses or resumes the automated evolution schedule.
+        Use pause during active audit periods if you do not want
+        the engine evolving while C3PAO assessment is in progress.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [pause, resume]
+                reason:
+                  type: string
+      responses:
+        "200":
+          description: State updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EAStatus"
+
+  # ── KERNEL ROUTER LOG ───────────────────────────────────────
+  /ea/kernel-routes:
+    get:
+      tags: [EA]
+      summary: List KernelRouter dispatch decisions
+      operationId: listKernelRoutes
+      description: |
+        Returns the ordered history of KernelRouter dispatch decisions.
+        Each row shows what SecurityContext triggered the routing,
+        which capabilities were dispatched (and in what order), and
+        the agent results.
+        
+        **Compliance evidence**: shows that the EA-evolved routing
+        decisions correctly prioritized STIG, PQC, and FIM capabilities
+        for CUI-touching, air-gapped, or legacy-crypto environments.
+      parameters:
+        - $ref: "#/components/parameters/EngagementIdQuery"
+        - name: cap
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [stig, pqc, forensics, ir, fim, bcdr, network, sbom]
+          description: "Filter routes where this capability was selected"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Kernel route list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedKernelRoutes"
+
+  # ── QUANTUM POSTURE ─────────────────────────────────────────
+  /ea/quantum-posture:
+    get:
+      tags: [EA]
+      summary: Get current quantum attack resistance profile
+      operationId: getQuantumPosture
+      description: |
+        Returns the current quantum posture derived from the champion
+        genome's attack simulator scores. Includes all 5 attack models:
+        - Shor's Algorithm (15% 5yr probability)
+        - Grover's Search (35%)
+        - BKZ/LLL Lattice Reduction (25%)
+        - Timing/Power Side-Channel (45%)
+        - Adinkra Symbol Collision (5%, patent-novel)
+        
+        **NSM-10/CISA alignment**: includes FIPS 203/204 compliance flags
+        and CISA NSM-10 mandate alignment status.
+        
+        **For Godfather Report**: the forensicsSummary G0DM0D3 tool
+        pulls from this endpoint to build the quantum section.
+      parameters:
+        - $ref: "#/components/parameters/TenantIdHeader"
+        - $ref: "#/components/parameters/EngagementIdQuery"
+      responses:
+        "200":
+          description: Quantum posture
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuantumPosture"
+
+  /ea/quantum-posture/trend:
+    get:
+      tags: [EA]
+      summary: Get quantum resistance trend (last N generations)
+      operationId: getQuantumPostureTrend
+      description: |
+        Returns the time-series quantum posture snapshots for
+        trend visualization. Shows how each attack score improved
+        (or degraded) across generations as ERT findings influenced
+        the fitness function.
+      parameters:
+        - $ref: "#/components/parameters/TenantIdHeader"
+        - $ref: "#/components/parameters/EngagementIdQuery"
+        - name: generations
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 5
+            maximum: 100
+      responses:
+        "200":
+          description: Posture trend
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/QuantumPostureSnapshot"
+
+
+# ─────────────────────────────────────────────────────────────
+# SCHEMAS
+# ─────────────────────────────────────────────────────────────
+components:
+  schemas:
+
+    # ── EA ENGINE ────────────────────────────────────────────
+    EAStatus:
+      type: object
+      description: |
+        Live snapshot of the EA engine. This is the same payload
+        returned by the [TOOL:ea-status] G0DM0D3 tool call.
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+        engagement_id:
+          type: string
+          format: uuid
+          nullable: true
+        current_generation:
+          type: integer
+          description: "Total evolution cycles completed"
+        best_symbol:
+          type: string
+          enum: [Eban, Fawohodie, Nkyinkyim, Dwennimmen]
+          nullable: true
+          description: |
+            Adinkra symbol governing champion genome's lattice parameters.
+            Eban (256-bit, K=4) = highest security.
+            Dwennimmen (128-bit, K=2) = speed-optimized.
+        best_fitness:
+          type: number
+          format: float
+          nullable: true
+          description: "Champion fitness 0.0–1.0+ (bonus can push above 1.0)"
+        pop_size:
+          type: integer
+          description: "Population size (50 individuals)"
+        mutation_rate:
+          type: number
+          format: float
+          description: "Per-byte bit-flip probability (0.02)"
+        crossover_rate:
+          type: number
+          format: float
+        status:
+          type: string
+          enum: [idle, evolving, paused, error]
+        last_evolved_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_generation_dag_node:
+          type: string
+          nullable: true
+          description: "DAG node ID proving latest generation was committed"
+        last_evolution_ms:
+          type: integer
+          nullable: true
+        # Current champion quantum scores
+        quantum_scores:
+          $ref: "#/components/schemas/QuantumScores"
+        # Current champion capability flags
+        active_capabilities:
+          $ref: "#/components/schemas/EACapabilities"
+
+    EAGeneration:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        generation_number:
+          type: integer
+        champion_symbol:
+          type: string
+          enum: [Eban, Fawohodie, Nkyinkyim, Dwennimmen]
+        champion_fitness:
+          type: number
+          format: double
+        fitness_breakdown:
+          $ref: "#/components/schemas/EAFitnessBreakdown"
+        quantum_scores:
+          $ref: "#/components/schemas/QuantumScores"
+        active_capabilities:
+          $ref: "#/components/schemas/EACapabilities"
+        lattice_params:
+          $ref: "#/components/schemas/LatticeParams"
+        pop_avg_fitness:
+          type: number
+          format: double
+        ert_open_findings_count:
+          type: integer
+        ert_critical_count:
+          type: integer
+        pqc_signature_algorithm:
+          type: string
+          example: "ML-DSA-65"
+        dag_node_id:
+          type: string
+        evolution_duration_ms:
+          type: integer
+          nullable: true
+        evolved_at:
+          type: string
+          format: date-time
+
+    EAGenerationDetail:
+      allOf:
+        - $ref: "#/components/schemas/EAGeneration"
+        - type: object
+          properties:
+            champion_genome_hex:
+              type: string
+              description: |
+                96-byte champion genome in hex encoding.
+                Layout: [0] symbol selector, [1-7] strategy weights,
+                [8-15] capability flags, [16-23] thresholds,
+                [48-79] lattice param encodings,
+                [80-87] DAG consensus weights,
+                [88-95] zero-trust thresholds
+
+    EAGenerationVerification:
+      type: object
+      properties:
+        generation_id:
+          type: string
+          format: uuid
+        generation_number:
+          type: integer
+        signature_valid:
+          type: boolean
+        algorithm:
+          type: string
+          example: "ML-DSA-65"
+        dag_node_verified:
+          type: boolean
+        dag_node_id:
+          type: string
+        verified_at:
+          type: string
+          format: date-time
+
+    EAEvolveRequest:
+      type: object
+      required: [engagement_id]
+      properties:
+        engagement_id:
+          type: string
+          format: uuid
+        trigger_reason:
+          type: string
+          description: "Human-readable reason for manual trigger"
+        idempotency_key:
+          type: string
+
+    EAFitnessBreakdown:
+      type: object
+      description: |
+        Multi-objective fitness decomposition:
+        Fitness = 0.35*attack_resistance + 0.25*kev_coverage
+                + 0.20*nist_compliance   + 0.20*ert_penalty
+                × 1.5 NIST bonus if all LatticeParams pass Validate()
+      properties:
+        base_attack_resistance:
+          type: number
+          format: float
+          description: "0.35 weight — probability-weighted quantum + classical resistance"
+        kev_coverage:
+          type: number
+          format: float
+          description: "0.25 weight — CISA Known Exploited Vulnerabilities coverage"
+        nist_compliance:
+          type: number
+          format: float
+          description: "0.20 weight — NIST PQC boundary preservation"
+        ert_finding_penalty:
+          type: number
+          format: float
+          description: "0.20 weight — penalty for open ERT findings (lower = more open findings)"
+        nist_bonus_applied:
+          type: boolean
+          description: "1.5x bonus applied if all LatticeParams.Validate() pass"
+        composite:
+          type: number
+          format: double
+          description: "Final weighted composite score"
+
+    QuantumScores:
+      type: object
+      description: |
+        Resistance scores from the five quantum attack simulators.
+        All scores 0.0 (vulnerable) to 1.0 (fully resistant).
+        5-year threat probabilities shown for context.
+      properties:
+        shor:
+          type: number
+          format: float
+          description: "Shor's Algorithm resistance (15% 5yr prob). 0.98 when ML-DSA-65 governs."
+        grover:
+          type: number
+          format: float
+          description: "Grover's Search resistance (35% 5yr prob). 1.0 when all SecurityBits ≥ 256."
+        bkz_lll:
+          type: number
+          format: float
+          description: "BKZ/LLL Lattice Reduction resistance (25% 5yr prob). Scales with N vs β."
+        timing_power:
+          type: number
+          format: float
+          description: "Timing/Power Side-Channel resistance (45% 5yr prob). 0.88 when K≥3."
+        symbol_collision:
+          type: number
+          format: float
+          description: "Adinkra Symbol Collision resistance (5% 5yr prob). Patent-novel attack model. Scales with Q-diversity."
+
+    EACapabilities:
+      type: object
+      description: "Active capability flags from champion genome byte [8-15]"
+      properties:
+        stig:
+          type: boolean
+        forensics:
+          type: boolean
+        ir:
+          type: boolean
+        bcdr:
+          type: boolean
+        pqc:
+          type: boolean
+        fim:
+          type: boolean
+        network:
+          type: boolean
+        sbom:
+          type: boolean
+
+    LatticeParams:
+      type: object
+      description: "Cryptographic lattice parameters decoded from champion genome [48-79]"
+      properties:
+        n:
+          type: integer
+          description: "Ring dimension (256 for Eban/Fawohodie)"
+        q:
+          type: integer
+          format: int64
+          description: "Modulus (8380417 for Eban, 3329 for Nkyinkyim/Dwennimmen)"
+        sigma:
+          type: number
+          format: float
+          description: "Error standard deviation"
+        k:
+          type: integer
+          description: "Module rank (4=Eban, 3=Fawohodie/Nkyinkyim, 2=Dwennimmen)"
+        security_bits:
+          type: integer
+          description: "Estimated security level in bits (256/192/128)"
+
+    KernelRouteEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        generation_number:
+          type: integer
+          nullable: true
+        security_context:
+          $ref: "#/components/schemas/SecurityContext"
+        dispatched_capabilities:
+          type: array
+          items:
+            type: object
+            properties:
+              cap:
+                type: string
+                enum: [CapSTIG, CapPQC, CapForensics, CapIR, CapFIM, CapBCDR, CapNetwork, CapSBOM]
+              weight:
+                type: number
+                format: float
+              dispatch_order:
+                type: integer
+        agent_results:
+          type: array
+          items:
+            type: object
+            properties:
+              cap:
+                type: string
+              success:
+                type: boolean
+              duration_ms:
+                type: integer
+              dag_node_id:
+                type: string
+                nullable: true
+        dag_node_id:
+          type: string
+          nullable: true
+        routed_at:
+          type: string
+          format: date-time
+
+    SecurityContext:
+      type: object
+      description: "Input context to KernelRouter.Classify() — from kernel_router.go"
+      properties:
+        target:
+          type: string
+        has_cui:
+          type: boolean
+        is_air_gapped:
+          type: boolean
+        is_containerised:
+          type: boolean
+        cloud_provider:
+          type: string
+          nullable: true
+        os_family:
+          type: string
+          nullable: true
+        frameworks:
+          type: array
+          items:
+            type: string
+        has_anomaly_signal:
+          type: boolean
+        active_incident:
+          type: boolean
+        legacy_crypto_found:
+          type: boolean
+        unpatched_cves:
+          type: integer
+        threat_actors:
+          type: array
+          items:
+            type: string
+
+    QuantumPosture:
+      type: object
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+        champion_symbol:
+          type: string
+          enum: [Eban, Fawohodie, Nkyinkyim, Dwennimmen]
+        champion_fitness:
+          type: number
+          format: double
+        quantum_scores:
+          $ref: "#/components/schemas/QuantumScores"
+        composite_resistance:
+          type: number
+          format: float
+          description: "Probability-weighted composite (0.0–1.0)"
+        nist_fips203_compliant:
+          type: boolean
+          description: "ML-KEM compliant (FIPS 203)"
+        nist_fips204_compliant:
+          type: boolean
+          description: "ML-DSA compliant (FIPS 204)"
+        cisa_nsm10_aligned:
+          type: boolean
+          description: "CISA NSM-10 PQC mandate alignment"
+        snapped_at:
+          type: string
+          format: date-time
+
+    QuantumPostureSnapshot:
+      allOf:
+        - $ref: "#/components/schemas/QuantumPosture"
+        - type: object
+          properties:
+            generation_number:
+              type: integer
+
+    # ── G0DM0D3 TOOL PANEL (CORRECTED) ──────────────────────
+    # CORRECTION: Tool names use hyphen format, NOT camelCase.
+    # The AI embeds [TOOL:dag-summary], not [TOOL:dagSummary].
+    # All 6 tools documented here (002 extension only had 4).
+
+    G0DM0D3ToolName:
+      type: string
+      enum:
+        - dag-summary        # Full DAG node count + action type breakdown + latest entry
+        - stig-summary       # STIG scan nodes from DAG, last scan timestamp
+        - pqc-inventory      # PQC algorithm usage tally (ML-DSA-65, ML-KEM-768 counts per DAG node)
+        - forensics-summary  # Forensic + threat detection events from DAG (last 5)
+        - license-status     # Sovereign license: ID, tenant, tier, expiry, capabilities
+        - ea-status          # LIVE EA snapshot: generation, best_fitness, best_symbol, pop_size
+      description: |
+        Complete G0DM0D3 tool panel — 6 tools total.
+        Tools are callable via:
+          1. AI embedding: [TOOL:dag-summary] auto-executed mid-response
+          2. HTTP: GET /api/g0dm0d3/tools/{name}
+        
+        The ea-status tool is the bridge between G0DM0D3 and the EA Kernel.
+        When the AI asks about security posture, it embeds [TOOL:ea-status]
+        to inject the live generation, fitness, and symbol into the response.
+
+    G0DM0D3ToolOutput:
+      type: object
+      description: "Output from any G0DM0D3 tool call"
+      properties:
+        tool:
+          $ref: "#/components/schemas/G0DM0D3ToolName"
+        invoked_via:
+          type: string
+          enum: [ai_embedded, http_direct]
+        data:
+          type: object
+          additionalProperties: true
+          description: |
+            Tool-specific output:
+            
+            dag-summary: {node_count, asaf_session_count, last_5_actions[]}
+            
+            stig-summary: {stig_nodes, last_scan_at, framework_breakdown{}}
+            
+            pqc-inventory: {ml_dsa_65_count, ml_kem_768_count, per_node_breakdown[]}
+            
+            forensics-summary: {last_5_events[{timestamp, event_type, severity}]}
+            
+            license-status: {license_id, tenant, tier, expiry, capabilities[]}
+            
+            ea-status: {generation, best_fitness, best_symbol, pop_size, status}
+        executed_at:
+          type: string
+          format: date-time
+
+    # Updated G0DM0D3 chat response to show [TOOL:xxx] execution
+    G0DM0D3ChatResponse:
+      type: object
+      description: |
+        Chat response from G0DM0D3. If the AI embedded [TOOL:xxx] tags
+        in its response, those tools were auto-executed before the
+        response reached the client. The `tool_calls` array shows
+        exactly which tools fired and what they returned.
+      properties:
+        conversation_id:
+          type: string
+          format: uuid
+        response:
+          type: string
+          description: "Final response text with tool output already injected"
+        tool_calls:
+          type: array
+          items:
+            $ref: "#/components/schemas/G0DM0D3ToolOutput"
+          description: |
+            Tools auto-executed during this response.
+            Empty if no [TOOL:xxx] tags were embedded.
+            Non-empty = AI consulted live KHEPRA data mid-sentence.
+        provider_used:
+          type: string
+          description: "Actual provider: 'anthropic', 'openrouter', or 'offline'"
+        is_sovereign:
+          type: boolean
+        session_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+
+    # ── PAGINATED WRAPPERS ─────────────────────────────────────
+    PaginatedEAGenerations:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/EAGeneration"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    PaginatedKernelRoutes:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/KernelRouteEntry"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+# ─────────────────────────────────────────────────────────────
+# TAGS (add to base spec tags list)
+# ─────────────────────────────────────────────────────────────
+tags:
+  - name: EA
+    description: |
+      Evolutionary Algorithm Kernel — self-hardening security intelligence.
+      The EA maintains 50 candidate security strategies and evolves them
+      every generation. The champion genome governs KernelRouter dispatch
+      weights and lattice cryptographic parameters. Every generation is
+      ML-DSA-65 signed and committed to the DAG.
+      
+      One-line: the EA continuously proves, cryptographically, that
+      the system is getting harder to break.
+
+# ─────────────────────────────────────────────────────────────
+# STACK INTEGRATION NOTES
+# ─────────────────────────────────────────────────────────────
+# Polymorphic API Engine:
+#   - Route /ea/evolve POST to high-CPU backend pool
+#     (Evolve() is compute-intensive with 50 individuals)
+#   - Cache GET /ea/status for 10s (evolve is infrequent)
+#   - Cache GET /ea/quantum-posture for 30s
+#
+# Mitochondrial Server:
+#   - Register job type: ea_evolve
+#     timeout: 120s, retry: 0 (evolution is not idempotent)
+#   - EA auto-trigger events:
+#     ert_new_findings → ea_evolve job
+#     anomaly_detected → ea_evolve job
+#     critical_cve_match → ea_evolve job
+#   - After ea_evolve completes: publish ea.generation.completed event
+#     → subscriber: KernelRouter.UpdateWeightsFromGenome()
+#
+# PQC-WAF:
+#   - Require compliance_officer scope for /ea/evolve/pause
+#   - Require admin scope for /ea/evolve (manual trigger)
+#   - Treat /ea/generations as audit-grade: log all GET access
+#   - Reject requests with X-Sovereign-Mode: true that reach
+#     /ea/* endpoints — EA runs locally, no WAF policy needed
