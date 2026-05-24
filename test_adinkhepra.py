@@ -164,7 +164,7 @@ class TestBuildFunctions(unittest.TestCase):
         result = adinkhepra.build_all_components(fips=False)
         
         self.assertTrue(result)
-        self.assertEqual(mock_build.call_count, 2)  # adinkhepra + agent
+        self.assertEqual(mock_build.call_count, 3)  # adinkhepra + agent + apiserver
     
     @patch('adinkhepra.build')
     def test_build_all_components_failure(self, mock_build):
@@ -224,38 +224,221 @@ class TestValidationSuite(unittest.TestCase):
     """Test validation suite functionality."""
     
     @patch('subprocess.call')
-    def test_validate_unit_tests_pass(self, mock_call):
-        """Test validation with passing unit tests."""
+    def test_run_unit_tests_success(self, mock_call):
+        mock_call.return_value = 0
+        self.assertTrue(adinkhepra._run_unit_tests())
+        mock_call.assert_called_once_with(["go", "test", "-count=1", "-mod=vendor", "./pkg/...", "./cmd/..."])
+
+    @patch('subprocess.call')
+    def test_run_unit_tests_failure(self, mock_call):
+        mock_call.return_value = 1
+        self.assertFalse(adinkhepra._run_unit_tests())
+        
+        mock_call.side_effect = FileNotFoundError()
+        self.assertFalse(adinkhepra._run_unit_tests())
+
+    @patch('adinkhepra.build')
+    @patch('subprocess.check_output')
+    @patch('os.path.exists')
+    def test_test_pqc_key_gen_success(self, mock_exists, mock_check_output, mock_build):
+        mock_build.return_value = True
+        mock_check_output.return_value = b"success"
+        mock_exists.return_value = True
+        
+        self.assertTrue(adinkhepra._test_pqc_key_gen())
+
+    @patch('adinkhepra.build')
+    @patch('subprocess.check_output')
+    def test_test_pqc_key_gen_build_failure(self, mock_check_output, mock_build):
+        mock_build.return_value = False
+        self.assertFalse(adinkhepra._test_pqc_key_gen())
+
+    @patch('adinkhepra.build')
+    @patch('subprocess.check_output')
+    def test_test_pqc_key_gen_cli_failure(self, mock_check_output, mock_build):
+        mock_build.return_value = True
+        mock_check_output.side_effect = subprocess.CalledProcessError(1, "adinkhepra", output=b"cli error")
+        self.assertFalse(adinkhepra._test_pqc_key_gen())
+
+    @patch('adinkhepra.build')
+    @patch('subprocess.check_output')
+    @patch('os.path.exists')
+    def test_test_pqc_key_gen_missing_files(self, mock_exists, mock_check_output, mock_build):
+        mock_build.return_value = True
+        mock_check_output.return_value = b"success"
+        mock_exists.return_value = False
+        self.assertFalse(adinkhepra._test_pqc_key_gen())
+
+    @patch('time.sleep')
+    @patch('http.client.HTTPConnection')
+    @patch('json.load')
+    def test_wait_for_agent_success(self, mock_json_load, mock_http_conn, mock_sleep):
+        mock_conn = MagicMock()
+        mock_res = MagicMock()
+        mock_res.status = 200
+        mock_conn.getresponse.return_value = mock_res
+        mock_http_conn.return_value = mock_conn
+        mock_json_load.return_value = {"status": "ok"}
+        
+        conn = adinkhepra._wait_for_agent()
+        self.assertIsNotNone(conn)
+        self.assertEqual(conn, mock_conn)
+
+    @patch('time.sleep')
+    @patch('http.client.HTTPConnection')
+    def test_wait_for_agent_timeout(self, mock_http_conn, mock_sleep):
+        mock_http_conn.side_effect = Exception("connection failed")
+        
+        conn = adinkhepra._wait_for_agent()
+        self.assertIsNone(conn)
+        self.assertEqual(mock_sleep.call_count, adinkhepra.AGENT_STARTUP_TIMEOUT * 2)
+
+    @patch('adinkhepra._wait_for_apiserver')
+    @patch('adinkhepra._wait_for_agent')
+    @patch('adinkhepra.start_telemetry_server')
+    @patch('adinkhepra.check_port_available')
+    @patch('adinkhepra.build')
+    @patch('subprocess.Popen')
+    @patch('subprocess.call')
+    @patch('adinkhepra._test_asaf_endpoints')
+    def test_test_agent_api_success(self, mock_asaf, mock_call, mock_popen, mock_build, mock_port, mock_telemetry, mock_wait, mock_wait_api):
+        mock_build.return_value = True
+        mock_telemetry.return_value = MagicMock()
+        mock_port.return_value = True
+        
+        mock_conn = MagicMock()
+        mock_res = MagicMock()
+        mock_res.status = 200
+        mock_conn.getcall = mock_conn.getresponse.return_value = mock_res
+        mock_wait.return_value = mock_conn
+        mock_wait_api.return_value = mock_conn
+        
+        mock_asaf.return_value = True
+        
+        self.assertTrue(adinkhepra._test_agent_api())
+
+    @patch('adinkhepra._wait_for_apiserver')
+    @patch('adinkhepra._wait_for_agent')
+    @patch('adinkhepra.start_telemetry_server')
+    @patch('adinkhepra.check_port_available')
+    @patch('adinkhepra.build')
+    @patch('subprocess.Popen')
+    @patch('subprocess.call')
+    def test_test_agent_api_wait_failure(self, mock_call, mock_popen, mock_build, mock_port, mock_telemetry, mock_wait, mock_wait_api):
+        mock_build.return_value = True
+        mock_telemetry.return_value = MagicMock()
+        mock_port.return_value = True
+        mock_wait.return_value = None
+        mock_wait_api.return_value = MagicMock()
+        
+        self.assertFalse(adinkhepra._test_agent_api())
+
+    def test_test_asaf_endpoints_success(self):
+        mock_conn = MagicMock()
+        mock_res_stream = MagicMock()
+        mock_res_stream.status = 200
+        mock_res_stream.getheader.return_value = "text/event-stream"
+        
+        mock_res_sessions = MagicMock()
+        mock_res_sessions.status = 200
+        
+        mock_res_record = MagicMock()
+        mock_res_record.status = 401
+        
+        mock_conn.getresponse.side_effect = [mock_res_stream, mock_res_sessions, mock_res_record]
+        
+        self.assertTrue(adinkhepra._test_asaf_endpoints(mock_conn))
+
+    def test_test_asaf_endpoints_failure(self):
+        mock_conn = MagicMock()
+        mock_res_stream = MagicMock()
+        mock_res_stream.status = 500
+        mock_res_stream.getheader.return_value = "text/event-stream"
+        
+        mock_conn.getresponse.return_value = mock_res_stream
+        
+        self.assertFalse(adinkhepra._test_asaf_endpoints(mock_conn))
+
+    @patch('subprocess.check_call')
+    @patch('subprocess.check_output')
+    @patch('os.path.exists')
+    def test_generate_service_token_success(self, mock_exists, mock_check_output, mock_check_call):
+        mock_exists.return_value = True
+        mock_check_output.return_value = b"khepra-svc-token-12345\n"
+        
+        self.assertTrue(adinkhepra._generate_service_token("asaf-bridge"))
+
+    @patch('subprocess.check_call')
+    @patch('subprocess.check_output')
+    @patch('os.path.exists')
+    def test_generate_service_token_build_and_run(self, mock_exists, mock_check_output, mock_check_call):
+        mock_exists.side_effect = [False, True]
+        mock_check_call.return_value = 0
+        mock_check_output.return_value = b"khepra-svc-token-12345\n"
+        
+        self.assertTrue(adinkhepra._generate_service_token("asaf-bridge"))
+        mock_check_call.assert_called_once()
+
+    @patch('subprocess.check_call')
+    @patch('subprocess.check_output')
+    @patch('os.path.exists')
+    def test_generate_service_token_failure(self, mock_exists, mock_check_output, mock_check_call):
+        mock_exists.return_value = True
+        mock_check_output.side_effect = subprocess.CalledProcessError(1, "service-token", output=b"error")
+        
+        self.assertFalse(adinkhepra._generate_service_token("asaf-bridge"))
+
+    @patch('resilience_validation.run_resilience_validation')
+    def test_run_resilience_validation_success(self, mock_run):
+        mock_run.return_value = (True, None)
+        self.assertTrue(adinkhepra._run_resilience_validation())
+
+    @patch('resilience_validation.run_resilience_validation')
+    def test_run_resilience_validation_failure(self, mock_run):
+        mock_run.return_value = (False, "error")
+        self.assertFalse(adinkhepra._run_resilience_validation())
+
+    @patch('builtins.__import__', side_effect=ImportError("module not found"))
+    def test_run_resilience_validation_missing(self, mock_import):
+        self.assertTrue(adinkhepra._run_resilience_validation())
+
+    @patch('subprocess.check_call')
+    @patch('subprocess.call')
+    def test_launch_tnok_success(self, mock_call, mock_check_call):
+        mock_check_call.return_value = 0
         mock_call.return_value = 0
         
-        # Mock other validation steps
-        with patch('adinkhepra.build', return_value=True), \
-             patch('subprocess.check_output'), \
-             patch('os.path.exists', return_value=True), \
-             patch('os.remove'), \
-             patch('subprocess.Popen'), \
-             patch('adinkhepra.wait_for_port', return_value=True), \
-             patch('adinkhepra.check_port_available', return_value=True), \
-             patch('http.client.HTTPConnection'):
-            
-            # This will fail at some point, but we're testing the unit test step
-            try:
-                adinkhepra.validate()
-            except:
-                pass
-            
-            # Verify unit tests were called
-            calls = [c for c in mock_call.call_args_list if 'test' in str(c)]
-            self.assertGreater(len(calls), 0)
-    
-    @patch('subprocess.call')
-    def test_validate_unit_tests_fail(self, mock_call):
-        """Test validation with failing unit tests."""
-        mock_call.return_value = 1
+        adinkhepra.launch_tnok([])
+        mock_check_call.assert_called_once()
+        mock_call.assert_called_once()
+
+    @patch('subprocess.check_call')
+    def test_launch_tnok_install_failure(self, mock_check_call):
+        mock_check_call.side_effect = subprocess.CalledProcessError(1, "pip")
         
-        result = adinkhepra.validate()
+        with self.assertRaises(SystemExit):
+            adinkhepra.launch_tnok([])
+
+    @patch('adinkhepra._run_unit_tests')
+    @patch('adinkhepra._test_pqc_key_gen')
+    @patch('adinkhepra._test_agent_api')
+    @patch('adinkhepra._run_resilience_validation')
+    @patch('os.path.exists')
+    @patch('subprocess.check_call')
+    def test_validate_success(self, mock_check_call, mock_exists, mock_resilience, mock_agent, mock_keygen, mock_unit):
+        mock_unit.return_value = True
+        mock_keygen.return_value = True
+        mock_agent.return_value = True
+        mock_resilience.return_value = True
+        mock_exists.return_value = True
+        mock_check_call.return_value = 0
         
-        self.assertFalse(result)
+        self.assertTrue(adinkhepra.validate())
+
+    @patch('adinkhepra._run_unit_tests')
+    def test_validate_failure(self, mock_unit):
+        mock_unit.return_value = False
+        self.assertFalse(adinkhepra.validate())
 
 
 class TestPrintFunctions(unittest.TestCase):
@@ -306,9 +489,8 @@ class TestIntegration(unittest.TestCase):
         mock_proc.poll.return_value = None
         mock_popen.return_value = mock_proc
         
-        # Simulate KeyboardInterrupt after short delay
+        # Simulate KeyboardInterrupt directly without calling sleep recursively
         def interrupt(*args, **kwargs):
-            time.sleep(0.1)
             raise KeyboardInterrupt()
         
         with patch('time.sleep', side_effect=interrupt), \
