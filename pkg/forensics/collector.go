@@ -212,7 +212,7 @@ func (c *Collector) CollectSnapshot(ctx context.Context) (*ForensicSnapshot, err
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		state := c.collectSystemState()
+		state := c.collectSystemState(ctx)
 		mu.Lock()
 		snapshot.SystemState = state
 		mu.Unlock()
@@ -290,7 +290,7 @@ func (c *Collector) CollectSnapshot(ctx context.Context) (*ForensicSnapshot, err
 }
 
 // collectSystemState gathers system metrics
-func (c *Collector) collectSystemState() *SystemState {
+func (c *Collector) collectSystemState(ctx context.Context) *SystemState {
 	state := &SystemState{
 		CPUCount:   runtime.NumCPU(),
 		GoRoutines: runtime.NumGoroutine(),
@@ -299,18 +299,18 @@ func (c *Collector) collectSystemState() *SystemState {
 	// OS-specific collection
 	switch runtime.GOOS {
 	case "linux":
-		c.collectLinuxState(state)
+		c.collectLinuxState(ctx, state)
 	case "windows":
-		c.collectWindowsState(state)
+		c.collectWindowsState(ctx, state)
 	case "darwin":
-		c.collectDarwinState(state)
+		c.collectDarwinState(ctx, state)
 	}
 
 	return state
 }
 
 // collectLinuxState gathers Linux-specific metrics
-func (c *Collector) collectLinuxState(state *SystemState) {
+func (c *Collector) collectLinuxState(ctx context.Context, state *SystemState) {
 	// Uptime
 	if data, err := os.ReadFile("/proc/uptime"); err == nil {
 		parts := strings.Fields(string(data))
@@ -334,33 +334,32 @@ func (c *Collector) collectLinuxState(state *SystemState) {
 }
 
 // collectWindowsState gathers Windows-specific metrics
-func (c *Collector) collectWindowsState(state *SystemState) {
+func (c *Collector) collectWindowsState(ctx context.Context, state *SystemState) {
 	// Uptime via wmic
-	cmd := exec.Command("wmic", "os", "get", "lastbootuptime")
+	cmd := exec.CommandContext(ctx, "wmic", "os", "get", "lastbootuptime")
 	if output, err := cmd.Output(); err == nil {
 		state.BootTime = strings.TrimSpace(string(output))
 	}
 
-	// System info
-	cmd = exec.Command("systeminfo", "/fo", "csv")
+	// System info (Query Windows version using cmd /c ver, which is fast and does not hang)
+	cmd = exec.CommandContext(ctx, "cmd", "/c", "ver")
 	if output, err := cmd.Output(); err == nil {
-		lines := strings.Split(string(output), "\n")
-		if len(lines) > 1 {
-			state.KernelVersion = "Windows"
-		}
+		state.KernelVersion = strings.TrimSpace(string(output))
+	} else {
+		state.KernelVersion = "Windows"
 	}
 }
 
 // collectDarwinState gathers macOS-specific metrics
-func (c *Collector) collectDarwinState(state *SystemState) {
+func (c *Collector) collectDarwinState(ctx context.Context, state *SystemState) {
 	// Uptime
-	cmd := exec.Command("uptime")
+	cmd := exec.CommandContext(ctx, "uptime")
 	if output, err := cmd.Output(); err == nil {
 		state.Uptime = strings.TrimSpace(string(output))
 	}
 
 	// Kernel version
-	cmd = exec.Command("uname", "-r")
+	cmd = exec.CommandContext(ctx, "uname", "-r")
 	if output, err := cmd.Output(); err == nil {
 		state.KernelVersion = strings.TrimSpace(string(output))
 	}
@@ -441,7 +440,7 @@ func (c *Collector) collectLinuxProcesses() []ProcessInfo {
 func (c *Collector) collectWindowsProcesses(ctx context.Context) []ProcessInfo {
 	var processes []ProcessInfo
 
-	cmd := exec.CommandContext(ctx, "tasklist", "/fo", "csv", "/v")
+	cmd := exec.CommandContext(ctx, "tasklist", "/fo", "csv")
 	output, err := cmd.Output()
 	if err != nil {
 		return processes
@@ -455,13 +454,13 @@ func (c *Collector) collectWindowsProcesses(ctx context.Context) []ProcessInfo {
 
 		// Parse CSV
 		fields := parseCSVLine(line)
-		if len(fields) < 6 {
+		if len(fields) < 2 {
 			continue
 		}
 
 		proc := ProcessInfo{
 			Name: strings.Trim(fields[0], "\""),
-			User: strings.Trim(fields[6], "\""),
+			User: "N/A",
 		}
 		fmt.Sscanf(strings.Trim(fields[1], "\""), "%d", &proc.PID)
 

@@ -30,6 +30,8 @@ AGENT_STARTUP_TIMEOUT = 120  # seconds (allow for heavy DB loading)
 PORT_WAIT_TIMEOUT = 30  # seconds
 MOD_VENDOR = "-mod=vendor"
 AGENT_EXE = "adinkhepra-agent.exe"
+APISERVER_PORT = 48080
+APISERVER_EXE = "apiserver.exe"
 
 # ============================================================================
 # UTILITY FUNCTIONS
@@ -88,7 +90,7 @@ def print_warning(message: str) -> None:
 
 def print_info(message: str) -> None:
     """Print an info message."""
-    print(f"      > {message}")
+    safe_print(f"      > {message}")
 
 
 # ============================================================================
@@ -257,9 +259,9 @@ def _run_unit_tests() -> bool:
         print_error("'go' command not found. Please install Go 1.22+")
         return False
 
-def _test_pqc_key_gen() -> bool:
+def _test_pqc_key_gen(fips: bool = True) -> bool:
     print_step("PQC Key Generation", 4, 2, "Testing PQC Key Generation (CLI)")
-    if not build("adinkhepra"):
+    if not build("adinkhepra", fips=fips):
         return False
     cli_bin = os.path.abspath(get_binary_name("adinkhepra"))
     # Keys are written to an OS temp directory — NEVER to the repo working tree.
@@ -309,23 +311,59 @@ def _wait_for_agent() -> http.client.HTTPConnection:
         attempts -= 1
     return None
 
-def _test_agent_api() -> bool:
+def _wait_for_apiserver() -> Optional[http.client.HTTPConnection]:
+    attempts = 60
+    conn = None
+    while attempts > 0:
+        try:
+            conn = http.client.HTTPConnection("127.0.0.1", APISERVER_PORT, timeout=1)
+            conn.request("GET", "/healthz")
+            res = conn.getresponse()
+            res.read()
+            if res.status == 200:
+                print_success("Apiserver health check passed")
+                return conn
+        except Exception:
+            pass
+        time.sleep(0.5)
+        attempts -= 1
+    return None
+
+def _test_agent_api(fips: bool = True) -> bool:
     print_step("Agent API", 4, 3, "Testing Agent API (Integration)")
-    if not build("adinkhepra-agent"):
+    if not build("adinkhepra-agent", fips=fips):
+        return False
+    if not build("apiserver", fips=fips):
         return False
     agent_bin = get_binary_name("adinkhepra-agent")
+    apiserver_bin = get_binary_name("apiserver")
     telemetry_proc = start_telemetry_server()
     if not check_port_available(AGENT_PORT):
         print_warning(f"Port {AGENT_PORT} is in use, attempting to free it...")
         if platform.system().lower() == "windows":
             subprocess.call(["taskkill", "/F", "/IM", AGENT_EXE], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(2)
+    if not check_port_available(APISERVER_PORT):
+        print_warning(f"Port {APISERVER_PORT} is in use, attempting to free it...")
+        if platform.system().lower() == "windows":
+            subprocess.call(["taskkill", "/F", "/IM", APISERVER_EXE], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(2)
     print_info(f"Starting Agent on port {AGENT_PORT}...")
     agent_proc = subprocess.Popen([agent_bin], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    print_info(f"Starting Apiserver on port {APISERVER_PORT}...")
+    apiserver_env = os.environ.copy()
+    apiserver_env["TLS_ENABLED"] = "false"
+    apiserver_env["PORT"] = str(APISERVER_PORT)
+    apiserver_env["KHEPRA_SERVICE_SECRET"] = "smoke-test-secret"
+    apiserver_proc = subprocess.Popen([apiserver_bin], env=apiserver_env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         conn = _wait_for_agent()
         if not conn:
             print_error(f"Agent failed to start or is unreachable (Timeout {AGENT_STARTUP_TIMEOUT}s)")
+            return False
+        conn_apiserver = _wait_for_apiserver()
+        if not conn_apiserver:
+            print_error("Apiserver failed to start or is unreachable")
             return False
         print_step("Polymorphic API", 4, 4, "Validating Polymorphic API (Mitochondreal-Scarab)")
         try:
@@ -342,13 +380,14 @@ def _test_agent_api() -> bool:
         payload = json.dumps({"action": "validate-deployment", "symbol": "Adinkra-Validation", "parent_ids": []})
         conn.request("POST", "/dag/add", body=payload, headers={"Content-Type": "application/json"})
         res = conn.getresponse()
+        res.read()
         if res.status == 200:
             print_success("DAG write successful")
         else:
             print_error(f"DAG write failed: {res.status}")
             return False
 
-        if not _test_asaf_endpoints(conn):
+        if not _test_asaf_endpoints(conn_apiserver):
             return False
 
         return True
@@ -356,9 +395,12 @@ def _test_agent_api() -> bool:
         print_step("Teardown", 4, 4, "Cleaning up test processes")
         if platform.system().lower() == "windows":
             subprocess.call(["taskkill", "/F", "/IM", AGENT_EXE], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.call(["taskkill", "/F", "/IM", APISERVER_EXE], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         else:
             agent_proc.terminate()
             agent_proc.wait()
+            apiserver_proc.terminate()
+            apiserver_proc.wait()
         if telemetry_proc:
             telemetry_proc.terminate()
 
@@ -472,7 +514,7 @@ def _run_resilience_validation() -> bool:
         return False
 
 
-def validate() -> bool:
+def validate(fips: bool = True) -> bool:
     """
     Run the complete ADINKHEPRA validation suite.
     """
@@ -488,9 +530,9 @@ def validate() -> bool:
     
     if not _run_unit_tests():
         return False
-    if not _test_pqc_key_gen():
+    if not _test_pqc_key_gen(fips=fips):
         return False
-    if not _test_agent_api():
+    if not _test_agent_api(fips=fips):
         return False
 
     # ========================================================================
@@ -513,7 +555,7 @@ def validate() -> bool:
 # LAUNCH FUNCTIONS
 # ============================================================================
 
-def launch(args: List[str] = None) -> None:
+def launch(args: List[str] = None, fips: bool = True) -> None:
     """
     Launch the complete ADINKHEPRA stack.
     
@@ -547,7 +589,7 @@ def launch(args: List[str] = None) -> None:
     
     # Build and start agent
     agent_bin = get_binary_name("adinkhepra-agent")
-    if not os.path.exists(agent_bin) and not build("adinkhepra-agent"):
+    if not os.path.exists(agent_bin) and not build("adinkhepra-agent", fips=fips):
         print_error("Failed to build agent")
         sys.exit(1)
     
@@ -598,7 +640,7 @@ def launch(args: List[str] = None) -> None:
 # RUN FUNCTIONS
 # ============================================================================
 
-def run(component: str, args: List[str]) -> None:
+def run(component: str, args: List[str], fips: bool = True) -> None:
     """
     Run a Khepra Protocol component.
     
@@ -610,7 +652,7 @@ def run(component: str, args: List[str]) -> None:
     
     if not os.path.exists(binary):
         print_info(f"Binary {binary} not found. Building first...")
-        if not build(component):
+        if not build(component, fips=fips):
             sys.exit(1)
     
     print_info(f"Running {component} with args: {args}")
@@ -694,20 +736,24 @@ def main() -> None:
 
 def match_command(command: str, extra_args: list[str]) -> None:
     """Dispatches command to the appropriate handler."""
+    fips = "--no-fips" not in extra_args
+    if not fips:
+        extra_args = [arg for arg in extra_args if arg != "--no-fips"]
+
     if command == "build":
-        sys.exit(0 if build_all_components(fips="--no-fips" not in extra_args) else 1)
+        sys.exit(0 if build_all_components(fips=fips) else 1)
     elif command == "agent":
-        run("adinkhepra-agent", extra_args)
+        run("adinkhepra-agent", extra_args, fips=fips)
     elif command == "cli":
-        run("adinkhepra", extra_args)
+        run("adinkhepra", extra_args, fips=fips)
     elif command == "scada":
-        run("adinkhepra", ["scada"] + extra_args)
+        run("adinkhepra", ["scada"] + extra_args, fips=fips)
     elif command == "launch":
-        launch(extra_args)
+        launch(extra_args, fips=fips)
     elif command == "test":
         handle_test_command()
     elif command == "validate":
-        handle_validate_command()
+        handle_validate_command(fips=fips)
     elif command == "resilience":
         handle_resilience_command()
     elif command == "tnok":
@@ -716,7 +762,7 @@ def match_command(command: str, extra_args: list[str]) -> None:
         service_name = extra_args[0] if extra_args else "asaf-bridge"
         sys.exit(0 if _generate_service_token(service_name) else 1)
     else:
-        run("adinkhepra", [command] + extra_args)
+        run("adinkhepra", [command] + extra_args, fips=fips)
 
 def handle_test_command() -> None:
     print_info("Running tests...")
@@ -726,9 +772,9 @@ def handle_test_command() -> None:
     ])
     sys.exit(result)
 
-def handle_validate_command() -> None:
-    if validate():
-        launch([])
+def handle_validate_command(fips: bool = True) -> None:
+    if validate(fips=fips):
+        launch([], fips=fips)
     else:
         print_error("Validation failed. Fix errors before deploying.")
         sys.exit(1)
