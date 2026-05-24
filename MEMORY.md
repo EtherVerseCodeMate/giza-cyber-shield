@@ -43,21 +43,56 @@ G0DM0D  (side repo — AI brain, EtherVerseCodeMate)
 - Feed it only files the Iron Bank checklist requires — never the full dev tree
 - `vendor/` and `trufflehog-config.yaml` must be in `.gitignore` there
 
-### G0DM0D — AI Brain Layer
+### G0DM0D — AI Brain + Evolutionary Algorithm + Quantum Defense Layer
 
-G0DM0D is the AI engine that makes KHEPRA *agentic*, not just a scanner. It is a wealth of value as a standalone repo.
+G0DM0D is the AI engine AND full EA kernel that makes KHEPRA *agentic* and *self-hardening*. It is a wealth of value as a standalone repo. Two packages:
+
+**`pkg/g0dm0d3/`** — AI Brain
 
 | Attribute | Detail |
 |---|---|
 | GitHub | https://github.com/EtherVerseCodeMate/G0DM0D |
-| Local path | `pkg/g0dm0d3/` inside `khepra protocol` (main dev) |
 | Role | Pluggable LLM abstraction + KHEPRA tool panel + live DAG context injection |
 | Provider chain | Anthropic Claude → OpenRouter → Offline rule-based (zero deps, always works) |
-| Tool panel | `dagSummary`, `stigSummary`, `pqcInventory`, `forensicsSummary` — AI invokes via `[TOOL:xxx]` |
-| Security invariant | All external LLM calls isolated to this package. Core engine (DAG/STIG/ASAF/PQC) operates independently. |
-| Air-gap/SCIF | Full offline mode — no API key required, zero external calls, STIG/DAG/PQC queries answered by rule-based engine |
+| Tool panel | `dag-summary`, `stig-summary`, `pqc-inventory`, `forensics-summary`, `license-status`, **`ea-status`** |
+| Air-gap/SCIF | Full offline mode — no API key, zero external calls |
 
-**Why it matters**: DAG-grounded context injection is what produces the Godfather Report's dollar-denominated risk framing. Offline mode is what makes KHEPRA deployable in SCIFs without any external dependency.
+**`pkg/ea/`** — Evolutionary Algorithm Kernel (NVIDIA NeMo mythos-router-inspired)
+
+| File | Role |
+|---|---|
+| `engine.go` | Core EA loop: selection, crossover, mutation, elitism, DAG-signed generation recording |
+| `adinkra_evolution.go` | Adinkra Spectral Lattice genome: evolves ML-DSA-65/Kyber-1024 parameter mappings |
+| `ert_bridge.go` | Bridges EA with ERT findings; threat-aware multi-objective fitness function |
+| `kernel_router.go` | EA-evolved capability dispatcher: routes SecurityContext to KernelAgents in fitness order |
+
+**EA parameters:** pop=50, mutation=0.02, crossover=0.75, elites=2, genome=96 bytes (AdinkraGenomeSize)
+
+**Quantum attack simulators (fitness inputs):**
+
+| Attack | 5yr Probability | Resistance |
+|---|---|---|
+| Shor's algorithm (RSA/ECDSA break) | 15% | 0.98 — ML-DSA-65 is Shor-resistant |
+| Grover's search (key halving) | 35% | 1.0 if SecurityBits ≥ 256 |
+| BKZ/LLL lattice reduction | 25% | Exponential in N, Q, Sigma |
+| Timing/power side-channel | 45% | 0.88 when module rank K ≥ 3 |
+| Adinkra symbol collision (patent-novel) | 5% | Scales with Q-diversity |
+
+**Threat-aware fitness formula:**
+```
+Fitness = 0.35×BaseAttackResistance + 0.25×KEV_Coverage
+        + 0.20×NISTCompliance + 0.20×ERTFindingPenalty
+× 1.5 bonus if all LatticeParams pass NIST validation
+```
+
+**KernelRouter capabilities (EA-weighted, self-tuning):**
+STIG → PQC → Forensics → IR → FIM → BCDR → Network → SBOM
+
+**Why this is a moat:**
+1. **Self-hardening crypto** — EA evolves optimal Adinkra→lattice param mappings against live threat model. Patent-pending.
+2. **Tamper-evident evolution trail** — every generation ML-DSA-65-signed to DAG. FedRAMP/CMMC auditors see cryptographic proof the system got smarter.
+3. **Quantum-native** — only compliance platform with a quantum attack simulator driving continuous crypto hardening.
+4. **`ea-status` tool** — AI brain can report live evolution status (`generation`, `best_fitness`, `best_symbol`) via `[TOOL:ea-status]`.
 
 ### Sensitive Asset Locations
 
