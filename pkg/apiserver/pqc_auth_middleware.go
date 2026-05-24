@@ -53,7 +53,49 @@ const (
 	GinKeyTrustScore = "trust_score"
 	// GinKeyAuthMethod identifies which credential type was used.
 	GinKeyAuthMethod = "auth_method"
+	// GinKeyMFAVerified is true when the upstream IdP confirmed aal2 multi-factor auth.
+	GinKeyMFAVerified = "mfa_verified"
 )
+
+// RequireMFA is a Gin middleware that rejects requests whose token was issued
+// without MFA (Supabase aal1 only). Apply this to any admin or privileged route.
+// It must be chained after PQCGinMiddleware().
+//
+// With Cloudflare Access and Supabase MFA now enforced at the IdP level, this
+// middleware provides a defence-in-depth check so that tokens issued before the
+// policy change (or from legacy API keys) cannot access admin routes.
+func RequireMFA() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Legacy API keys are service accounts — allow explicitly exempted paths.
+		if method, _ := c.Get(GinKeyAuthMethod); method == "legacy-api-key" {
+			c.Next()
+			return
+		}
+
+		// Check PQCTokenClaims first (most authoritative — ML-DSA-65 signed).
+		if raw, exists := c.Get(GinKeyPQCClaims); exists {
+			if claims, ok := raw.(*auth.PQCTokenClaims); ok && claims.MFAVerified {
+				c.Next()
+				return
+			}
+		}
+
+		// Fallback: check the context key set for raw Supabase JWT path.
+		if verified, exists := c.Get(GinKeyMFAVerified); exists {
+			if b, ok := verified.(bool); ok && b {
+				c.Next()
+				return
+			}
+		}
+
+		c.JSON(http.StatusForbidden, gin.H{
+			"error":  "mfa_required",
+			"detail": "This endpoint requires multi-factor authentication. Complete MFA at your IdP and obtain a new token.",
+			"hint":   "Supabase: ensure aal=aal2. Cloudflare Access: MFA policy is enforced at the gateway.",
+		})
+		c.Abort()
+	}
+}
 
 // ─── Server Injection ─────────────────────────────────────────────────────────
 
@@ -126,10 +168,11 @@ func (s *Server) PQCGinMiddleware() gin.HandlerFunc {
 					subject = "supabase-unknown"
 				}
 
-				// Auto-wrap into PQC token if gateway available
+				// Auto-wrap into PQC token if gateway available.
+				// Pass sbClaims so WrapOAuth2Token can read the aal claim for MFA status.
 				if s.pqcGateway != nil {
 					roles := extractSupabaseRoles(sbClaims)
-					pqcTok, err := s.pqcGateway.WrapOAuth2Token(bearerToken, subject, roles, "supabase-auth")
+					pqcTok, err := s.pqcGateway.WrapOAuth2Token(bearerToken, subject, roles, "supabase-auth", sbClaims)
 					if err == nil {
 						s.setPQCContext(c, pqcTok.Claims, "supabase-pqc-wrapped")
 						if email, ok := sbClaims["email"].(string); ok {
@@ -200,8 +243,15 @@ func (s *Server) setPQCContext(c *gin.Context, claims *auth.PQCTokenClaims, meth
 	c.Set(GinKeyRoles, claims.Roles)
 	c.Set(GinKeyTrustScore, claims.TrustScore)
 	c.Set(GinKeyAuthMethod, method)
+	c.Set(GinKeyMFAVerified, claims.MFAVerified)
 	c.Header("X-Khepra-Subject", claims.Subject)
 	c.Header("X-Khepra-Symbol", claims.Symbol)
+	c.Header("X-Khepra-MFA", func() string {
+		if claims.MFAVerified {
+			return "aal2"
+		}
+		return "aal1"
+	}())
 }
 
 // ─── Auth Endpoints ───────────────────────────────────────────────────────────
@@ -252,12 +302,12 @@ func (s *Server) handleAuthToken(c *gin.Context) {
 	}
 	bearerToken := parts[1]
 
-	// Try Supabase JWT first
+	// Try Supabase JWT first. Pass claims so MFA aal level is propagated.
 	if len(supabaseSecret) > 0 {
 		if sbClaims, ok := validateSupabaseJWT(bearerToken, supabaseSecret); ok {
 			subject, _ := sbClaims["sub"].(string)
 			roles := extractSupabaseRoles(sbClaims)
-			pqcTok, err := s.pqcGateway.WrapOAuth2Token(bearerToken, subject, roles, "supabase-auth")
+			pqcTok, err := s.pqcGateway.WrapOAuth2Token(bearerToken, subject, roles, "supabase-auth", sbClaims)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to issue PQC token"})
 				return

@@ -1,49 +1,52 @@
-# Prometheus configuration for Phantom Network Stack monitoring
+# Alerting configuration for Khepra / AdinKhepra ASAF Engine
+# Covers SOC 2 CC4.1 (continuous monitoring) and CC7.2 (anomaly detection)
 
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
   external_labels:
-    monitor: 'phantom-network'
-    environment: 'development'
+    monitor: 'khepra-asaf'
+    environment: 'production'
 
-# Alerting configuration
 alerting:
   alertmanagers:
     - static_configs:
-        - targets: []
-          # - alertmanager:9093
+        - targets:
+            - alertmanager:9093
 
-# Scrape configurations
+rule_files:
+  - 'alerts/security.yml'
+  - 'alerts/availability.yml'
+  - 'alerts/capacity.yml'
+
 scrape_configs:
-  # Phantom Node Metrics
+  - job_name: 'khepra-api'
+    static_configs:
+      - targets: ['khepra-api:8080']
+        labels:
+          service: 'khepra-api'
+          symbol: 'Eban'
+    metrics_path: '/metrics'
+    scheme: 'http'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
   - job_name: 'phantom-node'
     static_configs:
       - targets: ['phantom-node:9090']
         labels:
           service: 'phantom-node'
           symbol: 'Eban'
-
-    # Scrape metrics
     metrics_path: '/metrics'
     scheme: 'http'
 
-    # Relabeling
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: instance
-
-  # PostgreSQL Metrics (if postgres_exporter is added)
   - job_name: 'postgres'
     static_configs:
       - targets: ['postgres:5432']
         labels:
           service: 'postgres'
 
-    # Uncomment if using postgres_exporter
-    # metrics_path: '/metrics'
-
-  # Prometheus Self-Monitoring
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']

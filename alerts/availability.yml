@@ -1,0 +1,46 @@
+groups:
+  - name: soc2_availability
+    # SOC 2 A1.1 — capacity; A1.2 — backup; CC7.5 — recovery
+    rules:
+
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+          soc2: A1.1
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.instance }} has been unreachable for >2 minutes."
+          runbook: "docs/soc2/policies/BUSINESS_CONTINUITY_PLAN.md"
+
+      - alert: ServiceAvailabilityBelow99
+        expr: avg_over_time(up[1h]) < 0.99
+        for: 5m
+        labels:
+          severity: warning
+          soc2: A1.1
+        annotations:
+          summary: "Service availability below 99% over last hour"
+          description: "{{ $labels.instance }} availability is {{ $value | printf \"%.2f\" }}% in the last hour."
+
+      - alert: BackupJobFailed
+        expr: khepra_backup_last_success_timestamp < (time() - 86400)
+        for: 0m
+        labels:
+          severity: critical
+          soc2: A1.2
+        annotations:
+          summary: "Daily backup has not completed in >24 hours"
+          description: "Last successful backup on {{ $labels.instance }} was >24h ago. RPO breach risk."
+          runbook: "docs/soc2/policies/BUSINESS_CONTINUITY_PLAN.md#recovery-procedures"
+
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) < 0.10
+        for: 5m
+        labels:
+          severity: warning
+          soc2: A1.1
+        annotations:
+          summary: "Disk space below 10% on {{ $labels.instance }}"
+          description: "{{ $labels.mountpoint }} has {{ $value | printf \"%.1f\" }}% free on {{ $labels.instance }}."

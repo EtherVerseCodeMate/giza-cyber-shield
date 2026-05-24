@@ -1,0 +1,34 @@
+groups:
+  - name: soc2_capacity
+    # SOC 2 A1.1 — capacity management; CC7.1 — configuration management
+    rules:
+
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+          soc2: A1.1
+        annotations:
+          summary: "CPU usage above 80% for 10 minutes"
+          description: "Instance {{ $labels.instance }} CPU at {{ $value | printf \"%.1f\" }}%."
+
+      - alert: HighMemoryUsage
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          soc2: A1.1
+        annotations:
+          summary: "Memory usage above 85%"
+          description: "Instance {{ $labels.instance }} memory at {{ $value | printf \"%.1f\" }}%."
+
+      - alert: HighDiskUsage
+        expr: (1 - node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          soc2: A1.1
+        annotations:
+          summary: "Disk usage above 85%"
+          description: "{{ $labels.mountpoint }} on {{ $labels.instance }} at {{ $value | printf \"%.1f\" }}%."

@@ -1,0 +1,78 @@
+global:
+  resolve_timeout: 5m
+  smtp_require_tls: true
+
+# ── Routing ───────────────────────────────────────────────────────────────────
+route:
+  group_by: ['alertname', 'severity', 'soc2']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'security-team'
+  routes:
+    - match:
+        severity: critical
+      receiver: 'security-oncall'
+      repeat_interval: 1h
+      continue: true
+
+    - match:
+        soc2: CC6.1
+      receiver: 'security-oncall'
+      repeat_interval: 30m
+
+    - match:
+        soc2: CC7.2
+      receiver: 'security-oncall'
+      repeat_interval: 30m
+
+# ── Receivers ─────────────────────────────────────────────────────────────────
+# Replace placeholder values with real credentials via environment variables
+# or a secrets manager. Do NOT commit real credentials.
+receivers:
+  - name: 'security-team'
+    email_configs:
+      - to: 'security@souhimbou.ai'
+        from: 'alerts@souhimbou.ai'
+        smarthost: '${SMTP_HOST}:587'
+        auth_username: '${SMTP_USER}'
+        auth_password: '${SMTP_PASSWORD}'
+        send_resolved: true
+        headers:
+          subject: '[SOC2-ALERT] {{ .GroupLabels.alertname }} — {{ .Status | toUpper }}'
+        html: |
+          {{ range .Alerts }}
+          <b>{{ .Annotations.summary }}</b><br/>
+          {{ .Annotations.description }}<br/>
+          <a href="{{ .Annotations.runbook }}">Runbook</a><br/>
+          SOC 2 Criterion: {{ .Labels.soc2 }}<br/>
+          Severity: {{ .Labels.severity }}<br/>
+          {{ end }}
+
+  - name: 'security-oncall'
+    email_configs:
+      - to: 'security@souhimbou.ai'
+        from: 'alerts@souhimbou.ai'
+        smarthost: '${SMTP_HOST}:587'
+        auth_username: '${SMTP_USER}'
+        auth_password: '${SMTP_PASSWORD}'
+        send_resolved: true
+        headers:
+          subject: '[P1-CRITICAL] {{ .GroupLabels.alertname }} requires immediate response'
+    # Uncomment and configure for PagerDuty / Slack:
+    # pagerduty_configs:
+    #   - routing_key: '${PAGERDUTY_KEY}'
+    #     description: '{{ .CommonAnnotations.summary }}'
+    # slack_configs:
+    #   - api_url: '${SLACK_WEBHOOK_URL}'
+    #     channel: '#security-incidents'
+    #     title: ':rotating_light: {{ .CommonAnnotations.summary }}'
+    #     text: '{{ .CommonAnnotations.description }}'
+
+# ── Inhibition rules ──────────────────────────────────────────────────────────
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['instance', 'alertname']

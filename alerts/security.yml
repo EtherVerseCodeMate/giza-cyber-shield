@@ -1,0 +1,142 @@
+groups:
+  - name: soc2_security
+    # SOC 2 CC4.1 — continuous monitoring; CC7.2 — anomaly detection
+    rules:
+
+      # ── Authentication ────────────────────────────────────────────────────────
+      - alert: AuthenticationBruteForce
+        expr: rate(khepra_auth_failures_total[5m]) > 1
+        for: 2m
+        labels:
+          severity: critical
+          soc2: CC7.2
+        annotations:
+          summary: "Brute-force authentication attempt detected"
+          description: "{{ $value | printf \"%.1f\" }} auth failures/s on {{ $labels.instance }} — possible brute-force attack."
+          runbook: "docs/soc2/policies/INCIDENT_RESPONSE_PLAN.md#61-compromised-api-key--license-token"
+
+      - alert: AuthenticationAnomalyNewCountry
+        expr: khepra_auth_new_country_login == 1
+        for: 0m
+        labels:
+          severity: warning
+          soc2: CC7.2
+        annotations:
+          summary: "Login from new country/region"
+          description: "User {{ $labels.subject }} authenticated from a new geographic location."
+
+      - alert: MFABypassAttempt
+        expr: khepra_auth_mfa_rejected_total > 0
+        for: 0m
+        labels:
+          severity: critical
+          soc2: CC6.1
+        annotations:
+          summary: "MFA bypass attempt blocked"
+          description: "{{ $value }} request(s) rejected by RequireMFA() middleware on {{ $labels.instance }}. Token lacked aal2."
+
+      # ── Privilege & Access ────────────────────────────────────────────────────
+      - alert: PrivilegeEscalationAttempt
+        expr: rate(khepra_rbac_denied_total{role="admin"}[5m]) > 0.1
+        for: 1m
+        labels:
+          severity: critical
+          soc2: CC6.3
+        annotations:
+          summary: "Repeated admin privilege escalation attempts"
+          description: "{{ $value | printf \"%.2f\" }} denied admin access attempts/s on {{ $labels.instance }}."
+
+      - alert: UnexpectedAdminLogin
+        expr: khepra_admin_logins_total > 0
+        for: 0m
+        labels:
+          severity: warning
+          soc2: CC6.1
+        annotations:
+          summary: "Admin account login"
+          description: "Admin login by {{ $labels.subject }} at {{ $labels.instance }}. Verify this is expected."
+
+      # ── Data Exfiltration ─────────────────────────────────────────────────────
+      - alert: DataExfiltrationPatternOutbound
+        expr: rate(khepra_api_response_bytes_total[5m]) > 3 * avg_over_time(rate(khepra_api_response_bytes_total[5m])[24h:5m])
+        for: 5m
+        labels:
+          severity: critical
+          soc2: CC7.2
+        annotations:
+          summary: "Outbound data volume spike — possible exfiltration"
+          description: "Outbound traffic is {{ $value | humanize }}B/s, >3× 24h baseline on {{ $labels.instance }}."
+          runbook: "docs/soc2/policies/INCIDENT_RESPONSE_PLAN.md#63-data-exfiltration"
+
+      # ── Configuration / FIM ───────────────────────────────────────────────────
+      - alert: FileIntegrityViolation
+        expr: khepra_fim_violations_total > 0
+        for: 0m
+        labels:
+          severity: critical
+          soc2: CC6.8
+        annotations:
+          summary: "File integrity violation detected"
+          description: "{{ $value }} FIM violation(s) on {{ $labels.instance }}. Path: {{ $labels.path }}. Severity: {{ $labels.severity }}."
+
+      - alert: ConfigurationDriftDetected
+        expr: khepra_sonar_drift_score > 0.3
+        for: 5m
+        labels:
+          severity: warning
+          soc2: CC7.1
+        annotations:
+          summary: "Configuration drift detected by Sonar"
+          description: "Drift score {{ $value | printf \"%.2f\" }} on {{ $labels.instance }} exceeds 0.30 threshold."
+
+      # ── Secrets & Certificates ────────────────────────────────────────────────
+      - alert: TLSCertificateExpiringSoon
+        expr: (khepra_tls_cert_expiry_seconds - time()) / 86400 < 30
+        for: 1h
+        labels:
+          severity: warning
+          soc2: CC6.7
+        annotations:
+          summary: "TLS certificate expiring within 30 days"
+          description: "Certificate {{ $labels.domain }} expires in {{ $value | printf \"%.0f\" }} days."
+
+      - alert: TLSCertificateExpiryCritical
+        expr: (khepra_tls_cert_expiry_seconds - time()) / 86400 < 7
+        for: 0m
+        labels:
+          severity: critical
+          soc2: CC6.7
+        annotations:
+          summary: "TLS certificate expiring within 7 days"
+          description: "Certificate {{ $labels.domain }} expires in {{ $value | printf \"%.0f\" }} days. Renew immediately."
+
+      - alert: PQCKeyRotationOverdue
+        expr: (time() - khepra_pqc_key_last_rotated_timestamp) > 7776000
+        for: 0m
+        labels:
+          severity: warning
+          soc2: CC6.7
+        annotations:
+          summary: "PQC key rotation overdue (>90 days)"
+          description: "ML-DSA-65 signing key on {{ $labels.instance }} has not been rotated in >90 days."
+
+      # ── Vulnerability Management ──────────────────────────────────────────────
+      - alert: CriticalCVEUnpatched
+        expr: khepra_vuln_critical_unpatched_total > 0
+        for: 0m
+        labels:
+          severity: critical
+          soc2: CC7.1
+        annotations:
+          summary: "Critical CVE unpatched (SLA: 7 days)"
+          description: "{{ $value }} critical-severity CVE(s) unpatched on {{ $labels.instance }}. Patch within 7 days."
+
+      - alert: HighCVEUnpatchedSLABreach
+        expr: khepra_vuln_high_unpatched_days > 30
+        for: 0m
+        labels:
+          severity: warning
+          soc2: CC7.1
+        annotations:
+          summary: "High-severity CVE unpatched >30 days (SLA breach)"
+          description: "{{ $labels.cve }} has been unpatched for {{ $value }} days on {{ $labels.instance }}."

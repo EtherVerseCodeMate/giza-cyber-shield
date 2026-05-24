@@ -1,0 +1,60 @@
+name: ClamAV Malware Scan
+# SOC 2 CC6.8 — malicious software prevention
+# Scans build artifacts and repository for malware before deployment.
+
+on:
+  push:
+    branches: [main, claude/**]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * *'   # Daily at 03:00 UTC
+
+jobs:
+  clamav-scan:
+    name: ClamAV Artifact Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install ClamAV
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y clamav clamav-daemon
+          sudo systemctl stop clamav-freshclam 2>/dev/null || true
+
+      - name: Update virus definitions
+        run: |
+          sudo freshclam --quiet || echo "freshclam warning (non-fatal)"
+
+      - name: Scan repository
+        id: scan
+        run: |
+          # Exclude vendored Go modules (too large; supply chain checked separately)
+          # Exclude .git objects
+          clamscan --recursive \
+            --exclude-dir=".git" \
+            --exclude-dir="vendor" \
+            --exclude="*.sealed" \
+            --infected \
+            --bell \
+            --log=clamav-scan.log \
+            . || SCAN_EXIT=$?
+
+          echo "scan_exit=${SCAN_EXIT:-0}" >> "$GITHUB_OUTPUT"
+
+          if [ "${SCAN_EXIT:-0}" -eq 1 ]; then
+            echo "::error::ClamAV detected infected files. See clamav-scan.log."
+            cat clamav-scan.log
+            exit 1
+          fi
+          echo "ClamAV scan clean."
+
+      - name: Upload scan log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clamav-scan-log-${{ github.sha }}
+          path: clamav-scan.log
+          retention-days: 90   # retain as SOC 2 CC6.8 evidence

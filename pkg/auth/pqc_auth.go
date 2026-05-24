@@ -119,6 +119,11 @@ type PQCTokenClaims struct {
 
 	// Protocol that produced this token
 	ProtocolType string `json:"proto,omitempty"` // "oauth2", "saml", "local"
+
+	// MFA / Authentication Assurance Level (Supabase aal claim)
+	// MFAVerified is true when the upstream IdP confirmed aal2 (multi-factor) auth.
+	MFAVerified bool   `json:"mfa_verified,omitempty"`
+	AAL         string `json:"aal,omitempty"` // "aal1" | "aal2"
 }
 
 // PQCToken bundles the signed JWT compact string with its parsed claims.
@@ -297,11 +302,29 @@ func (g *PQCAuthGateway) CompletePKCEFlow(code, state string, exchangeFn Exchang
 
 // WrapOAuth2Token wraps an upstream access token in a PQC-signed JWT.
 // The upstream token is hashed (SHA-256) and embedded as upstreamDigest for audit trails.
-func (g *PQCAuthGateway) WrapOAuth2Token(accessToken, subject string, roles []string, provider string) (*PQCToken, error) {
+// upstreamClaims is the decoded JWT claim map from the upstream IdP (may be nil).
+// When present, the Supabase "aal" claim is read to set MFAVerified / AAL on the PQC token.
+func (g *PQCAuthGateway) WrapOAuth2Token(accessToken, subject string, roles []string, provider string, upstreamClaims ...map[string]interface{}) (*PQCToken, error) {
 	sfp := pqcSFPHex(g.symbol)
 	digest := sha256.Sum256([]byte(accessToken))
 	now := time.Now()
 	exp := now.Add(g.tokenTTL)
+
+	// Extract MFA assurance level from upstream IdP claims (Supabase aal / amr).
+	mfaVerified := false
+	aalLevel := "aal1"
+	if len(upstreamClaims) > 0 && upstreamClaims[0] != nil {
+		if aal, ok := upstreamClaims[0]["aal"].(string); ok {
+			aalLevel = aal
+			mfaVerified = aal == "aal2"
+		}
+	}
+
+	// MFA-verified sessions earn a higher base trust score.
+	trustScore := 0.85
+	if mfaVerified {
+		trustScore = 0.95
+	}
 
 	claims := &PQCTokenClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -315,10 +338,12 @@ func (g *PQCAuthGateway) WrapOAuth2Token(accessToken, subject string, roles []st
 		Roles:               roles,
 		Symbol:              g.symbol,
 		SpectralFingerprint: sfp,
-		TrustScore:          0.85, // OAuth2 PKCE base trust
+		TrustScore:          trustScore,
 		UpstreamProvider:    provider,
 		UpstreamDigest:      hex.EncodeToString(digest[:]),
 		ProtocolType:        "oauth2",
+		MFAVerified:         mfaVerified,
+		AAL:                 aalLevel,
 	}
 
 	signed, err := g.signClaims(claims)
