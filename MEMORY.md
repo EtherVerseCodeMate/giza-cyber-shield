@@ -5,6 +5,49 @@
 
 ---
 
+## 🗺️ Repository Topology — Authoritative Map
+
+Dev and production are intentionally separated: minimize attack surface, prevent sensitive file exposure, gate all changes through audit/testing/red-team before they reach customers.
+
+| Role | GitHub Remote | Local Path | Purpose |
+|---|---|---|---|
+| **Main Dev** | https://github.com/EtherVerseCodeMate/giza-cyber-shield | `C:\Users\intel\blackbox\khepra protocol` | All dev, audits, testing, red-teaming, sandboxing — **never deploy directly from here** |
+| **Prod: ASAF** | https://github.com/nouchix/Adinkhepra-ASAF | `C:\Users\intel\blackbox\Adinkhepra-ASAF` | Production-ready ASAF binary — clean, no dev artifacts |
+| **Prod: MCP** | https://github.com/nouchix/PQC-Khepra-MCP | `C:\Users\intel\blackbox\PQC-Khepra-MCP` | Production-ready MCP server — clean, no dev artifacts |
+| **Iron Bank** | https://github.com/nouchix/adinkhepra-asaf-ironbank | *(no local copy — deleted to save disk space)* | IB submission only — thin copy, never the full dev tree |
+
+### Promotion Flow
+
+```
+Dev / red-team / experiments
+        │
+        ▼
+giza-cyber-shield  (main dev — EtherVerseCodeMate)
+        │  audit / test / sandbox gate
+        ├──► nouchix/Adinkhepra-ASAF       (ASAF prod)
+        └──► nouchix/PQC-Khepra-MCP       (MCP prod)
+                                              │
+                                     thin cherry-pick
+                                              ▼
+                           nouchix/adinkhepra-asaf-ironbank  (IB only)
+```
+
+### Iron Bank Repo Rules
+- No local clone — clone temporarily if needed: `git clone https://github.com/nouchix/adinkhepra-asaf-ironbank`
+- Feed it only files the Iron Bank checklist requires — never the full dev tree
+- `vendor/` and `trufflehog-config.yaml` must be in `.gitignore` there
+
+### Sensitive Asset Locations
+
+| Asset | Lives In | Never In |
+|---|---|---|
+| PQC private keys | VPS `~/.asaf/keys/` + sealed local | Any GitHub repo |
+| `vendor/` directory | `.gitignore` (Iron Bank repo) | Iron Bank git index |
+| `.env.local` / secrets | Local only | Any repo |
+| Production binaries | VPS `/opt/adinkhepra/` | Source repos |
+
+---
+
 ## 🎯 North Star: $100M ARR by Year 7 (or strategic acquisition at $500M–$800M)
 
 The DCF (accelerated case) puts Year 5 revenue at $22M. Closing the gap to $100M requires three compounding levers — not more features.
@@ -73,9 +116,19 @@ Their motivation: 36,195 mappings moat + PQC attestation + SDVOSB status + Iron 
 
 ---
 
-## ⚠️ Iron Bank — Current Blocker & Resolution
+## ⚠️ Iron Bank — Current Blocker, Resolution & De-Risking
 
-### Status: ACTIVE (pipeline blocked at setup stage)
+> **Strategic note**: Iron Bank is subject to Platform One administrative theater — external admin control, months of delay, Jeff Goluba non-responsive. Iron Bank is **one of four active distribution channels**. It does NOT gate revenue on the other three. Pursue it in parallel; never let it block Sprint 0–2 closes.
+
+| Channel | Iron Bank Required? | Priority |
+|---|---|---|
+| Direct pilot agreements (QCL warm prospects) | ❌ No | **Close NOW** |
+| AWS Marketplace GovCloud | ❌ No | **List NOW** |
+| MCP registry (modelcontextprotocol.io / mcpservers.org / cline.bot) | ❌ No | **Submit NOW** |
+| MSP flat licensing | ❌ No | First call this week |
+| Platform One / P1 hardened catalog | ✅ Yes | Parallel track — Wednesday session |
+
+### Pipeline Status: BLOCKED at setup stage
 
 **Root Cause (diagnosed)**:
 ```
@@ -246,3 +299,5 @@ go mod tidy && go mod download
 - Treating Iron Bank as a prerequisite to selling (it's not — sign pilots now)
 - Missing the 18–24 month window before Vanta/Drata/Tenable copies KHEPRA's feature set
 - Letting Jeff Goluba's silence block the pipeline (attend the Wednesday session, own it)
+- Confusing dev repo (giza-cyber-shield) with prod repos (Adinkhepra-ASAF, PQC-Khepra-MCP) — always gate through audit before promoting
+- Committing `vendor/`, secrets, or dev artifacts to the Iron Bank repo
