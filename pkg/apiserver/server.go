@@ -225,9 +225,6 @@ func (s *Server) setupRoutes() {
 			license.POST("/:license_id/upgrade", s.handleUpgradeLicense)
 			license.GET("/:license_id/usage", s.handleGetLicenseUsage)
 
-			// Admin/list endpoints
-			license.GET("/admin/list", s.handleListLicenses)
-
 			// Telemetry integration with Cloudflare server
 			telemetry := license.Group("/telemetry")
 			{
@@ -244,6 +241,13 @@ func (s *Server) setupRoutes() {
 
 		// MCP (Model Context Protocol) endpoints — Supabase bridge + AI tool integration
 		s.setupMCPRoutes(v1)
+
+		// Admin routes — MFA (aal2) required in addition to PQC auth (SOC 2 CC6.1)
+		admin := v1.Group("/admin")
+		admin.Use(RequireMFA())
+		{
+			admin.GET("/licenses", s.handleListLicenses)
+		}
 	}
 
 	// Service-to-service API (authenticated with service tokens)
