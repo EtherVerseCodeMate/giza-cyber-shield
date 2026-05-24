@@ -14,6 +14,7 @@ Dev and production are intentionally separated: minimize attack surface, prevent
 | **Main Dev** | https://github.com/EtherVerseCodeMate/giza-cyber-shield | `C:\Users\intel\blackbox\khepra protocol` | All dev, audits, testing, red-teaming, sandboxing — **never deploy directly from here** |
 | **Prod: ASAF** | https://github.com/nouchix/Adinkhepra-ASAF | `C:\Users\intel\blackbox\Adinkhepra-ASAF` | Production-ready ASAF binary — clean, no dev artifacts |
 | **Prod: MCP** | https://github.com/nouchix/PQC-Khepra-MCP | `C:\Users\intel\blackbox\PQC-Khepra-MCP` | Production-ready MCP server — clean, no dev artifacts |
+| **Side: AI Brain** | https://github.com/EtherVerseCodeMate/G0DM0D | *(lives in main dev as `pkg/g0dm0d3/`)* | G0DM0D AI engine — pluggable LLM abstraction, DAG context injection, KHEPRA tool panel |
 | **Iron Bank** | https://github.com/nouchix/adinkhepra-asaf-ironbank | *(no local copy — deleted to save disk space)* | IB submission only — thin copy, never the full dev tree |
 
 ### Promotion Flow
@@ -30,12 +31,33 @@ giza-cyber-shield  (main dev — EtherVerseCodeMate)
                                      thin cherry-pick
                                               ▼
                            nouchix/adinkhepra-asaf-ironbank  (IB only)
+
+G0DM0D  (side repo — AI brain, EtherVerseCodeMate)
+    └──► consumed as pkg/g0dm0d3/ inside giza-cyber-shield
+         ├─► /api/g0dm0d3/chat    (streaming, DAG-grounded)
+         └─► /api/g0dm0d3/status  (provider + DAG node count)
 ```
 
 ### Iron Bank Repo Rules
 - No local clone — clone temporarily if needed: `git clone https://github.com/nouchix/adinkhepra-asaf-ironbank`
 - Feed it only files the Iron Bank checklist requires — never the full dev tree
 - `vendor/` and `trufflehog-config.yaml` must be in `.gitignore` there
+
+### G0DM0D — AI Brain Layer
+
+G0DM0D is the AI engine that makes KHEPRA *agentic*, not just a scanner. It is a wealth of value as a standalone repo.
+
+| Attribute | Detail |
+|---|---|
+| GitHub | https://github.com/EtherVerseCodeMate/G0DM0D |
+| Local path | `pkg/g0dm0d3/` inside `khepra protocol` (main dev) |
+| Role | Pluggable LLM abstraction + KHEPRA tool panel + live DAG context injection |
+| Provider chain | Anthropic Claude → OpenRouter → Offline rule-based (zero deps, always works) |
+| Tool panel | `dagSummary`, `stigSummary`, `pqcInventory`, `forensicsSummary` — AI invokes via `[TOOL:xxx]` |
+| Security invariant | All external LLM calls isolated to this package. Core engine (DAG/STIG/ASAF/PQC) operates independently. |
+| Air-gap/SCIF | Full offline mode — no API key required, zero external calls, STIG/DAG/PQC queries answered by rule-based engine |
+
+**Why it matters**: DAG-grounded context injection is what produces the Godfather Report's dollar-denominated risk framing. Offline mode is what makes KHEPRA deployable in SCIFs without any external dependency.
 
 ### Sensitive Asset Locations
 
