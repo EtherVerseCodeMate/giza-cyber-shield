@@ -131,8 +131,8 @@ func scaToUnified(ef sca.EnrichedFinding) UnifiedFinding {
 	}
 }
 
-// SCALaneTimings returns pipeline stage timings for observability.
-// This is a placeholder for future instrumentation.
+// SCALaneTimings captures per-stage wall-clock durations for observability.
+// Populated by instrumented runs and surfaced in the ERT scan summary.
 type SCALaneTimings struct {
 	SBOMGeneration time.Duration `json:"sbom_generation"`
 	VulnMatching   time.Duration `json:"vuln_matching"`
