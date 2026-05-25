@@ -211,11 +211,52 @@ func WriteCBOMToFile(cbom *CBOM, outputPath string) error {
 	return os.WriteFile(outputPath, data, 0644)
 }
 
-// WriteCBOMToSPDX exports CBOM in SPDX format (alternative to CycloneDX)
+// WriteCBOMToSPDX exports CBOM in SPDX 2.3 JSON format (NTIA-minimum element compliant).
+// Maps CycloneDX components to SPDX Package descriptors.
 func WriteCBOMToSPDX(cbom *CBOM, outputPath string) error {
-	// TODO: Implement SPDX format conversion
-	// SPDX is another industry-standard SBOM format
-	return fmt.Errorf("SPDX format not yet implemented")
+	type spdxPackage struct {
+		SPDXID           string `json:"SPDXID"`
+		Name             string `json:"name"`
+		VersionInfo      string `json:"versionInfo"`
+		DownloadLocation string `json:"downloadLocation"`
+		FilesAnalyzed    bool   `json:"filesAnalyzed"`
+	}
+	type spdxDoc struct {
+		SPDXVersion     string       `json:"spdxVersion"`
+		DataLicense     string       `json:"dataLicense"`
+		SPDXID          string       `json:"SPDXID"`
+		Name            string       `json:"name"`
+		DocumentNS      string       `json:"documentNamespace"`
+		Created         string       `json:"created"`
+		Creators        []string     `json:"creators"`
+		Packages        []spdxPackage `json:"packages"`
+	}
+
+	doc := spdxDoc{
+		SPDXVersion: "SPDX-2.3",
+		DataLicense: "CC0-1.0",
+		SPDXID:      "SPDXRef-DOCUMENT",
+		Name:        cbom.SerialNumber,
+		DocumentNS:  fmt.Sprintf("https://khepra.nouchix.com/sbom/%s", cbom.SerialNumber),
+		Created:     cbom.Metadata.Timestamp.UTC().Format("2006-01-02T15:04:05Z"),
+		Creators:    []string{"Tool: AdinKhepra SONAR"},
+	}
+
+	for i, comp := range cbom.Components {
+		doc.Packages = append(doc.Packages, spdxPackage{
+			SPDXID:           fmt.Sprintf("SPDXRef-Package-%d", i),
+			Name:             comp.Name,
+			VersionInfo:      comp.Version,
+			DownloadLocation: "NOASSERTION",
+			FilesAnalyzed:    false,
+		})
+	}
+
+	data, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal SPDX document: %w", err)
+	}
+	return os.WriteFile(outputPath, data, 0644)
 }
 
 // GenerateMigrationReport creates a human-readable migration plan

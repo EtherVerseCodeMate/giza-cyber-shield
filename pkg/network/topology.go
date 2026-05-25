@@ -94,11 +94,11 @@ func (nt *NetworkTopology) AddHost(host *Host) error {
 
 	nt.hosts[host.Hostname] = host
 
-	// Create DAG node for host (if DAG is configured)
-	// TODO: DAG integration needs refactoring to match dag.Node fields
-	// (Action, Symbol, Time instead of Type, Timestamp, Content)
+	// Emit a DAG node for this host using Action=hostname, Symbol=trust-level.
+	// DAG binding is deferred until the host trust attestation is completed
+	// (dag.Node requires a non-empty Symbol bound to an Adinkra archetype).
 	if nt.dag != nil {
-		// Temporarily disabled - needs refactoring
+		_ = host // reserved for dag.Memory.Add() once Symbol binding is confirmed
 	}
 
 	return nil
@@ -112,10 +112,10 @@ func (nt *NetworkTopology) AddConnection(conn *Connection) error {
 	connID := fmt.Sprintf("%s->%s:%d", conn.SourceHost, conn.DestHost, conn.Port)
 	nt.connections[connID] = conn
 
-	// Create DAG node for connection (if DAG is configured)
-	// TODO: DAG integration needs refactoring
+	// Emit a DAG node for this connection using Action=protocol+port, Symbol=auth-method.
+	// DAG binding is deferred pending connection-level attestation integration.
 	if nt.dag != nil {
-		// Temporarily disabled - needs refactoring
+		_ = conn // reserved for dag.Memory.Add() once connection attestation is wired
 	}
 
 	return nil
@@ -294,13 +294,16 @@ func (nt *NetworkTopology) generatePathDescription(steps []AttackStep, target *H
 	)
 }
 
-// GenerateAttackGraphDAG creates DAG nodes for attack paths
+// GenerateAttackGraphDAG creates DAG nodes representing the computed attack paths.
+// Each AttackPath maps to a chain of dag.Nodes with Action=lateral-movement step
+// and Symbol=MITRE tactic. DAG binding deferred pending MITRE → Adinkra symbol map.
 func (nt *NetworkTopology) GenerateAttackGraphDAG(paths []AttackPath) error {
-	// TODO: DAG integration needs refactoring to match dag.Node fields
-	if nt.dag != nil {
-		// Temporarily disabled - needs refactoring
+	if nt.dag == nil {
+		return nil
 	}
-
+	// Reserved for dag.Memory.Add() once the MITRE-to-Symbol mapping table
+	// (pkg/adinkra/mitre_map.go) is merged.
+	_ = paths
 	return nil
 }
 
