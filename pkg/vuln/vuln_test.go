@@ -73,6 +73,7 @@ func TestSeverityConstants(t *testing.T) {
 }
 
 func TestVulnerabilityStructure(t *testing.T) {
+	now := time.Now()
 	vuln := Vulnerability{
 		ID:            "CVE-2024-1234",
 		Package:       "test-package",
@@ -84,7 +85,7 @@ func TestVulnerabilityStructure(t *testing.T) {
 		AffectedRange: "< 1.2.3",
 		FixedVersion:  "1.2.3",
 		References:    []string{"https://nvd.nist.gov/vuln/detail/CVE-2024-1234"},
-		DiscoveredAt:  time.Now(),
+		DiscoveredAt:  now,
 		Metadata: map[string]string{
 			"source": "test",
 		},
@@ -93,11 +94,36 @@ func TestVulnerabilityStructure(t *testing.T) {
 	if vuln.ID == "" {
 		t.Error("expected non-empty ID")
 	}
-
+	if vuln.Package != "test-package" {
+		t.Errorf("expected Package='test-package', got %q", vuln.Package)
+	}
+	if vuln.Ecosystem != "go" {
+		t.Errorf("expected Ecosystem='go', got %q", vuln.Ecosystem)
+	}
 	if vuln.Severity != SeverityHigh {
 		t.Error("expected HIGH severity")
 	}
-
+	if vuln.CVSS != 8.5 {
+		t.Errorf("expected CVSS=8.5, got %v", vuln.CVSS)
+	}
+	if vuln.Title != "Test Vulnerability" {
+		t.Errorf("expected Title set, got %q", vuln.Title)
+	}
+	if vuln.Description == "" {
+		t.Error("expected non-empty Description")
+	}
+	if vuln.AffectedRange != "< 1.2.3" {
+		t.Errorf("expected AffectedRange='< 1.2.3', got %q", vuln.AffectedRange)
+	}
+	if vuln.FixedVersion != "1.2.3" {
+		t.Errorf("expected FixedVersion='1.2.3', got %q", vuln.FixedVersion)
+	}
+	if vuln.DiscoveredAt.IsZero() {
+		t.Error("expected DiscoveredAt to be set")
+	}
+	if vuln.Metadata["source"] != "test" {
+		t.Errorf("expected Metadata['source']='test', got %q", vuln.Metadata["source"])
+	}
 	if len(vuln.References) != 1 {
 		t.Error("expected 1 reference")
 	}
@@ -119,16 +145,28 @@ func TestRemediationPlan(t *testing.T) {
 	if plan.Action != "upgrade" {
 		t.Error("expected action 'upgrade'")
 	}
-
+	if plan.TargetVersion != "1.2.3" {
+		t.Errorf("expected TargetVersion='1.2.3', got %q", plan.TargetVersion)
+	}
+	if plan.RiskLevel != "low" {
+		t.Errorf("expected RiskLevel='low', got %q", plan.RiskLevel)
+	}
+	if plan.Breaking {
+		t.Error("expected Breaking=false")
+	}
+	if !plan.Verified {
+		t.Error("expected Verified=true")
+	}
 	if len(plan.Commands) != 2 {
 		t.Error("expected 2 commands")
 	}
 }
 
 func TestScanResult(t *testing.T) {
+	start := time.Now()
 	result := &ScanResult{
 		ScanID:    "scan-12345",
-		Timestamp: time.Now(),
+		Timestamp: start,
 		Duration:  5 * time.Second,
 		TotalVulns: 3,
 		BySeverity: map[Severity]int{
@@ -143,14 +181,24 @@ func TestScanResult(t *testing.T) {
 		Ecosystems: []string{"go", "npm"},
 	}
 
+	if result.ScanID != "scan-12345" {
+		t.Errorf("expected ScanID='scan-12345', got %q", result.ScanID)
+	}
+	if result.Timestamp.IsZero() {
+		t.Error("expected Timestamp to be set")
+	}
+	if result.Duration != 5*time.Second {
+		t.Errorf("expected Duration=5s, got %v", result.Duration)
+	}
 	if result.TotalVulns != 3 {
 		t.Errorf("expected 3 total vulns, got %d", result.TotalVulns)
 	}
-
 	if result.BySeverity[SeverityCritical] != 1 {
 		t.Error("expected 1 critical")
 	}
-
+	if len(result.Vulnerabilities) != 3 {
+		t.Errorf("expected 3 Vulnerabilities, got %d", len(result.Vulnerabilities))
+	}
 	if len(result.Ecosystems) != 2 {
 		t.Error("expected 2 ecosystems")
 	}
