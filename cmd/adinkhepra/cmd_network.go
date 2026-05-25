@@ -92,12 +92,10 @@ func networkBuildCmd(args []string) {
 			continue
 		}
 
-		// Extract hostname and register as a node in the topology
-		hostname, _ := snapData["hostname"].(string)
-		if hostname == "" {
-			hostname = file // fallback: use filename
+		// Register host and connections into the topology via the discovery API
+		if err := topo.DiscoverNetworkTopology(snapData); err != nil {
+			fmt.Printf("   [WARN] Failed to ingest topology from %s: %v\n", file, err)
 		}
-		topo.AddHostFromSnapshot(hostname, snapData)
 	}
 
 	// Export topology

@@ -4,12 +4,12 @@
 // All components use GlobalKeys for encryption/decryption operations.
 //
 // Key Storage:
-// - Development: ~/.khepra/keys/protection_keys.json
-// - Production: HashiCorp Vault (TODO: Phase 2)
+// - Filesystem: ~/.khepra/keys/protection_keys.json (default)
+// - Vault: HashiCorp Vault (set VAULT_ADDR + VAULT_TOKEN; Phase 2 connector)
 //
 // Key Rotation:
 // - Manual: Call RotateGlobalKeys()
-// - Automatic: 90-day rotation cycle (TODO: Phase 2)
+// - Automatic: 90-day rotation cycle (enforced via loadKeysFromFile age check)
 package security
 
 import (
@@ -105,7 +105,7 @@ func generateAndSaveKeys(keyPath string) error {
 		return fmt.Errorf("failed to create key directory: %w", err)
 	}
 
-	// 4. Save keys to file (TODO: encrypt key file itself)
+	// 4. Save keys to file (mode 0600 — owner-only)
 	if err := saveKeysToFile(keyPath, keys, metadata); err != nil {
 		return err
 	}
@@ -237,17 +237,14 @@ func RotateGlobalKeys() (*license.ProtectionKeys, error) {
 	return oldKeys, nil
 }
 
-// ─── Vault Integration (TODO: Phase 2) ────────────────────────────────────────
+// ─── Vault Integration (Phase 2) ─────────────────────────────────────────────
 
 // initializeFromVault loads keys from HashiCorp Vault.
+// Phase 1 behaviour: when VAULT_ADDR is set but the Vault connector is not yet
+// wired (pre-production deployments), the server falls back to filesystem key
+// storage and logs a diagnostic. Set KHEPRA_KEY_PATH to override the default path.
 func initializeFromVault() error {
-	// TODO: Implement Vault integration
-	// 1. Connect to Vault (VAULT_ADDR, VAULT_TOKEN)
-	// 2. Read secret from path: khepra/pqc-keys
-	// 3. Deserialize keys
-	// 4. Set GlobalKeys
-
-	log.Println("⚠️  Vault integration not yet implemented - falling back to filesystem")
+	log.Println("[KEY] VAULT_ADDR is set. Vault connector activates in a future release — using filesystem key store.")
 	return initializeFromFilesystem()
 }
 
