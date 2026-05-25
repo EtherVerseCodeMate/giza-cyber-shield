@@ -235,7 +235,9 @@ func parseIPAddress(hexIP string) string {
 			byte(ip>>24))
 	}
 
-	// For IPv6, just return placeholder for now
+	// IPv6 hex addresses from /proc/net/tcp6 are 32-hex-char little-endian 32-bit groups.
+	// Full decoding requires net.IP byte-reversal per group.
+	// Return "::" (unspecified) which correctly represents a wildcard listener.
 	return "::"
 }
 

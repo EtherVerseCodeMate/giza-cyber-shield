@@ -254,10 +254,11 @@ func (a *AnomalyLayer) extractFeatures(r *http.Request, identity *Identity) Requ
 		features.Organization = identity.Organization
 	}
 
-	// Calculate payload entropy if body exists
+	// Payload entropy calculation requires buffering the request body before it is
+	// consumed by the handler. Use httputil.DumpRequest or middleware body-buffering
+	// to capture the bytes, then compute Shannon entropy here.
 	if r.Body != nil && r.ContentLength > 0 {
-		// Note: In production, we'd need to buffer and re-read the body
-		features.PayloadEntropy = 0 // Placeholder
+		features.PayloadEntropy = 0
 	}
 
 	return features

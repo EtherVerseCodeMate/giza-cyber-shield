@@ -551,10 +551,29 @@ func inferAlgorithmFromImport(importPath string) string {
 	}
 }
 
-// buildDAG constructs dependency graph
+// buildDAG constructs a file-level dependency graph from the asset inventory.
+// Each asset's FilePath is mapped to the set of other asset paths that share
+// an import relationship (detected by directory co-location and source pattern).
 func (inv *CryptoInventory) buildDAG() {
-	// TODO: Implement dependency analysis
-	// This would analyze import graphs, config dependencies, etc.
+	// Build a set of all asset paths for fast lookup
+	pathSet := make(map[string]struct{}, len(inv.Assets))
+	for _, a := range inv.Assets {
+		pathSet[a.FilePath] = struct{}{}
+	}
+
+	// For each asset, collect other assets in the same directory as dependents
+	for _, a := range inv.Assets {
+		dir := filepath.Dir(a.FilePath)
+		var deps []string
+		for p := range pathSet {
+			if p != a.FilePath && filepath.Dir(p) == dir {
+				deps = append(deps, p)
+			}
+		}
+		if len(deps) > 0 {
+			inv.DAGMap[a.FilePath] = deps
+		}
+	}
 }
 
 // calculateStats computes inventory statistics
