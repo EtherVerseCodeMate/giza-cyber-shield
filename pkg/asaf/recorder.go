@@ -79,7 +79,13 @@ func (r *Recorder) unsubscribe(ch chan ActionEvent) {
 }
 
 // HandleSSE is the HTTP handler for /api/asaf/stream (Server-Sent Events)
-// Dashboard clients connect here to see live AI agent activity
+// Dashboard clients connect here to see live AI agent activity.
+//
+// A 30-second keepalive comment (: keepalive) is emitted whenever the event
+// channel is idle. This:
+//   - Prevents load-balancer / proxy idle-connection timeouts
+//   - Lets smoke-test clients confirm the stream is alive without waiting
+//     for a real action event to be broadcast
 func (r *Recorder) HandleSSE(w http.ResponseWriter, req *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -95,16 +101,24 @@ func (r *Recorder) HandleSSE(w http.ResponseWriter, req *http.Request) {
 	ch := r.subscribe()
 	defer r.unsubscribe(ch)
 
-	// Send initial connection event
+	// Send initial connection event immediately so clients know the stream is live.
 	fmt.Fprintf(w, "event: connected\ndata: {\"status\":\"ok\",\"time\":\"%s\"}\n\n",
 		time.Now().UTC().Format(time.RFC3339))
 	flusher.Flush()
+
+	// keepalive tick — fires every 30 s when no action events are in flight.
+	keepalive := time.NewTicker(30 * time.Second)
+	defer keepalive.Stop()
 
 	ctx := req.Context()
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case <-keepalive.C:
+			// SSE comment line — invisible to event listeners, keeps TCP alive.
+			fmt.Fprintf(w, ": keepalive\n\n")
+			flusher.Flush()
 		case event, ok := <-ch:
 			if !ok {
 				return
