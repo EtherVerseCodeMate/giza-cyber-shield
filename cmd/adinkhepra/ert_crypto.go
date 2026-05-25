@@ -196,10 +196,8 @@ func displayCryptoAnalysis(usage CryptoUsage) {
 	}
 
 	if !usage.HasLegacy && !usage.HasPQC {
-		// Default demo output
-		printRed("    -> RSA-2048: UNSAFE (Quantum-Broken > 2028)")
-		printRed("    -> ECDSA-P256: UNSAFE (Quantum-Broken > 2028)")
-		printGreen("    -> AES-256: SAFE (Quantum-Resistant)")
+		printYellow("    -> No crypto primitives detected in scanned .go files.")
+		printYellow("       Extend scan to include vendor/ or embedded dependencies for full coverage.")
 	}
 }
 
