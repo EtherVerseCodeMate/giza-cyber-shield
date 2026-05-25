@@ -86,12 +86,12 @@ func newWiredOrchestrator() *ert.ScanOrchestrator {
 	}
 
 	// ── Sonar lane — network/OSINT/crawler (no external binary dep) ──────────
-	// Secrets (Shodan/Censys keys) are NOT required at init — the orchestrator
-	// silently skips OSINT when no SecretBundle is provided, so the lane still
-	// delivers port scan and Horus vulnerability results in keyless mode.
-	// The lane only activates on network targets (ImageRef or explicit lanes=[sonar]).
-	orch.RegisterLane(ert.NewSonarLane(nil, nil, nil))
-	log.Println("[mcp/tools] Sonar lane registered (network/OSINT/port-scan active)")
+	// SonarLaneConfig.OSINTProvider is nil here — OSINT runs only when an
+	// OSINTProvider is injected at cmd/khepra-mcp startup (e.g. ShodanClient).
+	// The lane always delivers port scan + Horus results without any provider.
+	orch.RegisterLane(ert.NewSonarLane(ert.SonarLaneConfig{}))
+	log.Println("[mcp/tools] Sonar lane registered (port-scan + Horus active; OSINT requires OSINTProvider injection)")
+
 
 	return orch
 }
