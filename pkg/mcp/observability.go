@@ -212,10 +212,3 @@ func (e *EventEmitter) Stats() map[string]any {
 	}
 }
 
-// max returns the larger of a or b.
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
