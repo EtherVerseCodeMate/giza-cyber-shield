@@ -67,6 +67,10 @@ func TestBridgeConfigDefaults(t *testing.T) {
 		// Leave timeout and cacheTTL at zero
 	}
 
+	if config.ScannerEndpoint != "test:443" {
+		t.Errorf("expected ScannerEndpoint='test:443', got %q", config.ScannerEndpoint)
+	}
+
 	// The NewIronBankBridge will set defaults - we test the config structure
 	if config.Timeout != 0 {
 		t.Error("expected default timeout to be 0 before initialization")

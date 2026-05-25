@@ -219,6 +219,9 @@ func (s *SystemChecker) CheckPasswordPolicy() (map[string]string, error) {
 				policy[parts[0]] = parts[2]
 			}
 		}
+		if err := scanner.Err(); err != nil {
+			return nil, err
+		}
 	}
 
 	return policy, nil
@@ -242,6 +245,9 @@ func (s *SystemChecker) GetOSVersion() (string, error) {
 				name = strings.Trim(name, "\"")
 				return name, nil
 			}
+		}
+		if err := scanner.Err(); err != nil {
+			return "", err
 		}
 	}
 
@@ -287,6 +293,9 @@ func (s *SystemChecker) CheckSSHConfig(param string) (string, error) {
 		if len(fields) >= 2 && strings.EqualFold(fields[0], param) {
 			return strings.Join(fields[1:], " "), nil
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		return "", err
 	}
 
 	return "", fmt.Errorf("parameter not found: %s", param)
