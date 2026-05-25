@@ -12,13 +12,17 @@ package tools
 import (
 	"context"
 	"log"
+	"os/exec"
 	"sync"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/acp"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/ert"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/mcp"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/nhi"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/sca"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/vuln"
 )
+
 
 // ─── Default service instances (lazy init, singleton) ──────────────────────────
 
@@ -49,12 +53,63 @@ func getNHI() *nhi.NHITracker {
 	return defaultNHI
 }
 
+
+// ─── ERT Wired Orchestrator ────────────────────────────────────────────────────
+
+// newWiredOrchestrator builds a ScanOrchestrator with all available scan lanes
+// pre-registered. This is the production-wired version used by MCP handlers.
+//
+// Lane registration is conditional:
+//   - SCA lane: registered only when syft+grype are in PATH
+//   - Horus lanes: always registered (zero-binary-dependency built-in scanners)
+func newWiredOrchestrator() *ert.ScanOrchestrator {
+	orch := ert.NewScanOrchestrator()
+
+	// ── Horus lanes — always available (zero external deps) ─────────────────
+	orch.RegisterLane(ert.NewHorusVulnLane())
+	orch.RegisterLane(ert.NewHorusSecretLane())
+	orch.RegisterLane(ert.NewHorusComplianceLane())
+	orch.RegisterLane(ert.NewHorusContainerLane())
+
+	// ── SCA lane — conditional on Syft + Grype being in PATH ────────────────
+	// When tools are absent the Horus lanes still provide coverage; this avoids
+	// a hard start-up dependency on external binaries per AD-002.
+	if scaBinaryAvailable("syft") && scaBinaryAvailable("grype") {
+		feedMgr := vuln.NewIntelFeedManager()
+		syftAdapter := sca.NewSyftAdapter()
+		grypeAdapter := sca.NewGrypeAdapter()
+		enricher := sca.NewEnricher(feedMgr)
+		orch.RegisterLane(ert.NewSCALane(syftAdapter, grypeAdapter, enricher))
+		log.Println("[mcp/tools] SCA lane registered (syft+grype found in PATH)")
+	} else {
+		log.Println("[mcp/tools] SCA lane skipped (syft or grype not in PATH — Horus lanes active)")
+	}
+
+	// ── Sonar lane — network/OSINT/crawler (no external binary dep) ──────────
+	// Secrets (Shodan/Censys keys) are NOT required at init — the orchestrator
+	// silently skips OSINT when no SecretBundle is provided, so the lane still
+	// delivers port scan and Horus vulnerability results in keyless mode.
+	// The lane only activates on network targets (ImageRef or explicit lanes=[sonar]).
+	orch.RegisterLane(ert.NewSonarLane(nil, nil, nil))
+	log.Println("[mcp/tools] Sonar lane registered (network/OSINT/port-scan active)")
+
+	return orch
+}
+
+
+// scaBinaryAvailable returns true when the named binary is resolvable in PATH.
+func scaBinaryAvailable(name string) bool {
+	_, err := exec.LookPath(name)
+	return err == nil
+}
+
 func getERT() *ert.ScanOrchestrator {
 	ertOnce.Do(func() {
-		defaultERT = ert.NewScanOrchestrator()
+		defaultERT = newWiredOrchestrator()
 	})
 	return defaultERT
 }
+
 
 // ─── ACP Free Functions ────────────────────────────────────────────────────────
 
@@ -115,6 +170,32 @@ func HandleERTScan(ctx context.Context, call mcp.MCPToolCall) (any, []string, er
 	tool := NewERTScanTool(getERT())
 	return tool.Handle(ctx, call)
 }
+
+// HandleERTReadiness is the standalone handler for the ert_readiness MCP tool.
+// Returns NIST 800-171 alignment score, control gaps, and remediation roadmap as JSON.
+func HandleERTReadinessMCP(ctx context.Context, call mcp.MCPToolCall) (any, []string, error) {
+	return HandleERTReadiness(ctx, call)
+}
+
+// HandleERTArchitectMCP is the standalone handler for the ert_architect MCP tool.
+// Returns enriched supply chain SBOM findings as structured JSON.
+func HandleERTArchitectMCP(ctx context.Context, call mcp.MCPToolCall) (any, []string, error) {
+	return HandleERTArchitect(ctx, call)
+}
+
+// HandleERTCryptoMCP is the standalone handler for the ert_crypto MCP tool.
+// Returns SBOM crypto library inventory, weak primitives, and PQC migration path.
+func HandleERTCryptoMCP(ctx context.Context, call mcp.MCPToolCall) (any, []string, error) {
+	return HandleERTCrypto(ctx, call)
+}
+
+// HandleERTGodfatherMCP is the standalone handler for the ert_godfather MCP tool.
+// Returns EA KernelRouter-synthesized causal risk attestation as structured JSON.
+func HandleERTGodfatherMCP(ctx context.Context, call mcp.MCPToolCall) (any, []string, error) {
+	return HandleERTGodfather(ctx, call)
+}
+
+
 
 // ─── Godfather Free Functions ──────────────────────────────────────────────────
 

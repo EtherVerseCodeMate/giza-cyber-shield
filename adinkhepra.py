@@ -97,20 +97,33 @@ def print_info(message: str) -> None:
 # BUILD FUNCTIONS
 # ============================================================================
 
+def _check_gcc_available() -> bool:
+    """Return True if gcc (or a compatible C compiler) is resolvable in PATH."""
+    import shutil
+    # On Windows, also accept cl.exe (MSVC) as a CGO-capable compiler
+    for compiler in ("gcc", "cl", "clang"):
+        if shutil.which(compiler):
+            return True
+    return False
+
+
 def build(component: str, fips: bool = True) -> bool:
     """
     Build a Khepra Protocol component with optional FIPS mode.
-    
+
+    FIPS mode (GOEXPERIMENT=boringcrypto) requires CGO and a C compiler.
+    On Windows without GCC, the build automatically falls back to
+    CGO_ENABLED=0 (pure-Go, non-FIPS) with a warning rather than hard-failing.
+
     Args:
         component: Component name (e.g., 'adinkhepra', 'adinkhepra-agent')
-        fips: Enable FIPS 140-3 BoringCrypto mode
-        
+        fips: Enable FIPS 140-3 BoringCrypto mode (auto-disabled if no C compiler)
+
     Returns:
         True if build successful, False otherwise
     """
-    print_info(f"Building {component} (FIPS={fips})...")
     binary = get_binary_name(component)
-    
+
     # Determine source path
     if component == "adinkhepra-agent":
         cmd_path = "./cmd/agent"
@@ -118,22 +131,45 @@ def build(component: str, fips: bool = True) -> bool:
         cmd_path = "./cmd/adinkhepra"
     else:
         cmd_path = f"./cmd/{component.replace('adinkhepra-', '')}"
-    
-    # Build command
+
+    # ── FIPS auto-detection ───────────────────────────────────────────────────
+    # boringcrypto requires CGO_ENABLED=1 + a C compiler.
+    # On Windows CI / dev boxes without MinGW, degrade gracefully.
+    effective_fips = fips
+    if fips and not _check_gcc_available():
+        print_warning(
+            "C compiler (gcc/clang/cl) not found in PATH — "
+            "FIPS mode (boringcrypto) disabled for this build."
+        )
+        print_info(
+            "Install MinGW-w64 or MSVC build tools to enable FIPS mode: "
+            "https://www.mingw-w64.org/downloads/"
+        )
+        effective_fips = False
+
+    print_info(f"Building {component} (FIPS={effective_fips})...")
+
+    # ── Build command ─────────────────────────────────────────────────────────
     cmd = ["go", "build", MOD_VENDOR, "-o", binary]
-    
-    # Configure environment for FIPS mode
+
     env = os.environ.copy()
-    if fips:
+    if effective_fips:
         env["GOEXPERIMENT"] = "boringcrypto"
         env["CGO_ENABLED"] = "1"
         print_info("[FIPS] Enabled GOEXPERIMENT=boringcrypto + CGO_ENABLED=1")
-    
+    else:
+        # Pure-Go build — no CGO dependency
+        env.pop("GOEXPERIMENT", None)
+        env["CGO_ENABLED"] = "0"
+        if fips and not effective_fips:
+            print_info("[NO-FIPS] Building CGO_ENABLED=0 (pure-Go) — not FIPS certified")
+
     cmd.append(cmd_path)
-    
+
     try:
         subprocess.check_call(cmd, env=env)
-        print_success(f"Build successful: {binary}")
+        fips_tag = "FIPS" if effective_fips else "non-FIPS"
+        print_success(f"Build successful: {binary} ({fips_tag})")
         return True
     except subprocess.CalledProcessError:
         print_error(f"Failed to build {component}")
@@ -141,6 +177,8 @@ def build(component: str, fips: bool = True) -> bool:
     except FileNotFoundError:
         print_error("'go' command not found. Please install Go 1.22+")
         return False
+
+
 
 
 def build_all_components(fips: bool = True) -> bool:
