@@ -107,6 +107,7 @@ func AllLanes() []ScanLane {
 		LaneHorusSecret,
 		LaneHorusCompliance,
 		LaneHorusContainer,
+		LaneSonar, // Network/OSINT/Crawler (requires network target)
 	}
 }
 
