@@ -281,8 +281,10 @@ func (t *NistMapTool) Handle(_ context.Context, call mcp.MCPToolCall) (any, []st
 	if len(results) == 0 {
 		warnings = append(warnings, "No results found. Try broader terms or remove the framework filter.")
 	}
-	if len(embeddedControls) < 1000 {
-		warnings = append(warnings, fmt.Sprintf("Index contains %d controls (representative subset). Full index loads from STIG_to_NIST171_Mapping_Ultimate.xlsx at runtime.", len(embeddedControls)))
+	// Index is the full embedded dataset (NIST 800-53 Rev 5 + 800-171 Rev 2 + CMMC 2.0 L2).
+	// No warning needed — if embeddedControls is somehow empty it's a build error.
+	if len(embeddedControls) == 0 {
+		warnings = append(warnings, "Control index is empty — binary may be misconfigured. Report this to support.")
 	}
 
 	return &NistMapResponse{
