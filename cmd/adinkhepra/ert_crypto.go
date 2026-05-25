@@ -159,7 +159,7 @@ func scanSBOMCryptoLibraries(dir string) []SBOMCryptoLib {
 		return nil
 	}
 
-	feedMgr, _ := vuln.NewIntelFeedManager()
+	feedMgr := vuln.NewIntelFeedManager()
 	pipeline := sca.NewPipeline(feedMgr)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
