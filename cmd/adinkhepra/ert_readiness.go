@@ -175,7 +175,7 @@ func runSCARiskFactor(dir string) int {
 		return 0
 	}
 
-	feedMgr, _ := vuln.NewIntelFeedManager()
+	feedMgr := vuln.NewIntelFeedManager()
 	pipeline := sca.NewPipeline(feedMgr)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)

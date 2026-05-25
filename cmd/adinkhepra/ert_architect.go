@@ -129,7 +129,7 @@ func scanSupplyChain(dir string) {
 
 	// Wire IntelFeedManager for enrichment.
 	// Non-fatal if feed manager fails to initialize (air-gap / no network).
-	feedMgr, _ := vuln.NewIntelFeedManager()
+	feedMgr := vuln.NewIntelFeedManager()
 
 	pipeline := sca.NewPipeline(feedMgr)
 
