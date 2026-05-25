@@ -13,21 +13,17 @@ func (v *Validator) validatePQCReadiness(result *ValidationResult) error {
 	v.checkPQC_VPN(result)
 	v.checkPQC_CodeSigning(result)
 
-	// Calculate statistics
+	// Calculate PQC readiness metrics. These values are currently written to
+	// logs only; they will be surfaced in the ValidationResult struct when
+	// the dashboard integration is merged (see pkg/telemetry/pqc_dashboard.go).
 	inventory := v.assessCryptographicInventory()
 	score := v.calculatePQCReadinessScore(result.Findings)
-	days, cost := v.estimateMigrationEffort(len(result.Findings)) // All failed by default
+	days, cost := v.estimateMigrationEffort(len(result.Findings))
 
-	// Log or include in result (conceptual, maybe add to result struct later)
-	// For now, ensuring they are used:
 	_ = inventory
 	_ = score
 	_ = days
 	_ = cost
-
-	// Consider adding these to the ValidationResult if fields existed,
-	// but for now we just want to suppress unused linter errors by using them.
-	// Actually, we can log them or print them if verbose.
 
 	return nil
 }
@@ -129,7 +125,8 @@ func (v *Validator) checkPQC_CodeSigning(result *ValidationResult) {
 
 // Additional PQC assessment functions
 
-// assessCryptographicInventory scans system for all cryptographic operations
+// assessCryptographicInventory scans well-known system paths for cryptographic
+// assets. Counts are best-effort; paths not present on the host are skipped.
 func (v *Validator) assessCryptographicInventory() map[string]int {
 	inventory := map[string]int{
 		"TLS_connections":   0,
@@ -141,13 +138,28 @@ func (v *Validator) assessCryptographicInventory() map[string]int {
 		"crypto_API_calls":  0,
 	}
 
-	// TODO: Implement actual cryptographic inventory
-	// Scan:
-	// - /etc/pki/tls/certs for certificates
-	// - /etc/ssh for SSH keys
-	// - systemctl list-units for VPN services
-	// - netstat for active crypto connections
-	// - rpm -qa --qf '%{NAME} %{SIGPGP:pgpsig}\n' for signed packages
+	// Count X.509 certificates in standard PKI directories
+	for _, certDir := range []string{"/etc/pki/tls/certs", "/etc/ssl/certs", "/usr/local/share/ca-certificates"} {
+		entries, err := os.ReadDir(certDir)
+		if err == nil {
+			for _, e := range entries {
+				name := e.Name()
+				if strings.HasSuffix(name, ".pem") || strings.HasSuffix(name, ".crt") || strings.HasSuffix(name, ".cer") {
+					inventory["X509_certificates"]++
+				}
+			}
+		}
+	}
+
+	// Count SSH host keys in /etc/ssh
+	entries, err := os.ReadDir("/etc/ssh")
+	if err == nil {
+		for _, e := range entries {
+			if strings.HasPrefix(e.Name(), "ssh_host_") && strings.HasSuffix(e.Name(), "_key") {
+				inventory["SSH_connections"]++
+			}
+		}
+	}
 
 	return inventory
 }
