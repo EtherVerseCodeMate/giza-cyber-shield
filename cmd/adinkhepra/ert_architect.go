@@ -1,11 +1,19 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
+	"sort"
 	"strings"
 	"time"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/sca"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/vuln"
 )
 
 // ertArchitectCmd implements Package B: Operational Weapons System
@@ -18,7 +26,7 @@ func ertArchitectCmd(args []string) {
 
 	printCyan("================================================================")
 	printCyan(" KHEPRA PROTOCOL // TIER II: OPERATIONAL WEAPONS SYSTEM")
-	printCyan(" DIGITAL TWIN & SUPPLY CHAIN HUNTER v1.1.0")
+	printCyan(" DIGITAL TWIN & SUPPLY CHAIN HUNTER v2.0.0")
 	printCyan("================================================================\n")
 
 	fmt.Print("\nPress ENTER to Activate Graph Construction...")
@@ -65,7 +73,6 @@ type GraphStats struct {
 func analyzeCodebaseGraph(dir string) GraphStats {
 	stats := GraphStats{}
 
-	// Count Go packages (modules)
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
@@ -87,13 +94,196 @@ func analyzeCodebaseGraph(dir string) GraphStats {
 	return stats
 }
 
-// scanSupplyChain analyzes dependencies for known vulnerabilities
+// ─────────────────────────────────────────────────────────────────────────────
+// Supply Chain Scanner — wired to real SCA pipeline (Syft → Grype → Enricher)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// scanSupplyChain runs the Syft→Grype→Enricher SCA pipeline against targetDir.
+// Falls back to go.mod static analysis when Syft or Grype is not installed.
 func scanSupplyChain(dir string) {
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		printYellow(fmt.Sprintf("    [WARN] Cannot resolve path: %v", err))
+		scanSupplyChainFallback(dir)
+		return
+	}
+
+	// Check tool availability
+	syftOK := toolInPath("syft")
+	grypeOK := toolInPath("grype")
+
+	if !syftOK || !grypeOK {
+		missing := []string{}
+		if !syftOK {
+			missing = append(missing, "syft")
+		}
+		if !grypeOK {
+			missing = append(missing, "grype")
+		}
+		printYellow(fmt.Sprintf("    [INFO] SCA tools not found: %s", strings.Join(missing, ", ")))
+		printYellow("    [INFO] Install with: brew install syft grype  (or see anchore.com)")
+		printYellow("    [INFO] Falling back to go.mod static dependency risk analysis...\n")
+		scanSupplyChainFallback(absDir)
+		return
+	}
+
+	// Wire IntelFeedManager for enrichment.
+	// Non-fatal if feed manager fails to initialize (air-gap / no network).
+	feedMgr, _ := vuln.NewIntelFeedManager()
+
+	pipeline := sca.NewPipeline(feedMgr)
+
+	// Load CMMC crosswalk data from docs/ if present
+	docsDir := filepath.Join(absDir, "docs")
+	if info, err := os.Stat(docsDir); err == nil && info.IsDir() {
+		pipeline.LoadComplianceData(docsDir)
+	}
+
+	printSlow("[*] Syft → Grype → Enricher SCA pipeline starting...")
+	spinCursor("Scanning SBOM", 2*time.Second)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	result, err := pipeline.ScanAndEnrich(ctx, absDir)
+	if err != nil {
+		// Non-fatal: if pipeline fails completely, fall back to static analysis
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			printYellow("    [WARN] SCA pipeline timed out — falling back to static analysis")
+		} else {
+			printYellow(fmt.Sprintf("    [WARN] SCA pipeline error: %v", err))
+			printYellow("    [INFO] Falling back to go.mod static dependency risk analysis...")
+		}
+		scanSupplyChainFallback(absDir)
+		return
+	}
+
+	fmt.Print("\r[*] SCA Scan Complete                     \n")
+	displaySCAResults(result)
+}
+
+// displaySCAResults renders the enriched SCA findings to the terminal.
+func displaySCAResults(result *sca.ScanResult) {
+	fmt.Printf("\n    [SCA] Scanned: %s\n", result.ProjectPath)
+	fmt.Printf("    [SCA] SBOM Components: %d | Vulnerabilities: %d | High-Risk: %d | Duration: %s\n",
+		result.SBOMComponentCount,
+		result.TotalCount,
+		result.HighRiskCount,
+		result.Duration.Round(time.Millisecond),
+	)
+
+	if result.ScannerMeta.SyftVersion != "" {
+		fmt.Printf("    [SCA] Scanner: syft %s | grype %s (db: %s)\n",
+			result.ScannerMeta.SyftVersion,
+			result.ScannerMeta.GrypeVersion,
+			result.ScannerMeta.GrypeDBVersion,
+		)
+	}
+
+	if len(result.Findings) == 0 {
+		printGreen("\n    [+] No vulnerabilities found in SBOM components.")
+		return
+	}
+
+	// Sort findings by risk: CRITICAL > HIGH > MEDIUM > LOW
+	sorted := make([]sca.EnrichedFinding, len(result.Findings))
+	copy(sorted, result.Findings)
+	sort.Slice(sorted, func(i, j int) bool {
+		return severityRank(sorted[i].Severity) > severityRank(sorted[j].Severity)
+	})
+
+	// Display up to 20 findings
+	displayLimit := 20
+	if len(sorted) < displayLimit {
+		displayLimit = len(sorted)
+	}
+
+	fmt.Printf("\n    [SUPPLY CHAIN FINDINGS] (top %d of %d):\n", displayLimit, len(sorted))
+	fmt.Println("    " + strings.Repeat("-", 72))
+
+	for _, f := range sorted[:displayLimit] {
+		color := severityColor(f.Severity)
+
+		// Component + CVE header
+		fmt.Printf("%s    [%s] %s@%s — %s\033[0m\n",
+			color, f.Severity, f.Component, f.Version, f.CVEID)
+
+		// CVSS + EPSS
+		if f.CVSSv3Score > 0 {
+			epssStr := ""
+			if f.EPSSScore > 0 {
+				epssStr = fmt.Sprintf(" | EPSS: %.1f%% (p%.0f)",
+					f.EPSSScore*100, f.EPSSPercentile*100)
+			}
+			fmt.Printf("           CVSS v3: %.1f%s\n", f.CVSSv3Score, epssStr)
+		}
+
+		// Threat intelligence enrichment flags
+		flags := []string{}
+		if f.InCISAKEV {
+			flags = append(flags, "\033[91mCISA KEV\033[0m")
+		}
+		if f.InTheWild {
+			flags = append(flags, "\033[91mIn-the-Wild\033[0m")
+		}
+		if f.PoCAvailable {
+			flags = append(flags, "\033[93mPoC Available\033[0m")
+		}
+		if len(flags) > 0 {
+			fmt.Printf("           Threat Intel: %s\n", strings.Join(flags, " | "))
+		}
+
+		// MITRE ATT&CK techniques
+		if len(f.MITRETechniques) > 0 {
+			techs := f.MITRETechniques
+			if len(techs) > 3 {
+				techs = techs[:3]
+			}
+			fmt.Printf("           MITRE: %s\n", strings.Join(techs, ", "))
+		}
+
+		// Compliance impact (NIST 800-171 / CMMC controls)
+		nistControls := f.NIST171Controls
+		if len(nistControls) == 0 {
+			nistControls = f.NIST53Controls
+		}
+		if len(nistControls) > 0 {
+			controls := nistControls
+			if len(controls) > 3 {
+				controls = controls[:3]
+			}
+			fmt.Printf("           Controls: %s\n", strings.Join(controls, ", "))
+		}
+
+		// Confidence
+		if f.Confidence != "" {
+			fmt.Printf("           Confidence: %s | VEX: %s\n", f.Confidence, f.VEXStatus)
+		}
+
+		fmt.Println()
+	}
+
+	// Summary risk assessment
+	if result.HighRiskCount > 0 {
+		printRed(fmt.Sprintf("    >>> SUPPLY CHAIN RISK: %d HIGH/CRITICAL vulnerabilities require immediate remediation.",
+			result.HighRiskCount))
+	} else {
+		printGreen("    >>> Supply chain risk is within acceptable baseline.")
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fallback: go.mod static dependency risk analysis
+// ─────────────────────────────────────────────────────────────────────────────
+
+// scanSupplyChainFallback performs static go.mod-based dependency risk analysis.
+// Used when Syft/Grype are not available in the current environment.
+func scanSupplyChainFallback(dir string) {
 	vendors := detectDependencies(dir)
 
 	if len(vendors) == 0 {
 		// No dependency manifest found — use canonical risk baseline entries
-		// that represent each risk tier for UI completeness.
+		// that represent each risk tier for demonstration completeness.
 		vendors = []VendorRisk{
 			{Name: "Legacy_Logger_v2.1", Risk: "CRITICAL", Reason: "Unmaintained since 2019, known RCE"},
 			{Name: "CloudStorage_SDK", Risk: "HIGH", Reason: "Outdated TLS, potential MITM"},
@@ -249,5 +439,49 @@ func spinCursor(label string, duration time.Duration) {
 		fmt.Printf("\r[*] %s... %c", label, chars[i%len(chars)])
 		time.Sleep(100 * time.Millisecond)
 		i++
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+// toolInPath returns true when the named binary is in PATH.
+func toolInPath(name string) bool {
+	binary := name
+	if runtime.GOOS == "windows" && !strings.HasSuffix(name, ".exe") {
+		binary = name + ".exe"
+	}
+	_, err := exec.LookPath(binary)
+	return err == nil
+}
+
+// severityRank maps severity string to integer rank (higher = more severe).
+func severityRank(sev string) int {
+	switch strings.ToUpper(sev) {
+	case "CRITICAL":
+		return 4
+	case "HIGH":
+		return 3
+	case "MEDIUM":
+		return 2
+	case "LOW":
+		return 1
+	default:
+		return 0
+	}
+}
+
+// severityColor returns an ANSI escape for the given severity.
+func severityColor(sev string) string {
+	switch strings.ToUpper(sev) {
+	case "CRITICAL":
+		return "\033[95m" // Magenta
+	case "HIGH":
+		return "\033[91m" // Red
+	case "MEDIUM":
+		return "\033[93m" // Yellow
+	default:
+		return "\033[92m" // Green
 	}
 }
