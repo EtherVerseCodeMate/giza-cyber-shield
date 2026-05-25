@@ -225,36 +225,12 @@ func tokenize(text string) []string {
 }
 
 // ─── Embedded Controls ────────────────────────────────────────────────────────
-// A representative subset of NIST 800-53 Rev 5 + CMMC 2.0 controls.
-// In production, this is replaced by the full STIG-to-NIST mapping from
-// docs/STIG_to_NIST171_Mapping_Ultimate.xlsx (loaded by audit/ingest.go).
-
-var embeddedControls = []ControlRecord{
-	{ID: "AC-2", Title: "Account Management", Description: "Manage system accounts including establishing, enabling, disabling, and removing accounts. Monitor account usage for atypical behavior.", Framework: "NIST-800-53", Family: "AC"},
-	{ID: "AC-3", Title: "Access Enforcement", Description: "Enforce approved authorizations for logical access to information and system resources in accordance with applicable access control policies.", Framework: "NIST-800-53", Family: "AC"},
-	{ID: "AC-17", Title: "Remote Access", Description: "Establish and document usage restrictions and implementation guidance for each type of remote access. Authorize remote access prior to connection.", Framework: "NIST-800-53", Family: "AC"},
-	{ID: "AU-2", Title: "Event Logging", Description: "Identify the types of events that the system is capable of logging in support of the audit function and coordinate the event logging function.", Framework: "NIST-800-53", Family: "AU"},
-	{ID: "AU-9", Title: "Protection of Audit Information", Description: "Protect audit information and audit tools from unauthorized access, modification, and deletion.", Framework: "NIST-800-53", Family: "AU"},
-	{ID: "CM-6", Title: "Configuration Settings", Description: "Establish and document configuration settings for technology products employed within the system that reflect the most restrictive mode consistent with operational requirements.", Framework: "NIST-800-53", Family: "CM"},
-	{ID: "CM-7", Title: "Least Functionality", Description: "Configure the system to provide only essential capabilities. Prohibit or restrict the use of functions, ports, protocols, software, and services not required.", Framework: "NIST-800-53", Family: "CM"},
-	{ID: "IA-2", Title: "Identification and Authentication (Organizational Users)", Description: "Uniquely identify and authenticate organizational users and associate that unique identification with processes acting on behalf of those users.", Framework: "NIST-800-53", Family: "IA"},
-	{ID: "IA-5", Title: "Authenticator Management", Description: "Manage system authenticators by establishing initial authenticator content, enforcing minimum and maximum lifetime restrictions, and protecting authenticators from unauthorized disclosure.", Framework: "NIST-800-53", Family: "IA"},
-	{ID: "SC-8", Title: "Transmission Confidentiality and Integrity", Description: "Implement cryptographic mechanisms to prevent unauthorized disclosure of information and detect changes to information during transmission.", Framework: "NIST-800-53", Family: "SC"},
-	{ID: "SC-28", Title: "Protection of Information at Rest", Description: "Implement cryptographic mechanisms to prevent unauthorized disclosure and modification of information at rest on system components.", Framework: "NIST-800-53", Family: "SC"},
-	{ID: "SI-2", Title: "Flaw Remediation", Description: "Identify, report, and correct information system flaws. Test software and firmware updates related to flaw remediation for effectiveness and potential side effects.", Framework: "NIST-800-53", Family: "SI"},
-	{ID: "SI-3", Title: "Malicious Code Protection", Description: "Implement malicious code protection mechanisms at system entry and exit points and at workstations, servers, and mobile devices on the network.", Framework: "NIST-800-53", Family: "SI"},
-	// NIST 800-171 Rev 2
-	{ID: "3.1.1", Title: "Authorized Users", Description: "Limit system access to authorized users, processes acting on behalf of authorized users, and devices (including other systems).", Framework: "NIST-800-171", Family: "AC"},
-	{ID: "3.3.1", Title: "Audit Record Review", Description: "Create and retain system audit logs and records to the extent needed to enable the monitoring, analysis, investigation, and reporting of unlawful or unauthorized system activity.", Framework: "NIST-800-171", Family: "AU"},
-	{ID: "3.5.3", Title: "Multifactor Authentication", Description: "Use multifactor authentication for local and network access to privileged accounts and for network access to non-privileged accounts.", Framework: "NIST-800-171", Family: "IA"},
-	{ID: "3.13.8", Title: "Cryptographic Key Management", Description: "Implement cryptographic mechanisms to prevent unauthorized disclosure of CUI during transmission unless otherwise protected by alternative physical safeguards.", Framework: "NIST-800-171", Family: "SC"},
-	// CMMC 2.0 Level 2
-	{ID: "AC.L2-3.1.3", Title: "Control CUI Flow", Description: "Control the flow of CUI in accordance with approved authorizations.", Framework: "CMMC-L2", Family: "AC"},
-	{ID: "CA.L2-3.12.1", Title: "Security Assessments", Description: "Periodically assess the security controls in organizational systems to determine if the controls are effective in their application.", Framework: "CMMC-L2", Family: "CA"},
-	{ID: "CM.L2-3.4.2", Title: "Establish Security Config Baseline", Description: "Establish and maintain baseline configurations and inventories of organizational systems (including hardware, software, firmware, and documentation) throughout the respective system development life cycles.", Framework: "CMMC-L2", Family: "CM"},
-	{ID: "IA.L2-3.5.4", Title: "Replay-Resistant Authentication", Description: "Employ replay-resistant authentication mechanisms for network access to privileged and non-privileged accounts.", Framework: "CMMC-L2", Family: "IA"},
-	{ID: "SC.L2-3.13.11", Title: "PQC Algorithm Use", Description: "Employ FIPS-validated cryptography when used to protect the confidentiality of CUI. Plan migration to post-quantum cryptographic algorithms per NIST FIPS 203/204.", Framework: "CMMC-L2", Family: "SC", CCIs: []string{"CCI-002450"}},
-}
+// Full offline control database: NIST SP 800-53 Rev 5, NIST SP 800-171 Rev 2,
+// CMMC 2.0 Level 2, and DISA STIG CCI spot entries.
+//
+// The embeddedControls variable is declared in nist_control_data.go.
+// Splitting into a separate file keeps this file focused on BM25 search logic
+// and prevents the 1,100+ record dataset from obscuring the algorithm.
 
 // ─── NistMapTool ──────────────────────────────────────────────────────────────
 
