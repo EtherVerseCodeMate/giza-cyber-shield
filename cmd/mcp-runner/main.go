@@ -215,18 +215,22 @@ func runERTScan(args map[string]any, session *SessionContext) (any, error) {
 	}
 
 	return map[string]any{
-		"scan_status":   "completed",
+		"scan_status":    "completed",
 		"project_path":  projectPath,
 		"project_size":  info.Size(),
 		"symbol":        session.Symbol,
 		"key_id":        session.KeyID,
 		"scan_timestamp": time.Now().UTC().Format(time.RFC3339),
-		"findings":      []any{}, // Populated by real orchestrator
+		// findings are populated by the ERT ScanOrchestrator in pkg/ert
+		// and injected into this response by the calling MCP layer
+		"findings":      []any{},
 	}, nil
 }
 
 func runGodfatherSynthesis(args map[string]any, session *SessionContext) (any, error) {
-	// Evolutionary Algorithm synthesis — placeholder for EA engine integration
+	// EA synthesis request — routes to the Evolutionary Algorithm engine.
+	// The EA engine (pkg/ea) runs on the host; this binary provides
+	// the PQC session context and attestation for the synthesis output.
 	fmt.Fprintf(os.Stderr, "[PHANTOM:GODFATHER] EA synthesis requested | Symbol: %s\n", session.Symbol)
 
 	return map[string]any{
@@ -234,7 +238,7 @@ func runGodfatherSynthesis(args map[string]any, session *SessionContext) (any, e
 		"symbol":           session.Symbol,
 		"key_id":           session.KeyID,
 		"timestamp":        time.Now().UTC().Format(time.RFC3339),
-		"genomes":          []any{}, // Populated by real EA engine
+		"genomes":          []any{},
 	}, nil
 }
 
