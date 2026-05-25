@@ -139,9 +139,8 @@ func (d *KhepraWatchDaemon) pollWatch(ctx context.Context, spec *WatchSpec) {
 	var lastMod time.Time
 
 	checkAndFire := func() {
-		// TODO: replace with fsnotify.Watcher for true event-driven monitoring
-		// This stat-based poll fires scans when mtime changes.
-		// For the MVP this satisfies the CMMC continuous monitoring requirement.
+		// Stat-based poll: fires a scan when the watch spec's max_fires limit
+		// has not been reached. Sub-second latency requires fsnotify integration.
 		if spec.MaxFires > 0 && spec.FireCount >= spec.MaxFires {
 			d.Unregister(spec.WatchID)
 			return

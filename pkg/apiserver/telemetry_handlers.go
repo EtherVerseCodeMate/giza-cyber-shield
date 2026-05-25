@@ -225,11 +225,11 @@ func (s *Server) handleSystemMetrics(c *gin.Context) {
 	c.JSON(http.StatusOK, metrics)
 }
 
-// getCPUUsage returns a reasonably accurate CPU percentage
+// getCPUUsage returns an estimated CPU percentage derived from the goroutine
+// count relative to GOMAXPROCS. For a production-accurate reading, integrate
+// gopsutil (github.com/shirou/gopsutil/v3/cpu) or read /proc/stat on Linux.
 func getCPUUsage() float64 {
-	// For Windows/Linux TRL10, we could use performance counters
-	// For now, we return a value that represents the process's view
-	return 5.5 // placeholder for actual syscall collection in next step
+	return cpuEstimator()
 }
 
 // handleTelemetryStats returns aggregated telemetry statistics

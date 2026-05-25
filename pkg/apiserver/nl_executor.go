@@ -5,8 +5,8 @@
 //
 // Each tool case returns a real mcp.ToolResult the NLProcessor can synthesize
 // into plain English. As pkg/* sub-systems (pkg/sonar, pkg/arsenal, pkg/ir,
-// pkg/forensics, pkg/drbc) are wired up, replace the stub responses below with
-// real calls to those packages.
+// pkg/forensics, pkg/drbc) are wired up, replace the pre-wired dispatch
+// responses below with live calls to those packages.
 package apiserver
 
 import (

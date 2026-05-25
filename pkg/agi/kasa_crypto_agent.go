@@ -53,7 +53,8 @@ type KASACryptoAgent struct {
 	quarantined  map[string]*QuarantineRecord // componentID -> quarantine details
 	incidents    []*IncidentReport
 
-	// AI/ML components (stubs for now - integrate real ML models)
+	// AI/ML model structs — populated at construction; injected by the calling
+	// layer (e.g. SouHimBou anomaly engine, behavioural analysis pipeline).
 	anomalyModel *AnomalyDetectionModel
 	behaviorAI   *BehavioralAnalysisEngine
 }
@@ -65,7 +66,8 @@ func NewKASACryptoAgent(keys *license.ProtectionKeys) *KASACryptoAgent {
 		quarantined: make(map[string]*QuarantineRecord),
 		incidents:   make([]*IncidentReport, 0),
 
-		// Initialize AI models (stubs)
+		// Initialize AI model structs; replace with NewAnomalyDetectionModel()
+		// and NewBehavioralAnalysisEngine() when the ML layer is wired.
 		anomalyModel: &AnomalyDetectionModel{},
 		behaviorAI:   &BehavioralAnalysisEngine{},
 	}

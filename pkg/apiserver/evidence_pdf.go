@@ -112,11 +112,11 @@ func (p *pdfWriter) header() {
 
 	p.nextObj = 1
 
-	// Obj 1: Catalog (placeholder — finalized later)
+	// Obj 1: Catalog — written as provisional value; rebuilt with correct /Pages ref in finalize()
 	p.objects = append(p.objects, p.w.Len())
 	p.w.WriteString("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n")
 
-	// Obj 2: Pages (placeholder — finalized later)
+	// Obj 2: Pages — written as provisional value; rebuilt with correct /Kids array in finalize()
 	p.objects = append(p.objects, p.w.Len())
 	p.w.WriteString("2 0 obj\n<< /Type /Pages /Kids [] /Count 0 >>\nendobj\n")
 

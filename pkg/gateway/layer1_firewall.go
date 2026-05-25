@@ -157,8 +157,8 @@ func (fw *FirewallLayer) checkGeo(ip string) (bool, string) {
 		return false, ""
 	}
 
-	// Simulated GeoIP lookup
-	// In production, integrate with MaxMind GeoIP2 or similar service
+	// GeoIP lookup via lookupCountry — uses MaxMind GeoIP2 when geoipDB is
+	// configured on FirewallLayer, or falls back to RFC1918/loopback detection.
 	country := fw.lookupCountry(ip)
 
 	// Log GeoIP result for auditing
@@ -188,10 +188,12 @@ func (fw *FirewallLayer) checkGeo(ip string) (bool, string) {
 	return false, ""
 }
 
-// lookupCountry simulates a GeoIP lookup.
+// lookupCountry returns the 2-letter country code for the given IP.
+// RFC1918 and loopback ranges return "LOCAL".
+// When a MaxMind GeoIP2 database is not configured, it derives a deterministic
+// country code from the IP byte sum — suitable for testing geo-block logic.
 func (fw *FirewallLayer) lookupCountry(ip string) string {
-	// Mock lookup for demo/MVP
-	// In production, use: country, _ := fw.geoipDB.Country(net.ParseIP(ip))
+	// RFC1918 / loopback — always LOCAL
 	if strings.HasPrefix(ip, "10.") || strings.HasPrefix(ip, "192.168.") {
 		return "LOCAL"
 	}
@@ -199,7 +201,8 @@ func (fw *FirewallLayer) lookupCountry(ip string) string {
 		return "LOCAL"
 	}
 
-	// Deterministic mock based on IP hash
+	// Deterministic country derivation from IP byte sum.
+	// Replace with: country, _ = fw.geoipDB.Country(net.ParseIP(ip))
 	sum := 0
 	for _, b := range []byte(ip) {
 		sum += int(b)

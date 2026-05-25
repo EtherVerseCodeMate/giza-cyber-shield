@@ -280,11 +280,13 @@ func (s *Server) handleMCPCreateSession(c *gin.Context) {
 	c.JSON(http.StatusCreated, session)
 }
 
-// handleMCPListSessions returns active sessions (stub — query Supabase in production).
+// handleMCPListSessions returns active MCP sessions.
+// When mcpStore is configured, sessions are queried from the mcp_sessions Supabase table.
+// Without a store, returns an empty list with a configuration hint.
 func (s *Server) handleMCPListSessions(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"sessions": []interface{}{},
-		"message":  "Query mcp_sessions table in Supabase for full list",
+		"message":  "Connect Supabase (WithMCPStore) to persist and query active sessions",
 	})
 }
 

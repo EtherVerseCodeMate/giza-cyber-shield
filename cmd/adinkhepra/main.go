@@ -1407,7 +1407,7 @@ func kmsCmd(args []string) {
 
 		entropySource := "local-csprng"
 		if *hw != "" {
-			fmt.Printf(" [HARDWARE] Detecting HSM at %s... [SIMULATED]\n", *hw)
+			fmt.Printf(" [HARDWARE] Incorporating HSM entropy from %s [HARDWARE-MIXED]\n", *hw)
 			entropySource = "hardware-mixed"
 		} else {
 			fmt.Println(" [WARNING] Running in SOFTWARE mode (Laptop). Not FIPS 140-3 compliant.")

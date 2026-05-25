@@ -1,16 +1,11 @@
 package audit
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"runtime"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner"

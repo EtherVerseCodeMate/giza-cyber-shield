@@ -111,7 +111,7 @@ func (gs *GPSSpoofer) SetRealLocation(lat, lon float64) {
 	}
 }
 
-// GetSpoofedLocation returns the fake GPS coordinates
+// GetSpoofedLocation returns the current spoofed GPS coordinates
 func (gs *GPSSpoofer) GetSpoofedLocation() *GPSCoordinates {
 	if gs.SpoofedLocation == nil || time.Since(gs.SpoofedLocation.Timestamp) > gs.UpdateInterval {
 		gs.SpoofedLocation = SpoofGPSLocation(
