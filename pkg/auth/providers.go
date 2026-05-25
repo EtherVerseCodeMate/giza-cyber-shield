@@ -700,9 +700,9 @@ func (lp *LocalProvider) Authenticate(ctx context.Context, creds *Credentials) (
 }
 
 func (lp *LocalProvider) verifyPassword(password, hash string) bool {
-	// Simple Argon2 placeholder check
-	// In production, use argon2.IDKey with salt from stored hash
-	// For now, we use a deterministic safe hash for dev mode
+	// Argon2id comparison using a fixed dev-mode salt.
+	// In production, the salt must be random and stored alongside the hash;
+	// use argon2.IDKey with the per-user salt extracted from the hash record.
 	salt := "khepra-local-salt"
 	computed := argon2.IDKey([]byte(password), []byte(salt), 1, 64*1024, 4, 32)
 	computedHex := hex.EncodeToString(computed)

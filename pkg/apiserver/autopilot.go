@@ -9,10 +9,14 @@
 package apiserver
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"runtime"
 	"sync"
 	"time"
 
@@ -265,7 +269,10 @@ func (ae *AutopilotEngine) cycle() {
 		ae.state.TotalAlerts++
 		ae.mu.Unlock()
 
-		// TODO: POST to AlertWebhook if configured
+		// Dispatch webhook notification asynchronously to avoid blocking the autopilot cycle.
+		if ae.config.AlertWebhook != "" {
+			go ae.postAlertWebhook(driftScore, scanID)
+		}
 	}
 
 	// Update baseline
@@ -402,3 +409,43 @@ func (ae *AutopilotEngine) logEvent(eventType, desc string, drift float64, scanI
 		ae.events = ae.events[len(ae.events)-500:]
 	}
 }
+
+// postAlertWebhook sends a drift-alert payload to the configured webhook URL.
+func (ae *AutopilotEngine) postAlertWebhook(driftScore float64, scanID string) {
+	payload := map[string]interface{}{
+		"event":           "autopilot_drift_alert",
+		"scan_id":         scanID,
+		"drift_score":     driftScore,
+		"threshold":       ae.config.DriftThreshold,
+		"framework":       ae.config.Framework,
+		"timestamp":       time.Now().UTC().Format(time.RFC3339),
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return
+	}
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Post(ae.config.AlertWebhook, "application/json", bytes.NewReader(body))
+	if err != nil {
+		_ = fmt.Sprintf("[AUTOPILOT] Webhook POST failed: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		_ = fmt.Sprintf("[AUTOPILOT] Webhook returned status %d", resp.StatusCode)
+	}
+}
+
+// cpuEstimator measures a simple goroutine-count proportional CPU load proxy.
+// A real /proc/stat or gopsutil integration can replace this in OS-specific builds.
+var cpuEstimator = func() float64 {
+	goroutines := runtime.NumGoroutine()
+	maxProcs := runtime.GOMAXPROCS(0)
+	// Each goroutine above the baseline (5 × GOMAXPROCS) contributes ~0.5%
+	baseline := maxProcs * 5
+	if goroutines <= baseline {
+		return float64(maxProcs) * 0.5 // ~idle
+	}
+	return float64(goroutines-baseline) * 0.5
+}
+

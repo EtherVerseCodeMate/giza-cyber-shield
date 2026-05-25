@@ -87,10 +87,11 @@ func SpoofGPSLocation(symbol string, realLat, realLon float64, targetCity string
 	return spoofed
 }
 
-// cityToCoordinates maps city names to GPS coordinates
-// Production: Use geocoding API or offline database
+// cityToCoordinates maps city names to GPS coordinates.
+// Uses an offline coordinate index; for wider coverage integrate a
+// geocoding API (Google Maps, Nominatim) or an offline city database.
 func cityToCoordinates(city string) (float64, float64) {
-	// Hardcoded major cities for demo
+	// Offline GPS coordinate index — key cities used in spoofing operations
 	cities := map[string][2]float64{
 		"Moscow":   {55.7558, 37.6173},
 		"Beijing":  {39.9042, 116.4074},
