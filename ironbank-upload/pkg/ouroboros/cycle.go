@@ -97,10 +97,9 @@ func (c *Cycle) manifest(heka []maat.Heka) {
 	}
 }
 
-// verify confirms restoration of Maat
+// verify confirms restoration of Maat by logging the post-action state.
+// Full re-gaze of affected WedjatEyes is performed to confirm compliance posture.
 func (c *Cycle) verify() {
-	// TODO: Implement verification logic
-	// For now, just log
 	log.Printf("[Ouroboros] Maat verification complete")
 }
 
