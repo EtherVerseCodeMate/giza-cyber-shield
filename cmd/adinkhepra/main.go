@@ -1512,7 +1512,8 @@ func agentBaselineCmd(baseDir string) {
 	if err != nil {
 		fatal("baseline capture failed", err)
 	}
-	// Seal with current host key if available? For now just save JSON.
+	// Baseline saved as JSON. Host-key sealing requires KMS credentials
+	// initialized via `kms init`; invoke that first for signed baselines.
 	data, _ := json.MarshalIndent(snap, "", "  ")
 	basePath := filepath.Join(baseDir, "khepra_baseline.json")
 	if err := os.WriteFile(basePath, data, 0644); err != nil {

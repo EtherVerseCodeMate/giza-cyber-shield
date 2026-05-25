@@ -435,9 +435,8 @@ func (m *Manager) Heartbeat() (*HeartbeatResponse, error) {
 	}
 	resp, err := m.client.SendHeartbeat(statusData)
 	if err == nil && resp.Status == "active" {
-		// If heartbeat is active, we can assume validation is still good
-		// or wait for the next full Validate() call.
-		// For now, let's just log success.
+		// The heartbeat RPC confirms server-side liveness only; a full Validate() call
+		// is required to refresh the cached tier/feature set.
 		log.Printf("[LICENSE] Manual heartbeat successful: %s", resp.Message)
 	}
 	return resp, err

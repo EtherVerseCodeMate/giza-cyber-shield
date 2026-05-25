@@ -72,7 +72,8 @@ func networkBuildCmd(args []string) {
 	// Parse input files
 	inputFiles := parsePaths(*input)
 
-	// Create topology (no DAG integration for now)
+	// Topology built without DAG persistence. Pass a configured dag.Store
+	// to NewNetworkTopology() to enable immutable event recording.
 	topo := network.NewNetworkTopology(nil)
 
 	// Load each snapshot and build topology

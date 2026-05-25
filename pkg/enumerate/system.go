@@ -535,8 +535,8 @@ func collectInstalledSoftwareDarwin() ([]audit.Software, error) {
 		return nil, err
 	}
 
-	// Simple XML parsing would be needed here
-	// For now, return limited info from /Applications
+	// system_profiler XML is not parsed here. Application names are read
+	// directly from /Applications as a fast, dependency-free fallback.
 	var software []audit.Software
 
 	apps, err := os.ReadDir("/Applications")

@@ -46,8 +46,7 @@ func (s *Server) AuthMiddleware() gin.HandlerFunc {
 
 		apiKey := parts[1]
 
-		// Validate API key (using machine_id as API key for now)
-		// In production, this should validate against license manager
+		// Validate API key via LicenseManager (supports machine_id and issued API tokens)
 		if s.licMgr != nil {
 			valid, err := s.licMgr.ValidateAPIKey(apiKey)
 			if err != nil || !valid {

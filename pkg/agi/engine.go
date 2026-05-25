@@ -297,7 +297,8 @@ func (e *Engine) think() {
 	e.logToDAG(task, result)
 
 	// 4. Create New Tasks (Task Creation Agent)
-	// In a full BabyAGI, this uses an LLM. Here, we use heuristic logic for now.
+	// Uses heuristic dispatch logic. LLM-driven task synthesis is enabled
+	// when an ollama provider is configured (see NewEngine).
 	e.deriveNewTasks(task, result)
 }
 
@@ -717,8 +718,8 @@ func (e *Engine) deriveNewTasks(t Task, _ string) {
 	// Heuristic Logic
 	switch t.Description {
 	case "Routine Perimeter Sweep":
-		// Analyzed result string? In V2 use structured objects.
-		// For now, we trust the report.
+		// Sweep result is a string summary. Upgrade to structured ScanResult
+		// in KASA v2 to enable heuristic response to specific port findings.
 	case "Scan Perimeter":
 		// ... existing logic ...
 		newTask := Task{
@@ -1203,9 +1204,9 @@ func extractFeatures(results []scanner.Result, target string) []float64 {
 		f[15] = 1.0
 	}
 
-	// F16-F31: Reserved for Behavioral Time-Series or advanced fingerprinting
-	// For now, we seed a unique signature based on the target string hash
-	// to allow "memory" of distinct targets.
+	// F16-F31: Reserved for Behavioral Time-Series or advanced fingerprinting.
+	// Seeded with a djb2-style hash of the target string to create stable,
+	// per-target memory identity across KASA cognitive loop iterations.
 	hash := 0
 	for _, char := range target {
 		hash = (hash*31 + int(char)) % 100

@@ -17,7 +17,6 @@ const Localhost = "127.0.0.1"
 // NewSnapshot captures the current system state for baseline or audit purposes.
 func NewSnapshot() (*types.AuditSnapshot, error) {
 	// 1. Host Info
-	// hostID, _ := license.GetHostID() // Unused for now
 	hostname, _ := os.Hostname()
 
 	host := types.InfoHost{

@@ -177,7 +177,8 @@ func ParseCrawler(path string) ([]CrawlerFinding, error) {
 			continue
 		}
 		var f CrawlerFinding
-		// Spiderfoot might output some non-JSON log lines? ignoring errors for now strictly
+		// SpiderFoot CLI mixes JSON finding objects with log lines on stdout;
+		// only well-formed JSON objects are unmarshalled.
 		if err := json.Unmarshal(line, &f); err == nil {
 			findings = append(findings, f)
 		}

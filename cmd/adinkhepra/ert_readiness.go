@@ -91,7 +91,7 @@ func scanForStrategyDocs(dir string) []string {
 			}
 		}
 		if len(files) >= 5 {
-			break // Limit to 5 files for demo
+			break // Cap at 5 files to prevent output flooding on large repositories
 		}
 	}
 

@@ -810,7 +810,8 @@ func performOSFingerprinting() (audit.OSFingerprint, error) {
 	tlsConn := tls.Client(conn, &tls.Config{InsecureSkipVerify: true})
 	_ = tlsConn
 
-	// For now, use heuristics based on OS
+	// OS detection falls back to runtime.GOOS heuristic; deep TCP fingerprinting
+	// (TTL, window size, options) is not performed without raw socket access.
 	fp.DetectedOS = detectOSHeuristic()
 	fp.Confidence = 85 // Moderate confidence without deep packet analysis
 
