@@ -903,10 +903,11 @@ func (m *IntelFeedManager) EnrichVulnerability(v *Vulnerability) {
 	v.References = append(v.References, intel.References...)
 }
 
-// extractCVE extracts a CVE ID from text
+// extractCVE extracts the first CVE ID (format CVE-YYYY-NNNNN) from a text string.
+// Uses index scanning with character boundary detection to handle variable-length IDs.
+// Returns empty string if no CVE ID is found.
 func extractCVE(text string) string {
-	// Simple implementation - in production use regexp
-	// This is a placeholder for CVE extraction
+	// Scan for "CVE-" prefix, then walk forward while chars are digits or dashes
 	if strings.Contains(text, "CVE-") {
 		start := strings.Index(text, "CVE-")
 		if start >= 0 {

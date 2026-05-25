@@ -191,6 +191,7 @@ func engineExportCmd(args []string) {
 	// Serialise snapshot as JSON (the canonical DAG exchange format).
 	// GraphML/DOT export is a post-processing step via Gephi or yEd.
 	var exportData []byte
+	var outFile string
 	switch *format {
 	case "json":
 		outFile = *output + ".json"

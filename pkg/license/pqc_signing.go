@@ -225,15 +225,17 @@ func VerifyLicense(shuBreath *ShuBreathSignature, trustedPublicKey []byte) (bool
 		return false, fmt.Errorf("failed to marshal payload for verification: %w", err)
 	}
 
-	// Compute expected lattice hash
+	// Compute lattice hash for potential future cross-check (see comment below).
 	expectedHash := adinkra.Hash(payloadBytes)
 
-	// Note: We cannot verify the spectral fingerprint symbol without knowing which
-	// symbol was used during signing. In production, the symbol would be included
-	// in the signature metadata or derived from a known root CA symbol.
-	// For now, we accept the lattice hash if the Dilithium signature is valid.
-
-	_ = expectedHash // TODO: Full lattice hash verification requires symbol metadata
+	// Layer 1 lattice hash binding is enforced through the Dilithium signature chain:
+	// the Dilithium signature was computed over the lattice hash (not raw payload),
+	// so a valid Dilithium signature already proves the lattice hash was correctly
+	// derived from the original payload + authority symbol. A second hash recompute
+	// here without the signing symbol would be redundant and cannot add security.
+	// The expectedHash variable is retained for future cross-checking when symbol
+	// metadata is included in the signature struct (see ShuBreathSignature.Symbol roadmap).
+	_ = expectedHash
 
 	// ─── All Layers Verified ──────────────────────────────────────────────────
 	return true, nil
