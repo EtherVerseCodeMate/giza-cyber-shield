@@ -58,6 +58,8 @@ type MCPEvent struct {
 // EventEmitter collects and emits MCPEvents.
 // It writes structured JSON to the configured logger and optionally
 // buffers events for batch forwarding to external telemetry.
+// When SignedLog is set, every event is also appended to the tamper-evident
+// ML-DSA-65-signed NDJSON audit log (DFARS 252.204-7012 compliance artifact).
 type EventEmitter struct {
 	logger      *log.Logger
 	fingerprint string // Spectral Fingerprint for this session
@@ -66,6 +68,7 @@ type EventEmitter struct {
 	buffer      []MCPEvent
 	maxBuffer   int
 	hooks       []func(MCPEvent) // Optional external hooks (e.g. beacon, DAG)
+	SignedLog   *SignedAuditLog  // Tamper-evident per-entry signed log (nil = disabled)
 }
 
 // EventEmitterConfig configures the event emitter.
@@ -73,7 +76,8 @@ type EventEmitterConfig struct {
 	Logger      *log.Logger
 	Fingerprint string
 	SessionID   string
-	MaxBuffer   int // 0 = no buffering, events are logged immediately
+	MaxBuffer   int            // 0 = no buffering, events are logged immediately
+	SignedLog   *SignedAuditLog // Optional: tamper-evident per-entry audit log
 }
 
 // NewEventEmitter creates an emitter for the given session.
@@ -88,6 +92,7 @@ func NewEventEmitter(cfg EventEmitterConfig) *EventEmitter {
 		sessionID:   cfg.SessionID,
 		buffer:      make([]MCPEvent, 0, maxBuf),
 		maxBuffer:   maxBuf,
+		SignedLog:   cfg.SignedLog,
 	}
 }
 
@@ -108,6 +113,16 @@ func (e *EventEmitter) Emit(event MCPEvent) {
 	if e.logger != nil {
 		b, _ := json.Marshal(event)
 		e.logger.Printf("[EVENT] %s", string(b))
+	}
+
+	// Write to tamper-evident signed audit log (DFARS 252.204-7012)
+	if e.SignedLog != nil {
+		if err := e.SignedLog.Append(event); err != nil {
+			// Log signing failure to stderr — never drop the event
+			if e.logger != nil {
+				e.logger.Printf("[AUDIT_LOG] WARN: signed log append failed: %v", err)
+			}
+		}
 	}
 
 	e.mu.Lock()

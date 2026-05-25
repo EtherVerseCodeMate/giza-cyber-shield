@@ -31,6 +31,9 @@ const (
 	ErrCodeMistakeLimit     = "MISTAKE_LIMIT"
 	ErrCodeRateLimit        = "RATE_LIMIT"
 	ErrCodeTimeout          = "TIMEOUT"
+	// ErrCodeConcurrencyLimit fires when a session exceeds maxConcurrent parallel tool calls.
+	// Maps to NSA MCP prompt-storm defense and standard MCP backpressure signalling.
+	ErrCodeConcurrencyLimit = "CONCURRENCY_LIMIT"
 )
 
 // ─── Validation Error ──────────────────────────────────────────────────────────
@@ -354,4 +357,65 @@ func (rl *RateLimiter) Allow(agentID string) *ValidationError {
 	pruned = append(pruned, now)
 	rl.windows[agentID] = pruned
 	return nil
+}
+
+// ─── Concurrency Limiter (NSA Prompt-Storm Defense) ────────────────────────
+//
+// Caps the number of simultaneous tool calls per agent session.
+// Prevents resource exhaustion from rapid concurrent invocations
+// ("prompt storms") and protects the khepra-daemon scan queue.
+
+// ConcurrencyLimiter tracks and limits concurrent tool calls per agent.
+type ConcurrencyLimiter struct {
+	mu            sync.Mutex
+	active        map[string]int // agentID → active concurrent calls
+	maxConcurrent int
+}
+
+// NewConcurrencyLimiter creates a limiter allowing at most maxConcurrent
+// simultaneous tool calls per agent. Default: 5 if maxConcurrent <= 0.
+func NewConcurrencyLimiter(maxConcurrent int) *ConcurrencyLimiter {
+	if maxConcurrent <= 0 {
+		maxConcurrent = 5
+	}
+	return &ConcurrencyLimiter{
+		active:        make(map[string]int),
+		maxConcurrent: maxConcurrent,
+	}
+}
+
+// Acquire attempts to start a new concurrent call for agentID.
+// Returns a ValidationError if the concurrency cap is reached.
+// The caller MUST call Release() when the tool call completes.
+func (cl *ConcurrencyLimiter) Acquire(agentID string) *ValidationError {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	if cl.active[agentID] >= cl.maxConcurrent {
+		return &ValidationError{
+			Code:    ErrCodeConcurrencyLimit,
+			Message: fmt.Sprintf("concurrency limit: agent %q already has %d active tool calls (max %d) — backpressure engaged", agentID, cl.active[agentID], cl.maxConcurrent),
+		}
+	}
+	cl.active[agentID]++
+	return nil
+}
+
+// Release decrements the active call counter for agentID.
+// Safe to call even if agentID has no tracked calls.
+func (cl *ConcurrencyLimiter) Release(agentID string) {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	if cl.active[agentID] > 0 {
+		cl.active[agentID]--
+	}
+	if cl.active[agentID] == 0 {
+		delete(cl.active, agentID)
+	}
+}
+
+// ActiveCalls returns the number of active concurrent calls for agentID.
+func (cl *ConcurrencyLimiter) ActiveCalls(agentID string) int {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	return cl.active[agentID]
 }
