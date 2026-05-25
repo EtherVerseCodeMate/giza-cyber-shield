@@ -197,7 +197,9 @@ func handleEvidenceCommand(parts []string) {
 }
 
 func explainControl(id string) {
-	// Mock KB lookup - this will eventually call into a data-driven service
+	// Inline KB lookup — checks the embedded controlDB map and hard-coded case
+	// entries. For full 110-control coverage, extend controlDB or integrate
+	// a data-driven backend (e.g. pkg/compliance/nist80171 control registry).
 	fmt.Printf("\n[EXPLAINING CONTROL %s]\n", id)
 	switch id {
 	case "3.1.1":
