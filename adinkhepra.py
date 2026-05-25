@@ -466,10 +466,6 @@ def _test_asaf_endpoints(skip: bool = False) -> bool:
     errors: List[str] = []
 
     # --- SSE stream — use a SEPARATE, short-timeout connection ---
-    # Never reuse the shared apiserver conn here: SSE never sends EOF so
-    # res.read() would block until the socket timeout fires, leaving conn
-    # in mid-response state and making every subsequent request raise
-    # http.client.CanSendRequest (shows as "Request-sent" in the output).
     sse_conn = None
     try:
         sse_conn = http.client.HTTPConnection("127.0.0.1", APISERVER_PORT, timeout=5)
@@ -477,20 +473,21 @@ def _test_asaf_endpoints(skip: bool = False) -> bool:
                          headers={"Accept": "text/event-stream"})
         res = sse_conn.getresponse()
         ct = res.getheader("Content-Type", "")
+        # Smoke-test verdict is based on headers only — do NOT call res.read().
+        # SSE is an infinite stream; the server never sends EOF by design.
+        # Python's http.client buffers data internally and res.read(N) will
+        # block until N bytes arrive or the socket times out — even when the
+        # server has already flushed data at the TCP level.  The HTTP response
+        # headers (status 200 + Content-Type: text/event-stream) are the
+        # correct and sufficient signal that the route is live.
         if res.status != 200:
             errors.append(f"/asaf/stream returned HTTP {res.status} (expected 200)")
         elif "text/event-stream" not in ct:
             errors.append(f"/asaf/stream Content-Type wrong: {ct!r}")
         else:
-            # Read just the initial 'connected' event (≤512 bytes) —
-            # the server sends it immediately on connection.
-            chunk = res.read(512)
-            if b"connected" in chunk:
-                print_info("GET /api/v1/asaf/stream \u2192 200 text/event-stream \u2713 (connected event received)")
-            else:
-                print_info("GET /api/v1/asaf/stream \u2192 200 text/event-stream \u2713")
+            print_info("GET /api/v1/asaf/stream \u2192 200 text/event-stream \u2713 (route live)")
     except socket.timeout:
-        errors.append("/asaf/stream timed out — no initial event within 5 s (check HandleSSE sends connected event)")
+        errors.append("/asaf/stream timed out \u2014 server did not respond within 5 s")
     except Exception as e:
         errors.append(f"/asaf/stream request failed: {e}")
     finally:
