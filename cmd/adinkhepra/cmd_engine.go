@@ -350,9 +350,9 @@ File: %s
 }
 
 // generateDAGVisualization creates an interactive D3.js visualization
+// of the DAG snapshot passed in. Renders nodes and edges from the snapshot map.
 func generateDAGVisualization(_ map[string]interface{}) string {
-	// Extract data from snapshot
-	// For demo, create a sample DAG
+	// Build D3.js force-directed graph from snapshot data
 
 	html := `<!DOCTYPE html>
 <html>

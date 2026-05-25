@@ -222,17 +222,20 @@ func detectArchitecturalFriction(dir string) {
 		}
 	}
 
+	issuesFound := false
 	if !hasTests && hasCI {
 		printYellow(">>> HOTSPOT: CI/CD pipeline exists but test coverage is missing.")
+		issuesFound = true
 	}
 
 	if hasSecrets {
 		printRed(">>> EXPOSURE: Potential secrets in version control detected.")
+		issuesFound = true
 	}
 
-	// Generic friction patterns
-	printYellow(">>> HOTSPOT: DevOps Team has 'Accountable' role but limited 'Access' to Prod Keys.")
-	printRed(">>> EXPOSURE: 3rd Party Vendor has Unmonitored Write Access to CI/CD Pipeline.")
+	if !issuesFound {
+		printGreen(">>> No architectural friction detected in static scan. Runtime agent required for full RACI analysis.")
+	}
 }
 
 // spinCursor displays an animated spinner

@@ -108,17 +108,11 @@ func (m *Memory) Add(n *Node, parents []string) error {
 	if n.ID == "" {
 		n.ID = computed
 	} else if n.ID != computed {
-		// If ID was manually set, it MUST match the content hash.
-		// NOTE: For backward compatibility with the Simulation scripts (which use random IDs),
-		// we permit a mismatch only if it looks like a "task-" or "scan-" simulated ID.
-		// BUT for the "Real Immutable DAG", we should enforce this.
-		// For now, I will warn but accept ONLY IF it allows the demo to break.
-		// Actually, let's enforce it. If the user runs the old simulation, it might break?
-		// The simulation creates Node structs but writes a python script that doesn't use THIS go code.
-		// Wait, pkg/agi/engine.go DOES use this.
-		// I will Auto-Fix the ID if it's a "task-" ID.
+		// Legacy semantic IDs (task-*, scan-*, asset:*, evidence:*, stig:*) predate content-addressing
+		// and are used by the AGI engine. These are allowed for backward compatibility.
+		// All new nodes MUST have IDs that match their content hash.
 		if strings.HasPrefix(n.ID, "task-") || strings.HasPrefix(n.ID, "scan-") || strings.HasPrefix(n.ID, "asset:") || strings.HasPrefix(n.ID, "evidence:") || strings.HasPrefix(n.ID, "stig:") {
-			// Allow legacy IDs for now to keep AGI running without refactor
+			// Accepted: legacy semantic ID format
 		} else {
 			return errors.New("integrity violation: node ID does not match content hash")
 		}
