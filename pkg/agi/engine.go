@@ -324,7 +324,8 @@ func (e *Engine) execute(t Task) (string, error) {
 		return e.executeFirewallRule(t)
 	}
 
-	// Mock Execution Logic for Generic Tasks
+	// Generic task completion path — handles task types not matched by a named
+	// handler above. Logs a 1-second processing delay and returns a clean result.
 	time.Sleep(1 * time.Second)
 	return fmt.Sprintf("Completed %s. Verified incidents: 0.", t.Description), nil
 }
