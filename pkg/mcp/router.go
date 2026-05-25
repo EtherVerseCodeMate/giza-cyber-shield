@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"golang.org/x/crypto/sha3"
+
+	licpkg "github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 )
 
 // ─── Security Boundary Interfaces ──────────────────────────────────────────────
@@ -97,6 +99,9 @@ type Router struct {
 	// to issue + verify per-invocation HMAC tokens (ASD/CISA ephemeral credentials).
 	// If nil, invocation token issuance is skipped (stdio dev mode).
 	invocationRootKey []byte
+	// license is the parsed KhepraLicense for this server instance.
+	// Controls tool gating at Step 1.6b. nil = Community tier.
+	license *licpkg.KhepraLicense
 }
 
 // RouterConfig holds all dependencies for constructing a Router.
@@ -124,6 +129,11 @@ type RouterConfig struct {
 	// Derive from ML-DSA-65 license key using DeriveRootKey().
 	// If nil, invocation token issuance is skipped (stdio dev mode).
 	InvocationRootKey []byte
+
+	// License is the parsed and verified license claim for this server instance.
+	// Obtained via license.ParseMCPLicense() from KHEPRA_LICENSE_KEY env var.
+	// If nil, Community tier is enforced (ert_scan basic + nist_map 25 controls).
+	License *licpkg.KhepraLicense
 }
 
 // NewRouter creates a Router with all security chain components.
@@ -197,6 +207,7 @@ func NewRouter(cfg RouterConfig) (*Router, error) {
 		limiter:           limiter,
 		concurrency:       NewConcurrencyLimiter(cfg.MaxConcurrent),
 		invocationRootKey: cfg.InvocationRootKey,
+		license:           cfg.License,
 	}, nil
 }
 
@@ -252,6 +263,20 @@ func (r *Router) HandleToolCall(ctx context.Context, call MCPToolCall, cred any,
 		return &MCPToolResponse{
 			IsError:      true,
 			ErrorMessage: scopeErr.Error(),
+		}, nil
+	}
+
+	// ── Step 1.6b: License Tier Gate ───────────────────────────────────────
+	// Check that the caller's license tier permits the requested tool.
+	// Community tier: ert_scan (basic) + nist_map (limited) only.
+	// Enterprise+:    all 13 tools.
+	// Non-fatal for Community callers hitting Community tools.
+	if tierErr := licpkg.CheckToolAccess(r.license, call.ToolName); tierErr != nil {
+		r.events.EmitError(EventPolicy, call.ToolName, id.AgentID, "LICENSE_TIER", tierErr.Error())
+		r.logger.Printf("[MCP:LICENSE] tier gate: tool=%s agent=%s: %s", call.ToolName, id.AgentID, tierErr.Error())
+		return &MCPToolResponse{
+			IsError:      true,
+			ErrorMessage: tierErr.Error(),
 		}, nil
 	}
 
