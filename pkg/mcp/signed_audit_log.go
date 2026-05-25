@@ -127,6 +127,13 @@ func (sal *SignedAuditLog) resume() error {
 			lastLine = t
 		}
 	}
+	// Check for scanner I/O errors — must be after the loop, not inside it.
+	// A scan error here means the file was partially read; returning the error
+	// lets the caller decide whether to start a new chain or abort — we must
+	// NOT silently accept a truncated chain hash as the resume point.
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("resume: scan audit log: %w", err)
+	}
 	if lastLine == "" {
 		return nil
 	}
