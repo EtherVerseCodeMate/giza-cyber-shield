@@ -95,7 +95,8 @@ func TestE2E_ERTScan_FullChain(t *testing.T) {
 	call := MCPToolCall{
 		RequestID:   "e2e-req-001",
 		ToolName:    "ert_scan",
-		Args:        map[string]any{"target": "example.com"},
+		// "linux" = valid knownOSTarget; "CMMC-L2" = valid knownFramework
+		Args:        map[string]any{"target": "linux", "scope": "CMMC-L2"},
 		SubmittedAt: time.Now().UTC(),
 	}
 
