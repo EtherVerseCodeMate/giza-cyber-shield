@@ -367,7 +367,7 @@ def _wait_for_apiserver() -> Optional[http.client.HTTPConnection]:
         attempts -= 1
     return None
 
-def _test_agent_api(fips: bool = True) -> bool:
+def _test_agent_api(fips: bool = True, skip_asaf_smoke: bool = False) -> bool:
     print_step("Agent API", 4, 3, "Testing Agent API (Integration)")
     if not build("adinkhepra-agent", fips=fips):
         return False
@@ -425,7 +425,7 @@ def _test_agent_api(fips: bool = True) -> bool:
             print_error(f"DAG write failed: {res.status}")
             return False
 
-        if not _test_asaf_endpoints(conn_apiserver):
+        if not _test_asaf_endpoints(skip=skip_asaf_smoke):
             return False
 
         return True
@@ -442,59 +442,89 @@ def _test_agent_api(fips: bool = True) -> bool:
         if telemetry_proc:
             telemetry_proc.terminate()
 
-def _test_asaf_endpoints(conn: http.client.HTTPConnection) -> bool:
+def _test_asaf_endpoints(skip: bool = False) -> bool:
     """
     Smoke-test ASAF flight recorder endpoints.
 
     Tests exercised:
-      - GET /api/v1/asaf/stream  (public SSE — expects 200 with text/event-stream)
-      - GET /api/v1/asaf/sessions (authenticated — expects 200 with JSON body)
+      - GET /api/v1/asaf/stream  (public SSE — expects 200 with text/event-stream +
+                                   initial 'connected' event in first chunk)
+      - GET /api/v1/asaf/sessions (authenticated — expects 200 or 401)
+      - POST /api/v1/asaf/record  (expects 401/403 without service token)
 
-    The record endpoint (POST /api/v1/asaf/record) requires a valid
-    HMAC service token; that path is covered by the integration test
-    in pkg/asaf/recorder_test.go. Here we verify the routes exist and
-    the SSE stream header is correct.
+    IMPORTANT: The SSE endpoint never closes its response body (by design).
+    We therefore use a *dedicated* short-timeout connection and read only the
+    first chunk (the immediate 'connected' event).  Calling res.read() on the
+    shared conn would block forever and leave it in a broken state, causing
+    all subsequent requests on the same connection to fail with 'Request-sent'.
     """
+    if skip:
+        print_warning("ASAF smoke test skipped (--skip-asaf-smoke)")
+        return True
+
     print_step("ASAF Endpoints", 5, 4, "Smoke-testing ASAF flight recorder routes")
     errors: List[str] = []
 
-    # --- SSE stream (public, no auth) ---
+    # --- SSE stream — use a SEPARATE, short-timeout connection ---
+    # Never reuse the shared apiserver conn here: SSE never sends EOF so
+    # res.read() would block until the socket timeout fires, leaving conn
+    # in mid-response state and making every subsequent request raise
+    # http.client.CanSendRequest (shows as "Request-sent" in the output).
+    sse_conn = None
     try:
-        conn.request("GET", "/api/v1/asaf/stream",
-                     headers={"Accept": "text/event-stream"})
-        res = conn.getresponse()
-        res.read()  # drain to unblock the connection
+        sse_conn = http.client.HTTPConnection("127.0.0.1", APISERVER_PORT, timeout=5)
+        sse_conn.request("GET", "/api/v1/asaf/stream",
+                         headers={"Accept": "text/event-stream"})
+        res = sse_conn.getresponse()
         ct = res.getheader("Content-Type", "")
         if res.status != 200:
             errors.append(f"/asaf/stream returned HTTP {res.status} (expected 200)")
         elif "text/event-stream" not in ct:
             errors.append(f"/asaf/stream Content-Type wrong: {ct!r}")
         else:
-            print_info("GET /api/v1/asaf/stream → 200 text/event-stream ✓")
+            # Read just the initial 'connected' event (≤512 bytes) —
+            # the server sends it immediately on connection.
+            chunk = res.read(512)
+            if b"connected" in chunk:
+                print_info("GET /api/v1/asaf/stream \u2192 200 text/event-stream \u2713 (connected event received)")
+            else:
+                print_info("GET /api/v1/asaf/stream \u2192 200 text/event-stream \u2713")
+    except socket.timeout:
+        errors.append("/asaf/stream timed out — no initial event within 5 s (check HandleSSE sends connected event)")
     except Exception as e:
         errors.append(f"/asaf/stream request failed: {e}")
+    finally:
+        if sse_conn:
+            try:
+                sse_conn.close()
+            except Exception:
+                pass
 
-    # --- Sessions list (requires auth — 401 is the correct response here) ---
+    # --- Sessions list — fresh connection, 401 is correct without auth ---
     try:
-        conn.request("GET", "/api/v1/asaf/sessions")
-        res = conn.getresponse()
+        sess_conn = http.client.HTTPConnection("127.0.0.1", APISERVER_PORT, timeout=5)
+        sess_conn.request("GET", "/api/v1/asaf/sessions")
+        res = sess_conn.getresponse()
         res.read()
+        sess_conn.close()
         if res.status in (200, 401):
-            print_info(f"GET /api/v1/asaf/sessions → {res.status} ✓ (route exists)")
+            print_info(f"GET /api/v1/asaf/sessions \u2192 {res.status} \u2713 (route exists)")
         else:
             errors.append(f"/asaf/sessions returned unexpected HTTP {res.status}")
     except Exception as e:
         errors.append(f"/asaf/sessions request failed: {e}")
 
-    # --- Record endpoint reachability (should return 401 without service token) ---
+    # --- Record endpoint — 401/403 without service token ---
     try:
+        rec_conn = http.client.HTTPConnection("127.0.0.1", APISERVER_PORT, timeout=5)
         payload = json.dumps({"agent_id": "smoke-test", "session_id": "test", "mcp_method": "test/call"})
-        conn.request("POST", "/api/v1/asaf/record", body=payload,
-                     headers={"Content-Type": "application/json"})
-        res = conn.getresponse()
+        rec_conn.request("POST", "/api/v1/asaf/record", body=payload,
+                         headers={"Content-Type": "application/json"})
+        res = rec_conn.getresponse()
         res.read()
+        rec_conn.close()
         if res.status in (401, 403):
-            print_info(f"POST /api/v1/asaf/record → {res.status} ✓ (service auth active)")
+            print_info(f"POST /api/v1/asaf/record \u2192 {res.status} \u2713 (service auth active)")
         else:
             errors.append(f"/asaf/record returned unexpected HTTP {res.status} (expected 401/403)")
     except Exception as e:
@@ -552,7 +582,7 @@ def _run_resilience_validation() -> bool:
         return False
 
 
-def validate(fips: bool = True) -> bool:
+def validate(fips: bool = True, skip_asaf_smoke: bool = False) -> bool:
     """
     Run the complete ADINKHEPRA validation suite.
     """
@@ -570,7 +600,7 @@ def validate(fips: bool = True) -> bool:
         return False
     if not _test_pqc_key_gen(fips=fips):
         return False
-    if not _test_agent_api(fips=fips):
+    if not _test_agent_api(fips=fips, skip_asaf_smoke=skip_asaf_smoke):
         return False
 
     # ========================================================================
@@ -757,8 +787,10 @@ def print_usage() -> None:
     print("  tnok             -> Start Tnok Stealth Gateway (tnokd)")
     print("  service-token [name] -> Generate HMAC service token (default: asaf-bridge)")
     print("\nOptions:")
-    print("  --no-fips        -> Disable FIPS mode (build command)")
-    print("  --llm-port PORT  -> Override LLM port (launch command)")
+    print("  --no-fips           -> Disable FIPS mode (build/validate commands)")
+    print("  --skip-asaf-smoke   -> Skip ASAF live-endpoint smoke test (validate command)")
+    print("                         Use in CI or dev environments without a persistent agent")
+    print("  --llm-port PORT     -> Override LLM port (launch command)")
 
 
 def main() -> None:
@@ -775,8 +807,8 @@ def main() -> None:
 def match_command(command: str, extra_args: list[str]) -> None:
     """Dispatches command to the appropriate handler."""
     fips = "--no-fips" not in extra_args
-    if not fips:
-        extra_args = [arg for arg in extra_args if arg != "--no-fips"]
+    skip_asaf_smoke = "--skip-asaf-smoke" in extra_args
+    extra_args = [a for a in extra_args if a not in ("--no-fips", "--skip-asaf-smoke")]
 
     if command == "build":
         sys.exit(0 if build_all_components(fips=fips) else 1)
@@ -791,7 +823,7 @@ def match_command(command: str, extra_args: list[str]) -> None:
     elif command == "test":
         handle_test_command()
     elif command == "validate":
-        handle_validate_command(fips=fips)
+        handle_validate_command(fips=fips, skip_asaf_smoke=skip_asaf_smoke)
     elif command == "resilience":
         handle_resilience_command()
     elif command == "tnok":
@@ -810,8 +842,8 @@ def handle_test_command() -> None:
     ])
     sys.exit(result)
 
-def handle_validate_command(fips: bool = True) -> None:
-    if validate(fips=fips):
+def handle_validate_command(fips: bool = True, skip_asaf_smoke: bool = False) -> None:
+    if validate(fips=fips, skip_asaf_smoke=skip_asaf_smoke):
         launch([], fips=fips)
     else:
         print_error("Validation failed. Fix errors before deploying.")
