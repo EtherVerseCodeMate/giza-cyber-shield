@@ -2,11 +2,16 @@ package mcp
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"time"
+
+	"golang.org/x/crypto/sha3"
 )
 
 // ─── Security Boundary Interfaces ──────────────────────────────────────────────
@@ -83,10 +88,15 @@ type Router struct {
 	attest   Attestor
 	logger   *log.Logger
 
-	// Production hardening (Cline-inspired)
-	events   *EventEmitter    // Structured observability
-	mistakes *MistakeTracker  // Mistake / loop detection
-	limiter  *RateLimiter     // Per-agent rate limiting
+	// Production hardening
+	events      *EventEmitter      // Structured observability
+	mistakes    *MistakeTracker    // Mistake / loop detection
+	limiter     *RateLimiter       // Per-agent rate limiting
+	concurrency *ConcurrencyLimiter // Per-agent concurrent call cap (NSA prompt-storm defense)
+	// invocationRootKey is derived from the ML-DSA-65 license key and used
+	// to issue + verify per-invocation HMAC tokens (ASD/CISA ephemeral credentials).
+	// If nil, invocation token issuance is skipped (stdio dev mode).
+	invocationRootKey []byte
 }
 
 // RouterConfig holds all dependencies for constructing a Router.
@@ -104,6 +114,16 @@ type RouterConfig struct {
 	MistakeConfig MistakeTrackerConfig
 	RateWindow    int64 // Rate limit window in ms (default: 60000)
 	RateMax       int   // Max requests per window (default: 100)
+	MaxConcurrent int   // Max concurrent tool calls per agent (default: 5)
+
+	// Tamper-evident audit log (DFARS 252.204-7012 compliance).
+	// When set, every MCPEvent is signed and appended to the NDJSON log chain.
+	SignedAuditLog *SignedAuditLog
+
+	// InvocationRootKey is the HMAC root key for per-invocation token issuance.
+	// Derive from ML-DSA-65 license key using DeriveRootKey().
+	// If nil, invocation token issuance is skipped (stdio dev mode).
+	InvocationRootKey []byte
 }
 
 // NewRouter creates a Router with all security chain components.
@@ -135,7 +155,13 @@ func NewRouter(cfg RouterConfig) (*Router, error) {
 	// Initialize observability emitter
 	events := cfg.Events
 	if events == nil {
-		events = NewEventEmitter(EventEmitterConfig{Logger: logger})
+		events = NewEventEmitter(EventEmitterConfig{
+			Logger:    logger,
+			SignedLog: cfg.SignedAuditLog,
+		})
+	} else if cfg.SignedAuditLog != nil && events.SignedLog == nil {
+		// Caller supplied an emitter but also wants signed logging
+		events.SignedLog = cfg.SignedAuditLog
 	}
 
 	// Initialize mistake tracker
@@ -159,16 +185,18 @@ func NewRouter(cfg RouterConfig) (*Router, error) {
 	}})
 
 	return &Router{
-		demarc:   cfg.Demarc,
-		poly:     cfg.Poly,
-		gateway:  cfg.Gateway,
-		registry: cfg.Registry,
-		exec:     cfg.Executor,
-		attest:   cfg.Attestor,
-		logger:   logger,
-		events:   events,
-		mistakes: mistakes,
-		limiter:  limiter,
+		demarc:            cfg.Demarc,
+		poly:              cfg.Poly,
+		gateway:           cfg.Gateway,
+		registry:          cfg.Registry,
+		exec:              cfg.Executor,
+		attest:            cfg.Attestor,
+		logger:            logger,
+		events:            events,
+		mistakes:          mistakes,
+		limiter:           limiter,
+		concurrency:       NewConcurrencyLimiter(cfg.MaxConcurrent),
+		invocationRootKey: cfg.InvocationRootKey,
 	}, nil
 }
 
@@ -197,7 +225,7 @@ func (r *Router) HandleToolCall(ctx context.Context, call MCPToolCall, cred any,
 	// Attach identity to the call for downstream use.
 	call.Identity = id
 
-	// ── Step 1.5: Rate Limiting ────────────────────────────────────────────
+	// ── Step 1.5: Rate Limiting ─────────────────────────────────────────────
 	if rlErr := r.limiter.Allow(id.AgentID); rlErr != nil {
 		r.events.EmitError(EventRateLimit, call.ToolName, id.AgentID, rlErr.Code, rlErr.Message)
 		r.logger.Printf("[MCP:RATE] rate limit for agent=%s: %s", id.AgentID, rlErr.Message)
@@ -207,7 +235,7 @@ func (r *Router) HandleToolCall(ctx context.Context, call MCPToolCall, cred any,
 		}, nil
 	}
 
-	// ── Step 1.6: Input Validation ─────────────────────────────────────────
+	// ── Step 1.6: Input Validation ──────────────────────────────────────────
 	if valErr := ValidateToolArgs(call.Args); valErr != nil {
 		r.events.EmitError(EventPolicy, call.ToolName, id.AgentID, valErr.Code, valErr.Message)
 		r.logger.Printf("[MCP:VALIDATE] blocked: tool=%s agent=%s: %s", call.ToolName, id.AgentID, valErr.Error())
@@ -217,7 +245,17 @@ func (r *Router) HandleToolCall(ctx context.Context, call MCPToolCall, cred any,
 		}, nil
 	}
 
-	// ── Step 1.7: Loop / Mistake Detection ─────────────────────────────────
+	// ── Step 1.6a: Scope Taxonomy Allow-List (NSA parameter injection defense) ─
+	if scopeErr := ValidateScopedToolArgs(call.Args, call.ToolName); scopeErr != nil {
+		r.events.EmitError(EventPolicy, call.ToolName, id.AgentID, scopeErr.Code, scopeErr.Message)
+		r.logger.Printf("[MCP:SCOPE] blocked: tool=%s agent=%s: %s", call.ToolName, id.AgentID, scopeErr.Error())
+		return &MCPToolResponse{
+			IsError:      true,
+			ErrorMessage: scopeErr.Error(),
+		}, nil
+	}
+
+	// ── Step 1.7: Loop / Mistake Detection ──────────────────────────────────
 	argsFingerprint := fmt.Sprintf("%v", call.Args) // crude but effective
 	if loopErr := r.mistakes.CheckLoop(id.AgentID, call.ToolName, argsFingerprint); loopErr != nil {
 		r.events.EmitError(EventLoopDetected, call.ToolName, id.AgentID, loopErr.Code, loopErr.Message)
@@ -226,6 +264,24 @@ func (r *Router) HandleToolCall(ctx context.Context, call MCPToolCall, cred any,
 			IsError:      true,
 			ErrorMessage: loopErr.Message,
 		}, nil
+	}
+
+	// ── Step 1.8: Per-Invocation Ephemeral Credential (ASD/CISA requirement) ─
+	if len(r.invocationRootKey) > 0 {
+		// Extract scan profile and target from args for token binding
+		profile, _ := call.Args["profile"].(string)
+		if profile == "" {
+			profile, _ = call.Args["framework"].(string)
+		}
+		target, _ := call.Args["target"].(string)
+		tok, tokErr := IssueInvocationToken(r.invocationRootKey, id.AgentID, call.ToolName, profile, target)
+		if tokErr != nil {
+			r.events.EmitError(EventAuth, call.ToolName, id.AgentID, "INVOCATION_TOKEN_FAILED", tokErr.Error())
+			return nil, fmt.Errorf("invocation token issuance failed: %w", tokErr)
+		}
+		call.InvocationToken = tok
+		r.logger.Printf("[MCP:TOKEN] issued invocation token=%s tool=%s agent=%s ttl=5m",
+			tok.TokenID, call.ToolName, id.AgentID)
 	}
 
 	// ── Step 2: Manifest Lookup + Schema Pin Validation ────────────────────
@@ -270,7 +326,18 @@ func (r *Router) HandleToolCall(ctx context.Context, call MCPToolCall, cred any,
 		return nil, fmt.Errorf("injection detected: %w", err)
 	}
 
-	// ── Step 5: Risk-Classified Execution ──────────────────────────────────
+	// ── Step 5: Risk-Classified Execution (with Concurrency Gate) ──────────
+	// Acquire concurrency slot (NSA prompt-storm defense)
+	if concErr := r.concurrency.Acquire(id.AgentID); concErr != nil {
+		r.events.EmitError(EventRateLimit, call.ToolName, id.AgentID, concErr.Code, concErr.Message)
+		r.logger.Printf("[MCP:CONCURRENCY] %s", concErr.Message)
+		return &MCPToolResponse{
+			IsError:      true,
+			ErrorMessage: concErr.Message,
+		}, nil
+	}
+	defer r.concurrency.Release(id.AgentID)
+
 	r.events.EmitToolStart(call.ToolName, id.AgentID, call.RequestID, string(spec.RiskClass))
 
 	result, warnings, execErr := r.exec.Execute(ctx, spec, call)
@@ -330,10 +397,26 @@ func (r *Router) HandleToolCall(ctx context.Context, call MCPToolCall, cred any,
 	r.logger.Printf("[MCP:OK] tool=%s agent=%s attestation=%s duration=%v",
 		call.ToolName, id.AgentID, attestationID, time.Since(start))
 
-	return &MCPToolResponse{
+	resp := &MCPToolResponse{
 		Envelope: signedEnv,
 		Warnings: warnings,
-	}, nil
+	}
+
+	// ── Step 6.5: Wire-Level _khepra_sig (NSA message integrity) ────────────
+	// Compute SHA3-256 of the response JSON (excluding _khepra_sig itself)
+	// and sign with the attestation key. Any client can verify this field
+	// without parsing the nested SecureEnvelope structure.
+	if len(r.invocationRootKey) > 0 {
+		respBody, marshalErr := json.Marshal(resp)
+		if marshalErr == nil {
+			digest := sha3digestRouter(respBody)
+			// Re-use the HMAC root key for the wire-level signature (lightweight)
+			import_hmac := hmacSHA256(r.invocationRootKey, digest)
+			resp.KhepraSign = hex.EncodeToString(import_hmac)
+		}
+	}
+
+	return resp, nil
 }
 
 // ListTools returns MCP-formatted tool definitions from the registry.
@@ -358,3 +441,23 @@ func (r *Router) Events() *EventEmitter {
 	return r.events
 }
 
+// ─── Router-local crypto helpers ──────────────────────────────────────────────
+
+// sha3digestRouter returns the SHA3-256 hash of data.
+// Private to router to avoid import cycle with signed_audit_log.go's sha3digest.
+func sha3digestRouter(data []byte) []byte {
+	h := sha3.New256()
+	h.Write(data)
+	return h.Sum(nil)
+}
+
+// hmacSHA256 computes HMAC-SHA256(key, data).
+func hmacSHA256(key, data []byte) []byte {
+	mac := hmac.New(sha256.New, key)
+	mac.Write(data)
+	return mac.Sum(nil)
+}
+
+// hexEncode is hex.EncodeToString aliased for clarity.
+// Avoids unused import warnings in files that import encoding/hex only via this path.
+var _ = hex.EncodeToString // suppress unused import

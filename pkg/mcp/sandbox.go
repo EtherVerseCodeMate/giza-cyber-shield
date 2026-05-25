@@ -272,16 +272,36 @@ func (ds *DockerSandbox) buildDockerArgs(
 		args = append(args, "--runtime", "runsc")
 	}
 
-	// Project mount — read-only by default
-	projectPath := getProjectPath(call.Args)
-	if projectPath != "" {
-		absPath, err := filepath.Abs(projectPath)
-		if err == nil {
-			mountMode := "ro"
-			if !cfg.ReadOnly {
-				mountMode = "rw"
+	// ─── Capability Mounts (ASD/CISA confused-deputy defense) ─────────────
+	// If the ToolSpec declares specific CapabilityMounts, use those instead of
+	// the generic /project mount. This limits each tool to exactly the directories
+	// it legitimately needs — ert_scan on RHEL-9 gets /etc, /var/log, /opt/stig-db
+	// but NOT the entire project filesystem.
+	if len(spec.CapabilityMounts) > 0 {
+		for i, dir := range spec.CapabilityMounts {
+			// Validate: must be absolute path, no traversal
+			absDir, absErr := filepath.Abs(dir)
+			if absErr != nil || absDir != dir {
+				// Skip malformed capability mounts (fail-safe)
+				ds.logger.Printf("[SANDBOX] WARN: skipping invalid capability mount %q for tool %s", dir, spec.Name)
+				continue
 			}
-			args = append(args, "-v", fmt.Sprintf("%s:/project:%s", absPath, mountMode))
+			// Mount as read-only inside container at /cap/N (e.g. /cap/0, /cap/1)
+			containerMount := fmt.Sprintf("/cap/%d", i)
+			args = append(args, "-v", fmt.Sprintf("%s:%s:ro", absDir, containerMount))
+		}
+	} else {
+		// Fallback: generic /project mount (backward compat for tools without CapabilityMounts)
+		projectPath := getProjectPath(call.Args)
+		if projectPath != "" {
+			absPath, err := filepath.Abs(projectPath)
+			if err == nil {
+				mountMode := "ro"
+				if !cfg.ReadOnly {
+					mountMode = "rw"
+				}
+				args = append(args, "-v", fmt.Sprintf("%s:/project:%s", absPath, mountMode))
+			}
 		}
 	}
 

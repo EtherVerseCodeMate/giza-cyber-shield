@@ -115,3 +115,35 @@ func HandleERTScan(ctx context.Context, call mcp.MCPToolCall) (any, []string, er
 	tool := NewERTScanTool(getERT())
 	return tool.Handle(ctx, call)
 }
+
+// ─── Godfather Free Functions ──────────────────────────────────────────────────
+
+// HandleGodfatherReport is a standalone handler for the godfather_report tool.
+// Generates the Godfather Report with optional human-in-the-loop approval gate.
+func HandleGodfatherReport(ctx context.Context, call mcp.MCPToolCall) (any, []string, error) {
+	tool := NewGodfatherReportTool(nil) // nil DAG = template mode; wire real DAG at server init
+	return tool.Handle(ctx, call)
+}
+
+// HandleGodfatherApprove is a standalone handler for the godfather_approve tool.
+// Delivers a staged Godfather Report after human analyst approval.
+func HandleGodfatherApprove(ctx context.Context, call mcp.MCPToolCall) (any, []string, error) {
+	tool := NewGodfatherApproveTool()
+	return tool.Handle(ctx, call)
+}
+
+// ─── Watch Free Function ───────────────────────────────────────────────────────
+
+// HandleKhepraWatchTool is the free-function handler for khepra_watch.
+// Registers, queries, or unregisters filesystem-triggered scan watches.
+func HandleKhepraWatchTool(ctx context.Context, call mcp.MCPToolCall) (any, []string, error) {
+	return HandleKhepraWatch(ctx, call)
+}
+
+// ─── NIST Map Free Function ────────────────────────────────────────────────────
+
+// HandleNistMapTool is the free-function handler for nist_map.
+// Performs offline BM25 semantic search across NIST/CMMC/STIG control taxonomy.
+func HandleNistMapTool(ctx context.Context, call mcp.MCPToolCall) (any, []string, error) {
+	return HandleNistMap(ctx, call)
+}

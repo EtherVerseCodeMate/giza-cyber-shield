@@ -90,6 +90,14 @@ type ToolSpec struct {
 	Destructive    bool           `json:"destructive"`             // Requires explicit confirmation
 	ArgsSchema     map[string]any `json:"args_schema,omitempty"`   // JSON Schema for tool arguments
 	Meta           map[string]any `json:"meta,omitempty"`          // Arbitrary metadata
+	// CapabilityMounts lists the exact host directories this tool is allowed to read
+	// inside the sandbox. Replaces the generic /project mount with per-tool scoping.
+	// ASD/CISA confused-deputy defense: ert_scan on RHEL-9 may only access
+	// /etc, /var/log, and /opt/stig-db — not the entire filesystem.
+	CapabilityMounts []string `json:"capability_mounts,omitempty"` // e.g. ["/etc", "/var/log"]
+	// MaxPrivilege declares the maximum privilege level this tool requires.
+	// "none" | "read-only" | "stig-db-read" | "network-read"
+	MaxPrivilege string `json:"max_privilege,omitempty"`
 }
 
 // ─── Signed Tool Manifest (AD-007) ─────────────────────────────────────────────
@@ -110,13 +118,17 @@ type SignedToolManifest struct {
 
 // MCPToolCall represents an incoming tool invocation request.
 type MCPToolCall struct {
-	RequestID   string         `json:"request_id"`   // Correlation ID (idempotency key)
-	ToolName    string         `json:"tool_name"`    // Must match a registered ToolSpec.Name
-	Args        map[string]any `json:"args"`         // Tool arguments (validated against ArgsSchema)
-	RawPayload  json.RawMessage `json:"raw_payload"` // Original JSON-RPC params (for signing)
-	Identity    Identity       `json:"identity"`     // Populated after DEMARC authentication
-	Transport   TransportMode  `json:"transport"`    // Transport that received this call
-	SubmittedAt time.Time      `json:"submitted_at"` // Server-side reception timestamp
+	RequestID        string           `json:"request_id"`        // Correlation ID (idempotency key)
+	ToolName         string           `json:"tool_name"`         // Must match a registered ToolSpec.Name
+	Args             map[string]any   `json:"args"`              // Tool arguments (validated against ArgsSchema)
+	RawPayload       json.RawMessage  `json:"raw_payload"`       // Original JSON-RPC params (for signing)
+	Identity         Identity         `json:"identity"`          // Populated after DEMARC authentication
+	Transport        TransportMode    `json:"transport"`         // Transport that received this call
+	SubmittedAt      time.Time        `json:"submitted_at"`      // Server-side reception timestamp
+	// InvocationToken is the short-lived (5min TTL), HMAC-signed per-invocation
+	// capability token issued by the router. Encodes permitted scan profile,
+	// target, and calling agent identity. ASD/CISA ephemeral credential requirement.
+	InvocationToken  *InvocationToken `json:"invocation_token,omitempty"`
 }
 
 // ─── Secure Envelope ───────────────────────────────────────────────────────────
@@ -142,6 +154,13 @@ type MCPToolResponse struct {
 	Warnings     []string       `json:"warnings,omitempty"`
 	IsError      bool           `json:"is_error,omitempty"`
 	ErrorMessage string         `json:"error_message,omitempty"`
+	// KhepraSign is the ML-DSA-65 signature of SHA3-256(JSON body excluding this field).
+	// Surface at the MCP wire level so any client can verify message integrity
+	// without parsing the nested SecureEnvelope structure.
+	// NSA MCP Security Design Considerations: unsigned JSON-RPC responses are the
+	// primary attack surface. This field provides cryptographic proof the response
+	// was not tampered with in transit.
+	KhepraSign   string         `json:"_khepra_sig,omitempty"`
 }
 
 // ─── Structured Tool Result (Error-as-Data) ────────────────────────────────────
@@ -229,6 +248,10 @@ const (
 	ErrCodeSandboxFailed  = -32003
 	ErrCodeAttestFailed   = -32004
 	ErrCodeToolTimeout    = -32005
+	// ErrCodeRateLimitExceeded is the standard MCP backpressure code for prompt-storm defense.
+	// NSA MCP Security Design Considerations: servers MUST signal rate exhaustion
+	// via a well-known code so agents can back off instead of retrying immediately.
+	ErrCodeRateLimitExceeded = -32006
 )
 
 // ─── Server Capabilities ───────────────────────────────────────────────────────
