@@ -3,6 +3,8 @@
 [![Patent Pending](https://img.shields.io/badge/PATENT-PENDING-blue?style=for-the-badge)](docs/PATENT_APPLICATION_UPDATED.md)
 [![NouchiX / Sacred Knowledge Inc](https://img.shields.io/badge/BY-NouchiX-gold?style=for-the-badge)](https://nouchix.com)
 [![ADINKHEPRA Certified](https://img.shields.io/badge/ADINKHEPRA-POST--QUANTUM_CERTIFIED-cyan?style=for-the-badge)](#certification)
+[![FIPS 140-3](https://img.shields.io/badge/FIPS-140--3_BoringCrypto-green?style=for-the-badge)](#build)
+[![CodeQL](https://img.shields.io/badge/CodeQL-PASSING-brightgreen?style=for-the-badge)](#build)
 
 **By NouchiX (Sacred Knowledge Inc) — Compliance you can defend in an audit.**
 
@@ -10,103 +12,191 @@
 
 ## The Problem
 
-Defense contractors and regulated teams are judged on **evidence**, not intentions. CMMC, NIST 800-171, and STIG work fails in the same places: **missing logs**, weak **traceability**, and packages assessors cannot rely on under time pressure.
+Defense contractors and regulated teams are judged on **evidence**, not intentions. CMMC,
+NIST 800-171, and STIG work fails in the same places: **missing logs**, weak **traceability**,
+and packages assessors cannot rely on under time pressure.
 
-Agent and AI platforms add new exposed surfaces (gateways, integrations, credentials). That is a **category risk** — but the buyer’s urgent question is still: *“Will this pass scrutiny when someone asks for proof?”*
+AI agent platforms add new exposed surfaces (MCP gateways, tool-call pipelines, credentials).
+That is a **category risk** — but the buyer's urgent question is still:
+*"Will this pass scrutiny when someone asks for proof?"*
 
 ---
 
-## What ASAF Does (MVP 1.0)
+## What ASAF Does
 
-ASAF turns scans and configuration into **assessor-oriented outputs**: exposure signals, control-oriented findings, and **ADINKHEPRA** cryptographic attestation when you certify.
+ASAF converts AI agent activity and infrastructure configuration into **assessor-oriented
+outputs**: exposure signals, control-oriented findings, and **ADINKHEPRA** cryptographic
+attestation when you certify.
 
-```
+```bash
 asaf scan --target <host>
 ```
 
 | Output | What it means for buyers |
-|--------|---------------------------|
-| **Readiness scan** | Real probes (e.g. agent-style ports, HTTPS) plus guidance framed for **C3PAO / ISSM** intake. |
-| **Compliance mapping** | STIG / NIST / CMMC-oriented checks where applicable — structured for evidence packages, not slide decks. |
-| **ADINKHEPRA certificate** | Tamper-evident attestation (PQC-aligned signing) — **the seal** enterprises display after they pass. |
-
-**Lead with pain removal:** evidence and audit readiness. Agent/AI coverage is included; it is not the only story.
+|--------|--------------------------|
+| **Readiness scan** | Real probes (agent-style ports, HTTPS, MCP endpoints) plus guidance framed for **C3PAO / ISSM** intake |
+| **Compliance mapping** | 36,195 STIG / NIST / CMMC control mappings applied automatically — structured for evidence packages, not slide decks |
+| **ADINKHEPRA certificate** | Tamper-evident PQC attestation (ML-DSA-65 / Dilithium) — **the seal** enterprises display after they pass |
 
 ---
 
-## Agent & NemoClaw (secondary)
+## Deployment Profiles
 
-AI agent gateways (e.g. OpenClaw-class surfaces) and **NVIDIA NemoClaw / OpenShell** are supported as **profiles** when you need them. NemoClaw remains **alpha** per NVIDIA; ASAF’s job is independent **configuration and evidence** proof — not vendor marketing.
+ASAF ships in two distinct profiles. Choose the one that matches your compliance posture.
+
+| | **Profile A — SaaS** | **Profile B — Sovereign** |
+|-|----------------------|--------------------------|
+| **Hosting** | Managed cloud (`adinkhepra.com`) | Your infrastructure (Docker Compose / bare-metal) |
+| **Auth** | Supabase (cloud-managed) | On-premise SQLite — no external auth calls |
+| **Data egress** | Cloud-hosted dashboard | Zero external calls — fully air-gap capable |
+| **Compliance posture** | SMB / developer self-serve | DIB / CMMC / FedRAMP / air-gapped |
+| **Sovereign claim** | ❌ Not applicable | ✅ On your metal, no cloud, no token meter |
+| **FIPS 140-3 binary** | ❌ Standard build | ✅ `GOEXPERIMENT=boringcrypto` — BoringCrypto |
+| **Pricing** | `$0 / $99 / $499 /mo` → [adinkhepra.com](https://app.nouchix.com) | `$25K – $250K / year` flat annual → [contact sales](mailto:skone@alumni.albany.edu) |
+| **Target buyer** | Developer / security engineer | Prime contractor, DIB, C3PAO, enterprise |
+
+> **If you are a DIB contractor, prime, or C3PAO evaluator: use Profile B.**
+> Profile A does not satisfy CUI handling, DFARS 252.204-7021, or CMMC Level 2 requirements.
 
 ---
 
 ## Pricing
 
+### Profile A — SaaS (`adinkhepra.com`)
+
 | Plan | Price | What You Get |
-|------|-------|-------------|
-| **Free** | $0 | Scan any target. Get exposure report. |
-| **Certify** | $99/mo | Full compliance audit + ADINKHEPRA badge. Shareable PDF. |
-| **Enterprise** | $499/mo | Continuous monitoring + attestation API + team seats. |
+|------|-------|--------------|
+| **Free** | $0 | Scan any target. Get exposure report. No credit card. |
+| **Certify** | $99 / mo | Full compliance audit + ADINKHEPRA badge. Shareable PDF. |
+| **Enterprise SaaS** | $499 / mo | Continuous monitoring + attestation API + team seats. |
 
 [Start free — no credit card required →](https://app.nouchix.com)
+
+### Profile B — Sovereign (Enterprise / DIB)
+
+| Tier | Price | Scope |
+|------|-------|-------|
+| **Pilot** | $25,000 / year | Single environment. On-premise binary. Godfather Report. |
+| **Program** | $75,000 / year | Multi-environment. DAG provenance. STIG/CMMC evidence package. |
+| **Enterprise** | $150,000–$250,000 / year | Unlimited environments. AWS Marketplace. Custom SLAs. |
+
+[Request a pilot → skone@alumni.albany.edu](mailto:skone@alumni.albany.edu)
+
+> Flat annual license. No per-seat fees. No cloud dependency in the Go binary.
+> AWS Marketplace listing available for GovCloud procurement vehicles.
 
 ---
 
 ## Quick Start
 
-**Install:**
+### Profile A — Cloud (fastest path to a demo)
+
 ```bash
 curl -sSL https://get.nouchix.com/asaf | sh
+asaf scan --target <host>
+asaf certify --target <host> --out report.pdf
 ```
 
-**Scan an AI agent deployment:**
+### Profile B — Sovereign (on your metal)
+
 ```bash
-asaf scan --target 192.168.1.100
-asaf scan --target mycompany.internal --port 18789
+# 1. Pull the signed binary (no source required)
+curl -sSL https://get.nouchix.com/asaf-sovereign | sh
+
+# 2. Generate your PQC keys (ML-DSA-65 + Kyber)
+./bin/adinkhepra keygen -out ./keys/node -comment "my-environment"
+
+# 3. Run a signed MCP tool call scan
+./bin/adinkhepra scan --target <host> --sign --key ./keys/node
+
+# 4. Export CMMC evidence package
+./bin/adinkhepra report --godfather --out godfather_report.pdf
 ```
 
-**Get certified:**
-```bash
-asaf certify --target mycompany.internal --out report.pdf
-```
-
-**Run the dashboard:**
-```bash
-make build && make run-agent
-# Dashboard: http://localhost:3000
-# API: http://localhost:45444
-```
+**Five-minute demo:** PQC-signed `tools/list` call, DAG write, attestation node — no license key
+required, no cloud, no telemetry.
 
 ---
 
 ## Why It Works
 
-ASAF uses three technical layers under the hood:
+ASAF uses three technical layers:
 
-- **Scanner** — Detects exposed agent gateways, fingerprints auth modes, maps integrations and blast radius
-- **Compliance Engine** — 36,000+ STIG/NIST/CMMC control mappings applied automatically, no manual checklist
-- **ADINKHEPRA Attestation** — Post-quantum cryptographic signatures (NIST Dilithium/Kyber) bind findings to a tamper-proof certificate — mathematical proof, not a PDF checklist
+- **Scanner** — Detects exposed agent gateways, fingerprints auth modes, maps MCP tool-call
+  surfaces and blast radius
+- **Compliance Engine** — 36,195 STIG / NIST / CMMC control mappings applied automatically,
+  no manual checklist
+- **ADINKHEPRA Attestation** — Post-quantum cryptographic signatures (ML-DSA-65 / Dilithium +
+  Kyber) bind findings to a tamper-proof DAG — mathematical proof, not a PDF checklist
 
-The certificate is the **seal** buyers show after evidence checks out. Scanners find issues; ASAF binds posture to a verifiable, PQC-aligned attestation when you certify.
+The certificate is the **seal** buyers show after evidence checks out. Scanners find issues;
+ASAF binds posture to a verifiable, PQC-aligned attestation when you certify.
 
 ---
 
-## NemoClaw profile (optional)
+## Tech Stack
 
-When your scope includes agent gateways, ASAF can audit **NVIDIA NemoClaw** / OpenShell-style deployments (alpha per vendor docs). Use this as a **profile**, not the default headline.
+| Layer | Profile A (SaaS) | Profile B (Sovereign) |
+|-------|------------------|-----------------------|
+| **Core engine** | Go (FIPS 140-3 BoringCrypto) | Go (FIPS 140-3 BoringCrypto) |
+| **Crypto** | Cloudflare CIRCL — ML-DSA-65, Kyber | Cloudflare CIRCL — ML-DSA-65, Kyber |
+| **Attestation store** | SQLite + Supabase | SQLite only — no external DB |
+| **Auth** | Supabase (cloud-managed) | On-premise — no Supabase dependency |
+| **Dashboard** | Next.js / Vercel | Optional — not required for sovereign binary |
+| **License validation** | `nouchix.com` (Cloudflare Worker) | Offline-capable — `KHEPRA_LICENSE_SERVER` env var |
+
+---
+
+## Build
 
 ```bash
-# Discover and audit a NemoClaw deployment
-asaf scan --target <host> --port 18789
+# Standard build (Profile A / development)
+make build
 
-# Certify a NemoClaw deployment with ADINKHEPRA attestation
-asaf certify --target <host> --profile nemoclaw --out nemoclaw-cert.pdf
+# FIPS 140-3 sovereign build (Profile B)
+make secure-build
+# Equivalent: GOEXPERIMENT=boringcrypto CGO_ENABLED=1 go build -mod=vendor ./...
+
+# Validate the full suite (unit + integration + resilience + ASAF smoke)
+python adinkhepra.py validate
+
+# Validate without live agent (CI environments)
+python adinkhepra.py validate --skip-asaf-smoke
 ```
 
-ASAF's NemoClaw audit checks all four OpenShell policy domains:
+---
+
+## API
+
+```bash
+curl http://localhost:45444/healthz
+curl -X POST http://localhost:45444/dag/add -d '{"action":"test","symbol":"Adinkra","parent_ids":[]}'
+curl http://localhost:45444/dag/state
+```
+
+---
+
+## Certification
+
+The **ADINKHEPRA badge** is the standard enterprises earn by passing an ASAF audit.
+
+It is:
+- Cryptographically signed (post-quantum, ML-DSA-65 — NIST FIPS 204 aligned)
+- Timestamped and DAG-anchored — tamper-evident provenance chain
+- Revocable if posture degrades
+- Shareable with auditors, C3PAOs, customers, and cyber insurers
+
+Think SOC 2 — but automated, continuous, and specific to agentic AI and MCP tool-call surfaces.
+
+---
+
+## NemoClaw Profile (optional)
+
+When your scope includes NVIDIA NemoClaw / OpenShell-style agent gateways, ASAF audits all
+four OpenShell policy domains:
 
 | Check | Domain | What ASAF Verifies |
-|-------|--------|-------------------|
+|-------|--------|--------------------|
 | NMC-001 | Inference | `blueprint.yaml` present with inference profiles |
 | NMC-002 | Filesystem | OpenShell sandbox policy file exists |
 | NMC-003 | Filesystem | Policy restricted to `/sandbox` and `/tmp` only |
@@ -117,58 +207,17 @@ ASAF's NemoClaw audit checks all four OpenShell policy domains:
 | NMC-008 | Filesystem | Config directory not world-readable |
 | NMC-009 | Process | Static policy domains not marked hot-reloadable |
 
-**Why this matters:** OpenShell enforces runtime guardrails; ASAF produces **structured evidence** and optional **ADINKHEPRA** attestation so assessors can trace claims to configuration and scan results.
-
----
-
-## Certification
-
-The **ADINKHEPRA badge** is the standard enterprises earn by passing an ASAF audit.
-
-It is:
-- Cryptographically signed (post-quantum, NIST-aligned)
-- Timestamped and immutable
-- Revocable if posture degrades
-- Shareable with auditors, customers, and insurers
-
-Think SOC2 — but automated, continuous, and specific to agentic AI.
-
----
-
-## Tech Stack
-
-- **Go** — Core engine, CLI, attestation
-- **Next.js / React / TypeScript** — Dashboard
-- **Cloudflare CIRCL** — Post-quantum cryptography (Dilithium, Kyber)
-- **SQLite** — Attestation store
-- **Supabase** — Auth and org management
-
----
-
-## Build
-
 ```bash
-make build          # Standard build
-make secure-build   # Hardened static binaries (recommended)
-npm install && npm run dev  # Frontend
-```
-
----
-
-## API
-
-```bash
-curl http://localhost:45444/healthz
-curl -X POST http://localhost:45444/attest/new
-curl http://localhost:45444/dag/state
+asaf scan --target <host> --port 18789 --profile nemoclaw
+asaf certify --target <host> --profile nemoclaw --out nemoclaw-cert.pdf
 ```
 
 ---
 
 ## About
 
-Built by **Souhimbou Doh Kone** (skone@alumni.albany.edu)
-Company: **NouchiX / Sacred Knowledge Inc**
+Built by **Souhimbou Doh Kone** (skone@alumni.albany.edu)  
+Company: **NouchiX / Sacred Knowledge Inc**  
 Patent: Pending
 
 > "The agentic AI era is here. The security layer for it wasn't — until now."

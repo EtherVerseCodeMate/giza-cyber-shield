@@ -630,7 +630,7 @@ func collectRoutesWindows() ([]audit.NetworkRoute, error) {
 		}
 
 		fields := strings.Fields(line)
-		if len(fields) < 4 {
+		if len(fields) < 5 { // fields[4] is Metric — need at least 5 columns
 			continue
 		}
 
