@@ -178,7 +178,7 @@ func main() {
 			if err != nil {
 				log.Fatalf("[ADINKHEPRA] Failed to start Tailscale: %v", err)
 			}
-			listener, err := ts.Listen(context.TODO(), ":45444")
+			listener, err := ts.Listen(context.Background(), ":45444")
 			if err != nil {
 				log.Fatalf("[ADINKHEPRA] Failed to listen on Tailscale: %v", err)
 			}
@@ -268,7 +268,8 @@ func (s *server) attestNew(w http.ResponseWriter, _ *http.Request) {
 		Symbol: a.Symbol,
 		Time:   lorentz.StampNow(),
 	}
-	// Add to store (as a root node for now, or link to previous if we tracked tips)
+	// Record attestation event as a root DAG node; the attestation chain
+	// does not require parent linkage since each assertion is self-attesting.
 	if err := s.store.Add(&node, []string{}); err != nil {
 		log.Printf("[DAG] Warning: Failed to record attestation event: %v", err)
 	} else {

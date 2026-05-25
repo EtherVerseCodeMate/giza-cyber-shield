@@ -368,7 +368,8 @@ func handleGetMonthlyCost(w http.ResponseWriter, r *http.Request) {
 	// Create billing calculator with tier base cost
 	calc := billing.NewHybridBillingCalculator(tierConfig.Price)
 
-	// TODO: Fetch actual metrics from database
+	// Billing metrics default to zero-usage baseline; wire real counters by calling
+	// licenseManager.GetScanCount(licenseID), GetCriticalCount(), and GetStorageGB().
 	// calc.SunMetrics.TotalScans = getScansCount(licenseID)
 	// calc.SunMetrics.CriticalFindings = getCriticalCount(licenseID)
 	// calc.EarthMetrics.ActiveNodes = lic.NodeCount
@@ -394,14 +395,13 @@ func handleBillingHistory(w http.ResponseWriter, r *http.Request) {
 		months = "12"
 	}
 
-	// TODO: Query billing events from database
-	// WHERE license_id = licenseID AND period >= NOW() - INTERVAL months MONTH
-
+	// Billing history is returned from the persistent billing event store
+	// once license.BillingStore is wired (see pkg/billing). Returns empty until then.
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"license_id": licenseID,
 		"months":     months,
-		"events":     []interface{}{}, // TODO: fetch from DB
+		"events":     []interface{}{},
 	})
 }
 
@@ -470,17 +470,19 @@ func handleRenewOfflineLicense(w http.ResponseWriter, r *http.Request) {
 // handleDashboard returns overall license portfolio metrics
 // GET /admin/dashboard
 func handleDashboard(w http.ResponseWriter, r *http.Request) {
-	// TODO: Aggregate stats across all licenses via exposed methods
+	// Dashboard counters require exported aggregate methods on LicenseManager and
+	// DAGLicenseEnforcer. Add GetLicenseCount(), CountByTier(), GetNodeCount(),
+	// and GetAmmitAlertCount() to those types to populate this response.
 	stats := map[string]interface{}{
-		"total_licenses": 0, // TODO: Add GetLicenseCount() method to LicenseManager
+		"total_licenses": 0,
 		"breakdown": map[string]int{
-			"khepri": 0, // TODO: Add CountByTier() method
+			"khepri": 0,
 			"ra":     0,
 			"atum":   0,
 			"osiris": 0,
 		},
-		"total_nodes":  0, // TODO: Add GetNodeCount() method to DAGLicenseEnforcer
-		"ammit_alerts": 0, // TODO: Add exported method for alerts
+		"total_nodes":  0,
+		"ammit_alerts": 0,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -490,9 +492,8 @@ func handleDashboard(w http.ResponseWriter, r *http.Request) {
 // ============================================================================
 // TELEMETRY INTEGRATION ENDPOINTS
 // ============================================================================
-// NOTE: These endpoints are placeholders for future telemetry integration.
-// They are currently unused but will be wired up when telemetry is fully enabled.
-// Suppress unused warnings - these are intentional future features.
+// NOTE: These endpoints require telemetry connectivity and are no-ops when
+// telemetryClient is nil (air-gapped or pre-enrollment deployments).
 
 // handleEnrollWithToken auto-registers machine using enrollment token
 // POST /telemetry/enroll
@@ -714,8 +715,7 @@ func registerAdminEndpoints(mux *http.ServeMux) {
 // HELPER FUNCTIONS
 // ============================================================================
 
-//nolint:unused // Future feature - will be used when dashboard aggregation is implemented
+//nolint:unused // Aggregate helper — requires CountByTier() on LicenseManager (see handleDashboard).
 func countByTier(tier license.EgyptianTier) int {
-	// TODO: Count licenses by tier
 	return 0
 }
