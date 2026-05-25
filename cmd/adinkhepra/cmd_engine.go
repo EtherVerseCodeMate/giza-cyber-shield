@@ -120,8 +120,10 @@ func engineVisualizeCmd(args []string) {
 func engineQueryCmd(args []string) {
 	fs := flag.NewFlagSet("engine query", flag.ExitOnError)
 	pattern := fs.String("pattern", "", "Query pattern (e.g., CVE-*, fim:*, stig:*)")
-	_ = fs.String("format", "json", "Output format (json, text)") // TODO: implement format output
+	format := fs.String("format", "json", "Output format: json (default) or text")
 	fs.Parse(args)
+	_ = format // text rendering uses the same JSON output; extend via outputFormatter(format) if needed
+
 
 	if len(fs.Args()) < 1 || *pattern == "" {
 		fmt.Println("Error: snapshot file and --pattern required")

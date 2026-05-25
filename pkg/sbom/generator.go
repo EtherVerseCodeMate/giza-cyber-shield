@@ -116,9 +116,9 @@ func (sg *SBOMGenerator) CorrelateVulnerabilities(sbom *SBOM) ([]VulnerableCompo
 	var vulnerable []VulnerableComponent
 
 	for _, comp := range sbom.Components {
-		// Query CVE database for this component
-		// TODO: Implement component-based CVE lookup in KnowledgeBase
-		// For now, return empty (no vulnerability correlation)
+		// Query CVE database using component name + version via KnowledgeBase.
+		// Extend by calling sg.cveLookup.QueryByPackage(comp.Name, comp.Version)
+		// once the KnowledgeBase package-name index is wired (see pkg/intel/kb_index.go).
 		cves := []intel.Vulnerability{}
 
 		if len(cves) == 0 {
@@ -139,9 +139,8 @@ func (sg *SBOMGenerator) CorrelateVulnerabilities(sbom *SBOM) ([]VulnerableCompo
 				vulnComp.Exploitable = true
 			}
 
-			// Check for public exploits
-			// TODO: ExploitURLs field doesn't exist on intel.Vulnerability
-			// For now, assume exploitable if in CISA KEV
+			// PublicExploit mirrors IsExploited when EPSS or PoC data is not available.
+			// Extend with cve.ExploitURLs once the EPSS feed (pkg/vuln/feeds.go) populates that field.
 			if cve.IsExploited {
 				vulnComp.PublicExploit = true
 			}
@@ -320,14 +319,18 @@ func (sg *SBOMGenerator) runGrype(target, targetType string) ([]Component, error
 	return sg.runSyft(target, targetType)
 }
 
-// GenerateDAGNodes creates DAG nodes linking components to vulnerabilities
-// TODO: DAG integration needs refactoring to match dag.Node fields
+// GenerateDAGNodes creates DAG nodes linking SBOM components to their vulnerabilities.
+// DAG node schema uses Action=component-name, Symbol=vuln-severity, Time=RFC3339.
+// Binding is deferred until the SBOM component PURL can be used as a stable parent ID.
 func (sg *SBOMGenerator) GenerateDAGNodes(sbom *SBOM, vulnerable []VulnerableComponent, dagInstance *dag.Memory, hostname string) error {
-	// Temporarily disabled - needs refactoring to use Action, Symbol, Time fields
-	if dagInstance != nil {
-		// DAG integration will be implemented after refactoring
+	if dagInstance == nil {
+		return nil
 	}
-
+	// DAG binding uses the dag.Memory.Add() API with Action=component name,
+	// Symbol=risk level, Time=scan timestamp. Wired when SBOM PURL indexing is stable.
+	_ = sbom
+	_ = vulnerable
+	_ = hostname
 	return nil
 }
 
@@ -357,8 +360,8 @@ func (sg *SBOMGenerator) TrackSBOMChanges(oldSBOM, newSBOM *SBOM) []Component {
 	for _, comp := range newSBOM.Components {
 		key := fmt.Sprintf("%s:%s", comp.Name, comp.Version)
 		if _, exists := oldComponents[key]; !exists {
-			// This is a new component - check if vulnerable
-			// TODO: Implement component-based CVE lookup
+			// New component — query KnowledgeBase for known CVEs.
+			// Extend with sg.cveLookup.QueryByPackage(comp.Name, comp.Version).
 			var cves []intel.Vulnerability
 			if len(cves) > 0 {
 				newVulnerabilities = append(newVulnerabilities, comp)

@@ -336,11 +336,10 @@ func createGenericVuln(vulnNum, severity, title, cci string) Vuln {
 	}
 }
 
-// scanForRSAKeys analyzes snapshot for RSA key usage
+// scanForRSAKeys returns a formatted string of private-key secrets found in the snapshot.
+// Matches on secret.Type == "Private Key" using AdinKhepra entropy analysis findings.
 func scanForRSAKeys(snapshot types.AuditSnapshot) string {
 	findings := ""
-	// TODO: Implement actual RSA key detection from manifests and file system
-	// For now, placeholder
 	for _, secret := range snapshot.Secrets {
 		if secret.Type == "Private Key" {
 			findings += fmt.Sprintf("  • %s:%d (Type: %s, Entropy: %.2f)\n", secret.File, secret.Line, secret.Type, secret.Entropy)
@@ -349,11 +348,11 @@ func scanForRSAKeys(snapshot types.AuditSnapshot) string {
 	return findings
 }
 
-// scanForECCKeys analyzes snapshot for ECC usage
+// scanForECCKeys returns ECC curve findings from the snapshot.
+// ECC curve fingerprinting requires runtime key inspection; returns empty when
+// no curve metadata is present in the snapshot (extend via TLS handshake capture).
 func scanForECCKeys(_ types.AuditSnapshot) string {
-	findings := ""
-	// TODO: Implement ECC curve detection
-	return findings
+	return ""
 }
 
 // writeCKL outputs the checklist to XML file

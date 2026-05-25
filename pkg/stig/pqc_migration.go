@@ -1,6 +1,10 @@
 package stig
 
-import "time"
+import (
+	"os"
+	"strings"
+	"time"
+)
 
 // validatePQCReadiness performs post-quantum cryptography readiness assessment
 func (v *Validator) validatePQCReadiness(result *ValidationResult) error {
