@@ -774,12 +774,22 @@ func crackCmd(args []string) {
 	fmt.Println("===============================================================")
 }
 
-// asafAPIURL returns the ASAF gateway URL from env or the production default.
+// asafAPIURL returns the ASAF gateway URL from env or the local sovereign default.
+//
+// Priority:
+//   1. ASAF_API_URL env var (explicit override — use for cloud SaaS)
+//   2. Local agent on port 45444 (sovereign default — no cloud, no key required)
+//
+// To use the cloud SaaS (Profile A):
+//   export ASAF_API_URL=https://agent.souhimbou.org
+//   export ASAF_API_KEY=<your-key>
 func asafAPIURL() string {
 	if v := os.Getenv("ASAF_API_URL"); v != "" {
 		return strings.TrimRight(v, "/")
 	}
-	return "https://agent.souhimbou.org"
+	// Sovereign default: local agent (Profile B — no cloud, no key required).
+	// Start the agent first: .\adinkhepra-windows-amd64.exe run
+	return "http://127.0.0.1:45444"
 }
 
 // stripePriceID returns the Stripe price ID to charge for certification.
@@ -841,11 +851,32 @@ func scanCmd(args []string, mode string) {
 
 	if *target == "" {
 		fmt.Printf("Usage: asaf %s --target <host|ip> [--profile nemoclaw] [--api-key <key>]\n", mode)
+		fmt.Printf("\n  Sovereign (Profile B — no cloud key required):\n")
+		fmt.Printf("    Step 1: .\\adinkhepra-windows-amd64.exe run          (start local agent)\n")
+		fmt.Printf("    Step 2: .\\adinkhepra-windows-amd64.exe scan --target <host>\n")
+		fmt.Printf("\n  SaaS (Profile A — requires ASAF_API_KEY):\n")
+		fmt.Printf("    export ASAF_API_URL=https://agent.souhimbou.org\n")
+		fmt.Printf("    export ASAF_API_KEY=<your-key>\n\n")
 		os.Exit(1)
 	}
 
 	apiURL := asafAPIURL()
 	client := &http.Client{Timeout: 120 * time.Second}
+
+	// ── Sovereign pre-flight: check the local agent is reachable ──────────────
+	isLocal := strings.HasPrefix(apiURL, "http://127.0.0.1") || strings.HasPrefix(apiURL, "http://localhost")
+	if isLocal {
+		healthResp, err := client.Get(apiURL + "/healthz")
+		if err != nil || healthResp.StatusCode != http.StatusOK {
+			fmt.Fprintf(os.Stderr, "\n  [SOVEREIGN] Local agent not reachable at %s\n", apiURL)
+			fmt.Fprintf(os.Stderr, "  Start it first:\n")
+			fmt.Fprintf(os.Stderr, "    .\\adinkhepra-windows-amd64.exe run\n\n")
+			fmt.Fprintf(os.Stderr, "  Then re-run the scan in a second terminal:\n")
+			fmt.Fprintf(os.Stderr, "    .\\adinkhepra-windows-amd64.exe scan --target %s\n\n", *target)
+			os.Exit(1)
+		}
+		if healthResp.Body != nil { healthResp.Body.Close() }
+	}
 
 	// ── Step 1: Run the compliance scan ──────────────────────────────────────
 	printScanBanner(*target, *profile, mode)
