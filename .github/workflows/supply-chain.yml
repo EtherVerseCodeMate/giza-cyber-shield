@@ -1,0 +1,222 @@
+name: Supply Chain Security — SBOM + SLSA Provenance
+
+on:
+  push:
+    branches: [main, release/*]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  attestations: write
+
+env:
+  GO_VERSION: '1.23'
+  REGISTRY: ghcr.io
+  # Publishes to the public MCP listing at ghcr.io/nouchix/pqc-khepra-mcp.
+  # Requires GHCR_NOUCHIX_TOKEN secret with write:packages on the nouchix org.
+  IMAGE_NAME: nouchix/pqc-khepra-mcp
+
+jobs:
+  # ── Job 1: CycloneDX SBOM ───────────────────────────────────────────
+  sbom:
+    name: Generate CycloneDX SBOM
+    runs-on: ubuntu-latest
+    outputs:
+      sbom-artifact: sbom-cyclonedx.json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Install cyclonedx-gomod
+        run: go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest
+
+      - name: Generate CycloneDX SBOM (JSON)
+        run: |
+          cyclonedx-gomod app \
+            -main ./cmd/khepra-mcp \
+            -output sbom-cyclonedx.json \
+            -json -licenses -assert-licenses -std
+
+      - name: Generate CycloneDX SBOM (XML — for DISA STIG tooling)
+        run: |
+          cyclonedx-gomod app \
+            -main ./cmd/khepra-mcp \
+            -output sbom-cyclonedx.xml \
+            -licenses
+
+      - name: Validate SBOM
+        run: |
+          python3 -c "
+import json, sys
+with open('sbom-cyclonedx.json') as f:
+  sbom = json.load(f)
+comps = sbom.get('components', [])
+print(f'SBOM contains {len(comps)} components')
+no_license = [c['name'] for c in comps if not c.get('licenses')]
+if no_license:
+  print(f'WARN: {len(no_license)} components missing license: {no_license[:5]}')
+sys.exit(0)
+"
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: khepra-sbom
+          path: |
+            sbom-cyclonedx.json
+            sbom-cyclonedx.xml
+          retention-days: 90
+
+  # ── Job 2: Build Binary + OCI Image ────────────────────────────────
+  build:
+    name: Build + Push OCI Image
+    runs-on: ubuntu-latest
+    needs: sbom
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-uri: ${{ steps.build.outputs.imageid }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Run tests (supply-chain confidence gate)
+        run: go test ./pkg/mcp/... ./pkg/ea/... ./pkg/g0dm0d3/... -race -timeout 120s
+
+      - name: Build reproducible binary
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+          go build \
+            -trimpath \
+            -ldflags="-s -w -X main.Version=$(git describe --tags --always)" \
+            -o khepra-mcp-linux-amd64 \
+            ./cmd/khepra-mcp
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR (nouchix org)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: nouchix
+          password: ${{ secrets.GHCR_NOUCHIX_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=git-
+
+      - name: Build and push OCI image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          sbom: true
+          provenance: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: khepra-mcp-binary
+          path: khepra-mcp-linux-amd64
+          retention-days: 30
+
+  # ── Job 3: SLSA Level 3 Provenance ──────────────────────────────
+  slsa-provenance:
+    name: SLSA Build L3 Provenance
+    needs: build
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: ${{ needs.build.outputs.image-digest }}
+      provenance-name: khepra-mcp.intoto.jsonl
+      upload-assets: ${{ startsWith(github.ref, 'refs/tags/') }}
+
+  # ── Job 4: Cosign Image Signing (Sigstore) ──────────────────────
+  cosign:
+    name: Cosign Image Attestation
+    runs-on: ubuntu-latest
+    needs: [build, slsa-provenance]
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: sigstore/cosign-installer@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: nouchix
+          password: ${{ secrets.GHCR_NOUCHIX_TOKEN }}
+
+      - name: Sign OCI image (keyless — Sigstore OIDC)
+        run: |
+          cosign sign --yes \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.image-digest }}"
+
+      - name: Verify signature
+        run: |
+          cosign verify \
+            --certificate-identity-regexp="https://github.com/${{ github.repository }}/*" \
+            --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.image-digest }}"
+
+  # ── Job 5: Vulnerability Gate ───────────────────────────────────
+  vuln-gate:
+    name: Supply Chain Vulnerability Gate
+    runs-on: ubuntu-latest
+    needs: sbom
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./... 2>&1 | tee govulncheck-report.txt
+          if grep -q "^Vulnerability #" govulncheck-report.txt; then
+            echo "CRITICAL: govulncheck found vulnerabilities in Go module graph"
+            exit 1
+          fi
+
+      - name: Upload vuln report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnerability-report
+          path: govulncheck-report.txt
+          retention-days: 30
