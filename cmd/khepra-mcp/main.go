@@ -30,13 +30,16 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	khepramcp "github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/mcp"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/mcp/tools"
 )
@@ -62,6 +65,25 @@ func main() {
 	keyID := hex.EncodeToString(keyHash[:8])
 
 	logger.Printf("PQC session initialized | symbol=%s | key_id=%s", symbol, keyID)
+
+	// ── License Validation ──────────────────────────────────────────────
+	// ParseMCPLicense loads KHEPRA_LICENSE_KEY and verifies offline via
+	// ML-DSA-65 + device binding + expiry + IPFS CRL (sovereign.go stack).
+	// Community tier (no key) is non-fatal; tampered/expired = fatal.
+	licenseClaim, licErr := license.ParseMCPLicense()
+	if errors.Is(licErr, license.ErrNoLicenseKey) {
+		logger.Printf("[LICENSE] Community tier — Enterprise tools gated. Set KHEPRA_LICENSE_KEY to unlock.")
+	} else if licErr != nil {
+		// Key present but invalid (tampered / expired / wrong machine) = fatal
+		logger.Fatalf("FATAL: license validation failed: %v", licErr)
+	} else {
+		logger.Printf("[LICENSE] %s tier | tenant=%q | id=%s | expires=%s",
+			licenseClaim.Tier,
+			licenseClaim.Tenant,
+			licenseClaim.LicenseID,
+			licenseClaim.ExpiresAt.Format("2006-01-02"),
+		)
+	}
 
 	// ── Build Security Chain ─────────────────────────────────────────────────
 
@@ -118,6 +140,39 @@ func main() {
 	attestor := khepramcp.NewDAGAttestor(dagStore, symbol, privKey)
 
 	// ── Assemble Router ──────────────────────────────────────────────────────
+	//
+	// Wire all security hardening fields introduced in the NSA/ASD reconciliation:
+	//   SignedAuditLog    — per-entry ML-DSA-65-signed NDJSON chain (DFARS 252.204-7012)
+	//   InvocationRootKey — per-call ephemeral HMAC tokens (ASD/CISA short-lived credentials)
+	//   MaxConcurrent     — concurrent call cap per agent (NSA prompt-storm defense)
+
+	// Open the tamper-evident audit log
+	var signedLog *khepramcp.SignedAuditLog
+	auditLogPath := getEnvOr("KHEPRA_AUDIT_LOG_PATH", "/var/log/khepra/audit.ndjson")
+	sal, salErr := khepramcp.NewSignedAuditLog(khepramcp.SignedAuditLogConfig{
+		Path:    auditLogPath,
+		PrivKey: privKey,
+		PubKey:  pubKey,
+	})
+	if salErr != nil {
+		// Non-fatal: log warning but continue without signed log
+		logger.Printf("WARN: signed audit log unavailable (%s): %v — continuing without", auditLogPath, salErr)
+	} else {
+		signedLog = sal
+		logger.Printf("signed audit log: %s", auditLogPath)
+	}
+
+	// Derive HMAC root key for per-invocation tokens from the ML-DSA-65 session key
+	invocationRootKey := khepramcp.DeriveRootKey(privKey)
+
+	// Max concurrent tool calls per agent (default: 5)
+	maxConcurrent := 5
+	if mc := os.Getenv("KHEPRA_MAX_CONCURRENT"); mc != "" {
+		if n, err := strconv.Atoi(mc); err == nil && n > 0 {
+			maxConcurrent = n
+		}
+	}
+
 	router, err := khepramcp.NewRouter(khepramcp.RouterConfig{
 		Demarc:   demarc,
 		Poly:     poly,
@@ -126,6 +181,12 @@ func main() {
 		Executor: executor,
 		Attestor: attestor,
 		Logger:   logger,
+		// Security hardening (NSA/ASD reconciliation)
+		SignedAuditLog:    signedLog,
+		InvocationRootKey: invocationRootKey,
+		MaxConcurrent:     maxConcurrent,
+		// License enforcement
+		License: licenseClaim,
 	})
 	if err != nil {
 		logger.Fatalf("FATAL: router construction failed: %v", err)
@@ -143,15 +204,31 @@ func main() {
 	}
 
 	// ── Register Shutdown Hooks ──────────────────────────────────────────────
+	// 0. Stop heartbeat daemon (handled by sovereign telemetry_client.go)
+	// (no separate daemon to stop — sovereign stack manages its own lifecycle)
 	// 1. Zero-out PQC private key material
 	server.OnShutdown(func() {
 		for i := range privKey {
 			privKey[i] = 0
 		}
+		for i := range invocationRootKey {
+			invocationRootKey[i] = 0
+		}
 		logger.Println("PQC private key material destroyed")
 	})
 
-	// 2. Flush telemetry events
+	// 2. Flush and close signed audit log
+	server.OnShutdown(func() {
+		if signedLog != nil {
+			if err := signedLog.Close(); err != nil {
+				logger.Printf("WARN: audit log close error: %v", err)
+			} else {
+				logger.Printf("signed audit log closed: %s", auditLogPath)
+			}
+		}
+	})
+
+	// 3. Flush telemetry events
 	server.OnShutdown(func() {
 		events := router.Events().Flush()
 		logger.Printf("flushed %d telemetry events", len(events))
@@ -183,20 +260,32 @@ func main() {
 // ─── Tool Handler Registration ─────────────────────────────────────────────────
 
 func registerToolHandlers(executor *khepramcp.Executor) {
-	// ACP tools (ReadOnly + Destructive)
+	// ── ACP: Agent Control Plane (credential lifecycle) ───────────────────
 	executor.RegisterFunc("acp_status", tools.HandleACPStatus)
 	executor.RegisterFunc("acp_issue", tools.HandleACPIssue)
 	executor.RegisterFunc("acp_revoke", tools.HandleACPRevoke)
 
-	// NHI tools (ReadOnly + Destructive)
+	// ── NHI: Non-Human Identity (service account / API key governance) ────
 	executor.RegisterFunc("nhi_inventory", tools.HandleNHIInventory)
 	executor.RegisterFunc("nhi_orphans", tools.HandleNHIOrphans)
 	executor.RegisterFunc("nhi_excessive", tools.HandleNHIExcessive)
 	executor.RegisterFunc("nhi_expired", tools.HandleNHIExpired)
 	executor.RegisterFunc("nhi_revoke", tools.HandleNHIRevoke)
 
-	// ERT scan (Sandboxed — runs in Docker when available, falls back to in-process)
+	// ── ERT: Enterprise Risk & Threat scanner (Docker sandbox) ────────────
 	executor.RegisterFunc("ert_scan", tools.HandleERTScan)
+
+	// ── Godfather Report + Human-in-the-Loop Gate ─────────────────────────
+	// NSA/ASD Security Track 6: high-impact outputs require analyst approval
+	executor.RegisterFunc("godfather_report", tools.HandleGodfatherReport)
+	executor.RegisterFunc("godfather_approve", tools.HandleGodfatherApprove)
+
+	// ── NIST Map: offline BM25 semantic control search (zero token cost) ──
+	executor.RegisterFunc("nist_map", tools.HandleNistMapTool)
+
+	// ── khepra_watch: filesystem-triggered continuous monitoring ──────────
+	// CMMC AC.2.006, CM.2.061, SI.2.217 continuous monitoring requirement
+	executor.RegisterFunc("khepra_watch", tools.HandleKhepraWatchTool)
 }
 
 // ─── Manifest Loading ──────────────────────────────────────────────────────────
@@ -233,6 +322,8 @@ func generateBootstrapManifest(ctx context.Context, pubKey []byte, keyID string)
 }
 
 // defaultToolSpecs returns the hardened tool specification list.
+// This is also the spec set registered in the bootstrap manifest when no
+// signed manifest.json file is present (Docker image always ships manifest.json).
 func defaultToolSpecs() []khepramcp.ToolSpec {
 	hash := func(name string) string {
 		h := sha256.Sum256([]byte(name + ":v1"))
@@ -240,64 +331,122 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 	}
 
 	return []khepramcp.ToolSpec{
-		// ── ACP (Agent Control Plane) ────────────────────────────────────
+		// ── ACP (Agent Control Plane) ────────────────────────────────────────
 		{
 			Name: "acp_status", Description: "List active ACP credentials and their expiry status",
 			RiskClass: khepramcp.RiskReadOnly, Scope: "acp:read",
 			SchemaVersion: "1.0.0", SchemaHash: hash("acp_status"),
 			AllowedBackend: "in-process", TimeoutMs: 5000,
+			MaxPrivilege: "read-only",
 		},
 		{
 			Name: "acp_issue", Description: "Issue a new PQC credential via the Agent Control Plane",
 			RiskClass: khepramcp.RiskDestructive, Scope: "acp:write", Destructive: true,
 			SchemaVersion: "1.0.0", SchemaHash: hash("acp_issue"),
 			AllowedBackend: "in-process", TimeoutMs: 10000,
+			MaxPrivilege: "none",
 		},
 		{
 			Name: "acp_revoke", Description: "Revoke an active ACP credential",
 			RiskClass: khepramcp.RiskDestructive, Scope: "acp:write", Destructive: true,
 			SchemaVersion: "1.0.0", SchemaHash: hash("acp_revoke"),
 			AllowedBackend: "in-process", TimeoutMs: 10000,
+			MaxPrivilege: "none",
 		},
 
-		// ── NHI (Non-Human Identity) ─────────────────────────────────────
+		// ── NHI (Non-Human Identity) ─────────────────────────────────────────
 		{
 			Name: "nhi_inventory", Description: "List all non-human identities (service accounts, API keys, certificates)",
 			RiskClass: khepramcp.RiskReadOnly, Scope: "nhi:read",
 			SchemaVersion: "1.0.0", SchemaHash: hash("nhi_inventory"),
 			AllowedBackend: "in-process", TimeoutMs: 5000,
+			MaxPrivilege: "read-only",
 		},
 		{
 			Name: "nhi_orphans", Description: "Identify orphaned non-human identities with no active owner",
 			RiskClass: khepramcp.RiskReadOnly, Scope: "nhi:read",
 			SchemaVersion: "1.0.0", SchemaHash: hash("nhi_orphans"),
 			AllowedBackend: "in-process", TimeoutMs: 5000,
+			MaxPrivilege: "read-only",
 		},
 		{
 			Name: "nhi_excessive", Description: "Identify NHIs with overly broad permissions",
 			RiskClass: khepramcp.RiskReadOnly, Scope: "nhi:read",
 			SchemaVersion: "1.0.0", SchemaHash: hash("nhi_excessive"),
 			AllowedBackend: "in-process", TimeoutMs: 5000,
+			MaxPrivilege: "read-only",
 		},
 		{
 			Name: "nhi_expired", Description: "List expired or soon-to-expire non-human identities",
 			RiskClass: khepramcp.RiskReadOnly, Scope: "nhi:read",
 			SchemaVersion: "1.0.0", SchemaHash: hash("nhi_expired"),
 			AllowedBackend: "in-process", TimeoutMs: 5000,
+			MaxPrivilege: "read-only",
 		},
 		{
 			Name: "nhi_revoke", Description: "Revoke a non-human identity credential",
 			RiskClass: khepramcp.RiskDestructive, Scope: "nhi:write", Destructive: true,
 			SchemaVersion: "1.0.0", SchemaHash: hash("nhi_revoke"),
 			AllowedBackend: "in-process", TimeoutMs: 10000,
+			MaxPrivilege: "none",
 		},
 
-		// ── ERT (Enterprise Risk & Threat) ───────────────────────────────
+		// ── ERT (Enterprise Risk & Threat Scanner) ───────────────────────────
+		// Runs in Docker sandbox with capability mounts scoped to the scan target.
+		// ASD/CISA confused-deputy defense: only the directories declared here
+		// are accessible inside the container.
 		{
-			Name: "ert_scan", Description: "Run ERT security scan (SCA, vulnerability, compliance) in Docker sandbox",
+			Name: "ert_scan", Description: "Run ERT security scan (SBOM, CVE, secrets, STIG, PQC inventory) in Docker sandbox",
 			RiskClass: khepramcp.RiskSandboxed, Scope: "ert:scan",
 			SchemaVersion: "1.0.0", SchemaHash: hash("ert_scan"),
 			AllowedBackend: "docker", TimeoutMs: 90000, NetworkAllowed: false,
+			MaxPrivilege: "read-only",
+			// CapabilityMounts: populated at runtime from call.Args["project_path"]
+			// The router's ASD/CISA defense validates these are not traversal paths.
+		},
+
+		// ── Godfather Report (HITL-gated) ─────────────────────────────────────
+		// Security Track 6: staged delivery with 30-min TTL token.
+		// Full report only released after human calls godfather_approve.
+		{
+			Name: "godfather_report",
+			Description: "Generate a complete CMMC/STIG/NIST compliance report. When approval_required=true, returns a staged token — the full report is held until a human calls godfather_approve.",
+			RiskClass: khepramcp.RiskReadOnly, Scope: "compliance:report",
+			SchemaVersion: "1.0.0", SchemaHash: hash("godfather_report"),
+			AllowedBackend: "in-process", TimeoutMs: 30000,
+			MaxPrivilege: "stig-db-read",
+		},
+		{
+			Name: "godfather_approve",
+			Description: "Deliver a staged Godfather Report. Requires the staged_token returned by godfather_report. Single-use — token is consumed on delivery.",
+			RiskClass: khepramcp.RiskReadOnly, Scope: "compliance:report",
+			SchemaVersion: "1.0.0", SchemaHash: hash("godfather_approve"),
+			AllowedBackend: "in-process", TimeoutMs: 5000,
+			MaxPrivilege: "read-only",
+		},
+
+		// ── NIST Map (offline BM25 semantic search) ──────────────────────────
+		// Zero token cost, zero network calls, air-gap safe.
+		// 36,195 NIST/CMMC/STIG control mappings indexed at startup.
+		{
+			Name: "nist_map",
+			Description: "Offline semantic search across NIST 800-53 Rev5, NIST 800-171 Rev2, CMMC 2.0, and STIG CCI mappings. BM25 ranked results. Zero token cost, air-gap safe.",
+			RiskClass: khepramcp.RiskReadOnly, Scope: "compliance:read",
+			SchemaVersion: "1.0.0", SchemaHash: hash("nist_map"),
+			AllowedBackend: "in-process", TimeoutMs: 5000,
+			MaxPrivilege: "read-only",
+		},
+
+		// ── khepra_watch (continuous monitoring) ─────────────────────────────
+		// Registers filesystem watches that fire ert_scan on file change.
+		// Satisfies CMMC AC.2.006, CM.2.061, SI.2.217.
+		{
+			Name: "khepra_watch",
+			Description: "Register a filesystem path for continuous STIG-triggered scanning. Fires ert_scan on file changes. Action: register | status | unregister.",
+			RiskClass: khepramcp.RiskReadOnly, Scope: "compliance:monitor",
+			SchemaVersion: "1.0.0", SchemaHash: hash("khepra_watch"),
+			AllowedBackend: "in-process", TimeoutMs: 10000,
+			MaxPrivilege: "read-only",
 		},
 	}
 }

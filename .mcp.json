@@ -12,16 +12,35 @@
         "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}"
       }
     },
+
     "khepra-mcp": {
-      "command": "asaf",
+      "command": "docker",
       "args": [
-        "mcp"
+        "run",
+        "--rm",
+        "-i",
+        "--env", "KHEPRA_LICENSE_KEY=${KHEPRA_LICENSE_KEY}",
+        "--env", "PHANTOM_SYMBOL=Eban",
+        "--env", "KHEPRA_AUDIT_LOG_PATH=/var/log/khepra/audit.ndjson",
+        "--volume", "${HOME}/.khepra/logs:/var/log/khepra",
+        "ghcr.io/etherversecodemate/khepra-mcp:latest"
       ],
+      "env": {
+        "KHEPRA_LICENSE_KEY": "${KHEPRA_LICENSE_KEY}"
+      }
+    },
+
+    "khepra-mcp-dev": {
+      "_comment": "Development mode — uses local build via asaf CLI",
+      "command": "asaf",
+      "args": ["mcp"],
       "env": {
         "KHEPRA_SERVICE_SECRET": "${KHEPRA_SERVICE_SECRET}",
         "SUPABASE_URL": "https://xjknkjbrjgljuovaazeu.supabase.co",
         "SUPABASE_SERVICE_ROLE_KEY": "${SUPABASE_SERVICE_ROLE_KEY}",
-        "MCP_PQC_ENABLED": "true"
+        "MCP_PQC_ENABLED": "true",
+        "KHEPRA_AUDIT_LOG_PATH": "${USERPROFILE}/.khepra/logs/audit.ndjson",
+        "KHEPRA_MAX_CONCURRENT": "5"
       }
     }
   }
