@@ -146,6 +146,10 @@ func registerWatchRoutes(
 	mux.HandleFunc("/api/dag/nodes", buildDAGNodesHandler(dagStore))
 	mux.HandleFunc("/api/dag/stats", buildDAGStatsHandler(dagStore))
 
+	// Sovereign scan API (mirrors cloud /api/v1/onboarding/scan)
+	// Allows `adinkhepra scan --target <host>` to work fully offline.
+	registerScanRoutes(mux)
+
 	// Health checks
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set(watchContentType, watchAppJSON)
