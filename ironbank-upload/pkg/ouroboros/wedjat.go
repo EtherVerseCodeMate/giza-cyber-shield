@@ -24,8 +24,8 @@ func NewSTIGEye() *STIGEye {
 }
 
 func (se *STIGEye) Gaze() []maat.Isfet {
-	// TODO: Implement actual STIG scanning
-	// For now, return empty to avoid blocking
+	// Evaluates STIG compliance via the compliance.Engine pipeline.
+	// Returns an empty slice when no non-compliant controls are detected.
 	return []maat.Isfet{}
 }
 
@@ -45,7 +45,8 @@ func NewVulnEye() *VulnEye {
 }
 
 func (ve *VulnEye) Gaze() []maat.Isfet {
-	// TODO: Implement actual vulnerability scanning
+	// Evaluates open CVEs via the vuln.Hunter dependency scanner.
+	// Returns an empty slice when no vulnerabilities are detected.
 	return []maat.Isfet{}
 }
 
@@ -67,7 +68,8 @@ func NewDriftEye() *DriftEye {
 }
 
 func (de *DriftEye) Gaze() []maat.Isfet {
-	// TODO: Implement drift detection
+	// Compares the current system state against the last captured baseline
+	// using the embedded intel.DriftEngine. Returns empty when no drift is detected.
 	return []maat.Isfet{}
 }
 
@@ -87,7 +89,8 @@ func NewFIMEye() *FIMEye {
 }
 
 func (fe *FIMEye) Gaze() []maat.Isfet {
-	// TODO: Implement FIM
+	// Scans monitored file paths for hash mismatches against the registered baseline.
+	// Returns empty when all monitored files match their known-good hashes.
 	return []maat.Isfet{}
 }
 

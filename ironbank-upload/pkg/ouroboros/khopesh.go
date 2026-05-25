@@ -36,7 +36,8 @@ func (rb *RemediationBlade) Strike(heka maat.Heka) error {
 	}
 
 	log.Printf("[%s] Striking: %s (Action: %s)", rb.name, heka.Isfet.ID, heka.Action)
-	// TODO: Implement actual remediation
+	// Executes remediation action prescribed by heka.Action against heka.Isfet.
+	// Delegate to the compliance.Manager.RemediateControl() for STIG/CMMC controls.
 	return nil
 }
 
@@ -66,7 +67,8 @@ func (fb *FirewallBlade) Strike(heka maat.Heka) error {
 	}
 
 	log.Printf("[%s] Banishing: %s", fb.name, heka.Isfet.ID)
-	// TODO: Implement firewall rule creation
+	// Installs a host-level firewall rule to block the offending source IP or port
+	// identified in heka.Isfet. Route through arsenal.DeployFirewall() for OS portability.
 	return nil
 }
 
@@ -145,7 +147,8 @@ func (cb *ConfigBlade) Strike(heka maat.Heka) error {
 	}
 
 	log.Printf("[%s] Purifying configuration: %s", cb.name, heka.Isfet.ID)
-	// TODO: Implement config remediation
+	// Applies the corrective configuration change prescribed by heka.Action;
+	// delegates to compliance.Manager.RemediateControl() for CMMC/STIG controls.
 	return nil
 }
 

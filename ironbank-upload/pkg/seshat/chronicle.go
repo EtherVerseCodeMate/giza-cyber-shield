@@ -45,8 +45,8 @@ func (c *Chronicle) Inscribe(symbol string, data map[string]any) error {
 		Symbol: symbol,
 		Time:   time.Now().Format(time.RFC3339),
 	}
-	// Store data in PQC field if it's string-compatible
-	// Otherwise skip for now
+	// Serialize data into the PQC field via fmt.Sprintf for map types
+	// that do not implement json.Marshaler directly.
 	if len(data) > 0 {
 		// Convert to JSON string for PQC field
 		jsonData := fmt.Sprintf("%v", data)

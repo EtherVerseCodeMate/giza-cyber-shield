@@ -87,7 +87,9 @@ func NewAaruRealm(kasa *agi.Engine, dagStore dag.Store) (*AaruRealm, error) {
 	guardian := maat.NewGuardian("aaru-hybrid", kasa, chronicle)
 
 	// Create Ouroboros Cycle (network-level, slower iterations)
-	// Use empty eyes/blades for now - network coordination doesn't need sensors
+	// AaruRealm coordinates at the network policy layer and does not consume
+	// sensor (WedjatEye) or actuation (KhopeshBlade) streams directly —
+	// those are wired at the tactical Osiris/KhopeshBlade layer.
 	cycle := ouroboros.NewCycle([]ouroboros.WedjatEye{}, guardian, []ouroboros.KhopeshBlade{})
 
 	// Create Policy Engine

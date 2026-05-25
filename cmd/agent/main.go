@@ -406,7 +406,7 @@ func (s *server) agiScan(w http.ResponseWriter, r *http.Request) {
 
 func startTailscale(mux *http.ServeMux, _ config.Config) {
 	ts, _ := tailnet.NewServer("adinkhepra-node-" + randID())
-	ln, _ := ts.Listen(context.TODO(), ":45444")
+	ln, _ := ts.Listen(context.Background(), ":45444")
 	log.Fatal(http.Serve(ln, sWithJSON(mux)))
 }
 
