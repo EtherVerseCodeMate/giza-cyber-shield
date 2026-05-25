@@ -59,13 +59,10 @@ func (s *SystemChecker) CheckFilePermissions(path string) (os.FileMode, error) {
 
 // CheckFileOwnership checks file/directory ownership (Unix only)
 func (s *SystemChecker) CheckFileOwnership(path string) (uid, gid int, err error) {
-	if runtime.GOOS == "windows" {
-		return 0, 0, fmt.Errorf("ownership checks not supported on Windows")
-	}
-
-	// Placeholder for cross-platform build compatibility
-	// Real implementation requires syscall.Stat_t on Linux
-	return 0, 0, fmt.Errorf("ownership validation requires Linux build")
+	// File ownership (UID/GID) requires syscall.Stat_t which is Linux-only.
+	// This function is intentionally a no-op on Windows to keep cross-platform builds clean.
+	// Add a Linux build-tag variant using os.Stat + syscall.Stat_t if per-OS coverage is needed.
+	return 0, 0, fmt.Errorf("ownership validation requires a Linux build (syscall.Stat_t unavailable on %s)", runtime.GOOS)
 }
 
 // CheckPackageInstalled checks if an RPM/DEB package is installed

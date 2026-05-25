@@ -184,11 +184,12 @@ func getLinuxPortMappingNetstat() (map[int]*ProcessPortInfo, error) {
 	return portMap, nil
 }
 
-// getLinuxPortMappingProc parses /proc/net/tcp (no dependencies, works without root for own processes)
+// getLinuxPortMappingProc parses /proc/net/tcp (no external dependencies).
+// Requires walking /proc/<pid>/fd/ to match socket inodes to PIDs.
+// Use getLinuxPortMappingNetstat() as the primary path; this proc-walk is the
+// fallback for environments without net-tools installed.
 func getLinuxPortMappingProc() (map[int]*ProcessPortInfo, error) {
-	// This is a simplified implementation
-	// Full implementation would require walking /proc/<pid>/fd/ to find socket inodes
-	return nil, fmt.Errorf("/proc/net/tcp parsing not yet implemented (use netstat fallback)")
+	return nil, fmt.Errorf("proc/net/tcp inode-walk not yet wired; ensure net-tools is installed for netstat fallback")
 }
 
 func min(a, b int) int {

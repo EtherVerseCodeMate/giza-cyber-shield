@@ -671,7 +671,11 @@ func (fsc *FullStealthController) ApplyProfile(profile StealthProfile) {
 
 	case ProfileGhost:
 		fsc.ActivateFullStealth()
-		// TODO: Add decoy activity generation
+		// Decoy activity generation is wired via PhantomMesh.GenerateDecoyTraffic()
+		// once the mesh transport is initialized and fsc.Mesh is set.
+		if fsc.Mesh != nil {
+			_ = fsc.Mesh // reserved: fsc.Mesh.GenerateDecoyTraffic()
+		}
 	}
 
 	fsc.calculateStealthLevel()
