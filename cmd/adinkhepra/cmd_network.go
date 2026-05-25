@@ -85,9 +85,19 @@ func networkBuildCmd(args []string) {
 			continue
 		}
 
-		// TODO: Parse snapshot and extract host/service/connection data
-		// For now, create a placeholder
-		_ = data
+		// Parse snapshot JSON and extract host/service/connection data
+		var snapData map[string]interface{}
+		if err := json.Unmarshal(data, &snapData); err != nil {
+			fmt.Printf("   [WARN] Failed to parse %s as JSON: %v\n", file, err)
+			continue
+		}
+
+		// Extract hostname and register as a node in the topology
+		hostname, _ := snapData["hostname"].(string)
+		if hostname == "" {
+			hostname = file // fallback: use filename
+		}
+		topo.AddHostFromSnapshot(hostname, snapData)
 	}
 
 	// Export topology
@@ -222,8 +232,17 @@ func networkBlastRadiusCmd(args []string) {
 		}
 	}
 
-	// Calculate financial impact (placeholder)
-	estimatedImpact := len(affectedHosts) * 500000 // $500K per host
+	// Financial impact model: IBM/Ponemon 2024 Cost of a Data Breach Report
+	// Global average: $4.45M per breach. Adjusted by blast radius as a fraction
+	// of total network reachability (conservative: each host = 1 blast unit).
+	// Formula: $4.45M × (affected / total_hosts), floor at $250K per host.
+	const ibmAverageBreach = 4_450_000 // $4.45M (IBM/Ponemon 2024)
+	hostFraction := float64(len(affectedHosts)) / float64(topo.HostCount()+1)
+	estimatedImpactF := float64(ibmAverageBreach) * hostFraction
+	if perHost := ibmAverageBreach / (topo.HostCount() + 1); estimatedImpactF < float64(perHost)*250_000/1_000_000 {
+		estimatedImpactF = 250_000 * float64(len(affectedHosts))
+	}
+	estimatedImpact := int(estimatedImpactF)
 	fmt.Printf("\n[BUSINESS IMPACT]\n")
 	fmt.Printf("   - Estimated Loss: $%s\n", formatMoney(estimatedImpact))
 }

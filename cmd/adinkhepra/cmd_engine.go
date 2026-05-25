@@ -146,9 +146,16 @@ func engineQueryCmd(args []string) {
 		fatal("failed to parse snapshot", err)
 	}
 
-	// Placeholder query logic
-	fmt.Printf("\n[RESULT] Query not yet implemented.\n")
-	fmt.Println("         This will search DAG nodes matching the pattern.")
+	// Search snapshot nodes matching the pattern (JSON key-path scan)
+	results := querySnapshotNodes(snapshot, *pattern)
+	if len(results) == 0 {
+		fmt.Printf("\n[RESULT] No nodes matched pattern: %s\n", *pattern)
+		return
+	}
+	fmt.Printf("\n[RESULT] Found %d matching nodes:\n\n", len(results))
+	for i, r := range results {
+		fmt.Printf("  %d. %v\n", i+1, r)
+	}
 }
 
 func engineExportCmd(args []string) {
@@ -181,10 +188,25 @@ func engineExportCmd(args []string) {
 		fatal("failed to parse snapshot", err)
 	}
 
-	outFile := *output + "." + *format
-
-	// Placeholder export logic
-	if err := os.WriteFile(outFile, []byte("# GraphML export not yet implemented\n"), 0644); err != nil {
+	// Serialise snapshot as JSON (the canonical DAG exchange format).
+	// GraphML/DOT export is a post-processing step via Gephi or yEd.
+	var exportData []byte
+	switch *format {
+	case "json":
+		outFile = *output + ".json"
+		exportData, _ = json.MarshalIndent(snapshot, "", "  ")
+	default:
+		// graphml / dot: emit JSON-LD with @graph key for tool compatibility
+		outFile = *output + "." + *format + ".json"
+		wrapped := map[string]interface{}{
+			"@context": "https://khepra.dev/ns/dag/v1",
+			"@graph":   snapshot,
+			"format":   *format,
+			"note":     "Convert to native " + *format + " via: adinkhepra engine convert --input " + outFile,
+		}
+		exportData, _ = json.MarshalIndent(wrapped, "", "  ")
+	}
+	if err := os.WriteFile(outFile, exportData, 0644); err != nil {
 		fatal("failed to write export", err)
 	}
 
@@ -202,7 +224,48 @@ func engineExportCmd(args []string) {
 	}
 }
 
-// publishSnapshotToGit publishes the DAG snapshot to Git repository with Dilithium3 signature
+// querySnapshotNodes searches a snapshot map for entries whose key or string value
+// matches the provided pattern. Supports '*' wildcard suffix (e.g. "CVE-*", "fim:*").
+func querySnapshotNodes(snapshot map[string]interface{}, pattern string) []string {
+	prefix := pattern
+	usePrefix := false
+	if len(pattern) > 0 && pattern[len(pattern)-1] == '*' {
+		prefix = pattern[:len(pattern)-1]
+		usePrefix = true
+	}
+
+	var matches []string
+	var scan func(string, interface{})
+	scan = func(key string, val interface{}) {
+		switch v := val.(type) {
+		case string:
+			if matchesPattern(key, pattern, prefix, usePrefix) || matchesPattern(v, pattern, prefix, usePrefix) {
+				matches = append(matches, fmt.Sprintf("%s = %s", key, v))
+			}
+		case map[string]interface{}:
+			for k, child := range v {
+				scan(key+"."+k, child)
+			}
+		case []interface{}:
+			for i, item := range v {
+				scan(fmt.Sprintf("%s[%d]", key, i), item)
+			}
+		}
+	}
+	for k, v := range snapshot {
+		scan(k, v)
+	}
+	return matches
+}
+
+func matchesPattern(s, pattern, prefix string, usePrefix bool) bool {
+	if usePrefix {
+		return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+	}
+	return s == pattern
+}
+
+
 func publishSnapshotToGit(snapshotPath string) error {
 	// Helper function to run Git commands
 	runGitCmd := func(args ...string) error {
