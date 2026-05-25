@@ -169,7 +169,9 @@ func testCall(toolName string) MCPToolCall {
 	return MCPToolCall{
 		RequestID:   "req-test-001",
 		ToolName:    toolName,
-		Args:        map[string]any{"target": "example.com"},
+		// "local" is in knownOSTargets; "CMMC-L2" is in knownFrameworks.
+		// Using taxonomy-valid values so Step 1.6a (scope validator) passes.
+		Args:        map[string]any{"target": "local", "scope": "CMMC-L2"},
 		SubmittedAt: time.Now().UTC(),
 	}
 }
