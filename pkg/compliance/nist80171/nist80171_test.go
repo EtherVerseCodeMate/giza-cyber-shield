@@ -39,9 +39,9 @@ func TestValidatorValidateACFamily(t *testing.T) {
 	}
 }
 
-func TestValidatorPlaceholder(t *testing.T) {
+func TestValidatorRequiresManualReview(t *testing.T) {
 	v := &Validator{}
-	res := v.placeholder("test-id")
+	res := v.requiresManualReview("test-id")
 
 	if res.ControlID != "test-id" {
 		t.Errorf("expected ID test-id, got %s", res.ControlID)
