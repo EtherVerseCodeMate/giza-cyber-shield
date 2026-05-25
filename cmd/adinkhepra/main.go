@@ -204,8 +204,12 @@ func handleSecondaryCmds(cmd string, args []string) bool {
 	case "csr":
 		csrCmd(args)
 	case "run":
-		baseDir, _ := os.Getwd()
-		agent.Run(baseDir)
+		// `run` starts the HTTP agent server on port 45444.
+		// This is the sovereign sovereign entrypoint — no cloud, no telemetry.
+		// Equivalent to `watch` but without the dashboard banner.
+		// For the Windows SONAR drift service, use: adinkhepra agent install/start
+		watchCmd(args)
+
 	case "health":
 		fmt.Println("OK")
 		os.Exit(0)
