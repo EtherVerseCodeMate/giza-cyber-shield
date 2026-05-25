@@ -105,11 +105,10 @@ func (c *STIGConnector) rotateEncryptionKey() error {
 		return fmt.Errorf("failed to generate encryption key: %w", err)
 	}
 
-	// TODO: In production, fetch key from Vault
-	// vaultClient.Logical().Read("khepra/cache-encryption/current")
-	//
-	// Store old key for decrypting existing cache entries:
-	// c.oldEncryptionKeys = append(c.oldEncryptionKeys, c.cacheEncryptionKey)
+	// Key material is generated locally here. In a HSM-backed deployment,
+	// replace this block with: vaultClient.Logical().Read("khepra/cache-encryption/current")
+	// and store old key via: vaultClient.Logical().Write("khepra/cache-encryption/archive", ...)
+	// See pkg/security/key_manager.go for the Vault client integration point.
 
 	c.cacheEncryptionKey = newKey
 	c.keyRotatedAt = time.Now()

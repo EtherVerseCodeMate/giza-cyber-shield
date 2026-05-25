@@ -1,11 +1,16 @@
 package audit
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"runtime"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner"
@@ -51,19 +56,15 @@ func NewSnapshot() (*types.AuditSnapshot, error) {
 		fmt.Printf("[WARN] Port scan failed: %v\n", err)
 	}
 
-	// 3. Processes (Placeholder for now, requires deeper OS hooks or 'ps' parsing)
-	// We will implement a simple "Agent" process check
-	procs := []types.ProcessInfo{
-		{PID: os.Getpid(), Name: "khepra.exe", CmdLine: "agent start"},
-	}
+	// 3. Processes — collect live process list via os/exec (best-effort).
+	procs := collectProcesses()
 
-	// 4. File Manifests (Placeholder for critical files)
-	// Track self
+	// 4. File manifests — hash the running executable for integrity attestation.
 	exePath, _ := os.Executable()
 	manifests := []types.FileManifest{}
 	if exePath != "" {
-		// hash it...
-		manifests = append(manifests, types.FileManifest{Path: exePath, Type: "binary", Checksum: "pending_hash_implementation"})
+		checksum := hashFile(exePath)
+		manifests = append(manifests, types.FileManifest{Path: exePath, Type: "binary", Checksum: checksum})
 	}
 
 	snap := &types.AuditSnapshot{

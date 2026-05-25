@@ -7,8 +7,8 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 )
 
-// GenerateDAGNode creates a DAG node from a FIM event
-// TODO: DAG integration needs refactoring to match dag.Node fields
+// GenerateDAGNode creates a DAG node from a FIM event.
+// Node fields: ID=fim:{type}:{path}:{unix}, Action="fim_violation", Symbol="integrity", Time=RFC3339.
 func (event *FIMEvent) GenerateDAGNode(hostname string) *dag.Node {
 	nodeID := fmt.Sprintf("fim:%s:%s:%d", event.EventType, event.FilePath, event.Timestamp.Unix())
 
@@ -59,8 +59,7 @@ func (fc *FIMCollector) collectLoop() {
 		case event := <-fc.watcher.Events():
 			node := event.GenerateDAGNode(fc.hostname)
 
-			// Add node to DAG (using correct dag.Memory.Add method)
-			// TODO: Need to cast fc.dag to *dag.Memory or update interface
+			// Add node to DAG
 			if err := fc.dag.Add(node, nil); err != nil {
 				// Log error but don't stop
 				fmt.Printf("[FIM] Failed to add DAG node: %v\n", err)
@@ -108,8 +107,7 @@ func (fc *FIMCollector) GetRecentViolations(since time.Duration) ([]*dag.Node, e
 
 	var violations []*dag.Node
 
-	// Query DAG for FIM violation nodes
-	// TODO: Update to use dag.Memory.All() method and Action field
+	// Query DAG for FIM violation nodes using dag.Memory.All().
 	if fc.dag != nil {
 		for _, node := range fc.dag.All() {
 			// Parse time string to compare
