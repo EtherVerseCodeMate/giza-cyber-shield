@@ -15,6 +15,7 @@ package tools
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -999,13 +1000,11 @@ func attestGodfatherMCP(dagStore dag.Store, sec *ea.SecurityContext, score float
 // OS abstraction helpers (injectable for testing)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// osFileInfo and osReadFile are thin wrappers that allow the os package to be
-// mocked in unit tests without affecting production behaviour.
-
-import "os"
-
+// osFileInfo is an alias for os.FileInfo, allowing test mocking without
+// affecting production code paths.
 type osFileInfo = os.FileInfo
 
+// osReadFile wraps os.ReadFile so that tests can substitute a mock implementation.
 func osReadFile(path string) ([]byte, error) {
 	return os.ReadFile(path)
 }
