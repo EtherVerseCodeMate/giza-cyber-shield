@@ -65,7 +65,7 @@ func (m *AgentManager) ExecuteOnAgent(machineID string, command string, args []s
 		return "", fmt.Errorf("link failure: %w", err)
 	}
 
-	// Wait for response (short timeout for demo)
+	// 10-second read deadline for the agent's execution response over the WebSocket link.
 	agent.Conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 	var resp map[string]interface{}
 	if err := agent.Conn.ReadJSON(&resp); err != nil {

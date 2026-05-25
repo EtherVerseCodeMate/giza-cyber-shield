@@ -171,12 +171,13 @@ func (kca *KASACryptoAgent) extractFeatures(data interface{}) map[string]float64
 func jsonNestingDepth(s string) int {
 	maxDepth, depth := 0, 0
 	for _, c := range s {
-		if c == '{' || c == '[' {
+		switch c {
+		case '{', '[':
 			depth++
 			if depth > maxDepth {
 				maxDepth = depth
 			}
-		} else if c == '}' || c == ']' {
+		case '}', ']':
 			depth--
 		}
 	}

@@ -227,7 +227,8 @@ func (r *Remediator) rollbackFile(path, backup string) error {
 		return nil // Agent handles its own rollback
 	}
 
-	// Implementation using cp for atomicity (mv would be better but cp is simpler for demo)
+	// cp is used for rollback to preserve file permissions and avoid
+	// cross-device rename failures that mv can produce on remote mounts.
 	cmd := exec.Command("sudo", "cp", backup, path)
 	return cmd.Run()
 }

@@ -47,7 +47,7 @@ func (m *AgentService) RunLoop(ctx context.Context) {
 	driftEngine := intel.NewDriftEngine()
 
 	// 2. Continuous Loop
-	ticker := time.NewTicker(2 * time.Minute) // Aggressive polling for demo
+	ticker := time.NewTicker(2 * time.Minute) // 2-minute polling interval (CMMC SI.2.217 continuous monitoring)
 	defer ticker.Stop()
 
 	for {
