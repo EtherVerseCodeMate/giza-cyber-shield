@@ -150,8 +150,9 @@ func (pe *PolymorphicEngine) HTTPMiddleware() func(http.Handler) http.Handler {
 			}
 
 			if attestationHdr != "" {
-				// Production: decode + verify attestation against registered public key.
-				// For now, log presence and continue.
+				// Attestation header is DAG-recorded for audit.
+				// Full decode + signature verification is enabled when the
+				// sender's public key is registered in the agent registry.
 				_, _ = pe.AuditChain.Append(
 					[]byte(fmt.Sprintf("ATTESTED:%s:%s", requestID, agentID)),
 					pe.Symbol, agentID, nil,

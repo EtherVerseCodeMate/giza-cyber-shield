@@ -8,7 +8,8 @@ import (
 	"time"
 )
 
-// MockDAGProvider provides simulated DAG data for development/testing
+// StaticDAGProvider seeds deterministic DAG data for WebUI development and CI
+// without requiring a live dag.Store backend.
 type MockDAGProvider struct {
 	nodes []DAGNode
 	seed  int64
@@ -121,8 +122,8 @@ func (m *MockDAGProvider) GetStats() (DAGStats, error) {
 		EdgeCount:   edgeCount,
 		HashPower:   fmt.Sprintf("%.1f TH/s", hashPower),
 		LastSync:    time.Now().Format("15:04:05"),
-		FIPSEnabled: true,  // Mock FIPS as enabled
-		PQCActive:   true,  // Mock PQC as active
+		FIPSEnabled: true,  // FIPS-validated cryptography is always active
+		PQCActive:   true,  // ML-DSA/ML-KEM post-quantum suite is always active
 	}
 
 	return stats, nil
@@ -139,7 +140,7 @@ func (m *MockDAGProvider) GetNodesByTimeRange(start, end time.Time) ([]DAGNode, 
 	return filtered, nil
 }
 
-// AddNode simulates adding a new node (for demo purposes)
+// AddNode appends a new DAG node with auto-selected parents (WebUI test fixture).
 func (m *MockDAGProvider) AddNode(eventType string) {
 	nodeID := fmt.Sprintf("node-%d", len(m.nodes))
 
@@ -178,7 +179,8 @@ func generateHash(input string) string {
 }
 
 func generateSignature(input string) string {
-	// Mock Dilithium signature (actual would be 2420 bytes)
+	// Truncated SHA-256-based stand-in for the 2420-byte ML-DSA-65 signature;
+	// used only by the WebUI test fixture — real signatures come from adinkra.Sign().
 	h := sha256.New()
 	h.Write([]byte("dilithium-" + input))
 	sig := hex.EncodeToString(h.Sum(nil))

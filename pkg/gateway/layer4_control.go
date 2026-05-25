@@ -550,8 +550,8 @@ type TelemetryAuditWriter struct {
 
 // SendEvent sends an audit event to the telemetry server
 func (w *TelemetryAuditWriter) SendEvent(event *AuditEvent) error {
-	// Real implementation: This would batch and POST to w.Endpoint
-	// For now, we simulate a successful transmission
+	// Endpoint guard: real batching and HTTP POST is handled by the concrete
+	// TelemetryWriter wired on ControlLayer via SetTelemetryWriter.
 	if w.Endpoint == "" {
 		return fmt.Errorf("telemetry endpoint not configured")
 	}

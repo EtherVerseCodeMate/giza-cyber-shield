@@ -120,8 +120,8 @@ func (m *Manager) AuditControl(controlID string, privKey []byte) (bool, error) {
 	status := "IMPLEMENTED"
 	if !passed {
 		status = "FAILED_SCAN"
-		// Attempt Auto-Remediation?
-		// For now, just log failure.
+		// Failed scan is written to SSP and DAG. Trigger auto-remediation
+		// by calling RemediateControl(controlID, privKey) on the Manager.
 	}
 
 	impl := ControlImplementation{

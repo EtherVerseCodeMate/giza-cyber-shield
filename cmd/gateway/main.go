@@ -169,8 +169,8 @@ func loadConfig(configFile string) *gateway.Config {
 // createUpstreamHandler creates the handler for upstream services
 func createUpstreamHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// This is where we would proxy to actual backend services
-		// For now, we have a simple router for Khepra's own services
+		// Routes DAG state/add and attestation endpoints.
+		// Register additional upstream services in this switch block.
 
 		switch {
 		case r.URL.Path == "/api/v1/dag/state":

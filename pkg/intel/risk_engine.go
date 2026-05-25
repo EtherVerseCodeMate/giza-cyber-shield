@@ -87,7 +87,8 @@ func GenerateRiskAttestation(snapshot *audit.AuditSnapshot) *attest.RiskAttestat
 	}
 	attestation.Score = totalScore
 
-	// Narrative Generation (Template based for now)
+	// Narrative: deterministic format string over risk findings.
+	// LLM-driven narrative generation can be enabled by wiring pkg/llm to this engine.
 	attestation.Narrative = fmt.Sprintf(
 		"Diagnostic completed on %s. Found %d active risks. Risk Score: %d/100. "+
 			"Critical attention needed for %d issues.",

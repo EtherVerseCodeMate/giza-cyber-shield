@@ -105,7 +105,8 @@ func reportGenerateCmd(args []string) {
 		reportContent = generateExecutiveReport(&snapshot, kb)
 	}
 
-	// For now, write markdown (PDF generation requires external tool)
+	// Report is written as Markdown. Use pandoc or wkhtmltopdf to convert to PDF
+	// (see NEXT steps below). Native PDF rendering requires pkg/apiserver/evidence_pdf.
 	mdFile := *output + ".md"
 	if err := os.WriteFile(mdFile, []byte(reportContent), 0644); err != nil {
 		fatal("failed to write report", err)

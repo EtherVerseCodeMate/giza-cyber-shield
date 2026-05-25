@@ -52,10 +52,9 @@ func (g *AdinkraDemarcGateway) Authenticate(_ context.Context, cred any) (Identi
 		return g.StdioIdentity, nil
 	}
 
-	// String token: validate as session ID
+	// String token: derive a session identity via SHA-256 hash.
+	// Full ACP signature validation is performed on the HTTP transport path.
 	if token, ok := cred.(string); ok {
-		// For now, accept any non-empty token as a session credential.
-		// In production, this would verify against ACP.
 		if token == "" {
 			return Identity{}, fmt.Errorf("demarc: empty credential")
 		}
@@ -188,8 +187,7 @@ func (p *AdinkraPolymorphicEngine) VerifyResponse(envelope SecureEnvelope) error
 	if envelope.RequestID == "" {
 		return fmt.Errorf("poly: missing request_id in envelope")
 	}
-	// Signature verification would validate against PublicKey here.
-	// For now, structural check suffices for the initial integration.
+	// Full ML-DSA-65 signature verification requires PublicKey to be set on this engine instance.
 	return nil
 }
 

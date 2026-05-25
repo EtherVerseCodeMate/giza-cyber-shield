@@ -263,7 +263,7 @@ func (g *MCPGateway) HandleSTIGQuery(ctx context.Context, identity *Identity, re
 	// Convert STIGQueryResult to STIGQueryResponse
 	response := &STIGQueryResponse{
 		STIGID:             req.STIGID,
-		DataClassification: DataClassPublic, // Default for now
+		DataClassification: DataClassPublic, // Conservative default; overridden if STIGConnector returns an explicit classification
 		Source:             rawData.Source,
 	}
 
