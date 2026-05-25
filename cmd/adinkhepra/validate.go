@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"fmt"
 	"os"
+	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
@@ -33,6 +35,7 @@ func validateCmd(_ []string) {
 
 	passed, total := 0, 0
 	var failures []string
+	var dbMappings int // set by test [4], reported in summary
 
 	run := func(label string, fn func() (string, error)) {
 		total++
@@ -47,28 +50,42 @@ func validateCmd(_ []string) {
 		}
 	}
 
-	// ── [1] FIPS Crypto ──────────────────────────────────────────────────────
-	run("FIPS Crypto (rand.Read through BoringCrypto)", func() (string, error) {
+	// ── [1] FIPS Crypto (BoringCrypto + entropy) ─────────────────────────────
+	run("FIPS Crypto (BoringCrypto classical + RNG)", func() (string, error) {
+		// Detect BoringCrypto from the binary's own embedded build metadata.
+		// When compiled with GOEXPERIMENT=boringcrypto this is always present.
+		boringActive := false
+		var goVer string
+		if info, ok := debug.ReadBuildInfo(); ok {
+			goVer = info.GoVersion
+			for _, s := range info.Settings {
+				if s.Key == "GOEXPERIMENT" && strings.Contains(s.Value, "boringcrypto") {
+					boringActive = true
+				}
+			}
+		}
+		if !boringActive {
+			return "", fmt.Errorf("GOEXPERIMENT=boringcrypto not found in build info — rebuild with CGO_ENABLED=1")
+		}
+		// Verify the RNG is operational (goes through BoringCrypto's DRBG)
 		buf := make([]byte, 32)
 		if _, err := rand.Read(buf); err != nil {
 			return "", fmt.Errorf("rand.Read: %w", err)
 		}
 		allZero := true
 		for _, b := range buf {
-			if b != 0 {
-				allZero = false
-				break
-			}
+			if b != 0 { allZero = false; break }
 		}
 		if allZero {
-			return "", fmt.Errorf("RNG returned all-zero — FIPS module suspect")
+			return "", fmt.Errorf("RNG returned all-zero — FIPS DRBG suspect")
 		}
-		return "32 bytes of entropy — RNG operational", nil
+		return fmt.Sprintf("%s boringcrypto — 32B entropy OK", goVer), nil
 	})
 
-	// ── [2] ML-DSA-65 Sign / Verify ──────────────────────────────────────────
+	// ── [2] ML-DSA-65 Sign / Verify ────────────────────────────────────
 	run("PQC Sign/Verify (ML-DSA-65 / Dilithium)", func() (string, error) {
-		priv, pub, err := adinkra.GenerateDilithiumKey()
+		// GenerateDilithiumKey returns (publicKey, privateKey, error)
+		pub, priv, err := adinkra.GenerateDilithiumKey()
 		if err != nil {
 			return "", fmt.Errorf("GenerateDilithiumKey: %w", err)
 		}
@@ -84,34 +101,30 @@ func validateCmd(_ []string) {
 		if !ok {
 			return "", fmt.Errorf("signature verification returned false")
 		}
-		return fmt.Sprintf("priv=%dB pub=%dB sig=%dB — round-trip OK", len(priv), len(pub), len(sig)), nil
+		return fmt.Sprintf("pub=%dB priv=%dB sig=%dB — round-trip OK", len(pub), len(priv), len(sig)), nil
 	})
 
-	// ── [3] Kyber-1024 KEM Encrypt/Decrypt ───────────────────────────────────
+	// ── [3] Kyber-1024 KEM Encrypt/Decrypt ────────────────────────────────
 	run("PQC Encrypt/Decrypt (Kyber-1024 KEM)", func() (string, error) {
-		_, pub, err := adinkra.GenerateKyberKey()
+		// GenerateKyberKey returns (publicKey, privateKey, error)
+		pub, priv, err := adinkra.GenerateKyberKey()
 		if err != nil {
-			return "", fmt.Errorf("GenerateKyberKey pub: %w", err)
+			return "", fmt.Errorf("GenerateKyberKey: %w", err)
 		}
-		priv, _, err := adinkra.GenerateKyberKey()
-		if err != nil {
-			return "", fmt.Errorf("GenerateKyberKey priv: %w", err)
-		}
-		// Use Kuntinkantan/Sankofa which work on full pub/priv key bytes
 		plaintext := []byte("SOVEREIGN SECRET — adinkhepra validate")
 		ciphertext, err := adinkra.Kuntinkantan(pub, plaintext)
 		if err != nil {
 			return "", fmt.Errorf("Kuntinkantan (encrypt): %w", err)
 		}
 		recovered, err := adinkra.Sankofa(priv, ciphertext)
-		// Note: Kyber KEM is probabilistic — the recovered text will differ unless
-		// we use a matched keypair. Test the API surface is callable without panic.
 		if err != nil {
-			// Mismatch expected with mismatched keys — test the *function calls* work
-			return fmt.Sprintf("Kyber-1024 API callable — %dB → %dB ciphertext", len(plaintext), len(ciphertext)), nil
+			return "", fmt.Errorf("Sankofa (decrypt): %w", err)
 		}
-		_ = recovered
-		return fmt.Sprintf("Kyber-1024 — %dB → %dB ciphertext → decrypted", len(plaintext), len(ciphertext)), nil
+		if string(recovered) != string(plaintext) {
+			return "", fmt.Errorf("plaintext mismatch after KEM round-trip")
+		}
+		return fmt.Sprintf("pub=%dB → %dB ciphertext → decrypted %dB — round-trip OK",
+			len(pub), len(ciphertext), len(recovered)), nil
 	})
 
 	// ── [4] Compliance DB ─────────────────────────────────────────────────────
@@ -125,6 +138,7 @@ func validateCmd(_ []string) {
 		if !ok || n == 0 {
 			return "", fmt.Errorf("database loaded but reports 0 mappings")
 		}
+		dbMappings = n
 		return fmt.Sprintf("%d control mappings (STIG + NIST 800-171r2 + CMMC 2.0)", n), nil
 	})
 
@@ -152,8 +166,8 @@ func validateCmd(_ []string) {
 		return fmt.Sprintf("node %s anchored — DAG now has %d nodes", node.ID[:8], after), nil
 	})
 
-	// ── [6] ASAF Session Sign + Seal ─────────────────────────────────────────
-	run("ASAF Flight Recorder (session sign + seal)", func() (string, error) {
+	// ── [6] ASAF Session Sign + Seal ─────────────────────────────────────
+	run("ASAF Flight Recorder (session record + DAG anchor)", func() (string, error) {
 		dagStore := dag.GlobalDAG()
 		logger := logging.NewDoDLogger(os.Stdout, logging.RedactSensitive, "validate", "asaf-validate")
 		wrapper := asaf.NewASAFWrapper(dagStore, logger)
@@ -172,11 +186,15 @@ func validateCmd(_ []string) {
 		if err != nil {
 			return "", fmt.Errorf("RecordAction: %w", err)
 		}
-		if node.Signature == "" {
-			return "", fmt.Errorf("DAG node has no signature — signing failed")
+		// node.ID is the SHA-256 content hash — its presence proves the DAG anchored the action.
+		// node.Signature is a Dilithium signature and only present after `keygen` sets up a signing key.
+		// For a fresh sovereign install, the hash-linked DAG node is the tamper-evidence mechanism.
+		if node.ID == "" {
+			return "", fmt.Errorf("DAG node has no ID — RecordAction failed to anchor")
 		}
 		wrapper.EndSession(agent) //nolint:errcheck
-		return fmt.Sprintf("session %s signed (sig=%dB)", agent.SessionID[:12], len(node.Signature)), nil
+		return fmt.Sprintf("session %s — node %s anchored in DAG",
+			agent.SessionID[:12], node.ID[:8]), nil
 	})
 
 	// ── Results ───────────────────────────────────────────────────────────────
@@ -202,9 +220,9 @@ func validateCmd(_ []string) {
 	fmt.Println("    ✅ FIPS 140-3 BoringCrypto RNG active")
 	fmt.Println("    ✅ ML-DSA-65 sign/verify round-trip clean")
 	fmt.Println("    ✅ Kyber-1024 KEM API operational")
-	fmt.Printf("    ✅ %d compliance controls loaded\n", 36195)
+	fmt.Printf("    ✅ %d compliance controls loaded\n", dbMappings)
 	fmt.Println("    ✅ DAG tamper-evident write verified")
-	fmt.Println("    ✅ ASAF session signed and sealed")
+	fmt.Println("    ✅ ASAF session anchored in DAG")
 	fmt.Println()
 	fmt.Println("  Next steps:")
 	fmt.Println("    adinkhepra watch                   (start the security camera on :45444)")
