@@ -7,9 +7,11 @@
 package gateway
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"reflect"
 	"regexp"
 	"sync"
@@ -537,9 +539,24 @@ func (se *SchemaEngine) trackEvolution(changeType, endpoint, field string, oldVa
 	}
 }
 
-// notifyEvolution sends evolution notification to webhook
+// notifyEvolution posts a schema evolution event to the configured webhook URL.
 func (se *SchemaEngine) notifyEvolution(evolution SchemaEvolution) {
-	// TODO: Implement webhook notification
+	body, err := json.Marshal(evolution)
+	if err != nil {
+		log.Printf("[SCHEMA] Failed to marshal evolution for webhook: %v", err)
+		return
+	}
+
+	resp, err := http.Post(se.config.NotifyWebhook, "application/json", bytes.NewReader(body))
+	if err != nil {
+		log.Printf("[SCHEMA] Webhook POST failed: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		log.Printf("[SCHEMA] Webhook returned non-2xx status: %d", resp.StatusCode)
+	}
 }
 
 // GetPendingEvolutions returns pending schema evolutions

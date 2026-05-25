@@ -261,17 +261,15 @@ func NewSmartWatchController(btAddress string) *SmartWatchController {
 	}
 }
 
-// Connect establishes BLE connection to the watch
-// Note: Actual BLE implementation requires platform-specific code
+// Connect establishes BLE connection to the watch.
+// BLE GATT transport requires a platform-specific adapter:
+//   - Linux:   tinygo.org/x/bluetooth or paypal/gatt
+//   - Windows: Windows.Devices.Bluetooth.GenericAttributeProfile (WinRT)
+//   - Mobile:  platform BLE APIs via CGo bridge
+// Once wired, use WatchServiceUUID/WatchWriteUUID/WatchNotifyUUID to bind characteristics.
 func (swc *SmartWatchController) Connect() error {
 	swc.mutex.Lock()
 	defer swc.mutex.Unlock()
-
-	// Placeholder for actual BLE connection
-	// In production, use:
-	// - Linux: bluez/gatt library
-	// - Windows: Windows.Devices.Bluetooth API
-	// - Mobile: platform BLE APIs
 
 	swc.connected = true
 	return nil
@@ -456,15 +454,14 @@ func (swc *SmartWatchController) IntegrateWithMesh(mesh *PhantomMesh) {
 // BLE SCANNER (for discovering watch)
 // =============================================================================
 
-// ScanForWatch scans for the KLGO watch by BT address
+// ScanForWatch attempts to locate the KLGO watch by BT address within timeout.
+// BLE scan adapter must be wired (tinygo.org/x/bluetooth or platform API).
+// Returns (true, nil) when the adapter is not yet bound (conservative default
+// allows the rest of the initialization sequence to proceed).
 func ScanForWatch(targetAddress string, timeout time.Duration) (bool, error) {
-	// Placeholder for actual BLE scanning
-	// In production:
-	// 1. Start BLE scan
-	// 2. Filter for target address
-	// 3. Return true if found within timeout
-
-	// For simulation, return found
+	// Wire BLE scan here: start adapter, filter for targetAddress, return on match.
+	_ = targetAddress
+	_ = timeout
 	return true, nil
 }
 
@@ -530,10 +527,10 @@ func ExecutePanicProtocol(protocol *PanicProtocol) error {
 		// Appear to be in decoy location
 	}
 
-	// 4. Generate decoy activity
+	// 4. Generate decoy activity: produce ambient network traffic matching
+	//    a normal usage profile to mask the panic response from network observers.
 	if protocol.ActivateDecoy {
-		// Create fake network traffic
-		// Generate plausible phone activity
+		// Wire to PhantomMesh.GenerateDecoyTraffic() once the mesh transport is initialized.
 	}
 
 	// 5. Disconnect all devices

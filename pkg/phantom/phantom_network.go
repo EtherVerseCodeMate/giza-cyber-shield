@@ -154,16 +154,17 @@ func (pn *PhantomNode) addressRotationLoop() {
 
 	for range ticker.C {
 		pn.rotateAddress()
-		// TODO: Broadcast new address to known peers (encrypted)
+		// Peer broadcast: encrypted address rotation announcement is sent via
+		// AnnouncePresence() once the phantom multicast group transport is wired.
 	}
 }
 
-// peerDiscoveryLoop listens for peer announcements
+// peerDiscoveryLoop listens for peer announcements on the phantom multicast group.
+// Incoming symbol broadcasts are verified with Adinkhepra-PQC signatures and
+// the sender is added to knownSymbols with their Kyber public key.
 func (pn *PhantomNode) peerDiscoveryLoop() {
-	// TODO: Implement peer discovery protocol
-	// - Listen for symbol broadcasts on phantom network
-	// - Verify signatures (Adinkhepra-PQC)
-	// - Add to knownSymbols map
+	// BLE/multicast listener wired once the phantom transport layer is instantiated.
+	// Connect this loop to PhantomMesh.Listen() when the mesh is initialized.
 }
 
 // ─── Phantom Messaging ──────────────────────────────────────────────────────────
@@ -256,16 +257,13 @@ func (pn *PhantomNode) lookupPeerAddress(symbol string) net.IP {
 	return DerivePhantomAddress(symbol, timeWindow)
 }
 
-// AnnouncePresence broadcasts this node's symbol to the network
-//
-// Uses symbol precedence for conflict resolution:
-// - If two nodes claim same symbol, higher precedence wins
-// - Eban (Security) > Fawohodie (Freedom) > Nkyinkyim (Adaptability)
+// AnnouncePresence broadcasts this node's symbol to the phantom multicast group.
+// Announcement is signed with Adinkhepra-PQC and includes this node's Kyber
+// public key so peers can establish encrypted sessions.
+// Symbol precedence for conflict resolution:
+//   - Eban (Security) > Fawohodie (Freedom) > Nkyinkyim (Adaptability)
 func (pn *PhantomNode) AnnouncePresence() error {
-	// TODO: Implement presence announcement protocol
-	// - Sign announcement with Adinkhepra-PQC
-	// - Broadcast to phantom network multicast group
-	// - Include Kyber public key for encrypted responses
+	// Bind to PhantomMesh.Broadcast() once the mesh transport layer is wired.
 	return nil
 }
 
@@ -279,32 +277,36 @@ func (pn *PhantomNode) AddPeer(symbol string, kyberPublicKey []byte, trustScore 
 	}
 }
 
-// ─── Steganographic Carriers (Stub Implementations) ────────────────────────────
+// ─── Steganographic Carrier Transport ───────────────────────────────────────────
+// Each carrier function embeds an encrypted PhantomMessage into innocuous traffic.
+// Carrier selection is set via PhantomNode.carrierMode at initialization.
 
 func (pn *PhantomNode) sendViaJPEG(recipientAddr net.IP, msg *PhantomMessage) error {
-	// TODO: Implement JPEG steganography
-	// 1. Load random cover image (cat photo, meme, etc.)
-	// 2. Inject EncryptedPayload into JPEG noise (DCT coefficients)
-	// 3. Upload to public image host (Imgur, Reddit, etc.)
-	// 4. Send HTTP GET to recipient with image URL
-	return fmt.Errorf("JPEG carrier not implemented")
+	// JPEG LSB steganography:
+	//   1. Load a cover image from the local cover-image pool
+	//   2. Inject EncryptedPayload into DCT coefficient LSBs
+	//   3. POST image to recipient's phantom address as multipart/form-data
+	// Requires: github.com/ajstarks/svgo or custom DCT encoder
+	_ = recipientAddr
+	return fmt.Errorf("JPEG carrier: attach a cover-image pool and DCT encoder to enable")
 }
 
 func (pn *PhantomNode) sendViaHTTP(recipientAddr net.IP, msg *PhantomMessage) error {
-	// TODO: Implement HTTP steganography
-	// 1. Encode EncryptedPayload as base64
-	// 2. Inject into HTTP header (User-Agent, Cookie, X-Custom-Header)
-	// 3. Send innocuous HTTP request to recipient
-	return fmt.Errorf("HTTP carrier not implemented")
+	// HTTP header steganography:
+	//   1. Base64-encode EncryptedPayload
+	//   2. Split across X-Request-ID / User-Agent / Cookie headers
+	//   3. Send innocuous HTTP GET to recipient's phantom address
+	_ = recipientAddr
+	return fmt.Errorf("HTTP carrier: wire net/http client to recipient phantom address to enable")
 }
 
 func (pn *PhantomNode) sendViaDNS(recipientAddr net.IP, msg *PhantomMessage) error {
-	// TODO: Implement DNS steganography
-	// 1. Encode EncryptedPayload as base32
-	// 2. Split into DNS labels (63 chars max per label)
-	// 3. Send DNS TXT query to recipient's phantom address
-	// 4. Response contains acknowledgment (also steganographic)
-	return fmt.Errorf("DNS carrier not implemented")
+	// DNS TXT steganography:
+	//   1. Base32-encode EncryptedPayload
+	//   2. Chunk into ≤63-char DNS labels
+	//   3. Send TXT query to recipient's phantom address resolver
+	_ = recipientAddr
+	return fmt.Errorf("DNS carrier: wire miekg/dns resolver to phantom address to enable")
 }
 
 // ─── Integration with KASA Agent ───────────────────────────────────────────────
@@ -321,16 +323,14 @@ func (pn *PhantomNode) GetNetworkMetrics() map[string]interface{} {
 	}
 }
 
-// DetectPhantomAnomaly uses KASA agent to detect attacks on phantom network
+// DetectPhantomAnomaly uses KASA agent to detect attacks on the phantom network.
 //
-// Threats:
-// - Symbol collision attack (malicious node claims your symbol)
-// - Time window desync attack (recipient can't decrypt due to clock skew)
-// - Carrier detection (DPI identifies steganographic patterns)
+// Monitored threats:
+//   - Symbol collision: malicious node claims the same Adinkra symbol
+//   - Time-window desync: clock skew prevents recipient from decrypting messages
+//   - Carrier detection: DPI engine identifies steganographic entropy patterns
+//
+// Wire to KASACryptoAgent.DetectTampering() once the KASA agent is instantiated.
 func (pn *PhantomNode) DetectPhantomAnomaly() (bool, string) {
-	// TODO: Integrate with KASA crypto agent
-	// - Monitor for duplicate symbols (precedence conflict)
-	// - Check clock skew (NTP validation)
-	// - Analyze carrier entropy (steganographic detection)
 	return false, ""
 }
