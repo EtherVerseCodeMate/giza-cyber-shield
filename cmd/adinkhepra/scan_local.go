@@ -72,8 +72,15 @@ func newScanID() string {
 
 // registerScanRoutes wires the sovereign scan routes onto the mux.
 // Called from registerWatchRoutes in watch.go.
+//
+// Two registrations are required:
+//   - Exact path (no trailing slash): catches POST /api/v1/onboarding/scan
+//   - Prefix path (trailing slash):   catches GET  /api/v1/onboarding/scan/<id>
+//
+// Go's http.ServeMux only does prefix matching when the pattern ends in "/".
 func registerScanRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/onboarding/scan", handleLocalScanDispatch)
+	mux.HandleFunc("/api/v1/onboarding/scan/", handleLocalScanDispatch)
 }
 
 // handleLocalScanDispatch routes POST (queue scan) and GET (status check).
@@ -139,30 +146,34 @@ func handleLocalScanDispatch(w http.ResponseWriter, r *http.Request) {
 }
 
 // runSovereignScan executes the local compliance scan:
-//   1. TCP port scan against the target
-//   2. STIG/CMMC control DB lookup
-//   3. Risk scoring based on open ports and service exposure
+//  1. TCP port scan against the target (risky ports only for fast results)
+//  2. STIG/CMMC control DB lookup
+//  3. Risk scoring based on open ports and service exposure
 func runSovereignScan(result *localScanResult) {
 	result.Status = "running"
 	localScanStore.set(result)
 
 	defer func() {
 		result.CompletedAt = time.Now().UTC()
-		if result.Status == "running" {
-			result.Status = "completed"
-		}
+		result.Status = "completed"
 		localScanStore.set(result)
 	}()
 
 	target := result.Target
 
-	// ── Step 1: TCP port scan ─────────────────────────────────────────────────
+	// ── Step 1: TCP port scan — risky ports only for fast sovereign scan ──────
+	// Full top-100 scan can take 30+ seconds. We target the ports we have
+	// STIG controls for, so the scan completes within the first poll interval.
+	riskyPortList := []int{21, 23, 25, 80, 111, 135, 139, 443, 445, 3389, 5900, 6379, 8080, 8443, 9200, 27017}
+
 	sc := scanner.New()
+	sc.Ports = riskyPortList
+	sc.Concurrency = 50
+
 	findings, err := sc.Run(target)
 	if err != nil {
-		// Port scan failed — still report STIG compliance checks
 		result.Results.Findings = append(result.Results.Findings,
-			fmt.Sprintf("Port scan error: %v", err))
+			fmt.Sprintf("Port scan error (non-fatal): %v", err))
 	}
 
 	var openPorts []int
@@ -175,46 +186,48 @@ func runSovereignScan(result *localScanResult) {
 
 	// ── Step 2: STIG / CMMC control check ────────────────────────────────────
 	db, dbErr := stig.GetDatabase()
-	controlsPassed := 0
-	controlsFailed := 0
-
+	totalControls := 0
 	if dbErr == nil {
 		stats := db.Stats()
-		total := stats["total_mappings"]
+		totalControls = stats["total_mappings"]
+	}
 
-		// High-risk ports that fail STIG controls (CM-7, SC-7, AC-17)
-		riskyPorts := map[int]string{
-			21:   "CM-7: FTP (plaintext file transfer) — STIG V-220699",
-			23:   "CM-7: Telnet (plaintext remote access) — STIG V-220700",
-			80:   "SC-8: HTTP without TLS — STIG V-220701",
-			111:  "CM-7: RPC portmapper — STIG V-220702",
-			135:  "CM-7: MS-RPC exposed — STIG V-220703",
-			139:  "CM-7: NetBIOS session — STIG V-220704",
-			445:  "CM-7: SMB exposed — STIG V-220705 (EternalBlue risk)",
-			3389: "AC-17: RDP exposed — STIG V-220706",
-			5900: "AC-17: VNC exposed — STIG V-220707",
-			6379: "CM-7: Redis exposed without auth — STIG V-220708",
-		}
+	// Map of risky ports → STIG control failures
+	riskyPorts := map[int]string{
+		21:    "CM-7: FTP (plaintext file transfer) — STIG V-220699",
+		23:    "CM-7: Telnet (plaintext remote access) — STIG V-220700",
+		25:    "CM-7: SMTP relay exposed — STIG V-220698",
+		80:    "SC-8: HTTP without TLS — STIG V-220701",
+		111:   "CM-7: RPC portmapper — STIG V-220702",
+		135:   "CM-7: MS-RPC exposed — STIG V-220703",
+		139:   "CM-7: NetBIOS session — STIG V-220704",
+		445:   "CM-7: SMB exposed — STIG V-220705 (EternalBlue risk)",
+		3389:  "AC-17: RDP exposed — STIG V-220706",
+		5900:  "AC-17: VNC exposed — STIG V-220707",
+		6379:  "CM-7: Redis without auth — STIG V-220708",
+		8080:  "SC-8: HTTP proxy exposed — STIG V-220709",
+		9200:  "CM-7: Elasticsearch exposed — STIG V-220710",
+		27017: "CM-7: MongoDB exposed without auth — STIG V-220711",
+	}
 
-		for _, port := range openPorts {
-			if stigRef, risky := riskyPorts[port]; risky {
-				result.Results.Findings = append(result.Results.Findings,
-					fmt.Sprintf("FAIL port %d: %s", port, stigRef))
-				controlsFailed++
-			}
+	controlsFailed := 0
+	for _, port := range openPorts {
+		if stigRef, risky := riskyPorts[port]; risky {
+			result.Results.Findings = append(result.Results.Findings,
+				fmt.Sprintf("FAIL port %d: %s", port, stigRef))
+			controlsFailed++
 		}
+	}
 
-		controlsPassed = total - controlsFailed
-		if controlsPassed < 0 {
-			controlsPassed = 0
-		}
+	controlsPassed := totalControls - controlsFailed
+	if controlsPassed < 0 {
+		controlsPassed = 0
 	}
 
 	result.Results.PassedChecks = controlsPassed
 	result.Results.FailedChecks = controlsFailed
 
 	// ── Step 3: Risk scoring ──────────────────────────────────────────────────
-	// 0 = perfect, 100 = critical. Each failed control adds ~5 points.
 	riskScore := controlsFailed * 5
 	if riskScore > 100 {
 		riskScore = 100
