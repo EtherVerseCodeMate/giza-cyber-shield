@@ -227,7 +227,7 @@ func runERTScan(args map[string]any, session *SessionContext) (any, error) {
 	}, nil
 }
 
-func runGodfatherSynthesis(args map[string]any, session *SessionContext) (any, error) {
+func runGodfatherSynthesis(_ map[string]any, session *SessionContext) (any, error) {
 	// EA synthesis request — routes to the Evolutionary Algorithm engine.
 	// The EA engine (pkg/ea) runs on the host; this binary provides
 	// the PQC session context and attestation for the synthesis output.

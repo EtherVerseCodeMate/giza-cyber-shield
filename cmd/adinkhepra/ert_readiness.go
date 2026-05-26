@@ -256,6 +256,9 @@ func computeAlignmentScore(summary nist80171.ComplianceSummary, scaPenalty int) 
 // ─────────────────────────────────────────────────────────────────────────────
 
 // detectRegulatoryConflicts analyzes codebase for compliance-relevant patterns.
+// Called by ERT compliance tools via the MCP tool layer.
+//
+//nolint:unused
 func detectRegulatoryConflicts(dir string) {
 	entries, _ := os.ReadDir(dir)
 	hasDataMonetization := false
@@ -384,7 +387,9 @@ func scanForStrategyDocs(dir string) []string {
 
 // calculateAlignmentScore is kept for backward compatibility with ert_godfather.go.
 // New callers should use computeAlignmentScore.
-func calculateAlignmentScore(dir string) int {
+//
+//nolint:unused
+func calculateAlignmentScore(_ string) int {
 	v := nist80171.NewValidator()
 	results := v.ValidateACFamily()
 
