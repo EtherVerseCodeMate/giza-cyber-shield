@@ -45,6 +45,9 @@ func ertReadinessCmd(args []string) {
 		printSlow("[*] Parsing Codebase Structure for Strategic Intent...")
 	}
 
+	// Scan for regulatory conflicts (data monetization, multi-region, export controls)
+	detectRegulatoryConflicts(targetDir)
+
 	// ── NIST 800-171 compliance scoring ──────────────────────────────────────
 	fmt.Println("\n[*] Initializing NIST 800-171 Rev 2 Compliance Engine...")
 	loadingBar("    Loading Control Catalog (110 controls)", 2*time.Second)
@@ -256,9 +259,7 @@ func computeAlignmentScore(summary nist80171.ComplianceSummary, scaPenalty int) 
 // ─────────────────────────────────────────────────────────────────────────────
 
 // detectRegulatoryConflicts analyzes codebase for compliance-relevant patterns.
-// Called by ERT compliance tools via the MCP tool layer.
-//
-//nolint:unused
+// Called during the ERT readiness scan after strategy doc ingestion.
 func detectRegulatoryConflicts(dir string) {
 	entries, _ := os.ReadDir(dir)
 	hasDataMonetization := false
@@ -383,32 +384,6 @@ func scanForStrategyDocs(dir string) []string {
 	}
 
 	return files
-}
-
-// calculateAlignmentScore is kept for backward compatibility with ert_godfather.go.
-// New callers should use computeAlignmentScore.
-//
-//nolint:unused
-func calculateAlignmentScore(_ string) int {
-	v := nist80171.NewValidator()
-	results := v.ValidateACFamily()
-
-	summary := nist80171.ComplianceSummary{TotalControls: len(results)}
-	for _, r := range results {
-		switch r.Status {
-		case "PASS":
-			summary.Passed++
-		case "FAIL":
-			summary.Failed++
-		case "MANUAL_REVIEW":
-			summary.ManualReview++
-		}
-	}
-	if summary.TotalControls > 0 {
-		partial := float64(summary.Passed) + float64(summary.ManualReview)*0.5
-		summary.Score = partial / float64(summary.TotalControls) * 100.0
-	}
-	return computeAlignmentScore(summary, 0)
 }
 
 // getRiskLabel returns risk classification based on score
