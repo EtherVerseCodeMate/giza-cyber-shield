@@ -101,6 +101,8 @@ __pycache__/
 
 # Temporary / Garbage
 NUL
+# Wrangler (Cloudflare Workers) build artifacts
+.wrangler/
 .claude/
 demo-snapshot.json
 *.tmp
