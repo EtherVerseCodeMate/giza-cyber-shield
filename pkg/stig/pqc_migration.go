@@ -1,35 +1,99 @@
 package stig
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"time"
 )
 
+
 // validatePQCReadiness performs post-quantum cryptography readiness assessment
 func (v *Validator) validatePQCReadiness(result *ValidationResult) error {
 	result.Version = "1.0"
 
-	// PQC readiness checks
+	// PQC readiness checks — each populates result.Findings
 	v.checkPQC_TLS(result)
 	v.checkPQC_SSH(result)
 	v.checkPQC_Certificates(result)
 	v.checkPQC_VPN(result)
 	v.checkPQC_CodeSigning(result)
 
-	// Calculate PQC readiness metrics. These values are currently written to
-	// logs only; they will be surfaced in the ValidationResult struct when
-	// the dashboard integration is merged (see pkg/telemetry/pqc_dashboard.go).
+	// Compute PQC metrics from the findings generated above.
+	// These were previously discarded; they now feed into a summary finding
+	// and into the BlastRadiusAnalysis populated by analyzePQCBlastRadius().
 	inventory := v.assessCryptographicInventory()
 	score := v.calculatePQCReadinessScore(result.Findings)
-	days, cost := v.estimateMigrationEffort(len(result.Findings))
+	migrationDays, migrationCost := v.estimateMigrationEffort(len(result.Findings))
 
-	_ = inventory
-	_ = score
-	_ = days
-	_ = cost
+	// Build a human-readable inventory narrative for the summary finding.
+	inventoryDesc := "Cryptographic asset inventory:\n"
+	for asset, count := range inventory {
+		if count > 0 {
+			inventoryDesc += fmt.Sprintf("  • %s: %d\n", asset, count)
+		}
+	}
+
+	// Add a summary finding that surfaces NTI score, migration estimate, and inventory.
+	// This is the finding that appears in both the PDF report and the Godfather Report.
+	summaryStatus := "Fail"
+	if score >= 95.0 {
+		summaryStatus = "Pass"
+	}
+
+	result.Findings = append(result.Findings, Finding{
+		ID:    "PQC-INVENTORY-SUMMARY",
+		Title: "Post-Quantum Cryptography Readiness Summary",
+		Description: fmt.Sprintf(
+			"Overall PQC readiness score: %.1f%%. "+
+				"Estimated migration effort: %d days / $%.0f USD. "+
+				"\n%s",
+			score, migrationDays, migrationCost, inventoryDesc,
+		),
+		Severity:    SeverityHigh,
+		Status:      summaryStatus,
+		Expected:    "PQC readiness score ≥ 95% (all algorithms upgraded to NIST FIPS 204/203)",
+		Actual:      fmt.Sprintf("Current readiness: %.1f%% — %d assets require PQC migration", score, len(result.Findings)-1),
+		Remediation: fmt.Sprintf("Execute PQC migration roadmap. Estimated: %d days, $%.0f USD.", migrationDays, migrationCost),
+		References: []string{
+			"NIST-FIPS-204: ML-DSA (Dilithium)",
+			"NIST-FIPS-203: ML-KEM (Kyber)",
+			"NSA-CNSA-2.0",
+			"NIST-800-53:SC-13",
+		},
+		CheckedAt: time.Now(),
+	})
+
+	// Store the computed metrics so analyzePQCBlastRadius() can pick them up
+	// via the validator's PQC result entry (v.report.Results[FrameworkPQC]).
+	// The blast radius struct is assembled later in validator.Validate() →
+	// analyzePQCBlastRadius(). We annotate the result metadata here so the
+	// PDF exporter can render them without re-computing.
+	result.PQCMetrics = &PQCMetrics{
+		ReadinessScore:      score,
+		EstimatedDays:       migrationDays,
+		EstimatedCostUSD:    migrationCost,
+		CryptoInventory:     inventory,
+		TotalAssetsFound:    sumInventory(inventory),
+		VulnerableAssets:    countVulnerableAssets(inventory),
+	}
 
 	return nil
+}
+
+// sumInventory returns the total number of cryptographic assets found.
+func sumInventory(inv map[string]int) int {
+	total := 0
+	for _, n := range inv {
+		total += n
+	}
+	return total
+}
+
+// countVulnerableAssets returns the count of assets that are classical (non-PQC).
+// All discovered assets are considered vulnerable until KHEPRA confirms PQC upgrade.
+func countVulnerableAssets(inv map[string]int) int {
+	return sumInventory(inv)
 }
 
 func (v *Validator) checkPQC_TLS(result *ValidationResult) {
