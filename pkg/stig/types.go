@@ -31,6 +31,17 @@ type Finding struct {
 	CheckedAt   time.Time // When this check was performed
 }
 
+// PQCMetrics holds the computed PQC readiness metrics from validatePQCReadiness.
+// Previously these were silently discarded (G-1 bug fix).
+type PQCMetrics struct {
+	ReadinessScore   float64        // 0–100%, overall PQC posture
+	EstimatedDays    int            // Days to reach full PQC compliance
+	EstimatedCostUSD float64        // Labour cost estimate (USD)
+	CryptoInventory  map[string]int // Asset type → count discovered
+	TotalAssetsFound int            // Total cryptographic assets enumerated
+	VulnerableAssets int            // Assets using classical (non-PQC) algorithms
+}
+
 // ValidationResult represents results for a single framework
 type ValidationResult struct {
 	Framework     string        // "RHEL-09-STIG-V1R3", "CIS-RHEL-9-L1", etc.
@@ -44,6 +55,10 @@ type ValidationResult struct {
 	StartTime     time.Time     // Validation start time
 	EndTime       time.Time     // Validation end time
 	Duration      time.Duration // Total validation duration
+
+	// PQCMetrics is populated only for FrameworkPQC results.
+	// It carries the computed metrics that were previously discarded.
+	PQCMetrics *PQCMetrics `json:"pqc_metrics,omitempty"`
 }
 
 // ComplianceScore calculates compliance percentage
@@ -103,18 +118,30 @@ type BlastRadiusAnalysis struct {
 	LongTermActions  []string // Actions within 12 months
 }
 
-// POAMItem represents a single Plan of Action & Milestones item
+// POAMItem represents a single Plan of Action & Milestones item.
+// Compliant with NIST SP 800-171A POAM format requirements.
 type POAMItem struct {
-	ID                  string    // Unique POAM ID
-	ControlID           string    // Related control ID
-	Weakness            string    // Description of weakness
-	Severity            Severity  // Weakness severity
-	Status              string    // "Open", "In Progress", "Completed", "Risk Accepted"
-	PointOfContact      string    // Responsible party
-	EstimatedCost       float64   // Estimated remediation cost (USD)
-	ScheduledCompletion time.Time // Target completion date
-	MilestoneActions    []string  // Specific actions to remediate
-	Resources           []string  // Required resources
+	ID                  string    `json:"id"`                   // Unique POAM ID (e.g., POAM-2026-001)
+	ControlID           string    `json:"control_id"`           // Related control ID
+	Weakness            string    `json:"weakness"`             // Description of weakness
+	Severity            Severity  `json:"severity"`             // Weakness severity
+	Status              string    `json:"status"`               // "Open", "In Progress", "Completed", "Risk Accepted"
+	PointOfContact      string    `json:"point_of_contact"`     // Responsible party
+	EstimatedCost       float64   `json:"estimated_cost_usd"`   // Estimated remediation cost (USD)
+	ScheduledCompletion time.Time `json:"scheduled_completion"` // Target completion date
+	MilestoneActions    []string  `json:"milestone_actions"`    // Specific actions to remediate
+	Resources           []string  `json:"resources"`            // Required resources
+
+	// Priority scoring fields (dollar-weighted, added for SOW POAM deliverable)
+	DollarImpact    float64 `json:"dollar_impact_usd"`  // Financial exposure from this weakness
+	SeverityWeight  float64 `json:"severity_weight"`    // Multiplier: CAT I=3.0, CAT II=2.0, CAT III=1.0
+	PriorityScore   float64 `json:"priority_score"`     // DollarImpact / EstimatedDays * SeverityWeight
+	EstimatedDays   int     `json:"estimated_days"`     // Days to remediate
+
+	// eMASS / evidence tracking (Sprint B)
+	EvidenceRefs    []string  `json:"evidence_refs,omitempty"` // DAG node IDs proving closure
+	EMASSArtifactID string    `json:"emass_artifact_id,omitempty"`
+	ClosedAt        *time.Time `json:"closed_at,omitempty"`
 }
 
 // RemediationResult represents the outcome of an automated fix
