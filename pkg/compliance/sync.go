@@ -154,8 +154,8 @@ func NewSTIGViewerClient() *STIGViewerClient {
 	}
 }
 
-// STIGBenchmark represents metadata for a STIG benchmark.
-type STIGBenchmark struct {
+// STIGViewerBenchmark represents metadata for a STIG benchmark from the STIG Viewer API.
+type STIGViewerBenchmark struct {
 	ID          string `json:"id"`
 	Title       string `json:"title"`
 	Version     string `json:"version"`
@@ -163,20 +163,21 @@ type STIGBenchmark struct {
 	Description string `json:"description"`
 }
 
-// STIGRule represents a single STIG rule / check.
-type STIGRule struct {
-	ID          string `json:"id"`
-	Version     string `json:"version"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Severity    string `json:"severity"` // "high", "medium", "low"
-	CheckText   string `json:"check"`
-	FixText     string `json:"fix"`
+// STIGViewerRule represents a single STIG rule / check from the STIG Viewer API.
+// Distinct from compliance.STIGRule which is used for local CSV-based mapping.
+type STIGViewerRule struct {
+	ID          string   `json:"id"`
+	Version     string   `json:"version"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Severity    string   `json:"severity"` // "high", "medium", "low"
+	CheckText   string   `json:"check"`
+	FixText     string   `json:"fix"`
 	CCI         []string `json:"cci_refs"`
 }
 
 // FetchBenchmark retrieves benchmark metadata by ID (e.g., "RHEL-09").
-func (c *STIGViewerClient) FetchBenchmark(benchmarkID string) (*STIGBenchmark, error) {
+func (c *STIGViewerClient) FetchBenchmark(benchmarkID string) (*STIGViewerBenchmark, error) {
 	url := fmt.Sprintf("%s/stig/%s", c.baseURL, benchmarkID)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -197,7 +198,7 @@ func (c *STIGViewerClient) FetchBenchmark(benchmarkID string) (*STIGBenchmark, e
 		return nil, fmt.Errorf("STIG Viewer API returned %d for benchmark %s", resp.StatusCode, benchmarkID)
 	}
 
-	var benchmark STIGBenchmark
+	var benchmark STIGViewerBenchmark
 	if err := json.NewDecoder(resp.Body).Decode(&benchmark); err != nil {
 		return nil, fmt.Errorf("decode benchmark: %w", err)
 	}
@@ -206,7 +207,7 @@ func (c *STIGViewerClient) FetchBenchmark(benchmarkID string) (*STIGBenchmark, e
 
 // FetchRules retrieves all rules for a benchmark. Returns live check text
 // and remediation guidance that can enrich POAM milestone actions.
-func (c *STIGViewerClient) FetchRules(benchmarkID string) ([]STIGRule, error) {
+func (c *STIGViewerClient) FetchRules(benchmarkID string) ([]STIGViewerRule, error) {
 	url := fmt.Sprintf("%s/stig/%s/rules", c.baseURL, benchmarkID)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -225,7 +226,7 @@ func (c *STIGViewerClient) FetchRules(benchmarkID string) ([]STIGRule, error) {
 	}
 
 	var result struct {
-		Rules []STIGRule `json:"rules"`
+		Rules []STIGViewerRule `json:"rules"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("decode rules: %w", err)
@@ -235,7 +236,7 @@ func (c *STIGViewerClient) FetchRules(benchmarkID string) ([]STIGRule, error) {
 
 // EnrichFinding looks up a rule by STIG rule ID and returns enriched
 // check text and fix guidance from the live STIG Viewer database.
-func (c *STIGViewerClient) EnrichFinding(benchmarkID, ruleID string) (*STIGRule, error) {
+func (c *STIGViewerClient) EnrichFinding(benchmarkID, ruleID string) (*STIGViewerRule, error) {
 	url := fmt.Sprintf("%s/stig/%s/rule/%s", c.baseURL, benchmarkID, ruleID)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -253,7 +254,7 @@ func (c *STIGViewerClient) EnrichFinding(benchmarkID, ruleID string) (*STIGRule,
 		return nil, fmt.Errorf("rule %s not found in benchmark %s (%d)", ruleID, benchmarkID, resp.StatusCode)
 	}
 
-	var rule STIGRule
+	var rule STIGViewerRule
 	if err := json.NewDecoder(resp.Body).Decode(&rule); err != nil {
 		return nil, err
 	}
