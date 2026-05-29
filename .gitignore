@@ -110,6 +110,7 @@ ANONYMOUS_GIT_*.md
 pkg/llm/ollama/manifests/registry.ollama.ai/library/gemma3/4b
 .vercel
 .env*.local
+.env
 
 # ── Trestle / OSCAL compliance workspace ──────────────────────────────────────
 # Public NIST catalogs — re-downloadable, too large to commit (10MB+)
