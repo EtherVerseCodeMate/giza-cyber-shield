@@ -46,8 +46,10 @@ ENVIRONMENT = "production"
 # The Go DEMARC API URL (Fly.io)
 KHEPRA_API_URL = "https://souhimbou-ai.fly.dev"
 
-# Supabase project URL (from .env)
-SUPABASE_URL = "https://xjknkjbrjgljuovaazeu.supabase.co"
+# Supabase project URL (set SUPABASE_PROJECT_REF in .env / CI secrets)
+# Do not hardcode the project ref in this file.
+SUPABASE_URL = "https://${SUPABASE_PROJECT_REF}.supabase.co"
+
 
 # ─── Secrets (set via: wrangler secret put SECRET_NAME) ───────────────────────
 # wrangler secret put KHEPRA_SERVICE_SECRET   --config wrangler.mcp.toml
