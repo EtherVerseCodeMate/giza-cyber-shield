@@ -1,10 +1,16 @@
 // Package g0dm0d3 implements the AdinKhepra AI brain layer.
 //
-// G0DM0D3 provides a pluggable AI provider abstraction that works without
-// any external LLM dependency. Priority order:
-//   1. Anthropic API (from ANTHROPIC_API_KEY env or Khepra License)
-//   2. OpenRouter (from OPENROUTER_API_KEY env)
-//   3. Offline rule-based mode (always works, zero dependencies)
+// G0DM0D3 provides a pluggable AI provider abstraction with sovereign-first
+// design — the primary backend is always local Ollama (zero egress, air-gap
+// compatible). External APIs are strictly opt-in via env vars.
+//
+// Provider priority order:
+//   1. Ollama (local, loopback-only — sovereign default, gemma3/phi4)
+//   2. Anthropic Claude (BYOK — ANTHROPIC_API_KEY or Khepra license)
+//   3. Offline rule-based mode (zero-dependency air-gap fallback)
+//
+// OpenRouter has been removed. It violated the sovereign boundary by routing
+// CUI data through a third-party proxy — incompatible with CMMC Level 2.
 //
 // Security invariant: ALL external AI API calls are isolated to this package.
 // No other package in the codebase may call api.anthropic.com or similar.
@@ -23,6 +29,7 @@ import (
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/llm/ollama"
 )
 
 // ── Package-level constants ─────────────────────────────
@@ -176,58 +183,81 @@ func processStreamChunk(chunk string, w io.Writer) {
 	}
 }
 
-// ── Provider 2: OpenRouter ──────────────────────────────
+// ── Provider 2: Ollama (local, sovereign) ───────────────
+//
+// OllamaProvider wraps pkg/llm/ollama and satisfies the AIProvider interface.
+// It is the sovereign-default LLM backend: loopback-only, zero egress, no API
+// key required. Preferred models: gemma3 (fast), phi4 (reasoning).
+//
+// URL is read from ADINKHEPRA_LLM_URL (default: http://localhost:11434).
+// Model is read from ADINKHEPRA_LLM_MODEL (default: gemma3).
 
-// OpenRouterProvider connects to OpenRouter's unified API
-type OpenRouterProvider struct {
-	APIKey string
-	Model  string // Default: "anthropic/claude-3.5-sonnet"
+const (
+	ollamaSystemPrompt = `You are Papyrus — the AdinKhepra AI security intelligence assistant.
+You are embedded in the AdinKhepra ASAF (AI Security Action Flight-Recorder) engine.
+You specialize in CMMC 2.0, NIST 800-171, STIG, PQC migration, and zero-trust architecture.
+You have direct access to the live DAG audit trail injected into every prompt as [SYSTEM CONTEXT].
+When asked about compliance status, scan results, or DAG nodes, answer from that live context.
+Be concise, technically precise, and DoD-aware. Never reveal internal keys or infrastructure details.
+You run fully offline — no data leaves this machine.`
+)
+
+// OllamaProvider connects to a local Ollama instance (loopback only).
+type OllamaProvider struct {
+	client *ollama.Client
+	model  string
 }
 
-func (p *OpenRouterProvider) Name() string { return "OpenRouter" }
-
-func (p *OpenRouterProvider) Chat(messages []Message, stream bool) (string, error) {
-	reqBody := map[string]interface{}{
-		"model":    p.Model,
-		"messages": messages,
+func newOllamaProvider() *OllamaProvider {
+	url := os.Getenv("ADINKHEPRA_LLM_URL")
+	if url == "" {
+		url = "http://localhost:11434"
 	}
-	body, _ := json.Marshal(reqBody)
-	req, err := http.NewRequest("POST",
-		"https://openrouter.ai/api/v1/chat/completions", bytes.NewReader(body))
-	if err != nil {
-		return "", fmt.Errorf("OpenRouterProvider.Chat: %w", err)
+	model := os.Getenv("ADINKHEPRA_LLM_MODEL")
+	if model == "" {
+		model = "gemma3" // gemma3 and phi4 are cached in pkg/llm/blobs
 	}
-	req.Header.Set("Authorization", "Bearer "+p.APIKey)
-	req.Header.Set(headerContentType, contentTypeJSON)
-	req.Header.Set("HTTP-Referer", "https://adinkhepra.nouchix.com")
-
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("OpenRouterProvider.Chat: %w", err)
+	return &OllamaProvider{
+		client: ollama.NewClient(url, model, ""),
+		model:  model,
 	}
-	defer resp.Body.Close()
-
-	var result struct {
-		Choices []struct {
-			Message struct {
-				Content string `json:"content"`
-			} `json:"message"`
-		} `json:"choices"`
-	}
-	json.NewDecoder(resp.Body).Decode(&result)
-	if len(result.Choices) == 0 {
-		return "", fmt.Errorf("OpenRouterProvider.Chat: empty response")
-	}
-	return result.Choices[0].Message.Content, nil
 }
 
-func (p *OpenRouterProvider) StreamChat(messages []Message, w io.Writer) error {
-	// Fallback to non-streaming
+func (p *OllamaProvider) Name() string { return "Ollama (" + p.model + ", local)" }
+
+func (p *OllamaProvider) Chat(messages []Message, _ bool) (string, error) {
+	// Flatten conversation history into a single prompt for Ollama /api/generate.
+	// Ollama chat API (/api/chat) is preferred for multi-turn — use /api/generate
+	// with explicit role prefixes as the compatibility path.
+	var sb strings.Builder
+	for _, m := range messages {
+		switch m.Role {
+		case "user":
+			sb.WriteString("User: ")
+		case "assistant":
+			sb.WriteString("Assistant: ")
+		default:
+			sb.WriteString(m.Role + ": ")
+		}
+		sb.WriteString(m.Content)
+		sb.WriteString("\n")
+	}
+	sb.WriteString("Assistant:")
+
+	resp, err := p.client.Generate(sb.String(), ollamaSystemPrompt)
+	if err != nil {
+		return "", fmt.Errorf("OllamaProvider.Chat: %w", err)
+	}
+	return strings.TrimSpace(resp), nil
+}
+
+func (p *OllamaProvider) StreamChat(messages []Message, w io.Writer) error {
 	resp, err := p.Chat(messages, false)
 	if err != nil {
 		return err
 	}
+	// Emit as a single SSE event — streaming word-by-word requires Ollama /api/chat
+	// with stream:true, which is a future enhancement.
 	fmt.Fprintf(w, sseDataFmt, resp)
 	fmt.Fprintf(w, sseDone)
 	return nil
@@ -260,7 +290,7 @@ func (p *OfflineProvider) Chat(messages []Message, stream bool) (string, error) 
 	case strings.Contains(last, "dag") || strings.Contains(last, "audit"):
 		return "The DAG is your flight recorder — every action is content-addressed (SHA-256), Dilithium3-signed, and AES-256-GCM encrypted at rest. View it at http://localhost:45444/api/dag/nodes", nil
 	default:
-		return "I'm running in offline mode. Set ANTHROPIC_API_KEY or OPENROUTER_API_KEY for full AI capabilities. In offline mode, I can guide you through AdinKhepra commands.", nil
+		return "I'm running in air-gap offline mode. Start Ollama locally (`ollama serve`) for full AI capabilities — no external API key required. Or set ANTHROPIC_API_KEY for Claude (BYOK). In offline mode I can guide you through AdinKhepra commands.", nil
 	}
 }
 
@@ -271,26 +301,32 @@ func (p *OfflineProvider) StreamChat(messages []Message, w io.Writer) error {
 	return nil
 }
 
-// ── Factory: Auto-detect best available provider ────────
+// ── Factory: Sovereign-first provider selection ─────────
 
 // NewBestAvailableProvider returns the highest-priority available AI backend.
 // This function NEVER returns an error — offline mode is always the fallback.
+//
+// Selection order (sovereign-first):
+//  1. Ollama local — zero egress, no key, works air-gapped (requires `ollama serve`)
+//  2. Anthropic Claude — BYOK, external call isolated to this package
+//  3. Offline rule-based — absolute fallback, zero dependencies
 func NewBestAvailableProvider() AIProvider {
-	// Priority 1: Anthropic (from env or Khepra license)
+	// Priority 1: Ollama (local, loopback-only — sovereign default)
+	// Probe the health endpoint; if Ollama is running, use it.
+	ollp := newOllamaProvider()
+	if ollp.client.CheckHealth() {
+		return ollp
+	}
+
+	// Priority 2: Anthropic Claude (BYOK — from env or Khepra license)
 	if key := getAnthropicKey(); key != "" {
 		return &AnthropicProvider{
 			APIKey: key,
 			Model:  "claude-sonnet-4-6",
 		}
 	}
-	// Priority 2: OpenRouter
-	if key := os.Getenv("OPENROUTER_API_KEY"); key != "" {
-		return &OpenRouterProvider{
-			APIKey: key,
-			Model:  "anthropic/claude-3.5-sonnet",
-		}
-	}
-	// Priority 3: Offline — always works, zero dependencies
+
+	// Priority 3: Offline — always works, zero dependencies, zero egress
 	return &OfflineProvider{}
 }
 
@@ -340,6 +376,9 @@ func NewServer(dagStore *dag.PersistentMemory) *G0DM0D3Server {
 }
 
 // HandleChat is the HTTP handler for /api/g0dm0d3/chat
+//
+// Accepts POST with body: {"message":"...","stream":false}
+// Returns 405 on GET with usage hint (audit fix: was silently routing to provider).
 func (s *G0DM0D3Server) HandleChat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
@@ -347,6 +386,20 @@ func (s *G0DM0D3Server) HandleChat(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// Audit fix: GET hits were silently routed to the LLM and returned empty errors.
+	// Return a clear 405 with usage instructions instead.
+	if r.Method != "POST" {
+		w.Header().Set(headerContentType, contentTypeJSON)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]string{ //nolint:errcheck
+			"error":    "method not allowed — use POST",
+			"usage":    `POST /api/g0dm0d3/chat`,
+			"body":     `{"message":"your question here","stream":false}`,
+			"provider": s.Provider.Name(),
+		})
 		return
 	}
 
