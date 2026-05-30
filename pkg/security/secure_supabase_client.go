@@ -1,3 +1,5 @@
+//go:build saas
+
 // Package security - Secure Supabase Client with Automatic PQC Encryption
 //
 // This client transparently encrypts ALL data before INSERT and decrypts after SELECT.

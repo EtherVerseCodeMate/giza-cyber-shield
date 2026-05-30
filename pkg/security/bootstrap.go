@@ -1,3 +1,5 @@
+//go:build saas
+
 // Package security - Bootstrap PQC Security Framework
 //
 // This module initializes ALL security components at application startup:
