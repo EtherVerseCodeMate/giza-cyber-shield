@@ -306,28 +306,82 @@ func (v *Validator) identifyHighRiskSystems(checker *SystemChecker) []string {
 	return highRisk
 }
 
-// generatePOAM creates Plan of Action & Milestones items
+// generatePOAM creates Plan of Action & Milestones items with dollar-weighted priority sorting.
+// Each non-compliant finding becomes a tracked POAM item with financial exposure,
+// remediation effort estimate, and a priority score for sequencing.
 func (v *Validator) generatePOAM() {
 	v.report.POAMItems = []POAMItem{}
+	counter := 1
 
-	// Generate POAM item for each failed finding
+	// Severity → days-to-remediate and financial weight constants.
+	// Based on IBM Cost of Data Breach Report 2024 ($500K baseline) and
+	// typical DoD remediation effort benchmarks.
+	type severityConfig struct {
+		days   int
+		weight float64
+		cost   float64 // USD per finding
+	}
+	severityMap := map[Severity]severityConfig{
+		SeverityCAT1:     {days: 7, weight: 3.0, cost: 150000},
+		SeverityCritical: {days: 7, weight: 3.0, cost: 150000},
+		SeverityCAT2:     {days: 14, weight: 2.0, cost: 50000},
+		SeverityHigh:     {days: 14, weight: 2.0, cost: 50000},
+		SeverityCAT3:     {days: 30, weight: 1.0, cost: 10000},
+		SeverityMedium:   {days: 30, weight: 1.0, cost: 10000},
+		SeverityLow:      {days: 60, weight: 0.5, cost: 2500},
+	}
+	defaultConfig := severityConfig{days: 30, weight: 1.0, cost: 10000}
+
+	// Generate POAM item for each failed finding across all frameworks.
 	for _, result := range v.report.Results {
 		for _, finding := range result.Findings {
-			if finding.Status == "Fail" {
-				poam := POAMItem{
-					ID:                  fmt.Sprintf("POAM-%s", finding.ID),
-					ControlID:           finding.ID,
-					Weakness:            finding.Description,
-					Severity:            finding.Severity,
-					Status:              "Open",
-					ScheduledCompletion: time.Now().Add(30 * 24 * time.Hour), // Default: 30 days
-					MilestoneActions:    []string{finding.Remediation},
-				}
-				v.report.POAMItems = append(v.report.POAMItems, poam)
+			if finding.Status != "Fail" {
+				continue
+			}
+
+			cfg, ok := severityMap[finding.Severity]
+			if !ok {
+				cfg = defaultConfig
+			}
+
+			priorityScore := 0.0
+			if cfg.days > 0 {
+				priorityScore = (cfg.cost / float64(cfg.days)) * cfg.weight
+			}
+
+			// Scheduled completion date: days from now based on severity.
+			dueDate := time.Now().Add(time.Duration(cfg.days) * 24 * time.Hour)
+
+			poam := POAMItem{
+				ID:                  fmt.Sprintf("POAM-%d-%03d", time.Now().Year(), counter),
+				ControlID:           finding.ID,
+				Weakness:            finding.Description,
+				Severity:            finding.Severity,
+				Status:              "Open",
+				PointOfContact:      "ISSM",
+				EstimatedCost:       cfg.cost,
+				ScheduledCompletion: dueDate,
+				MilestoneActions:    []string{finding.Remediation},
+				DollarImpact:        cfg.cost,
+				SeverityWeight:      cfg.weight,
+				PriorityScore:       priorityScore,
+				EstimatedDays:       cfg.days,
+			}
+			v.report.POAMItems = append(v.report.POAMItems, poam)
+			counter++
+		}
+	}
+
+	// Sort POAM items highest priority first (highest PriorityScore = fix first).
+	for i := 0; i < len(v.report.POAMItems); i++ {
+		for j := i + 1; j < len(v.report.POAMItems); j++ {
+			if v.report.POAMItems[j].PriorityScore > v.report.POAMItems[i].PriorityScore {
+				v.report.POAMItems[i], v.report.POAMItems[j] = v.report.POAMItems[j], v.report.POAMItems[i]
 			}
 		}
 	}
 }
+
 
 // generateExecutiveSummary creates high-level summary
 func (v *Validator) generateExecutiveSummary() {

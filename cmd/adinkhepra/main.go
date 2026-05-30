@@ -49,43 +49,43 @@ const (
 )
 
 func usage() {
-	fmt.Println(`AdinKhepra v2.0 — Security Camera + Flight Recorder for AI Agents
-By SecRed Knowledge Inc. (NouchiX) | https://nouchix.com
+	fmt.Println(`AdinKhepra v2.0 — CMMC Autopilot Engine | SecRed Knowledge Inc. (NouchiX)
+https://nouchix.com | https://adinkhepra.com
 
-Usage:
+Core Compliance Commands:
+  adinkhepra compliance <subcmd>    CMMC/STIG/NIST 800-171 full scan suite
+  adinkhepra ssp        <subcmd>    System Security Plan (NIST SP 800-18) — generate|update|export|diff|status
+  adinkhepra poam       <subcmd>    Plan of Action & Milestones — generate|status|export|update
+  adinkhepra blast-radius <subcmd> Quantum-Readiness Blast Radius (NTI Score) — report|roadmap
+  adinkhepra discover               Phase 0: agent-led discovery, crypto inventory, SSP seed
+  adinkhepra demo                   Self-serve demo mode (synthetic environment, no real system needed)
+
+Reporting:
+  adinkhepra report     <subcmd>    PDF report generation (executive, technical, compliance)
+  adinkhepra ert        <subcmd>    Executive Roundtable — godfather|readiness|architect|crypto
+
+Agent & Scan:
   adinkhepra scan       --target <host|ip>   Full scan: STIG + AI agent audit + PQC inventory
-  adinkhepra watch      [-port 45444]        Start ASAF wrapper + live dashboard
-  adinkhepra report     --target <host|ip>   Generate compliance evidence package
-  adinkhepra serve      [-port 8080]         DAG visualization server
-  adinkhepra harden                          Auto-remediate findings from last scan
+  adinkhepra watch      [-port 45444]         Start ASAF wrapper + live dashboard
+  adinkhepra certify    --target <host|ip>    Full audit + ADINKHEPRA certificate
 
-  Evolutionary Algorithm (EA) kernel:
-  adinkhepra ea start   [-generations N] [-pop N]   Start continuous EA evolution loop
-  adinkhepra ea status                               Show current generation + fitness
-  adinkhepra ea evolve  [-n N]                       Run N evolution cycles, export best genome
+Key Management (PQC):
+  adinkhepra keygen                 Generate Dilithium3/Kyber-1024 keypair
+  adinkhepra keys init              Tier 0 key ceremony
+  adinkhepra keys status            Key storage status
 
-  Sovereign License (QKD air-gap):
-  adinkhepra license status                        Show host ID and current license
-  adinkhepra license request [-tenant T] [-tier T] Generate QKD license request bundle
-  adinkhepra license install -capsule F -session F Install a license capsule from master authority
+Encryption:
+  adinkhepra kuntinkantan <pubkey> <file>   PQC encrypt
+  adinkhepra sankofa      <privkey> <file>  PQC decrypt
 
-  Key Management (PQC):
-  adinkhepra keygen                          Generate Dilithium3/Kyber-1024 keypair
-  adinkhepra keys init                       Tier 0 key ceremony
-  adinkhepra keys status                     Key storage status
+License:
+  adinkhepra license status         Show host ID and current license
+  adinkhepra license request        Generate QKD license request bundle
+  adinkhepra license install        Install a license capsule
 
-  Advanced:
-  adinkhepra certify    --target <host|ip>   Full audit + ADINKHEPRA certificate
-  adinkhepra compliance <subcommand>         CMMC/STIG/NIST 800-171 suite
-  adinkhepra ert        <subcommand>         Executive Roundtable analysis
-  adinkhepra validate                        Component health check
-  adinkhepra run                             Agent server (port 45444)
-
-  adinkhepra kuntinkantan <pubkey> <file>    PQC encrypt
-  adinkhepra sankofa      <privkey> <file>   PQC decrypt
-
-Your AI agents are working right now. Do you know what they're doing?
-Start watching: adinkhepra watch`)
+Your AI agents are working right now. Do you know what they are doing?
+Start watching: adinkhepra watch
+Run your first CMMC assessment: adinkhepra compliance scan --framework CMMC_L2`)
 }
 
 
@@ -157,6 +157,19 @@ func handlePrimaryCmds(cmd string, args []string) bool {
 
 func handleSecondaryCmds(cmd string, args []string) bool {
 	switch cmd {
+	// New SOW delivery commands (Sprint A)
+	case "ssp":
+		sspCmd(args)
+	case "poam":
+		poamCmd(args)
+	case "blast-radius", "blast_radius", "blastradius":
+		blastRadiusCmd(args)
+	case "discover":
+		discoverCmd(args)
+	case "demo":
+		demoCmd(args)
+
+	// Legacy / deprecated
 	case "stig":
 		fmt.Println("[DEPRECATED] Use 'adinkhepra compliance scan' instead.")
 		complianceCmd(args)
@@ -204,12 +217,7 @@ func handleSecondaryCmds(cmd string, args []string) bool {
 	case "csr":
 		csrCmd(args)
 	case "run":
-		// `run` starts the HTTP agent server on port 45444.
-		// This is the sovereign sovereign entrypoint — no cloud, no telemetry.
-		// Equivalent to `watch` but without the dashboard banner.
-		// For the Windows SONAR drift service, use: adinkhepra agent install/start
 		watchCmd(args)
-
 	case "health":
 		fmt.Println("OK")
 		os.Exit(0)
