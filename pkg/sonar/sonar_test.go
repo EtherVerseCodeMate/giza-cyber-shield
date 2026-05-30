@@ -16,9 +16,8 @@ func TestNewOrchestrator(t *testing.T) {
 	if runtime == nil {
 		t.Fatal("Failed to create Orchestrator")
 	}
-	if string(runtime.secrets.ShodanKey) != "dummy_key" {
-		t.Errorf("Secrets not injected correctly")
-	}
+	// secrets field was removed from SonarRuntime (OSINT/Shodan telemetry eliminated).
+	// NewOrchestrator accepts the parameter for API compatibility but ignores it.
 }
 
 func TestRunActiveScan_Localhost(t *testing.T) {

@@ -237,7 +237,8 @@ func (p *OllamaProvider) Chat(messages []Message, _ bool) (string, error) {
 		case "assistant":
 			sb.WriteString("Assistant: ")
 		default:
-			sb.WriteString(m.Role + ": ")
+			sb.WriteString(m.Role)
+			sb.WriteString(": ")
 		}
 		sb.WriteString(m.Content)
 		sb.WriteString("\n")

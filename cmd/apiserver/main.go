@@ -1,3 +1,5 @@
+//go:build saas
+
 // SEKHEM Gateway - Khepra Protocol Secure Gateway
 // "SEKHEM — The Divine Gateway"
 // Sekhem (Egyptian): Power, might, divine authority — the scepter that commands

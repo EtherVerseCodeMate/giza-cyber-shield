@@ -73,7 +73,8 @@ func initializeAgent(token string) {
 	}
 
 	cfg := config.LoadRuntime()
-	store := dag.NewStore(cfg)
+	baseCfg := config.Load() // config.Config for server struct (uses same env vars)
+	store := dag.NewStore()
 
 	// 1. Setup Licensing
 	clientMgr, regMgr, enforcer := setupLicensing(token, store)
@@ -98,8 +99,8 @@ func initializeAgent(token string) {
 	if err != nil {
 		log.Fatalf("[AGENT] Failed to generate signing identity: %v", err)
 	}
-	s := &server{cfg: cfg, store: store, agi: arch, sekhem: triad, licAPI: licAPI, pubKey: pub, privKey: priv}
-	runServer(s, cfg)
+	s := &server{cfg: baseCfg, store: store, agi: arch, sekhem: triad, licAPI: licAPI, pubKey: pub, privKey: priv}
+	runServer(s, baseCfg)
 }
 
 func setupLicensing(token string, _ dag.Store) (*license.Manager, *license.LicenseManager, *license.DAGLicenseEnforcer) {

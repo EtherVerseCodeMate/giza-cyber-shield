@@ -1,3 +1,5 @@
+//go:build saas
+
 package license
 
 import (

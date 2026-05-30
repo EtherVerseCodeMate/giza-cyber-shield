@@ -32,7 +32,6 @@ func TestUnifiedScanRequest(t *testing.T) {
 func TestScanTypeConstants(t *testing.T) {
 	types := []ScanType{
 		ScanTypePort,
-		ScanTypeOSINT,
 		ScanTypeCrawler,
 		ScanTypeFull,
 	}
@@ -47,9 +46,7 @@ func TestScanTypeConstants(t *testing.T) {
 		t.Errorf("Expected 'port_scan', got '%s'", ScanTypePort)
 	}
 
-	if ScanTypeOSINT != "osint" {
-		t.Errorf("Expected 'osint', got '%s'", ScanTypeOSINT)
-	}
+	// ScanTypeOSINT was permanently removed (OSINT/Shodan/Censys telemetry eliminated).
 }
 
 func TestNewUnifiedOrchestrator(t *testing.T) {

@@ -1,3 +1,5 @@
+//go:build saas
+
 // Package apiserver — MCP Handler Routes
 //
 // Registers MCP-specific HTTP endpoints on the DEMARC API server:
