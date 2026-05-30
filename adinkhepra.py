@@ -107,9 +107,9 @@ def _check_gcc_available() -> bool:
     return False
 
 
-def build(component: str, fips: bool = True) -> bool:
+def build(component: str, fips: bool = True, tags: list = None) -> bool:
     """
-    Build a Khepra Protocol component with optional FIPS mode.
+    Build a Khepra Protocol component with optional FIPS mode and build tags.
 
     FIPS mode (GOEXPERIMENT=boringcrypto) requires CGO and a C compiler.
     On Windows without GCC, the build automatically falls back to
@@ -117,7 +117,8 @@ def build(component: str, fips: bool = True) -> bool:
 
     Args:
         component: Component name (e.g., 'adinkhepra', 'adinkhepra-agent')
-        fips: Enable FIPS 140-3 BoringCrypto mode (auto-disabled if no C compiler)
+        fips:      Enable FIPS 140-3 BoringCrypto mode (auto-disabled if no C compiler)
+        tags:      Optional list of Go build tags (e.g., ['saas'] for cloud gateway builds)
 
     Returns:
         True if build successful, False otherwise
@@ -147,10 +148,18 @@ def build(component: str, fips: bool = True) -> bool:
         )
         effective_fips = False
 
-    print_info(f"Building {component} (FIPS={effective_fips})...")
+    tags_str = ",".join(tags) if tags else ""
+    print_info(f"Building {component} (FIPS={effective_fips}{', tags=' + tags_str if tags_str else ''})...")
 
     # ── Build command ─────────────────────────────────────────────────────────
-    cmd = ["go", "build", MOD_VENDOR, "-o", binary]
+    cmd = ["go", "build", MOD_VENDOR]
+
+    # Inject build tags when specified (e.g., apiserver needs -tags saas to
+    # include pkg/supabase which is excluded from sovereign/ironbank builds).
+    if tags_str:
+        cmd += ["-tags", tags_str]
+
+    cmd += ["-o", binary]
 
     env = os.environ.copy()
     if effective_fips:
@@ -169,7 +178,7 @@ def build(component: str, fips: bool = True) -> bool:
     try:
         subprocess.check_call(cmd, env=env)
         fips_tag = "FIPS" if effective_fips else "non-FIPS"
-        print_success(f"Build successful: {binary} ({fips_tag})")
+        print_success(f"Build successful: {binary} ({fips_tag}{', +' + tags_str if tags_str else ''})")
         return True
     except subprocess.CalledProcessError:
         print_error(f"Failed to build {component}")
@@ -182,12 +191,22 @@ def build(component: str, fips: bool = True) -> bool:
 
 
 def build_all_components(fips: bool = True) -> bool:
-    """Build all Khepra Protocol components."""
-    components = ["adinkhepra", "adinkhepra-agent", "apiserver"]
+    """Build all Khepra Protocol components.
 
-    for component in components:
+    Deployment model:
+      - adinkhepra, adinkhepra-agent: sovereign binaries (no external deps,
+        build tags: none — supabase/saas code excluded automatically)
+      - apiserver: SaaS cloud gateway — MUST be built with -tags saas to
+        include pkg/supabase, pkg/security secure client, and MCP audit handlers
+    """
+    # Sovereign binaries — no build tags, pure-Go safe
+    for component in ["adinkhepra", "adinkhepra-agent"]:
         if not build(component, fips=fips):
             return False
+
+    # SaaS gateway — requires -tags saas for Supabase-dependent code
+    if not build("apiserver", fips=fips, tags=["saas"]):
+        return False
 
     return True
 
