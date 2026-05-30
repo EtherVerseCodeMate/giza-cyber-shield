@@ -196,6 +196,8 @@ def build_all_components(fips: bool = True) -> bool:
     Sovereign binaries (adinkhepra, adinkhepra-agent) use no build tags.
     The apiserver (SaaS gateway) is built with -tags saas to include
     Supabase-dependent code excluded from sovereign/ironbank binaries.
+    serve-nlp serves the ASAF NLP browser console (asaf-nlp.html) with
+    embedded static files — no build tags needed.
     """
     # Sovereign binaries — no build tags, pure-Go safe
     for component in ["adinkhepra", "adinkhepra-agent"]:
@@ -204,6 +206,10 @@ def build_all_components(fips: bool = True) -> bool:
 
     # SaaS gateway — requires -tags saas for Supabase-dependent code
     if not build("apiserver", fips=fips, tags=["saas"]):
+        return False
+
+    # NLP browser console server — sovereign, no tags required
+    if not build("serve-nlp", fips=False):  # Pure-Go static file server, CGO not needed
         return False
 
     return True
@@ -796,8 +802,9 @@ def print_usage() -> None:
     print("  agent  [args...] -> Run the ADINKHEPRA agent")
     print("  cli    [args...] -> Run the ADINKHEPRA CLI tool")
     print("  scada  [args...] -> Run the ADINKHEPRA Sacred Nsohia suite")
-    print("  build            -> Rebuild binaries (adinkhepra + adinkhepra-agent + apiserver)")
+    print("  build            -> Rebuild binaries (adinkhepra + adinkhepra-agent + apiserver + serve-nlp)")
     print("  test             -> Run Go tests")
+    print("  nlp   [args...]  -> Start NLP browser console (http://localhost:7777/asaf-nlp.html)")
     print("  tnok             -> Start Tnok Stealth Gateway (tnokd)")
     print("  service-token [name] -> Generate HMAC service token (default: asaf-bridge)")
     print("\nOptions:")
@@ -845,6 +852,10 @@ def match_command(command: str, extra_args: list[str]) -> None:
     elif command == "service-token":
         service_name = extra_args[0] if extra_args else "asaf-bridge"
         sys.exit(0 if _generate_service_token(service_name) else 1)
+    elif command in ("nlp", "serve-nlp", "dashboard"):
+        # Launch the ASAF NLP browser console.
+        # Binary is pre-built by 'python adinkhepra.py build' — no temp file lock issues.
+        run("serve-nlp", extra_args, fips=False)
     else:
         run("adinkhepra", [command] + extra_args, fips=fips)
 
