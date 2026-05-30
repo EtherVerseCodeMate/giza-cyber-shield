@@ -98,18 +98,20 @@ func TestUnifiedScanResult(t *testing.T) {
 }
 
 func TestContainsHelper(t *testing.T) {
-	types := []ScanType{ScanTypePort, ScanTypeOSINT}
+	// ScanTypeOSINT was permanently removed (OSINT/Shodan/Censys telemetry eliminated).
+	// Test only existing constants.
+	types := []ScanType{ScanTypePort, ScanTypeCrawler}
 
 	if !contains(types, ScanTypePort) {
 		t.Error("Should contain ScanTypePort")
 	}
 
-	if !contains(types, ScanTypeOSINT) {
-		t.Error("Should contain ScanTypeOSINT")
+	if !contains(types, ScanTypeCrawler) {
+		t.Error("Should contain ScanTypeCrawler")
 	}
 
-	if contains(types, ScanTypeCrawler) {
-		t.Error("Should not contain ScanTypeCrawler")
+	if contains(types, ScanTypeFull) {
+		t.Error("Should not contain ScanTypeFull")
 	}
 }
 
