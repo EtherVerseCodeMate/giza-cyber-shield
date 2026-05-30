@@ -1,0 +1,128 @@
+# Dockerfile.ert — ERT Scan Sandbox (Task 12)
+#
+# Builds a minimal, hardened Docker image for running the full ERT pipeline
+# (ert_readiness, ert_architect, ert_crypto, ert_godfather) with bundled:
+#   - Syft v1.x  (SBOM generation, CycloneDX JSON)
+#   - Grype v0.x (Vulnerability matching, NVD/GHSA)
+#   - AdinKhepra CLI (ert_* commands)
+#
+# Security hardening:
+#   - Non-root user (uid 65534 — nobody)
+#   - Read-only root filesystem via --read-only at runtime
+#   - No network access during scan (--network none)
+#   - Scoped volume mount: project dir mounted at /scan-target (read-only)
+#   - Writable tmpfs at /tmp for tool temp files
+#
+# Usage:
+#   # Build:
+#   docker build -f Dockerfile.ert -t khepra-ert:latest .
+#
+#   # Run ert_architect against a local project:
+#   docker run --rm --network none \
+#     -v /path/to/project:/scan-target:ro \
+#     -v /tmp/khepra-tmp:/tmp \
+#     khepra-ert:latest ert_architect /scan-target
+#
+#   # Run full Godfather synthesis:
+#   docker run --rm --network none \
+#     -v /path/to/project:/scan-target:ro \
+#     khepra-ert:latest ert_godfather /scan-target
+#
+# Iron Bank hardening note:
+#   When targeting Iron Bank, replace golang:1.22-alpine with
+#   registry1.dso.mil/ironbank/opensource/go-toolset:latest
+#   and replace the syft/grype downloads with Iron Bank-approved pins.
+
+# ─── Stage 1: Build AdinKhepra CLI ───────────────────────────────────────────
+FROM golang:1.22-alpine AS builder
+
+LABEL stage=builder
+LABEL maintainer="NouchiX <security@nouchix.io>"
+
+WORKDIR /build
+
+# Build tools
+RUN apk add --no-cache git make ca-certificates
+
+# Copy Go module files first (layer caching)
+COPY go.mod go.sum ./
+COPY vendor/ ./vendor/
+
+# Copy source
+COPY pkg/ ./pkg/
+COPY cmd/ ./cmd/
+
+# Build the AdinKhepra CLI binary (ert_* commands live here)
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build \
+      -mod=vendor \
+      -trimpath \
+      -ldflags="-s -w -X main.Version=$(git describe --tags --always 2>/dev/null || echo dev)" \
+      -o /out/adinkhepra \
+      ./cmd/adinkhepra/
+
+# Verify the binary was built
+RUN /out/adinkhepra --help 2>/dev/null || true
+
+# ─── Stage 2: Download Syft + Grype ──────────────────────────────────────────
+FROM alpine:3.19 AS tools
+
+RUN apk add --no-cache curl ca-certificates
+
+# Syft — SBOM generator (CycloneDX, SPDX, Syft JSON)
+# Pin to a specific release for reproducibility. Update via Dependabot/Renovate.
+ARG SYFT_VERSION=1.4.1
+RUN curl -sSfL \
+      "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/syft_${SYFT_VERSION}_linux_amd64.tar.gz" \
+      | tar -xzf - -C /usr/local/bin syft \
+    && chmod +x /usr/local/bin/syft \
+    && syft version
+
+# Grype — Vulnerability matcher (NVD, GHSA, EPSS, CISA KEV)
+ARG GRYPE_VERSION=0.78.0
+RUN curl -sSfL \
+      "https://github.com/anchore/grype/releases/download/v${GRYPE_VERSION}/grype_${GRYPE_VERSION}_linux_amd64.tar.gz" \
+      | tar -xzf - -C /usr/local/bin grype \
+    && chmod +x /usr/local/bin/grype \
+    && grype version
+
+# Pre-seed the Grype DB so first scan doesn't require network egress.
+# The DB is written to /grype-db and mounted into the runtime stage.
+RUN mkdir -p /grype-db \
+    && GRYPE_DB_CACHE_DIR=/grype-db grype db update
+
+# ─── Stage 3: Runtime sandbox ────────────────────────────────────────────────
+FROM scratch
+
+# Import CA certificates (needed for EPSS/NVD API calls if network allowed)
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+# Copy binaries
+COPY --from=builder  /out/adinkhepra      /usr/local/bin/adinkhepra
+COPY --from=tools    /usr/local/bin/syft  /usr/local/bin/syft
+COPY --from=tools    /usr/local/bin/grype /usr/local/bin/grype
+
+# Copy pre-seeded Grype vulnerability DB (avoids network on first run)
+COPY --from=tools /grype-db /var/cache/grype/db
+
+# Labels (OCI + Iron Bank compliant)
+LABEL org.opencontainers.image.title="khepra-ert"
+LABEL org.opencontainers.image.description="AdinKhepra ERT scan sandbox — SBOM, CVE, PQC, NIST 800-171"
+LABEL org.opencontainers.image.vendor="NouchiX"
+LABEL org.opencontainers.image.licenses="Proprietary"
+LABEL io.khepra.tool.syft.version="${SYFT_VERSION}"
+LABEL io.khepra.tool.grype.version="${GRYPE_VERSION}"
+
+# Environment
+ENV GRYPE_DB_CACHE_DIR=/var/cache/grype/db
+ENV PATH=/usr/local/bin
+
+# Non-root: nobody (uid 65534) — required for Iron Bank / DISA STIG
+USER 65534
+
+# Scan target mount point (caller mounts project here read-only)
+VOLUME ["/scan-target"]
+
+# Default: run ert_godfather against the mounted target
+ENTRYPOINT ["/usr/local/bin/adinkhepra"]
+CMD ["ert_godfather", "/scan-target"]

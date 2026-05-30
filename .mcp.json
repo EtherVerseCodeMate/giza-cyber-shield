@@ -42,6 +42,21 @@
         "KHEPRA_AUDIT_LOG_PATH": "${USERPROFILE}/.khepra/logs/audit.ndjson",
         "KHEPRA_MAX_CONCURRENT": "5"
       }
+    },
+
+    "khepra-mcp-local": {
+      "_comment": "Local source build — all 5 ERT tools + dag_attestation wired. Use for testing before Docker image rebuild.",
+      "command": "go",
+      "args": [
+        "run",
+        "./cmd/khepra-mcp/main.go"
+      ],
+      "env": {
+        "PHANTOM_SYMBOL": "Eban",
+        "KHEPRA_AUDIT_LOG_PATH": "${USERPROFILE}/.khepra/logs/audit.ndjson",
+        "KHEPRA_MAX_CONCURRENT": "5",
+        "KHEPRA_LICENSE_KEY": "${KHEPRA_LICENSE_KEY}"
+      }
     }
   }
 }

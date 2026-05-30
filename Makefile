@@ -225,3 +225,78 @@ deploy-vps-fips:
 	@echo "[ASAF-FIPS] ✓ FIPS deployment complete — NIST 800-171 03.13.10 satisfied"
 	@echo "[ASAF-FIPS] Document CMVP evidence: https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4407"
 
+# ============================================================
+# ERT Sandbox (Task 12 — Dockerfile.ert)
+# ============================================================
+
+ERT_IMAGE?=khepra-ert
+ERT_TAG?=$(VERSION)
+SCAN_TARGET?=$(shell pwd)
+
+# Build the ERT scan sandbox image (Syft + Grype + AdinKhepra CLI)
+.PHONY: build-ert
+build-ert:
+	@echo "[ERT] Building ERT scan sandbox (Syft + Grype + AdinKhepra)"
+	docker build \
+		--file Dockerfile.ert \
+		--tag $(ERT_IMAGE):$(ERT_TAG) \
+		--tag $(ERT_IMAGE):latest \
+		--build-arg SYFT_VERSION=1.4.1 \
+		--build-arg GRYPE_VERSION=0.78.0 \
+		.
+	@echo "[ERT] Image built: $(ERT_IMAGE):$(ERT_TAG)"
+
+# Run ert_godfather against a project path (default: current dir)
+# Usage: make ert-scan SCAN_TARGET=/path/to/project
+.PHONY: ert-scan
+ert-scan:
+	@echo "[ERT] Scanning: $(SCAN_TARGET)"
+	docker run --rm \
+		--network none \
+		--read-only \
+		--tmpfs /tmp:rw,noexec,nosuid,size=256m \
+		--volume "$(SCAN_TARGET):/scan-target:ro" \
+		$(ERT_IMAGE):latest \
+		ert_godfather /scan-target
+
+# Run ert_architect (supply chain deep scan) against SCAN_TARGET
+.PHONY: ert-architect
+ert-architect:
+	@echo "[ERT] Supply chain scan: $(SCAN_TARGET)"
+	docker run --rm \
+		--network none \
+		--read-only \
+		--tmpfs /tmp:rw,noexec,nosuid,size=256m \
+		--volume "$(SCAN_TARGET):/scan-target:ro" \
+		$(ERT_IMAGE):latest \
+		ert_architect /scan-target
+
+# Run ert_crypto (PQC attestation) against SCAN_TARGET
+.PHONY: ert-crypto
+ert-crypto:
+	@echo "[ERT] PQC attestation: $(SCAN_TARGET)"
+	docker run --rm \
+		--network none \
+		--read-only \
+		--tmpfs /tmp:rw,noexec,nosuid,size=256m \
+		--volume "$(SCAN_TARGET):/scan-target:ro" \
+		$(ERT_IMAGE):latest \
+		ert_crypto /scan-target
+
+# ============================================================
+# Task 11: Crash Dummy Validation
+# ============================================================
+
+# Run the crash dummy integration tests (validates ERT pipeline against fixtures)
+.PHONY: test-crash-dummy
+test-crash-dummy:
+	@echo "[ERT] Running Crash Dummy validation suite..."
+	go test ./tests/validation/... -v -timeout 5m -run "TestERT|TestDAG" 2>&1 | tee /tmp/crash-dummy-results.txt
+	@echo "[ERT] Results saved to /tmp/crash-dummy-results.txt"
+
+# Run ALL validation tests (includes crash dummy + any future suites)
+.PHONY: test-validation
+test-validation:
+	@echo "[ERT] Running full validation suite..."
+	go test ./tests/validation/... -v -timeout 10m
+
