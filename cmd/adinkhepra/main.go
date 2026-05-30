@@ -54,6 +54,7 @@ https://nouchix.com | https://adinkhepra.com
 
 Core Compliance Commands:
   adinkhepra compliance <subcmd>    CMMC/STIG/NIST 800-171 full scan suite
+  adinkhepra compliance-attest      PQC-sign a CMMC narrative/POAM change → DAG chain (Dilithium3)
   adinkhepra ssp        <subcmd>    System Security Plan (NIST SP 800-18) — generate|update|export|diff|status
   adinkhepra poam       <subcmd>    Plan of Action & Milestones — generate|status|export|update
   adinkhepra blast-radius <subcmd> Quantum-Readiness Blast Radius (NTI Score) — report|roadmap
@@ -168,6 +169,12 @@ func handleSecondaryCmds(cmd string, args []string) bool {
 		discoverCmd(args)
 	case "demo":
 		demoCmd(args)
+
+	// Compliance attestation — PQC-signed DAG audit trail for CMMC documentation
+	// "adinkhepra compliance-attest" signs every SSP narrative and POAM change
+	// with Dilithium3, creating a tamper-evident chain in asaf-compliance/attestations/
+	case "compliance-attest":
+		complianceAttestCmd(args)
 
 	// Legacy / deprecated
 	case "stig":
