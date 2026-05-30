@@ -1,3 +1,5 @@
+//go:build saas
+
 // Package supabase — MCPStore
 //
 // MCPStore provides typed wrappers around the Supabase client for all

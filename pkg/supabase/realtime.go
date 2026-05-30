@@ -1,3 +1,5 @@
+//go:build saas
+
 // Package supabase — Realtime subscription helper
 //
 // Provides change notification support for Supabase Realtime events.

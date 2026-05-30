@@ -1,3 +1,5 @@
+//go:build saas
+
 // Package license - Supabase PQC Integration
 //
 // This module provides helper functions for encrypting/decrypting data
