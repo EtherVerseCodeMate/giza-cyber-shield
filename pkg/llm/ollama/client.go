@@ -97,3 +97,51 @@ func (c *Client) CheckHealth() bool {
 	defer resp.Body.Close()
 	return resp.StatusCode == http.StatusOK
 }
+
+// DiscoverModel probes /api/tags and returns the best available model name.
+//
+// Preference order (sovereign-first, smallest-first):
+//
+//	gemma3:4b  (3.3 GB, fast)
+//	gemma3     (alias, may resolve to same)
+//	phi4:latest (9.1 GB)
+//	phi4
+//	llama3:8b
+//	llama3
+//
+// Falls back to "gemma3:4b" if Ollama is unreachable or returns no models.
+// The caller should always check health afterward to confirm the model loaded.
+func DiscoverModel(baseURL string) string {
+	preferred := []string{
+		"gemma3:4b", "gemma3",
+		"phi4:latest", "phi4",
+		"llama3:8b", "llama3",
+	}
+
+	probe := &http.Client{Timeout: 2 * time.Second}
+	resp, err := probe.Get(baseURL + "/api/tags")
+	if err != nil {
+		return "gemma3:4b" // Ollama not reachable yet — will surface on health check
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Models []struct {
+			Name string `json:"name"`
+		} `json:"models"`
+	}
+	if json.NewDecoder(resp.Body).Decode(&result) != nil || len(result.Models) == 0 {
+		return "gemma3:4b"
+	}
+
+	available := make(map[string]bool, len(result.Models))
+	for _, m := range result.Models {
+		available[m.Name] = true
+	}
+	for _, p := range preferred {
+		if available[p] {
+			return p
+		}
+	}
+	return result.Models[0].Name // last resort: whatever is first in the list
+}
