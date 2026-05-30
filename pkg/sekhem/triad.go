@@ -3,20 +3,67 @@ package sekhem
 import (
 	"fmt"
 	"log"
+	"os"
+	"strings"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/agi"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 )
 
+
 // DeploymentMode represents the deployment mode
 type DeploymentMode string
 
 const (
-	ModeEdge      DeploymentMode = "edge"      // Edge Mode (Duat Realm only)
-	ModeHybrid    DeploymentMode = "hybrid"    // Hybrid Mode (Duat + Aaru Realms)
-	ModeSovereign DeploymentMode = "sovereign" // Sovereign Mode (All three realms, air-gapped)
-	ModeIronBank  DeploymentMode = "ironbank"  // Iron Bank Mode (All three realms, DoD compliance)
+	ModeEdge      DeploymentMode = "edge"      // Edge Mode — SaaS, Fly.io, no local persistence
+	ModeHybrid    DeploymentMode = "hybrid"    // Hybrid Mode — SaaS with local DAG cache
+	ModeSovereign DeploymentMode = "sovereign" // Sovereign Mode — air-gapped bare metal (DEFAULT)
+	ModeIronBank  DeploymentMode = "ironbank"  // Iron Bank Mode — DoD hardened, air-gapped
 )
+
+// ModeFromEnv reads KHEPRA_MODE and returns the corresponding DeploymentMode.
+// Sovereign is the explicit default — any unknown or unset value is treated as sovereign
+// so that bare-metal deployments are safe-by-default (no accidental external calls).
+//
+// Callers:
+//   - cmd/agent/main.go   — agent server startup
+//   - cmd/khepra-mcp/main.go — MCP server startup
+//   - pkg/dag/factory.go  — storage backend selection
+//   - pkg/ert/lane_sonar.go — network scan scope gating
+func ModeFromEnv() DeploymentMode {
+	switch strings.ToLower(os.Getenv("KHEPRA_MODE")) {
+	case "edge":
+		return ModeEdge
+	case "hybrid":
+		return ModeHybrid
+	case "ironbank":
+		return ModeIronBank
+	case "sovereign", "":
+		return ModeSovereign // explicit + unset both → sovereign (safe default)
+	default:
+		return ModeSovereign // unknown value → sovereign (fail safe)
+	}
+}
+
+// IsAirGapped reports whether this deployment mode is fully air-gapped.
+// Air-gapped modes: sovereign (bare metal), ironbank (DoD).
+// Network-connected modes: edge (SaaS Fly.io), hybrid (SaaS with local cache).
+//
+// LaneSonar uses this to gate internet-routable targets.
+// DAG factory uses this to select persistent vs in-memory storage.
+func (m DeploymentMode) IsAirGapped() bool {
+	return m == ModeSovereign || m == ModeIronBank
+}
+
+// IsSaaS reports whether this deployment runs in a cloud/SaaS context.
+func (m DeploymentMode) IsSaaS() bool {
+	return m == ModeEdge || m == ModeHybrid
+}
+
+// String implements Stringer for clean log output.
+func (m DeploymentMode) String() string { return string(m) }
+
+
 
 // SekhemTriad represents the three-fold power structure
 // Sekhem (Egyptian): Power, might, divine authority

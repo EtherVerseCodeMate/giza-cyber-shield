@@ -38,6 +38,7 @@ import (
 	"syscall"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/config"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	khepramcp "github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/mcp"
@@ -64,7 +65,21 @@ func main() {
 	keyHash := sha256.Sum256(pubKey)
 	keyID := hex.EncodeToString(keyHash[:8])
 
-	logger.Printf("PQC session initialized | symbol=%s | key_id=%s", symbol, keyID)
+	// ── Deployment Mode — read once, logged clearly ──────────────────────────
+	// This is the canonical mode log line. All downstream components inherit
+	// their storage and network policy from config.LoadRuntime().
+	runCfg := config.LoadRuntime()
+	logger.Printf("━━━ KHEPRA MCP SERVER ━━━")
+	logger.Printf("  mode:           %s", runCfg.Mode)
+	logger.Printf("  network_policy: %s", runCfg.NetworkPolicy)
+	if runCfg.IsAirGapped {
+		logger.Printf("  dag_store:      PersistentMemory (disk) → %s", runCfg.DAGPath)
+		logger.Printf("  supabase:       DISABLED (air-gap mode)")
+	} else {
+		logger.Printf("  dag_store:      Memory (in-process, stateless SaaS)")
+		logger.Printf("  supabase:       ENABLED (SaaS mode — requires saas build tag)")
+	}
+	logger.Printf("  symbol=%s | key_id=%s", symbol, keyID)
 
 	// ── License Validation ──────────────────────────────────────────────
 	// ParseMCPLicense loads KHEPRA_LICENSE_KEY and verifies offline via
@@ -136,7 +151,10 @@ func main() {
 	registerToolHandlers(executor)
 
 	// 7. DAG Attestor — PQC-signed audit trail
-	dagStore := dag.NewMemory()
+	// dag.NewStore() selects PersistentMemory (sovereign) or Memory (SaaS/edge)
+	// based on KHEPRA_MODE. This is already resolved in runCfg above.
+	_ = runCfg // consumed above; dag.NewStore() re-reads KHEPRA_MODE internally
+	dagStore := dag.NewStore()
 	attestor := khepramcp.NewDAGAttestor(dagStore, symbol, privKey)
 
 	// ── Assemble Router ──────────────────────────────────────────────────────

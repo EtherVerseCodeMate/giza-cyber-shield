@@ -1,8 +1,16 @@
-// Unified Scanner Integration for SONAR
-// Consolidates all scanner capabilities into a single orchestration layer
+// Package sonar — Unified local scanner orchestration.
 //
-// TRL 10: Enterprise-grade, production-ready scanning infrastructure
-// Connects to Khepra DAG for immutable audit trail
+// Privacy-first design: ZERO external network calls beyond the scan target.
+// Shodan, Censys, and all third-party OSINT APIs have been permanently removed.
+//
+// Capabilities:
+//   - TCP port scan           (pkg/scanner/network — pure stdlib)
+//   - Web crawler             (pkg/scanner.RunCrawler — optional, target-local)
+//   - Horus vuln scan         (pkg/scanners — pure stdlib manifest matching)
+//   - Horus secret scan       (pkg/scanners — entropy + regex, no network)
+//   - Horus compliance scan   (pkg/scanners — CIS/STIG/NIST checks)
+//   - Horus container scan    (pkg/scanners — Dockerfile/image analysis)
+//   - DAG attestation         (pkg/dag — PQC-signed audit node per scan)
 
 package sonar
 
@@ -15,84 +23,83 @@ import (
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/audit"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/config"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner/network"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner/osint"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanners"
 )
 
-// ScanType defines the type of scan to perform
+// ScanType defines the type of scan to perform.
 type ScanType string
 
 const (
 	ScanTypePort       ScanType = "port_scan"
-	ScanTypeOSINT      ScanType = "osint"
 	ScanTypeCrawler    ScanType = "crawler"
 	ScanTypeFull       ScanType = "full"
-	ScanTypeVuln       ScanType = "vulnerability" // Horus - vulnerability scan
-	ScanTypeSecrets    ScanType = "secrets"       // Horus - secret detection
-	ScanTypeCompliance ScanType = "compliance"    // Horus - compliance check
-	ScanTypeContainer  ScanType = "container"     // Horus - container scan
+	ScanTypeVuln       ScanType = "vulnerability" // Horus — vulnerability scan
+	ScanTypeSecrets    ScanType = "secrets"        // Horus — secret detection
+	ScanTypeCompliance ScanType = "compliance"     // Horus — compliance check
+	ScanTypeContainer  ScanType = "container"      // Horus — container scan
 )
 
-// UnifiedScanRequest defines a comprehensive scan request
+// UnifiedScanRequest defines a comprehensive scan request.
+// All scan types are local — no external API calls are ever made.
 type UnifiedScanRequest struct {
 	Target      string            `json:"target"`
 	ScanTypes   []ScanType        `json:"scan_types"`
-	Ports       []int             `json:"ports,omitempty"`        // Custom ports for port scan
-	FullScan    bool              `json:"full_scan,omitempty"`    // Scan all 65535 ports
-	ProxyAddr   string            `json:"proxy_addr,omitempty"`   // SOCKS5 proxy for Tor
-	Concurrency int               `json:"concurrency,omitempty"`  // Scanner concurrency
-	Timeout     time.Duration     `json:"timeout,omitempty"`      // Scan timeout
-	Options     map[string]string `json:"options,omitempty"`      // Additional options
+	Ports       []int             `json:"ports,omitempty"`       // Custom ports for port scan
+	FullScan    bool              `json:"full_scan,omitempty"`   // Scan all 65535 ports
+	ProxyAddr   string            `json:"proxy_addr,omitempty"`  // SOCKS5 proxy for Tor
+	Concurrency int               `json:"concurrency,omitempty"` // Scanner concurrency
+	Timeout     time.Duration     `json:"timeout,omitempty"`     // Scan timeout
+	Options     map[string]string `json:"options,omitempty"`     // Additional options
 }
 
-// UnifiedScanResult contains all scan results
+// UnifiedScanResult contains all scan results.
+// OSINT fields (ShodanData, CensysData) have been removed — use PortResults
+// and NetworkData for network topology, Horus fields for static analysis.
 type UnifiedScanResult struct {
-	RequestID   string              `json:"request_id"`
-	Target      string              `json:"target"`
-	StartTime   time.Time           `json:"start_time"`
-	EndTime     time.Time           `json:"end_time"`
-	Duration    time.Duration       `json:"duration"`
+	RequestID   string                   `json:"request_id"`
+	Target      string                   `json:"target"`
+	StartTime   time.Time                `json:"start_time"`
+	EndTime     time.Time                `json:"end_time"`
+	Duration    time.Duration            `json:"duration"`
 	// Network scanning results
-	PortResults []scanner.Result    `json:"port_results,omitempty"`
-	NetworkData []network.PortResult `json:"network_data,omitempty"`
-	// OSINT results
-	ShodanData  *osint.HostData     `json:"shodan_data,omitempty"`
-	CensysData  *osint.CensysHostData `json:"censys_data,omitempty"`
+	PortResults []scanner.Result         `json:"port_results,omitempty"`
+	NetworkData []network.PortResult     `json:"network_data,omitempty"`
 	CrawlerData []scanner.CrawlerFinding `json:"crawler_data,omitempty"`
 	// Horus (Eye of Horus) built-in scanner results
-	Vulnerabilities  []audit.Vulnerability       `json:"vulnerabilities,omitempty"`
-	Secrets          []audit.SecretFinding       `json:"secrets,omitempty"`
-	ComplianceReport *audit.ComplianceReport     `json:"compliance_report,omitempty"`
-	ContainerFindings *audit.ContainerFindings   `json:"container_findings,omitempty"`
+	Vulnerabilities   []audit.Vulnerability     `json:"vulnerabilities,omitempty"`
+	Secrets           []audit.SecretFinding     `json:"secrets,omitempty"`
+	ComplianceReport  *audit.ComplianceReport   `json:"compliance_report,omitempty"`
+	ContainerFindings *audit.ContainerFindings  `json:"container_findings,omitempty"`
 	// Metadata
-	Errors      []string            `json:"errors,omitempty"`
-	DAGNodeID   string              `json:"dag_node_id,omitempty"`
+	Errors    []string `json:"errors,omitempty"`
+	DAGNodeID string   `json:"dag_node_id,omitempty"`
 }
 
-// UnifiedOrchestrator coordinates all scanner types
+// UnifiedOrchestrator coordinates all local scanner types.
+// No external API calls are made — all intelligence is gathered from the target directly.
 type UnifiedOrchestrator struct {
-	secrets    *config.SecretBundle
 	store      dag.Store
 	privateKey []byte
 	mu         sync.RWMutex
 	running    map[string]bool
 }
 
-// NewUnifiedOrchestrator creates a new unified scanner orchestrator
-func NewUnifiedOrchestrator(secrets *config.SecretBundle, store dag.Store, privateKey []byte) *UnifiedOrchestrator {
+// NewUnifiedOrchestrator creates a new unified scanner orchestrator.
+// The secrets parameter is accepted for backwards-compatible call sites but is
+// permanently ignored — OSINT has been removed.
+func NewUnifiedOrchestrator(_ interface{}, store dag.Store, privateKey []byte) *UnifiedOrchestrator {
 	return &UnifiedOrchestrator{
-		secrets:    secrets,
 		store:      store,
 		privateKey: privateKey,
 		running:    make(map[string]bool),
 	}
 }
 
-// ExecuteScan performs a unified scan based on the request
+// ExecuteScan performs a unified scan based on the request.
+// All scan types run locally — no telemetry, no external API calls.
 func (u *UnifiedOrchestrator) ExecuteScan(ctx context.Context, req UnifiedScanRequest) (*UnifiedScanResult, error) {
 	requestID := fmt.Sprintf("scan-%d", time.Now().UnixNano())
 
@@ -118,26 +125,29 @@ func (u *UnifiedOrchestrator) ExecuteScan(ctx context.Context, req UnifiedScanRe
 
 	log.Printf("[SONAR-UNIFIED] Starting scan %s for target %s", requestID, req.Target)
 
-	// Determine which scans to run
+	// Determine which scan types to run.
+	// ScanTypeFull = port + crawler + all Horus passes (no OSINT).
 	scanTypes := req.ScanTypes
 	if len(scanTypes) == 0 || contains(scanTypes, ScanTypeFull) {
-		scanTypes = []ScanType{ScanTypePort, ScanTypeOSINT}
+		scanTypes = []ScanType{
+			ScanTypePort,
+			ScanTypeVuln,
+			ScanTypeSecrets,
+			ScanTypeCompliance,
+			ScanTypeContainer,
+		}
 	}
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
-	// Execute scans concurrently
 	for _, scanType := range scanTypes {
 		wg.Add(1)
 		go func(st ScanType) {
 			defer wg.Done()
-
 			switch st {
 			case ScanTypePort:
 				u.executePortScan(ctx, req, result, &mu)
-			case ScanTypeOSINT:
-				u.executeOSINTScan(ctx, req, result, &mu)
 			case ScanTypeCrawler:
 				u.executeCrawlerScan(ctx, req, result, &mu)
 			case ScanTypeVuln:
@@ -152,7 +162,6 @@ func (u *UnifiedOrchestrator) ExecuteScan(ctx context.Context, req UnifiedScanRe
 		}(scanType)
 	}
 
-	// Wait with timeout
 	done := make(chan struct{})
 	go func() {
 		wg.Wait()
@@ -180,7 +189,6 @@ func (u *UnifiedOrchestrator) ExecuteScan(ctx context.Context, req UnifiedScanRe
 	result.EndTime = time.Now().UTC()
 	result.Duration = result.EndTime.Sub(result.StartTime)
 
-	// Record to DAG
 	if err := u.recordToDAG(result); err != nil {
 		log.Printf("[SONAR-UNIFIED] WARN: Failed to record to DAG: %v", err)
 	}
@@ -192,21 +200,16 @@ func (u *UnifiedOrchestrator) ExecuteScan(ctx context.Context, req UnifiedScanRe
 func (u *UnifiedOrchestrator) executePortScan(ctx context.Context, req UnifiedScanRequest, result *UnifiedScanResult, mu *sync.Mutex) {
 	log.Printf("[SONAR-UNIFIED] Executing port scan for %s", req.Target)
 
-	// Use the advanced scanner from pkg/scanner
 	s := scanner.New()
-
 	if req.Concurrency > 0 {
 		s.Concurrency = req.Concurrency
 	}
-
 	if len(req.Ports) > 0 {
 		s.FocusPorts(req.Ports)
 	}
-
 	if req.FullScan {
 		s.SetFullScan()
 	}
-
 	if req.ProxyAddr != "" {
 		s.SetProxy(req.ProxyAddr)
 		log.Printf("[SONAR-UNIFIED] Using proxy: %s", req.ProxyAddr)
@@ -220,73 +223,21 @@ func (u *UnifiedOrchestrator) executePortScan(ctx context.Context, req UnifiedSc
 		return
 	}
 
-	mu.Lock()
-	result.PortResults = results
-	mu.Unlock()
-
-	log.Printf("[SONAR-UNIFIED] Port scan complete. Found %d open ports", len(results))
-
-	// Also run network scanner for additional data
 	networkScanner := network.NewScanner(req.Target, nil)
 	networkResults := networkScanner.Scan(ctx)
 
 	mu.Lock()
+	result.PortResults = results
 	result.NetworkData = networkResults
 	mu.Unlock()
+
+	log.Printf("[SONAR-UNIFIED] Port scan complete: %d open ports", len(results))
 }
 
-func (u *UnifiedOrchestrator) executeOSINTScan(ctx context.Context, req UnifiedScanRequest, result *UnifiedScanResult, mu *sync.Mutex) {
-	if u.secrets == nil {
-		log.Println("[SONAR-UNIFIED] OSINT skipped: no secrets configured")
-		return
-	}
-
-	log.Printf("[SONAR-UNIFIED] Executing OSINT lookup for %s", req.Target)
-
-	// Shodan
-	if len(u.secrets.ShodanKey) > 0 {
-		shodan := osint.NewShodanClient(u.secrets.ShodanKey)
-		data, err := shodan.GetHostInfo(req.Target)
-		if err != nil {
-			mu.Lock()
-			result.Errors = append(result.Errors, fmt.Sprintf("shodan lookup failed: %v", err))
-			mu.Unlock()
-		} else {
-			mu.Lock()
-			result.ShodanData = data
-			mu.Unlock()
-			log.Printf("[SONAR-UNIFIED] Shodan data acquired. ISP: %s, Vulns: %d", data.Org, len(data.Vulns))
-		}
-	}
-
-	// Censys
-	if len(u.secrets.CensysID) > 0 && len(u.secrets.CensysSecret) > 0 {
-		censys := osint.NewCensysClient(u.secrets.CensysID, u.secrets.CensysSecret)
-		data, err := censys.GetHostInfo(req.Target)
-		if err != nil {
-			mu.Lock()
-			result.Errors = append(result.Errors, fmt.Sprintf("censys lookup failed: %v", err))
-			mu.Unlock()
-		} else {
-			mu.Lock()
-			result.CensysData = data
-			mu.Unlock()
-			log.Printf("[SONAR-UNIFIED] Censys data acquired. Services: %d", len(data.Services))
-		}
-	}
-
-	// Memory sanitization
-	if u.secrets != nil {
-		u.secrets.Wipe()
-		log.Println("[SONAR-UNIFIED] OSINT keys wiped from memory")
-	}
-}
-
-func (u *UnifiedOrchestrator) executeCrawlerScan(ctx context.Context, req UnifiedScanRequest, result *UnifiedScanResult, mu *sync.Mutex) {
+func (u *UnifiedOrchestrator) executeCrawlerScan(_ context.Context, req UnifiedScanRequest, result *UnifiedScanResult, mu *sync.Mutex) {
 	log.Printf("[SONAR-UNIFIED] Executing crawler for %s", req.Target)
 
 	outputPath := fmt.Sprintf("data/scans/%s_%d.json", req.Target, time.Now().Unix())
-
 	if err := scanner.RunCrawler(req.Target, outputPath); err != nil {
 		mu.Lock()
 		result.Errors = append(result.Errors, fmt.Sprintf("crawler failed: %v", err))
@@ -306,15 +257,15 @@ func (u *UnifiedOrchestrator) executeCrawlerScan(ctx context.Context, req Unifie
 	result.CrawlerData = findings
 	mu.Unlock()
 
-	log.Printf("[SONAR-UNIFIED] Crawler complete. Found %d items", len(findings))
+	log.Printf("[SONAR-UNIFIED] Crawler complete: %d items", len(findings))
 }
 
-// Horus (Eye of Horus) Built-in Scanner Methods
-// Zero-dependency vulnerability, secret, compliance, and container scanning
+// ── Horus (Eye of Horus) Built-in Scanners ────────────────────────────────────
+// Zero-dependency vuln, secret, compliance, and container scanning.
+// No external calls — all analysis is static and purely local.
 
-func (u *UnifiedOrchestrator) executeVulnerabilityScan(ctx context.Context, req UnifiedScanRequest, result *UnifiedScanResult, mu *sync.Mutex) {
+func (u *UnifiedOrchestrator) executeVulnerabilityScan(_ context.Context, req UnifiedScanRequest, result *UnifiedScanResult, mu *sync.Mutex) {
 	log.Printf("[SONAR-HORUS] Executing vulnerability scan for %s", req.Target)
-
 	vulns, err := scanners.RunBuiltInVulnerabilityScan(req.Target)
 	if err != nil {
 		mu.Lock()
@@ -322,17 +273,14 @@ func (u *UnifiedOrchestrator) executeVulnerabilityScan(ctx context.Context, req 
 		mu.Unlock()
 		return
 	}
-
 	mu.Lock()
 	result.Vulnerabilities = vulns
 	mu.Unlock()
-
-	log.Printf("[SONAR-HORUS] Vulnerability scan complete. Found %d vulnerabilities", len(vulns))
+	log.Printf("[SONAR-HORUS] Vulnerability scan complete: %d findings", len(vulns))
 }
 
-func (u *UnifiedOrchestrator) executeSecretScan(ctx context.Context, req UnifiedScanRequest, result *UnifiedScanResult, mu *sync.Mutex) {
+func (u *UnifiedOrchestrator) executeSecretScan(_ context.Context, req UnifiedScanRequest, result *UnifiedScanResult, mu *sync.Mutex) {
 	log.Printf("[SONAR-HORUS] Executing secret scan for %s", req.Target)
-
 	secrets, err := scanners.RunBuiltInSecretScan(req.Target)
 	if err != nil {
 		mu.Lock()
@@ -340,25 +288,20 @@ func (u *UnifiedOrchestrator) executeSecretScan(ctx context.Context, req Unified
 		mu.Unlock()
 		return
 	}
-
 	mu.Lock()
 	result.Secrets = secrets
 	mu.Unlock()
-
-	log.Printf("[SONAR-HORUS] Secret scan complete. Found %d secrets", len(secrets))
+	log.Printf("[SONAR-HORUS] Secret scan complete: %d secrets", len(secrets))
 }
 
-func (u *UnifiedOrchestrator) executeComplianceScan(ctx context.Context, req UnifiedScanRequest, result *UnifiedScanResult, mu *sync.Mutex) {
-	// Get framework from options, default to "cis"
+func (u *UnifiedOrchestrator) executeComplianceScan(_ context.Context, req UnifiedScanRequest, result *UnifiedScanResult, mu *sync.Mutex) {
 	framework := "cis"
 	if req.Options != nil {
 		if f, ok := req.Options["compliance_framework"]; ok {
 			framework = f
 		}
 	}
-
 	log.Printf("[SONAR-HORUS] Executing %s compliance scan", framework)
-
 	report, err := scanners.RunBuiltInComplianceScan(framework)
 	if err != nil {
 		mu.Lock()
@@ -366,18 +309,15 @@ func (u *UnifiedOrchestrator) executeComplianceScan(ctx context.Context, req Uni
 		mu.Unlock()
 		return
 	}
-
 	mu.Lock()
 	result.ComplianceReport = &report
 	mu.Unlock()
-
-	log.Printf("[SONAR-HORUS] Compliance scan complete. %d/%d checks passed (%.1f%%)",
+	log.Printf("[SONAR-HORUS] Compliance scan complete: %d/%d checks passed (%.1f%%)",
 		report.PassedChecks, report.TotalChecks, report.ComplianceRate)
 }
 
-func (u *UnifiedOrchestrator) executeContainerScan(ctx context.Context, req UnifiedScanRequest, result *UnifiedScanResult, mu *sync.Mutex) {
+func (u *UnifiedOrchestrator) executeContainerScan(_ context.Context, req UnifiedScanRequest, result *UnifiedScanResult, mu *sync.Mutex) {
 	log.Printf("[SONAR-HORUS] Executing container scan for %s", req.Target)
-
 	findings, err := scanners.RunBuiltInContainerScan(req.Target)
 	if err != nil {
 		mu.Lock()
@@ -385,14 +325,13 @@ func (u *UnifiedOrchestrator) executeContainerScan(ctx context.Context, req Unif
 		mu.Unlock()
 		return
 	}
-
 	mu.Lock()
 	result.ContainerFindings = findings
 	mu.Unlock()
-
-	log.Printf("[SONAR-HORUS] Container scan complete. Found %d misconfigurations",
-		len(findings.Misconfigurations))
+	log.Printf("[SONAR-HORUS] Container scan complete: %d misconfigurations", len(findings.Misconfigurations))
 }
+
+// ── DAG Attestation ───────────────────────────────────────────────────────────
 
 func (u *UnifiedOrchestrator) recordToDAG(result *UnifiedScanResult) error {
 	if u.store == nil {
@@ -406,17 +345,17 @@ func (u *UnifiedOrchestrator) recordToDAG(result *UnifiedScanResult) error {
 
 	node := &dag.Node{
 		Action: "UNIFIED_SCAN",
-		Symbol: "Nyansapo", // Wisdom knot - intelligence gathered
+		Symbol: "Nyansapo", // Wisdom knot — intelligence gathered
 		Time:   time.Now().UTC().Format(time.RFC3339Nano),
 		PQC: map[string]string{
 			"request_id":   result.RequestID,
 			"target":       result.Target,
 			"duration_sec": fmt.Sprintf("%.2f", result.Duration.Seconds()),
 			"port_count":   fmt.Sprintf("%d", len(result.PortResults)+len(result.NetworkData)),
+			"osint":        "disabled", // permanent — privacy policy
 		},
 	}
 
-	// Sign if private key available
 	if len(u.privateKey) > 0 {
 		if err := node.Sign(u.privateKey); err != nil {
 			log.Printf("[SONAR-UNIFIED] WARN: Failed to sign node: %v", err)
@@ -432,11 +371,10 @@ func (u *UnifiedOrchestrator) recordToDAG(result *UnifiedScanResult) error {
 	return nil
 }
 
-// GetRunningScans returns a list of targets with scans in progress
+// GetRunningScans returns a list of targets with scans in progress.
 func (u *UnifiedOrchestrator) GetRunningScans() []string {
 	u.mu.RLock()
 	defer u.mu.RUnlock()
-
 	targets := make([]string, 0, len(u.running))
 	for t := range u.running {
 		targets = append(targets, t)
