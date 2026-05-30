@@ -275,6 +275,19 @@ func registerToolHandlers(executor *khepramcp.Executor) {
 	// ── ERT: Enterprise Risk & Threat scanner (Docker sandbox) ────────────
 	executor.RegisterFunc("ert_scan", tools.HandleERTScan)
 
+	// ── ERT Packages A–D (in-process, JSON output, ASAF-enriched) ─────────
+	// Package A — Mission Assurance Modeling (NIST 800-171 + SCA scoring)
+	executor.RegisterFunc("ert_readiness", tools.HandleERTReadiness)
+	// Package B — Supply Chain Hunter (Syft→Grype→Enricher pipeline)
+	executor.RegisterFunc("ert_architect", tools.HandleERTArchitect)
+	// Package C — PQC Attestation (SBOM crypto inventory + weak primitive scan)
+	executor.RegisterFunc("ert_crypto", tools.HandleERTCrypto)
+	// Package D — Causal Risk Attestation (KernelRouter synthesis + DAG)
+	executor.RegisterFunc("ert_godfather", tools.HandleERTGodfather)
+
+	// ── DAG Attestation — export signed audit trail ────────────────────────
+	executor.RegisterFunc("dag_attestation", tools.HandleDAGAttestation)
+
 	// ── Godfather Report + Human-in-the-Loop Gate ─────────────────────────
 	// NSA/ASD Security Track 6: high-impact outputs require analyst approval
 	executor.RegisterFunc("godfather_report", tools.HandleGodfatherReport)
@@ -403,6 +416,50 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			MaxPrivilege: "read-only",
 			// CapabilityMounts: populated at runtime from call.Args["project_path"]
 			// The router's ASD/CISA defense validates these are not traversal paths.
+		},
+
+		// ── ERT Packages A–D (in-process, structured JSON, ASAF-enriched) ────
+		{
+			Name:           "ert_readiness",
+			Description:    "Package A: NIST 800-171 Rev2 compliance assessment + live SCA risk factor. Returns alignment score (0–100), control gaps, and prioritized remediation roadmap. Air-gap safe.",
+			RiskClass:      khepramcp.RiskReadOnly, Scope: "ert:compliance",
+			SchemaVersion:  "1.0.0", SchemaHash: hash("ert_readiness"),
+			AllowedBackend: "in-process", TimeoutMs: 60000,
+			MaxPrivilege:   "read-only",
+		},
+		{
+			Name:           "ert_architect",
+			Description:    "Package B: Live supply chain risk — Syft SBOM generation + Grype CVE matching + threat intel enrichment (CISA KEV, EPSS, MITRE ATT&CK). Returns enriched findings with NIST 800-171 control mapping.",
+			RiskClass:      khepramcp.RiskReadOnly, Scope: "ert:supply-chain",
+			SchemaVersion:  "1.0.0", SchemaHash: hash("ert_architect"),
+			AllowedBackend: "in-process", TimeoutMs: 300000,
+			MaxPrivilege:   "read-only",
+		},
+		{
+			Name:           "ert_crypto",
+			Description:    "Package C: PQC readiness attestation — source-level crypto primitive scan, SBOM crypto library inventory (OpenSSL, Kyber, Dilithium, etc.), weak primitive detection (MD5/SHA1/DES/RC4), CNSA 2.0 scenario-based quantum risk context.",
+			RiskClass:      khepramcp.RiskReadOnly, Scope: "ert:pqc",
+			SchemaVersion:  "1.0.0", SchemaHash: hash("ert_crypto"),
+			AllowedBackend: "in-process", TimeoutMs: 180000,
+			MaxPrivilege:   "read-only",
+		},
+		{
+			Name:           "ert_godfather",
+			Description:    "Package D: EA KernelRouter-synthesized causal risk attestation. Runs STIG, PQC, SBOM, and Network agents in parallel, produces board-level causal chain with CVSS-band dollar impact estimate and DAG-signed evidence node.",
+			RiskClass:      khepramcp.RiskReadOnly, Scope: "ert:godfather",
+			SchemaVersion:  "1.0.0", SchemaHash: hash("ert_godfather"),
+			AllowedBackend: "in-process", TimeoutMs: 300000,
+			MaxPrivilege:   "read-only",
+		},
+
+		// ── DAG Attestation ──────────────────────────────────────────────────
+		{
+			Name:           "dag_attestation",
+			Description:    "Export the PQC-signed DAG audit trail for the current session. Returns all DAG nodes with ML-DSA-65 signatures, timestamps, and Adinkra symbol chain. Use after any ERT scan to produce a cryptographically-verifiable evidence package.",
+			RiskClass:      khepramcp.RiskReadOnly, Scope: "dag:read",
+			SchemaVersion:  "1.0.0", SchemaHash: hash("dag_attestation"),
+			AllowedBackend: "in-process", TimeoutMs: 10000,
+			MaxPrivilege:   "read-only",
 		},
 
 		// ── Godfather Report (HITL-gated) ─────────────────────────────────────

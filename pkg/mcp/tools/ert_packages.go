@@ -690,12 +690,20 @@ func HandleERTGodfather(ctx context.Context, call mcp.MCPToolCall) (any, []strin
 	sec.HasCUI = true
 	sec.Frameworks = []string{"cmmc", "nist-800-53", "stig"}
 
-	// Run KernelRouter
+	// ── Source-level crypto enrichment ─────────────────────────────────────────
+	// Run a fast source scan to set LegacyCryptoFound so the KernelRouter's
+	// PQC agent fires on real evidence, not static flags.
+	cryptoScan := scanCryptoSource(absPath)
+	sec.LegacyCryptoFound = cryptoScan.HasLegacy
+
+	// Run KernelRouter — register all capabilities that the classifier may select
+	// for a CUI target. Missing agents cause Route() to return an error.
 	dagStore := dag.NewMemory()
 	router := ea.NewKernelRouter(dagStore)
 	router.Register(&godfatherSTIGAgent{})
 	router.Register(&godfatherPQCAgent{})
 	router.Register(&godfatherNetworkAgent{})
+	router.Register(&godfatherFIMAgent{})  // FIM fires for HasCUI targets
 
 	// Add SBOM agent only if SCA tools available
 	if scaBinaryAvailable("syft") && scaBinaryAvailable("grype") {
@@ -703,7 +711,11 @@ func HandleERTGodfather(ctx context.Context, call mcp.MCPToolCall) (any, []strin
 		sec.UnpatchedCVEs = 1 // trigger SBOM capability
 	}
 
-	results, _ := router.Route(ctx, sec)
+	var routeWarnings []string
+	results, routeErr := router.Route(ctx, sec)
+	if routeErr != nil {
+		routeWarnings = append(routeWarnings, fmt.Sprintf("KernelRouter partial: %v", routeErr))
+	}
 
 	// Aggregate
 	var totalScore float64
@@ -749,6 +761,7 @@ func HandleERTGodfather(ctx context.Context, call mcp.MCPToolCall) (any, []strin
 	dagNodeID := attestGodfatherMCP(dagStore, sec, totalScore, totalFindings)
 
 	var warnings []string
+	warnings = append(warnings, routeWarnings...)
 	if critical > 0 {
 		warnings = append(warnings, fmt.Sprintf("%d CRITICAL findings — executive action required", critical))
 	}
@@ -892,6 +905,27 @@ func (a *godfatherSBOMAgent) Execute(ctx context.Context, sec *ea.SecurityContex
 		StartedAt: time.Now(), CompletedAt: time.Now(),
 		FindingCount: len(findings), RiskScore: score, Findings: findings,
 		Metadata: map[string]interface{}{"cisa_kev_count": kevCount},
+	}, nil
+}
+
+type godfatherFIMAgent struct{}
+
+func (a *godfatherFIMAgent) Capability() ea.Capability { return ea.CapFIM }
+func (a *godfatherFIMAgent) Name() string              { return "mcp-fim-integrity" }
+func (a *godfatherFIMAgent) Execute(_ context.Context, _ *ea.SecurityContext) (*ea.AgentResult, error) {
+	// FIM passthrough for MCP context: recommend deployment of a file integrity
+	// monitoring solution. Full FIM scan requires the khepra-daemon agent.
+	return &ea.AgentResult{
+		AgentName: a.Name(), Capability: ea.CapFIM.String(),
+		StartedAt: time.Now(), CompletedAt: time.Now(),
+		FindingCount: 1, RiskScore: 10.0,
+		Findings: []ea.Finding{{
+			ID: "FIM-001", Severity: "MEDIUM",
+			Title:        "File integrity monitoring not verified",
+			Control:      "NIST 800-171 3.14.1 / CMMC SI.2.216",
+			Remediation:  "Deploy khepra-daemon with FIM mode enabled for continuous file integrity attestation",
+			DiscoveredAt: time.Now(),
+		}},
 	}, nil
 }
 
