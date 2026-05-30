@@ -9,6 +9,11 @@ primary_region = "iad" # US East (Ashburn, VA)
   PORT = "8080"
   TLS_ENABLED = "false"
   PYTHONUNBUFFERED = "1"
+  # Deployment mode — MUST be set for correct DAG store and license path selection.
+  # sovereign = air-gapped, PersistentMemory DAG, no external calls
+  # edge      = Fly.io / cloud, InMemory DAG, SaaS license validation
+  # ironbank  = DoD Iron Bank OCI, FIPS-only, PersistentMemory
+  KHEPRA_MODE = "edge"
   # Allow eval/basic scans without a paid license (public funnel)
   ASAF_ALLOW_EVAL_WITHOUT_LICENSE = "true"
   # LLM provider — set to "none" so SEKHEM starts fast without waiting for Ollama.

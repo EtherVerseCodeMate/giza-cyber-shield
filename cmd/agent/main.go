@@ -72,8 +72,8 @@ func initializeAgent(token string) {
 		token = os.Getenv("KHEPRA_ENROLLMENT_TOKEN")
 	}
 
-	cfg := config.Load()
-	store := dag.GlobalDAG()
+	cfg := config.LoadRuntime()
+	store := dag.NewStore(cfg)
 
 	// 1. Setup Licensing
 	clientMgr, regMgr, enforcer := setupLicensing(token, store)
@@ -90,7 +90,7 @@ func initializeAgent(token string) {
 		BillingCalculator:  billing.NewHybridBillingCalculator(500.0),
 		TelemetryClient:    nil,
 		DagStore:           store,
-		IsAirGapped:        false,
+		IsAirGapped:        cfg.IsAirGapped,
 		MachineID:          license.GenerateMachineID(),
 	})
 
