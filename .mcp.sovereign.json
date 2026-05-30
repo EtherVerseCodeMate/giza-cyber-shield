@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "khepra-mcp": {
+      "_comment": "Sovereign / air-gap mode — zero cloud dependencies. No Supabase, no telemetry, no outbound calls. DAG persists to ~/.khepra/dag/ (PersistentMemory). Network scanning restricted to RFC 1918 + loopback only.",
+      "command": "go",
+      "args": ["run", "./cmd/khepra-mcp/main.go"],
+      "env": {
+        "KHEPRA_MODE": "sovereign",
+        "KHEPRA_NETWORK_POLICY": "lan",
+        "PHANTOM_SYMBOL": "Eban",
+        "KHEPRA_LICENSE_KEY": "${KHEPRA_LICENSE_KEY}",
+        "KHEPRA_AUDIT_LOG_PATH": "${USERPROFILE}/.khepra/logs/audit.ndjson",
+        "KHEPRA_MAX_CONCURRENT": "5"
+      }
+    }
+  }
+}

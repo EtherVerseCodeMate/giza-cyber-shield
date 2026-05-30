@@ -1,0 +1,35 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "_comment": "SaaS mode — Supabase MCP server. Requires SUPABASE_PROJECT_REF and SUPABASE_ACCESS_TOKEN.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--project-ref",
+        "${SUPABASE_PROJECT_REF}"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}"
+      }
+    },
+    "khepra-mcp": {
+      "_comment": "SaaS mode — Fly.io hosted khepra-mcp. Requires KHEPRA_LICENSE_KEY. Runs as Docker container with unrestricted network policy for cloud scanning.",
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--env", "KHEPRA_MODE=edge",
+        "--env", "KHEPRA_LICENSE_KEY=${KHEPRA_LICENSE_KEY}",
+        "--env", "PHANTOM_SYMBOL=Eban",
+        "--env", "KHEPRA_AUDIT_LOG_PATH=/var/log/khepra/audit.ndjson",
+        "--volume", "${HOME}/.khepra/logs:/var/log/khepra",
+        "ghcr.io/etherversecodemate/khepra-mcp:latest"
+      ],
+      "env": {
+        "KHEPRA_LICENSE_KEY": "${KHEPRA_LICENSE_KEY}"
+      }
+    }
+  }
+}

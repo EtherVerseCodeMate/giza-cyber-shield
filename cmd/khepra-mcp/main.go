@@ -81,6 +81,21 @@ func main() {
 	}
 	logger.Printf("  symbol=%s | key_id=%s", symbol, keyID)
 
+	// ── Transport mode enforcement ────────────────────────────────────────────
+	// sovereign/ironbank: stdio only — refuse HTTP listener (air-gap policy).
+	// edge/hybrid: HTTP/SSE allowed (Fly.io reverse proxy handles TLS).
+	if runCfg.IsAirGapped {
+		if os.Getenv("KHEPRA_HTTP_PORT") != "" {
+			logger.Fatalf("FATAL: KHEPRA_HTTP_PORT=%s is set but KHEPRA_MODE=%s does not permit HTTP transport. "+
+				"Sovereign/ironbank deployments use stdio transport only. "+
+				"Remove KHEPRA_HTTP_PORT or switch to KHEPRA_MODE=edge for HTTP.",
+				os.Getenv("KHEPRA_HTTP_PORT"), runCfg.Mode)
+		}
+		logger.Printf("  transport:      stdio only (air-gap policy — HTTP listener refused)")
+	} else {
+		logger.Printf("  transport:      stdio + HTTP/SSE available (set KHEPRA_HTTP_PORT to enable)")
+	}
+
 	// ── License Validation ──────────────────────────────────────────────
 	// ParseMCPLicense loads KHEPRA_LICENSE_KEY and verifies offline via
 	// ML-DSA-65 + device binding + expiry + IPFS CRL (sovereign.go stack).

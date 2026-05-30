@@ -1,27 +1,19 @@
 {
+  "_comment": "KHEPRA MCP Client Config — SOVEREIGN / AIR-GAP MODE. For SaaS (Fly.io+Supabase), use .mcp.saas.json instead.",
   "mcpServers": {
-    "supabase": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@supabase/mcp-server-supabase@latest",
-        "--project-ref",
-        "xjknkjbrjgljuovaazeu"
-      ],
-      "env": {
-        "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}"
-      }
-    },
-
     "khepra-mcp": {
+      "_comment": "Docker image — sovereign mode (ghcr.io pre-pulled, no runtime pulls). Requires local Docker daemon.",
       "command": "docker",
       "args": [
         "run",
         "--rm",
         "-i",
+        "--env", "KHEPRA_MODE=sovereign",
+        "--env", "KHEPRA_NETWORK_POLICY=lan",
         "--env", "KHEPRA_LICENSE_KEY=${KHEPRA_LICENSE_KEY}",
         "--env", "PHANTOM_SYMBOL=Eban",
         "--env", "KHEPRA_AUDIT_LOG_PATH=/var/log/khepra/audit.ndjson",
+        "--volume", "${HOME}/.khepra:/root/.khepra",
         "--volume", "${HOME}/.khepra/logs:/var/log/khepra",
         "ghcr.io/etherversecodemate/khepra-mcp:latest"
       ],
@@ -30,28 +22,16 @@
       }
     },
 
-    "khepra-mcp-dev": {
-      "_comment": "Development mode — uses local build via asaf CLI",
-      "command": "asaf",
-      "args": ["mcp"],
-      "env": {
-        "KHEPRA_SERVICE_SECRET": "${KHEPRA_SERVICE_SECRET}",
-        "SUPABASE_URL": "https://xjknkjbrjgljuovaazeu.supabase.co",
-        "SUPABASE_SERVICE_ROLE_KEY": "${SUPABASE_SERVICE_ROLE_KEY}",
-        "MCP_PQC_ENABLED": "true",
-        "KHEPRA_AUDIT_LOG_PATH": "${USERPROFILE}/.khepra/logs/audit.ndjson",
-        "KHEPRA_MAX_CONCURRENT": "5"
-      }
-    },
-
     "khepra-mcp-local": {
-      "_comment": "Local source build — all 5 ERT tools + dag_attestation wired. Use for testing before Docker image rebuild.",
+      "_comment": "Local source build — sovereign mode. All 5 ERT tools + dag_attestation. Use for testing before Docker image rebuild.",
       "command": "go",
       "args": [
         "run",
         "./cmd/khepra-mcp/main.go"
       ],
       "env": {
+        "KHEPRA_MODE": "sovereign",
+        "KHEPRA_NETWORK_POLICY": "lan",
         "PHANTOM_SYMBOL": "Eban",
         "KHEPRA_AUDIT_LOG_PATH": "${USERPROFILE}/.khepra/logs/audit.ndjson",
         "KHEPRA_MAX_CONCURRENT": "5",
