@@ -193,11 +193,9 @@ def build(component: str, fips: bool = True, tags: list = None) -> bool:
 def build_all_components(fips: bool = True) -> bool:
     """Build all Khepra Protocol components.
 
-    Deployment model:
-      - adinkhepra, adinkhepra-agent: sovereign binaries (no external deps,
-        build tags: none — supabase/saas code excluded automatically)
-      - apiserver: SaaS cloud gateway — MUST be built with -tags saas to
-        include pkg/supabase, pkg/security secure client, and MCP audit handlers
+    Sovereign binaries (adinkhepra, adinkhepra-agent) use no build tags.
+    The apiserver (SaaS gateway) is built with -tags saas to include
+    Supabase-dependent code excluded from sovereign/ironbank binaries.
     """
     # Sovereign binaries — no build tags, pure-Go safe
     for component in ["adinkhepra", "adinkhepra-agent"]:

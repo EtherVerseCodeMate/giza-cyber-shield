@@ -1,3 +1,5 @@
+//go:build saas
+
 // Package apiserver — NL Tool Executor
 //
 // serverToolExecutor implements mcp.ToolExecutor, bridging the NLProcessor
