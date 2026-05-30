@@ -33,7 +33,7 @@
 //   Natural Language Security Engine:
 //   LLM_PROVIDER              - LLM backend: "ollama" (default) | "none"
 //   LLM_URL                   - Ollama base URL (default: http://localhost:11434)
-//   LLM_MODEL                 - Ollama model (default: phi4)
+//   LLM_MODEL                 - Ollama model (default: auto-discovered via /api/tags)
 //   LLM_API_KEY               - Optional bearer key for hosted Ollama
 
 package main
@@ -367,7 +367,8 @@ func initNLProcessor(server *apiserver.Server) {
 		}
 		llmModel := os.Getenv("LLM_MODEL")
 		if llmModel == "" {
-			llmModel = "phi4"
+			// Auto-discover: probes /api/tags and selects gemma3:4b > phi4:latest > ...
+			llmModel = ollama.DiscoverModel(llmURL)
 		}
 		llmAPIKey := os.Getenv("LLM_API_KEY")
 

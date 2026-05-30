@@ -215,12 +215,19 @@ func newOllamaProvider() *OllamaProvider {
 	}
 	model := os.Getenv("ADINKHEPRA_LLM_MODEL")
 	if model == "" {
-		model = "gemma3" // gemma3 and phi4 are cached in pkg/llm/blobs
+		// Auto-discover the best available model from the running Ollama instance.
+		// Preference: gemma3:4b (fast, 3.3GB) > phi4:latest (9.1GB) > gemma3 (alias)
+		model = discoverOllamaModel(url)
 	}
 	return &OllamaProvider{
 		client: ollama.NewClient(url, model, ""),
 		model:  model,
 	}
+}
+
+// discoverOllamaModel delegates to the canonical implementation in pkg/llm/ollama.
+func discoverOllamaModel(baseURL string) string {
+	return ollama.DiscoverModel(baseURL)
 }
 
 func (p *OllamaProvider) Name() string { return "Ollama (" + p.model + ", local)" }
