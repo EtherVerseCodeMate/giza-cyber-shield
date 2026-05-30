@@ -422,10 +422,12 @@ func exportSSPMarkdown(doc *SSPDocument, outputPath string) {
 	sb.WriteString(fmt.Sprintf("- **CUI Categories:** %s\n\n", strings.Join(doc.CUICategories, ", ")))
 
 	sb.WriteString("## 3. System Overview\n\n")
-	sb.WriteString(doc.SystemDescription + "\n\n")
+	sb.WriteString(doc.SystemDescription)
+	sb.WriteString("\n\n")
 
 	sb.WriteString("## 4. System Boundary\n\n")
-	sb.WriteString(doc.BoundaryDescription + "\n\n")
+	sb.WriteString(doc.BoundaryDescription)
+	sb.WriteString("\n\n")
 
 	sb.WriteString("## 5. Applicable Laws & Regulations\n\n")
 	for _, law := range doc.ApplicableLaws {
