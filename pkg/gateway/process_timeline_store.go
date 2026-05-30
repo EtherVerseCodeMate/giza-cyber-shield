@@ -1,4 +1,11 @@
+//go:build saas
+// +build saas
+
+// Package gateway — SaaS-only: Supabase PostgREST process timeline store.
+// This file is excluded from sovereign/air-gap builds.
+// The ProcessTimelineStore interface lives in process_timeline_iface.go (no build tag).
 package gateway
+
 
 import (
 	"context"
@@ -9,23 +16,9 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/supabase"
 )
 
-// ProcessTimelineFilter specifies query filters for process behavior events.
-type ProcessTimelineFilter struct {
-	// Limit caps the number of events returned (default: 100).
-	Limit int
-	// ComplianceStatus filters by status values, e.g. ["VIOLATION", "PENDING"].
-	ComplianceStatus []string
-	// TimeSince restricts results to events after this time (zero = no lower bound).
-	TimeSince time.Time
-}
-
-// ProcessTimelineStore is the interface for querying the process_behavior_events table.
-type ProcessTimelineStore interface {
-	// QueryBySTIGControl returns process events mapped to the given STIG control ID.
-	QueryBySTIGControl(ctx context.Context, stigControl string, filter ProcessTimelineFilter) ([]ProcessBehaviorEvent, error)
-}
-
 // ─── Supabase implementation ───────────────────────────────────────────────────
+// ProcessTimelineFilter and ProcessTimelineStore interface are defined in
+// process_timeline_iface.go (no build tag — available in all modes).
 
 // SupabaseProcessTimelineStore queries the process_behavior_events table via
 // the Supabase PostgREST API.
@@ -34,6 +27,7 @@ type SupabaseProcessTimelineStore struct {
 }
 
 // NewSupabaseProcessTimelineStore creates a timeline store backed by Supabase.
+
 func NewSupabaseProcessTimelineStore(cfg supabase.Config) *SupabaseProcessTimelineStore {
 	return &SupabaseProcessTimelineStore{
 		client: supabase.NewClient(cfg),

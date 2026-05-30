@@ -1,4 +1,11 @@
+# ╔══════════════════════════════════════════════════════════════════════╗
+# ║  SAAS DEPLOYMENT ONLY — NOT FOR SOVEREIGN / AIR-GAP DEPLOYMENTS    ║
+# ║  This file deploys the SouHimBou Dashboard to Fly.io.               ║
+# ║  It requires SUPABASE_URL and SUPABASE_ANON_KEY (cloud auth).        ║
+# ║  Sovereign (bare-metal) mode: use cmd/agent binary with SQLite DAG.  ║
+# ╚══════════════════════════════════════════════════════════════════════╝
 # Fly.io deployment configuration for SouHimBou Dashboard (Next.js Frontend)
+
 app = "souhimbou-dashboard"
 primary_region = "iad" # US East (Ashburn, VA)
 

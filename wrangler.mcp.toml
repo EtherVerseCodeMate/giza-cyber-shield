@@ -1,4 +1,11 @@
+# ╔══════════════════════════════════════════════════════════════════════╗
+# ║  SAAS DEPLOYMENT ONLY — NOT FOR SOVEREIGN / AIR-GAP DEPLOYMENTS    ║
+# ║  This file deploys khepra-mcp to Cloudflare Workers (edge proxy).  ║
+# ║  It routes MCP calls to the Fly.io backend (KHEPRA_API_URL).       ║
+# ║  Sovereign (bare-metal) mode: run cmd/khepra-mcp binary directly.  ║
+# ╚══════════════════════════════════════════════════════════════════════╝
 # Khepra MCP Server — Cloudflare Worker Deployment Config
+
 #
 # Deploy command:
 #   wrangler deploy --config wrangler.mcp.toml
