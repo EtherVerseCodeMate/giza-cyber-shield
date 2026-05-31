@@ -54,3 +54,32 @@ This document outlines the strategic roadmap to surpass Tenable's "Exposure Mana
 1.  **Metric**: Update `KhepraDashboard` to display "Effective Risk" (Context-Aware).
 2.  **Workflow**: Add `reachability` check to the `security_workflow`.
 3.  **Identity**: Create `KhepraIdentityGraph` component to visualize node-to-node permissions.
+
+---
+
+## 6. Sherlocking Defense — The Survival Overlay (May 2026)
+
+> Full protocol: [`docs/strategy/SHERLOCKING_DEFENSE_KHEPRA_PROTOCOL.md`](strategy/SHERLOCKING_DEFENSE_KHEPRA_PROTOCOL.md)
+
+The competitive analysis above focuses on out-executing Tenable on technical depth. The Sherlocking Defense protocol addresses a second-order threat: what happens when Anthropic, AWS, Azure, or OpenAI decide to bundle compliance scanning natively into their platforms.
+
+The kill pattern (Tile/Find My, f.lux/iOS) is: single-purpose feature on a platform you don't own. The survival pattern (Dropbox/iCloud, 1Password/Apple Passwords): become operationally embedded infrastructure before the platform moves.
+
+**Our structural asymmetries that hyperscalers cannot replicate:**
+
+| Moat | Why Hyperscalers Can't Copy It |
+|---|---|
+| Air-gap binary (zero cloud deps) | Their business model requires cloud API calls — a SCIF blocks them structurally |
+| USPTO #73565085 patent | Can't use our Adinkra grammar + 36,195 mappings + PQC binding legally |
+| Iron Bank approval | Not going to happen for Claude, Copilot, or ChatGPT Enterprise |
+| SDVOSB sole-source eligibility | Anthropic/Microsoft/Tenable don't have SDVOSB status |
+| Customer DAG audit trail | Can't retroactively build a customer's compliance history |
+
+**The 90-day sprint (from May 2026):**
+1. DAG as customer audit trail — make findings infrastructure, not reports
+2. C3PAO acceptance — KHEPRA Godfather Report satisfies assessment practice requirements
+3. MCP Registry listing — `khepra-mcp` in the registry means agents call *into* us
+
+**The platform move (post-Iron Bank):**
+- Publish PQC-01-STIG-V1R1 before DISA to own the category definition
+- STIGViewer partnership for 100,000+ DoD user network effect and scan corpus flywheel
