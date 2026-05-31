@@ -103,6 +103,20 @@ The 24–36 month window is real. The question is whether we convert pilots to o
 
 ---
 
+## Environmental Signal: MIT Quantum Systems Laboratory (2026-05-28)
+
+MIT announced the QSL with $25M in state + federal + philanthropic funding, located in Building 39 and open to gov/academic/industry researchers.
+
+This directly accelerates our position in three ways:
+
+- **Sales messaging:** Governor-level institutional validation of quantum urgency is the strongest possible third-party proof point for CMMC prospect conversations. "MIT just stood up a $25M quantum lab" closes the "is this real?" objection.
+- **PQC STIG timing:** The QSL launch strengthens the "why now" narrative for PQC-01-STIG-V1R1 publication. DISA and NSA will be watching MIT output — we want our framework published before they reference anything else.
+- **Partnership path:** QSL's industry access program is a potential route to MIT-credentialed PQC validation, co-authorship on STIG-adjacent papers, and relationships that make our implementation academically defensible.
+
+Action: Draft "What MIT QSL means for your CMMC audit" LinkedIn post this week. Add QSL to quantum outreach context.
+
+---
+
 ## Cross-References
 
 - [`../../memory.md`](../../memory.md) — Project memory and full intel brief
