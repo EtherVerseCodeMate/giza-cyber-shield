@@ -186,11 +186,83 @@ func complianceGSACmd(_ []string) {
 }
 
 func complianceStatusCmd(_ []string) {
-	fmt.Println("[STATUS] Compliance Posture Scorecard:")
-	fmt.Println("  - CMMC Level 3 Coverage: [##########] 100%")
-	fmt.Println("  - NIST 800-171 Rev 2:   [########--] 80%")
-	fmt.Println("  - NIST 800-172 Enhanced: [###-------] 30%")
-	fmt.Println("  - GSA Readiness:         [#####-----] 50%")
+	fmt.Println("═══════════════════════════════════════════════════════════════")
+	fmt.Println("  ADINKHEPRA — Compliance Posture Scorecard")
+	fmt.Println("═══════════════════════════════════════════════════════════════")
+
+	// ── Database coverage (real counts from embedded CSVs) ─────────────────
+	db, err := stig.GetDatabase()
+	if err != nil {
+		fmt.Printf("  ❌ Database unavailable: %v\n", err)
+		return
+	}
+	stats := db.Stats()
+
+	stigCount := stats["stig_to_cci_mappings"]
+	cciCount := stats["cci_to_nist53_mappings"]
+	n171Count := stats["nist53_to_nist171_mappings"]
+	totalMappings := stats["total_mappings"]
+
+	fmt.Printf("\n  Control Mapping Database (%d total records)\n", totalMappings)
+	fmt.Printf("    STIG → CCI          : %d mappings\n", stigCount)
+	fmt.Printf("    CCI → NIST 800-53   : %d mappings\n", cciCount)
+	fmt.Printf("    NIST 800-53 → 800-171: %d mappings\n", n171Count)
+
+	// ── NIST 800-171 AC family (live system checks) ────────────────────────
+	fmt.Println("\n  NIST 800-171 Rev 2 — Access Control Family (live)")
+	v171 := nist80171.NewValidator()
+	acResults := v171.ValidateACFamily()
+	acPass, acFail, acManual := 0, 0, 0
+	for _, r := range acResults {
+		switch r.Status {
+		case "PASS":
+			acPass++
+		case "FAIL":
+			acFail++
+		default:
+			acManual++ // MANUAL_REVIEW or NOT_APPLICABLE
+		}
+	}
+	acTotal := len(acResults)
+	acPct := 0.0
+	if acTotal > 0 {
+		acPct = float64(acPass) / float64(acTotal) * 100.0
+	}
+	bar := complianceBar(acPct)
+	fmt.Printf("    AC Family [%s] %.0f%%  (%d pass / %d manual / %d fail of %d controls)\n",
+		bar, acPct, acPass, acManual, acFail, acTotal)
+
+	// ── Remaining families ─────────────────────────────────────────────────
+	fmt.Println("\n  NIST 800-171 Rev 2 — Remaining Families")
+	fmt.Println("    AU/CM/IA/IR/MA/MP/PE/PS/RA/CA/SC/SI families:")
+	fmt.Println("    Requires analyst attestation (policy review + configuration evidence)")
+	fmt.Println("    Use 'adinkhepra compliance audit --enhanced' for full gap analysis")
+
+	// ── GSA ────────────────────────────────────────────────────────────────
+	fmt.Println("\n  GSA Schedule 70 / ESI:")
+	fmt.Println("    Use 'adinkhepra compliance gsa' for readiness check")
+
+	fmt.Println("\n  Iron Bank Submission: IN PROGRESS")
+	fmt.Println("    Hardening manifest: hardening_manifest.yaml")
+	fmt.Println("    Base image:         registry1.dso.mil/ironbank/redhat/ubi/ubi9-minimal")
+	fmt.Println("\n═══════════════════════════════════════════════════════════════")
+}
+
+// complianceBar renders a 10-char ASCII progress bar for a 0-100 score
+func complianceBar(pct float64) string {
+	filled := int(pct/10.0 + 0.5)
+	if filled > 10 {
+		filled = 10
+	}
+	bar := ""
+	for i := 0; i < 10; i++ {
+		if i < filled {
+			bar += "#"
+		} else {
+			bar += "-"
+		}
+	}
+	return bar
 }
 
 // === Shared STIG scanning logic (moved from validate.go) ===
