@@ -82,7 +82,7 @@ Once we publish PQC-01-STIG-V1R1 and it gets cited in a DoD context, we become t
 |---|---|---|
 | Patent wall | USPTO #73565085 — symbolic grammar + mappings + PQC | Pending (active protection) |
 | Air-gap structural advantage | Compiled binary, zero cloud dependency | Production ready |
-| Iron Bank DoD gatekeeping | Platform procurement barrier | Submission in progress |
+| Iron Bank DoD gatekeeping | Platform procurement barrier | Blocked on gov POC — OneDay campaign active |
 | Evidence package dependency | DAG becomes customer's audit trail | Deploy now |
 | C3PAO acceptance | Assessment process integration | Target in 90 days |
 | MCP Registry platform position | Agents call us, not around us | Phase 1 sprint |
@@ -100,6 +100,8 @@ The risk isn't Anthropic Sherlocking us — it's us moving too slowly to get cus
 The 24–36 month window is real. The question is whether we convert pilots to operational dependencies before it closes.
 
 **Execute the 90-day sprint. Get in Iron Bank. Get into C3PAO workflows. Get on the MCP Registry.**
+
+> **Iron Bank status update (2026-05-28):** The hard blocker is not technical — it's the government POC requirement. Iron Bank will not advance without a .gov or .mil contact confirming use. The OneDay cosign campaign (free ASAF scans to 3–5 DIB-adjacent companies in exchange for reference customer permission) is the only active path to manufacturing that relationship. See `memory.md` for full assessment.
 
 ---
 
