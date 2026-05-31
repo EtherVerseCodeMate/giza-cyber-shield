@@ -300,3 +300,50 @@ test-validation:
 	@echo "[ERT] Running full validation suite..."
 	go test ./tests/validation/... -v -timeout 10m
 
+
+# ============================================================
+# Compliance-as-Code (CMMC / ASAF SSP / Trestle)
+# ============================================================
+
+.PHONY: cmmc-tracker
+cmmc-tracker:
+	@echo "[CMMC] Regenerating CMMC_TRACKER.md from SSP control files..."
+	@if [ "$$(uname 2>/dev/null)" = "Linux" ] || [ "$$(uname 2>/dev/null)" = "Darwin" ]; then \
+		chmod +x scripts/update-cmmc-tracker.sh && bash scripts/update-cmmc-tracker.sh; \
+	else \
+		powershell -NoProfile -ExecutionPolicy Bypass -File scripts/update-cmmc-tracker.ps1; \
+	fi
+
+.PHONY: cmmc-tracker-check
+cmmc-tracker-check:
+	@echo "[CMMC] Checking CMMC_TRACKER.md is up to date..."
+	@if [ "$$(uname 2>/dev/null)" = "Linux" ] || [ "$$(uname 2>/dev/null)" = "Darwin" ]; then \
+		chmod +x scripts/update-cmmc-tracker.sh && bash scripts/update-cmmc-tracker.sh --check; \
+	else \
+		powershell -NoProfile -ExecutionPolicy Bypass -File scripts/update-cmmc-tracker.ps1 -Check; \
+	fi
+
+.PHONY: ssp-assemble
+ssp-assemble:
+	@echo "[TRESTLE] Assembling OSCAL SSP from ASAF-GovCloud-SSP/ workspace..."
+	@chmod +x scripts/trestle-assemble.sh
+	@bash scripts/trestle-assemble.sh
+
+.PHONY: ssp-validate
+ssp-validate:
+	@echo "[TRESTLE] Validating assembled SSP OSCAL JSON..."
+	@chmod +x scripts/trestle-assemble.sh
+	@bash scripts/trestle-assemble.sh --validate-only
+
+.PHONY: compliance
+compliance: cmmc-tracker ssp-assemble
+	@echo "[COMPLIANCE] CMMC tracker + OSCAL SSP assembly complete"
+	@echo "[COMPLIANCE]    Tracker : CMMC_TRACKER.md"
+	@echo "[COMPLIANCE]    SSP     : system-security-plans/system-security-plan/system-security-plan.json"
+
+.PHONY: hooks-install
+hooks-install:
+	@echo "[HOOKS] Installing ASAF compliance pre-commit hook..."
+	@git config core.hooksPath .githooks
+	@chmod +x .githooks/pre-commit
+	@echo "[HOOKS] Hook installed -- git config core.hooksPath = .githooks"
