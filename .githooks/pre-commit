@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# =============================================================================
+# .githooks/pre-commit
+#
+# ASAF Compliance-as-Code pre-commit hook.
+#
+# Fires when any of these files are staged:
+#   - ASAF-GovCloud-SSP/**/*.md
+#   - ASAF-GovCloud-SSP/odp-register.yaml
+#   - profiles/ASAF-CMMC-L2/profile.json
+#
+# Actions:
+#   1. Regenerates CMMC_TRACKER.md from current SSP status
+#   2. Stages the updated CMMC_TRACKER.md automatically
+#   3. Fails the commit (exit 1) if tracker generation fails
+#   4. Warns (but does not block) if any control regresses
+#
+# Install:
+#   make hooks-install
+#   — OR —
+#   chmod +x .githooks/pre-commit
+#   git config core.hooksPath .githooks
+# =============================================================================
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+TRACKER_SCRIPT="${REPO_ROOT}/scripts/update-cmmc-tracker.sh"
+TRACKER="${REPO_ROOT}/CMMC_TRACKER.md"
+
+# ── Check if any compliance files are staged ──────────────────────────────────
+STAGED_SSP=$(git diff --cached --name-only 2>/dev/null | grep -E \
+  '^(ASAF-GovCloud-SSP/.*\.md|ASAF-GovCloud-SSP/odp-register\.yaml|profiles/ASAF-CMMC-L2/)' \
+  || true)
+
+if [[ -z "$STAGED_SSP" ]]; then
+  # No SSP files staged — skip
+  exit 0
+fi
+
+echo ""
+echo "🛡  ASAF Compliance Hook — SSP files detected in commit:"
+echo "$STAGED_SSP" | sed 's/^/    /'
+echo ""
+echo "🔄 Regenerating CMMC_TRACKER.md..."
+
+# ── Ensure script exists and is executable ────────────────────────────────────
+if [[ ! -f "$TRACKER_SCRIPT" ]]; then
+  echo "❌ Tracker script not found: ${TRACKER_SCRIPT}"
+  echo "   Run: make cmmc-tracker  — to bootstrap the tracker manually"
+  exit 1
+fi
+
+chmod +x "$TRACKER_SCRIPT" 2>/dev/null || true
+
+# ── Run tracker update (auto-detect Windows vs Linux) ─────────────────────────
+OS_NAME="$(uname 2>/dev/null || echo 'Windows')"
+TRACKER_EXIT=0
+
+if [[ "$OS_NAME" == "Linux" ]] || [[ "$OS_NAME" == "Darwin" ]]; then
+  bash "$TRACKER_SCRIPT" || TRACKER_EXIT=$?
+else
+  # Windows Git bash / MINGW — use PowerShell script
+  PS_SCRIPT="${REPO_ROOT}/scripts/update-cmmc-tracker.ps1"
+  if [[ -f "$PS_SCRIPT" ]]; then
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PS_SCRIPT" || TRACKER_EXIT=$?
+  else
+    echo "❌ Neither bash script nor PS1 script found at ${PS_SCRIPT}"
+    exit 1
+  fi
+fi
+
+if [[ $TRACKER_EXIT -ne 0 ]]; then
+  if [[ $TRACKER_EXIT -eq 2 ]]; then
+    echo ""
+    echo "❌ COMMIT BLOCKED — compliance regression detected."
+    echo "   The 'implemented' control count has decreased vs. the last commit."
+    echo "   To override: git commit --no-verify  (use sparingly — audit trail applies)"
+    exit 1
+  fi
+  echo "❌ CMMC tracker generation failed (exit ${TRACKER_EXIT})"
+  exit 1
+fi
+
+# ── Stage the updated tracker ─────────────────────────────────────────────────
+if [[ -f "$TRACKER" ]]; then
+  git add "$TRACKER"
+  echo "✅ CMMC_TRACKER.md staged automatically"
+fi
+
+echo ""
+echo "✅ Compliance hook passed — commit proceeding"
+echo ""

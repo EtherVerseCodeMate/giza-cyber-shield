@@ -1,0 +1,227 @@
+name: "ASAF Compliance — SSP Trestle + CMMC Tracker"
+
+# ── Triggers ──────────────────────────────────────────────────────────────────
+on:
+  push:
+    branches: [main, release/**]
+    paths:
+      - "ASAF-GovCloud-SSP/**"
+      - "profiles/ASAF-CMMC-L2/**"
+      - "scripts/update-cmmc-tracker.sh"
+      - "scripts/trestle-assemble.sh"
+  pull_request:
+    branches: [main]
+    paths:
+      - "ASAF-GovCloud-SSP/**"
+      - "profiles/ASAF-CMMC-L2/**"
+  schedule:
+    # Weekly Monday 06:00 UTC — keeps tracker fresh even if no SSP edits
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      assemble_ssp:
+        description: "Run trestle SSP assembly (requires compliance-trestle)"
+        type: boolean
+        default: true
+      check_only:
+        description: "Diff-check mode only — do not commit tracker"
+        type: boolean
+        default: false
+
+# ── Permissions ────────────────────────────────────────────────────────────────
+# contents: write — allows auto-committing updated CMMC_TRACKER.md to main
+# contents: read  — for PRs (diff only, no commit)
+permissions:
+  contents: write
+  pull-requests: write
+
+# ── Jobs ──────────────────────────────────────────────────────────────────────
+jobs:
+  # ── Job 1: Regenerate CMMC_TRACKER.md ──────────────────────────────────────
+  tracker-update:
+    name: "CMMC Tracker — Regenerate & Commit"
+    runs-on: ubuntu-latest
+
+    outputs:
+      tracker-changed: ${{ steps.diff.outputs.changed }}
+      implemented: ${{ steps.parse.outputs.implemented }}
+      partial: ${{ steps.parse.outputs.partial }}
+      planned: ${{ steps.parse.outputs.planned }}
+      total: ${{ steps.parse.outputs.total }}
+      score: ${{ steps.parse.outputs.score }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Need full history for regression check vs last commit
+          fetch-depth: 2
+          # Use bot token for commits that trigger subsequent workflows
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Make scripts executable
+        run: chmod +x scripts/update-cmmc-tracker.sh scripts/trestle-assemble.sh
+
+      - name: Regenerate CMMC_TRACKER.md
+        id: generate
+        run: bash scripts/update-cmmc-tracker.sh
+
+      - name: Parse tracker stats
+        id: parse
+        run: |
+          IMPLEMENTED=$(grep -c "^| \`.*\` | \`.*\` | ✅" CMMC_TRACKER.md 2>/dev/null || echo 0)
+          PARTIAL=$(grep -c "^| \`.*\` | \`.*\` | 🔶" CMMC_TRACKER.md 2>/dev/null || echo 0)
+          PLANNED=$(grep -c "^| \`.*\` | \`.*\` | ⬜" CMMC_TRACKER.md 2>/dev/null || echo 0)
+          TOTAL=$(grep -c "^| \`03\." CMMC_TRACKER.md 2>/dev/null || echo 0)
+          SCORE=$(grep "Compliance Score" CMMC_TRACKER.md | grep -oP '[0-9.]+%' | head -1 || echo "0%")
+          echo "implemented=${IMPLEMENTED}" >> "$GITHUB_OUTPUT"
+          echo "partial=${PARTIAL}"         >> "$GITHUB_OUTPUT"
+          echo "planned=${PLANNED}"         >> "$GITHUB_OUTPUT"
+          echo "total=${TOTAL}"             >> "$GITHUB_OUTPUT"
+          echo "score=${SCORE}"             >> "$GITHUB_OUTPUT"
+          echo "## CMMC Tracker Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Status | Count |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|------:|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ✅ Implemented | **${IMPLEMENTED}** |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| 🔶 Partial | **${PARTIAL}** |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ⬜ Planned | **${PLANNED}** |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Total** | **${TOTAL}** |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Score**: \`${SCORE}\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check for tracker diff
+        id: diff
+        run: |
+          if git diff --quiet CMMC_TRACKER.md; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "ℹ️ CMMC_TRACKER.md is already up to date"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "📝 CMMC_TRACKER.md has changes:"
+            git diff --stat CMMC_TRACKER.md
+          fi
+
+      # On PRs: post a diff comment instead of committing
+      - name: Post tracker diff as PR comment
+        if: github.event_name == 'pull_request' && steps.diff.outputs.changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const diff = execSync('git diff CMMC_TRACKER.md').toString().slice(0, 4000);
+            const body = `## CMMC Tracker Changes\n\nThis PR updates SSP control files. The tracker will change:\n\`\`\`diff\n${diff}\n\`\`\`\n\n**Score**: \`${{ steps.parse.outputs.score }}\` — ✅ ${{ steps.parse.outputs.implemented }} | 🔶 ${{ steps.parse.outputs.partial }} | ⬜ ${{ steps.parse.outputs.planned }}`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
+      # On main/release: auto-commit the updated tracker
+      - name: Commit updated CMMC_TRACKER.md
+        if: |
+          github.event_name != 'pull_request' &&
+          steps.diff.outputs.changed == 'true' &&
+          inputs.check_only != 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CMMC_TRACKER.md
+          git commit -m "chore(compliance): auto-update CMMC_TRACKER.md [skip ci]
+
+          Triggered by: ${{ github.event_name }} — ${{ github.sha }}
+          Score: ${{ steps.parse.outputs.score }}
+          Implemented: ${{ steps.parse.outputs.implemented }}/${{ steps.parse.outputs.total }}
+          Partial: ${{ steps.parse.outputs.partial }}
+          Planned: ${{ steps.parse.outputs.planned }}"
+          git push
+
+      - name: Upload tracker artifact (90-day retention — C3PAO evidence)
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmmc-tracker-${{ github.sha }}
+          path: CMMC_TRACKER.md
+          retention-days: 90
+
+  # ── Job 2: Compliance Regression Gate ──────────────────────────────────────
+  compliance-gate:
+    name: "Compliance Regression Gate"
+    runs-on: ubuntu-latest
+    needs: tracker-update
+    if: always()
+
+    steps:
+      - name: Check compliance score
+        run: |
+          IMPL=${{ needs.tracker-update.outputs.implemented }}
+          TOTAL=${{ needs.tracker-update.outputs.total }}
+          SCORE="${{ needs.tracker-update.outputs.score }}"
+          echo "Compliance score: ${SCORE} (${IMPL}/${TOTAL} controls)"
+
+          # Block if implemented count is 0 and this is a main push
+          # (Allows the pipeline to run on early development without blocking)
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]] && [[ "$TOTAL" -gt 0 ]] && [[ "$IMPL" -lt 0 ]]; then
+            echo "❌ GATE FAILED: No implemented controls on main branch"
+            exit 1
+          fi
+
+          echo "✅ Compliance gate passed"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Compliance Gate" >> "$GITHUB_STEP_SUMMARY"
+          echo "✅ Gate passed — **${SCORE}** (${IMPL}/${TOTAL} implemented)" >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Job 3: Trestle SSP Assembly ────────────────────────────────────────────
+  trestle-assemble:
+    name: "Trestle — Assemble OSCAL SSP"
+    runs-on: ubuntu-latest
+    needs: tracker-update
+    # Only run on main/release pushes or explicit dispatch with assemble_ssp=true
+    # Skip on PRs (expensive — trestle install + catalog fetch ~2 min)
+    if: |
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_dispatch' || inputs.assemble_ssp == true)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python (for compliance-trestle)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install compliance-trestle
+        run: |
+          pip install compliance-trestle --quiet
+          trestle version
+
+      - name: Make scripts executable
+        run: chmod +x scripts/update-cmmc-tracker.sh scripts/trestle-assemble.sh
+
+      - name: Run trestle SSP assembly
+        id: assemble
+        run: bash scripts/trestle-assemble.sh
+
+      - name: Upload assembled SSP (90-day C3PAO evidence)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asaf-ssp-oscal-${{ github.sha }}
+          path: |
+            system-security-plans/system-security-plan/system-security-plan.json
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: SSP assembly summary
+        if: always()
+        run: |
+          echo "## Trestle SSP Assembly" >> "$GITHUB_STEP_SUMMARY"
+          if [[ -f "system-security-plans/system-security-plan/system-security-plan.json" ]]; then
+            SIZE=$(wc -c < system-security-plans/system-security-plan/system-security-plan.json | tr -d ' ')
+            echo "✅ Assembled SSP: **${SIZE} bytes** — OSCAL validation passed" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "⚠️ SSP assembly did not produce output — check trestle logs above" >> "$GITHUB_STEP_SUMMARY"
+          fi

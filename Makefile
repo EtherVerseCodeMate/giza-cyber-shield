@@ -300,3 +300,67 @@ test-validation:
 	@echo "[ERT] Running full validation suite..."
 	go test ./tests/validation/... -v -timeout 10m
 
+# ============================================================
+# Compliance-as-Code (CMMC / ASAF SSP / Trestle)
+# ============================================================
+
+# Regenerate CMMC_TRACKER.md from ASAF-GovCloud-SSP/** control files.
+# Runs automatically via .githooks/pre-commit when SSP files are staged.
+# Usage: make cmmc-tracker
+.PHONY: cmmc-tracker
+cmmc-tracker:
+	@echo "[CMMC] Regenerating CMMC_TRACKER.md from SSP control files..."
+	@if [ "$$(uname 2>/dev/null)" = "Linux" ] || [ "$$(uname 2>/dev/null)" = "Darwin" ]; then \
+		chmod +x scripts/update-cmmc-tracker.sh && bash scripts/update-cmmc-tracker.sh; \
+	else \
+		powershell -NoProfile -ExecutionPolicy Bypass -File scripts/update-cmmc-tracker.ps1; \
+	fi
+
+# Check if CMMC_TRACKER.md is up to date (CI gate — exits 1 if stale).
+# Usage: make cmmc-tracker-check
+.PHONY: cmmc-tracker-check
+cmmc-tracker-check:
+	@echo "[CMMC] Checking CMMC_TRACKER.md is up to date..."
+	@if [ "$$(uname 2>/dev/null)" = "Linux" ] || [ "$$(uname 2>/dev/null)" = "Darwin" ]; then \
+		chmod +x scripts/update-cmmc-tracker.sh && bash scripts/update-cmmc-tracker.sh --check; \
+	else \
+		powershell -NoProfile -ExecutionPolicy Bypass -File scripts/update-cmmc-tracker.ps1 -Check; \
+	fi
+
+# Run trestle author ssp-assemble to produce system-security-plan.json.
+# Requires: pip install compliance-trestle (auto-installed by the script)
+# Usage: make ssp-assemble
+.PHONY: ssp-assemble
+ssp-assemble:
+	@echo "[TRESTLE] Assembling OSCAL SSP from ASAF-GovCloud-SSP/ workspace..."
+	@chmod +x scripts/trestle-assemble.sh
+	@bash scripts/trestle-assemble.sh
+
+# Validate the existing assembled SSP JSON without re-assembling.
+# Usage: make ssp-validate
+.PHONY: ssp-validate
+ssp-validate:
+	@echo "[TRESTLE] Validating assembled SSP OSCAL JSON..."
+	@chmod +x scripts/trestle-assemble.sh
+	@bash scripts/trestle-assemble.sh --validate-only
+
+# Run both tracker + trestle assembly (full compliance pipeline).
+# Usage: make compliance
+.PHONY: compliance
+compliance: cmmc-tracker ssp-assemble
+	@echo "[COMPLIANCE] ✅ CMMC tracker + OSCAL SSP assembly complete"
+	@echo "[COMPLIANCE]    Tracker : CMMC_TRACKER.md"
+	@echo "[COMPLIANCE]    SSP     : system-security-plans/system-security-plan/system-security-plan.json"
+
+# Install the pre-commit git hook so SSP edits auto-update the tracker.
+# Run once after cloning the repository.
+# Usage: make hooks-install
+.PHONY: hooks-install
+hooks-install:
+	@echo "[HOOKS] Installing ASAF compliance pre-commit hook..."
+	@git config core.hooksPath .githooks
+	@chmod +x .githooks/pre-commit
+	@echo "[HOOKS] ✅ Hook installed — git config core.hooksPath = .githooks"
+	@echo "[HOOKS]    The pre-commit hook will regenerate CMMC_TRACKER.md"
+	@echo "[HOOKS]    whenever ASAF-GovCloud-SSP/ files are staged for commit."
+
