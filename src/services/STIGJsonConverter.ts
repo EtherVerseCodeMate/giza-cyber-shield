@@ -82,25 +82,66 @@ export class STIGJsonConverter {
    * Convert JSON STIG checklist to XML format
    */
   async jsonToXml(jsonContent: STIGChecklistJSON): Promise<string> {
+    const { hostname, ip_address, mac_address, fqdn, role, technology_area } =
+      jsonContent.target;
+
+    // Derive STIG ID from title (spaces → underscores)
+    const stigid = jsonContent.metadata.title.replace(/\s+/g, '_');
+    const filename = `U_${stigid}_STIG.zip`;
+    const releaseinfo = `Release: ${jsonContent.metadata.release} Benchmark Date: ${jsonContent.metadata.benchmark_date}`;
+    // Placeholder UUID (not crypto-random, but sufficient for CKL format)
+    const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(
+      /[xy]/g,
+      c => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      }
+    );
+
     let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
     xml += '<CHECKLIST>\n';
 
-    // Add metadata
+    // ASSET section — all fields required by STIGViewer 3.5+
     xml += '  <ASSET>\n';
-    xml += `    <ROLE>${jsonContent.target.role}</ROLE>\n`;
-    xml += `    <ASSET_TYPE>${jsonContent.target.technology_area}</ASSET_TYPE>\n`;
-    xml += `    <HOST_NAME>${jsonContent.target.hostname}</HOST_NAME>\n`;
-    if (jsonContent.target.ip_address) {
-      xml += `    <HOST_IP>${jsonContent.target.ip_address}</HOST_IP>\n`;
-    }
+    xml += `    <ROLE>${this.escapeXml(role)}</ROLE>\n`;
+    xml += `    <ASSET_TYPE>${this.escapeXml(technology_area)}</ASSET_TYPE>\n`;
+    xml += `    <HOST_NAME>${this.escapeXml(hostname)}</HOST_NAME>\n`;
+    xml += `    <HOST_IP>${this.escapeXml(ip_address || '')}</HOST_IP>\n`;
+    xml += `    <HOST_MAC>${this.escapeXml(mac_address || '')}</HOST_MAC>\n`;
+    xml += `    <HOST_FQDN>${this.escapeXml(fqdn || '')}</HOST_FQDN>\n`;
+    xml += '    <TECH_AREA></TECH_AREA>\n';
+    xml += '    <TARGET_KEY>0</TARGET_KEY>\n';
+    xml += '    <WEB_OR_DATABASE>false</WEB_OR_DATABASE>\n';
+    xml += '    <WEB_DB_SITE></WEB_DB_SITE>\n';
+    xml += '    <WEB_DB_INSTANCE></WEB_DB_INSTANCE>\n';
     xml += '  </ASSET>\n';
 
-    // Add STIG info
+    // STIGS / iSTIG section
     xml += '  <STIGS>\n';
     xml += '    <iSTIG>\n';
+
+    // STIG_INFO — 11 SI_DATA elements
     xml += '      <STIG_INFO>\n';
-    xml += `        <SID_NAME>version</SID_NAME>\n`;
-    xml += `        <SID_DATA>${jsonContent.metadata.release}</SID_DATA>\n`;
+    const siData: Array<[string, string]> = [
+      ['version', jsonContent.metadata.release.replace(/\D/g, '') || '1'],
+      ['classification', 'UNCLASSIFIED'],
+      ['customname', ''],
+      ['stigid', stigid],
+      ['description', jsonContent.metadata.description],
+      ['filename', filename],
+      ['releaseinfo', releaseinfo],
+      ['title', jsonContent.metadata.title],
+      ['uuid', uuid],
+      ['notice', 'terms-of-use'],
+      ['source', 'STIG.DOD.MIL'],
+    ];
+    for (const [name, data] of siData) {
+      xml += '        <SI_DATA>\n';
+      xml += `          <SID_NAME>${this.escapeXml(name)}</SID_NAME>\n`;
+      xml += `          <SID_DATA>${this.escapeXml(data)}</SID_DATA>\n`;
+      xml += '        </SI_DATA>\n';
+    }
     xml += '      </STIG_INFO>\n';
 
     // Add vulnerabilities
@@ -264,25 +305,97 @@ export class STIGJsonConverter {
   }
 
   // Helper methods
+
+  /**
+   * Escape special XML characters in a string value.
+   */
+  private escapeXml(s: string): string {
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   private extractMetadata(xmlDoc: Document): STIGChecklistJSON['metadata'] {
+    const getSIData = (name: string): string => {
+      const nodes = xmlDoc.querySelectorAll('SI_DATA');
+      for (let i = 0; i < nodes.length; i++) {
+        const nameEl = nodes[i].querySelector('SID_NAME');
+        const dataEl = nodes[i].querySelector('SID_DATA');
+        if (nameEl?.textContent === name && dataEl) {
+          return dataEl.textContent || '';
+        }
+      }
+      return '';
+    };
     return {
-      title: 'STIG Checklist',
-      description: 'Automated STIG Compliance Checklist',
-      release: 'Release 1',
+      title: getSIData('title') || 'STIG Checklist',
+      description: getSIData('description') || 'Automated STIG Compliance Checklist',
+      release: getSIData('releaseinfo') || 'Release 1',
       benchmark_date: new Date().toISOString().split('T')[0],
     };
   }
 
   private extractTarget(xmlDoc: Document): STIGChecklistJSON['target'] {
+    const getAssetField = (tag: string): string => {
+      return xmlDoc.querySelector(tag)?.textContent || '';
+    };
     return {
-      hostname: 'unknown',
-      role: 'None',
-      technology_area: 'General',
+      hostname: getAssetField('HOST_NAME') || 'unknown',
+      ip_address: getAssetField('HOST_IP') || undefined,
+      mac_address: getAssetField('HOST_MAC') || undefined,
+      fqdn: getAssetField('HOST_FQDN') || undefined,
+      role: getAssetField('ROLE') || 'None',
+      technology_area: getAssetField('ASSET_TYPE') || 'General',
     };
   }
 
   private extractChecklist(xmlDoc: Document): STIGCheckJSON[] {
-    return [];
+    const vulns = xmlDoc.querySelectorAll('VULN');
+    const checks: STIGCheckJSON[] = [];
+
+    vulns.forEach(vuln => {
+      const getStigData = (attr: string): string => {
+        const nodes = vuln.querySelectorAll('STIG_DATA');
+        for (let i = 0; i < nodes.length; i++) {
+          const attrEl = nodes[i].querySelector('VULN_ATTRIBUTE');
+          const dataEl = nodes[i].querySelector('ATTRIBUTE_DATA');
+          if (attrEl?.textContent === attr && dataEl) {
+            return dataEl.textContent || '';
+          }
+        }
+        return '';
+      };
+
+      const rawStatus = vuln.querySelector('STATUS')?.textContent || 'Not_Reviewed';
+      const validStatuses = ['Open', 'NotAFinding', 'Not_Applicable', 'Not_Reviewed'];
+      const status = validStatuses.includes(rawStatus)
+        ? (rawStatus as STIGCheckJSON['status'])
+        : 'Not_Reviewed';
+
+      const rawSeverity = getStigData('Severity').toLowerCase();
+      const severity = (['high', 'medium', 'low'].includes(rawSeverity)
+        ? rawSeverity
+        : 'medium') as STIGCheckJSON['severity'];
+
+      checks.push({
+        rule_id: getStigData('Vuln_Num'),
+        stig_id: getStigData('Rule_ID') || getStigData('Rule_Ver'),
+        severity,
+        group_title: getStigData('Group_Title'),
+        rule_title: getStigData('Rule_Title'),
+        vulnerability_discussion: getStigData('Vuln_Discuss'),
+        check_content: getStigData('Check_Content'),
+        fix_text: getStigData('Fix_Text'),
+        cci_references: getStigData('CCI_REF') ? [getStigData('CCI_REF')] : [],
+        status,
+        finding_details: vuln.querySelector('FINDING_DETAILS')?.textContent || undefined,
+        comments: vuln.querySelector('COMMENTS')?.textContent || undefined,
+      });
+    });
+
+    return checks;
   }
 
   private calculateStatistics(
@@ -299,15 +412,53 @@ export class STIGJsonConverter {
   }
 
   private checkToXml(check: STIGCheckJSON): string {
-    return `
-      <VULN>
-        <STIG_DATA>
-          <VULN_ATTRIBUTE>Vuln_Num</VULN_ATTRIBUTE>
-          <ATTRIBUTE_DATA>${check.rule_id}</ATTRIBUTE_DATA>
-        </STIG_DATA>
-        <STATUS>${check.status}</STATUS>
-        <FINDING_DETAILS>${check.finding_details || ''}</FINDING_DETAILS>
-        <COMMENTS>${check.comments || ''}</COMMENTS>
-      </VULN>`;
+    // Build STIGRef from stig_id
+    const stigRef = `${check.stig_id} :: Version 1, Release 1`;
+
+    const stigData: Array<[string, string]> = [
+      ['Vuln_Num', check.rule_id],
+      ['Severity', check.severity],
+      ['Group_Title', check.group_title || ''],
+      ['Rule_ID', check.stig_id],
+      ['Rule_Ver', check.stig_id],
+      ['Rule_Title', check.rule_title],
+      ['Vuln_Discuss', check.vulnerability_discussion || ''],
+      ['IA_Controls', ''],
+      ['Check_Content', check.check_content || ''],
+      ['Fix_Text', check.fix_text || ''],
+      ['False_Positives', ''],
+      ['False_Negatives', ''],
+      ['Documentable', 'false'],
+      ['Mitigations', ''],
+      ['Potential_Impact', ''],
+      ['Third_Party_Tools', ''],
+      ['Mitigation_Control', ''],
+      ['Responsibility', 'Information Assurance Officer'],
+      ['Security_Override_Guidance', ''],
+      ['Check_Content_Ref', 'M'],
+      ['Weight', '10.0'],
+      ['Class', 'Unclass'],
+      ['STIGRef', stigRef],
+      ['TargetKey', '0'],
+      ['STIG_UUID', ''],
+      ['LEGACY_ID', ''],
+      ['CCI_REF', (check.cci_references && check.cci_references[0]) ? check.cci_references[0] : ''],
+    ];
+
+    let xml = '\n      <VULN>\n';
+    for (const [attr, data] of stigData) {
+      xml += '        <STIG_DATA>\n';
+      xml += `          <VULN_ATTRIBUTE>${this.escapeXml(attr)}</VULN_ATTRIBUTE>\n`;
+      xml += `          <ATTRIBUTE_DATA>${this.escapeXml(data)}</ATTRIBUTE_DATA>\n`;
+      xml += '        </STIG_DATA>\n';
+    }
+    xml += `        <STATUS>${this.escapeXml(check.status)}</STATUS>\n`;
+    xml += `        <FINDING_DETAILS>${this.escapeXml(check.finding_details || '')}</FINDING_DETAILS>\n`;
+    xml += `        <COMMENTS>${this.escapeXml(check.comments || '')}</COMMENTS>\n`;
+    xml += `        <SEVERITY_OVERRIDE>${this.escapeXml(check.severity_override || '')}</SEVERITY_OVERRIDE>\n`;
+    xml += `        <SEVERITY_JUSTIFICATION>${this.escapeXml(check.severity_justification || '')}</SEVERITY_JUSTIFICATION>\n`;
+    xml += '      </VULN>';
+
+    return xml;
   }
 }
