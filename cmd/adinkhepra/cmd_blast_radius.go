@@ -356,14 +356,43 @@ func blastRadiusReportCmd(args []string) {
 	}
 	fmt.Println()
 
-	// Export
+	// Export — real binary PDF via stig.ExportBlastRadiusToPDF
 	outputPath := *output
-	if strings.HasSuffix(outputPath, ".pdf") {
-		outputPath = strings.TrimSuffix(outputPath, ".pdf") + "_blast_radius.md"
-		fmt.Printf("[*] Note: Full PDF render in G-8 sprint — emitting Markdown: %s\n", outputPath)
+	if !strings.HasSuffix(outputPath, ".pdf") {
+		outputPath += ".pdf"
 	}
-	exportBlastRadiusMarkdown(brReport, outputPath)
+
+	assets := make([]stig.BlastRadiusAsset, 0, len(brReport.Assets))
+	for _, a := range brReport.Assets {
+		assets = append(assets, stig.BlastRadiusAsset{
+			Name:      a.AssetID,
+			Algorithm: a.Algorithm,
+			NTIScore:  a.NTIScore,
+			Phase:     a.MigratePhase,
+		})
+	}
+
+	exportData := &stig.BlastRadiusExportData{
+		System:        brReport.System,
+		GeneratedAt:   brReport.GeneratedAt,
+		TotalAssets:   brReport.TotalAssetsFound,
+		HighRisk:      brReport.VulnerableAssets,
+		AvgNTIScore:   brReport.OverallNTIScore,
+		Assets:        assets,
+		Phase1Actions: brReport.Phase1Systems,
+		Phase2Actions: brReport.Phase2Systems,
+		Phase3Actions: brReport.Phase3Systems,
+	}
+
+	if err := stig.ExportBlastRadiusToPDF(exportData, outputPath); err != nil {
+		// Fallback to Markdown on PDF error
+		mdPath := strings.TrimSuffix(outputPath, ".pdf") + ".md"
+		fmt.Fprintf(os.Stderr, "[!] PDF export failed (%v) — falling back to Markdown: %s\n", err, mdPath)
+		exportBlastRadiusMarkdown(brReport, mdPath)
+		outputPath = mdPath
+	}
 	fmt.Printf("\n✓ Blast Radius Report: %s\n", outputPath)
+
 }
 
 func exportBlastRadiusMarkdown(br *BlastRadiusReport, outputPath string) {

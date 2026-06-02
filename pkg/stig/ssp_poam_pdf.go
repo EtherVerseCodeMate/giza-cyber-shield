@@ -2,6 +2,7 @@ package stig
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/go-pdf/fpdf"
@@ -297,7 +298,7 @@ func writePOAMTitlePage(pdf *fpdf.Fpdf, data *POAMExportData) {
 	row("System:", data.System)
 	row("Generated:", data.GeneratedAt.Format("January 2, 2006"))
 	row("Total Open Items:", fmt.Sprintf("%d", len(data.Items)))
-	row("Total Financial Exposure:", fmt.Sprintf("$%,.0f USD", data.TotalExposure))
+	row("Total Financial Exposure:", fmtDollars(data.TotalExposure))
 
 	// Footer
 	pdf.Ln(8)
@@ -577,6 +578,21 @@ func writeBlastRadiusMigrationRoadmap(pdf *fpdf.Fpdf, data *BlastRadiusExportDat
 }
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
+
+// fmtDollars formats a float64 as a dollar amount with comma thousands separators.
+// Go's fmt does not support %,d or %,.0f, so we use integer arithmetic.
+func fmtDollars(v float64) string {
+	n := int64(v)
+	s := strconv.FormatInt(n, 10)
+	out := make([]byte, 0, len(s)+len(s)/3+1)
+	for i, c := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			out = append(out, ',')
+		}
+		out = append(out, byte(c))
+	}
+	return "$" + string(out) + " USD"
+}
 
 func sectionHeader(pdf *fpdf.Fpdf, title string) {
 	pdf.SetFillColor(15, 30, 60)
