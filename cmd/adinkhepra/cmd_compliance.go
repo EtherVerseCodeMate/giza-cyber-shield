@@ -110,8 +110,10 @@ func complianceAuditCmd(args []string) {
 	// NIST 800-171
 	fmt.Print("[1/2] Auditing NIST 800-171 Rev 2 controls... ")
 	v171 := nist80171.NewValidator()
-	results171 := v171.ValidateACFamily()
-	fmt.Printf("DONE (%d controls)\n", len(results171))
+	results171 := v171.ValidateAllFamilies()
+	summary171 := v171.ComputeSummary()
+	fmt.Printf("DONE (%d/%d controls, %.0f%% pass rate)\n",
+		summary171.Passed+summary171.ManualReview, len(results171), summary171.Score)
 
 	// NIST 800-172
 	var results172 []nist80172.EnhancedResult
@@ -186,11 +188,40 @@ func complianceGSACmd(_ []string) {
 }
 
 func complianceStatusCmd(_ []string) {
-	fmt.Println("[STATUS] Compliance Posture Scorecard:")
-	fmt.Println("  - CMMC Level 3 Coverage: [##########] 100%")
-	fmt.Println("  - NIST 800-171 Rev 2:   [########--] 80%")
-	fmt.Println("  - NIST 800-172 Enhanced: [###-------] 30%")
-	fmt.Println("  - GSA Readiness:         [#####-----] 50%")
+	fmt.Println("[STATUS] Computing live compliance posture...")
+
+	// NIST 800-171 live validation
+	v171 := nist80171.NewValidator()
+	v171.ValidateAllFamilies()
+	summary := v171.ComputeSummary()
+
+	// NIST 800-172 enhanced
+	v172 := nist80172.NewEnhancedValidator()
+	results172 := v172.ValidateACFamily()
+
+	// Load compliance database for row counts
+	db, err := stig.GetDatabase()
+	dbLoaded := err == nil
+
+	fmt.Println("\n[STATUS] Compliance Posture Scorecard:")
+	fmt.Printf("  - NIST 800-171 Rev 2:    %d/%d controls (%.0f%% verifiable pass rate)\n",
+		summary.Passed+summary.ManualReview, summary.TotalControls, summary.Score)
+	fmt.Printf("    Passed:         %d | Manual Review: %d | Failed: %d\n",
+		summary.Passed, summary.ManualReview, summary.Failed)
+
+	pct172 := float64(len(results172)) / 33.0 * 100
+	fmt.Printf("  - NIST 800-172 Enhanced: %d/33 requirements checked (%.0f%%)\n",
+		len(results172), pct172)
+
+	if dbLoaded {
+		stigCount := db.CountSTIGMappings()
+		cciCount := db.CountCCIMappings()
+		fmt.Printf("  - Compliance Database:   %d STIG mappings | %d CCI mappings\n",
+			stigCount, cciCount)
+	}
+
+	fmt.Println("\n  Legend: 'verifiable pass rate' = system-checkable controls only")
+	fmt.Println("          'manual review' = policy-dependent controls (require ISSM attestation)")
 }
 
 // === Shared STIG scanning logic (moved from validate.go) ===

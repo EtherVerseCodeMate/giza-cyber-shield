@@ -62,3 +62,47 @@ func NewValidator() *Validator {
 		},
 	}
 }
+
+// ValidateAllFamilies runs validators for all 14 NIST 800-171 control families
+func (v *Validator) ValidateAllFamilies() []ControlResult {
+	v.ValidateACFamily()
+	v.ValidateAUFamily()
+	v.ValidateATFamily()
+	v.ValidateCMFamily()
+	v.ValidateIAFamily()
+	v.ValidateIRFamily()
+	v.ValidateMAFamily()
+	v.ValidateMPFamily()
+	v.ValidatePSFamily()
+	v.ValidatePEFamily()
+	v.ValidateRAFamily()
+	v.ValidateCAFamily()
+	v.ValidateSCFamily()
+	v.ValidateSIFamily()
+	return v.Results
+}
+
+// ComputeSummary calculates compliance summary from current results
+func (v *Validator) ComputeSummary() ComplianceSummary {
+	summary := ComplianceSummary{
+		TotalControls:   len(v.Results),
+		BaselineVersion: "Rev 2",
+	}
+	for _, r := range v.Results {
+		switch r.Status {
+		case "PASS":
+			summary.Passed++
+		case "FAIL":
+			summary.Failed++
+		case "MANUAL_REVIEW":
+			summary.ManualReview++
+		case "NOT_APPLICABLE":
+			summary.NotApplicable++
+		}
+	}
+	if summary.TotalControls > 0 {
+		summary.Score = float64(summary.Passed) / float64(summary.TotalControls) * 100
+	}
+	v.Summary = summary
+	return summary
+}

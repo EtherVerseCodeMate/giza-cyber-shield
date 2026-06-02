@@ -424,6 +424,20 @@ func (d *ComplianceDatabase) GetSTIGTitle(stigID string) string {
 	return mappings[0].STIGTitle
 }
 
+// CountSTIGMappings returns the number of unique STIG IDs in the database
+func (d *ComplianceDatabase) CountSTIGMappings() int {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return len(d.STIGtoCCI)
+}
+
+// CountCCIMappings returns the number of unique CCI IDs in the database
+func (d *ComplianceDatabase) CountCCIMappings() int {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return len(d.CCItoNIST53)
+}
+
 // Stats returns database statistics
 func (d *ComplianceDatabase) Stats() map[string]int {
 	d.mu.RLock()
