@@ -374,8 +374,8 @@ func sspUpdateCmd(args []string) {
 func sspExportCmd(args []string) {
 	fs := flag.NewFlagSet("ssp export", flag.ExitOnError)
 	sspFile := fs.String("ssp", "", "SSP JSON file")
-	format := fs.String("format", "pdf", "Export format: pdf, json, emass")
-	output := fs.String("output", "ssp_export.md", "Output file")
+	format := fs.String("format", "pdf", "Export format: pdf, markdown, json")
+	output := fs.String("output", "ssp_export.pdf", "Output file")
 	fs.Parse(args)
 
 	data, err := os.ReadFile(*sspFile)
@@ -391,8 +391,46 @@ func sspExportCmd(args []string) {
 	case "json":
 		newData, _ := json.MarshalIndent(doc, "", "  ")
 		os.WriteFile(*output, newData, 0644)
-	default: // pdf/markdown
+	case "markdown", "md":
 		exportSSPMarkdown(&doc, *output)
+	default: // pdf
+		outPath := *output
+		if !strings.HasSuffix(outPath, ".pdf") {
+			outPath += ".pdf"
+		}
+		exportData := &stig.SSPExportData{
+			SystemName:          doc.SystemName,
+			SystemAbbreviation:  doc.SystemAbbreviation,
+			ResponsibleOrg:      doc.ResponsibleOrg,
+			SystemOwner:         doc.SystemOwner,
+			ISSO:                doc.ISSO,
+			AuthorizingOfficial: doc.AuthorizingOfficial,
+			ImpactLevel:         doc.ImpactLevel,
+			CUICategories:       doc.CUICategories,
+			SystemDescription:   doc.SystemDescription,
+			SystemEnvironment:   doc.SystemEnvironment,
+			BoundaryDescription: doc.BoundaryDescription,
+			ApplicableLaws:      doc.ApplicableLaws,
+			Version:             doc.Version,
+			GeneratedAt:         doc.GeneratedAt,
+			LastUpdatedAt:       doc.LastUpdatedAt,
+			DAGChainDepth:       doc.DAGChainDepth,
+			PQCSignature:        doc.PQCSignature,
+			TotalControls:       doc.ControlStats.TotalControls,
+			Implemented:         doc.ControlStats.Implemented,
+			FailedScan:          doc.ControlStats.FailedScan,
+			Planned:             doc.ControlStats.Planned,
+			CompletionPercent:   doc.ControlStats.CompletionPercent,
+			Controls:            make(map[string]string),
+		}
+		for id, ctrl := range doc.Controls {
+			exportData.Controls[id] = ctrl.Status
+		}
+		if err := stig.ExportSSPToPDF(exportData, outPath); err != nil {
+			fmt.Fprintf(os.Stderr, "PDF export error: %v\n", err)
+			os.Exit(1)
+		}
+		*output = outPath
 	}
 	fmt.Printf("✓ SSP exported: %s\n", *output)
 }

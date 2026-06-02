@@ -41,12 +41,17 @@ func TestValidatorValidateACFamily(t *testing.T) {
 
 func TestValidatorRequiresManualReview(t *testing.T) {
 	v := &Validator{}
-	res := v.requiresManualReview("test-id")
+	res := v.requiresManualReview("test-id", FamilyAC,
+		"Test description for manual review.",
+		"Requires test evidence documentation.")
 
 	if res.ControlID != "test-id" {
 		t.Errorf("expected ID test-id, got %s", res.ControlID)
 	}
 	if res.Status != "MANUAL_REVIEW" {
 		t.Errorf("expected status MANUAL_REVIEW, got %s", res.Status)
+	}
+	if res.Family != FamilyAC {
+		t.Errorf("expected family %s, got %s", FamilyAC, res.Family)
 	}
 }

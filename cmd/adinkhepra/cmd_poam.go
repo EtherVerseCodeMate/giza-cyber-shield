@@ -245,59 +245,43 @@ func exportPOAMJSON(report *stig.ComprehensiveReport, outputPath string) error {
 	return os.WriteFile(outputPath, data, 0644)
 }
 
-// exportPOAMPDF produces a structured PDF using the existing stig PDF infrastructure.
-// Falls back to a detailed text report if the PDF library is unavailable.
+// exportPOAMPDF produces a true binary PDF using pkg/stig/ssp_poam_pdf.go.
 func exportPOAMPDF(report *stig.ComprehensiveReport, outputPath string) error {
-	// Build a text-based POAM document (PDF rendering via existing pkg/stig/pdf_export.go
-	// will be wired here in G-8; for now emit a structured text/markdown file that
-	// renders cleanly and can be converted to PDF via the report pipeline).
-	if strings.HasSuffix(outputPath, ".pdf") {
-		outputPath = strings.TrimSuffix(outputPath, ".pdf") + "_poam.md"
-		fmt.Printf("[*] Note: PDF render pending G-8 integration — emitting Markdown: %s\n", outputPath)
+	if !strings.HasSuffix(outputPath, ".pdf") {
+		outputPath += ".pdf"
 	}
-
-	var sb strings.Builder
-	sb.WriteString("# PLAN OF ACTION & MILESTONES (POAM)\n")
-	sb.WriteString("## NIST SP 800-171A | CMMC Level 2 Assessment\n\n")
-	sb.WriteString(fmt.Sprintf("**System:** %s  \n", report.Hostname))
-	sb.WriteString(fmt.Sprintf("**Generated:** %s  \n", time.Now().Format("January 2, 2006")))
-	sb.WriteString(fmt.Sprintf("**Total Open Items:** %d  \n\n", len(report.POAMItems)))
 
 	totalExposure := 0.0
 	for _, item := range report.POAMItems {
 		totalExposure += item.DollarImpact
 	}
-	sb.WriteString(fmt.Sprintf("**Total Financial Exposure:** $%.0f USD  \n\n---\n\n", totalExposure))
 
-	sb.WriteString("| POAM ID | Control | Severity | Dollar Impact | Priority | Due Date | Status |\n")
-	sb.WriteString("|---|---|---|---|---|---|---|\n")
+	// Map stig.POAMItem slice → stig.POAMExportItem slice
+	items := make([]stig.POAMExportItem, 0, len(report.POAMItems))
 	for _, item := range report.POAMItems {
-		sb.WriteString(fmt.Sprintf("| %s | %s | %s | $%.0f | %.0f | %s | %s |\n",
-			item.ID, item.ControlID, item.Severity,
-			item.DollarImpact, item.PriorityScore,
-			item.ScheduledCompletion.Format("2006-01-02"),
-			item.Status,
-		))
+		items = append(items, stig.POAMExportItem{
+			ID:                  item.ID,
+			ControlID:           item.ControlID,
+			Weakness:            item.Weakness,
+			Severity:            string(item.Severity),
+			Status:              item.Status,
+			DollarImpact:        item.DollarImpact,
+			PriorityScore:       item.PriorityScore,
+			EstimatedDays:       item.EstimatedDays,
+			ScheduledCompletion: item.ScheduledCompletion,
+			PointOfContact:      item.PointOfContact,
+			MilestoneActions:    item.MilestoneActions,
+		})
 	}
 
-	sb.WriteString("\n---\n\n## Detailed Findings\n\n")
-	for _, item := range report.POAMItems {
-		sb.WriteString(fmt.Sprintf("### %s — %s\n\n", item.ID, item.ControlID))
-		sb.WriteString(fmt.Sprintf("**Severity:** %s  \n", item.Severity))
-		sb.WriteString(fmt.Sprintf("**Status:** %s  \n", item.Status))
-		sb.WriteString(fmt.Sprintf("**Dollar Impact:** $%.0f USD  \n", item.DollarImpact))
-		sb.WriteString(fmt.Sprintf("**Estimated Remediation:** %d days  \n", item.EstimatedDays))
-		sb.WriteString(fmt.Sprintf("**Scheduled Completion:** %s  \n", item.ScheduledCompletion.Format("2006-01-02")))
-		sb.WriteString(fmt.Sprintf("**Point of Contact:** %s  \n\n", item.PointOfContact))
-		sb.WriteString(fmt.Sprintf("**Weakness:**  \n%s\n\n", item.Weakness))
-		sb.WriteString("**Milestone Actions:**\n")
-		for _, action := range item.MilestoneActions {
-			sb.WriteString(fmt.Sprintf("- %s\n", action))
-		}
-		sb.WriteString("\n---\n\n")
+	data := &stig.POAMExportData{
+		System:        report.Hostname,
+		GeneratedAt:   time.Now(),
+		TotalExposure: totalExposure,
+		Items:         items,
 	}
 
-	return os.WriteFile(outputPath, []byte(sb.String()), 0644)
+	return stig.ExportPOAMToPDF(data, outputPath)
 }
 
 func poamStatusCmd(args []string) {

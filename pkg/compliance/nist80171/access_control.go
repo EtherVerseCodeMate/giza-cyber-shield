@@ -102,19 +102,44 @@ func (v *Validator) CheckAC_3_1_10() ControlResult {
 
 // The following AC controls require policy documentation or agent-based evidence
 // and cannot be fully automated via filesystem/sysctl inspection alone.
-func (v *Validator) CheckAC_3_1_4() ControlResult { return v.requiresManualReview("3.1.4") }
-func (v *Validator) CheckAC_3_1_6() ControlResult { return v.requiresManualReview("3.1.6") }
-func (v *Validator) CheckAC_3_1_7() ControlResult { return v.requiresManualReview("3.1.7") }
-func (v *Validator) CheckAC_3_1_9() ControlResult { return v.requiresManualReview("3.1.9") }
+func (v *Validator) CheckAC_3_1_4() ControlResult {
+	return v.requiresManualReview("3.1.4", FamilyAC,
+		"Separate the duties of individuals to reduce the risk of malevolent activity.",
+		"Requires separation of duties policy and RBAC configuration review.")
+}
+func (v *Validator) CheckAC_3_1_6() ControlResult {
+	return v.requiresManualReview("3.1.6", FamilyAC,
+		"Use non-privileged accounts when accessing non-security functions.",
+		"Requires privileged account usage policy and PAM/sudo configuration review.")
+}
+func (v *Validator) CheckAC_3_1_7() ControlResult {
+	return v.requiresManualReview("3.1.7", FamilyAC,
+		"Prevent non-privileged users from executing privileged functions.",
+		"Requires sudoers/RBAC audit confirming privilege escalation is logged.")
+}
+func (v *Validator) CheckAC_3_1_9() ControlResult {
+	return v.requiresManualReview("3.1.9", FamilyAC,
+		"Provide privacy and security notices consistent with CUI rules.",
+		"Requires DoD consent banner verification (/etc/issue, login screen, portals).")
+}
 
 // requiresManualReview returns a MANUAL_REVIEW result for controls that need
-// analyst attestation or policy review before they can be marked compliant.
-func (v *Validator) requiresManualReview(id string) ControlResult {
+// analyst attestation, policy documentation, or evidence that cannot be
+// collected by reading filesystem / sysctl state alone.
+//
+// Parameters:
+//   - id:               NIST 800-171 control ID (e.g. "3.3.3")
+//   - family:           Control family constant (e.g. FamilyAU)
+//   - description:      What the control requires
+//   - evidenceRequired: Specific evidence the analyst must produce
+func (v *Validator) requiresManualReview(id, family, description, evidenceRequired string) ControlResult {
 	return ControlResult{
-		ControlID:   id,
-		Family:      FamilyAC,
-		Status:      "MANUAL_REVIEW",
-		Description: "NIST 800-171 control " + id + " requires analyst attestation or policy documentation.",
-		CheckedAt:   time.Now(),
+		ControlID:    id,
+		Family:       family,
+		Status:       "MANUAL_REVIEW",
+		Description:  description,
+		Finding:      "MANUAL REVIEW REQUIRED — " + evidenceRequired,
+		Remediation:  evidenceRequired,
+		CheckedAt:    time.Now(),
 	}
 }
