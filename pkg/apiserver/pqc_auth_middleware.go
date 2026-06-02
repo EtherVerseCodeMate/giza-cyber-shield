@@ -1,3 +1,5 @@
+//go:build saas
+
 // Package apiserver — PQC Auth Middleware (Gin adapter)
 //
 // Bridges pkg/auth.PQCAuthGateway into the Gin HTTP framework.
