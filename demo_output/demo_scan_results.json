@@ -1,0 +1,328 @@
+{
+  "Hostname": "ABC Defense Corp",
+  "OSVersion": "Demo Environment (Synthetic)",
+  "KernelVersion": "",
+  "ScanDate": "2026-06-02T15:17:21.5484-04:00",
+  "ScanDuration": 0,
+  "Results": {
+    "CMMC-3.0-L3": {
+      "Framework": "CMMC-3.0-L3",
+      "Version": "Level 2",
+      "TotalControls": 110,
+      "Passed": 47,
+      "Failed": 8,
+      "NotApplicable": 0,
+      "ManualReview": 0,
+      "Findings": [
+        {
+          "ID": "AC.L2-3.1.1",
+          "Title": "Authorized Access Control",
+          "Description": "Multi-factor authentication not enforced for privileged accounts",
+          "Severity": "CAT I",
+          "Status": "Fail",
+          "Expected": "",
+          "Actual": "",
+          "Remediation": "Enable MFA via Azure AD Conditional Access or equivalent",
+          "References": null,
+          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+        },
+        {
+          "ID": "AC.L2-3.1.2",
+          "Title": "Transaction Privilege Separation",
+          "Description": "No separation of duties for privileged operations",
+          "Severity": "CAT I",
+          "Status": "Fail",
+          "Expected": "",
+          "Actual": "",
+          "Remediation": "Implement Role-Based Access Control with least-privilege principles",
+          "References": null,
+          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+        },
+        {
+          "ID": "IA.L2-3.5.3",
+          "Title": "Multifactor Authentication",
+          "Description": "MFA not required for all CUI system access",
+          "Severity": "CAT I",
+          "Status": "Fail",
+          "Expected": "",
+          "Actual": "",
+          "Remediation": "Deploy MFA tokens (PIV/FIDO2) for all user accounts accessing CUI",
+          "References": null,
+          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+        },
+        {
+          "ID": "AU.L2-3.3.1",
+          "Title": "System Auditing",
+          "Description": "Audit logging incomplete — failed login attempts not recorded",
+          "Severity": "High",
+          "Status": "Fail",
+          "Expected": "",
+          "Actual": "",
+          "Remediation": "Configure centralized SIEM with complete audit trail (90-day retention)",
+          "References": null,
+          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+        },
+        {
+          "ID": "CM.L2-3.4.1",
+          "Title": "Baseline Configuration",
+          "Description": "No documented baseline configuration for CUI systems",
+          "Severity": "High",
+          "Status": "Fail",
+          "Expected": "",
+          "Actual": "",
+          "Remediation": "Implement STIG baseline for all endpoints (RHEL 9, Windows Server 2022)",
+          "References": null,
+          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+        },
+        {
+          "ID": "IR.L2-3.6.1",
+          "Title": "Incident Handling",
+          "Description": "Incident response plan not tested in last 12 months",
+          "Severity": "High",
+          "Status": "Fail",
+          "Expected": "",
+          "Actual": "",
+          "Remediation": "Conduct tabletop exercise and update IR plan",
+          "References": null,
+          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+        },
+        {
+          "ID": "SC.L2-3.13.8",
+          "Title": "Data in Transit",
+          "Description": "TLS 1.2 in use on 3 internal services (upgrade to TLS 1.3 required)",
+          "Severity": "High",
+          "Status": "Fail",
+          "Expected": "",
+          "Actual": "",
+          "Remediation": "Upgrade all services to TLS 1.3 minimum; disable TLS 1.0/1.1/1.2",
+          "References": null,
+          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+        },
+        {
+          "ID": "SI.L2-3.14.1",
+          "Title": "Flaw Remediation",
+          "Description": "47 CVEs unpatched (12 Critical, 35 High) — patch cycle exceeds 30 days",
+          "Severity": "High",
+          "Status": "Fail",
+          "Expected": "",
+          "Actual": "",
+          "Remediation": "Implement automated patching with 15-day SLA for Critical/High CVEs",
+          "References": null,
+          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+        },
+        {
+          "ID": "AC.L1-3.1.20",
+          "Title": "External Connections",
+          "Description": "External connections verified and documented",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "",
+          "Actual": "",
+          "Remediation": "",
+          "References": null,
+          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+        },
+        {
+          "ID": "MP.L1-3.8.3",
+          "Title": "Media Disposal",
+          "Description": "Media sanitization procedures documented and enforced",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "",
+          "Actual": "",
+          "Remediation": "",
+          "References": null,
+          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+        },
+        {
+          "ID": "SC.L1-3.13.1",
+          "Title": "Boundary Protection",
+          "Description": "Firewall boundary controls in place",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "",
+          "Actual": "",
+          "Remediation": "",
+          "References": null,
+          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+        }
+      ],
+      "StartTime": "2026-06-02T15:15:21.5484-04:00",
+      "EndTime": "2026-06-02T15:17:21.5484-04:00",
+      "Duration": 0
+    }
+  },
+  "CrossReferences": null,
+  "PQCBlastRadius": null,
+  "POAMItems": [
+    {
+      "id": "POAM-2026-001",
+      "control_id": "AC.L2-3.1.1",
+      "weakness": "Multi-factor authentication not enforced for privileged accounts",
+      "severity": "CAT I",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 150000,
+      "scheduled_completion": "2026-06-09T15:17:21.5484-04:00",
+      "milestone_actions": [
+        "Enable MFA via Azure AD Conditional Access or equivalent"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 150000,
+      "severity_weight": 3,
+      "priority_score": 64285.71428571428,
+      "estimated_days": 7
+    },
+    {
+      "id": "POAM-2026-002",
+      "control_id": "AC.L2-3.1.2",
+      "weakness": "No separation of duties for privileged operations",
+      "severity": "CAT I",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 150000,
+      "scheduled_completion": "2026-06-09T15:17:21.5484-04:00",
+      "milestone_actions": [
+        "Implement Role-Based Access Control with least-privilege principles"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 150000,
+      "severity_weight": 3,
+      "priority_score": 64285.71428571428,
+      "estimated_days": 7
+    },
+    {
+      "id": "POAM-2026-003",
+      "control_id": "IA.L2-3.5.3",
+      "weakness": "MFA not required for all CUI system access",
+      "severity": "CAT I",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 150000,
+      "scheduled_completion": "2026-06-09T15:17:21.5484-04:00",
+      "milestone_actions": [
+        "Deploy MFA tokens (PIV/FIDO2) for all user accounts accessing CUI"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 150000,
+      "severity_weight": 3,
+      "priority_score": 64285.71428571428,
+      "estimated_days": 7
+    },
+    {
+      "id": "POAM-2026-004",
+      "control_id": "AU.L2-3.3.1",
+      "weakness": "Audit logging incomplete — failed login attempts not recorded",
+      "severity": "High",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 50000,
+      "scheduled_completion": "2026-06-16T15:17:21.5484-04:00",
+      "milestone_actions": [
+        "Configure centralized SIEM with complete audit trail (90-day retention)"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 50000,
+      "severity_weight": 2,
+      "priority_score": 7142.857142857143,
+      "estimated_days": 14
+    },
+    {
+      "id": "POAM-2026-005",
+      "control_id": "CM.L2-3.4.1",
+      "weakness": "No documented baseline configuration for CUI systems",
+      "severity": "High",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 50000,
+      "scheduled_completion": "2026-06-16T15:17:21.5484-04:00",
+      "milestone_actions": [
+        "Implement STIG baseline for all endpoints (RHEL 9, Windows Server 2022)"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 50000,
+      "severity_weight": 2,
+      "priority_score": 7142.857142857143,
+      "estimated_days": 14
+    },
+    {
+      "id": "POAM-2026-006",
+      "control_id": "IR.L2-3.6.1",
+      "weakness": "Incident response plan not tested in last 12 months",
+      "severity": "High",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 50000,
+      "scheduled_completion": "2026-06-16T15:17:21.5484-04:00",
+      "milestone_actions": [
+        "Conduct tabletop exercise and update IR plan"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 50000,
+      "severity_weight": 2,
+      "priority_score": 7142.857142857143,
+      "estimated_days": 14
+    },
+    {
+      "id": "POAM-2026-007",
+      "control_id": "SC.L2-3.13.8",
+      "weakness": "TLS 1.2 in use on 3 internal services (upgrade to TLS 1.3 required)",
+      "severity": "High",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 50000,
+      "scheduled_completion": "2026-06-16T15:17:21.5484-04:00",
+      "milestone_actions": [
+        "Upgrade all services to TLS 1.3 minimum; disable TLS 1.0/1.1/1.2"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 50000,
+      "severity_weight": 2,
+      "priority_score": 7142.857142857143,
+      "estimated_days": 14
+    },
+    {
+      "id": "POAM-2026-008",
+      "control_id": "SI.L2-3.14.1",
+      "weakness": "47 CVEs unpatched (12 Critical, 35 High) — patch cycle exceeds 30 days",
+      "severity": "High",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 50000,
+      "scheduled_completion": "2026-06-16T15:17:21.5484-04:00",
+      "milestone_actions": [
+        "Implement automated patching with 15-day SLA for Critical/High CVEs"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 50000,
+      "severity_weight": 2,
+      "priority_score": 7142.857142857143,
+      "estimated_days": 14
+    }
+  ],
+  "ExecutiveSummary": {
+    "OverallCompliance": 42.7,
+    "ComplianceGrade": "Poor (D)",
+    "STIGCompliance": 38.2,
+    "CISCompliance": 0,
+    "NIST80053Compliance": 0,
+    "NIST800171Compliance": 44.1,
+    "CMMCCompliance": 42.7,
+    "CAT1Findings": 3,
+    "CAT2Findings": 5,
+    "CAT3Findings": 2,
+    "PQCReadinessGrade": "Critical (F)",
+    "PQCMigrationRequired": true,
+    "OverallRisk": "Critical",
+    "TopRisks": [
+      "3 CAT I findings requiring immediate remediation",
+      "Post-quantum cryptography migration required (NTI: 8.7/10)",
+      "47 CVEs unpatched — breach risk $1.4M+"
+    ],
+    "ExecutiveRecommendations": [
+      "Address 3 CAT I findings within 7 days (MFA, privilege separation, IA)",
+      "Implement POAM for all 8 open items",
+      "Initiate PQC migration roadmap — Q-Day horizon 2030-2035"
+    ]
+  }
+}
