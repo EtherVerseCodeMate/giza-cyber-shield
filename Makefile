@@ -302,6 +302,81 @@ test-validation:
 
 
 # ============================================================
+# E2E Tests — Phantom Sandbox (real Linux + Windows targets)
+# Build-Test-Release-Feedback-Repeat
+# ============================================================
+#
+# - dummy-linux : Intentionally misconfigured Alpine container (scan target)
+# - Phantom Sandbox: adinkhepra CLI runs against real Docker targets
+# - Windows: localhost scan via adinkhepra.exe (no Docker needed)
+#
+# Tests use //go:build e2e tag — excluded from `go test ./...` by default.
+# All E2E targets are ADVISORY (non-blocking for release).
+#
+# make test-e2e              All E2E (Linux containers + Windows)
+# make test-e2e-quick        Windows only (no Docker required)
+# make test-e2e-linux        Linux container targets (requires Docker)
+# make test-e2e-windows      Windows host targets only
+# make test-e2e-pipeline     Full pipeline test only
+# make test-e2e-version      Fastest sanity: just version check
+# make build-dummy-linux     Build dummy Linux target image only
+# ============================================================
+
+E2E_TIMEOUT?=20m
+E2E_TAGS=-tags e2e
+
+# Build the dummy Linux target Docker image (intentionally misconfigured)
+.PHONY: build-dummy-linux
+build-dummy-linux:
+	@echo "[E2E] Building dummy Linux target image..."
+	docker build \
+		-t khepra-dummy-linux:e2e \
+		-f tests/e2e/fixtures/dummy-linux/Dockerfile \
+		.
+	@echo "[E2E] Image built: khepra-dummy-linux:e2e"
+
+# All E2E tests (Linux containers + Windows host)
+.PHONY: test-e2e
+test-e2e: build
+	@echo "[E2E] Running ALL E2E tests..."
+	go test $(E2E_TAGS) ./tests/e2e/... -v -timeout $(E2E_TIMEOUT) 2>&1 | tee /tmp/e2e-all.txt
+	@echo "[E2E] Results: /tmp/e2e-all.txt"
+
+# Windows-only E2E (no Docker required — scans localhost)
+.PHONY: test-e2e-quick
+test-e2e-quick: build
+	@echo "[E2E] Windows E2E tests (no Docker)..."
+	go test $(E2E_TAGS) ./tests/e2e/... -v -timeout $(E2E_TIMEOUT) \
+		-run "TestE2E_Windows" 2>&1 | tee /tmp/e2e-windows.txt
+	@echo "[E2E] Results: /tmp/e2e-windows.txt"
+
+# Windows-only alias
+.PHONY: test-e2e-windows
+test-e2e-windows: test-e2e-quick
+
+# Linux container targets only
+.PHONY: test-e2e-linux
+test-e2e-linux: build-dummy-linux build
+	@echo "[E2E] Linux container E2E tests..."
+	go test $(E2E_TAGS) ./tests/e2e/... -v -timeout $(E2E_TIMEOUT) \
+		-run "TestE2E_Linux" 2>&1 | tee /tmp/e2e-linux.txt
+	@echo "[E2E] Results: /tmp/e2e-linux.txt"
+
+# Full pipeline only (release gate sanity check)
+.PHONY: test-e2e-pipeline
+test-e2e-pipeline: build-dummy-linux build
+	@echo "[E2E] Full pipeline E2E tests..."
+	go test $(E2E_TAGS) ./tests/e2e/... -v -timeout $(E2E_TIMEOUT) \
+		-run "FullPipeline" 2>&1 | tee /tmp/e2e-pipeline.txt
+	@echo "[E2E] Results: /tmp/e2e-pipeline.txt"
+
+# Version check only (fastest sanity — 30 seconds)
+.PHONY: test-e2e-version
+test-e2e-version: build
+	@echo "[E2E] Version sanity check..."
+	go test $(E2E_TAGS) ./tests/e2e/... -v -timeout 30s -run "VersionCheck"
+
+# ============================================================
 # Compliance-as-Code (CMMC / ASAF SSP / Trestle)
 # ============================================================
 

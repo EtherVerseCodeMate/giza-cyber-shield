@@ -1,0 +1,41 @@
+# =============================================================================
+# DUMMY TARGET SSH CONFIG — Intentionally Weak (E2E Test Fixture Only)
+# =============================================================================
+# STIG V-220700: PermitRootLogin — FAIL (should be "no")
+# STIG V-220701: PermitEmptyPasswords — FAIL (should be "no")
+# STIG V-220703: PasswordAuthentication — FAIL (MFA not enforced)
+# STIG V-220704: Legacy Ciphers — FAIL (3des-cbc should be disabled)
+# STIG V-220705: Legacy MACs — FAIL (hmac-md5 should be disabled)
+# STIG V-220706: Missing Banner — FAIL (DoD banner required)
+# PQC-FAIL: No ML-KEM or Kyber key exchange configured
+# =============================================================================
+
+Port 22
+PermitRootLogin yes
+PermitEmptyPasswords yes
+PasswordAuthentication yes
+ChallengeResponseAuthentication no
+UsePAM no
+X11Forwarding yes
+PrintMotd no
+AcceptEnv LANG LC_*
+Subsystem sftp /usr/lib/openssh/sftp-server
+
+# Legacy/weak ciphers intentionally enabled (should be removed per STIG)
+Ciphers aes256-ctr,aes128-ctr,3des-cbc,aes256-cbc,aes128-cbc
+
+# Weak MACs intentionally enabled
+MACs hmac-sha2-256,hmac-sha1,hmac-md5
+
+# No banner (STIG requires DoD warning banner)
+Banner none
+
+# No strict mode (world-writable directories allowed)
+StrictModes no
+
+# Log level too low (STIG requires VERBOSE)
+LogLevel INFO
+
+# No idle timeout (STIG requires ClientAliveInterval ≤ 600)
+ClientAliveInterval 0
+ClientAliveCountMax 0
