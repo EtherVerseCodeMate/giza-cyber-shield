@@ -24,22 +24,34 @@ FROM alpine:3.21
 
 RUN apk add --no-cache ca-certificates tzdata \
  && addgroup -g 10001 -S khepra \
- && adduser -u 10001 -S -G khepra -h /var/lib/khepra khepra
+ && adduser  -u 10001 -S -G khepra -h /var/lib/khepra -s /sbin/nologin khepra \
+ && mkdir -p /var/lib/khepra /var/log/khepra /app \
+ && chown -R 10001:10001 /var/lib/khepra /var/log/khepra /app \
+ # Remove SUID/SGID bits (STIG V-230244 / CIS 6.3.1)
+ && find / -xdev \( -perm -4000 -o -perm -2000 \) -type f -exec chmod a-s {} \; 2>/dev/null || true
 
 WORKDIR /app
 
-COPY --from=builder /out/khepra-mcp /usr/local/bin/khepra-mcp
-COPY manifest.json /app/manifest.json
+COPY --from=builder --chown=10001:10001 /out/khepra-mcp /usr/local/bin/khepra-mcp
+COPY --chown=10001:10001 manifest.json /app/manifest.json
 
-ENV KHEPRA_MANIFEST_PATH=/app/manifest.json
-ENV PHANTOM_SYMBOL=Eban
+ENV KHEPRA_MANIFEST_PATH=/app/manifest.json \
+    PHANTOM_SYMBOL=Eban \
+    KHEPRA_MODE=sovereign \
+    KHEPRA_HOME=/var/lib/khepra \
+    KHEPRA_AUDIT_LOG_PATH=/var/log/khepra/audit.ndjson \
+    KHEPRA_MAX_CONCURRENT=5
 
 LABEL org.opencontainers.image.title="KHEPRA MCP Server" \
-      org.opencontainers.image.description="Post-quantum MCP security layer for signed agent tool calls and audit evidence." \
+      org.opencontainers.image.description="Post-quantum MCP compliance server. Air-gappable. CMMC L2 + STIG + NIST 800-171. Signed tool responses. Zero token cost." \
       org.opencontainers.image.source="https://github.com/EtherVerseCodeMate/giza-cyber-shield" \
-      org.opencontainers.image.licenses="Apache-2.0" \
-      io.modelcontextprotocol.server.name="io.github.etherversecodemate/khepra-mcp"
+      org.opencontainers.image.licenses="Proprietary" \
+      org.opencontainers.image.vendor="NouchiX SecRed Knowledge Inc." \
+      io.modelcontextprotocol.server.name="io.github.etherversecodemate/khepra-mcp" \
+      io.modelcontextprotocol.server.transport="stdio" \
+      io.modelcontextprotocol.server.tools="khepra_discover_endpoints,khepra_run_compliance_scan,khepra_query_stig,khepra_export_attestation,khepra_get_dag_chain,khepra_get_compliance_score,khepra_get_anomaly_score,khepra_query_threat_intel,khepra_get_snapshot" \
+      io.openshift.tags="security,compliance,cmmc,post-quantum,mcp,zero-trust,stig,nist,air-gap"
 
-USER khepra
+USER 10001
 
 ENTRYPOINT ["/usr/local/bin/khepra-mcp"]

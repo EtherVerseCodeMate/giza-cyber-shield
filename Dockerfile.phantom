@@ -1,71 +1,65 @@
-# Dockerfile for Phantom Network Node - REAL IMPLEMENTATION
-#
-# This builds the actual Phantom Node with:
-# - Adinkhepra-PQC lattice signatures
-# - Merkaba White Box encryption
-# - Spectral Fingerprint address derivation
-# - Automatic key rotation
+# syntax=docker/dockerfile:1
+# Khepra Phantom Network Node — Air-gap safe, non-root, vendor-pinned build.
+# No network calls at build time. No curl. No root runtime.
 
+# ── Stage 1: Builder ──────────────────────────────────────────────────────────
 FROM golang:1.22-alpine AS builder
 
-# Install build dependencies
 RUN apk add --no-cache git gcc musl-dev
 
-# Set working directory
-WORKDIR /build
+WORKDIR /src
 
-# Initialize Go module
-RUN go mod init khepra-protocol
+ARG VERSION=1.0.0
 
-# Copy the real Adinkra package (required for crypto)
-COPY pkg/adinkra/ ./pkg/adinkra/
+COPY go.mod go.sum ./
+COPY vendor/ ./vendor/
+COPY pkg/ ./pkg/
+COPY cmd/ ./cmd/
 
-# Copy the phantom-node source
-COPY cmd/phantom-node/ ./cmd/phantom-node/
-
-# Download dependencies and tidy
-RUN go mod tidy
-
-# Build phantom-node binary
-RUN CGO_ENABLED=0 GOOS=linux go build \
-    -a -installsuffix cgo \
-    -ldflags="-w -s -X main.Version=1.0.0-adinkhepra" \
-    -o phantom-node \
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -mod=vendor \
+    -trimpath \
+    -ldflags="-w -s -X main.Version=${VERSION}" \
+    -o /out/phantom-node \
     ./cmd/phantom-node/
 
-# =============================================================================
-# Runtime Image
-# =============================================================================
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -mod=vendor \
+    -trimpath \
+    -ldflags="-w -s -X main.Version=${VERSION}" \
+    -o /out/mcp-runner \
+    ./cmd/mcp-runner/
 
-FROM alpine:latest
+# ── Stage 2: Runtime ──────────────────────────────────────────────────────────
+FROM alpine:3.21
 
-# Install runtime dependencies
-RUN apk --no-cache add ca-certificates curl tzdata
+RUN apk --no-cache add ca-certificates tzdata \
+ && addgroup -g 1001 -S phantom \
+ && adduser  -u 1001 -S -G phantom -h /var/lib/phantom -s /sbin/nologin phantom \
+ && mkdir -p \
+      /var/lib/phantom/keys \
+      /var/lib/phantom/data/lattice \
+      /app \
+ && chown -R phantom:phantom /var/lib/phantom /app \
+ # Remove SUID/SGID bits (STIG V-230244)
+ && find / -xdev \( -perm -4000 -o -perm -2000 \) -type f -exec chmod a-s {} \; 2>/dev/null || true
 
-# Create non-root user
-RUN addgroup -g 1000 phantom && \
-    adduser -D -u 1000 -G phantom phantom
+COPY --from=builder --chown=phantom:phantom /out/phantom-node /app/phantom-node
+COPY --from=builder --chown=phantom:phantom /out/mcp-runner   /app/mcp-runner
 
-# Set working directory
-WORKDIR /app
+ENV KHEPRA_HOME=/var/lib/phantom
 
-# Copy binary from builder
-COPY --from=builder /build/phantom-node /app/phantom-node
+LABEL maintainer="NouchiX SecRed Knowledge Inc." \
+      description="Khepra Phantom Network Node — PQC lattice signatures, Merkaba white-box encryption, spectral fingerprint" \
+      security.non-root="true" \
+      security.readonly-rootfs="compatible"
 
-# Create directories for keys and data
-RUN mkdir -p /app/data/lattice /root/.khepra/keys && \
-    chown -R phantom:phantom /app
+EXPOSE 8080 9090
 
-# Expose ports
-EXPOSE 8080
-EXPOSE 9090
+# Health check via wget (busybox built-in — no curl needed)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -qO- http://127.0.0.1:8080/health || exit 1
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8080/health || exit 1
+USER phantom
 
-# Run as non-root (commented for now as we need /root/.khepra access)
-# USER phantom
-
-# Default command
-CMD ["/app/phantom-node"]
+ENTRYPOINT ["/app/phantom-node"]

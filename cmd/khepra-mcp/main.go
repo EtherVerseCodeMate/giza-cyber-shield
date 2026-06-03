@@ -29,6 +29,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -82,6 +83,15 @@ func main() {
 		}
 	}
 
+	// ── Concurrency limiter (NSA MCP §"Denial of service / prompt storm") ────
+	maxConcurrent := 5
+	if v := os.Getenv("KHEPRA_MAX_CONCURRENT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			maxConcurrent = n
+		}
+	}
+	sem := make(chan struct{}, maxConcurrent)
+
 	// ── Build dispatcher ──────────────────────────────────────────────────────
 	d := &dispatcher{
 		mode:       mode,
@@ -90,6 +100,7 @@ func main() {
 		pqcEnabled: pqcEnabled,
 		debug:      debug,
 		khepraHome: khepraHome,
+		sem:        sem,
 	}
 
 	// ── Build MCP server ──────────────────────────────────────────────────────
@@ -127,10 +138,22 @@ type dispatcher struct {
 	pqcEnabled bool
 	debug      bool
 	khepraHome string
+	sem        chan struct{} // concurrency limiter — NSA MCP §"Denial of service"
 }
 
 func (d *dispatcher) makeHandler(toolName string) mcp.ToolHandler {
 	return func(ctx context.Context, params json.RawMessage) (*mcp.ToolResult, error) {
+		// Acquire concurrency slot — blocks if KHEPRA_MAX_CONCURRENT active calls
+		select {
+		case d.sem <- struct{}{}:
+			defer func() { <-d.sem }()
+		case <-ctx.Done():
+			return &mcp.ToolResult{
+				Content: []mcp.ContentItem{{Type: "text", Text: "server busy: max concurrent tool calls reached"}},
+				IsError: true,
+			}, nil
+		}
+
 		var p map[string]interface{}
 		_ = json.Unmarshal(params, &p)
 
