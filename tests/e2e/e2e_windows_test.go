@@ -165,19 +165,13 @@ func TestE2E_Windows_SSPExport(t *testing.T) {
 		"--output", outPDF,
 	)
 
-	// SSP export may write ssp_windows.pdf or ssp_windows_ssp.md as fallback.
-	// Exclude .json so we don't pick up the input file.
-	actualFile := findOutputFile(t, workdir, "ssp_windows", ".json")
-	if actualFile == "" {
+	// PDF must be produced (binary regenerated — fpdf works on Windows)
+	actualPDF := findOutputFile(t, workdir, "ssp_windows", ".json")
+	if actualPDF == "" {
 		t.Fatalf("[W-4] SSP output not found in %s\nstdout: %s", workdir, r.Stdout)
 	}
-	if strings.HasSuffix(actualFile, ".pdf") {
-		AssertPDF(t, actualFile)
-	} else {
-		AssertFileExists(t, actualFile)
-		t.Logf("[W-4] Note: SSP PDF fallback produced: %s", filepath.Base(actualFile))
-	}
-	t.Logf("[W-4] SSP output: %s (%d bytes) in %s", filepath.Base(actualFile), fileSize(t, actualFile), r.Duration.Round(time.Millisecond))
+	AssertPDF(t, actualPDF)
+	t.Logf("[W-4] SSP PDF: %s (%d bytes) in %s", filepath.Base(actualPDF), fileSize(t, actualPDF), r.Duration.Round(time.Millisecond))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -199,19 +193,13 @@ func TestE2E_Windows_POAMExport(t *testing.T) {
 		"--output", outPDF,
 	)
 
-	// POAM may write poam_windows.pdf (if PDF succeeds) or poam_windows_poam.md (fallback).
-	// Exclude .json to avoid matching scan input file if it exists.
-	actualFile := findOutputFile(t, workdir, "poam", ".json")
-	if actualFile == "" {
+	// POAM generate runs live scan + exports PDF.
+	actualPDF := findOutputFile(t, workdir, "poam", ".json")
+	if actualPDF == "" {
 		t.Fatalf("[W-5] POAM output not found in %s\nstdout: %s", workdir, r.Stdout)
 	}
-	if strings.HasSuffix(actualFile, ".pdf") {
-		AssertPDF(t, actualFile)
-	} else {
-		AssertFileExists(t, actualFile)
-		t.Logf("[W-5] Note: POAM PDF fallback produced: %s", filepath.Base(actualFile))
-	}
-	t.Logf("[W-5] POAM output: %s (%d bytes) in %s", filepath.Base(actualFile), fileSize(t, actualFile), r.Duration.Round(time.Millisecond))
+	AssertPDF(t, actualPDF)
+	t.Logf("[W-5] POAM PDF: %s (%d bytes) in %s", filepath.Base(actualPDF), fileSize(t, actualPDF), r.Duration.Round(time.Millisecond))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
