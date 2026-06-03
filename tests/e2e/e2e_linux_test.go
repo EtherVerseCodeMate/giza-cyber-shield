@@ -157,19 +157,13 @@ func TestE2E_Linux_SSPExport(t *testing.T) {
 		"--output", outPDF,
 	)
 
-	// Find output: may be ssp_e2e.pdf or ssp_e2e_ssp.md fallback.
-	// Exclude .json so we don't match the input ssp_input.json.
-	actualFile := findOutputFile(t, workdir, "ssp", ".json")
-	if actualFile == "" {
-		t.Fatalf("[E2E] SSP output not found in %s\nstdout: %s", workdir, r.Stdout)
+	// SSP export must produce a real binary PDF (fpdf renderer verified on both platforms)
+	actualPDF := findOutputFile(t, workdir, "ssp", ".json")
+	if actualPDF == "" {
+		t.Fatalf("[E2E] SSP PDF not found in %s\nstdout: %s", workdir, r.Stdout)
 	}
-	if strings.HasSuffix(actualFile, ".pdf") {
-		AssertPDF(t, actualFile)
-	} else {
-		AssertFileExists(t, actualFile)
-		t.Logf("[E2E] Note: SSP PDF fallback: %s", filepath.Base(actualFile))
-	}
-	t.Logf("[E2E] SSP output: %s (%d bytes) in %s", filepath.Base(actualFile), fileSize(t, actualFile), r.Duration.Round(time.Millisecond))
+	AssertPDF(t, actualPDF)
+	t.Logf("[E2E] SSP PDF: %s (%d bytes) in %s", filepath.Base(actualPDF), fileSize(t, actualPDF), r.Duration.Round(time.Millisecond))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -186,17 +180,13 @@ func TestE2E_Linux_POAMExport(t *testing.T) {
 		"--output", outPDF,
 	)
 
-	// POAM generate (no --scan flag) runs live scan and writes to --output or default poam.pdf
-	actualPDF := findAnyOutputInDir(t, workdir, "poam")
+	// POAM generate runs live scan and must produce a real PDF
+	actualPDF := findOutputFile(t, workdir, "poam", ".json")
 	if actualPDF == "" {
-		t.Fatalf("[E2E] POAM output not found in %s\nstdout: %s", workdir, r.Stdout)
+		t.Fatalf("[E2E] POAM PDF not found in %s\nstdout: %s", workdir, r.Stdout)
 	}
-	if strings.HasSuffix(actualPDF, ".pdf") {
-		AssertPDF(t, actualPDF)
-	} else {
-		AssertFileExists(t, actualPDF)
-	}
-	t.Logf("[E2E] POAM output: %s (%d bytes) in %s", filepath.Base(actualPDF), fileSize(t, actualPDF), r.Duration.Round(time.Millisecond))
+	AssertPDF(t, actualPDF)
+	t.Logf("[E2E] POAM PDF: %s (%d bytes) in %s", filepath.Base(actualPDF), fileSize(t, actualPDF), r.Duration.Round(time.Millisecond))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
