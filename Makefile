@@ -422,3 +422,112 @@ hooks-install:
 	@git config core.hooksPath .githooks
 	@chmod +x .githooks/pre-commit
 	@echo "[HOOKS] Hook installed -- git config core.hooksPath = .githooks"
+
+# ============================================================
+# Demo Scan Targets — Known-Vulnerable Application Corpus
+# Authorized educational targets for ERT pipeline validation.
+# Each produces a real Godfather Report with live CVE findings.
+# ============================================================
+
+DEMO_TARGETS_DIR?=$(CURDIR)/demo-targets
+
+.PHONY: demo-targets-init
+demo-targets-init:
+	@mkdir -p "$(DEMO_TARGETS_DIR)"
+
+# Clone DVWA — PHP/MySQL, OWASP Top 10 coverage
+.PHONY: clone-dvwa
+clone-dvwa: demo-targets-init
+	@if [ -d "$(DEMO_TARGETS_DIR)/dvwa/.git" ]; then \
+		echo "[DEMO] Updating DVWA..." && git -C "$(DEMO_TARGETS_DIR)/dvwa" pull --quiet; \
+	else \
+		echo "[DEMO] Cloning DVWA (depth=1)..." && \
+		git clone --depth 1 https://github.com/digininja/DVWA "$(DEMO_TARGETS_DIR)/dvwa"; \
+	fi
+	@echo "[DEMO] DVWA ready: $(DEMO_TARGETS_DIR)/dvwa"
+
+# Clone OWASP Juice Shop — Node.js/Express, large npm dependency tree (most CVE findings)
+.PHONY: clone-juiceshop
+clone-juiceshop: demo-targets-init
+	@if [ -d "$(DEMO_TARGETS_DIR)/juice-shop/.git" ]; then \
+		echo "[DEMO] Updating Juice Shop..." && git -C "$(DEMO_TARGETS_DIR)/juice-shop" pull --quiet; \
+	else \
+		echo "[DEMO] Cloning OWASP Juice Shop (depth=1)..." && \
+		git clone --depth 1 https://github.com/juice-shop/juice-shop "$(DEMO_TARGETS_DIR)/juice-shop"; \
+	fi
+	@echo "[DEMO] Juice Shop ready: $(DEMO_TARGETS_DIR)/juice-shop"
+
+# Clone WebGoat — Java/Maven, enterprise attack surface
+.PHONY: clone-webgoat
+clone-webgoat: demo-targets-init
+	@if [ -d "$(DEMO_TARGETS_DIR)/webgoat/.git" ]; then \
+		echo "[DEMO] Updating WebGoat..." && git -C "$(DEMO_TARGETS_DIR)/webgoat" pull --quiet; \
+	else \
+		echo "[DEMO] Cloning WebGoat (depth=1)..." && \
+		git clone --depth 1 https://github.com/WebGoat/WebGoat "$(DEMO_TARGETS_DIR)/webgoat"; \
+	fi
+	@echo "[DEMO] WebGoat ready: $(DEMO_TARGETS_DIR)/webgoat"
+
+# ERT Godfather scan → DVWA (PHP supply chain analysis)
+.PHONY: scan-dvwa
+scan-dvwa: clone-dvwa build-ert
+	@echo "[DEMO] ═══════════════════════════════════════════════════════════════"
+	@echo "[DEMO]  ERT Godfather → DVWA (Damn Vulnerable Web Application)"
+	@echo "[DEMO]  PHP attack surface · Composer/apt dependency CVE analysis"
+	@echo "[DEMO] ═══════════════════════════════════════════════════════════════"
+	$(MAKE) ert-scan SCAN_TARGET="$(DEMO_TARGETS_DIR)/dvwa"
+
+# ERT Godfather scan → Juice Shop (Node.js — highest CVE yield for demos)
+.PHONY: scan-juiceshop
+scan-juiceshop: clone-juiceshop build-ert
+	@echo "[DEMO] ═══════════════════════════════════════════════════════════════"
+	@echo "[DEMO]  ERT Godfather → OWASP Juice Shop (Node.js/Angular)"
+	@echo "[DEMO]  npm dependency tree · CISA KEV correlation"
+	@echo "[DEMO] ═══════════════════════════════════════════════════════════════"
+	$(MAKE) ert-scan SCAN_TARGET="$(DEMO_TARGETS_DIR)/juice-shop"
+
+# ERT Godfather scan → WebGoat (Java/Maven — enterprise stack)
+.PHONY: scan-webgoat
+scan-webgoat: clone-webgoat build-ert
+	@echo "[DEMO] ═══════════════════════════════════════════════════════════════"
+	@echo "[DEMO]  ERT Godfather → WebGoat (Java/Spring/Maven)"
+	@echo "[DEMO]  Maven dependency tree · Spring CVE analysis"
+	@echo "[DEMO] ═══════════════════════════════════════════════════════════════"
+	$(MAKE) ert-scan SCAN_TARGET="$(DEMO_TARGETS_DIR)/webgoat"
+
+# ERT Crypto attestation → DVWA (legacy crypto in PHP source)
+.PHONY: scan-dvwa-crypto
+scan-dvwa-crypto: clone-dvwa build-ert
+	@echo "[DEMO] ERT Crypto attestation → DVWA (weak cipher/hash detection)"
+	$(MAKE) ert-crypto SCAN_TARGET="$(DEMO_TARGETS_DIR)/dvwa"
+
+# ERT Supply chain deep scan → Juice Shop
+.PHONY: scan-juiceshop-architect
+scan-juiceshop-architect: clone-juiceshop build-ert
+	@echo "[DEMO] ERT Architect → Juice Shop (supply chain deep scan)"
+	$(MAKE) ert-architect SCAN_TARGET="$(DEMO_TARGETS_DIR)/juice-shop"
+
+# Self-audit: scan Khepra Protocol itself (eat-your-own-dog-food demo)
+.PHONY: scan-self
+scan-self: build-ert
+	@echo "[DEMO] ═══════════════════════════════════════════════════════════════"
+	@echo "[DEMO]  ERT Godfather → Khepra Protocol (self-audit)"
+	@echo "[DEMO]  Go module dependency tree · Internal CVE posture"
+	@echo "[DEMO] ═══════════════════════════════════════════════════════════════"
+	$(MAKE) ert-scan SCAN_TARGET="$(CURDIR)"
+
+# Full demo pipeline: all three targets + self-audit in sequence
+# Use for demo video recording — run this, pipe output to asciinema or screen capture
+.PHONY: demo-scan-all
+demo-scan-all: scan-dvwa scan-juiceshop scan-webgoat scan-self
+	@echo "[DEMO] ═══════════════════════════════════════════════════════════════"
+	@echo "[DEMO]  All ERT Godfather scans complete."
+	@echo "[DEMO]  Next: adinkhepra report godfather <scan_results.json>"
+	@echo "[DEMO] ═══════════════════════════════════════════════════════════════"
+
+# Remove demo target clones (does not remove ERT image)
+.PHONY: clean-demo-targets
+clean-demo-targets:
+	@echo "[DEMO] Removing demo target clones..."
+	@rm -rf "$(DEMO_TARGETS_DIR)"
+	@echo "[DEMO] Clean."

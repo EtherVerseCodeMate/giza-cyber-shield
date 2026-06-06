@@ -1,83 +1,80 @@
-# =============================================================================
-# Khepra Protocol — Dummy Linux Target (E2E Test Fixture)
-# =============================================================================
+# tests/e2e/fixtures/dummy-linux/Dockerfile
 #
-# PURPOSE: Intentionally misconfigured Alpine container used as a real scan
-#          target for E2E tests. This is NOT a production image.
+# Intentionally misconfigured Alpine Linux target for E2E testing.
+# Every misconfiguration maps to a specific STIG/CMMC control finding.
+# adinkhepra is injected at test time via: docker cp bin/asaf-linux-amd64 <ctr>:/usr/local/bin/adinkhepra
 #
-# Security posture (deliberately BAD for STIG finding generation):
-#   - Root SSH login PERMITTED (STIG V-220700 failure)
-#   - Empty password SSH PERMITTED (STIG V-220701 failure)
-#   - Telnet server running (STIG V-220699 failure)
-#   - HTTP server on port 80 (STIG V-220701 failure)
-#   - World-writable /tmp (STIG V-220702 failure)
-#   - No firewall / iptables rules
-#   - Legacy SSH ciphers enabled (3DES, RC4 — PQC failure)
-#
-# Exposed ports:
-#   22  → SSH (for scanning / remote STIG validation)
-#   23  → Telnet (intentional STIG failure)
-#   80  → HTTP (intentional STIG failure)
-#   8080→ Secondary HTTP (intentional STIG failure)
-#
-# Build: docker build -t khepra-dummy-linux:latest -f tests/e2e/fixtures/dummy-linux/Dockerfile .
-# Run:   docker run -d -p 2222:22 -p 2323:23 -p 8080:80 khepra-dummy-linux:latest
-# =============================================================================
+# Expected findings (non-exhaustive):
+#   RHEL-09-255040  — SSH PermitRootLogin enabled
+#   RHEL-09-255025  — SSH PasswordAuthentication enabled
+#   RHEL-09-255060  — SSH Protocol includes SSHv1
+#   RHEL-09-255050  — SSH X11Forwarding enabled
+#   RHEL-09-671010  — FIPS mode not enabled (NIST 800-171 03.13.10)
+#   RHEL-09-232230  — World-writable files present
+#   RHEL-09-654010  — No auditd configured
+#   CMMC AC.L2-3.1.6  — No least-privilege enforcement (root login allowed)
+#   CMMC IA.L2-3.5.10 — Weak credential storage
+#   CMMC SC.L2-3.13.10 — Non-FIPS cryptographic module (RSA-1024 key)
 
-FROM alpine:3.21
+FROM alpine:3.18
 
-# Install intentionally weak services
 RUN apk add --no-cache \
-    openssh-server \
-    busybox-extras \
+    openssh \
+    openssl \
     bash \
-    curl \
-    python3
+    sudo \
+    net-tools \
+    procps \
+    shadow
 
-# ── Intentional STIG Failures ─────────────────────────────────────────────────
+# RHEL-09-255040 / CMMC AC.L2-3.1.6: PermitRootLogin must be "no"
+# RHEL-09-255025: PasswordAuthentication must be disabled
+# RHEL-09-255060: SSHv1 is cryptographically broken (MD5 HMAC)
+# RHEL-09-255050: X11Forwarding creates privilege escalation surface
+RUN mkdir -p /etc/ssh && \
+    ssh-keygen -A && \
+    printf '%s\n' \
+        'PermitRootLogin yes' \
+        'PasswordAuthentication yes' \
+        'Protocol 2,1' \
+        'X11Forwarding yes' \
+        'UseDNS no' \
+        'LogLevel QUIET' \
+    >> /etc/ssh/sshd_config
 
-# STIG V-220700: PermitRootLogin yes (should be no)
-# STIG V-220701: PermitEmptyPasswords yes (should be no)
-# STIG V-220703: PasswordAuthentication yes (MFA not enforced)
-# PQC-FAIL: Legacy ciphers 3des-cbc, arcfour (RC4 equivalent) enabled
-COPY tests/e2e/fixtures/dummy-linux/sshd_config /etc/ssh/sshd_config
+# RHEL-09-232230: World-writable directories/files are a privilege escalation vector
+RUN mkdir -p /opt/insecure && chmod 0777 /opt/insecure && \
+    touch /opt/insecure/config.txt && chmod 0666 /opt/insecure/config.txt
 
-# Generate SSH host keys (weak RSA-2048, not ML-KEM ready)
-RUN ssh-keygen -A
+# RHEL-09-611010 / CMMC IA.L2-3.5.10: Weak root credential for test fixture reproducibility
+RUN echo 'root:Password1!' | chpasswd
 
-# Create root password (intentional: password-based root login)
-RUN echo "root:DummyTarget2026!" | chpasswd
+# CMMC SC.L2-3.13.10 / NIST 800-171 03.13.10: FIPS requires RSA >= 2048-bit.
+# RSA-1024 key deliberately triggers quantum-vulnerable and non-FIPS findings.
+RUN openssl genrsa -out /etc/ssl/private/host.key 1024 2>/dev/null && \
+    openssl req -new -x509 \
+        -key /etc/ssl/private/host.key \
+        -out /etc/ssl/certs/host.crt \
+        -days 3650 \
+        -subj "/C=US/ST=Test/O=KhepraE2E/CN=dummy-linux" 2>/dev/null && \
+    chmod 600 /etc/ssl/private/host.key
 
-# STIG V-220702: World-writable directory
-RUN mkdir -p /var/dummy-writable && chmod 777 /var/dummy-writable
+# RHEL-09-654010: No auditd — audit trail absent (auditd unavailable on Alpine by design)
 
-# Create a fake /etc/banner for SSH (missing DoD warning banner = STIG fail)
-RUN echo "Welcome to DummyTarget" > /etc/ssh/banner
+# Test user with passwordless sudo and weak credential
+RUN adduser -D -s /bin/sh e2euser && \
+    echo 'e2euser:password' | chpasswd && \
+    echo 'e2euser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
-# Create a test user with no sudo restriction (excessive privilege)
-RUN adduser -D -s /bin/bash testuser && \
-    echo "testuser:test123" | chpasswd
+# Injection point — E2E tests copy the binary here:
+# docker cp bin/asaf-linux-amd64 <container>:/usr/local/bin/adinkhepra
+RUN mkdir -p /usr/local/bin
 
-# Drop a fake "vulnerable" config file (world-readable secrets)
-RUN mkdir -p /etc/dummy-app && \
-    echo "DB_PASSWORD=admin123\nAPI_KEY=sk-INSECURE\nSECRET_KEY=hardcoded" \
-    > /etc/dummy-app/config.env && \
-    chmod 644 /etc/dummy-app/config.env
+LABEL khepra.target.type="e2e-dummy-linux"
+LABEL khepra.findings.expected.min="10"
+LABEL khepra.stig.framework="RHEL-09"
+LABEL khepra.cmmc.level="L2"
+LABEL khepra.crypto.key.bits="1024"
+LABEL khepra.fips.enabled="false"
 
-# Fake /etc/os-release for RHEL9 STIG check simulation
-RUN echo 'NAME="DummyLinux"' > /etc/os-release && \
-    echo 'VERSION="9.0 (Dummy)"' >> /etc/os-release && \
-    echo 'ID=rhel' >> /etc/os-release && \
-    echo 'VERSION_ID="9.0"' >> /etc/os-release
-
-COPY tests/e2e/fixtures/dummy-linux/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-# Expose intentionally bad ports
-EXPOSE 22 23 80 8080
-
-# Health check — just verify SSH is responding
-HEALTHCHECK --interval=5s --timeout=3s --start-period=5s --retries=5 \
-    CMD nc -z 127.0.0.1 22 || exit 1
-
-ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/bin/sh", "-c", "while true; do sleep 86400; done"]

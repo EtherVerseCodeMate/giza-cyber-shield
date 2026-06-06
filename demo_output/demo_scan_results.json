@@ -2,7 +2,7 @@
   "Hostname": "ABC Defense Corp",
   "OSVersion": "Demo Environment (Synthetic)",
   "KernelVersion": "",
-  "ScanDate": "2026-06-02T15:17:21.5484-04:00",
+  "ScanDate": "2026-06-05T23:10:19.894688-04:00",
   "ScanDuration": 0,
   "Results": {
     "CMMC-3.0-L3": {
@@ -24,7 +24,7 @@
           "Actual": "",
           "Remediation": "Enable MFA via Azure AD Conditional Access or equivalent",
           "References": null,
-          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+          "CheckedAt": "2026-06-05T23:10:19.894688-04:00"
         },
         {
           "ID": "AC.L2-3.1.2",
@@ -36,7 +36,7 @@
           "Actual": "",
           "Remediation": "Implement Role-Based Access Control with least-privilege principles",
           "References": null,
-          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+          "CheckedAt": "2026-06-05T23:10:19.894688-04:00"
         },
         {
           "ID": "IA.L2-3.5.3",
@@ -48,7 +48,7 @@
           "Actual": "",
           "Remediation": "Deploy MFA tokens (PIV/FIDO2) for all user accounts accessing CUI",
           "References": null,
-          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+          "CheckedAt": "2026-06-05T23:10:19.894688-04:00"
         },
         {
           "ID": "AU.L2-3.3.1",
@@ -60,7 +60,7 @@
           "Actual": "",
           "Remediation": "Configure centralized SIEM with complete audit trail (90-day retention)",
           "References": null,
-          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+          "CheckedAt": "2026-06-05T23:10:19.894688-04:00"
         },
         {
           "ID": "CM.L2-3.4.1",
@@ -72,7 +72,7 @@
           "Actual": "",
           "Remediation": "Implement STIG baseline for all endpoints (RHEL 9, Windows Server 2022)",
           "References": null,
-          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+          "CheckedAt": "2026-06-05T23:10:19.894688-04:00"
         },
         {
           "ID": "IR.L2-3.6.1",
@@ -84,7 +84,7 @@
           "Actual": "",
           "Remediation": "Conduct tabletop exercise and update IR plan",
           "References": null,
-          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+          "CheckedAt": "2026-06-05T23:10:19.894688-04:00"
         },
         {
           "ID": "SC.L2-3.13.8",
@@ -96,7 +96,7 @@
           "Actual": "",
           "Remediation": "Upgrade all services to TLS 1.3 minimum; disable TLS 1.0/1.1/1.2",
           "References": null,
-          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+          "CheckedAt": "2026-06-05T23:10:19.894688-04:00"
         },
         {
           "ID": "SI.L2-3.14.1",
@@ -108,7 +108,7 @@
           "Actual": "",
           "Remediation": "Implement automated patching with 15-day SLA for Critical/High CVEs",
           "References": null,
-          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+          "CheckedAt": "2026-06-05T23:10:19.894688-04:00"
         },
         {
           "ID": "AC.L1-3.1.20",
@@ -120,7 +120,7 @@
           "Actual": "",
           "Remediation": "",
           "References": null,
-          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+          "CheckedAt": "2026-06-05T23:10:19.894688-04:00"
         },
         {
           "ID": "MP.L1-3.8.3",
@@ -132,7 +132,7 @@
           "Actual": "",
           "Remediation": "",
           "References": null,
-          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+          "CheckedAt": "2026-06-05T23:10:19.894688-04:00"
         },
         {
           "ID": "SC.L1-3.13.1",
@@ -144,11 +144,11 @@
           "Actual": "",
           "Remediation": "",
           "References": null,
-          "CheckedAt": "2026-06-02T15:17:21.5484-04:00"
+          "CheckedAt": "2026-06-05T23:10:19.894688-04:00"
         }
       ],
-      "StartTime": "2026-06-02T15:15:21.5484-04:00",
-      "EndTime": "2026-06-02T15:17:21.5484-04:00",
+      "StartTime": "2026-06-05T23:08:19.894688-04:00",
+      "EndTime": "2026-06-05T23:10:19.894688-04:00",
       "Duration": 0
     }
   },
@@ -163,7 +163,7 @@
       "status": "Open",
       "point_of_contact": "ISSM",
       "estimated_cost_usd": 150000,
-      "scheduled_completion": "2026-06-09T15:17:21.5484-04:00",
+      "scheduled_completion": "2026-06-12T23:10:19.894688-04:00",
       "milestone_actions": [
         "Enable MFA via Azure AD Conditional Access or equivalent"
       ],
@@ -181,7 +181,7 @@
       "status": "Open",
       "point_of_contact": "ISSM",
       "estimated_cost_usd": 150000,
-      "scheduled_completion": "2026-06-09T15:17:21.5484-04:00",
+      "scheduled_completion": "2026-06-12T23:10:19.894688-04:00",
       "milestone_actions": [
         "Implement Role-Based Access Control with least-privilege principles"
       ],
@@ -199,7 +199,7 @@
       "status": "Open",
       "point_of_contact": "ISSM",
       "estimated_cost_usd": 150000,
-      "scheduled_completion": "2026-06-09T15:17:21.5484-04:00",
+      "scheduled_completion": "2026-06-12T23:10:19.894688-04:00",
       "milestone_actions": [
         "Deploy MFA tokens (PIV/FIDO2) for all user accounts accessing CUI"
       ],
@@ -217,7 +217,7 @@
       "status": "Open",
       "point_of_contact": "ISSM",
       "estimated_cost_usd": 50000,
-      "scheduled_completion": "2026-06-16T15:17:21.5484-04:00",
+      "scheduled_completion": "2026-06-19T23:10:19.894688-04:00",
       "milestone_actions": [
         "Configure centralized SIEM with complete audit trail (90-day retention)"
       ],
@@ -235,7 +235,7 @@
       "status": "Open",
       "point_of_contact": "ISSM",
       "estimated_cost_usd": 50000,
-      "scheduled_completion": "2026-06-16T15:17:21.5484-04:00",
+      "scheduled_completion": "2026-06-19T23:10:19.894688-04:00",
       "milestone_actions": [
         "Implement STIG baseline for all endpoints (RHEL 9, Windows Server 2022)"
       ],
@@ -253,7 +253,7 @@
       "status": "Open",
       "point_of_contact": "ISSM",
       "estimated_cost_usd": 50000,
-      "scheduled_completion": "2026-06-16T15:17:21.5484-04:00",
+      "scheduled_completion": "2026-06-19T23:10:19.894688-04:00",
       "milestone_actions": [
         "Conduct tabletop exercise and update IR plan"
       ],
@@ -271,7 +271,7 @@
       "status": "Open",
       "point_of_contact": "ISSM",
       "estimated_cost_usd": 50000,
-      "scheduled_completion": "2026-06-16T15:17:21.5484-04:00",
+      "scheduled_completion": "2026-06-19T23:10:19.894688-04:00",
       "milestone_actions": [
         "Upgrade all services to TLS 1.3 minimum; disable TLS 1.0/1.1/1.2"
       ],
@@ -289,7 +289,7 @@
       "status": "Open",
       "point_of_contact": "ISSM",
       "estimated_cost_usd": 50000,
-      "scheduled_completion": "2026-06-16T15:17:21.5484-04:00",
+      "scheduled_completion": "2026-06-19T23:10:19.894688-04:00",
       "milestone_actions": [
         "Implement automated patching with 15-day SLA for Critical/High CVEs"
       ],
