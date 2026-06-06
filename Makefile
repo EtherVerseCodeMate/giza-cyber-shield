@@ -416,6 +416,15 @@ compliance: cmmc-tracker ssp-assemble
 	@echo "[COMPLIANCE]    Tracker : CMMC_TRACKER.md"
 	@echo "[COMPLIANCE]    SSP     : system-security-plans/system-security-plan/system-security-plan.json"
 
+# Regenerate dev license (fresh ML-DSA-65 keypair + license.adinkhepra)
+# Run when: "FATAL: LICENSE VIOLATION: signature verification failed"
+# Writes adinkhepra_master.pub + license.adinkhepra to . and bin/
+.PHONY: dev-license
+dev-license:
+	@echo "[LICENSE] Generating dev license (ephemeral ML-DSA-65 key pair)..."
+	go run tools/dev-license-gen/main.go
+	@echo "[LICENSE] Done. Run: adinkhepra compliance scan --framework CMMC_L2"
+
 .PHONY: hooks-install
 hooks-install:
 	@echo "[HOOKS] Installing ASAF compliance pre-commit hook..."
