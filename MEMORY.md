@@ -358,3 +358,115 @@ go mod tidy && go mod download
 - Letting Jeff Goluba's silence block the pipeline (attend the Wednesday session, own it)
 - Confusing dev repo (giza-cyber-shield) with prod repos (Adinkhepra-ASAF, PQC-Khepra-MCP) — always gate through audit before promoting
 - Committing `vendor/`, secrets, or dev artifacts to the Iron Bank repo
+
+---
+
+## 🔴 Threat Intelligence — Claude Code MCP OAuth Interception (Mitiga Labs, 2026-04-10)
+
+> **Status**: No patch from Anthropic (ruled out-of-scope 2026-04-12). Full detection and response burden falls on us.
+> **Severity**: CRITICAL — directly threatens PQC-Khepra-MCP's OAuth-connected integrations and any developer running Claude Code against our MCP server.
+
+### Attack Summary
+
+A five-step supply chain attack silently redirects Claude Code's MCP traffic through attacker-controlled infrastructure, intercepting OAuth bearer tokens that grant persistent, broadly scoped access to connected SaaS platforms (Jira, Confluence, GitHub, etc.).
+
+**Entry point**: Malicious npm package with a hidden `postinstall` lifecycle hook that executes silently during `npm install`.
+
+**Primary target**: `~/.claude.json` — the global config file governing how Claude Code routes ALL MCP traffic and where OAuth tokens are stored **in plaintext**.
+
+### The Five-Step Chain
+
+| Step | Action |
+|---|---|
+| **1. Delivery** | Malicious npm package installs a `postinstall` hook; seeds `alreadyTrusted: true` flags across common developer clone paths in `~/.claude.json` |
+| **2. Path seeding** | Hook edits `~/.claude.json` to insert a `sessionStart` hook that fires every time Claude Code loads any trusted project |
+| **3. Endpoint rewrite** | Session hook replaces legitimate MCP server URLs (e.g., our `khepra-mcp` endpoint or Atlassian) with a localhost proxy |
+| **4. Token interception** | Claude Code reads the rewritten URL, connects to the attacker's proxy; OAuth bearer token transits attacker infrastructure; provider sees a valid flow from Anthropic's egress IP |
+| **5. Persistent reseeding** | Hook reasserts malicious config on every Claude Code load — token rotation actively **feeds the attacker** by delivering a fresh token |
+
+### Why Bearer Tokens Are High-Value Targets
+
+- **Persistent** — stored with refresh token; one interception = durable foothold
+- **Broadly scoped** — inherits all permissions granted at OAuth time, no per-call narrowing
+- **Weakly stored** — plaintext in `~/.claude.json` alongside trust flags, same file permissions
+- **Unattributable server-side** — presented from Anthropic egress IPs; indistinguishable from legitimate traffic in provider audit logs
+
+### Why This Directly Threatens PQC-Khepra-MCP
+
+Our MCP server (`nouchix/PQC-Khepra-MCP`) is registered in `.mcp.json` and consumed by Claude Code. If a developer's `~/.claude.json` is compromised:
+
+1. Our `KHEPRA_SERVICE_SECRET` env var transits the proxy at session start
+2. Any OAuth tokens we issue (Supabase, future GitHub/Atlassian integrations) are intercepted
+3. `SecureCredentialVault.ts` encrypted-at-rest posture means nothing once the token is live in memory and transiting a compromised MCP channel
+4. The attack survives `SecureCredentialVault.rotateEncryptionKeys()` — rotation feeds fresh tokens to the attacker as long as the hook lives in `~/.claude.json`
+
+### Remediation Order (CRITICAL — do NOT just rotate tokens)
+
+> **⚠️ Token rotation BEFORE hook removal makes the attack worse — it delivers a fresh token to the proxy.**
+
+**Correct IR sequence:**
+1. `cat ~/.claude.json` — inspect every `mcpServers` URL; verify no localhost proxy entries exist
+2. Remove any unrecognized `sessionStart` hooks from `~/.claude.json`
+3. Kill any unexpected local proxy processes (`netstat -an | grep LISTEN`)
+4. **Then** rotate OAuth tokens and `KHEPRA_SERVICE_SECRET`
+5. Audit npm packages in all developer environments: `npm ls --depth=0` + check `package.json` `scripts.postinstall`
+
+---
+
+## 🛡️ PQC-Khepra-MCP Hardening Action Items
+
+Derived from the Mitiga Labs attack chain. These are concrete code/config changes needed in `nouchix/PQC-Khepra-MCP`.
+
+### P0 — Immediate (Before Next Deploy)
+
+- [ ] **Audit `.mcp.json` on every dev machine** — run `cat ~/.claude.json` and verify `khepra-mcp` URL is `go run ./cmd/khepra-mcp/main.go`, not a localhost proxy
+- [ ] **Add `KHEPRA_MCP_URL_EXPECTED` env check** — at MCP server startup, validate that the transport URL Claude Code is connecting from matches an allowlist; log + alert on deviation
+- [ ] **Never store OAuth tokens in `~/.claude.json`** — our `.mcp.json` uses env vars (`${KHEPRA_SERVICE_SECRET}`), not inline tokens; enforce this in PR reviews
+
+### P1 — This Sprint
+
+- [ ] **MCP Transport Integrity Check** — add a startup assertion in `cmd/khepra-mcp/main.go` that compares the reported MCP client connection origin against a configurable allowlist; emit a signed ASAF event on mismatch
+- [ ] **npm postinstall audit step** in CI — `grep -r "postinstall" node_modules/.hooks` or equivalent; fail build if any postinstall hook is not in an approved list (`scripts/approved-hooks.txt`)
+- [ ] **`SecureCredentialVault` token binding** — bind issued tokens to a PQC-signed device fingerprint (ML-DSA-65 attestation); tokens presented from a different device/origin are rejected server-side even if valid
+- [ ] **ASAF event: `mcp_url_rewrite_detected`** — add detector in `pkg/asaf/recorder.go` that fires when the MCP server URL in `~/.claude.json` differs from the canonical value at session start
+- [ ] **Developer runbook** — add `docs/MCP_SECURITY_RUNBOOK.md` with the 5-step IR sequence above; link from `SECURITY.md` and `llms-install.md`
+
+### P2 — Sprint 2
+
+- [ ] **Signed MCP config** — ship `server.json` with an ML-DSA-65 signature over the `mcpServers` block; Claude Code wrapper script verifies signature before loading config
+- [ ] **npm package allowlist** — add `scripts/check-npm-integrity.sh` that validates all packages against a SHA-256 allowlist; run as pre-commit hook
+- [ ] **SaaS audit log correlation** — in `ProductionSecurityService.ts`, add a detection rule: flag any OAuth refresh that originates from an IP in Anthropic's egress range (`35.0.0.0/8` and related) against a user's known dev machine IPs
+- [ ] **Token scope narrowing** — when issuing OAuth tokens for MCP integrations, request minimum scope (read-only where possible); document scope inventory in `SECURITY.md`
+
+### Detection Signatures for ASAF
+
+Add these to `pkg/asaf/recorder.go` event taxonomy:
+
+```
+mcp_config_tamper          — ~/.claude.json mcpServers URL changed unexpectedly
+mcp_localhost_proxy         — mcpServers URL resolves to 127.0.0.1 / ::1
+oauth_refresh_unknown_origin — OAuth refresh from IP not in user's known origin set
+postinstall_hook_detected   — npm postinstall hook found in a new package
+claude_json_trust_flag_set  — alreadyTrusted flag added to a new path
+```
+
+### Key Reference
+
+- **Mitiga Labs report**: Reported 2026-04-10, Anthropic acknowledged 2026-04-11, ruled out-of-scope 2026-04-12 — no patch planned
+- **Affected config file**: `~/.claude.json` (user-level, flat permissions, plaintext tokens)
+- **Defender first action**: `cat ~/.claude.json | grep -E "(mcpServers|localhost|sessionStart|alreadyTrusted)"`
+- **Our `.mcp.json`**: `c:\Users\intel\blackbox\PQC-Khepra-MCP\.mcp.json` — verified clean as of 2026-06-07
+
+### ✅ Audit Result — 2026-06-07 (intel@UrGentXy)
+
+`~/.claude.json` confirmed **CLEAN**:
+- No `mcpServers` configured in Claude Code (KHEPRA runs via project-local `.mcp.json` — safer posture)
+- No `sessionStart`, `hookStart`, `preToolUse`, or `postToolUse` hook keys
+- No localhost/127.0.0.1 in any entry
+- One project (`G0DM0D-1`) with `hasTrustDialogAccepted: false` — correct
+
+**High-value OAuth footprint discovered** (via `claudeAiMcpEverConnected` — server-side, not local attack vector):
+Gmail, Google Drive, Google Calendar, HubSpot, Notion, monday.com, Cloudflare, Intuit TurboTax.
+These are connected through `claude.ai` OAuth, not local MCP routing. They are outside the `~/.claude.json` injection path but represent the exact token surface the attack targets if a hook is ever injected in future.
+
+**Anthropic partial mitigation observed**: `tengu_mcp_local_oauth_blocked_hosts` blocks local OAuth for `gmail.mcp.claude.com`, `gcal.mcp.claude.com`, `microsoft365.mcp.claude.com`. Does NOT cover HubSpot, Notion, Google Drive, or KHEPRA.

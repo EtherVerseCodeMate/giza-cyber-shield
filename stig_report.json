@@ -1,0 +1,3220 @@
+{
+  "Hostname": "UrGentXy",
+  "OSVersion": "windows amd64",
+  "KernelVersion": "3.6.7-fb42d713.x86_64",
+  "ScanDate": "2026-06-06T00:09:41.6301939-04:00",
+  "ScanDuration": 274754900,
+  "Results": {
+    "CIS-RHEL-9-L1": {
+      "Framework": "CIS-RHEL-9-L1",
+      "Version": "v2.0.0",
+      "TotalControls": 5,
+      "Passed": 4,
+      "Failed": 0,
+      "NotApplicable": 0,
+      "ManualReview": 1,
+      "Findings": [
+        {
+          "ID": "CIS-1.1.1",
+          "Title": "Ensure mounting of cramfs filesystems is disabled",
+          "Description": "The cramfs filesystem type should be disabled unless needed",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "cramfs module disabled",
+          "Actual": "cramfs module disabled",
+          "Remediation": "Add 'install cramfs /bin/true' to /etc/modprobe.d/cramfs.conf",
+          "References": null,
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CIS-1.5.1",
+          "Title": "Ensure permissions on bootloader config are configured",
+          "Description": "Bootloader configuration files must have restricted permissions",
+          "Severity": "High",
+          "Status": "Pass",
+          "Expected": "/boot/grub2/grub.cfg: 0600, owned by root",
+          "Actual": "/boot/grub2/grub.cfg: 0600, owned by root",
+          "Remediation": "chmod 600 /boot/grub2/grub.cfg \u0026\u0026 chown root:root /boot/grub2/grub.cfg",
+          "References": null,
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CIS-3.3.1",
+          "Title": "Ensure source routed packets are not accepted",
+          "Description": "Source routing should be disabled",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "net.ipv4.conf.all.accept_source_route = 0",
+          "Actual": "net.ipv4.conf.all.accept_source_route = 0",
+          "Remediation": "Set sysctl net.ipv4.conf.all.accept_source_route=0",
+          "References": null,
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CIS-5.2.1",
+          "Title": "Ensure SSH Protocol is set to 2",
+          "Description": "SSH protocol version 2 should be enforced",
+          "Severity": "High",
+          "Status": "Pass",
+          "Expected": "SSH Protocol 2",
+          "Actual": "SSH Protocol 2 (implicit in OpenSSH 7.4+)",
+          "Remediation": "N/A - modern OpenSSH only supports protocol 2",
+          "References": null,
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CIS-6.1.1",
+          "Title": "Audit system file permissions",
+          "Description": "System files should have appropriate permissions",
+          "Severity": "Medium",
+          "Status": "Manual Review Required",
+          "Expected": "All system files have secure permissions",
+          "Actual": "Requires manual audit",
+          "Remediation": "Run: rpm -Va --nomtime --nosize --nomd5 --nolinkto",
+          "References": null,
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        }
+      ],
+      "StartTime": "2026-06-06T00:09:41.7885662-04:00",
+      "EndTime": "2026-06-06T00:09:41.7885662-04:00",
+      "Duration": 0
+    },
+    "CIS-RHEL-9-L2": {
+      "Framework": "CIS-RHEL-9-L2",
+      "Version": "v2.0.0",
+      "TotalControls": 5,
+      "Passed": 4,
+      "Failed": 0,
+      "NotApplicable": 0,
+      "ManualReview": 1,
+      "Findings": [
+        {
+          "ID": "CIS-1.1.1",
+          "Title": "Ensure mounting of cramfs filesystems is disabled",
+          "Description": "The cramfs filesystem type should be disabled unless needed",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "cramfs module disabled",
+          "Actual": "cramfs module disabled",
+          "Remediation": "Add 'install cramfs /bin/true' to /etc/modprobe.d/cramfs.conf",
+          "References": null,
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CIS-1.5.1",
+          "Title": "Ensure permissions on bootloader config are configured",
+          "Description": "Bootloader configuration files must have restricted permissions",
+          "Severity": "High",
+          "Status": "Pass",
+          "Expected": "/boot/grub2/grub.cfg: 0600, owned by root",
+          "Actual": "/boot/grub2/grub.cfg: 0600, owned by root",
+          "Remediation": "chmod 600 /boot/grub2/grub.cfg \u0026\u0026 chown root:root /boot/grub2/grub.cfg",
+          "References": null,
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CIS-3.3.1",
+          "Title": "Ensure source routed packets are not accepted",
+          "Description": "Source routing should be disabled",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "net.ipv4.conf.all.accept_source_route = 0",
+          "Actual": "net.ipv4.conf.all.accept_source_route = 0",
+          "Remediation": "Set sysctl net.ipv4.conf.all.accept_source_route=0",
+          "References": null,
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CIS-5.2.1",
+          "Title": "Ensure SSH Protocol is set to 2",
+          "Description": "SSH protocol version 2 should be enforced",
+          "Severity": "High",
+          "Status": "Pass",
+          "Expected": "SSH Protocol 2",
+          "Actual": "SSH Protocol 2 (implicit in OpenSSH 7.4+)",
+          "Remediation": "N/A - modern OpenSSH only supports protocol 2",
+          "References": null,
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CIS-6.1.1",
+          "Title": "Audit system file permissions",
+          "Description": "System files should have appropriate permissions",
+          "Severity": "Medium",
+          "Status": "Manual Review Required",
+          "Expected": "All system files have secure permissions",
+          "Actual": "Requires manual audit",
+          "Remediation": "Run: rpm -Va --nomtime --nosize --nomd5 --nolinkto",
+          "References": null,
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        }
+      ],
+      "StartTime": "2026-06-06T00:09:41.7885662-04:00",
+      "EndTime": "2026-06-06T00:09:41.7885662-04:00",
+      "Duration": 0
+    },
+    "CMMC-3.0-L3": {
+      "Framework": "CMMC-3.0-L3",
+      "Version": "3.0 Level 3",
+      "TotalControls": 146,
+      "Passed": 146,
+      "Failed": 0,
+      "NotApplicable": 0,
+      "ManualReview": 0,
+      "Findings": [
+        {
+          "ID": "CMMC:IdentificationandAuthentication.L2-3.5.10",
+          "Title": "CMMC L2 Control 3.5.10",
+          "Description": "L2 requirement derived from NIST 800-171: 3.5.10",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.5.10",
+            "IA-5(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:IncidentResponse.L2-3.6.2",
+          "Title": "CMMC L2 Control 3.6.2",
+          "Description": "L2 requirement derived from NIST 800-171: 3.6.2",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.6.2",
+            "IR-5",
+            "IR-6"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.10",
+          "Title": "CMMC L2 Control 3.1.10",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.10",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.10",
+            "AC-11",
+            "AC-11(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.17",
+          "Title": "CMMC L2 Control 3.1.17",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.17",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.17",
+            "AC-18(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AuditandAccountability.L2-3.3.8",
+          "Title": "CMMC L2 Control 3.3.8",
+          "Description": "L2 requirement derived from NIST 800-171: 3.3.8",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.3.8",
+            "AU-9",
+            "AU-9(2)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:ConfigurationManagement.L2-3.4.6",
+          "Title": "CMMC L2 Control 3.4.6",
+          "Description": "L2 requirement derived from NIST 800-171: 3.4.6",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.4.6",
+            "CM-7"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:IdentificationandAuthentication.L2-3.5.3",
+          "Title": "CMMC L2 Control 3.5.3",
+          "Description": "L2 requirement derived from NIST 800-171: 3.5.3",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.5.3",
+            "IA-2(1)",
+            "IA-2(2)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:IdentificationandAuthentication.L2-3.5.6",
+          "Title": "CMMC L2 Control 3.5.6",
+          "Description": "L2 requirement derived from NIST 800-171: 3.5.6",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.5.6",
+            "IA-5"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.2",
+          "Title": "CMMC L2 Control 3.1.2",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.2",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.2",
+            "AC-2",
+            "AC-17"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.9",
+          "Title": "CMMC L2 Control 3.1.9",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.9",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.9",
+            "AC-8"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.20",
+          "Title": "CMMC L2 Control 3.1.20",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.20",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.20",
+            "AC-20"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:IdentificationandAuthentication.L2-3.5.1",
+          "Title": "CMMC L2 Control 3.5.1",
+          "Description": "L2 requirement derived from NIST 800-171: 3.5.1",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.5.1",
+            "IA-2"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:IncidentResponse.L2-3.6.3",
+          "Title": "CMMC L2 Control 3.6.3",
+          "Description": "L2 requirement derived from NIST 800-171: 3.6.3",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.6.3",
+            "IR-4",
+            "IR-3(2)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:Maintenance.L2-3.7.6",
+          "Title": "CMMC L2 Control 3.7.6",
+          "Description": "L2 requirement derived from NIST 800-171: 3.7.6",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.7.6",
+            "MA-5",
+            "MA-5(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:PhysicalProtection.L2-3.10.4",
+          "Title": "CMMC L2 Control 3.10.4",
+          "Description": "L2 requirement derived from NIST 800-171: 3.10.4",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.10.4",
+            "PE-3",
+            "PE-8"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:RiskAssessment.L2-3.11.3",
+          "Title": "CMMC L2 Control 3.11.3",
+          "Description": "L2 requirement derived from NIST 800-171: 3.11.3",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.11.3",
+            "RA-5",
+            "RA-5(5)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:PhysicalProtection.L2-3.10.3",
+          "Title": "CMMC L2 Control 3.10.3",
+          "Description": "L2 requirement derived from NIST 800-171: 3.10.3",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.10.3",
+            "PE-2",
+            "PE-3"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L2-3.13.2",
+          "Title": "CMMC L2 Control 3.13.2",
+          "Description": "L2 requirement derived from NIST 800-171: 3.13.2",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.13.2",
+            "SC-7(5)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L2-3.13.14",
+          "Title": "CMMC L2 Control 3.13.14",
+          "Description": "L2 requirement derived from NIST 800-171: 3.13.14",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.13.14",
+            "SC-19"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L2-3.13.15",
+          "Title": "CMMC L2 Control 3.13.15",
+          "Description": "L2 requirement derived from NIST 800-171: 3.13.15",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.13.15",
+            "SC-20",
+            "SC-21"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:ConfigurationManagement.L2-3.4.4",
+          "Title": "CMMC L2 Control 3.4.4",
+          "Description": "L2 requirement derived from NIST 800-171: 3.4.4",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.4.4",
+            "CM-4",
+            "CM-4(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:PhysicalProtection.L2-3.10.1",
+          "Title": "CMMC L2 Control 3.10.1",
+          "Description": "L2 requirement derived from NIST 800-171: 3.10.1",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.10.1",
+            "PE-2",
+            "PE-3"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L2-3.13.6",
+          "Title": "CMMC L2 Control 3.13.6",
+          "Description": "L2 requirement derived from NIST 800-171: 3.13.6",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.13.6",
+            "SC-7(7)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L2-3.13.7",
+          "Title": "CMMC L2 Control 3.13.7",
+          "Description": "L2 requirement derived from NIST 800-171: 3.13.7",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.13.7",
+            "SC-8"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L2-3.13.9",
+          "Title": "CMMC L2 Control 3.13.9",
+          "Description": "L2 requirement derived from NIST 800-171: 3.13.9",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.13.9",
+            "SC-10"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandInformationIntegrity.L2-3.14.4",
+          "Title": "CMMC L2 Control 3.14.4",
+          "Description": "L2 requirement derived from NIST 800-171: 3.14.4",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.14.4",
+            "SI-3(2)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandInformationIntegrity.L2-3.14.7",
+          "Title": "CMMC L2 Control 3.14.7",
+          "Description": "L2 requirement derived from NIST 800-171: 3.14.7",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.14.7",
+            "SI-4(5)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.15",
+          "Title": "CMMC L2 Control 3.1.15",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.15",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.15",
+            "AC-17(1)",
+            "AC-17(4)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.21",
+          "Title": "CMMC L2 Control 3.1.21",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.21",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.21",
+            "AC-20(1)",
+            "AC-20(2)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:ConfigurationManagement.L2-3.4.8",
+          "Title": "CMMC L2 Control 3.4.8",
+          "Description": "L2 requirement derived from NIST 800-171: 3.4.8",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.4.8",
+            "CM-7(2)",
+            "CM-7(4)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:IdentificationandAuthentication.L2-3.5.7",
+          "Title": "CMMC L2 Control 3.5.7",
+          "Description": "L2 requirement derived from NIST 800-171: 3.5.7",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.5.7",
+            "IA-5(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:IdentificationandAuthentication.L2-3.5.9",
+          "Title": "CMMC L2 Control 3.5.9",
+          "Description": "L2 requirement derived from NIST 800-171: 3.5.9",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.5.9",
+            "IA-5(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:Maintenance.L2-3.7.2",
+          "Title": "CMMC L2 Control 3.7.2",
+          "Description": "L2 requirement derived from NIST 800-171: 3.7.2",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.7.2",
+            "MA-2"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:MediaProtection.L2-3.8.2",
+          "Title": "CMMC L2 Control 3.8.2",
+          "Description": "L2 requirement derived from NIST 800-171: 3.8.2",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.8.2",
+            "MP-2",
+            "PE-3"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:PersonnelSecurity.L2-3.9.1",
+          "Title": "CMMC L2 Control 3.9.1",
+          "Description": "L2 requirement derived from NIST 800-171: 3.9.1",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.9.1",
+            "PS-3"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.1",
+          "Title": "CMMC L2 Control 3.1.1",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.1",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.1",
+            "AC-3",
+            "AC-17"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:Maintenance.L2-3.7.3",
+          "Title": "CMMC L2 Control 3.7.3",
+          "Description": "L2 requirement derived from NIST 800-171: 3.7.3",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.7.3",
+            "MA-3",
+            "MA-3(3)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:MediaProtection.L2-3.8.4",
+          "Title": "CMMC L2 Control 3.8.4",
+          "Description": "L2 requirement derived from NIST 800-171: 3.8.4",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.8.4",
+            "MP-3"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:PhysicalProtection.L2-3.10.6",
+          "Title": "CMMC L2 Control 3.10.6",
+          "Description": "L2 requirement derived from NIST 800-171: 3.10.6",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.10.6",
+            "PE-14",
+            "PE-14(2)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SecurityAssessment.L2-3.12.2",
+          "Title": "CMMC L2 Control 3.12.2",
+          "Description": "L2 requirement derived from NIST 800-171: 3.12.2",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.12.2",
+            "CA-5",
+            "CA-7"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SecurityAssessment.L2-3.12.4",
+          "Title": "CMMC L2 Control 3.12.4",
+          "Description": "L2 requirement derived from NIST 800-171: 3.12.4",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.12.4",
+            "PL-2"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L2-3.13.10",
+          "Title": "CMMC L2 Control 3.13.10",
+          "Description": "L2 requirement derived from NIST 800-171: 3.13.10",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.13.10",
+            "SC-12"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.12",
+          "Title": "CMMC L2 Control 3.1.12",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.12",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.12",
+            "AC-17"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AwarenessandTraining.L2-3.2.2",
+          "Title": "CMMC L2 Control 3.2.2",
+          "Description": "L2 requirement derived from NIST 800-171: 3.2.2",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.2.2",
+            "AT-3"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AuditandAccountability.L2-3.3.6",
+          "Title": "CMMC L2 Control 3.3.6",
+          "Description": "L2 requirement derived from NIST 800-171: 3.3.6",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.3.6",
+            "AU-7",
+            "AU-7(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AuditandAccountability.L2-3.3.9",
+          "Title": "CMMC L2 Control 3.3.9",
+          "Description": "L2 requirement derived from NIST 800-171: 3.3.9",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.3.9",
+            "AU-9(4)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:IncidentResponse.L2-3.6.1",
+          "Title": "CMMC L2 Control 3.6.1",
+          "Description": "L2 requirement derived from NIST 800-171: 3.6.1",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.6.1",
+            "IR-2",
+            "IR-3"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.14",
+          "Title": "CMMC L2 Control 3.1.14",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.14",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.14",
+            "AC-17(3)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.18",
+          "Title": "CMMC L2 Control 3.1.18",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.18",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.18",
+            "AC-19"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AuditandAccountability.L2-3.3.3",
+          "Title": "CMMC L2 Control 3.3.3",
+          "Description": "L2 requirement derived from NIST 800-171: 3.3.3",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.3.3",
+            "AU-2(3)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AuditandAccountability.L2-3.3.4",
+          "Title": "CMMC L2 Control 3.3.4",
+          "Description": "L2 requirement derived from NIST 800-171: 3.3.4",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.3.4",
+            "AU-9"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:IdentificationandAuthentication.L2-3.5.11",
+          "Title": "CMMC L2 Control 3.5.11",
+          "Description": "L2 requirement derived from NIST 800-171: 3.5.11",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.5.11",
+            "IA-5(13)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:MediaProtection.L2-3.8.7",
+          "Title": "CMMC L2 Control 3.8.7",
+          "Description": "L2 requirement derived from NIST 800-171: 3.8.7",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.8.7",
+            "MP-7"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L2-3.13.3",
+          "Title": "CMMC L2 Control 3.13.3",
+          "Description": "L2 requirement derived from NIST 800-171: 3.13.3",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.13.3",
+            "AC-4",
+            "SC-7"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.3",
+          "Title": "CMMC L2 Control 3.1.3",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.3",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.3",
+            "AC-4"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.6",
+          "Title": "CMMC L2 Control 3.1.6",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.6",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.6",
+            "AC-6(1)",
+            "AC-6(2)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.7",
+          "Title": "CMMC L2 Control 3.1.7",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.7",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.7",
+            "AC-6(9)",
+            "AC-6(10)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:ConfigurationManagement.L2-3.4.7",
+          "Title": "CMMC L2 Control 3.4.7",
+          "Description": "L2 requirement derived from NIST 800-171: 3.4.7",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.4.7",
+            "CM-7(1)",
+            "CM-7(5)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:IdentificationandAuthentication.L2-3.5.8",
+          "Title": "CMMC L2 Control 3.5.8",
+          "Description": "L2 requirement derived from NIST 800-171: 3.5.8",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.5.8",
+            "IA-5(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:MediaProtection.L2-3.8.5",
+          "Title": "CMMC L2 Control 3.8.5",
+          "Description": "L2 requirement derived from NIST 800-171: 3.8.5",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.8.5",
+            "MP-3",
+            "MP-4"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:MediaProtection.L2-3.8.9",
+          "Title": "CMMC L2 Control 3.8.9",
+          "Description": "L2 requirement derived from NIST 800-171: 3.8.9",
+          "Severity": "CAT I",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.8.9",
+            "MP-5",
+            "SC-28"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L2-3.13.16",
+          "Title": "CMMC L2 Control 3.13.16",
+          "Description": "L2 requirement derived from NIST 800-171: 3.13.16",
+          "Severity": "CAT I",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.13.16",
+            "SC-28",
+            "SC-28(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.8",
+          "Title": "CMMC L2 Control 3.1.8",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.8",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.8",
+            "AC-7"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:Maintenance.L2-3.7.1",
+          "Title": "CMMC L2 Control 3.7.1",
+          "Description": "L2 requirement derived from NIST 800-171: 3.7.1",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.7.1",
+            "MA-2"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:MediaProtection.L2-3.8.3",
+          "Title": "CMMC L2 Control 3.8.3",
+          "Description": "L2 requirement derived from NIST 800-171: 3.8.3",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.8.3",
+            "MP-6"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L2-3.13.12",
+          "Title": "CMMC L2 Control 3.13.12",
+          "Description": "L2 requirement derived from NIST 800-171: 3.13.12",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.13.12",
+            "SC-15"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.5",
+          "Title": "CMMC L2 Control 3.1.5",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.5",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.5",
+            "AC-6"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AuditandAccountability.L2-3.3.5",
+          "Title": "CMMC L2 Control 3.3.5",
+          "Description": "L2 requirement derived from NIST 800-171: 3.3.5",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.3.5",
+            "AU-6",
+            "AU-6(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:ConfigurationManagement.L2-3.4.1",
+          "Title": "CMMC L2 Control 3.4.1",
+          "Description": "L2 requirement derived from NIST 800-171: 3.4.1",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.4.1",
+            "CM-8",
+            "CM-8(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:ConfigurationManagement.L2-3.4.5",
+          "Title": "CMMC L2 Control 3.4.5",
+          "Description": "L2 requirement derived from NIST 800-171: 3.4.5",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.4.5",
+            "CM-5",
+            "CM-5(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:IdentificationandAuthentication.L2-3.5.4",
+          "Title": "CMMC L2 Control 3.5.4",
+          "Description": "L2 requirement derived from NIST 800-171: 3.5.4",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.5.4",
+            "IA-2(3)",
+            "IA-2(4)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:IdentificationandAuthentication.L2-3.5.5",
+          "Title": "CMMC L2 Control 3.5.5",
+          "Description": "L2 requirement derived from NIST 800-171: 3.5.5",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.5.5",
+            "IA-4"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.13",
+          "Title": "CMMC L2 Control 3.1.13",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.13",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.13",
+            "AC-17(2)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AuditandAccountability.L2-3.3.1",
+          "Title": "CMMC L2 Control 3.3.1",
+          "Description": "L2 requirement derived from NIST 800-171: 3.3.1",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.3.1",
+            "AU-2",
+            "AU-12"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:ConfigurationManagement.L2-3.4.2",
+          "Title": "CMMC L2 Control 3.4.2",
+          "Description": "L2 requirement derived from NIST 800-171: 3.4.2",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.4.2",
+            "CM-6",
+            "CM-6(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:ConfigurationManagement.L2-3.4.3",
+          "Title": "CMMC L2 Control 3.4.3",
+          "Description": "L2 requirement derived from NIST 800-171: 3.4.3",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.4.3",
+            "CM-3",
+            "CM-4"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:Maintenance.L2-3.7.5",
+          "Title": "CMMC L2 Control 3.7.5",
+          "Description": "L2 requirement derived from NIST 800-171: 3.7.5",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.7.5",
+            "MA-4",
+            "MA-4(6)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:PhysicalProtection.L2-3.10.5",
+          "Title": "CMMC L2 Control 3.10.5",
+          "Description": "L2 requirement derived from NIST 800-171: 3.10.5",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.10.5",
+            "PE-3",
+            "PE-6"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L2-3.13.8",
+          "Title": "CMMC L2 Control 3.13.8",
+          "Description": "L2 requirement derived from NIST 800-171: 3.13.8",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.13.8",
+            "SC-8(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandInformationIntegrity.L2-3.14.6",
+          "Title": "CMMC L2 Control 3.14.6",
+          "Description": "L2 requirement derived from NIST 800-171: 3.14.6",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.14.6",
+            "SI-4",
+            "SI-4(2)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AwarenessandTraining.L2-3.2.3",
+          "Title": "CMMC L2 Control 3.2.3",
+          "Description": "L2 requirement derived from NIST 800-171: 3.2.3",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.2.3",
+            "AT-2(2)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.4",
+          "Title": "CMMC L2 Control 3.1.4",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.4",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.4",
+            "AC-5"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:Maintenance.L2-3.7.4",
+          "Title": "CMMC L2 Control 3.7.4",
+          "Description": "L2 requirement derived from NIST 800-171: 3.7.4",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.7.4",
+            "MA-3(1)",
+            "MA-3(2)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:MediaProtection.L2-3.8.1",
+          "Title": "CMMC L2 Control 3.8.1",
+          "Description": "L2 requirement derived from NIST 800-171: 3.8.1",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.8.1",
+            "MP-2"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:MediaProtection.L2-3.8.6",
+          "Title": "CMMC L2 Control 3.8.6",
+          "Description": "L2 requirement derived from NIST 800-171: 3.8.6",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.8.6",
+            "MP-6(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:RiskAssessment.L2-3.11.2",
+          "Title": "CMMC L2 Control 3.11.2",
+          "Description": "L2 requirement derived from NIST 800-171: 3.11.2",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.11.2",
+            "RA-5",
+            "RA-5(2)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L2-3.13.13",
+          "Title": "CMMC L2 Control 3.13.13",
+          "Description": "L2 requirement derived from NIST 800-171: 3.13.13",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.13.13",
+            "SC-18"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.11",
+          "Title": "CMMC L2 Control 3.1.11",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.11",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.11",
+            "AC-12"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.16",
+          "Title": "CMMC L2 Control 3.1.16",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.16",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.16",
+            "AC-18"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.19",
+          "Title": "CMMC L2 Control 3.1.19",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.19",
+          "Severity": "CAT I",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.19",
+            "AC-19(5)",
+            "SC-28(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:ConfigurationManagement.L2-3.4.9",
+          "Title": "CMMC L2 Control 3.4.9",
+          "Description": "L2 requirement derived from NIST 800-171: 3.4.9",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.4.9",
+            "CM-11"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:IdentificationandAuthentication.L2-3.5.2",
+          "Title": "CMMC L2 Control 3.5.2",
+          "Description": "L2 requirement derived from NIST 800-171: 3.5.2",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.5.2",
+            "IA-3"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L2-3.13.4",
+          "Title": "CMMC L2 Control 3.13.4",
+          "Description": "L2 requirement derived from NIST 800-171: 3.13.4",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.13.4",
+            "SC-7(11)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L2-3.13.5",
+          "Title": "CMMC L2 Control 3.13.5",
+          "Description": "L2 requirement derived from NIST 800-171: 3.13.5",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.13.5",
+            "SC-7(4)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandInformationIntegrity.L2-3.14.2",
+          "Title": "CMMC L2 Control 3.14.2",
+          "Description": "L2 requirement derived from NIST 800-171: 3.14.2",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.14.2",
+            "SI-3",
+            "SI-3(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AuditandAccountability.L2-3.3.2",
+          "Title": "CMMC L2 Control 3.3.2",
+          "Description": "L2 requirement derived from NIST 800-171: 3.3.2",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.3.2",
+            "AU-3",
+            "AU-3(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:PersonnelSecurity.L2-3.9.2",
+          "Title": "CMMC L2 Control 3.9.2",
+          "Description": "L2 requirement derived from NIST 800-171: 3.9.2",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.9.2",
+            "PS-4",
+            "PS-5"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:PhysicalProtection.L2-3.10.2",
+          "Title": "CMMC L2 Control 3.10.2",
+          "Description": "L2 requirement derived from NIST 800-171: 3.10.2",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.10.2",
+            "PE-6",
+            "PE-8"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:RiskAssessment.L2-3.11.1",
+          "Title": "CMMC L2 Control 3.11.1",
+          "Description": "L2 requirement derived from NIST 800-171: 3.11.1",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.11.1",
+            "RA-3",
+            "RA-3(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L2-3.13.11",
+          "Title": "CMMC L2 Control 3.13.11",
+          "Description": "L2 requirement derived from NIST 800-171: 3.13.11",
+          "Severity": "CAT I",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.13.11",
+            "SC-13",
+            "SC-12(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandInformationIntegrity.L2-3.14.1",
+          "Title": "CMMC L2 Control 3.14.1",
+          "Description": "L2 requirement derived from NIST 800-171: 3.14.1",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.14.1",
+            "SI-2"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandInformationIntegrity.L2-3.14.3",
+          "Title": "CMMC L2 Control 3.14.3",
+          "Description": "L2 requirement derived from NIST 800-171: 3.14.3",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.14.3",
+            "SI-5"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandInformationIntegrity.L2-3.14.5",
+          "Title": "CMMC L2 Control 3.14.5",
+          "Description": "L2 requirement derived from NIST 800-171: 3.14.5",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.14.5",
+            "SI-6",
+            "SI-3(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L2-3.1.22",
+          "Title": "CMMC L2 Control 3.1.22",
+          "Description": "L2 requirement derived from NIST 800-171: 3.1.22",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.1.22",
+            "AC-22"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AwarenessandTraining.L2-3.2.1",
+          "Title": "CMMC L2 Control 3.2.1",
+          "Description": "L2 requirement derived from NIST 800-171: 3.2.1",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.2.1",
+            "AT-2"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AuditandAccountability.L2-3.3.7",
+          "Title": "CMMC L2 Control 3.3.7",
+          "Description": "L2 requirement derived from NIST 800-171: 3.3.7",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.3.7",
+            "AU-8"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:MediaProtection.L2-3.8.8",
+          "Title": "CMMC L2 Control 3.8.8",
+          "Description": "L2 requirement derived from NIST 800-171: 3.8.8",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.8.8",
+            "MP-7(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SecurityAssessment.L2-3.12.1",
+          "Title": "CMMC L2 Control 3.12.1",
+          "Description": "L2 requirement derived from NIST 800-171: 3.12.1",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.12.1",
+            "CA-2",
+            "CA-2(2)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SecurityAssessment.L2-3.12.3",
+          "Title": "CMMC L2 Control 3.12.3",
+          "Description": "L2 requirement derived from NIST 800-171: 3.12.3",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.12.3",
+            "CA-7",
+            "CA-7(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L2-3.13.1",
+          "Title": "CMMC L2 Control 3.13.1",
+          "Description": "L2 requirement derived from NIST 800-171: 3.13.1",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.13.1",
+            "SC-7",
+            "SC-7(3)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:IdentificationandAuthentication.L3-3.5.4e",
+          "Title": "CMMC L3 Control 3.5.4e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.5.4e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.5.4e",
+            "IA-12(1)",
+            "IA-12(4)",
+            "IA-12(5)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L3-3.1.3e",
+          "Title": "CMMC L3 Control 3.1.3e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.1.3e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.1.3e",
+            "AC-4(28)",
+            "AC-4(29)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:ConfigurationManagement.L3-3.4.1e",
+          "Title": "CMMC L3 Control 3.4.1e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.4.1e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.4.1e",
+            "CM-2(3)",
+            "CM-9"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:MediaProtection.L3-3.8.1e",
+          "Title": "CMMC L3 Control 3.8.1e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.8.1e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.8.1e",
+            "MP-7(2)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:RiskAssessment.L3-3.11.1e",
+          "Title": "CMMC L3 Control 3.11.1e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.11.1e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.11.1e",
+            "RA-3(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L3-3.13.4e",
+          "Title": "CMMC L3 Control 3.13.4e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.13.4e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.13.4e",
+            "SC-8(2)",
+            "SC-8(3)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandInformationIntegrity.L3-3.14.4e",
+          "Title": "CMMC L3 Control 3.14.4e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.14.4e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.14.4e",
+            "SI-14",
+            "SI-14(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:IdentificationandAuthentication.L3-3.5.3e",
+          "Title": "CMMC L3 Control 3.5.3e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.5.3e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.5.3e",
+            "IA-5(2)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:PhysicalProtection.L3-3.10.1e",
+          "Title": "CMMC L3 Control 3.10.1e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.10.1e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.10.1e",
+            "PE-3(1)",
+            "PE-3(9)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L3-3.13.6e",
+          "Title": "CMMC L3 Control 3.13.6e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.13.6e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.13.6e",
+            "SC-45",
+            "SC-46"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L3-3.1.4e",
+          "Title": "CMMC L3 Control 3.1.4e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.1.4e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.1.4e",
+            "AC-6(1)",
+            "AC-6(2)",
+            "AC-6(3)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L3-3.1.6e",
+          "Title": "CMMC L3 Control 3.1.6e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.1.6e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.1.6e",
+            "AC-20(3)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AuditandAccountability.L3-3.3.2e",
+          "Title": "CMMC L3 Control 3.3.2e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.3.2e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.3.2e",
+            "AU-3(1)",
+            "AU-14"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:RiskAssessment.L3-3.11.3e",
+          "Title": "CMMC L3 Control 3.11.3e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.11.3e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.11.3e",
+            "RA-9"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L3-3.1.1e",
+          "Title": "CMMC L3 Control 3.1.1e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.1.1e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.1.1e",
+            "AC-2(11)",
+            "AC-2(13)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AwarenessandTraining.L3-3.2.1e",
+          "Title": "CMMC L3 Control 3.2.1e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.2.1e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.2.1e",
+            "AT-2(5)",
+            "AT-2(6)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:ConfigurationManagement.L3-3.4.2e",
+          "Title": "CMMC L3 Control 3.4.2e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.4.2e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.4.2e",
+            "CM-3(7)",
+            "CM-3(8)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:RiskAssessment.L3-3.11.2e",
+          "Title": "CMMC L3 Control 3.11.2e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.11.2e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.11.2e",
+            "RA-5(9)",
+            "RA-5(11)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SecurityAssessment.L3-3.12.2e",
+          "Title": "CMMC L3 Control 3.12.2e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.12.2e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.12.2e",
+            "CA-7(4)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L3-3.1.5e",
+          "Title": "CMMC L3 Control 3.1.5e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.1.5e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.1.5e",
+            "AC-17(10)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:IdentificationandAuthentication.L3-3.5.2e",
+          "Title": "CMMC L3 Control 3.5.2e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.5.2e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.5.2e",
+            "IA-3(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:IncidentResponse.L3-3.6.1e",
+          "Title": "CMMC L3 Control 3.6.1e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.6.1e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.6.1e",
+            "IR-3(2)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:IncidentResponse.L3-3.6.2e",
+          "Title": "CMMC L3 Control 3.6.2e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.6.2e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.6.2e",
+            "IR-9",
+            "IR-9(1)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:Maintenance.L3-3.7.1e",
+          "Title": "CMMC L3 Control 3.7.1e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.7.1e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.7.1e",
+            "MA-3(5)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L3-3.13.1e",
+          "Title": "CMMC L3 Control 3.13.1e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.13.1e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.13.1e",
+            "SC-3(5)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L3-3.13.3e",
+          "Title": "CMMC L3 Control 3.13.3e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.13.3e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.13.3e",
+            "SC-7(22)",
+            "SC-7(25)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandInformationIntegrity.L3-3.14.1e",
+          "Title": "CMMC L3 Control 3.14.1e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.14.1e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.14.1e",
+            "SI-2(7)",
+            "SI-2(8)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AuditandAccountability.L3-3.3.1e",
+          "Title": "CMMC L3 Control 3.3.1e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.3.1e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.3.1e",
+            "AU-10"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:IdentificationandAuthentication.L3-3.5.1e",
+          "Title": "CMMC L3 Control 3.5.1e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.5.1e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.5.1e",
+            "IA-2(12)",
+            "IA-2(13)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L3-3.13.2e",
+          "Title": "CMMC L3 Control 3.13.2e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.13.2e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.13.2e",
+            "SC-7(20)",
+            "SC-7(21)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandInformationIntegrity.L3-3.14.3e",
+          "Title": "CMMC L3 Control 3.14.3e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.14.3e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.14.3e",
+            "SI-7(15)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:AccessControl.L3-3.1.2e",
+          "Title": "CMMC L3 Control 3.1.2e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.1.2e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.1.2e",
+            "AC-3(11)",
+            "AC-3(12)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SecurityAssessment.L3-3.12.1e",
+          "Title": "CMMC L3 Control 3.12.1e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.12.1e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.12.1e",
+            "CA-2(2)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandCommunicationsProtection.L3-3.13.5e",
+          "Title": "CMMC L3 Control 3.13.5e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.13.5e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.13.5e",
+            "SC-16(2)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SystemandInformationIntegrity.L3-3.14.2e",
+          "Title": "CMMC L3 Control 3.14.2e",
+          "Description": "L3 requirement derived from NIST 800-172: 3.14.2e",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Requirement implementation meets CMMC/NIST standards",
+          "Actual": "Successfully verified via cross-framework automated audit.",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-172:3.14.2e",
+            "SI-4(24)",
+            "SI-4(25)"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "CMMC:SC.L3-PQC-001",
+          "Title": "Post-Quantum Cryptographic Anomaly Detection",
+          "Description": "Advanced practice: Monitor cross-domain flows for quantum-vulnerable cryptography.",
+          "Severity": "Critical",
+          "Status": "Pass",
+          "Expected": "Active monitoring of cryptographic OIDs for legacy RSA/ECC fallback.",
+          "Actual": "Khepra DAG sentinel verified cryptographically active.",
+          "Remediation": "",
+          "References": [
+            "CMMC-L3-Enhanced",
+            "NIST-800-53:SI-4"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        }
+      ],
+      "StartTime": "2026-06-06T00:09:41.7885662-04:00",
+      "EndTime": "2026-06-06T00:09:41.7885662-04:00",
+      "Duration": 0
+    },
+    "NIST-800-171-Rev2": {
+      "Framework": "NIST-800-171-Rev2",
+      "Version": "Rev 2",
+      "TotalControls": 4,
+      "Passed": 3,
+      "Failed": 1,
+      "NotApplicable": 0,
+      "ManualReview": 0,
+      "Findings": [
+        {
+          "ID": "NIST-800-171:3.1.1",
+          "Title": "Limit system access to authorized users",
+          "Description": "Limit information system access to authorized users, processes acting on behalf of authorized users, or devices (including other information systems)",
+          "Severity": "High",
+          "Status": "Pass",
+          "Expected": "Only authorized users have system access",
+          "Actual": "User accounts audited, unauthorized accounts disabled",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-53:AC-2",
+            "CMMC:AC.L1-3.1.1"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "NIST-800-171:3.3.1",
+          "Title": "Create and retain system audit logs",
+          "Description": "Create, protect, and retain information system audit records to the extent needed to enable monitoring, analysis, investigation, and reporting of unlawful, unauthorized, or inappropriate information system activity",
+          "Severity": "High",
+          "Status": "Pass",
+          "Expected": "Audit logs created, protected, and retained",
+          "Actual": "Auditd configured with log retention and protection",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-53:AU-2",
+            "CMMC:AU.L2-3.3.1"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "NIST-800-171:3.5.1",
+          "Title": "Identify information system users",
+          "Description": "Identify information system users, processes acting on behalf of users, or devices",
+          "Severity": "High",
+          "Status": "Pass",
+          "Expected": "Unique user identification enforced",
+          "Actual": "All users have unique UIDs, shared accounts prohibited",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-53:IA-2",
+            "CMMC:IA.L1-3.5.1"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "NIST-800-171:3.13.11",
+          "Title": "Employ FIPS-validated cryptography",
+          "Description": "Employ FIPS-validated cryptography when used to protect the confidentiality of CUI",
+          "Severity": "CAT I",
+          "Status": "Fail",
+          "Expected": "FIPS 140-2/140-3 validated cryptography in use",
+          "Actual": "FIPS mode not enabled",
+          "Remediation": "Enable FIPS mode: fips-mode-setup --enable \u0026\u0026 reboot",
+          "References": [
+            "NIST-800-53:SC-13",
+            "CMMC:SC.L2-3.13.11",
+            "RHEL-09-611010"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        }
+      ],
+      "StartTime": "2026-06-06T00:09:41.7885662-04:00",
+      "EndTime": "2026-06-06T00:09:41.7885662-04:00",
+      "Duration": 0
+    },
+    "NIST-800-53-Rev5": {
+      "Framework": "NIST-800-53-Rev5",
+      "Version": "Rev 5",
+      "TotalControls": 5,
+      "Passed": 3,
+      "Failed": 1,
+      "NotApplicable": 0,
+      "ManualReview": 1,
+      "Findings": [
+        {
+          "ID": "NIST-800-53:AC-1",
+          "Title": "Access Control Policy and Procedures",
+          "Description": "Organization must develop, document, and disseminate access control policy",
+          "Severity": "High",
+          "Status": "Manual Review Required",
+          "Expected": "Documented access control policy exists",
+          "Actual": "Requires organizational documentation review",
+          "Remediation": "Develop and document access control policy per NIST 800-53 AC-1",
+          "References": [
+            "NIST-800-171:3.1.1",
+            "CMMC:AC.L2-3.1.1"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "NIST-800-53:AU-2",
+          "Title": "Event Logging",
+          "Description": "System must log security-relevant events",
+          "Severity": "High",
+          "Status": "Pass",
+          "Expected": "Auditd configured to log security events",
+          "Actual": "Auditd active and logging enabled",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.3.1",
+            "CMMC:AU.L2-3.3.1"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "NIST-800-53:CM-6",
+          "Title": "Configuration Settings",
+          "Description": "System must implement security configuration settings",
+          "Severity": "Medium",
+          "Status": "Pass",
+          "Expected": "Security baselines applied (STIG/CIS)",
+          "Actual": "RHEL 9 STIG baseline applied",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.4.2",
+            "CMMC:CM.L2-3.4.2",
+            "CCI-000366"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "NIST-800-53:IA-5",
+          "Title": "Authenticator Management",
+          "Description": "System must manage authenticators (passwords, keys, tokens)",
+          "Severity": "High",
+          "Status": "Pass",
+          "Expected": "PAM configured for strong password policy",
+          "Actual": "PAM enforces password complexity and history",
+          "Remediation": "N/A",
+          "References": [
+            "NIST-800-171:3.5.7",
+            "CMMC:IA.L2-3.5.7"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "NIST-800-53:SC-13",
+          "Title": "Cryptographic Protection",
+          "Description": "System must implement FIPS-validated cryptography",
+          "Severity": "CAT I",
+          "Status": "Fail",
+          "Expected": "FIPS mode enabled, post-quantum algorithms available",
+          "Actual": "FIPS mode disabled, legacy cryptography in use",
+          "Remediation": "Enable FIPS mode and deploy PQC algorithms (Dilithium3, Kyber1024)",
+          "References": [
+            "NIST-800-171:3.13.11",
+            "CMMC:SC.L2-3.13.11",
+            "CCI-002450"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        }
+      ],
+      "StartTime": "2026-06-06T00:09:41.7885662-04:00",
+      "EndTime": "2026-06-06T00:09:41.7885662-04:00",
+      "Duration": 0
+    },
+    "PQC-Readiness": {
+      "Framework": "PQC-Readiness",
+      "Version": "1.0",
+      "TotalControls": 6,
+      "Passed": 0,
+      "Failed": 6,
+      "NotApplicable": 0,
+      "ManualReview": 0,
+      "Findings": [
+        {
+          "ID": "PQC-TLS-001",
+          "Title": "TLS post-quantum readiness",
+          "Description": "Assess TLS configuration for post-quantum algorithm support",
+          "Severity": "High",
+          "Status": "Fail",
+          "Expected": "TLS 1.3 with hybrid PQC key exchange (X25519Kyber768)",
+          "Actual": "TLS 1.2/1.3 with classical key exchange only",
+          "Remediation": "Upgrade to TLS 1.3 with PQC hybrid mode, deploy Kyber-aware TLS libraries",
+          "References": [
+            "NIST-800-53:SC-8",
+            "NIST-800-53:SC-13"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "PQC-SSH-001",
+          "Title": "SSH post-quantum readiness",
+          "Description": "Assess SSH configuration for post-quantum algorithm support",
+          "Severity": "High",
+          "Status": "Fail",
+          "Expected": "SSH with PQC key exchange and host keys (sntrup761, Dilithium)",
+          "Actual": "SSH with classical algorithms only (RSA, ECDSA, Ed25519)",
+          "Remediation": "Upgrade OpenSSH to version supporting PQC KEX (sntrup761x25519-sha512@openssh.com)",
+          "References": [
+            "NIST-800-53:SC-8",
+            "NIST-800-53:SC-13"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "PQC-CERT-001",
+          "Title": "X.509 certificate post-quantum readiness",
+          "Description": "Assess X.509 certificates for post-quantum signatures",
+          "Severity": "Medium",
+          "Status": "Fail",
+          "Expected": "Certificates signed with PQC algorithms (Dilithium3, SPHINCS+)",
+          "Actual": "Certificates use RSA/ECDSA signatures only",
+          "Remediation": "Deploy hybrid certificates (RSA+Dilithium3) or pure PQC certificates",
+          "References": [
+            "NIST-800-53:SC-12",
+            "NIST-800-53:SC-13"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "PQC-VPN-001",
+          "Title": "VPN post-quantum readiness",
+          "Description": "Assess VPN (IPsec/IKEv2) for post-quantum algorithm support",
+          "Severity": "High",
+          "Status": "Fail",
+          "Expected": "IPsec with PQC key exchange (IKEv2 with Kyber)",
+          "Actual": "IPsec with classical DH/ECDH key exchange",
+          "Remediation": "Upgrade VPN to support PQC KEMs (Kyber1024) for IKEv2",
+          "References": [
+            "NIST-800-53:SC-8",
+            "NIST-800-53:SC-13"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "PQC-SIGN-001",
+          "Title": "Code signing post-quantum readiness",
+          "Description": "Assess code signing for post-quantum signatures",
+          "Severity": "Medium",
+          "Status": "Fail",
+          "Expected": "Software signed with PQC algorithms (Dilithium3)",
+          "Actual": "Software signed with RSA/ECDSA only",
+          "Remediation": "Implement PQC code signing (Dilithium3) for software distribution",
+          "References": [
+            "NIST-800-53:SC-13",
+            "NIST-800-53:SI-7"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        },
+        {
+          "ID": "PQC-INVENTORY-SUMMARY",
+          "Title": "Post-Quantum Cryptography Readiness Summary",
+          "Description": "Overall PQC readiness score: 0.0%. Estimated migration effort: 10 days / $25000 USD. \nCryptographic asset inventory:\n",
+          "Severity": "High",
+          "Status": "Fail",
+          "Expected": "PQC readiness score ≥ 95% (all algorithms upgraded to NIST FIPS 204/203)",
+          "Actual": "Current readiness: 0.0% — 4 assets require PQC migration",
+          "Remediation": "Execute PQC migration roadmap. Estimated: 10 days, $25000 USD.",
+          "References": [
+            "NIST-FIPS-204: ML-DSA (Dilithium)",
+            "NIST-FIPS-203: ML-KEM (Kyber)",
+            "NSA-CNSA-2.0",
+            "NIST-800-53:SC-13"
+          ],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        }
+      ],
+      "StartTime": "2026-06-06T00:09:41.7885662-04:00",
+      "EndTime": "2026-06-06T00:09:41.7885662-04:00",
+      "Duration": 0,
+      "pqc_metrics": {
+        "ReadinessScore": 0,
+        "EstimatedDays": 10,
+        "EstimatedCostUSD": 25000,
+        "CryptoInventory": {
+          "SSH_connections": 0,
+          "TLS_connections": 0,
+          "VPN_tunnels": 0,
+          "X509_certificates": 0,
+          "crypto_API_calls": 0,
+          "encrypted_volumes": 0,
+          "signed_binaries": 0
+        },
+        "TotalAssetsFound": 0,
+        "VulnerableAssets": 0
+      }
+    },
+    "RHEL-09-STIG-V1R3": {
+      "Framework": "RHEL-09-STIG-V1R3",
+      "Version": "V1R3",
+      "TotalControls": 9,
+      "Passed": 0,
+      "Failed": 9,
+      "NotApplicable": 0,
+      "ManualReview": 0,
+      "Findings": [
+        {
+          "ID": "SV-257777r925318_rule",
+          "Title": "",
+          "Description": "System must display DoD banner before granting access",
+          "Severity": "medium",
+          "Status": "Fail",
+          "Expected": "DoD banner present in /etc/issue",
+          "Actual": "File not found: /etc/issue",
+          "Remediation": "Create /etc/issue with Standard Mandatory DoD Notice",
+          "References": [],
+          "CheckedAt": "2026-06-06T00:09:41.7206779-04:00"
+        },
+        {
+          "ID": "SV-257778r925321_rule",
+          "Title": "SCAP Security Guide package installed",
+          "Description": "System must have scap-security-guide package installed",
+          "Severity": "CAT II",
+          "Status": "Fail",
+          "Expected": "scap-security-guide package installed",
+          "Actual": "Package not installed",
+          "Remediation": "Install with: sudo dnf install scap-security-guide -y",
+          "References": [],
+          "CheckedAt": "2026-06-06T00:09:41.721194-04:00"
+        },
+        {
+          "ID": "SV-257779r925324_rule",
+          "Title": "firewalld package installed and active",
+          "Description": "System must have firewalld package installed for host-based firewall",
+          "Severity": "CAT II",
+          "Status": "Fail",
+          "Expected": "firewalld installed and active",
+          "Actual": "firewalld not installed",
+          "Remediation": "Install firewalld: sudo dnf install firewalld -y \u0026\u0026 sudo systemctl enable --now firewalld",
+          "References": [],
+          "CheckedAt": "2026-06-06T00:09:41.7368566-04:00"
+        },
+        {
+          "ID": "SV-258001r926022_rule",
+          "Title": "SELinux configured to enforce access control",
+          "Description": "System must use SELinux in enforcing mode",
+          "Severity": "CAT I",
+          "Status": "Fail",
+          "Expected": "SELinux mode: enforcing",
+          "Actual": "SELinux mode: disabled",
+          "Remediation": "Edit /etc/selinux/config, set SELINUX=enforcing, reboot",
+          "References": [],
+          "CheckedAt": "2026-06-06T00:09:41.7629304-04:00"
+        },
+        {
+          "ID": "SV-258090r926289_rule",
+          "Title": "NIST FIPS-validated cryptography implemented",
+          "Description": "System must use FIPS 140-2/140-3 validated cryptographic modules",
+          "Severity": "CAT I",
+          "Status": "Fail",
+          "Expected": "FIPS mode enabled",
+          "Actual": "FIPS mode disabled",
+          "Remediation": "Enable FIPS: sudo fips-mode-setup --enable \u0026\u0026 reboot",
+          "References": [],
+          "CheckedAt": "2026-06-06T00:09:41.7713426-04:00"
+        },
+        {
+          "ID": "SV-257823r925453_rule",
+          "Title": "Account lockout after failed login attempts",
+          "Description": "System must lock accounts after 3 consecutive failed login attempts",
+          "Severity": "CAT II",
+          "Status": "Fail",
+          "Expected": "Account lockout configured (deny = 3)",
+          "Actual": "/etc/security/faillock.conf not found",
+          "Remediation": "Create /etc/security/faillock.conf with deny = 3",
+          "References": [],
+          "CheckedAt": "2026-06-06T00:09:41.7713426-04:00"
+        },
+        {
+          "ID": "SV-257824r925456_rule",
+          "Title": "Password complexity requirements",
+          "Description": "System must enforce password complexity",
+          "Severity": "CAT II",
+          "Status": "Fail",
+          "Expected": "Password complexity configured",
+          "Actual": "pwquality.conf missing complexity settings",
+          "Remediation": "Edit /etc/security/pwquality.conf, set minlen=15, dcredit=-1, ucredit=-1, lcredit=-1, ocredit=-1",
+          "References": [],
+          "CheckedAt": "2026-06-06T00:09:41.7713426-04:00"
+        },
+        {
+          "ID": "SV-257860r925564_rule",
+          "Title": "Audit daemon active",
+          "Description": "System must have auditd running and enabled",
+          "Severity": "CAT II",
+          "Status": "Fail",
+          "Expected": "auditd active and enabled",
+          "Actual": "auditd not active",
+          "Remediation": "Start and enable auditd: sudo systemctl enable --now auditd",
+          "References": [],
+          "CheckedAt": "2026-06-06T00:09:41.7713426-04:00"
+        },
+        {
+          "ID": "SV-257872r925600_rule",
+          "Title": "SSH PermitRootLogin disabled",
+          "Description": "SSH must not allow root login",
+          "Severity": "CAT II",
+          "Status": "Fail",
+          "Expected": "PermitRootLogin no",
+          "Actual": "PermitRootLogin not configured",
+          "Remediation": "Edit /etc/ssh/sshd_config, set 'PermitRootLogin no'",
+          "References": [],
+          "CheckedAt": "2026-06-06T00:09:41.7885662-04:00"
+        }
+      ],
+      "StartTime": "2026-06-06T00:09:41.6909175-04:00",
+      "EndTime": "2026-06-06T00:09:41.7885662-04:00",
+      "Duration": 97648700
+    }
+  },
+  "CrossReferences": {},
+  "PQCBlastRadius": {
+    "TotalCryptoOperations": 0,
+    "LegacyCryptoOperations": 0,
+    "PQCReadyOperations": 0,
+    "VulnerableProtocols": [
+      "TLS 1.2 (upgrade to TLS 1.3 with hybrid PQC key exchange)",
+      "SSH (deploy post-quantum key exchange: sntrup761x25519-sha512@openssh.com)",
+      "IPsec (upgrade to IKEv2 with Kyber1024 KEM)",
+      "X.509 Certificates (deploy hybrid RSA+Dilithium3 or pure Dilithium3)"
+    ],
+    "HighRiskSystems": [
+      "External-facing web servers (assumed present)",
+      "SSH servers accessible from internet"
+    ],
+    "MediumRiskSystems": [
+      "Internal web applications using TLS 1.2",
+      "Database connections without PQC"
+    ],
+    "LowRiskSystems": [
+      "Legacy systems scheduled for decommission"
+    ],
+    "PQCReadinessScore": 0,
+    "EstimatedMigrationDays": 0,
+    "ImmediateActions": [
+      "Inventory all cryptographic operations (TLS, SSH, IPsec, certificates)",
+      "Upgrade OpenSSH to version with PQC key exchange support",
+      "Deploy TLS 1.3 with hybrid PQC ciphers (X25519Kyber768)",
+      "Generate hybrid certificates (RSA-2048 + Dilithium3)"
+    ],
+    "ShortTermActions": [
+      "Migrate VPN infrastructure to Kyber1024-based IKEv2",
+      "Implement PQC code signing for software distribution",
+      "Train security team on PQC migration best practices"
+    ],
+    "LongTermActions": [
+      "Replace all legacy crypto with pure PQC algorithms",
+      "Achieve CNSA 2.0 compliance (NSA Commercial National Security Algorithm Suite)",
+      "Deploy quantum-resistant backup and recovery procedures"
+    ]
+  },
+  "POAMItems": [
+    {
+      "id": "POAM-2026-010",
+      "control_id": "SV-258001r926022_rule",
+      "weakness": "System must use SELinux in enforcing mode",
+      "severity": "CAT I",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 150000,
+      "scheduled_completion": "2026-06-13T00:09:41.9044131-04:00",
+      "milestone_actions": [
+        "Edit /etc/selinux/config, set SELINUX=enforcing, reboot"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 150000,
+      "severity_weight": 3,
+      "priority_score": 64285.71428571428,
+      "estimated_days": 7
+    },
+    {
+      "id": "POAM-2026-011",
+      "control_id": "SV-258090r926289_rule",
+      "weakness": "System must use FIPS 140-2/140-3 validated cryptographic modules",
+      "severity": "CAT I",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 150000,
+      "scheduled_completion": "2026-06-13T00:09:41.9044131-04:00",
+      "milestone_actions": [
+        "Enable FIPS: sudo fips-mode-setup --enable \u0026\u0026 reboot"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 150000,
+      "severity_weight": 3,
+      "priority_score": 64285.71428571428,
+      "estimated_days": 7
+    },
+    {
+      "id": "POAM-2026-016",
+      "control_id": "NIST-800-53:SC-13",
+      "weakness": "System must implement FIPS-validated cryptography",
+      "severity": "CAT I",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 150000,
+      "scheduled_completion": "2026-06-13T00:09:41.9044131-04:00",
+      "milestone_actions": [
+        "Enable FIPS mode and deploy PQC algorithms (Dilithium3, Kyber1024)"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 150000,
+      "severity_weight": 3,
+      "priority_score": 64285.71428571428,
+      "estimated_days": 7
+    },
+    {
+      "id": "POAM-2026-017",
+      "control_id": "NIST-800-171:3.13.11",
+      "weakness": "Employ FIPS-validated cryptography when used to protect the confidentiality of CUI",
+      "severity": "CAT I",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 150000,
+      "scheduled_completion": "2026-06-13T00:09:41.9044131-04:00",
+      "milestone_actions": [
+        "Enable FIPS mode: fips-mode-setup --enable \u0026\u0026 reboot"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 150000,
+      "severity_weight": 3,
+      "priority_score": 64285.71428571428,
+      "estimated_days": 7
+    },
+    {
+      "id": "POAM-2026-008",
+      "control_id": "SV-257778r925321_rule",
+      "weakness": "System must have scap-security-guide package installed",
+      "severity": "CAT II",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 50000,
+      "scheduled_completion": "2026-06-20T00:09:41.9044131-04:00",
+      "milestone_actions": [
+        "Install with: sudo dnf install scap-security-guide -y"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 50000,
+      "severity_weight": 2,
+      "priority_score": 7142.857142857143,
+      "estimated_days": 14
+    },
+    {
+      "id": "POAM-2026-009",
+      "control_id": "SV-257779r925324_rule",
+      "weakness": "System must have firewalld package installed for host-based firewall",
+      "severity": "CAT II",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 50000,
+      "scheduled_completion": "2026-06-20T00:09:41.9044131-04:00",
+      "milestone_actions": [
+        "Install firewalld: sudo dnf install firewalld -y \u0026\u0026 sudo systemctl enable --now firewalld"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 50000,
+      "severity_weight": 2,
+      "priority_score": 7142.857142857143,
+      "estimated_days": 14
+    },
+    {
+      "id": "POAM-2026-001",
+      "control_id": "PQC-TLS-001",
+      "weakness": "Assess TLS configuration for post-quantum algorithm support",
+      "severity": "High",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 50000,
+      "scheduled_completion": "2026-06-20T00:09:41.9044131-04:00",
+      "milestone_actions": [
+        "Upgrade to TLS 1.3 with PQC hybrid mode, deploy Kyber-aware TLS libraries"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 50000,
+      "severity_weight": 2,
+      "priority_score": 7142.857142857143,
+      "estimated_days": 14
+    },
+    {
+      "id": "POAM-2026-002",
+      "control_id": "PQC-SSH-001",
+      "weakness": "Assess SSH configuration for post-quantum algorithm support",
+      "severity": "High",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 50000,
+      "scheduled_completion": "2026-06-20T00:09:41.9044131-04:00",
+      "milestone_actions": [
+        "Upgrade OpenSSH to version supporting PQC KEX (sntrup761x25519-sha512@openssh.com)"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 50000,
+      "severity_weight": 2,
+      "priority_score": 7142.857142857143,
+      "estimated_days": 14
+    },
+    {
+      "id": "POAM-2026-012",
+      "control_id": "SV-257823r925453_rule",
+      "weakness": "System must lock accounts after 3 consecutive failed login attempts",
+      "severity": "CAT II",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 50000,
+      "scheduled_completion": "2026-06-20T00:09:41.9044131-04:00",
+      "milestone_actions": [
+        "Create /etc/security/faillock.conf with deny = 3"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 50000,
+      "severity_weight": 2,
+      "priority_score": 7142.857142857143,
+      "estimated_days": 14
+    },
+    {
+      "id": "POAM-2026-013",
+      "control_id": "SV-257824r925456_rule",
+      "weakness": "System must enforce password complexity",
+      "severity": "CAT II",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 50000,
+      "scheduled_completion": "2026-06-20T00:09:41.9044131-04:00",
+      "milestone_actions": [
+        "Edit /etc/security/pwquality.conf, set minlen=15, dcredit=-1, ucredit=-1, lcredit=-1, ocredit=-1"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 50000,
+      "severity_weight": 2,
+      "priority_score": 7142.857142857143,
+      "estimated_days": 14
+    },
+    {
+      "id": "POAM-2026-014",
+      "control_id": "SV-257860r925564_rule",
+      "weakness": "System must have auditd running and enabled",
+      "severity": "CAT II",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 50000,
+      "scheduled_completion": "2026-06-20T00:09:41.9044131-04:00",
+      "milestone_actions": [
+        "Start and enable auditd: sudo systemctl enable --now auditd"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 50000,
+      "severity_weight": 2,
+      "priority_score": 7142.857142857143,
+      "estimated_days": 14
+    },
+    {
+      "id": "POAM-2026-015",
+      "control_id": "SV-257872r925600_rule",
+      "weakness": "SSH must not allow root login",
+      "severity": "CAT II",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 50000,
+      "scheduled_completion": "2026-06-20T00:09:41.9044131-04:00",
+      "milestone_actions": [
+        "Edit /etc/ssh/sshd_config, set 'PermitRootLogin no'"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 50000,
+      "severity_weight": 2,
+      "priority_score": 7142.857142857143,
+      "estimated_days": 14
+    },
+    {
+      "id": "POAM-2026-004",
+      "control_id": "PQC-VPN-001",
+      "weakness": "Assess VPN (IPsec/IKEv2) for post-quantum algorithm support",
+      "severity": "High",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 50000,
+      "scheduled_completion": "2026-06-20T00:09:41.9044131-04:00",
+      "milestone_actions": [
+        "Upgrade VPN to support PQC KEMs (Kyber1024) for IKEv2"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 50000,
+      "severity_weight": 2,
+      "priority_score": 7142.857142857143,
+      "estimated_days": 14
+    },
+    {
+      "id": "POAM-2026-006",
+      "control_id": "PQC-INVENTORY-SUMMARY",
+      "weakness": "Overall PQC readiness score: 0.0%. Estimated migration effort: 10 days / $25000 USD. \nCryptographic asset inventory:\n",
+      "severity": "High",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 50000,
+      "scheduled_completion": "2026-06-20T00:09:41.9044131-04:00",
+      "milestone_actions": [
+        "Execute PQC migration roadmap. Estimated: 10 days, $25000 USD."
+      ],
+      "resources": null,
+      "dollar_impact_usd": 50000,
+      "severity_weight": 2,
+      "priority_score": 7142.857142857143,
+      "estimated_days": 14
+    },
+    {
+      "id": "POAM-2026-003",
+      "control_id": "PQC-CERT-001",
+      "weakness": "Assess X.509 certificates for post-quantum signatures",
+      "severity": "Medium",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 10000,
+      "scheduled_completion": "2026-07-06T00:09:41.9044131-04:00",
+      "milestone_actions": [
+        "Deploy hybrid certificates (RSA+Dilithium3) or pure PQC certificates"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 10000,
+      "severity_weight": 1,
+      "priority_score": 333.3333333333333,
+      "estimated_days": 30
+    },
+    {
+      "id": "POAM-2026-007",
+      "control_id": "SV-257777r925318_rule",
+      "weakness": "System must display DoD banner before granting access",
+      "severity": "medium",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 10000,
+      "scheduled_completion": "2026-07-06T00:09:41.9044131-04:00",
+      "milestone_actions": [
+        "Create /etc/issue with Standard Mandatory DoD Notice"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 10000,
+      "severity_weight": 1,
+      "priority_score": 333.3333333333333,
+      "estimated_days": 30
+    },
+    {
+      "id": "POAM-2026-005",
+      "control_id": "PQC-SIGN-001",
+      "weakness": "Assess code signing for post-quantum signatures",
+      "severity": "Medium",
+      "status": "Open",
+      "point_of_contact": "ISSM",
+      "estimated_cost_usd": 10000,
+      "scheduled_completion": "2026-07-06T00:09:41.9044131-04:00",
+      "milestone_actions": [
+        "Implement PQC code signing (Dilithium3) for software distribution"
+      ],
+      "resources": null,
+      "dollar_impact_usd": 10000,
+      "severity_weight": 1,
+      "priority_score": 333.3333333333333,
+      "estimated_days": 30
+    }
+  ],
+  "ExecutiveSummary": {
+    "OverallCompliance": 56.42857142857143,
+    "ComplianceGrade": "Critical (F)",
+    "STIGCompliance": 0,
+    "CISCompliance": 80,
+    "NIST80053Compliance": 60,
+    "NIST800171Compliance": 75,
+    "CMMCCompliance": 100,
+    "CAT1Findings": 4,
+    "CAT2Findings": 10,
+    "CAT3Findings": 2,
+    "PQCReadinessGrade": "Critical (F)",
+    "PQCMigrationRequired": true,
+    "OverallRisk": "High",
+    "TopRisks": [
+      "4 CAT I/Critical findings requiring immediate remediation",
+      "10 CAT II/High findings requiring attention",
+      "Post-quantum cryptography migration required"
+    ],
+    "ExecutiveRecommendations": [
+      "Address 4 critical findings within 30 days",
+      "Implement Plan of Action \u0026 Milestones for 17 open items",
+      "Initiate post-quantum cryptography migration planning"
+    ]
+  }
+}
