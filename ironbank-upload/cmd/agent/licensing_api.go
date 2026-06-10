@@ -35,7 +35,7 @@ func InitializeLicensing(storageBackend dag.Store, isAirGapped bool) error {
 	var err error
 
 	// Create license manager
-	licenseManager = license.NewLicenseManager()
+	licenseManager = license.NewLicenseManager("")
 
 	// Create DAG enforcer
 	dagLicenseEnforcer = license.NewDAGLicenseEnforcer(licenseManager)
