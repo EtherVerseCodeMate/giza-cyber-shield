@@ -1,7 +1,41 @@
 {
   "_comment": "KHEPRA MCP Client Config — SOVEREIGN / AIR-GAP MODE. For SaaS (Fly.io+Supabase), use .mcp.saas.json instead.",
   "mcpServers": {
+
     "khepra-mcp": {
+      "_comment": "Compiled binary — fastest startup (~300ms). Rebuild with: go build -o bin/khepra-mcp.exe ./cmd/khepra-mcp/main.go",
+      "command": "C:\\Users\\intel\\blackbox\\khepra protocol\\bin\\khepra-mcp.exe",
+      "args": [],
+      "env": {
+        "KHEPRA_MODE": "sovereign",
+        "KHEPRA_NETWORK_POLICY": "lan",
+        "PHANTOM_SYMBOL": "Eban",
+        "KHEPRA_MANIFEST_PATH": "C:\\Users\\intel\\blackbox\\khepra protocol\\manifest.json",
+        "KHEPRA_MAX_CONCURRENT": "5",
+        "MCP_PQC_ENABLED": "true",
+        "KHEPRA_LICENSE_KEY": "${KHEPRA_LICENSE_KEY}"
+      }
+    },
+
+    "khepra-mcp-dev": {
+      "_comment": "Source build via go run — use when iterating on cmd/khepra-mcp. Slower startup (~5s compile).",
+      "command": "go",
+      "args": [
+        "run",
+        "C:\\Users\\intel\\blackbox\\khepra protocol\\cmd\\khepra-mcp\\main.go"
+      ],
+      "env": {
+        "KHEPRA_MODE": "sovereign",
+        "KHEPRA_NETWORK_POLICY": "lan",
+        "PHANTOM_SYMBOL": "Eban",
+        "KHEPRA_MANIFEST_PATH": "C:\\Users\\intel\\blackbox\\khepra protocol\\manifest.json",
+        "KHEPRA_MAX_CONCURRENT": "5",
+        "MCP_PQC_ENABLED": "true",
+        "KHEPRA_LICENSE_KEY": "${KHEPRA_LICENSE_KEY}"
+      }
+    },
+
+    "khepra-mcp-docker": {
       "_comment": "Docker image — sovereign mode (ghcr.io pre-pulled, no runtime pulls). Requires local Docker daemon.",
       "command": "docker",
       "args": [
@@ -20,23 +54,7 @@
       "env": {
         "KHEPRA_LICENSE_KEY": "${KHEPRA_LICENSE_KEY}"
       }
-    },
-
-    "khepra-mcp-local": {
-      "_comment": "Local source build — sovereign mode. All 5 ERT tools + dag_attestation. Use for testing before Docker image rebuild.",
-      "command": "go",
-      "args": [
-        "run",
-        "./cmd/khepra-mcp/main.go"
-      ],
-      "env": {
-        "KHEPRA_MODE": "sovereign",
-        "KHEPRA_NETWORK_POLICY": "lan",
-        "PHANTOM_SYMBOL": "Eban",
-        "KHEPRA_AUDIT_LOG_PATH": "${USERPROFILE}/.khepra/logs/audit.ndjson",
-        "KHEPRA_MAX_CONCURRENT": "5",
-        "KHEPRA_LICENSE_KEY": "${KHEPRA_LICENSE_KEY}"
-      }
     }
+
   }
 }

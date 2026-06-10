@@ -181,7 +181,15 @@ func main() {
 
 	// Open the tamper-evident audit log
 	var signedLog *khepramcp.SignedAuditLog
-	auditLogPath := getEnvOr("KHEPRA_AUDIT_LOG_PATH", "/var/log/khepra/audit.ndjson")
+	// Default audit log path: Windows uses %USERPROFILE%\.khepra\audit.ndjson,
+	// Linux/macOS use /var/log/khepra/audit.ndjson (or override with env var).
+	defaultAuditLog := "/var/log/khepra/audit.ndjson"
+	if home := os.Getenv("USERPROFILE"); home != "" {
+		defaultAuditLog = home + `\.khepra\audit.ndjson`
+	} else if home := os.Getenv("HOME"); home != "" {
+		defaultAuditLog = home + "/.khepra/audit.ndjson"
+	}
+	auditLogPath := getEnvOr("KHEPRA_AUDIT_LOG_PATH", defaultAuditLog)
 	sal, salErr := khepramcp.NewSignedAuditLog(khepramcp.SignedAuditLogConfig{
 		Path:    auditLogPath,
 		PrivKey: privKey,
