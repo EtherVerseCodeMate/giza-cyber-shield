@@ -165,7 +165,10 @@ func (s *HardenedServer) runStdio(ctx context.Context) error {
 
 		// Dispatch based on method.
 		resp := s.handleRequest(ctx, req)
-		if err := encoder.Encode(resp); err != nil {
+		if resp == nil {
+			continue // Notification — no response
+		}
+		if err := encoder.Encode(*resp); err != nil {
 			s.logger.Printf("write error: %v", err)
 		}
 	}
@@ -173,9 +176,9 @@ func (s *HardenedServer) runStdio(ctx context.Context) error {
 
 // ─── Method Dispatch ───────────────────────────────────────────────────────────
 
-func (s *HardenedServer) handleRequest(ctx context.Context, req JSONRPCRequest) JSONRPCResponse {
+func (s *HardenedServer) handleRequest(ctx context.Context, req JSONRPCRequest) *JSONRPCResponse {
 	if req.JSONRPC != "2.0" {
-		return JSONRPCResponse{
+		return &JSONRPCResponse{
 			JSONRPC: "2.0",
 			ID:      req.ID,
 			Error: &JSONRPCError{
@@ -187,23 +190,28 @@ func (s *HardenedServer) handleRequest(ctx context.Context, req JSONRPCRequest) 
 
 	switch req.Method {
 	case "initialize":
-		return s.handleInitialize(req)
+		r := s.handleInitialize(req)
+		return &r
 	case "ping":
-		return s.handlePing(req)
+		r := s.handlePing(req)
+		return &r
 	case "tools/list":
-		return s.handleToolsList(req)
+		r := s.handleToolsList(req)
+		return &r
 	case "tools/call":
-		return s.handleToolsCall(ctx, req)
+		r := s.handleToolsCall(ctx, req)
+		return &r
 	case "notifications/initialized":
-		// Client notification — no response needed, but we acknowledge.
+		// JSON-RPC 2.0: notifications have no id — MUST NOT send a response.
 		s.logger.Println("client initialized notification received")
-		return JSONRPCResponse{
-			JSONRPC: "2.0",
-			ID:      req.ID,
-			Result:  mustMarshal(map[string]string{"status": "acknowledged"}),
-		}
+		return nil
 	default:
-		return JSONRPCResponse{
+		// Ignore unknown notifications (method starts with "notifications/")
+		if len(req.Method) > 14 && req.Method[:14] == "notifications/" {
+			s.logger.Printf("ignoring unknown notification: %s", req.Method)
+			return nil
+		}
+		return &JSONRPCResponse{
 			JSONRPC: "2.0",
 			ID:      req.ID,
 			Error: &JSONRPCError{

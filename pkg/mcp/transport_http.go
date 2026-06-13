@@ -185,15 +185,17 @@ func (t *httpTransport) handleRPC(w http.ResponseWriter, r *http.Request) {
 
 // handleInitialize returns server info over HTTP.
 func (t *httpTransport) handleInitialize(req JSONRPCRequest) JSONRPCResponse {
-	info := ServerInfo{
-		Name:            HardenedServerName,
-		Version:         HardenedServerVersion,
+	result := InitializeResult{
 		ProtocolVersion: ProtocolVersion,
 		Capabilities: Capabilities{
 			Tools: &ToolsCapability{ListChanged: false},
 		},
+		ServerInfo: ServerInfo{
+			Name:    HardenedServerName,
+			Version: HardenedServerVersion,
+		},
 	}
-	return JSONRPCResponse{JSONRPC: "2.0", ID: req.ID, Result: mustMarshal(info)}
+	return JSONRPCResponse{JSONRPC: "2.0", ID: req.ID, Result: mustMarshal(result)}
 }
 
 // handleToolsCall routes a tool call through the full security chain.
