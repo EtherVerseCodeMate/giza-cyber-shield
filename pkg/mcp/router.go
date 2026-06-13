@@ -445,16 +445,29 @@ func (r *Router) HandleToolCall(ctx context.Context, call MCPToolCall, cred any,
 }
 
 // ListTools returns MCP-formatted tool definitions from the registry.
+//
+// IMPORTANT: The MCP spec mandates that every tool entry includes an
+// "inputSchema" field (JSON Schema object). Omitting it causes clients
+// (Claude, Cursor, Windsurf) to silently hide the tool from the UI.
+// We always emit at least a minimal no-argument schema.
 func (r *Router) ListTools() []map[string]any {
+	// Minimal JSON Schema for tools that accept no arguments.
+	noArgSchema := map[string]any{
+		"type":       "object",
+		"properties": map[string]any{},
+	}
+
 	specs := r.registry.ListTools()
 	tools := make([]map[string]any, 0, len(specs))
 	for _, s := range specs {
+		schema := s.ArgsSchema
+		if schema == nil {
+			schema = noArgSchema
+		}
 		tool := map[string]any{
 			"name":        s.Name,
 			"description": s.Description,
-		}
-		if s.ArgsSchema != nil {
-			tool["inputSchema"] = s.ArgsSchema
+			"inputSchema": schema,
 		}
 		tools = append(tools, tool)
 	}

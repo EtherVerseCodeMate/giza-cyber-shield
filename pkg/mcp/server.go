@@ -27,8 +27,11 @@ const (
 	HardenedServerName = "khepra-mcp"
 	// HardenedServerVersion is the current server version.
 	HardenedServerVersion = "1.0.0"
-	// ProtocolVersion is the MCP protocol version we implement.
-	ProtocolVersion = "2025-11-25"
+	// ProtocolVersion is the latest MCP protocol version we implement.
+	ProtocolVersion = "2024-11-05"
+	// ProtocolVersionLatest is the most recent version we fully support.
+	// We negotiate down to what the client requests when possible.
+	ProtocolVersionLatest = "2025-11-25"
 )
 
 // HardenedServer is the new MCP transport layer (AD-008).
@@ -225,8 +228,32 @@ func (s *HardenedServer) handleRequest(ctx context.Context, req JSONRPCRequest) 
 // ─── initialize ────────────────────────────────────────────────────────────────
 
 func (s *HardenedServer) handleInitialize(req JSONRPCRequest) JSONRPCResponse {
+	// Negotiate protocol version: parse the client's requested version and echo
+	// it back if we support it. MCP spec: server MUST NOT return a version the
+	// client did not request, or the client will abort the handshake.
+	negotiatedVersion := ProtocolVersion // default (2024-11-05, most widely supported)
+	if len(req.Params) > 0 {
+		var params struct {
+			ProtocolVersion string `json:"protocolVersion"`
+		}
+		if err := json.Unmarshal(req.Params, &params); err == nil && params.ProtocolVersion != "" {
+			clientVersion := params.ProtocolVersion
+			// Accept the client's version if it's one we understand.
+			switch clientVersion {
+			case "2024-11-05", "2025-03-26", "2025-11-25":
+				negotiatedVersion = clientVersion
+			default:
+				// Unknown future version — fall back to our latest.
+				s.logger.Printf("[MCP:INIT] unknown client protocolVersion=%q, negotiating to %s",
+					clientVersion, ProtocolVersionLatest)
+				negotiatedVersion = ProtocolVersionLatest
+			}
+		}
+	}
+	s.logger.Printf("[MCP:INIT] protocol negotiated: %s", negotiatedVersion)
+
 	result := InitializeResult{
-		ProtocolVersion: ProtocolVersion,
+		ProtocolVersion: negotiatedVersion,
 		Capabilities: Capabilities{
 			Tools: &ToolsCapability{
 				ListChanged: false,
