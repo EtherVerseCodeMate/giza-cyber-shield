@@ -262,7 +262,7 @@ func (s *Server) handle(ctx context.Context, req *Request) *Response {
 
 func (s *Server) handleInitialize(req *Request) *Response {
 	result := map[string]interface{}{
-		"protocolVersion": "2024-11-05",
+		"protocolVersion": "2025-11-25",
 		"serverInfo": ServerInfo{
 			Name:    s.cfg.ServerName,
 			Version: s.cfg.ServerVersion,

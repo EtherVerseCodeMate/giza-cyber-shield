@@ -28,7 +28,7 @@ const (
 	// HardenedServerVersion is the current server version.
 	HardenedServerVersion = "1.0.0"
 	// ProtocolVersion is the MCP protocol version we implement.
-	ProtocolVersion = "2024-11-05"
+	ProtocolVersion = "2025-11-25"
 )
 
 // HardenedServer is the new MCP transport layer (AD-008).
