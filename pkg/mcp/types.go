@@ -256,12 +256,18 @@ const (
 
 // ─── Server Capabilities ───────────────────────────────────────────────────────
 
-// ServerInfo is returned by the MCP `initialize` method.
+// InitializeResult is the top-level response for the MCP `initialize` method.
+// Per MCP spec: protocolVersion + capabilities + serverInfo (nested).
+type InitializeResult struct {
+	ProtocolVersion string       `json:"protocolVersion"`
+	Capabilities    Capabilities `json:"capabilities"`
+	ServerInfo      ServerInfo   `json:"serverInfo"`
+}
+
+// ServerInfo identifies the MCP server (nested inside InitializeResult).
 type ServerInfo struct {
-	Name            string         `json:"name"`
-	Version         string         `json:"version"`
-	ProtocolVersion string         `json:"protocolVersion"`
-	Capabilities    Capabilities   `json:"capabilities"`
+	Name    string `json:"name"`
+	Version string `json:"version"`
 }
 
 // Capabilities advertises what the server supports.
