@@ -7,7 +7,7 @@
 VPS="root@187.124.225.91"
 REMOTE_DIR="/opt/adinkhepra-telemetry"
 BINARY_NAME="telemetry-server"
-DOMAIN="telemetry.souhimbou.org"
+DOMAIN="telemetry.souhimbou.ai"
 
 echo "╔══════════════════════════════════════════════════╗"
 echo "║  Telemetry Server → VPS Deployment               ║"

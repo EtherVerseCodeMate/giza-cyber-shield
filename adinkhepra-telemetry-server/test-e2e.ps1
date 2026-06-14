@@ -1,5 +1,5 @@
 param(
-    [string]$BaseUrl = "https://telemetry.souhimbou.org",
+    [string]$BaseUrl = "https://telemetry.souhimbou.ai",
     [string]$EnrollmentToken = "khepra-enroll-cuminmall-test1234abcd"
 )
 $ErrorActionPreference = "Continue"

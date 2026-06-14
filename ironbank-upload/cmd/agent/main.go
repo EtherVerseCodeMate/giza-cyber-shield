@@ -67,7 +67,7 @@ func main() {
 	// [LICENSE]: Initialize License Manager
 	licenseServer := os.Getenv("KHEPRA_LICENSE_SERVER")
 	if licenseServer == "" {
-		licenseServer = "https://telemetry.souhimbou.org"
+		licenseServer = "https://telemetry.souhimbou.ai"
 	}
 
 	licMgr, err := license.NewManager(licenseServer)

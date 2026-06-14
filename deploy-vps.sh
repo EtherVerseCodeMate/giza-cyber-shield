@@ -290,7 +290,7 @@ else
     GIT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo latest)"
     DASHBOARD_IMAGE="asaf-dashboard:${GIT_SHA}"
     DASHBOARD_APP_URL="${DASHBOARD_APP_URL:-https://adinkhepra.com}"
-    DASHBOARD_API_URL="${DASHBOARD_API_URL:-https://agent.souhimbou.org}"
+    DASHBOARD_API_URL="${DASHBOARD_API_URL:-https://agent.souhimbou.ai}"
 
     docker build \
       -f Dockerfile.dashboard \

@@ -54,7 +54,7 @@ KHEPRA_AGENT_PORT=45444
 KHEPRA_TENANT=default
 
 # License Settings (optional)
-# KHEPRA_LICENSE_SERVER=https://telemetry.souhimbou.org
+# KHEPRA_LICENSE_SERVER=https://telemetry.souhimbou.ai
 # KHEPRA_ENROLLMENT_TOKEN=your-token-here
 
 # Data Paths
