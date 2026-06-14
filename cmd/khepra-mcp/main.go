@@ -377,6 +377,14 @@ func registerToolHandlers(executor *khepramcp.Executor) {
 	//   Maps all agent actions → NIST 800-171 / CMMC 2.0 controls
 	//   Verifies tamper chain + computes all SOW pilot KPIs
 	executor.RegisterFunc("flight_export", tools.HandleFlightExport)
+
+	// ── OWASP Agentic Top 10 for 2026 (ASI01-ASI10) ───────────────────────
+	// Assesses this MCP server deployment against all 10 ASI risks.
+	// Returns scored findings, active controls, gaps, and a PQC-signed
+	// evidence packet with executive summary and production readiness verdict.
+	// Competitive differentiator: only tool that maps agent stack to OWASP
+	// Agentic Top 10 with ML-DSA-65 signed evidence — 100% offline.
+	executor.RegisterFunc("owasp_agent_assess", tools.HandleOWASPAgentAssess)
 }
 
 // ─── Manifest Loading ──────────────────────────────────────────────────────────
