@@ -14,7 +14,8 @@
     "pkg",
     "cmd",
     "services",
-    "n8n-nodes"
+    "n8n-nodes",
+    "vite.config.ts"
   ],
   "compilerOptions": {
     "baseUrl": ".",
