@@ -384,6 +384,13 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 		return hex.EncodeToString(h[:])
 	}
 
+	// noArgSchema is used for tools that require no parameters.
+	// MCP clients REQUIRE inputSchema to be present — omitting it hides the tool.
+	noArgSchema := map[string]any{
+		"type":       "object",
+		"properties": map[string]any{},
+	}
+
 	return []khepramcp.ToolSpec{
 		// ── ACP (Agent Control Plane) ────────────────────────────────────────
 		{
@@ -392,6 +399,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			SchemaVersion: "1.0.0", SchemaHash: hash("acp_status"),
 			AllowedBackend: "in-process", TimeoutMs: 5000,
 			MaxPrivilege: "read-only",
+			ArgsSchema:   noArgSchema,
 		},
 		{
 			Name: "acp_issue", Description: "Issue a new PQC credential via the Agent Control Plane",
@@ -399,6 +407,15 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			SchemaVersion: "1.0.0", SchemaHash: hash("acp_issue"),
 			AllowedBackend: "in-process", TimeoutMs: 10000,
 			MaxPrivilege: "none",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"subject":    map[string]any{"type": "string", "description": "Principal identifier for the new credential"},
+					"scopes":     map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Permission scopes to grant"},
+					"expires_in": map[string]any{"type": "string", "description": "Credential TTL (e.g. '24h', '7d')"},
+				},
+				"required": []string{"subject"},
+			},
 		},
 		{
 			Name: "acp_revoke", Description: "Revoke an active ACP credential",
@@ -406,6 +423,13 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			SchemaVersion: "1.0.0", SchemaHash: hash("acp_revoke"),
 			AllowedBackend: "in-process", TimeoutMs: 10000,
 			MaxPrivilege: "none",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"credential_id": map[string]any{"type": "string", "description": "ID of the ACP credential to revoke"},
+				},
+				"required": []string{"credential_id"},
+			},
 		},
 
 		// ── NHI (Non-Human Identity) ─────────────────────────────────────────
@@ -415,6 +439,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			SchemaVersion: "1.0.0", SchemaHash: hash("nhi_inventory"),
 			AllowedBackend: "in-process", TimeoutMs: 5000,
 			MaxPrivilege: "read-only",
+			ArgsSchema:   noArgSchema,
 		},
 		{
 			Name: "nhi_orphans", Description: "Identify orphaned non-human identities with no active owner",
@@ -422,6 +447,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			SchemaVersion: "1.0.0", SchemaHash: hash("nhi_orphans"),
 			AllowedBackend: "in-process", TimeoutMs: 5000,
 			MaxPrivilege: "read-only",
+			ArgsSchema:   noArgSchema,
 		},
 		{
 			Name: "nhi_excessive", Description: "Identify NHIs with overly broad permissions",
@@ -429,6 +455,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			SchemaVersion: "1.0.0", SchemaHash: hash("nhi_excessive"),
 			AllowedBackend: "in-process", TimeoutMs: 5000,
 			MaxPrivilege: "read-only",
+			ArgsSchema:   noArgSchema,
 		},
 		{
 			Name: "nhi_expired", Description: "List expired or soon-to-expire non-human identities",
@@ -436,6 +463,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			SchemaVersion: "1.0.0", SchemaHash: hash("nhi_expired"),
 			AllowedBackend: "in-process", TimeoutMs: 5000,
 			MaxPrivilege: "read-only",
+			ArgsSchema:   noArgSchema,
 		},
 		{
 			Name: "nhi_revoke", Description: "Revoke a non-human identity credential",
@@ -443,6 +471,13 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			SchemaVersion: "1.0.0", SchemaHash: hash("nhi_revoke"),
 			AllowedBackend: "in-process", TimeoutMs: 10000,
 			MaxPrivilege: "none",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"nhi_id": map[string]any{"type": "string", "description": "NHI identifier to revoke"},
+				},
+				"required": []string{"nhi_id"},
+			},
 		},
 
 		// ── ERT (Enterprise Risk & Threat Scanner) ───────────────────────────
@@ -457,6 +492,15 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			MaxPrivilege: "read-only",
 			// CapabilityMounts: populated at runtime from call.Args["project_path"]
 			// The router's ASD/CISA defense validates these are not traversal paths.
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"project_path": map[string]any{"type": "string", "description": "Path to project directory"},
+					"image_ref":    map[string]any{"type": "string", "description": "Container image to scan (overrides project_path)"},
+					"lanes":        map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Scan lanes: sca, horus, compliance"},
+					"framework":    map[string]any{"type": "string", "description": "Compliance framework: CMMC_L2, NIST_800_171, etc."},
+				},
+			},
 		},
 
 		// ── ERT Packages A–D (in-process, structured JSON, ASAF-enriched) ────
@@ -467,6 +511,12 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			SchemaVersion:  "1.0.0", SchemaHash: hash("ert_readiness"),
 			AllowedBackend: "in-process", TimeoutMs: 60000,
 			MaxPrivilege:   "read-only",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"project_path": map[string]any{"type": "string", "description": "Path to project directory (default: current directory)"},
+				},
+			},
 		},
 		{
 			Name:           "ert_architect",
@@ -475,6 +525,13 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			SchemaVersion:  "1.0.0", SchemaHash: hash("ert_architect"),
 			AllowedBackend: "in-process", TimeoutMs: 300000,
 			MaxPrivilege:   "read-only",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"project_path": map[string]any{"type": "string", "description": "Path to project directory"},
+					"image_ref":    map[string]any{"type": "string", "description": "Container image reference to scan"},
+				},
+			},
 		},
 		{
 			Name:           "ert_crypto",
@@ -483,6 +540,12 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			SchemaVersion:  "1.0.0", SchemaHash: hash("ert_crypto"),
 			AllowedBackend: "in-process", TimeoutMs: 180000,
 			MaxPrivilege:   "read-only",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"project_path": map[string]any{"type": "string", "description": "Path to project directory"},
+				},
+			},
 		},
 		{
 			Name:           "ert_godfather",
@@ -491,6 +554,13 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			SchemaVersion:  "1.0.0", SchemaHash: hash("ert_godfather"),
 			AllowedBackend: "in-process", TimeoutMs: 300000,
 			MaxPrivilege:   "read-only",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"project_path": map[string]any{"type": "string", "description": "Path to project directory"},
+					"framework":    map[string]any{"type": "string", "description": "Compliance framework to assess against"},
+				},
+			},
 		},
 
 		// ── DAG Attestation ──────────────────────────────────────────────────
@@ -501,6 +571,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			SchemaVersion:  "1.0.0", SchemaHash: hash("dag_attestation"),
 			AllowedBackend: "in-process", TimeoutMs: 10000,
 			MaxPrivilege:   "read-only",
+			ArgsSchema:     noArgSchema,
 		},
 
 		// ── Godfather Report (HITL-gated) ─────────────────────────────────────
@@ -513,6 +584,14 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			SchemaVersion: "1.0.0", SchemaHash: hash("godfather_report"),
 			AllowedBackend: "in-process", TimeoutMs: 30000,
 			MaxPrivilege: "stig-db-read",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"framework":        map[string]any{"type": "string", "description": "Compliance framework (CMMC_L2, NIST_800_171, STIG)"},
+					"approval_required": map[string]any{"type": "boolean", "description": "If true, returns staged token requiring human approval"},
+					"project_path":     map[string]any{"type": "string", "description": "Path to project directory"},
+				},
+			},
 		},
 		{
 			Name: "godfather_approve",
@@ -521,6 +600,13 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			SchemaVersion: "1.0.0", SchemaHash: hash("godfather_approve"),
 			AllowedBackend: "in-process", TimeoutMs: 5000,
 			MaxPrivilege: "read-only",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"staged_token": map[string]any{"type": "string", "description": "Token returned by godfather_report when approval_required=true"},
+				},
+				"required": []string{"staged_token"},
+			},
 		},
 
 		// ── NIST Map (offline BM25 semantic search) ──────────────────────────
@@ -533,6 +619,15 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			SchemaVersion: "1.0.0", SchemaHash: hash("nist_map"),
 			AllowedBackend: "in-process", TimeoutMs: 5000,
 			MaxPrivilege: "read-only",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"query":      map[string]any{"type": "string", "description": "Search query (natural language or control ID)"},
+					"frameworks": map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Filter by framework(s): NIST_800_53, NIST_800_171, CMMC, STIG"},
+					"limit":      map[string]any{"type": "integer", "description": "Maximum results to return (default: 10)"},
+				},
+				"required": []string{"query"},
+			},
 		},
 
 		// ── khepra_watch (continuous monitoring) ─────────────────────────────
@@ -545,6 +640,14 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			SchemaVersion: "1.0.0", SchemaHash: hash("khepra_watch"),
 			AllowedBackend: "in-process", TimeoutMs: 10000,
 			MaxPrivilege: "read-only",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"action": map[string]any{"type": "string", "enum": []string{"register", "status", "unregister"}, "description": "Action to perform"},
+					"path":   map[string]any{"type": "string", "description": "Filesystem path to watch"},
+				},
+				"required": []string{"action"},
+			},
 		},
 	}
 }

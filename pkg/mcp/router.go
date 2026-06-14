@@ -391,6 +391,38 @@ func (r *Router) HandleToolCall(ctx context.Context, call MCPToolCall, cred any,
 	// Reset mistake counter on success
 	r.mistakes.RecordSuccess(id.AgentID)
 
+	// ── Step 5.5: Output Pipeline Filtering (NSA CSI MCP mandate) ───────────
+	// NSA MCP Security Design Considerations p.12-13:
+	// "Outputs from tools and models should never be treated as implicitly trusted,
+	// even if they originate from previously vetted components. Each output must be
+	// treated as untrusted input to the next phase of the pipeline."
+	//
+	// We serialize the result and run it through the same injection scanner used
+	// for inbound args. Non-fatal (warning-only): compliant security reports
+	// legitimately contain CVE IDs, exploit code snippets, and other patterns
+	// that superficially resemble injection — we warn but do not block.
+	if outputBytes, marshalOK := json.Marshal(result); marshalOK {
+		if outErr := r.gateway.ScanForInjection(string(outputBytes)); outErr != nil {
+			// Non-fatal: log and warn — security report outputs may contain
+			// CVE IDs or exploit patterns that match injection heuristics.
+			r.logger.Printf("[MCP:OUTPUT-FILTER] tool=%s potential injection pattern in output: %v (non-fatal)",
+				call.ToolName, outErr)
+			warnings = append(warnings, "output-filter: potential injection pattern in tool output — review before piping to next agent")
+			r.events.Emit(MCPEvent{
+				Type:    EventPolicy,
+				Success: false,
+				Metadata: map[string]any{
+					"step":    "output_filter",
+					"tool":    call.ToolName,
+					"agent":   id.AgentID,
+					"finding": outErr.Error(),
+				},
+			})
+		}
+	}
+
+
+
 	// ── Step 6: Attestation + PQC Seal ─────────────────────────────────────
 	// Wrap result in SecureEnvelope.
 	env, err := r.poly.WrapResponse(result, call.RequestID)

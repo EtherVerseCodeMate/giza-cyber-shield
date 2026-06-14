@@ -1,426 +1,456 @@
-{
-  "version": "1.0.0",
-  "revision": "build-1780892571",
-  "generated_at": "2026-06-08T04:22:51Z",
-  "hash_algorithm": "SHA-256",
-  "public_key_id": "66d9bf6e088ef382",
-  "tools": [
-    {
-      "name": "acp_status",
-      "description": "List active ACP credentials and their expiry status",
-      "risk_class": "read_only",
-      "scope": "acp:read",
-      "schema_version": "1.0.0",
-      "schema_hash": "05ad45dda2aed064c726444774a74499f5ed714913c7086e47113d1bf245de03",
-      "allowed_backend": "in-process",
-      "timeout_ms": 5000,
-      "network_allowed": false,
-      "destructive": false
-    },
-    {
-      "name": "acp_issue",
-      "description": "Issue a new PQC credential via the Agent Control Plane",
-      "risk_class": "destructive",
-      "scope": "acp:write",
-      "schema_version": "1.0.0",
-      "schema_hash": "292858740df7087108a51b10e94dcf2f17e85b9141e7af8fa39cc76d861d9273",
-      "allowed_backend": "in-process",
-      "timeout_ms": 10000,
-      "network_allowed": false,
-      "destructive": true,
-      "args_schema": {
-        "properties": {
-          "agent_id": {
-            "description": "Agent identifier",
-            "type": "string"
-          },
-          "scopes": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "symbol": {
-            "description": "Adinkra symbol (default: Nkyinkyim)",
-            "type": "string"
-          },
-          "ttl_minutes": {
-            "description": "Credential TTL in minutes",
-            "type": "number"
-          }
-        },
-        "required": [
-          "agent_id"
-        ],
-        "type": "object"
-      }
-    },
-    {
-      "name": "acp_revoke",
-      "description": "Revoke an active ACP credential",
-      "risk_class": "destructive",
-      "scope": "acp:write",
-      "schema_version": "1.0.0",
-      "schema_hash": "b17d22356b3a4a509dd94334ac763cb7f8311e43175718e5252d08c5cacf2831",
-      "allowed_backend": "in-process",
-      "timeout_ms": 10000,
-      "network_allowed": false,
-      "destructive": true,
-      "args_schema": {
-        "properties": {
-          "credential_id": {
-            "description": "Credential ID to revoke",
-            "type": "string"
-          }
-        },
-        "required": [
-          "credential_id"
-        ],
-        "type": "object"
-      }
-    },
-    {
-      "name": "nhi_inventory",
-      "description": "List all non-human identities (service accounts, API keys, certificates)",
-      "risk_class": "read_only",
-      "scope": "nhi:read",
-      "schema_version": "1.0.0",
-      "schema_hash": "2bf1ccfb842aeb825990eb0d4faf70ab0c681b2cb03b151a212a059b06717ef5",
-      "allowed_backend": "in-process",
-      "timeout_ms": 5000,
-      "network_allowed": false,
-      "destructive": false
-    },
-    {
-      "name": "nhi_orphans",
-      "description": "Identify orphaned non-human identities with no active owner",
-      "risk_class": "read_only",
-      "scope": "nhi:read",
-      "schema_version": "1.0.0",
-      "schema_hash": "d66c13ac0a9776c0f071362b793ea74860b1d6827a8eeef7dc76684e4fc17bd5",
-      "allowed_backend": "in-process",
-      "timeout_ms": 5000,
-      "network_allowed": false,
-      "destructive": false
-    },
-    {
-      "name": "nhi_excessive",
-      "description": "Identify NHIs with overly broad permissions",
-      "risk_class": "read_only",
-      "scope": "nhi:read",
-      "schema_version": "1.0.0",
-      "schema_hash": "cb8cbebebf617fd37f2d0fbe0bae03512dc69594c235e8e253c5c45613928488",
-      "allowed_backend": "in-process",
-      "timeout_ms": 5000,
-      "network_allowed": false,
-      "destructive": false,
-      "args_schema": {
-        "properties": {
-          "max_scopes": {
-            "description": "Max scopes before flagging (default: 5)",
-            "type": "number"
-          },
-          "risk_threshold": {
-            "description": "Min risk score to flag (default: 0.5)",
-            "type": "number"
-          }
-        },
-        "type": "object"
-      }
-    },
-    {
-      "name": "nhi_expired",
-      "description": "List expired or soon-to-expire non-human identities",
-      "risk_class": "read_only",
-      "scope": "nhi:read",
-      "schema_version": "1.0.0",
-      "schema_hash": "274041d744f772a884c23a6cef4ba79198b36d6af309e7741c43e76806e471c0",
-      "allowed_backend": "in-process",
-      "timeout_ms": 5000,
-      "network_allowed": false,
-      "destructive": false
-    },
-    {
-      "name": "nhi_revoke",
-      "description": "Revoke a non-human identity credential",
-      "risk_class": "destructive",
-      "scope": "nhi:write",
-      "schema_version": "1.0.0",
-      "schema_hash": "c85a603c05303421b6c62dc0c5edb708e18ff171206af2cec598b8a349bfaeff",
-      "allowed_backend": "in-process",
-      "timeout_ms": 10000,
-      "network_allowed": false,
-      "destructive": true,
-      "args_schema": {
-        "properties": {
-          "nhi_id": {
-            "description": "NHI identifier to revoke",
-            "type": "string"
-          }
-        },
-        "required": [
-          "nhi_id"
-        ],
-        "type": "object"
-      }
-    },
-    {
-      "name": "ert_scan",
-      "description": "Run ERT security scan (SBOM, CVE, secrets, STIG, PQC inventory) in Docker sandbox",
-      "risk_class": "sandboxed",
-      "scope": "ert:scan",
-      "schema_version": "1.0.0",
-      "schema_hash": "ba99405a08c399235ff715a30be8c8e84639d77c1b5e4baf910bc7b9207a192a",
-      "allowed_backend": "docker",
-      "timeout_ms": 90000,
-      "network_allowed": false,
-      "destructive": false,
-      "args_schema": {
-        "properties": {
-          "framework": {
-            "description": "Compliance framework: CMMC_L2, NIST_800_171, etc.",
-            "type": "string"
-          },
-          "image_ref": {
-            "description": "Container image to scan (overrides project_path)",
-            "type": "string"
-          },
-          "lanes": {
-            "description": "Scan lanes: sca, horus, compliance",
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "project_path": {
-            "description": "Path to project directory",
-            "type": "string"
-          }
-        },
-        "type": "object"
-      }
-    },
-    {
-      "name": "ert_readiness",
-      "description": "Package A: NIST 800-171 Rev2 compliance assessment + live SCA risk factor. Returns alignment score (0-100), control gaps, and prioritized remediation roadmap. Air-gap safe.",
-      "risk_class": "read_only",
-      "scope": "ert:compliance",
-      "schema_version": "1.0.0",
-      "schema_hash": "6ae165af5e97a5ffca197584c7ca8b70085c664704e12ba7b6a62c7c296c5b08",
-      "allowed_backend": "in-process",
-      "timeout_ms": 60000,
-      "network_allowed": false,
-      "destructive": false,
-      "args_schema": {
-        "properties": {
-          "project_path": {
-            "description": "Path to project directory (default: current directory)",
-            "type": "string"
-          }
-        },
-        "type": "object"
-      }
-    },
-    {
-      "name": "ert_architect",
-      "description": "Package B: Live supply chain risk ??? Syft SBOM + Grype CVE + CISA KEV/EPSS/MITRE enrichment. Returns findings with NIST 800-171 control mapping. Requires syft+grype in PATH.",
-      "risk_class": "read_only",
-      "scope": "ert:supply-chain",
-      "schema_version": "1.0.0",
-      "schema_hash": "308e12b0d6e2e11c57b9c91e6c8307debd146959007fd5f92facb4ddae2a4769",
-      "allowed_backend": "in-process",
-      "timeout_ms": 300000,
-      "network_allowed": false,
-      "destructive": false,
-      "args_schema": {
-        "properties": {
-          "project_path": {
-            "description": "Path to project directory (default: current directory)",
-            "type": "string"
-          }
-        },
-        "type": "object"
-      }
-    },
-    {
-      "name": "ert_crypto",
-      "description": "Package C: PQC readiness attestation ??? source-level crypto primitive scan, SBOM crypto library inventory, weak primitive detection (MD5/SHA1/DES/RC4), CNSA 2.0 quantum risk context.",
-      "risk_class": "read_only",
-      "scope": "ert:pqc",
-      "schema_version": "1.0.0",
-      "schema_hash": "fab6daa75ddd03d7c1ea595324815b374264157003ae99df9dc91baa17f8a731",
-      "allowed_backend": "in-process",
-      "timeout_ms": 180000,
-      "network_allowed": false,
-      "destructive": false,
-      "args_schema": {
-        "properties": {
-          "project_path": {
-            "description": "Path to project directory (default: current directory)",
-            "type": "string"
-          }
-        },
-        "type": "object"
-      }
-    },
-    {
-      "name": "ert_godfather",
-      "description": "Package D: EA KernelRouter causal risk attestation. Runs STIG, PQC, SBOM, Network agents in parallel, produces board-level causal chain with CVSS-band dollar impact and DAG-signed evidence node.",
-      "risk_class": "read_only",
-      "scope": "ert:godfather",
-      "schema_version": "1.0.0",
-      "schema_hash": "7cfd2d2b1da609c1e9ec7bc09cfa63be1a6e67dd5763ea074934738b401e1f14",
-      "allowed_backend": "in-process",
-      "timeout_ms": 300000,
-      "network_allowed": false,
-      "destructive": false,
-      "args_schema": {
-        "properties": {
-          "project_path": {
-            "description": "Path to project directory (default: current directory)",
-            "type": "string"
-          }
-        },
-        "type": "object"
-      }
-    },
-    {
-      "name": "dag_attestation",
-      "description": "Export the PQC-signed DAG audit trail for the current session. Returns all DAG nodes with ML-DSA-65 signatures, timestamps, and Adinkra symbol chain.",
-      "risk_class": "read_only",
-      "scope": "dag:read",
-      "schema_version": "1.0.0",
-      "schema_hash": "9524d2458d5911f9e40ca2990b9624adc9813695c8cadc0bef6fcf25bd7ab871",
-      "allowed_backend": "in-process",
-      "timeout_ms": 10000,
-      "network_allowed": false,
-      "destructive": false
-    },
-    {
-      "name": "godfather_report",
-      "description": "Generate a complete CMMC/STIG/NIST compliance report. When approval_required=true, returns a staged token ??? the full report is held until a human calls godfather_approve (30-min TTL).",
-      "risk_class": "read_only",
-      "scope": "compliance:report",
-      "schema_version": "1.0.0",
-      "schema_hash": "204967014a373a01309d8f67b475d1befa91d32cbbf1664d1d6fc4541465e9e0",
-      "allowed_backend": "in-process",
-      "timeout_ms": 30000,
-      "network_allowed": false,
-      "destructive": false,
-      "args_schema": {
-        "properties": {
-          "approval_required": {
-            "description": "Stage report for human review before delivery (default: false)",
-            "type": "boolean"
-          },
-          "engagement_id": {
-            "description": "Optional engagement/ticket ID for traceability",
-            "type": "string"
-          },
-          "framework": {
-            "description": "Compliance framework: CMMC-L2, NIST-800-171, NIST-800-53 (default: CMMC-L2)",
-            "type": "string"
-          },
-          "scope": {
-            "description": "Control family scope: all, AC, AU, CM, IA, SC, SI (default: all)",
-            "type": "string"
-          }
-        },
-        "type": "object"
-      }
-    },
-    {
-      "name": "godfather_approve",
-      "description": "Deliver a staged Godfather Report. Requires the staged_token returned by godfather_report. Single-use ??? token is consumed on delivery.",
-      "risk_class": "read_only",
-      "scope": "compliance:report",
-      "schema_version": "1.0.0",
-      "schema_hash": "b5d6439e8bb1db66a872a6c4bf9da5cdbb9e7efe0567993b2103677d99107371",
-      "allowed_backend": "in-process",
-      "timeout_ms": 5000,
-      "network_allowed": false,
-      "destructive": false,
-      "args_schema": {
-        "properties": {
-          "staged_token": {
-            "description": "Token returned by godfather_report when approval_required=true",
-            "type": "string"
-          }
-        },
-        "required": [
-          "staged_token"
-        ],
-        "type": "object"
-      }
-    },
-    {
-      "name": "nist_map",
-      "description": "Offline semantic search across NIST 800-53 Rev5, NIST 800-171 Rev2, CMMC 2.0, and STIG CCI mappings. BM25 ranked results. Zero token cost, air-gap safe. 36,000+ controls indexed.",
-      "risk_class": "read_only",
-      "scope": "compliance:read",
-      "schema_version": "1.0.0",
-      "schema_hash": "63a0a8f837896e84384160a2bdc4bb825371253423763019451506fa819b9557",
-      "allowed_backend": "in-process",
-      "timeout_ms": 5000,
-      "network_allowed": false,
-      "destructive": false,
-      "args_schema": {
-        "properties": {
-          "framework": {
-            "description": "Filter by framework: NIST-800-53, NIST-800-171, CMMC-L2, STIG (default: all)",
-            "type": "string"
-          },
-          "query": {
-            "description": "Search query (e.g. 'multi-factor authentication', 'encryption at rest')",
-            "type": "string"
-          },
-          "top_k": {
-            "description": "Max results to return (default: 10, max: 50)",
-            "type": "number"
-          }
-        },
-        "required": [
-          "query"
-        ],
-        "type": "object"
-      }
-    },
-    {
-      "name": "khepra_watch",
-      "description": "Register a filesystem path for continuous STIG-triggered scanning. Fires ert_scan on file changes. Satisfies CMMC AC.2.006, CM.2.061, SI.2.217.",
-      "risk_class": "read_only",
-      "scope": "compliance:monitor",
-      "schema_version": "1.0.0",
-      "schema_hash": "b1fa86ecfd4a13e3ce2492a53c878ed52a623e07e8466524da8da7311ead4006",
-      "allowed_backend": "in-process",
-      "timeout_ms": 10000,
-      "network_allowed": false,
-      "destructive": false,
-      "args_schema": {
-        "properties": {
-          "action": {
-            "description": "Action: register | status | unregister",
-            "type": "string"
-          },
-          "framework": {
-            "description": "Compliance framework for triggered scans",
-            "type": "string"
-          },
-          "path": {
-            "description": "Filesystem path to watch",
-            "type": "string"
-          },
-          "watch_id": {
-            "description": "Watch ID (for status/unregister)",
-            "type": "string"
-          }
-        },
-        "required": [
-          "action"
-        ],
-        "type": "object"
-      }
-    }
-  ],
-  "signature": "c8ea63a5969da284a3e6a32260b4c91b83f12ea6033e985486c10b372ee0aaf79d0c59d057e7cd82d912c1cd56e7e0688979a392cfcbc62ec13677026b0ea19df58df845e179c5417046c62fdcde75b7e917bafc03431215a9ce226c67a5225ba9070a9ae2ce8c9cf09ff64697d2b88fb99362f2fa2807f006f3c632d43a2022bd4dcbdfdbca75070e6fff195e41d99377f2973fdd9a6e32050b6e27e10fcbce3d30625f5f72ade2a6954bc6dfb5edcf7f3f27f722b57e799c4f4c127b59b3acf5e93ce0f080d9057aadfc0fd8eddb2688fcad997749e532355e56713e0ad0e94d3bb6316cde974985cbaee0ec3aa617ce266a8a39daec8e33c2d79fe45dd31d89b9e34d03b2d8e5ad1d4fad0341731a6d202decb0853213fa9b47bd0133007f9be74f086490311e0e2710ca4530033fca8d9b48a9a6a1706e701f189e84792e7c7d1cff02cd0d45a350b475fd77c041072bd200e652b79d1ae230d865869abe7e4610c09777e8bbd235b161b9eef4ae697f9c17470cb3a55108267cb2c3b74db655021bf977a28aaca0a81b2efe4562edddea902a83cb616ad40dba3d2fd52a2164b81b9202af2790c5ec6c07c0906eb385baf8dff7ebdb0d83ebf15e5a58391fc3457e5a93e5ebf2f28564f3c8ed79444800cd2ee3df16ca40547e79016a46b4030eada69d5ea14a359aa7d5344690e3079e8b47d3ebff2198a6ba0ff83a44b6e8b32fb66e28aba93da26aa5b5f5b5af093779130e72056d24af02ec3a093a8e6367d23bc65af6b05143de0d3c27f0c82c445eacb5aa2f996302eb52f97cbdb881978f45b4d4567d85a82da452a610c7eac74bae6337c9b56bd87589481fdede52684dfaabfb3f9e7dd75e603cf75139c64524d1f3baa91d34696cf780ed894fe87b659181b58e4adf136d59f743f603e62404eba9842d4960e317dfd416988b9bd5f612304ffea04f5591a0ecc88b4d80229ca70330e08f5b2277af81ecdeab6e8c692ada7bfc03eea3a513b151348c58105a614c2fd68454d3f24d683ef066c7fa60e61a5ad2a0061d12b1ce739b4089c445275c8dcc846f37773d93b71b2fd73c9c5de65afd21e84ec95e49ceea3423417f8a0a5164adb82ffc17a93f32353242b06cc1360fd619284a0b79b7f5f24580bab126e0a3ded88a1768a862beeedbdd86fb770973359e6d5a5d1d1b394e1718698b3ff9a834a813def729f969c77c5e0399e7b6488e29e4e61392683723fffb5a899e858448e4365bbaa4fee4faaa2d438fd7d62b8b5ca89b929f1af96068ac918982e04c007f3035e879feac3a7ef63bc8db0c9246766b1549a649822ef2dadb884c5b6d37f14f75b81a005a2a415a31bb75eafe963e80846cf1ff407ae576be8798c507d7ae2b6f9a2031a8f6b5caacff783687399c46a4791f812a3bfc029bb0c532d7d4aebe32fbd267e16171af7ad4a5bbdd498d635d5e997225451e2c36027c7bcaf96a89d8aae88150ae522b9f53045b40e9916945a3da234e70f660db73c5c31fe4f6b5f8d392f46cbf73d33e66e6b7cd5a63ad8f0ef893ba2c252507320dde2770509b3b0523f72a96b8f92f1c952683d36cf9f5b62551c3606eaaf47b86fd3c0e59c405a0ae5dc6fef8f7e380f7e69c849da4474c0aa6485afbc6becddcffd1237cb3db9b098805609e7fa1320e07a8ce29b6b79ea9fddf6c50070b5b98d0b7ee23a7d69495bbb48bf9b8e690fdfbbfa1ed5642543382e0e227f4eba3e0407bda21844ca237e284707f2565ce4cb6c28106e5a4a4d15ff82ef4c4346c817eab2d05c1700423e3b19f9a5e8dfb010cc095d46166860f5edf2e7e6ea2c5a96051f818d5d8ba80023ecc8da9b24b32c6dd21ba76e987e8260ab2f29bef8abb69939ac4ce179f7faf7773edf4050e2e897b9ef76a8a5868c4da0035108404db4dd2417db7b6ee956ea7237efe7773afbeda4ca7100806a1cadd1d47a6af52992007eb227bfaf1002c59095f5aaa5086afbd40cec2745afd053e039ad35dc36953b488e3f7181a873c4b54bb2fffd5d5d33582cb90ad32a95d0808b536a53033b7925e4e0c1250c9b0b85338279b12358bff101e70e50a67158a98f39c7c0a30b1794f146f205e2dc16b3e78b6f0096f49ca805039179102cd9383903e587fc4e3d8483bd5f67af2d09635a535214d14bfddedff695030beee401022fa2a7da9e2dc99ab52df6a68dee7ace9c7b4fa0ea9a4d1791b9fe224319ddb359ed333fd09a95403342e683a2057869df204ae02684298b9687efa07b20b77d18d086dd2757ab57c941407e6d17ffd1d14fe7555d2ec2ed94c758c92bd7c75ec442ab3f0a0c58ba88c8cc334150bedf7aa15d864fb07e5f98126afb0a982b69be456c6d4d6ea0c538e423851b529fefb56ecfc59214ed22480dfc2508ae01a8ef00ddfd16e71dd851a888b292995a96526076070fb2de22f00a85d9b775cb791c8964748d2a24aeacf33f6c40e7262073f3547b9f8cf915be44b27af96c73714a2efc54dbd0b0818f86139ae00dbb1e51df8e9fcdde462830dd1174320f0cde91368aef47c49c9aa8aec44594727b4408aa90c5d933b5009df0ce688c712e7aa6f8d9ce34f02585ff9ac0f7a4bfdb755fe11b50e0a3772cf0f5e36de2848456a218bb994a8c13b8cf50fcba0680b86db0c01ceca0dcc6c779cb0c5487839ce46782642aa353dc89010367c77f3dddc9e611b106e1a7fbec675bbfce57a0df86835b0d7f804eb3f882693c0d8691a3c37505a8119986a2594ef7bcba09346bd8227c7fd0fce9cd69440709394dd9c0bbee84984586066b5001dc0b569b4b825c15816614a6faee01385989ffb4e7c78faf06d6cdc97919330085e9aa28492004a595990568b6c23f9a8a1bd06b948c8ef5b1f740b0a87596e4bc28fae802739855bf56aff706fa856e2f938799ade748df31dd9a1bbaff87673148d038b056a59e3b397f186c2d150aa52b6a9a1c52b1f2ba646a48946cf157759fd1d45f3857eda0ee5468d7969bfcdcb78c76887ad1581040317694ff52bd0938f2a538cd76e70d7e68e313016543874a44499a2d5eee77fa0235651907ba454a3eef73215f07d8879f9c44124d386d1362b194f5c0e2f89114f4dffce52e1cd5c4bf223da4738efd47bb0fbf32bbb74ff11aa0b5457f993079f7b2ba97da8144bea3ae18f2deabc9d38e1bc150f5bb46533b560b16cb004c948048a36a4f452f8a9e048a37533e1fa307b06a3ee3c9cb86c3c4e3d8647b9d9c232457231e7a613b6ca26ca115693e398b38bb829f625a5a704fa82fb414c875cbc1843057c6f5acb105c1d53f436483640b93739a74e071e22bc8b9de0644b907e35d2bebd9287638ac41800152f3fdc97853934291ed2560e0afead19083f33c11eab91e87d6ce67ebb1e1e5593f34b14e5367d0bd8ec2993654d1e5e5bf73ac80316608deb67370619a46cbc294feb4546b37f6912252a06ccad8b4dc2ab9ecc5a1ad5b7989c3a38a44f0f6d6b99e0eb6b6d67c5de5382a0031a271e001ef5231a6be1909b69323044a6be2757f26d4a51ef46ced95bc1ca84dac901c0d76adf9461bcfd682b3a25c456cd10ccaf7c72e57ece61f4d7dc30a356cfd2aec16e413e97148e09cf3be0b24492d7fc854f3560fca70268cc161fd911976e81c276bc6e6acd83baf54118c168b48d219b0d588cdc2b1f8a557f2fdb9c5bf8adaf370c65446336e9774dc2eefce48adcf9b54ece4a9e7e708aec4e8b9fce33f6cdf720ca50ee7472b54139f636abb402b9b8362fe65f02dc645a716f4cab8d41ed05d702d11a52494509b1e6b09654db33b30df5910ba97a850621971d005043ee210d4c4b15894104bd7b70468b5cff38dd2052a3f90ff2e72f2044eab39a375519cbbda0bee7d5b4b33f32fae170d65bde541225fc429f05f2cc05f726df64320c7f5b9df724c674e190e0dc5eb3041e193f2bac4652bbb62b7975f448f839dbf606d0d52718d8f5fbea2583c00e54d6aa2e1a81b7ce0c010d1d68da9e47d1c1ffb25af3521bbab2045c30476be59b689f8e2e37d8bb9fd455af68b688afc422b6f95226303f072044b1b88732ff5bdbf6e03c90a9adaed7633bde7eff231ac04e42314047c2e5b8360ad2677c4b2429135914a3efd82115192308779cf8c9ec697eb4f94aceb104cc2bf41fa24eb9e8a1a895e134208424095989d986579420931799dc28f881f106586a0001c49b4b4717697e8166d16a421d1b7a022d1c1be84ea2fa86e070d7013f7e0357c5f0bcc685969152a89a1914dd184d7073c7b86ebe3cd0a29adbb8fc58324a5dde5770ce11359b93c1284bdedf432900f9c346558f5f10d2e0b55af2ea0fff6a5a1bea330861c39d5fd297154cb07e8a6ee204c595999b62bef339987744c0d9324190a4d60f13c80de8d0c97bc0a917dd35d438dc1375a886a62aa2e9c04a1ec03f5c5bb83f616d97f170f78906f99b82c4fc69ff6b120a800d3a2c4033c6e3c810f065604979e2c0b5fa4dc7dd2dc9dd8468180ce5772c3c341475c0d3b249ce303399614fed9d414d02df45308a3fe9d7f78ef0b381864f123f5b26132d6d95a9c4d017325767b0cdf65892b61a1c8490b7dcf71b272a3b40787cd7fdcff6000000000000000000000000000000000000000000060d10172022"
+﻿{
+    "version":  "1.0.0",
+    "revision":  "build-1780892571",
+    "generated_at":  "2026-06-08T04:22:51Z",
+    "hash_algorithm":  "SHA-256",
+    "public_key_id":  "66d9bf6e088ef382",
+    "tools":  [
+                  {
+                      "name":  "acp_status",
+                      "description":  "List active ACP credentials and their expiry status",
+                      "risk_class":  "read_only",
+                      "scope":  "acp:read",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "05ad45dda2aed064c726444774a74499f5ed714913c7086e47113d1bf245de03",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  5000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "type":  "object",
+                                          "properties":  {
+
+                                                         }
+                                      }
+                  },
+                  {
+                      "name":  "acp_issue",
+                      "description":  "Issue a new PQC credential via the Agent Control Plane",
+                      "risk_class":  "destructive",
+                      "scope":  "acp:write",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "292858740df7087108a51b10e94dcf2f17e85b9141e7af8fa39cc76d861d9273",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  10000,
+                      "network_allowed":  false,
+                      "destructive":  true,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "agent_id":  {
+                                                                              "description":  "Agent identifier",
+                                                                              "type":  "string"
+                                                                          },
+                                                             "scopes":  {
+                                                                            "items":  {
+                                                                                          "type":  "string"
+                                                                                      },
+                                                                            "type":  "array"
+                                                                        },
+                                                             "symbol":  {
+                                                                            "description":  "Adinkra symbol (default: Nkyinkyim)",
+                                                                            "type":  "string"
+                                                                        },
+                                                             "ttl_minutes":  {
+                                                                                 "description":  "Credential TTL in minutes",
+                                                                                 "type":  "number"
+                                                                             }
+                                                         },
+                                          "required":  [
+                                                           "agent_id"
+                                                       ],
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "acp_revoke",
+                      "description":  "Revoke an active ACP credential",
+                      "risk_class":  "destructive",
+                      "scope":  "acp:write",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "b17d22356b3a4a509dd94334ac763cb7f8311e43175718e5252d08c5cacf2831",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  10000,
+                      "network_allowed":  false,
+                      "destructive":  true,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "credential_id":  {
+                                                                                   "description":  "Credential ID to revoke",
+                                                                                   "type":  "string"
+                                                                               }
+                                                         },
+                                          "required":  [
+                                                           "credential_id"
+                                                       ],
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "nhi_inventory",
+                      "description":  "List all non-human identities (service accounts, API keys, certificates)",
+                      "risk_class":  "read_only",
+                      "scope":  "nhi:read",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "2bf1ccfb842aeb825990eb0d4faf70ab0c681b2cb03b151a212a059b06717ef5",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  5000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "type":  "object",
+                                          "properties":  {
+
+                                                         }
+                                      }
+                  },
+                  {
+                      "name":  "nhi_orphans",
+                      "description":  "Identify orphaned non-human identities with no active owner",
+                      "risk_class":  "read_only",
+                      "scope":  "nhi:read",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "d66c13ac0a9776c0f071362b793ea74860b1d6827a8eeef7dc76684e4fc17bd5",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  5000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "type":  "object",
+                                          "properties":  {
+
+                                                         }
+                                      }
+                  },
+                  {
+                      "name":  "nhi_excessive",
+                      "description":  "Identify NHIs with overly broad permissions",
+                      "risk_class":  "read_only",
+                      "scope":  "nhi:read",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "cb8cbebebf617fd37f2d0fbe0bae03512dc69594c235e8e253c5c45613928488",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  5000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "max_scopes":  {
+                                                                                "description":  "Max scopes before flagging (default: 5)",
+                                                                                "type":  "number"
+                                                                            },
+                                                             "risk_threshold":  {
+                                                                                    "description":  "Min risk score to flag (default: 0.5)",
+                                                                                    "type":  "number"
+                                                                                }
+                                                         },
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "nhi_expired",
+                      "description":  "List expired or soon-to-expire non-human identities",
+                      "risk_class":  "read_only",
+                      "scope":  "nhi:read",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "274041d744f772a884c23a6cef4ba79198b36d6af309e7741c43e76806e471c0",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  5000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "type":  "object",
+                                          "properties":  {
+
+                                                         }
+                                      }
+                  },
+                  {
+                      "name":  "nhi_revoke",
+                      "description":  "Revoke a non-human identity credential",
+                      "risk_class":  "destructive",
+                      "scope":  "nhi:write",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "c85a603c05303421b6c62dc0c5edb708e18ff171206af2cec598b8a349bfaeff",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  10000,
+                      "network_allowed":  false,
+                      "destructive":  true,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "nhi_id":  {
+                                                                            "description":  "NHI identifier to revoke",
+                                                                            "type":  "string"
+                                                                        }
+                                                         },
+                                          "required":  [
+                                                           "nhi_id"
+                                                       ],
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "ert_scan",
+                      "description":  "Run ERT security scan (SBOM, CVE, secrets, STIG, PQC inventory) in Docker sandbox",
+                      "risk_class":  "sandboxed",
+                      "scope":  "ert:scan",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "ba99405a08c399235ff715a30be8c8e84639d77c1b5e4baf910bc7b9207a192a",
+                      "allowed_backend":  "docker",
+                      "timeout_ms":  90000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "framework":  {
+                                                                               "description":  "Compliance framework: CMMC_L2, NIST_800_171, etc.",
+                                                                               "type":  "string"
+                                                                           },
+                                                             "image_ref":  {
+                                                                               "description":  "Container image to scan (overrides project_path)",
+                                                                               "type":  "string"
+                                                                           },
+                                                             "lanes":  {
+                                                                           "description":  "Scan lanes: sca, horus, compliance",
+                                                                           "items":  {
+                                                                                         "type":  "string"
+                                                                                     },
+                                                                           "type":  "array"
+                                                                       },
+                                                             "project_path":  {
+                                                                                  "description":  "Path to project directory",
+                                                                                  "type":  "string"
+                                                                              }
+                                                         },
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "ert_readiness",
+                      "description":  "Package A: NIST 800-171 Rev2 compliance assessment + live SCA risk factor. Returns alignment score (0-100), control gaps, and prioritized remediation roadmap. Air-gap safe.",
+                      "risk_class":  "read_only",
+                      "scope":  "ert:compliance",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "6ae165af5e97a5ffca197584c7ca8b70085c664704e12ba7b6a62c7c296c5b08",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  60000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "project_path":  {
+                                                                                  "description":  "Path to project directory (default: current directory)",
+                                                                                  "type":  "string"
+                                                                              }
+                                                         },
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "ert_architect",
+                      "description":  "Package B: Live supply chain risk ??? Syft SBOM + Grype CVE + CISA KEV/EPSS/MITRE enrichment. Returns findings with NIST 800-171 control mapping. Requires syft+grype in PATH.",
+                      "risk_class":  "read_only",
+                      "scope":  "ert:supply-chain",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "308e12b0d6e2e11c57b9c91e6c8307debd146959007fd5f92facb4ddae2a4769",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  300000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "project_path":  {
+                                                                                  "description":  "Path to project directory (default: current directory)",
+                                                                                  "type":  "string"
+                                                                              }
+                                                         },
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "ert_crypto",
+                      "description":  "Package C: PQC readiness attestation ??? source-level crypto primitive scan, SBOM crypto library inventory, weak primitive detection (MD5/SHA1/DES/RC4), CNSA 2.0 quantum risk context.",
+                      "risk_class":  "read_only",
+                      "scope":  "ert:pqc",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "fab6daa75ddd03d7c1ea595324815b374264157003ae99df9dc91baa17f8a731",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  180000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "project_path":  {
+                                                                                  "description":  "Path to project directory (default: current directory)",
+                                                                                  "type":  "string"
+                                                                              }
+                                                         },
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "ert_godfather",
+                      "description":  "Package D: EA KernelRouter causal risk attestation. Runs STIG, PQC, SBOM, Network agents in parallel, produces board-level causal chain with CVSS-band dollar impact and DAG-signed evidence node.",
+                      "risk_class":  "read_only",
+                      "scope":  "ert:godfather",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "7cfd2d2b1da609c1e9ec7bc09cfa63be1a6e67dd5763ea074934738b401e1f14",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  300000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "project_path":  {
+                                                                                  "description":  "Path to project directory (default: current directory)",
+                                                                                  "type":  "string"
+                                                                              }
+                                                         },
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "dag_attestation",
+                      "description":  "Export the PQC-signed DAG audit trail for the current session. Returns all DAG nodes with ML-DSA-65 signatures, timestamps, and Adinkra symbol chain.",
+                      "risk_class":  "read_only",
+                      "scope":  "dag:read",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "9524d2458d5911f9e40ca2990b9624adc9813695c8cadc0bef6fcf25bd7ab871",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  10000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "type":  "object",
+                                          "properties":  {
+
+                                                         }
+                                      }
+                  },
+                  {
+                      "name":  "godfather_report",
+                      "description":  "Generate a complete CMMC/STIG/NIST compliance report. When approval_required=true, returns a staged token ??? the full report is held until a human calls godfather_approve (30-min TTL).",
+                      "risk_class":  "read_only",
+                      "scope":  "compliance:report",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "204967014a373a01309d8f67b475d1befa91d32cbbf1664d1d6fc4541465e9e0",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  30000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "approval_required":  {
+                                                                                       "description":  "Stage report for human review before delivery (default: false)",
+                                                                                       "type":  "boolean"
+                                                                                   },
+                                                             "engagement_id":  {
+                                                                                   "description":  "Optional engagement/ticket ID for traceability",
+                                                                                   "type":  "string"
+                                                                               },
+                                                             "framework":  {
+                                                                               "description":  "Compliance framework: CMMC-L2, NIST-800-171, NIST-800-53 (default: CMMC-L2)",
+                                                                               "type":  "string"
+                                                                           },
+                                                             "scope":  {
+                                                                           "description":  "Control family scope: all, AC, AU, CM, IA, SC, SI (default: all)",
+                                                                           "type":  "string"
+                                                                       }
+                                                         },
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "godfather_approve",
+                      "description":  "Deliver a staged Godfather Report. Requires the staged_token returned by godfather_report. Single-use ??? token is consumed on delivery.",
+                      "risk_class":  "read_only",
+                      "scope":  "compliance:report",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "b5d6439e8bb1db66a872a6c4bf9da5cdbb9e7efe0567993b2103677d99107371",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  5000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "staged_token":  {
+                                                                                  "description":  "Token returned by godfather_report when approval_required=true",
+                                                                                  "type":  "string"
+                                                                              }
+                                                         },
+                                          "required":  [
+                                                           "staged_token"
+                                                       ],
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "nist_map",
+                      "description":  "Offline semantic search across NIST 800-53 Rev5, NIST 800-171 Rev2, CMMC 2.0, and STIG CCI mappings. BM25 ranked results. Zero token cost, air-gap safe. 36,000+ controls indexed.",
+                      "risk_class":  "read_only",
+                      "scope":  "compliance:read",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "63a0a8f837896e84384160a2bdc4bb825371253423763019451506fa819b9557",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  5000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "framework":  {
+                                                                               "description":  "Filter by framework: NIST-800-53, NIST-800-171, CMMC-L2, STIG (default: all)",
+                                                                               "type":  "string"
+                                                                           },
+                                                             "query":  {
+                                                                           "description":  "Search query (e.g. \u0027multi-factor authentication\u0027, \u0027encryption at rest\u0027)",
+                                                                           "type":  "string"
+                                                                       },
+                                                             "top_k":  {
+                                                                           "description":  "Max results to return (default: 10, max: 50)",
+                                                                           "type":  "number"
+                                                                       }
+                                                         },
+                                          "required":  [
+                                                           "query"
+                                                       ],
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "khepra_watch",
+                      "description":  "Register a filesystem path for continuous STIG-triggered scanning. Fires ert_scan on file changes. Satisfies CMMC AC.2.006, CM.2.061, SI.2.217.",
+                      "risk_class":  "read_only",
+                      "scope":  "compliance:monitor",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "b1fa86ecfd4a13e3ce2492a53c878ed52a623e07e8466524da8da7311ead4006",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  10000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "action":  {
+                                                                            "description":  "Action: register | status | unregister",
+                                                                            "type":  "string"
+                                                                        },
+                                                             "framework":  {
+                                                                               "description":  "Compliance framework for triggered scans",
+                                                                               "type":  "string"
+                                                                           },
+                                                             "path":  {
+                                                                          "description":  "Filesystem path to watch",
+                                                                          "type":  "string"
+                                                                      },
+                                                             "watch_id":  {
+                                                                              "description":  "Watch ID (for status/unregister)",
+                                                                              "type":  "string"
+                                                                          }
+                                                         },
+                                          "required":  [
+                                                           "action"
+                                                       ],
+                                          "type":  "object"
+                                      }
+                  }
+              ],
+    "signature":  "c8ea63a5969da284a3e6a32260b4c91b83f12ea6033e985486c10b372ee0aaf79d0c59d057e7cd82d912c1cd56e7e0688979a392cfcbc62ec13677026b0ea19df58df845e179c5417046c62fdcde75b7e917bafc03431215a9ce226c67a5225ba9070a9ae2ce8c9cf09ff64697d2b88fb99362f2fa2807f006f3c632d43a2022bd4dcbdfdbca75070e6fff195e41d99377f2973fdd9a6e32050b6e27e10fcbce3d30625f5f72ade2a6954bc6dfb5edcf7f3f27f722b57e799c4f4c127b59b3acf5e93ce0f080d9057aadfc0fd8eddb2688fcad997749e532355e56713e0ad0e94d3bb6316cde974985cbaee0ec3aa617ce266a8a39daec8e33c2d79fe45dd31d89b9e34d03b2d8e5ad1d4fad0341731a6d202decb0853213fa9b47bd0133007f9be74f086490311e0e2710ca4530033fca8d9b48a9a6a1706e701f189e84792e7c7d1cff02cd0d45a350b475fd77c041072bd200e652b79d1ae230d865869abe7e4610c09777e8bbd235b161b9eef4ae697f9c17470cb3a55108267cb2c3b74db655021bf977a28aaca0a81b2efe4562edddea902a83cb616ad40dba3d2fd52a2164b81b9202af2790c5ec6c07c0906eb385baf8dff7ebdb0d83ebf15e5a58391fc3457e5a93e5ebf2f28564f3c8ed79444800cd2ee3df16ca40547e79016a46b4030eada69d5ea14a359aa7d5344690e3079e8b47d3ebff2198a6ba0ff83a44b6e8b32fb66e28aba93da26aa5b5f5b5af093779130e72056d24af02ec3a093a8e6367d23bc65af6b05143de0d3c27f0c82c445eacb5aa2f996302eb52f97cbdb881978f45b4d4567d85a82da452a610c7eac74bae6337c9b56bd87589481fdede52684dfaabfb3f9e7dd75e603cf75139c64524d1f3baa91d34696cf780ed894fe87b659181b58e4adf136d59f743f603e62404eba9842d4960e317dfd416988b9bd5f612304ffea04f5591a0ecc88b4d80229ca70330e08f5b2277af81ecdeab6e8c692ada7bfc03eea3a513b151348c58105a614c2fd68454d3f24d683ef066c7fa60e61a5ad2a0061d12b1ce739b4089c445275c8dcc846f37773d93b71b2fd73c9c5de65afd21e84ec95e49ceea3423417f8a0a5164adb82ffc17a93f32353242b06cc1360fd619284a0b79b7f5f24580bab126e0a3ded88a1768a862beeedbdd86fb770973359e6d5a5d1d1b394e1718698b3ff9a834a813def729f969c77c5e0399e7b6488e29e4e61392683723fffb5a899e858448e4365bbaa4fee4faaa2d438fd7d62b8b5ca89b929f1af96068ac918982e04c007f3035e879feac3a7ef63bc8db0c9246766b1549a649822ef2dadb884c5b6d37f14f75b81a005a2a415a31bb75eafe963e80846cf1ff407ae576be8798c507d7ae2b6f9a2031a8f6b5caacff783687399c46a4791f812a3bfc029bb0c532d7d4aebe32fbd267e16171af7ad4a5bbdd498d635d5e997225451e2c36027c7bcaf96a89d8aae88150ae522b9f53045b40e9916945a3da234e70f660db73c5c31fe4f6b5f8d392f46cbf73d33e66e6b7cd5a63ad8f0ef893ba2c252507320dde2770509b3b0523f72a96b8f92f1c952683d36cf9f5b62551c3606eaaf47b86fd3c0e59c405a0ae5dc6fef8f7e380f7e69c849da4474c0aa6485afbc6becddcffd1237cb3db9b098805609e7fa1320e07a8ce29b6b79ea9fddf6c50070b5b98d0b7ee23a7d69495bbb48bf9b8e690fdfbbfa1ed5642543382e0e227f4eba3e0407bda21844ca237e284707f2565ce4cb6c28106e5a4a4d15ff82ef4c4346c817eab2d05c1700423e3b19f9a5e8dfb010cc095d46166860f5edf2e7e6ea2c5a96051f818d5d8ba80023ecc8da9b24b32c6dd21ba76e987e8260ab2f29bef8abb69939ac4ce179f7faf7773edf4050e2e897b9ef76a8a5868c4da0035108404db4dd2417db7b6ee956ea7237efe7773afbeda4ca7100806a1cadd1d47a6af52992007eb227bfaf1002c59095f5aaa5086afbd40cec2745afd053e039ad35dc36953b488e3f7181a873c4b54bb2fffd5d5d33582cb90ad32a95d0808b536a53033b7925e4e0c1250c9b0b85338279b12358bff101e70e50a67158a98f39c7c0a30b1794f146f205e2dc16b3e78b6f0096f49ca805039179102cd9383903e587fc4e3d8483bd5f67af2d09635a535214d14bfddedff695030beee401022fa2a7da9e2dc99ab52df6a68dee7ace9c7b4fa0ea9a4d1791b9fe224319ddb359ed333fd09a95403342e683a2057869df204ae02684298b9687efa07b20b77d18d086dd2757ab57c941407e6d17ffd1d14fe7555d2ec2ed94c758c92bd7c75ec442ab3f0a0c58ba88c8cc334150bedf7aa15d864fb07e5f98126afb0a982b69be456c6d4d6ea0c538e423851b529fefb56ecfc59214ed22480dfc2508ae01a8ef00ddfd16e71dd851a888b292995a96526076070fb2de22f00a85d9b775cb791c8964748d2a24aeacf33f6c40e7262073f3547b9f8cf915be44b27af96c73714a2efc54dbd0b0818f86139ae00dbb1e51df8e9fcdde462830dd1174320f0cde91368aef47c49c9aa8aec44594727b4408aa90c5d933b5009df0ce688c712e7aa6f8d9ce34f02585ff9ac0f7a4bfdb755fe11b50e0a3772cf0f5e36de2848456a218bb994a8c13b8cf50fcba0680b86db0c01ceca0dcc6c779cb0c5487839ce46782642aa353dc89010367c77f3dddc9e611b106e1a7fbec675bbfce57a0df86835b0d7f804eb3f882693c0d8691a3c37505a8119986a2594ef7bcba09346bd8227c7fd0fce9cd69440709394dd9c0bbee84984586066b5001dc0b569b4b825c15816614a6faee01385989ffb4e7c78faf06d6cdc97919330085e9aa28492004a595990568b6c23f9a8a1bd06b948c8ef5b1f740b0a87596e4bc28fae802739855bf56aff706fa856e2f938799ade748df31dd9a1bbaff87673148d038b056a59e3b397f186c2d150aa52b6a9a1c52b1f2ba646a48946cf157759fd1d45f3857eda0ee5468d7969bfcdcb78c76887ad1581040317694ff52bd0938f2a538cd76e70d7e68e313016543874a44499a2d5eee77fa0235651907ba454a3eef73215f07d8879f9c44124d386d1362b194f5c0e2f89114f4dffce52e1cd5c4bf223da4738efd47bb0fbf32bbb74ff11aa0b5457f993079f7b2ba97da8144bea3ae18f2deabc9d38e1bc150f5bb46533b560b16cb004c948048a36a4f452f8a9e048a37533e1fa307b06a3ee3c9cb86c3c4e3d8647b9d9c232457231e7a613b6ca26ca115693e398b38bb829f625a5a704fa82fb414c875cbc1843057c6f5acb105c1d53f436483640b93739a74e071e22bc8b9de0644b907e35d2bebd9287638ac41800152f3fdc97853934291ed2560e0afead19083f33c11eab91e87d6ce67ebb1e1e5593f34b14e5367d0bd8ec2993654d1e5e5bf73ac80316608deb67370619a46cbc294feb4546b37f6912252a06ccad8b4dc2ab9ecc5a1ad5b7989c3a38a44f0f6d6b99e0eb6b6d67c5de5382a0031a271e001ef5231a6be1909b69323044a6be2757f26d4a51ef46ced95bc1ca84dac901c0d76adf9461bcfd682b3a25c456cd10ccaf7c72e57ece61f4d7dc30a356cfd2aec16e413e97148e09cf3be0b24492d7fc854f3560fca70268cc161fd911976e81c276bc6e6acd83baf54118c168b48d219b0d588cdc2b1f8a557f2fdb9c5bf8adaf370c65446336e9774dc2eefce48adcf9b54ece4a9e7e708aec4e8b9fce33f6cdf720ca50ee7472b54139f636abb402b9b8362fe65f02dc645a716f4cab8d41ed05d702d11a52494509b1e6b09654db33b30df5910ba97a850621971d005043ee210d4c4b15894104bd7b70468b5cff38dd2052a3f90ff2e72f2044eab39a375519cbbda0bee7d5b4b33f32fae170d65bde541225fc429f05f2cc05f726df64320c7f5b9df724c674e190e0dc5eb3041e193f2bac4652bbb62b7975f448f839dbf606d0d52718d8f5fbea2583c00e54d6aa2e1a81b7ce0c010d1d68da9e47d1c1ffb25af3521bbab2045c30476be59b689f8e2e37d8bb9fd455af68b688afc422b6f95226303f072044b1b88732ff5bdbf6e03c90a9adaed7633bde7eff231ac04e42314047c2e5b8360ad2677c4b2429135914a3efd82115192308779cf8c9ec697eb4f94aceb104cc2bf41fa24eb9e8a1a895e134208424095989d986579420931799dc28f881f106586a0001c49b4b4717697e8166d16a421d1b7a022d1c1be84ea2fa86e070d7013f7e0357c5f0bcc685969152a89a1914dd184d7073c7b86ebe3cd0a29adbb8fc58324a5dde5770ce11359b93c1284bdedf432900f9c346558f5f10d2e0b55af2ea0fff6a5a1bea330861c39d5fd297154cb07e8a6ee204c595999b62bef339987744c0d9324190a4d60f13c80de8d0c97bc0a917dd35d438dc1375a886a62aa2e9c04a1ec03f5c5bb83f616d97f170f78906f99b82c4fc69ff6b120a800d3a2c4033c6e3c810f065604979e2c0b5fa4dc7dd2dc9dd8468180ce5772c3c341475c0d3b249ce303399614fed9d414d02df45308a3fe9d7f78ef0b381864f123f5b26132d6d95a9c4d017325767b0cdf65892b61a1c8490b7dcf71b272a3b40787cd7fdcff6000000000000000000000000000000000000000000060d10172022"
 }
