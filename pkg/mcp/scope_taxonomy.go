@@ -53,27 +53,46 @@ var knownFrameworks = map[string]bool{
 	"NIST-800-53": true, "NIST-800-53-Rev5": true, "NIST-800-53-Rev4": true,
 	"NIST-800-171": true, "NIST-800-171-Rev2": true, "NIST-800-171-Rev3": true,
 	"NIST-800-172": true,
-	// CMMC
+	// CMMC — canonical forms
 	"CMMC-L1": true, "CMMC-L2": true, "CMMC-L3": true,
 	"CMMC-2.0-L1": true, "CMMC-2.0-L2": true, "CMMC-2.0-L3": true,
+	"CMMC-3.0-L3": true,
+	// CMMC — short-form aliases (used by agents and tool callers)
+	"CMMC": true, "CMMC_L1": true, "CMMC_L2": true, "CMMC_L3": true,
+	"cmmc": true, "cmmc-l1": true, "cmmc-l2": true, "cmmc-l3": true,
 	// STIG baselines
 	"STIG-RHEL-9": true, "STIG-RHEL-8": true, "STIG-RHEL-7": true,
 	"STIG-Ubuntu-22": true, "STIG-Ubuntu-20": true,
 	"STIG-Windows-Server-2022": true, "STIG-Windows-Server-2019": true,
 	"STIG-Kubernetes": true, "STIG-Docker": true,
+	// STIG — short-form aliases
+	"STIG": true, "stig": true,
+	"RHEL-09-STIG-V1R3": true, "RHEL-09-STIG": true,
+	"RHEL-08-STIG-V1R14": true, "RHEL-08-STIG": true,
 	// CIS Benchmarks
 	"CIS-RHEL-9-L1": true, "CIS-RHEL-9-L2": true,
 	"CIS-Ubuntu-22-L1": true, "CIS-Ubuntu-22-L2": true,
 	"CIS-Kubernetes-L1": true, "CIS-Kubernetes-L2": true,
 	// FedRAMP
 	"FedRAMP-HIGH": true, "FedRAMP-MODERATE": true, "FedRAMP-LOW": true,
+	"FedRAMP": true, "fedramp": true,
 	// DoD/IC
 	"DoD-IL2": true, "DoD-IL4": true, "DoD-IL5": true, "DoD-IL6": true,
-	// PQC
+	// PQC — canonical
 	"NIST-PQC-FIPS203": true, "NIST-PQC-FIPS204": true, "NIST-PQC-FIPS205": true,
 	"NSM-10": true, "CISA-PQC": true,
+	// PQC — short-form aliases
+	"PQC-Readiness": true, "PQC": true, "pqc": true, "pqc-readiness": true,
+	// NIST — short-form aliases
+	"NIST": true, "nist": true,
+	"NIST_800_53": true, "NIST_800_171": true,
 	// Generic / wildcard (for summary/discovery tools)
 	"all": true, "auto": true,
+	// Assessment depth profiles (used by owasp_agent_assess, cmmc_assess, ert_readiness, etc.)
+	// These are not compliance frameworks — they're operational assessment modes.
+	"full": true, "quick": true, "executive": true,
+	"standard": true, "deep": true, "summary": true, "detailed": true,
+	"fast": true, "lite": true,
 }
 
 // knownScanLanes is the allow-list for "lanes" array elements in ert_scan.

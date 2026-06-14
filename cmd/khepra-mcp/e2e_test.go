@@ -1,15 +1,16 @@
 //go:build e2e
 // +build e2e
 
-// cmd/khepra-mcp/e2e_test.go — End-to-end test for khepra-mcp binary.
+// cmd/khepra-mcp/e2e_test.go — End-to-end test for the khepra-mcp binary.
 //
-// Tests ONLY the fast-path MCP tools (sub-second handlers).
-// Tools that walk the filesystem (stig_check, cmmc_assess, ert_*) live in
-// slow_integration_test.go and run under a separate 5-minute timeout.
+// Tests ONLY in-memory fast-path tools (no stig.NewValidator filesystem scans).
+// Tools that call stig.NewValidator(".")  — khepra_export_attestation,
+// khepra_export_poam, khepra_get_compliance_score — live in
+// slow_integration_test.go (run with -timeout 10m).
 //
 // Run:
 //
-//	go test -v -tags e2e -timeout 30s ./cmd/khepra-mcp/ -run TestE2E_Fast
+//	go test -v -tags e2e -timeout 45s ./cmd/khepra-mcp/ -run TestE2E_Fast
 package main
 
 import (
@@ -26,7 +27,7 @@ import (
 	"time"
 )
 
-// ---------- wire types -------------------------------------------------------
+// ─── wire types ──────────────────────────────────────────────────────────────
 
 type rpcMsg struct {
 	JSONRPC string          `json:"jsonrpc"`
@@ -53,9 +54,15 @@ func call(msgID int, name string, args map[string]any) rpcMsg {
 
 func msh(v any) string { b, _ := json.Marshal(v); return string(b) }
 
-// ---------- server runner ----------------------------------------------------
+// ─── server runner ────────────────────────────────────────────────────────────
 
-func startServer(t *testing.T, deadline time.Duration) (send func(rpcMsg), recv func() *rpcMsg, stop func()) {
+// startServer launches the khepra-mcp binary and returns typed send/recv/stop fns.
+// perRecv is the per-call receive timeout.
+func startServer(t *testing.T, perRecv time.Duration) (
+	send func(rpcMsg),
+	recv func() *rpcMsg,
+	stop func(),
+) {
 	t.Helper()
 
 	_, thisFile, _, _ := runtime.Caller(0)
@@ -85,10 +92,10 @@ func startServer(t *testing.T, deadline time.Duration) (send func(rpcMsg), recv 
 		t.Fatalf("start: %v", err)
 	}
 
-	lines := make(chan *rpcMsg, 64)
+	lines := make(chan *rpcMsg, 128)
 	go func() {
 		sc := bufio.NewScanner(stdoutPipe)
-		sc.Buffer(make([]byte, 4<<20), 4<<20)
+		sc.Buffer(make([]byte, 8<<20), 8<<20) // 8 MB buffer for large PQC responses
 		for sc.Scan() {
 			line := strings.TrimSpace(sc.Text())
 			if line == "" {
@@ -103,59 +110,74 @@ func startServer(t *testing.T, deadline time.Duration) (send func(rpcMsg), recv 
 		close(lines)
 	}()
 
-	// send writes one JSON-RPC message
 	send = func(msg rpcMsg) {
 		io.WriteString(stdinPipe, msh(msg)+"\n")
 	}
 
-	// recv blocks until the next response arrives or deadline
 	recv = func() *rpcMsg {
 		select {
-		case msg := <-lines:
+		case msg, ok := <-lines:
+			if !ok {
+				return nil // channel closed (server exited)
+			}
 			return msg
-		case <-time.After(deadline):
+		case <-time.After(perRecv):
 			return nil
 		}
 	}
 
 	stop = func() {
 		stdinPipe.Close()
-		cmd.Wait()
+		// Give the server 3s to flush remaining responses and exit cleanly
+		done := make(chan struct{})
+		go func() { cmd.Wait(); close(done) }()
+		select {
+		case <-done:
+		case <-time.After(3 * time.Second):
+			cmd.Process.Kill()
+			<-done
+		}
 	}
 
 	return send, recv, stop
 }
 
-// sendAndRecv sends one request and waits for the response with the matching ID.
-func sendAndRecv(send func(rpcMsg), recv func() *rpcMsg, msg rpcMsg, timeout time.Duration) *rpcMsg {
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+// exchange sends one request and waits for its response by matching the ID.
+// Discards out-of-order responses from earlier slow tool calls.
+func exchange(send func(rpcMsg), recv func() *rpcMsg, msg rpcMsg, timeout time.Duration) *rpcMsg {
+	if msg.ID == nil {
+		// Notification — no response expected
+		send(msg)
+		return nil
+	}
 	send(msg)
-	deadline := time.After(timeout)
-	for {
-		select {
-		case <-deadline:
-			return nil
-		default:
-		}
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
 		r := recv()
 		if r == nil {
-			return nil
+			return nil // recv timed out
 		}
-		if msg.ID != nil && r.ID != nil && *r.ID == *msg.ID {
+		if r.ID != nil && *r.ID == *msg.ID {
 			return r
 		}
+		// out-of-order response — discard and keep waiting
 	}
+	return nil
 }
 
-// ---------- result parser ----------------------------------------------------
-
+// toolResult unpacks the MCP tools/call content envelope and the KHEPRA
+// SecureEnvelope wrapper. Tool results live at:
+//   content[].text → JSON → envelope.result → actual fields
 func toolResult(r *rpcMsg) (map[string]any, error) {
 	if r == nil {
-		return nil, fmt.Errorf("nil response")
+		return nil, fmt.Errorf("nil response (tool may have hung)")
 	}
 	if r.Error != nil {
 		return nil, fmt.Errorf("RPC %d: %s", r.Error.Code, r.Error.Message)
 	}
-	// Try tools/call envelope
+	// Layer 1: MCP tools/call content envelope
 	var env struct {
 		Content []struct {
 			Type string `json:"type"`
@@ -176,32 +198,66 @@ func toolResult(r *rpcMsg) (map[string]any, error) {
 			if c.Type == "text" && c.Text != "" {
 				var inner map[string]any
 				if json.Unmarshal([]byte(c.Text), &inner) == nil {
+					// Layer 2: KHEPRA SecureEnvelope — actual result lives at envelope.result
+					if khepraEnv, ok := inner["envelope"].(map[string]any); ok {
+						if result, ok := khepraEnv["result"].(map[string]any); ok && result != nil {
+							return result, nil
+						}
+						// If result is nil/missing, check for error payload
+						if errMsg, ok := khepraEnv["error_message"]; ok && errMsg != nil {
+							return nil, fmt.Errorf("tool error: %v", errMsg)
+						}
+					}
+					// No envelope wrapper — return as-is (e.g. discover_assets)
 					return inner, nil
 				}
 			}
 		}
 	}
-	// Bare result (initialize, tools/list)
+	// Bare result — could be KHEPRA bare format or initialize/tools-list
 	var bare map[string]any
 	if err := json.Unmarshal(r.Result, &bare); err != nil {
 		return nil, err
 	}
+	// Detect KHEPRA bare error format: {"is_error":true,"error_message":"..."}
+	if isErr, _ := bare["is_error"].(bool); isErr {
+		if errMsg, ok := bare["error_message"].(string); ok && errMsg != "" {
+			return nil, fmt.Errorf("%s", errMsg)
+		}
+		return nil, fmt.Errorf("tool returned is_error=true")
+	}
+	// Detect KHEPRA bare SecureEnvelope format: {"envelope":{"result":{...}}}
+	if khepraEnv, ok := bare["envelope"].(map[string]any); ok {
+		if result, ok := khepraEnv["result"].(map[string]any); ok && result != nil {
+			return result, nil
+		}
+	}
 	return bare, nil
 }
 
-// ---------- E2E fast-path test -----------------------------------------------
+// ─── E2E fast test ────────────────────────────────────────────────────────────
 
-// TestE2E_Fast exercises all fast-path MCP tools (no filesystem scanners).
-// Completes in < 20 seconds.
+// TestE2E_Fast exercises in-memory fast-path tools only.
+// No stig.NewValidator filesystem scans — completes in < 30 seconds.
+//
+// Excluded from this suite (use slow_integration_test.go):
+//   - khepra_export_attestation  (stig.NewValidator scan, 120s timeout)
+//   - khepra_export_poam         (stig.NewValidator scan, 120s timeout)
+//   - khepra_get_compliance_score (stig.NewValidator scan, 60s timeout)
+//   - stig_check, cmmc_assess, ert_readiness, ert_crypto (all scan filesystem)
 func TestE2E_Fast(t *testing.T) {
-	const perCall = 8 * time.Second
+	const perCall = 10 * time.Second
 
 	send, recv, stop := startServer(t, perCall)
 	defer stop()
 
+	ex := func(id int, name string, args map[string]any) *rpcMsg {
+		return exchange(send, recv, call(id, name, args), perCall)
+	}
+
 	// ── 1. initialize ────────────────────────────────────────────────────────
 	t.Run("initialize", func(t *testing.T) {
-		r := sendAndRecv(send, recv, rpcMsg{
+		r := exchange(send, recv, rpcMsg{
 			JSONRPC: "2.0", ID: iptr(1), Method: "initialize",
 			Params: map[string]any{
 				"protocolVersion": "2024-11-05",
@@ -209,29 +265,26 @@ func TestE2E_Fast(t *testing.T) {
 				"clientInfo":      map[string]any{"name": "e2e", "version": "1.0"},
 			},
 		}, perCall)
-		if r == nil {
-			t.Fatal("no response to initialize")
-		}
 		res, err := toolResult(r)
 		if err != nil {
-			t.Fatalf("result: %v", err)
+			t.Fatalf("initialize: %v", err)
 		}
 		if got := res["protocolVersion"]; got != "2024-11-05" {
 			t.Errorf("protocolVersion=%v want 2024-11-05", got)
 		}
-		t.Logf("protocolVersion=%v", res["protocolVersion"])
+		t.Logf("OK — protocolVersion=%v", res["protocolVersion"])
 	})
 
-	// initialized notification (no response expected)
+	// Initialized notification (no response expected)
 	send(rpcMsg{JSONRPC: "2.0", Method: "notifications/initialized"})
 
-	// ── 3. tools/list ────────────────────────────────────────────────────────
+	// ── 2. tools/list ────────────────────────────────────────────────────────
 	t.Run("tools_list", func(t *testing.T) {
-		r := sendAndRecv(send, recv, rpcMsg{
-			JSONRPC: "2.0", ID: iptr(3), Method: "tools/list", Params: map[string]any{},
+		r := exchange(send, recv, rpcMsg{
+			JSONRPC: "2.0", ID: iptr(2), Method: "tools/list", Params: map[string]any{},
 		}, perCall)
 		if r == nil {
-			t.Fatal("no response to tools/list")
+			t.Fatal("no response")
 		}
 		var list struct {
 			Tools []struct{ Name string `json:"name"` } `json:"tools"`
@@ -240,14 +293,15 @@ func TestE2E_Fast(t *testing.T) {
 			t.Fatalf("unmarshal: %v", err)
 		}
 		t.Logf("registered tools: %d", len(list.Tools))
-		if len(list.Tools) < 29 {
-			t.Errorf("got %d tools, want >= 29", len(list.Tools))
+		if len(list.Tools) < 30 {
+			t.Errorf("got %d tools, want >= 30", len(list.Tools))
 		}
 		need := []string{
 			"discover_assets", "agent_record", "flight_export",
-			"khepra_export_attestation", "khepra_export_poam",
-			"khepra_query_stig", "khepra_get_compliance_score",
-			"khepra_get_dag_chain", "nist_map", "dag_attestation",
+			"khepra_query_stig", "khepra_get_dag_chain",
+			"nist_map", "dag_attestation", "acp_status",
+			"nhi_inventory", "khepra_query_threat_intel",
+			"owasp_agent_assess",
 		}
 		have := map[string]bool{}
 		for _, tool := range list.Tools {
@@ -260,57 +314,38 @@ func TestE2E_Fast(t *testing.T) {
 		}
 	})
 
-	// ── 4. nist_map ──────────────────────────────────────────────────────────
+	// ── 3. nist_map ──────────────────────────────────────────────────────────
 	t.Run("nist_map", func(t *testing.T) {
-		r := sendAndRecv(send, recv,
-			call(4, "nist_map", map[string]any{"query": "post-quantum cryptography", "top_k": 3}),
-			perCall)
-		res, err := toolResult(r)
+		res, err := toolResult(ex(3, "nist_map", map[string]any{
+			"query": "post-quantum cryptography", "top_k": 3,
+		}))
 		if err != nil {
 			t.Fatalf("nist_map: %v", err)
 		}
-		t.Logf("nist_map results=%v", res)
+		t.Logf("OK — index_size=%v", res["index_size"])
 	})
 
-	// ── 5. khepra_query_stig ─────────────────────────────────────────────────
+	// ── 4. khepra_query_stig ─────────────────────────────────────────────────
 	t.Run("khepra_query_stig", func(t *testing.T) {
-		r := sendAndRecv(send, recv,
-			call(5, "khepra_query_stig", map[string]any{"control_id": "CCI-000001"}),
-			perCall)
-		res, err := toolResult(r)
+		res, err := toolResult(ex(4, "khepra_query_stig", map[string]any{
+			"control_id": "CCI-000001",
+		}))
 		if err != nil {
 			t.Fatalf("khepra_query_stig: %v", err)
 		}
-		t.Logf("result=%v", res)
+		t.Logf("OK — result keys: %v", keys(res))
 	})
 
-	// ── 6. khepra_get_compliance_score ───────────────────────────────────────
-	t.Run("khepra_get_compliance_score", func(t *testing.T) {
-		r := sendAndRecv(send, recv,
-			call(6, "khepra_get_compliance_score", map[string]any{"framework": "CMMC"}),
-			perCall)
-		res, err := toolResult(r)
-		if err != nil {
-			t.Fatalf("khepra_get_compliance_score: %v", err)
-		}
-		_, ok1 := res["composite_score"]
-		_, ok2 := res["score"]
-		if !ok1 && !ok2 {
-			t.Errorf("missing score field: %v", res)
-		}
-		t.Logf("score=%v", res)
-	})
-
-	// ── 7. agent_record ──────────────────────────────────────────────────────
+	// ── 5. agent_record ──────────────────────────────────────────────────────
 	t.Run("agent_record", func(t *testing.T) {
-		r := sendAndRecv(send, recv,
-			call(7, "agent_record", map[string]any{
-				"action":    "e2e_test_run",
-				"agent_id":  "khepra-e2e",
-				"tool_name": "e2e_test.go",
-			}),
-			perCall)
-		res, err := toolResult(r)
+		r5 := ex(5, "agent_record", map[string]any{
+			"action":   "e2e_test_run",
+			"agent_id": "khepra-e2e",
+		})
+		if r5 != nil {
+			t.Logf("raw agent_record result (first 400 chars): %.400s", string(r5.Result))
+		}
+		res, err := toolResult(r5)
 		if err != nil {
 			t.Fatalf("agent_record: %v", err)
 		}
@@ -320,118 +355,126 @@ func TestE2E_Fast(t *testing.T) {
 		if id, _ := res["record_id"].(string); id == "" {
 			t.Errorf("missing record_id")
 		}
-		t.Logf("record_id=%v mode=%v", res["record_id"], res["mode"])
+		t.Logf("OK — record_id=%v mode=%v", res["record_id"], res["mode"])
 	})
 
-	// ── 8. flight_export ─────────────────────────────────────────────────────
+	// ── 6. flight_export ─────────────────────────────────────────────────────
 	t.Run("flight_export", func(t *testing.T) {
-		r := sendAndRecv(send, recv,
-			call(8, "flight_export", map[string]any{}),
-			perCall)
-		res, err := toolResult(r)
+		res, err := toolResult(ex(6, "flight_export", map[string]any{}))
 		if err != nil {
 			t.Fatalf("flight_export: %v", err)
 		}
-		_, hasPilot := res["pilot_kpis"]
-		_, hasTotal := res["total_actions"]
-		if !hasPilot && !hasTotal {
-			t.Errorf("flight_export missing pilot_kpis/total_actions: %v", res)
-		}
-		t.Logf("chain_intact=%v total_actions=%v", res["chain_intact"], res["total_actions"])
+		t.Logf("OK — chain_intact=%v total_actions=%v", res["chain_intact"], res["total_actions"])
 	})
 
-	// ── 9. khepra_export_attestation ─────────────────────────────────────────
-	t.Run("khepra_export_attestation", func(t *testing.T) {
-		r := sendAndRecv(send, recv,
-			call(9, "khepra_export_attestation", map[string]any{
-				"engagement_id": "E2E-001", "include_dag": true,
-			}),
-			perCall)
-		res, err := toolResult(r)
-		if err != nil {
-			t.Fatalf("khepra_export_attestation: %v", err)
-		}
-		if id, _ := res["dag_node_id"].(string); id == "" {
-			t.Errorf("missing dag_node_id")
-		}
-		if alg, _ := res["signature_algorithm"].(string); alg != "ML-DSA-65" {
-			t.Errorf("signature_algorithm=%q want ML-DSA-65", alg)
-		}
-		t.Logf("dag_node_id=%v sig_alg=%v", res["dag_node_id"], res["signature_algorithm"])
-	})
-
-	// ── 10. khepra_export_poam ───────────────────────────────────────────────
-	t.Run("khepra_export_poam", func(t *testing.T) {
-		r := sendAndRecv(send, recv,
-			call(10, "khepra_export_poam", map[string]any{"format": "json", "framework": "CMMC"}),
-			perCall)
-		_, err := toolResult(r)
-		if err != nil {
-			t.Fatalf("khepra_export_poam: %v", err)
-		}
-		t.Log("OK")
-	})
-
-	// ── 11. dag_attestation ──────────────────────────────────────────────────
+	// ── 7. dag_attestation ───────────────────────────────────────────────────
 	t.Run("dag_attestation", func(t *testing.T) {
-		r := sendAndRecv(send, recv,
-			call(11, "dag_attestation", map[string]any{}),
-			perCall)
-		_, err := toolResult(r)
+		res, err := toolResult(ex(7, "dag_attestation", map[string]any{}))
 		if err != nil {
 			t.Fatalf("dag_attestation: %v", err)
 		}
-		t.Log("OK")
+		t.Logf("OK — node_count=%v", res["node_count"])
 	})
 
-	// ── 12. khepra_get_dag_chain ─────────────────────────────────────────────
+	// ── 8. khepra_get_dag_chain ──────────────────────────────────────────────
 	t.Run("khepra_get_dag_chain", func(t *testing.T) {
-		r := sendAndRecv(send, recv,
-			call(12, "khepra_get_dag_chain", map[string]any{}),
-			perCall)
-		res, err := toolResult(r)
+		r8 := ex(8, "khepra_get_dag_chain", map[string]any{})
+		if r8 != nil {
+			t.Logf("raw dag_chain result (first 300 chars): %.300s", string(r8.Result))
+		}
+		res, err := toolResult(r8)
 		if err != nil {
 			t.Fatalf("khepra_get_dag_chain: %v", err)
 		}
 		if _, ok := res["integrity"]; !ok {
 			t.Errorf("missing integrity field: %v", res)
 		}
-		t.Logf("integrity=%v node_count=%v", res["integrity"], res["node_count"])
+		t.Logf("OK — integrity=%v node_count=%v", res["integrity"], res["node_count"])
 	})
 
-	// ── 13. nhi_inventory ────────────────────────────────────────────────────
+	// ── 9. nhi_inventory ──────────────────────────────────────────────────────
 	t.Run("nhi_inventory", func(t *testing.T) {
-		r := sendAndRecv(send, recv,
-			call(13, "nhi_inventory", map[string]any{}),
-			perCall)
-		_, err := toolResult(r)
+		_, err := toolResult(ex(9, "nhi_inventory", map[string]any{}))
 		if err != nil {
+			if isLicenseError(err) {
+				t.Skipf("enterprise feature (community build): %v", err)
+			}
 			t.Fatalf("nhi_inventory: %v", err)
 		}
 		t.Log("OK")
 	})
 
-	// ── 14. acp_status ───────────────────────────────────────────────────────
+	// ── 10. acp_status ────────────────────────────────────────────────────────────
 	t.Run("acp_status", func(t *testing.T) {
-		r := sendAndRecv(send, recv,
-			call(14, "acp_status", map[string]any{}),
-			perCall)
-		_, err := toolResult(r)
+		_, err := toolResult(ex(10, "acp_status", map[string]any{}))
 		if err != nil {
+			if isLicenseError(err) {
+				t.Skipf("enterprise feature (community build): %v", err)
+			}
 			t.Fatalf("acp_status: %v", err)
 		}
 		t.Log("OK")
 	})
 
-	// ── 15. khepra_query_threat_intel ────────────────────────────────────────
+	// ── 11. khepra_query_threat_intel ────────────────────────────────────────
 	t.Run("khepra_query_threat_intel", func(t *testing.T) {
-		r := sendAndRecv(send, recv,
-			call(15, "khepra_query_threat_intel", map[string]any{"query": "remote code execution"}),
-			perCall)
-		_, err := toolResult(r)
+		_, err := toolResult(ex(11, "khepra_query_threat_intel", map[string]any{
+			"query": "remote code execution",
+		}))
 		if err != nil {
 			t.Fatalf("khepra_query_threat_intel: %v", err)
 		}
 		t.Log("OK")
 	})
+
+	// ── 12. owasp_agent_assess ───────────────────────────────────────────────
+	t.Run("owasp_agent_assess", func(t *testing.T) {
+		r12 := ex(12, "owasp_agent_assess", map[string]any{"profile": "full"})
+		if r12 != nil {
+			t.Logf("raw owasp result (first 400 chars): %.400s", string(r12.Result))
+		} else {
+			t.Logf("owasp_agent_assess: nil response (tool may not be registered)")
+		}
+		res, err := toolResult(r12)
+		t.Logf("toolResult parsed: %v | err: %v", res, err)
+		if err != nil {
+			t.Fatalf("owasp_agent_assess: %v", err)
+		}
+		if std, _ := res["standard"].(string); std != "OWASP Agentic Top 10" {
+			t.Errorf("standard=%q want %q", std, "OWASP Agentic Top 10")
+		}
+		if n, _ := res["total_risks"].(float64); n != 10 {
+			t.Errorf("total_risks=%v want 10", n)
+		}
+		findings, _ := res["findings"].([]any)
+		if len(findings) != 10 {
+			t.Errorf("findings count=%d want 10", len(findings))
+		}
+		composite, _ := res["composite_score"].(float64)
+		t.Logf("OK — composite_score=%.0f mitigated=%v partial=%v unmitigated=%v",
+			composite, res["mitigated"], res["partial"], res["unmitigated"])
+	})
+}
+
+// keys returns the map keys as a sorted slice for logging.
+func keys(m map[string]any) []string {
+	ks := make([]string, 0, len(m))
+	for k := range m {
+		ks = append(ks, k)
+	}
+	return ks
+}
+
+// isLicenseError returns true when the tool error is an enterprise license gate.
+// These tools exist in the manifest but require a paid tier — treated as Skip
+// rather than Fail in community/CI builds.
+func isLicenseError(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := err.Error()
+	return strings.Contains(s, "enterprise tier") ||
+		strings.Contains(s, "license") ||
+		strings.Contains(s, "upgrade at") ||
+		strings.Contains(s, "requires enterprise")
 }

@@ -278,10 +278,20 @@ func (a *DAGAttestor) Append(ctx context.Context, toolName string, input []byte,
 	inputHash := sha256.Sum256(input)
 	outputHash := sha256.Sum256(output)
 
+	// Chain to previous node if it exists.
+	// IMPORTANT: parents must be set on the node BEFORE calling Sign() or
+	// ComputeHash(), because the content hash includes the parent list.
+	// Setting parents after hashing causes a mismatch in dag.Add().
+	var parents []string
+	if a.lastNodeID != "" {
+		parents = append(parents, a.lastNodeID)
+	}
+
 	node := &dag.Node{
-		Action: fmt.Sprintf("mcp:tool:%s", toolName),
-		Symbol: a.Symbol,
-		Time:   time.Now().UTC().Format(time.RFC3339),
+		Action:  fmt.Sprintf("mcp:tool:%s", toolName),
+		Symbol:  a.Symbol,
+		Time:    time.Now().UTC().Format(time.RFC3339),
+		Parents: parents, // set here so ComputeHash() includes them
 		PQC: map[string]string{
 			"input_hash":  hex.EncodeToString(inputHash[:]),
 			"output_hash": hex.EncodeToString(outputHash[:]),
@@ -289,13 +299,7 @@ func (a *DAGAttestor) Append(ctx context.Context, toolName string, input []byte,
 		},
 	}
 
-	// Chain to previous node if it exists
-	var parents []string
-	if a.lastNodeID != "" {
-		parents = append(parents, a.lastNodeID)
-	}
-
-	// Sign the node
+	// Sign: ID is computed inside Sign() — parents already set above.
 	if len(a.PrivateKey) > 0 {
 		if err := node.Sign(a.PrivateKey); err != nil {
 			return "", fmt.Errorf("attestor: sign failed: %w", err)
@@ -305,8 +309,8 @@ func (a *DAGAttestor) Append(ctx context.Context, toolName string, input []byte,
 		node.Hash = node.ID
 	}
 
-	// Add to DAG
-	if err := a.Store.Add(node, parents); err != nil {
+	// Add to DAG — pass nil parents since they're already on the node.
+	if err := a.Store.Add(node, nil); err != nil {
 		return "", fmt.Errorf("attestor: DAG append failed: %w", err)
 	}
 
