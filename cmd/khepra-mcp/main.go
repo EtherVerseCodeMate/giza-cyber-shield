@@ -341,6 +341,12 @@ func registerToolHandlers(executor *khepramcp.Executor) {
 	// CMMC AC.2.006, CM.2.061, SI.2.217 continuous monitoring requirement
 	executor.RegisterFunc("khepra_watch", tools.HandleKhepraWatchTool)
 
+	// ── SouHimBou AI: Step 01 — Discover & Classify Assets ──────────────────
+	// Inventories environment: OS, runtimes, containers, CI/CD, AI agents,
+	// crypto libs, MCP configs → matches applicable STIG profiles → recommends
+	// CMMC level → suggests next tools (Step 02 handoff)
+	executor.RegisterFunc("discover_assets", tools.HandleDiscoverAssets)
+
 	// ── Compliance Tools (Architecture Doc Layer 4 — PQC-MCP exposures) ───
 	// Gap-closure: these were listed in KHEPRA_Four_Layer_Architecture_v1.docx
 	// but were not previously registered. NSA/ASD audit-gap fix.
@@ -350,7 +356,6 @@ func registerToolHandlers(executor *khepramcp.Executor) {
 	// cmmc_assess — CMMC Level 1/2/3 assessment via pkg/stig Validator
 	executor.RegisterFunc("cmmc_assess", tools.HandleCMMCAssess)
 	// agent_record — Layer 4→3 bridge: SouHimBou AI Flight Recorder
-	//                Sovereign fallback: local PQC-signed DAG audit log
 	executor.RegisterFunc("agent_record", tools.HandleAgentRecord)
 
 	// ── Sovereign Tools (no Supabase, no network — 100% offline) ───────────
@@ -840,6 +845,23 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			AllowedBackend: "in-process", TimeoutMs: 10000,
 			MaxPrivilege: "read-only",
 			ArgsSchema: noArgSchema,
+		},
+
+		// SouHimBou AI Step 01 — Discover & Classify
+		{
+			Name:        "discover_assets",
+			Description: "SouHimBou AI Step 01 — Discover & Classify Assets. Walks the project or system root and automatically inventories: OS (via /etc/os-release), language runtimes (Go, Python, Node.js, Java, Rust), container images (Dockerfile FROM directives), CI/CD pipelines, IaC (Terraform, Ansible), AI agent integrations (Claude, OpenAI, LangChain), MCP server configs, secret stores, and cryptographic libraries. Matches detected assets to applicable STIG profiles (RHEL-09-STIG-V1R3, Container STIG, CNSA 2.0 PQC, AI-Agent-MCP-SEC). Recommends CMMC level (L1/L2/L3) and generates a prioritized list of next tools to run. Output feeds directly into stig_check, cmmc_assess, ert_crypto, ert_architect, and flight_export.",
+			RiskClass: khepramcp.RiskReadOnly, Scope: "compliance:read",
+			SchemaVersion: "1.0.0", SchemaHash: hash("discover_assets"),
+			AllowedBackend: "in-process", TimeoutMs: 30000,
+			MaxPrivilege: "read-only",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"project_path": map[string]any{"type": "string", "description": "Root path to scan (default: current directory)"},
+					"depth":        map[string]any{"type": "integer", "description": "Max filesystem depth to walk (default: 4)"},
+				},
+			},
 		},
 
 		// SouHimBou AI Step 01 — Discover & Classify: agent_record

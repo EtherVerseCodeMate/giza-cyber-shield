@@ -1,6 +1,6 @@
 module github.com/EtherVerseCodeMate/giza-cyber-shield
 
-go 1.26.3
+go 1.25.5
 
 require (
 	github.com/anchore/clio v0.1.0

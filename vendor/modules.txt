@@ -244,7 +244,7 @@ github.com/anchore/go-sync
 ## explicit; go 1.14
 github.com/anchore/go-version
 # github.com/anchore/grype v0.112.0
-## explicit; go 1.25.8
+## explicit; go 1.25.5
 github.com/anchore/grype/grype
 github.com/anchore/grype/grype/db/internal/gormadapter
 github.com/anchore/grype/grype/db/v5/namespace
@@ -306,7 +306,7 @@ github.com/anchore/grype/internal/stringutil
 ## explicit; go 1.25.0
 github.com/anchore/packageurl-go
 # github.com/anchore/stereoscope v0.1.23
-## explicit; go 1.25.6
+## explicit; go 1.25.5
 github.com/anchore/stereoscope
 github.com/anchore/stereoscope/internal/bus
 github.com/anchore/stereoscope/internal/containerd
@@ -326,7 +326,7 @@ github.com/anchore/stereoscope/pkg/image/sif
 github.com/anchore/stereoscope/pkg/tree
 github.com/anchore/stereoscope/pkg/tree/node
 # github.com/anchore/syft v1.44.0
-## explicit; go 1.25.8
+## explicit; go 1.25.5
 github.com/anchore/syft/internal
 github.com/anchore/syft/internal/bus
 github.com/anchore/syft/internal/cache
@@ -1357,7 +1357,7 @@ github.com/hashicorp/errwrap
 ## explicit; go 1.13
 github.com/hashicorp/go-cleanhttp
 # github.com/hashicorp/go-getter v1.8.6
-## explicit; go 1.25.8
+## explicit; go 1.25.5
 github.com/hashicorp/go-getter
 github.com/hashicorp/go-getter/helper/url
 # github.com/hashicorp/go-multierror v1.1.1
@@ -1694,7 +1694,7 @@ github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/go-selinux/label
 github.com/opencontainers/selinux/pkg/pwalkdir
 # github.com/openvex/go-vex v0.2.8
-## explicit; go 1.25.8
+## explicit; go 1.25.5
 github.com/openvex/go-vex/pkg/csaf
 github.com/openvex/go-vex/pkg/vex
 # github.com/package-url/packageurl-go v0.1.5
@@ -1896,7 +1896,7 @@ github.com/spiffe/go-spiffe/v2/spiffeid
 ## explicit; go 1.18
 github.com/subosito/gotenv
 # github.com/sylabs/sif/v2 v2.24.0
-## explicit; go 1.25.6
+## explicit; go 1.25.5
 github.com/sylabs/sif/v2/pkg/sif
 # github.com/sylabs/squashfs v1.0.6
 ## explicit; go 1.24.0
