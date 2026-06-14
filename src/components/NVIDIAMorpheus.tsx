@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+
 import { Button } from "@/components/ui/button";
-import { Cpu, Shield, Brain, TrendingUp, CheckCircle, AlertTriangle, Zap, RefreshCw } from "lucide-react";
+import { Cpu, Shield, Brain, TrendingUp, CheckCircle, AlertTriangle, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useToast } from "@/hooks/use-toast";

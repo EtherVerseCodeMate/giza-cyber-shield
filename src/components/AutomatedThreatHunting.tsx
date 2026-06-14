@@ -4,13 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Progress } from '@/components/ui/progress';
+
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  Search, Shield, Mail, Target, TrendingUp, Clock, CheckCircle,
-  AlertTriangle, ExternalLink, Database, Zap, Bot, Play, Pause
-} from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { Search, Mail, TrendingUp, Clock, CheckCircle, AlertTriangle, ExternalLink, Database, Bot, Play, Pause } from 'lucide-react';
+
 import { useToast } from '@/hooks/use-toast';
 import { useThreatIntelligence } from '@/hooks/useThreatIntelligence';
 

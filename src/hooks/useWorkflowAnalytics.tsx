@@ -69,7 +69,7 @@ export const useWorkflowAnalytics = () => {
     const recentEvents = eventData.slice(-20);
     const actionSequences = extractActionSequences(recentEvents);
     const spatialPatterns = analyzeSpatialBehavior(recentEvents);
-    const temporalPatterns = analyzeTemporalBehavior(recentEvents);
+    const _temporalPatterns = analyzeTemporalBehavior(recentEvents);
 
     const newPatterns: WorkflowPattern[] = [];
 

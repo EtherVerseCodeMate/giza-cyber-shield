@@ -5,10 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { 
-  Globe, TrendingUp, AlertTriangle, Brain, Eye, Sparkles,
-  Shield, Target, Zap, Activity, RefreshCw
-} from 'lucide-react';
+import { TrendingUp, AlertTriangle, Brain, Eye, Sparkles, Target, Zap, Activity, RefreshCw } from 'lucide-react';
 import { CulturalThreatTaxonomy, SymbolicThreatAnalysis } from '@/khepra/taxonomy/CulturalThreatTaxonomy';
 import { AdinkraSymbolDisplay } from './AdinkraSymbolDisplay';
 import { useThreatIntelligence } from '@/hooks/useThreatIntelligence';

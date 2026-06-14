@@ -200,7 +200,7 @@ export const useIntegrations = () => {
   const addIntegration = async (template: IntegrationTemplate, config: Record<string, string>) => {
     try {
       // Call the appropriate integration function based on template type
-      let result;
+      let _result;
 
       if (template.id === 'splunk') {
         result = await supabase.functions.invoke('siem-integration', {

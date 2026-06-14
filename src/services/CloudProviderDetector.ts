@@ -45,7 +45,7 @@ export class CloudProviderDetector {
     let confidence = 0;
 
     // Check for AWS-specific environment indicators
-    const awsIndicators = [
+    const _awsIndicators = [
       'AWS_REGION',
       'AWS_DEFAULT_REGION',
       'AWS_EXECUTION_ENV',

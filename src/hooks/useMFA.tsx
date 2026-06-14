@@ -179,7 +179,7 @@ export const useMFA = () => {
       console.log('Challenge created:', challengeData.id);
 
       // Verify the code
-      const { data: verifyData, error: verifyError } = await supabase.auth.mfa.verify({
+      const { data: _verifyData, error: verifyError } = await supabase.auth.mfa.verify({
         factorId: state.enrollmentData.factorId,
         challengeId: challengeData.id,
         code: code.trim()

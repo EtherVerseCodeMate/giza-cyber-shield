@@ -5,18 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { 
-  Shield, 
-  Smartphone, 
-  Key, 
-  AlertTriangle, 
-  CheckCircle2,
-  Clock,
-  MapPin,
-  Monitor,
-  Trash2,
-  Plus
-} from 'lucide-react';
+import { Shield, Key, AlertTriangle, Clock, MapPin, Monitor, Trash2, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Shield, Eye, Server, Zap, CheckCircle, AlertTriangle, Activity, RefreshCw } from "lucide-react";
+import { Shield, Eye, Server, CheckCircle, AlertTriangle, Activity, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useToast } from "@/hooks/use-toast";
@@ -103,7 +103,7 @@ export const DOCAArgus = () => {
     }
   };
 
-  const getStatusColor = (status: string, threats: number) => {
+  const _getStatusColor = (status: string, threats: number) => {
     if (status === "protected" && threats === 0) {
       return "text-green-400";
     } else if (status === "protected" && threats > 0) {

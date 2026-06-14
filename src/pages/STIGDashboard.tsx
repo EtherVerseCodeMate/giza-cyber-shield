@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { ConsoleLayout } from '@/components/console/ConsoleLayout';
 import { MVP1Dashboard } from '@/components/compliance/MVP1Dashboard';
 import { DashboardToggle } from '@/components/DashboardToggle';

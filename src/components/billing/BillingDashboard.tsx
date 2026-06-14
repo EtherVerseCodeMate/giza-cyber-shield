@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, Crown, Zap, Building2, RefreshCw, Clock, CheckCircle, CreditCard, BarChart3 } from "lucide-react";
+import { Crown, Zap, Building2, RefreshCw, CheckCircle, CreditCard, BarChart3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { useSubscription } from "@/hooks/useSubscription";

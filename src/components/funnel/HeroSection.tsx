@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Shield, Server, Lock } from 'lucide-react';
+import { Server, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const HeroSection = () => {

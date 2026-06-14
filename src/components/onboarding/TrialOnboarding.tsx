@@ -29,7 +29,7 @@ interface OnboardingStep {
 }
 
 export const TrialOnboarding = () => {
-  const { trialStatus } = useTrialStatus();
+  const { _trialStatus } = useTrialStatus();
   const { trackFeatureAccess } = useUsageTracker();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
