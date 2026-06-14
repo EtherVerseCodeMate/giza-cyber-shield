@@ -780,4 +780,31 @@
       }
     }
   }
+,
+  {
+    "name":           "pqc_stig",
+    "description":    "World's First DoD PQC Security Technical Implementation Guide (PQC-01-STIG-V1R1). Runs 12 PQC-specific STIG controls exclusively — FIPS 203 (ML-KEM/Kyber), FIPS 204 (ML-DSA/Dilithium), FIPS 205 (SLH-DSA/SPHINCS+). Aligned to NSA CNSA 2.0. DISA has no PQC STIG as of mid-2026; this fills that gap for DoD contractors, C3PAOs, and FedRAMP system owners. CAT I: algorithm approval + key strength (ML-DSA-65 / ML-KEM-768 minimums). CAT II: hybrid crypto, key protection, constant-time implementation, PQC certificates. CAT III: audit logging, key rotation documentation, full-stack PQC coverage. Returns structured compliance score, CNSA 2.0 control mapping, migration timeline, and immediate remediation actions. Profiles: full (all 12 controls), quick (CAT I failures only), executive (summary stats). PHARAOH TIER: requires Enterprise license key.",
+    "risk_class":     "read_only",
+    "scope":          "compliance:read",
+    "schema_version": "1.0.0",
+    "schema_hash":    "pqc01f2a5d8b1e4c7f0a3d6e9b2c5f8a1d4e7b0c3f6a9d2e5b8c1f4a7d0e3",
+    "allowed_backend":"in-process",
+    "timeout_ms":     20000,
+    "network_allowed":false,
+    "destructive":    false,
+    "tier":           "community",
+    "args_schema": {
+      "type": "object",
+      "properties": {
+        "scan_path": {
+          "type": "string",
+          "description": "Path to the source code directory to assess (default: current directory). Relative to the project root. Examples: '.', 'pkg/', 'src/crypto/'. NOT an OS target \u2014 use stig_check for OS STIG assessments."
+        },
+        "profile": {
+          "type": "string",
+          "description": "Assessment profile: full (all 12 controls, default) | quick (CAT I failures only) | executive (summary stats, no per-finding detail)."
+        }
+      }
+    }
+  }
 ]}

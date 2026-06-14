@@ -353,6 +353,8 @@ func registerToolHandlers(executor *khepramcp.Executor) {
 	//
 	// stig_check  — RHEL-09-STIG V1R3 check via pkg/stig Validator
 	executor.RegisterFunc("stig_check", tools.HandleSTIGCheck)
+	// pqc_stig — World's First DoD PQC STIG (PQC-01-STIG-V1R1, CNSA 2.0 / FIPS 203/204/205)
+	executor.RegisterFunc("pqc_stig", tools.HandlePQCSTIG)
 	// cmmc_assess — CMMC Level 1/2/3 assessment via pkg/stig Validator
 	executor.RegisterFunc("cmmc_assess", tools.HandleCMMCAssess)
 	// agent_record — Layer 4→3 bridge: SouHimBou AI Flight Recorder

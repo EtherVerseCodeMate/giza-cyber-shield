@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -547,11 +548,47 @@ func (v *Validator) checkPQC_030030(result *ValidationResult, checker *SystemChe
 }
 
 // ── Source Scanning Helpers ───────────────────────────────────────────────────
+//
+// PERFORMANCE: Each PQC-01-STIG-V1R1 check historically called scanSourceContainsAny
+// independently, causing 20+ filepath.Walk calls across the target directory.
+// On large projects (e.g., the full khepra-protocol tree) this took 10-30 seconds.
+//
+// Fix: pqcDirCache reads all source files ONCE and stores the concatenated
+// content in memory. All subsequent scan calls are pure string searches — O(n)
+// in content size, not O(n × directory_walks).
 
-// scanSourceForAlgorithms checks for approved and deprecated PQC algorithm names.
-func scanSourceForAlgorithms(dir string, approved, deprecated []string) (hasApproved, hasDeprecated bool, deprecatedFound []string) {
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+// pqcDirEntry holds a pre-built scan of a target directory.
+type pqcDirEntry struct {
+	lower     string   // all source content concatenated, lowercased
+	raw       string   // all source content, original case
+	certFiles []string // .pem/.crt/.cer/.cert files found
+}
+
+// pqcDirCache maps absolute dir paths to pre-built scan entries.
+var pqcDirCache sync.Map
+
+// getPQCDirEntry returns the cached entry for dir, building it on first access.
+func getPQCDirEntry(dir string) *pqcDirEntry {
+	if v, ok := pqcDirCache.Load(dir); ok {
+		return v.(*pqcDirEntry)
+	}
+	e := buildPQCDirEntry(dir)
+	pqcDirCache.Store(dir, e)
+	return e
+}
+
+// buildPQCDirEntry walks dir ONCE and concatenates all source file content.
+func buildPQCDirEntry(dir string) *pqcDirEntry {
+	var rawBuf strings.Builder
+	var certFiles []string
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error { //nolint:errcheck
 		if err != nil || info == nil || info.IsDir() {
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(path))
+		switch ext {
+		case ".pem", ".crt", ".cer", ".cert":
+			certFiles = append(certFiles, path)
 			return nil
 		}
 		if !isSourceFile(path) {
@@ -561,77 +598,65 @@ func scanSourceForAlgorithms(dir string, approved, deprecated []string) (hasAppr
 		if err != nil {
 			return nil
 		}
-		content := strings.ToLower(string(data))
-		for _, a := range approved {
-			if strings.Contains(content, strings.ToLower(a)) {
-				hasApproved = true
-			}
-		}
-		for _, d := range deprecated {
-			if strings.Contains(content, strings.ToLower(d)) {
-				hasDeprecated = true
-				deprecatedFound = append(deprecatedFound, d)
-			}
-		}
+		rawBuf.Write(data)
+		rawBuf.WriteByte('\n')
 		return nil
 	})
+	raw := rawBuf.String()
+	return &pqcDirEntry{
+		lower:     strings.ToLower(raw),
+		raw:       raw,
+		certFiles: certFiles,
+	}
+}
+
+// scanSourceForAlgorithms checks for approved and deprecated PQC algorithm names.
+// Uses pqcDirCache — O(1) walks after first call for a given dir.
+func scanSourceForAlgorithms(dir string, approved, deprecated []string) (hasApproved, hasDeprecated bool, deprecatedFound []string) {
+	e := getPQCDirEntry(dir)
+	for _, a := range approved {
+		if strings.Contains(e.lower, strings.ToLower(a)) {
+			hasApproved = true
+		}
+	}
+	for _, d := range deprecated {
+		if strings.Contains(e.lower, strings.ToLower(d)) {
+			hasDeprecated = true
+			deprecatedFound = append(deprecatedFound, d)
+		}
+	}
 	return
 }
 
 // scanSourceContainsAny returns true if any of the patterns appear in source files under dir.
+// Uses pqcDirCache — O(1) walks after first call for a given dir.
 func scanSourceContainsAny(dir string, patterns []string) bool {
-	found := false
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if found || err != nil || info == nil || info.IsDir() {
-			return nil
+	e := getPQCDirEntry(dir)
+	for _, p := range patterns {
+		if strings.Contains(e.raw, p) {
+			return true
 		}
-		if !isSourceFile(path) {
-			return nil
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-		content := string(data)
-		for _, p := range patterns {
-			if strings.Contains(content, p) {
-				found = true
-				return nil
-			}
-		}
-		return nil
-	})
-	return found
+	}
+	return false
 }
 
 // scanSourceForPresence returns which patterns were found across source files.
+// Uses pqcDirCache — O(1) walks after first call for a given dir.
 func scanSourceForPresence(dir string, patterns []string) []string {
+	e := getPQCDirEntry(dir)
 	seen := make(map[string]bool)
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil || info.IsDir() {
-			return nil
+	for _, p := range patterns {
+		if strings.Contains(e.lower, strings.ToLower(p)) {
+			seen[p] = true
 		}
-		if !isSourceFile(path) {
-			return nil
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-		content := strings.ToLower(string(data))
-		for _, p := range patterns {
-			if strings.Contains(content, strings.ToLower(p)) {
-				seen[p] = true
-			}
-		}
-		return nil
-	})
+	}
 	var found []string
 	for p := range seen {
 		found = append(found, p)
 	}
 	return found
 }
+
 
 // scanDirForPatterns searches a directory (non-recursively, just docs) for patterns.
 func scanDirForPatterns(dir string, patterns []string) bool {
@@ -675,19 +700,9 @@ func isSourceFile(path string) bool {
 }
 
 // findCertFiles returns paths to PEM certificate files under dir.
+// Uses pqcDirCache — cert files are collected during the initial scan walk.
 func findCertFiles(dir string) []string {
-	var certs []string
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil || info.IsDir() {
-			return nil
-		}
-		ext := strings.ToLower(filepath.Ext(path))
-		if ext == ".pem" || ext == ".crt" || ext == ".cer" || ext == ".cert" {
-			certs = append(certs, path)
-		}
-		return nil
-	})
-	return certs
+	return getPQCDirEntry(dir).certFiles
 }
 
 // certFileHasPQC checks if a PEM certificate file uses PQC algorithms.

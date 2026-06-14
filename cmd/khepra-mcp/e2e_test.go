@@ -293,8 +293,8 @@ func TestE2E_Fast(t *testing.T) {
 			t.Fatalf("unmarshal: %v", err)
 		}
 		t.Logf("registered tools: %d", len(list.Tools))
-		if len(list.Tools) < 31 {
-			t.Errorf("got %d tools, want >= 31", len(list.Tools))
+		if len(list.Tools) < 32 {
+			t.Errorf("got %d tools, want >= 32", len(list.Tools))
 		}
 		need := []string{
 			"discover_assets", "agent_record", "flight_export",
@@ -302,6 +302,7 @@ func TestE2E_Fast(t *testing.T) {
 			"nist_map", "dag_attestation", "acp_status",
 			"nhi_inventory", "khepra_query_threat_intel",
 			"owasp_agent_assess", "dark_crypto_contribute",
+			"pqc_stig",
 		}
 		have := map[string]bool{}
 		for _, tool := range list.Tools {
@@ -478,6 +479,33 @@ func TestE2E_Fast(t *testing.T) {
 		t.Logf("OK — contribution_id=%v algorithms_catalogued=%v risk=%v offline=%v",
 			res["contribution_id"], res["algorithms_catalogued"],
 			res["quantum_risk_level"], res["offline"])
+	})
+
+	// ── 14. pqc_stig ─────────────────────────────────────────────────────────
+	// Community tier — World's First DoD PQC STIG (PQC-01-STIG-V1R1).
+	// Target: pkg/mcp/tools — small dir with known PQC references (ML-DSA-65,
+	// ML-KEM-768 in dark_crypto_contribute.go). Full-project scan belongs in
+	// slow_integration_test.go (--timeout 10m).
+	t.Run("pqc_stig", func(t *testing.T) {
+		res, err := toolResult(ex(14, "pqc_stig", map[string]any{
+			"scan_path": "pkg/mcp/tools",
+			"profile":   "quick",
+		}))
+		if err != nil {
+			t.Fatalf("pqc_stig: %v", err)
+		}
+		if std, _ := res["standard"].(string); std != "PQC-01-STIG-V1R1" {
+			t.Errorf("standard=%q want %q", std, "PQC-01-STIG-V1R1")
+		}
+		if n, _ := res["total_controls"].(float64); n == 0 {
+			t.Errorf("total_controls=0 want >0")
+		}
+		if _, ok := res["compliance_score"]; !ok {
+			t.Errorf("missing compliance_score field")
+		}
+		t.Logf("OK — standard=%v score=%.0f verdict=%v cat1_fail=%v cat2_fail=%v",
+			res["standard"], res["compliance_score"],
+			res["verdict"], res["cat1_fail"], res["cat2_fail"])
 	})
 }
 

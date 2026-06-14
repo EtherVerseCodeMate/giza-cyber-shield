@@ -80,6 +80,19 @@ func (e *ErrMCPTierInsufficient) Error() string {
 //	ert_scan, ert_readiness, ert_architect, stig_check, cmmc_assess
 var mcpToolTier = map[string]string{
 
+	"nist_map":                  TierCommunity,
+	"khepra_query_stig":         TierCommunity,
+	"khepra_query_threat_intel": TierCommunity,
+	"discover_assets":           TierCommunity,
+	"owasp_agent_assess":        TierCommunity,
+	"ert_crypto":                TierCommunity,
+	"agent_record":              TierCommunity,
+	"dag_attestation":           TierCommunity,
+	"khepra_get_dag_chain":      TierCommunity,
+	"flight_export":             TierCommunity,
+	"dark_crypto_contribute":    TierCommunity,
+	"pqc_stig":                  TierCommunity, // World's First DoD PQC STIG — free for all, drives adoption
+
 	// ── Sovereign / Pilot ─────────────────────────────────────────────────────
 	// Compliance reporting, evidence packaging, human approval gates,
 	// ACP credential management, and NHI inventory.
@@ -107,6 +120,7 @@ var mcpToolTier = map[string]string{
 	"ert_architect": TierEnterprise,
 	"stig_check":    TierEnterprise,
 	"cmmc_assess":   TierEnterprise,
+	// pqc_stig is Community tier — see above
 }
 
 // tierRank maps tier strings to numeric rank for AtLeast comparison.

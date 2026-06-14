@@ -105,6 +105,34 @@ func (v *Validator) Validate() (*ComprehensiveReport, error) {
 	return v.report, nil
 }
 
+// ValidatePQCOnly runs ONLY the PQC-01-STIG-V1R1 framework — fast path.
+//
+// Compared to Validate(), this skips:
+//   - collectSystemInfo() — avoids exec.Command("uname") WSL hang on Windows
+//   - buildCrossReferences() — skips loading the 36,195-row compliance database
+//   - analyzePQCBlastRadius() — skips full project blast-radius scan
+//   - generatePOAM() / generateExecutiveSummary() — skips report assembly
+//
+// Use this from the pqc_stig MCP tool for a fast, focused PQC assessment.
+// Returns in < 1 second for typical project directories.
+func (v *Validator) ValidatePQCOnly() (*ComprehensiveReport, error) {
+	startTime := time.Now()
+
+	// Minimal system info — no exec.Command, no blocking calls
+	v.report.Hostname = "static-analysis"
+	v.report.OSVersion = runtime.GOOS + "/" + runtime.GOARCH
+	v.report.KernelVersion = "n/a (static-analysis-mode)"
+	v.report.ScanDate = startTime
+
+	// Run only the PQC STIG framework
+	if err := v.validateFramework(FrameworkPQCStig); err != nil {
+		return nil, fmt.Errorf("pqc stig validation failed: %w", err)
+	}
+
+	v.report.ScanDuration = time.Since(startTime)
+	return v.report, nil
+}
+
 // collectSystemInfo gathers system information
 func (v *Validator) collectSystemInfo() error {
 	hostname, err := os.Hostname()

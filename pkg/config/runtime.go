@@ -91,10 +91,27 @@ func LoadRuntime() RuntimeConfig {
 	return cfg
 }
 
+// knownModes is the allow-list of valid KHEPRA_MODE values.
+// Any other value is rejected at startup with a warning and falls back to sovereign.
+var knownModes = map[string]bool{
+	"sovereign": true, // Air-gapped, on-prem, SCIF (DEFAULT)
+	"ironbank":  true, // DoD/IC hardened, FIPS-only, air-gapped
+	"hybrid":    true, // Edge + local DAG cache, SaaS
+	"edge":      true, // Fully stateless SaaS (Fly.io)
+}
+
 func runtimeModeFromEnv() string {
 	m := os.Getenv("KHEPRA_MODE")
 	if m == "" {
-		return "sovereign" // safe default
+		return "sovereign" // safe default — air-gapped, zero external calls
+	}
+	if !knownModes[m] {
+		// Unknown mode: log to stderr and fail-closed to sovereign.
+		// This prevents a misconfigured deployment from accidentally opening
+		// network policy to unrestricted (edge) when an unknown value is set.
+		os.Stderr.WriteString("[khepra-mcp] WARNING: unknown KHEPRA_MODE=" + m +
+			" — valid modes: sovereign, ironbank, hybrid, edge. Falling back to sovereign.\n")
+		return "sovereign"
 	}
 	return m
 }
