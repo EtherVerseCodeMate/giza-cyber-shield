@@ -1,19 +1,20 @@
 // Package license — mcp_gate.go: MCP tool gating layer over the sovereign license stack.
 //
-// This file is the ONLY new code needed for MCP enforcement. It wraps the
-// existing KhepraLicense / VerifySovereignLicense infrastructure (sovereign.go)
-// and adds:
+// Three public tiers:
 //
-//  1. MCP tool-name → minimum tier mapping
-//  2. CheckToolAccess(lic, toolName) — called at router Step 1.6b
-//  3. Helper functions for per-tool behavior variation (scan lanes, nist_map limits)
-//  4. ParseMCPLicense() — loads from KHEPRA_LICENSE_KEY env var and verifies offline
+//	TierCommunity  (free, Apache 2.0 OSS)   — crypto discovery + Dark Crypto + local audit
+//	TierPilot      (Sovereign, $299/mo)      — compliance reporting, ACP, NHI inventory
+//	TierEnterprise (Pharaoh, custom pricing) — STIG/CMMC/NHI-full/ert-full/PQC STIG
 //
-// Tier mapping (extends existing sovereign.go tiers):
-//   TierCommunity  → ert_scan (basic), nist_map (25 controls)
-//   TierPilot      → + godfather_report/approve, nist_map (full), khepra_watch
-//   TierEnterprise → + acp_*, nhi_*, signed audit log, all 13 tools
-//   TierMaster     → + license_issue, license_revoke (NouchiX internal)
+// Tools NOT in mcpToolTier are accessible at Community tier with no license key.
+// A nil license → Community tier (non-fatal — server starts and runs core tools).
+//
+// Display names map internal constants to customer-facing names:
+//
+//	"community"  → "Community"
+//	"pilot"      → "Sovereign"
+//	"enterprise" → "Pharaoh"
+//	"master"     → "NouchiX Internal"
 package license
 
 import (
@@ -22,6 +23,24 @@ import (
 	"fmt"
 	"os"
 )
+
+// ─── External Display Names ────────────────────────────────────────────────────
+
+// TierDisplayNames maps internal tier constants to customer-facing names.
+var TierDisplayNames = map[string]string{
+	TierCommunity:  "Community",
+	TierPilot:      "Sovereign",
+	TierEnterprise: "Pharaoh",
+	TierMaster:     "NouchiX Internal",
+}
+
+// RequiredTierDisplayName returns the customer-facing tier name for a given internal constant.
+func RequiredTierDisplayName(tierConst string) string {
+	if name, ok := TierDisplayNames[tierConst]; ok {
+		return name
+	}
+	return tierConst
+}
 
 // ─── MCP Tool Gate ────────────────────────────────────────────────────────────
 
@@ -35,32 +54,62 @@ type ErrMCPTierInsufficient struct {
 func (e *ErrMCPTierInsufficient) Error() string {
 	return fmt.Sprintf(
 		"license: tool %q requires %s tier (current: %s) — upgrade at khepra.nouchix.com",
-		e.Tool, e.Required, e.Have,
+		e.Tool, RequiredTierDisplayName(e.Required), RequiredTierDisplayName(e.Have),
 	)
 }
 
-// mcpToolTier maps each MCP tool name to the minimum KhepraLicense Tier string.
-// Tools NOT in this map are accessible at Community tier.
+// mcpToolTier maps each MCP tool name to the minimum tier constant.
+// Tools NOT present are accessible at Community tier (no license key required).
+//
+// ── Community tier tools (no key needed) ───────────────────────────────────────
+//
+//	nist_map, khepra_query_stig, khepra_query_threat_intel,
+//	discover_assets, owasp_agent_assess, ert_crypto,
+//	agent_record, dag_attestation, khepra_get_dag_chain,
+//	flight_export, dark_crypto_contribute
+//
+// ── Sovereign tier tools (TierPilot key) ──────────────────────────────────────
+//
+//	khepra_get_compliance_score, khepra_export_attestation, khepra_export_poam,
+//	godfather_report, godfather_approve, ert_godfather, khepra_watch,
+//	acp_issue, acp_revoke, acp_status, nhi_inventory
+//
+// ── Pharaoh tier tools (TierEnterprise key) ──────────────────────────────────
+//
+//	nhi_revoke, nhi_orphans, nhi_excessive, nhi_expired,
+//	ert_scan, ert_readiness, ert_architect, stig_check, cmmc_assess
 var mcpToolTier = map[string]string{
-	// Pilot+ tools (compliance reporting)
-	"godfather_report":  TierPilot,
-	"godfather_approve": TierPilot,
-	"khepra_watch":      TierPilot,
 
-	// Enterprise-only tools (agent governance + NHI)
-	"acp_status":    TierEnterprise,
-	"acp_issue":     TierEnterprise,
-	"acp_revoke":    TierEnterprise,
-	"nhi_inventory": TierEnterprise,
+	// ── Sovereign / Pilot ─────────────────────────────────────────────────────
+	// Compliance reporting, evidence packaging, human approval gates,
+	// ACP credential management, and NHI inventory.
+	"khepra_get_compliance_score": TierPilot,
+	"khepra_export_attestation":   TierPilot,
+	"khepra_export_poam":          TierPilot,
+	"godfather_report":            TierPilot,
+	"godfather_approve":           TierPilot,
+	"ert_godfather":               TierPilot,
+	"khepra_watch":                TierPilot,
+	"acp_issue":                   TierPilot,
+	"acp_revoke":                  TierPilot,
+	"acp_status":                  TierPilot,
+	"nhi_inventory":               TierPilot,
+
+	// ── Pharaoh / Enterprise ──────────────────────────────────────────────────
+	// Full NHI lifecycle, deep scanning, STIG/CMMC full assessments,
+	// Docker-sandboxed code execution, air-gap licensing.
+	"nhi_revoke":    TierEnterprise,
 	"nhi_orphans":   TierEnterprise,
 	"nhi_excessive": TierEnterprise,
 	"nhi_expired":   TierEnterprise,
-	"nhi_revoke":    TierEnterprise,
-
-	// Community tools: ert_scan, nist_map (behavior varies — not hard-gated)
+	"ert_scan":      TierEnterprise,
+	"ert_readiness": TierEnterprise,
+	"ert_architect": TierEnterprise,
+	"stig_check":    TierEnterprise,
+	"cmmc_assess":   TierEnterprise,
 }
 
-// tierRank maps sovereign tier strings to numeric rank for AtLeast comparison.
+// tierRank maps tier strings to numeric rank for AtLeast comparison.
 var tierRank = map[string]int{
 	TierCommunity:  0,
 	TierPilot:      1,
@@ -96,20 +145,31 @@ func CheckToolAccess(lic *KhepraLicense, toolName string) error {
 	return nil
 }
 
+// RequiredTier returns the minimum tier constant for a tool,
+// or TierCommunity if the tool is ungated.
+func RequiredTier(toolName string) string {
+	if tier, gated := mcpToolTier[toolName]; gated {
+		return tier
+	}
+	return TierCommunity
+}
+
 // ─── Per-Tool Behavior Helpers ────────────────────────────────────────────────
 
 // NistMapLimit returns the maximum BM25 result count for the tier.
-//   - Community: 5 (from the 25 embedded controls)
-//   - Pilot+:    50 (full 36,195-control index)
+//   - Community:  25  (sufficient for Dark Crypto intelligence lookups)
+//   - Sovereign+: 616 (full NIST 800-53 / 800-171 index)
 func NistMapLimit(lic *KhepraLicense) int {
 	if lic == nil || lic.Tier == TierCommunity {
-		return 5
+		return 25
 	}
-	return 50
+	return 616
 }
 
-// ERTFullScan returns true if the tier permits all ERT scan lanes
-// (secrets, sbom, pqc). Community gets sast+sca only.
+// ERTFullScan returns true if the tier permits all ERT scan lanes (secrets, sbom, pqc).
+// Community: crypto-only lane (ert_crypto tool).
+// Sovereign: sast + sca + pqc lanes.
+// Enterprise: all lanes including Docker-sandboxed ert_scan.
 func ERTFullScan(lic *KhepraLicense) bool {
 	if lic == nil {
 		return false
@@ -117,12 +177,22 @@ func ERTFullScan(lic *KhepraLicense) bool {
 	return tierAtLeast(lic.Tier, TierPilot)
 }
 
-// SignedAuditLogEnabled returns true if the tier permits the tamper-evident log.
+// SignedAuditLogEnabled returns true if cloud relay (SouHimBou AI) is permitted.
+// Community builds use local-only DAG (air-gap mode, zero cloud dependency).
+// Sovereign+ can set SOUHIMBOU_ENDPOINT for cloud relay.
 func SignedAuditLogEnabled(lic *KhepraLicense) bool {
 	if lic == nil {
 		return false
 	}
-	return tierAtLeast(lic.Tier, TierEnterprise)
+	return tierAtLeast(lic.Tier, TierPilot)
+}
+
+// DarkCryptoContributeEnabled always returns true.
+// Dark Crypto contribution is a Community feature — the primary value exchange:
+// users contribute anonymous crypto inventory; in return they receive global
+// quantum exposure intelligence. Available at all tiers.
+func DarkCryptoContributeEnabled(_ *KhepraLicense) bool {
+	return true
 }
 
 // ─── MCP License Loading ──────────────────────────────────────────────────────
@@ -137,9 +207,6 @@ var ErrNoLicenseKey = errors.New("license: KHEPRA_LICENSE_KEY not set — Commun
 //   - (nil, ErrNoLicenseKey) — no key set, Community tier, non-fatal
 //   - (*KhepraLicense, nil) — valid license
 //   - (nil, err) — key present but invalid (tampered/expired), FATAL at startup
-//
-// The license JSON is expected to be the full KhepraLicense struct serialized
-// as JSON (as produced by SovereignLicenseAuthority.IssueLicense → json.Marshal).
 func ParseMCPLicense() (*KhepraLicense, error) {
 	raw := os.Getenv("KHEPRA_LICENSE_KEY")
 	if raw == "" {

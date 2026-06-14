@@ -385,6 +385,14 @@ func registerToolHandlers(executor *khepramcp.Executor) {
 	// Competitive differentiator: only tool that maps agent stack to OWASP
 	// Agentic Top 10 with ML-DSA-65 signed evidence — 100% offline.
 	executor.RegisterFunc("owasp_agent_assess", tools.HandleOWASPAgentAssess)
+
+	// ── Dark Crypto Intelligence Network (Community Tier) ───────────────────
+	// Privacy-preserving contribution of anonymized crypto inventory to the
+	// global Dark Crypto Intelligence Network. No file paths, IPs, hostnames,
+	// credentials, or code contents leave the machine. Users receive back their
+	// global quantum exposure rank and community intelligence.
+	// This is the primary value exchange of the Community open-source tier.
+	executor.RegisterFunc("dark_crypto_contribute", tools.HandleDarkCryptoContribute)
 }
 
 // ─── Manifest Loading ──────────────────────────────────────────────────────────

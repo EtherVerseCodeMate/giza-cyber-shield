@@ -293,15 +293,15 @@ func TestE2E_Fast(t *testing.T) {
 			t.Fatalf("unmarshal: %v", err)
 		}
 		t.Logf("registered tools: %d", len(list.Tools))
-		if len(list.Tools) < 30 {
-			t.Errorf("got %d tools, want >= 30", len(list.Tools))
+		if len(list.Tools) < 31 {
+			t.Errorf("got %d tools, want >= 31", len(list.Tools))
 		}
 		need := []string{
 			"discover_assets", "agent_record", "flight_export",
 			"khepra_query_stig", "khepra_get_dag_chain",
 			"nist_map", "dag_attestation", "acp_status",
 			"nhi_inventory", "khepra_query_threat_intel",
-			"owasp_agent_assess",
+			"owasp_agent_assess", "dark_crypto_contribute",
 		}
 		have := map[string]bool{}
 		for _, tool := range list.Tools {
@@ -453,6 +453,31 @@ func TestE2E_Fast(t *testing.T) {
 		composite, _ := res["composite_score"].(float64)
 		t.Logf("OK — composite_score=%.0f mitigated=%v partial=%v unmitigated=%v",
 			composite, res["mitigated"], res["partial"], res["unmitigated"])
+	})
+
+	// ── 13. dark_crypto_contribute ────────────────────────────────────────────
+	// Community tier — no license key needed. Uses self-attestation mode
+	// (KHEPRA's own crypto inventory) since no findings are provided.
+	// Works offline: returns a queued receipt if nouchix.ai is unreachable.
+	t.Run("dark_crypto_contribute", func(t *testing.T) {
+		res, err := toolResult(ex(13, "dark_crypto_contribute", map[string]any{}))
+		if err != nil {
+			t.Fatalf("dark_crypto_contribute: %v", err)
+		}
+		if id, _ := res["contribution_id"].(string); id == "" {
+			t.Errorf("missing contribution_id")
+		}
+		algos, _ := res["algorithms_catalogued"].(float64)
+		if algos == 0 {
+			t.Errorf("algorithms_catalogued=0 want >0")
+		}
+		privacyGuarantees, _ := res["privacy_guarantees"].([]any)
+		if len(privacyGuarantees) == 0 {
+			t.Errorf("missing privacy_guarantees")
+		}
+		t.Logf("OK — contribution_id=%v algorithms_catalogued=%v risk=%v offline=%v",
+			res["contribution_id"], res["algorithms_catalogued"],
+			res["quantum_risk_level"], res["offline"])
 	})
 }
 
