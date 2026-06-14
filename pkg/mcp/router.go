@@ -91,9 +91,9 @@ type Router struct {
 	logger   *log.Logger
 
 	// Production hardening
-	events      *EventEmitter      // Structured observability
-	mistakes    *MistakeTracker    // Mistake / loop detection
-	limiter     *RateLimiter       // Per-agent rate limiting
+	events      *EventEmitter       // Structured observability
+	mistakes    *MistakeTracker     // Mistake / loop detection
+	limiter     *RateLimiter        // Per-agent rate limiting
 	concurrency *ConcurrencyLimiter // Per-agent concurrent call cap (NSA prompt-storm defense)
 	// invocationRootKey is derived from the ML-DSA-65 license key and used
 	// to issue + verify per-invocation HMAC tokens (ASD/CISA ephemeral credentials).
@@ -102,6 +102,9 @@ type Router struct {
 	// license is the parsed KhepraLicense for this server instance.
 	// Controls tool gating at Step 1.6b. nil = Community tier.
 	license *licpkg.KhepraLicense
+	// callLog is the in-memory ring buffer capturing every tool call.
+	// Enables T02/T08 scanner checks and SOW pilot metrics.
+	callLog *CallLog
 }
 
 // RouterConfig holds all dependencies for constructing a Router.
@@ -134,6 +137,11 @@ type RouterConfig struct {
 	// Obtained via license.ParseMCPLicense() from KHEPRA_LICENSE_KEY env var.
 	// If nil, Community tier is enforced (ert_scan basic + nist_map 25 controls).
 	License *licpkg.KhepraLicense
+
+	// CallLogCapacity is the ring buffer size for tool call records.
+	// Default: 512. Increase for high-throughput deployments.
+	// Set to -1 to disable call logging (not recommended for DFARS environments).
+	CallLogCapacity int
 }
 
 // NewRouter creates a Router with all security chain components.
@@ -208,8 +216,12 @@ func NewRouter(cfg RouterConfig) (*Router, error) {
 		concurrency:       NewConcurrencyLimiter(cfg.MaxConcurrent),
 		invocationRootKey: cfg.InvocationRootKey,
 		license:           cfg.License,
+		callLog:           NewCallLog(cfg.CallLogCapacity),
 	}, nil
 }
+
+// CallLog returns the router's in-memory call log for metric queries and T02/T08 scanning.
+func (r *Router) CallLog() *CallLog { return r.callLog }
 
 // HandleToolCall processes a single tool invocation through the full security chain.
 //
@@ -401,7 +413,7 @@ func (r *Router) HandleToolCall(ctx context.Context, call MCPToolCall, cred any,
 	// for inbound args. Non-fatal (warning-only): compliant security reports
 	// legitimately contain CVE IDs, exploit code snippets, and other patterns
 	// that superficially resemble injection — we warn but do not block.
-	if outputBytes, marshalOK := json.Marshal(result); marshalOK {
+	if outputBytes, marshalOK := json.Marshal(result); marshalOK == nil {
 		if outErr := r.gateway.ScanForInjection(string(outputBytes)); outErr != nil {
 			// Non-fatal: log and warn — security report outputs may contain
 			// CVE IDs or exploit patterns that match injection heuristics.
@@ -453,6 +465,21 @@ func (r *Router) HandleToolCall(ctx context.Context, call MCPToolCall, cred any,
 	r.events.EmitToolEnd(call.ToolName, id.AgentID, call.RequestID, durationMs, true, "", "")
 	r.logger.Printf("[MCP:OK] tool=%s agent=%s attestation=%s duration=%v",
 		call.ToolName, id.AgentID, attestationID, time.Since(start))
+
+	// ── CallLog: record for T02/T08 scanning + SOW pilot metrics ────────────
+	r.callLog.Push(MCPCallRecord{
+		ToolName:   spec.Name,
+		CallerID:   id.AgentID,
+		SessionID:  id.SessionID,
+		Scope:      spec.Scope,
+		RiskClass:  spec.RiskClass,
+		Timestamp:  start,
+		DurationMs: durationMs,
+		IsSigned:   signedEnv.Signature != "",
+		IsError:    false,
+		ParamsLen:  len(rawPayload),
+		DAGNodeID:  attestationID,
+	})
 
 	resp := &MCPToolResponse{
 		Envelope: signedEnv,

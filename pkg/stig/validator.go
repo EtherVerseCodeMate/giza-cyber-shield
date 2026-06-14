@@ -17,6 +17,10 @@ const (
 	FrameworkNIST171    = "NIST-800-171-Rev2"
 	FrameworkCMMC       = "CMMC-3.0-L3"
 	FrameworkPQC        = "PQC-Readiness"
+	// FrameworkPQCStig is the World's First DoD PQC STIG baseline (NouchiX / AdinKhepra).
+	// Fills the gap left by DISA, which has no PQC-specific STIGs as of mid-2026.
+	// Aligned to NIST FIPS 203/204/205 and NSA CNSA 2.0.
+	FrameworkPQCStig    = "PQC-01-STIG-V1R1"
 )
 
 // Validator performs comprehensive STIG validation
@@ -38,6 +42,7 @@ func NewValidator(targetPath string) *Validator {
 			FrameworkNIST171,
 			FrameworkCMMC,
 			FrameworkPQC,
+			FrameworkPQCStig, // World's First DoD PQC STIG
 		},
 		report: &ComprehensiveReport{
 			Results:         make(map[string]*ValidationResult),
@@ -157,6 +162,9 @@ func (v *Validator) validateFramework(framework string) error {
 		err = v.validateCMMC(result)
 	case FrameworkPQC:
 		err = v.validatePQCReadiness(result)
+	case FrameworkPQCStig:
+		// World's First DoD PQC STIG — NouchiX PQC-01-STIG-V1R1
+		err = v.validatePQCStig(result)
 	default:
 		return fmt.Errorf("unknown framework: %s", framework)
 	}

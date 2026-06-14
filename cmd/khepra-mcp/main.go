@@ -340,6 +340,38 @@ func registerToolHandlers(executor *khepramcp.Executor) {
 	// ── khepra_watch: filesystem-triggered continuous monitoring ──────────
 	// CMMC AC.2.006, CM.2.061, SI.2.217 continuous monitoring requirement
 	executor.RegisterFunc("khepra_watch", tools.HandleKhepraWatchTool)
+
+	// ── Compliance Tools (Architecture Doc Layer 4 — PQC-MCP exposures) ───
+	// Gap-closure: these were listed in KHEPRA_Four_Layer_Architecture_v1.docx
+	// but were not previously registered. NSA/ASD audit-gap fix.
+	//
+	// stig_check  — RHEL-09-STIG V1R3 check via pkg/stig Validator
+	executor.RegisterFunc("stig_check", tools.HandleSTIGCheck)
+	// cmmc_assess — CMMC Level 1/2/3 assessment via pkg/stig Validator
+	executor.RegisterFunc("cmmc_assess", tools.HandleCMMCAssess)
+	// agent_record — Layer 4→3 bridge: SouHimBou AI Flight Recorder
+	//                Sovereign fallback: local PQC-signed DAG audit log
+	executor.RegisterFunc("agent_record", tools.HandleAgentRecord)
+
+	// ── Sovereign Tools (no Supabase, no network — 100% offline) ───────────
+	// P0: C3PAO artifact — existential differentiator
+	executor.RegisterFunc("khepra_export_attestation", tools.HandleKhepraExportAttestation)
+	// P0: POA&M — DFARS 252.204-7012 mandatory
+	executor.RegisterFunc("khepra_export_poam", tools.HandleKhepraExportPOAM)
+	// P1: STIG/CCI/NIST control lookup via embedded 36,195-row database
+	executor.RegisterFunc("khepra_query_stig", tools.HandleKhepraQuerySTIG)
+	// P1: Fast compliance score without full scan
+	executor.RegisterFunc("khepra_get_compliance_score", tools.HandleKhepraGetComplianceScore)
+	// P1: CISA KEV + CVE threat intel from embedded data
+	executor.RegisterFunc("khepra_query_threat_intel", tools.HandleKhepraQueryThreatIntel)
+	// P2: Session DAG chain export
+	executor.RegisterFunc("khepra_get_dag_chain", tools.HandleKhepraGetDAGChain)
+
+	// ── SouHimBou AI: Flight Recorder (Step 03 — Generate Evidence) ─────────
+	// flight_export: export a CMMC-aligned evidence packet from the flight log
+	//   Maps all agent actions → NIST 800-171 / CMMC 2.0 controls
+	//   Verifies tamper chain + computes all SOW pilot KPIs
+	executor.RegisterFunc("flight_export", tools.HandleFlightExport)
 }
 
 // ─── Manifest Loading ──────────────────────────────────────────────────────────
@@ -574,6 +606,71 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			ArgsSchema:     noArgSchema,
 		},
 
+		// ── STIG Check ────────────────────────────────────────────────────────
+		// Architecture Doc Layer 4 tool. Runs RHEL-09-STIG V1R3 or any
+		// supported framework via the pkg/stig Validator engine.
+		{
+			Name: "stig_check",
+			Description: "Check a system path or configuration against STIG controls. Runs RHEL-09-STIG V1R3 by default. Returns CAT I/II/III findings with remediation guidance and a compliance score. Supports: RHEL-09-STIG-V1R3, CIS-RHEL-9-L1, CIS-RHEL-9-L2, NIST-800-53-Rev5, NIST-800-171-Rev2, CMMC-3.0-L3, PQC-Readiness.",
+			RiskClass:      khepramcp.RiskReadOnly, Scope: "stig:read",
+			SchemaVersion:  "1.0.0", SchemaHash: hash("stig_check"),
+			AllowedBackend: "in-process", TimeoutMs: 60000,
+			MaxPrivilege:   "read-only",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"framework": map[string]any{
+						"type":        "string",
+						"description": "Compliance framework to check (default: RHEL-09-STIG-V1R3). Options: RHEL-09-STIG-V1R3, CIS-RHEL-9-L1, CIS-RHEL-9-L2, NIST-800-53-Rev5, NIST-800-171-Rev2, CMMC-3.0-L3, PQC-Readiness",
+					},
+				},
+			},
+		},
+
+		// ── CMMC Assessment ───────────────────────────────────────────────────
+		// Architecture Doc Layer 4 tool. Full CMMC 3.0 Level 1/2/3 assessment
+		// via the pkg/stig compliance database (36,195 control mappings).
+		{
+			Name: "cmmc_assess",
+			Description: "Assess a system or artifact against CMMC Level 1, 2, or 3 practices. Uses the KHEPRA compliance database (36,195 STIG→CCI→NIST→CMMC mappings). Returns satisfaction score, gap list, C3PAO readiness flag, and PQC status. Required before CMMC-AB assessment.",
+			RiskClass:      khepramcp.RiskReadOnly, Scope: "compliance:read",
+			SchemaVersion:  "1.0.0", SchemaHash: hash("cmmc_assess"),
+			AllowedBackend: "in-process", TimeoutMs: 60000,
+			MaxPrivilege:   "read-only",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"level": map[string]any{
+						"type":        "string",
+						"description": "CMMC maturity level to assess: '1', '2', or '3' (default: '2'). Also accepts: l1, l2, l3, CMMC_L1, CMMC_L2, CMMC_L3",
+					},
+				},
+			},
+		},
+
+		// ── Agent Record (Layer 4 → Layer 3 bridge) ───────────────────────────
+		// Forwards agent action events to SouHimBou AI Flight Recorder.
+		// Sovereign fallback: records in local PQC-signed DAG audit log.
+		{
+			Name: "agent_record",
+			Description: "Record an agent action in the SouHimBou AI Flight Recorder (agentic AI observability). In sovereign/air-gap mode, records to the local PQC-signed DAG audit log. Set SOUHIMBOU_ENDPOINT env var to forward to SouHimBou AI SaaS. Required for AI flight recorder compliance evidence.",
+			RiskClass:      khepramcp.RiskReadOnly, Scope: "audit:write",
+			SchemaVersion:  "1.0.0", SchemaHash: hash("agent_record"),
+			AllowedBackend: "in-process", TimeoutMs: 15000,
+			MaxPrivilege:   "audit-write",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"required": []string{"action"},
+				"properties": map[string]any{
+					"action":     map[string]any{"type": "string", "description": "The agent action to record (e.g. 'tool_called', 'decision_made', 'file_modified', 'scan_completed')"},
+					"agent_id":   map[string]any{"type": "string", "description": "Agent identifier (defaults to session agent_id)"},
+					"tool_name":  map[string]any{"type": "string", "description": "Tool that was invoked (for tool_called events)"},
+					"session_id": map[string]any{"type": "string", "description": "Session identifier for correlation"},
+					"metadata":   map[string]any{"type": "object", "description": "Additional key-value metadata to attach to the flight recorder event"},
+				},
+			},
+		},
+
 		// ── Godfather Report (HITL-gated) ─────────────────────────────────────
 		// Security Track 6: staged delivery with 30-min TTL token.
 		// Full report only released after human calls godfather_approve.
@@ -647,6 +744,138 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 					"path":   map[string]any{"type": "string", "description": "Filesystem path to watch"},
 				},
 				"required": []string{"action"},
+			},
+		},
+
+		// ── Sovereign Tools (no Supabase, 100% offline) ────────────────────
+		// P0 — C3PAO evidence package: the existential differentiator
+		{
+			Name:        "khepra_export_attestation",
+			Description: "Export a PQC-signed attestation package (JSON) covering all active compliance frameworks. No Supabase. No network. The C3PAO-ready evidence artifact — Dilithium-signed, DAG-anchored, NIST SP 800-171A compliant. Include dag_node_id in your C3PAO submission package.",
+			RiskClass: khepramcp.RiskReadOnly, Scope: "compliance:attest",
+			SchemaVersion: "1.0.0", SchemaHash: hash("khepra_export_attestation"),
+			AllowedBackend: "in-process", TimeoutMs: 120000,
+			MaxPrivilege: "read-only",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"project_path": map[string]any{"type": "string", "description": "Path to project or system root (default: current directory)"},
+				},
+			},
+		},
+
+		// P0 — POA&M: DFARS 252.204-7012 mandated Plan of Action & Milestones
+		{
+			Name:        "khepra_export_poam",
+			Description: "Export a Plan of Action & Milestones (POA&M) from STIG/CMMC scan findings. DFARS 252.204-7012 and NIST SP 800-171A requirement. Returns prioritized remediation items with estimated costs and scheduled completion dates. 100% offline.",
+			RiskClass: khepramcp.RiskReadOnly, Scope: "compliance:poam",
+			SchemaVersion: "1.0.0", SchemaHash: hash("khepra_export_poam"),
+			AllowedBackend: "in-process", TimeoutMs: 120000,
+			MaxPrivilege: "read-only",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"project_path": map[string]any{"type": "string", "description": "Path to project or system root (default: current directory)"},
+				},
+			},
+		},
+
+		// P1 — STIG control lookup by ID or free-text search
+		{
+			Name:        "khepra_query_stig",
+			Description: "Look up STIG controls, CCI items, or NIST 800-53 controls by ID or keyword. Backed by the embedded 36,195-row STIG↔CCI↔NIST↔CMMC cross-reference database. Returns cross-references, severity, and remediation context. 100% offline.",
+			RiskClass: khepramcp.RiskReadOnly, Scope: "stig:read",
+			SchemaVersion: "1.0.0", SchemaHash: hash("khepra_query_stig"),
+			AllowedBackend: "in-process", TimeoutMs: 10000,
+			MaxPrivilege: "read-only",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"control_id": map[string]any{"type": "string", "description": "STIG ID (SV-257777r...), CCI number (CCI-000001), or NIST control (AC-2, SC-13)"},
+					"query":      map[string]any{"type": "string", "description": "Free-text search across STIG titles (e.g. 'password complexity', 'ssh', 'audit log')"},
+				},
+			},
+		},
+
+		// P1 — Fast compliance score without full scan (dashboard use)
+		{
+			Name:        "khepra_get_compliance_score",
+			Description: "Get the compliance score for a specific framework without running a full scan. Targeted scan against a single framework. Good for dashboards and quick health checks. Frameworks: CMMC, STIG, NIST-171, NIST-53, PQC, PQC-STIG.",
+			RiskClass: khepramcp.RiskReadOnly, Scope: "compliance:read",
+			SchemaVersion: "1.0.0", SchemaHash: hash("khepra_get_compliance_score"),
+			AllowedBackend: "in-process", TimeoutMs: 60000,
+			MaxPrivilege: "read-only",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"framework":    map[string]any{"type": "string", "description": "Framework alias: CMMC, STIG, NIST-171, NIST-53, PQC, PQC-STIG (default: CMMC)"},
+					"project_path": map[string]any{"type": "string", "description": "Path to project or system root (default: current directory)"},
+				},
+			},
+		},
+
+		// P1 — CISA KEV + CVE threat intel from embedded offline database
+		{
+			Name:        "khepra_query_threat_intel",
+			Description: "Query CISA Known Exploited Vulnerabilities (KEV) and NVD CVE data from the embedded offline database. Search by CVE ID (CVE-2021-44228) or keyword (log4j, apache, openssl). Returns severity, KEV status, and remediation action. 100% offline — no NVD API calls.",
+			RiskClass: khepramcp.RiskReadOnly, Scope: "threat:read",
+			SchemaVersion: "1.0.0", SchemaHash: hash("khepra_query_threat_intel"),
+			AllowedBackend: "in-process", TimeoutMs: 10000,
+			MaxPrivilege: "read-only",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"query":  map[string]any{"type": "string", "description": "CVE ID (CVE-2021-44228) or keyword (log4j, apache, openssl, microsoft)"},
+					"cve_id": map[string]any{"type": "string", "description": "Specific CVE ID for exact lookup"},
+				},
+			},
+		},
+
+		// P2 — Session DAG audit chain export
+		{
+			Name:        "khepra_get_dag_chain",
+			Description: "Retrieve the ML-DSA-65-signed DAG audit chain for the current session. Each node represents a tool call with a PQC signature, timestamp, and Adinkra symbol. Use to produce a forensic evidence package for C3PAO or DFARS audit. 100% offline.",
+			RiskClass: khepramcp.RiskReadOnly, Scope: "dag:read",
+			SchemaVersion: "1.0.0", SchemaHash: hash("khepra_get_dag_chain"),
+			AllowedBackend: "in-process", TimeoutMs: 10000,
+			MaxPrivilege: "read-only",
+			ArgsSchema: noArgSchema,
+		},
+
+		// SouHimBou AI Step 01 — Discover & Classify: agent_record
+		{
+			Name:        "agent_record",
+			Description: "SouHimBou AI Flight Recorder: record an agent action in the tamper-evident flight log. Captures intent summary, session context, and CMMC control mappings. In sovereign mode, writes to a local ML-DSA-65-signed NDJSON log. If SOUHIMBOU_ENDPOINT is set, forwards to the SouHimBou AI SaaS. Required field: action (human-readable description of what the agent did).",
+			RiskClass: khepramcp.RiskReadOnly, Scope: "audit:write",
+			SchemaVersion: "1.0.0", SchemaHash: hash("agent_record"),
+			AllowedBackend: "in-process", TimeoutMs: 5000,
+			MaxPrivilege: "read-only",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"required": []string{"action"},
+				"properties": map[string]any{
+					"action":     map[string]any{"type": "string", "description": "Human-readable description of the agent action (e.g. 'Ran stig_check on /opt/app')"},
+					"agent_id":   map[string]any{"type": "string", "description": "Agent identifier override (default: ACP identity)"},
+					"session_id": map[string]any{"type": "string", "description": "Session correlation ID for grouping actions into evidence packets"},
+					"tool_name":  map[string]any{"type": "string", "description": "Name of the MCP tool that produced this action (for intent tracking)"},
+				},
+			},
+		},
+
+		// SouHimBou AI Step 03 — Generate Evidence: flight_export
+		{
+			Name:        "flight_export",
+			Description: "SouHimBou AI Flight Recorder: export a CMMC-aligned evidence packet from the flight log. Reads the persistent signed flight log, verifies the ML-DSA-65 tamper chain, and produces a structured EvidencePacket mapping all agent actions to NIST SP 800-171 Rev 2 and CMMC 2.0 Level 2 controls. Computes all SOW pilot KPIs: calls captured, % privileged calls signed, mean evidence time, control mapping count. 100% offline.",
+			RiskClass: khepramcp.RiskReadOnly, Scope: "compliance:report",
+			SchemaVersion: "1.0.0", SchemaHash: hash("flight_export"),
+			AllowedBackend: "in-process", TimeoutMs: 30000,
+			MaxPrivilege: "read-only",
+			ArgsSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"session_id": map[string]any{"type": "string", "description": "Filter to a specific session ID (omit to export all sessions)"},
+					"log_path":   map[string]any{"type": "string", "description": "Path to flight log file (default: $KHEPRA_DATA_DIR/khepra-flight.ndjson)"},
+				},
 			},
 		},
 	}
