@@ -1,7 +1,7 @@
-﻿{
+{
     "version":  "1.0.0",
-    "revision":  "build-1780892571",
-    "generated_at":  "2026-06-08T04:22:51Z",
+    "revision":  "build-1781537825",
+    "generated_at":  "2026-06-14T02:37:00Z",
     "hash_algorithm":  "SHA-256",
     "public_key_id":  "66d9bf6e088ef382",
     "tools":  [
@@ -448,6 +448,287 @@
                                           "required":  [
                                                            "action"
                                                        ],
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "discover_assets",
+                      "description":  "SouHimBou AI Step 01 — Discover and Classify Assets. Walks the project or system root and automatically inventories: OS (via /etc/os-release), language runtimes (Go, Python, Node.js, Java, Rust), container images (Dockerfile FROM directives), CI/CD pipelines, IaC (Terraform, Ansible), AI agent integrations (Claude, OpenAI, LangChain), MCP server configs, secret stores, and cryptographic libraries. Matches detected assets to applicable STIG profiles (RHEL-09-STIG-V1R3, Container STIG, CNSA 2.0 PQC, AI-Agent-MCP-SEC). Recommends CMMC level (L1/L2/L3) and generates a prioritized list of next tools to run. Output feeds directly into stig_check, cmmc_assess, ert_crypto, ert_architect, and flight_export.",
+                      "risk_class":  "read_only",
+                      "scope":  "compliance:read",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "3a7f2d9c1b4e6a8f0c5d2e9b7a4f1c8d3b6e9a2f5c8d1b4e7a0f3c6d9b2e5a8",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  30000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "depth":  {
+                                                                            "description":  "Max filesystem depth to walk (default: 4)",
+                                                                            "type":  "number"
+                                                                        },
+                                                             "project_path":  {
+                                                                                  "description":  "Root path to scan (default: current directory)",
+                                                                                  "type":  "string"
+                                                                              }
+                                                         },
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "stig_check",
+                      "description":  "SouHimBou AI Step 02 — Run STIG control checks against a project or system. Supports RHEL-09-STIG-V1R3, CIS L1/L2, NIST 800-53, NIST 800-171, CMMC, and PQC-Readiness frameworks. Returns CAT I/II/III findings, compliance score, and remediation guidance. 100% offline.",
+                      "risk_class":  "read_only",
+                      "scope":  "stig:read",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "b2e5a8f1c4d7a0e3b6c9d2e5a8b1c4d7f0a3b6e9c2d5a8b1e4f7a0c3d6e9b2",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  60000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "framework":  {
+                                                                               "description":  "STIG framework: RHEL-09-STIG, CIS-L1, CIS-L2, NIST-800-53, NIST-800-171, CMMC, PQC (default: RHEL-09-STIG)",
+                                                                               "type":  "string"
+                                                                           },
+                                                             "project_path":  {
+                                                                                  "description":  "Path to check (default: current directory)",
+                                                                                  "type":  "string"
+                                                                              }
+                                                         },
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "cmmc_assess",
+                      "description":  "SouHimBou AI Step 02 — CMMC Level 1, 2, or 3 practice assessment. Maps system posture to CMMC 2.0 domains, returns gap analysis with practice-level findings, compliance score, C3PAO readiness flag, and PQC status. 100% offline — no Supabase.",
+                      "risk_class":  "read_only",
+                      "scope":  "compliance:read",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "c3f6a9d2e5b8c1f4a7d0e3b6c9f2a5d8e1b4c7f0a3d6e9b2c5f8a1d4e7b0c3",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  60000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "level":  {
+                                                                            "description":  "CMMC level: 1, 2, or 3 (default: 2)",
+                                                                            "type":  "string"
+                                                                        },
+                                                             "project_path":  {
+                                                                                  "description":  "Path to assess (default: current directory)",
+                                                                                  "type":  "string"
+                                                                              }
+                                                         },
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "agent_record",
+                      "description":  "SouHimBou AI Flight Recorder — record an agent action event. In sovereign/air-gap mode (SOUHIMBOU_ENDPOINT not set), writes to the local PQC-signed DAG audit log only. When SOUHIMBOU_ENDPOINT is set, forwards to SouHimBou AI SaaS ingest API. Required fields: action (e.g. tool_called, decision_made, file_modified). Optional: agent_id, tool_name, session_id, metadata.",
+                      "risk_class":  "read_only",
+                      "scope":  "audit:write",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "d4a7b0c3e6f9a2d5b8c1e4f7a0d3b6c9e2f5a8b1d4e7f0a3b6c9d2e5f8a1b4",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  10000,
+                      "network_allowed":  true,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "action":  {
+                                                                             "description":  "Action type: tool_called, decision_made, file_modified, etc.",
+                                                                             "type":  "string"
+                                                                         },
+                                                             "agent_id":  {
+                                                                              "description":  "Agent identifier (default: from session context)",
+                                                                              "type":  "string"
+                                                                          },
+                                                             "metadata":  {
+                                                                              "description":  "Additional metadata for the event",
+                                                                              "type":  "object"
+                                                                          },
+                                                             "session_id":  {
+                                                                                "description":  "Session identifier (default: from context)",
+                                                                                "type":  "string"
+                                                                            },
+                                                             "tool_name":  {
+                                                                               "description":  "Name of tool being recorded",
+                                                                               "type":  "string"
+                                                                           }
+                                                         },
+                                          "required":  [
+                                                           "action"
+                                                       ],
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "flight_export",
+                      "description":  "SouHimBou AI Step 03 — Export CMMC-aligned evidence packet from the flight recorder. Reads the tamper-evident NDJSON flight log, verifies the ML-DSA-65 signed chain, and returns an EvidencePacket with SOW pilot KPIs: tool_calls_captured, signed_privileged_pct, mean_evidence_time_ms, control_mapping_count. Ready for C3PAO submission.",
+                      "risk_class":  "read_only",
+                      "scope":  "audit:read",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "e5b8c1d4f7a0b3e6c9d2f5a8b1e4c7f0a3b6d9e2f5a8c1d4e7b0f3a6c9d2e5",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  30000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "log_path":  {
+                                                                              "description":  "Path to flight log file (default: KHEPRA_DATA_DIR/khepra-flight.ndjson)",
+                                                                              "type":  "string"
+                                                                          },
+                                                             "session_id":  {
+                                                                                "description":  "Filter export to a specific session ID",
+                                                                                "type":  "string"
+                                                                            }
+                                                         },
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "khepra_export_attestation",
+                      "description":  "Export a PQC-signed attestation package (JSON) covering all active compliance frameworks. No Supabase. No network. The C3PAO-ready evidence artifact — ML-DSA-65-signed, DAG-anchored, NIST SP 800-171A compliant. Include dag_node_id in your C3PAO submission package.",
+                      "risk_class":  "read_only",
+                      "scope":  "compliance:attest",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "f6c9d2e5a8b1c4f7a0d3e6b9c2f5a8d1e4b7c0f3a6d9e2b5f8a1c4d7e0b3f6",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  120000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "engagement_id":  {
+                                                                                   "description":  "Optional engagement/ticket ID for traceability",
+                                                                                   "type":  "string"
+                                                                               },
+                                                             "include_dag":  {
+                                                                                 "description":  "Include full DAG audit chain in output (default: true)",
+                                                                                 "type":  "boolean"
+                                                                             }
+                                                         },
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "khepra_export_poam",
+                      "description":  "Generate a DFARS 252.204-7012 / CMMC Plan of Action and Milestones (POA&M) from current compliance gaps. Offline. Includes control IDs, finding descriptions, responsible parties, milestones, and risk ratings. Export as JSON or Markdown.",
+                      "risk_class":  "read_only",
+                      "scope":  "compliance:read",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "a7d0e3f6b9c2d5a8e1b4c7f0a3d6e9b2c5f8a1d4e7b0f3a6c9d2e5a8b1c4d7",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  30000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "format":  {
+                                                                            "description":  "Output format: json or markdown (default: json)",
+                                                                            "type":  "string"
+                                                                        },
+                                                             "framework":  {
+                                                                               "description":  "Framework to generate POA&M for (default: CMMC)",
+                                                                               "type":  "string"
+                                                                           }
+                                                         },
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "khepra_query_stig",
+                      "description":  "Lookup a specific STIG control, CCI item, or NIST 800-53 control by ID. Returns title, description, severity, remediation, and CMMC practice mapping. Supports STIG-ID, CCI-XXXXXX, AC-X, AU-X, CM-X, IA-X, SC-X, SI-X formats. 100% offline.",
+                      "risk_class":  "read_only",
+                      "scope":  "stig:read",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "b8e1f4a7c0d3e6b9f2a5d8e1b4c7f0a3d6e9b2c5f8a1d4e7b0c3f6a9d2e5b8",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  5000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "control_id":  {
+                                                                                "description":  "Control ID to look up (e.g. CCI-000001, AC-2, RHEL-09-211010)",
+                                                                                "type":  "string"
+                                                                            }
+                                                         },
+                                          "required":  [
+                                                           "control_id"
+                                                       ],
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "khepra_get_compliance_score",
+                      "description":  "Get a fast composite compliance score (0-100) across all active frameworks without running a full scan. Returns per-domain breakdown, trend delta vs previous scan, and C3PAO readiness indicator. Sub-second response. 100% offline.",
+                      "risk_class":  "read_only",
+                      "scope":  "compliance:read",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "c9f2a5d8b1e4c7f0a3d6e9b2c5f8a1d4e7b0c3f6a9d2e5b8c1f4a7d0e3b6c9",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  5000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "framework":  {
+                                                                               "description":  "Framework to score: CMMC, NIST-800-171, RHEL-09-STIG, PQC (default: all)",
+                                                                               "type":  "string"
+                                                                           }
+                                                         },
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "khepra_query_threat_intel",
+                      "description":  "Query the embedded offline CISA KEV (Known Exploited Vulnerabilities) and CVE database. Returns KEV status, EPSS probability, CVSS score, MITRE ATT&CK mapping, and NIST 800-171 affected controls. Zero network calls — data embedded at build time.",
+                      "risk_class":  "read_only",
+                      "scope":  "threat:read",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "d0a3b6e9c2f5a8d1e4b7c0f3a6d9e2b5f8a1c4d7e0b3f6a9c2d5e8b1f4a7d0",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  5000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "cve_id":  {
+                                                                            "description":  "CVE ID to look up (e.g. CVE-2024-1234)",
+                                                                            "type":  "string"
+                                                                        },
+                                                             "query":  {
+                                                                           "description":  "Free-text search across KEV/CVE descriptions",
+                                                                           "type":  "string"
+                                                                       }
+                                                         },
+                                          "type":  "object"
+                                      }
+                  },
+                  {
+                      "name":  "khepra_get_dag_chain",
+                      "description":  "Retrieve the ML-DSA-65-signed DAG audit chain for the current or a specified session. Returns all nodes with signatures, timestamps, tool names, risk classes, and chain integrity status. Use for C3PAO evidence or incident forensics.",
+                      "risk_class":  "read_only",
+                      "scope":  "dag:read",
+                      "schema_version":  "1.0.0",
+                      "schema_hash":  "e1b4c7f0a3d6e9b2c5f8a1d4e7b0c3f6a9d2e5b8e1f4a7d0e3b6c9f2a5d8e1",
+                      "allowed_backend":  "in-process",
+                      "timeout_ms":  10000,
+                      "network_allowed":  false,
+                      "destructive":  false,
+                      "args_schema":  {
+                                          "properties":  {
+                                                             "session_id":  {
+                                                                                "description":  "Session ID to retrieve chain for (default: current session)",
+                                                                                "type":  "string"
+                                                                            }
+                                                         },
                                           "type":  "object"
                                       }
                   }
