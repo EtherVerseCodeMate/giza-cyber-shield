@@ -10,7 +10,7 @@ import {
   Loader2,
   AlertCircle 
 } from 'lucide-react';
-import { EnvironmentAutoDiscovery } from '@/services/EnvironmentAutoDiscovery';
+import { EnvironmentAutoDiscovery, DiscoveryResults } from '@/services/EnvironmentAutoDiscovery';
 import { useToast } from '@/hooks/use-toast';
 
 interface AutoDiscoveryPanelProps {

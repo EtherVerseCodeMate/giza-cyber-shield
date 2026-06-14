@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useOrganizationContext } from '@/components/OrganizationProvider';
-import { useSTIGCompliance } from '@/hooks/useSTIGCompliance';
+import { useSTIGCompliance, ComplianceMetrics } from '@/hooks/useSTIGCompliance';
 
 interface MVP1DashboardProps {
   demoMetrics?: ComplianceMetrics;

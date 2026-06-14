@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Shield, Key, Plus, Eye, EyeOff, TestTube, RotateCcw, Trash2, AlertTriangle, CheckCircle, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { SecureCredentialVault } from '@/services/SecureCredentialVault';
+import { SecureCredentialVault, SecureCredential } from '@/services/SecureCredentialVault';
 
 interface SecureCredentialManagerProps {
   organizationId: string;
