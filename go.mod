@@ -1,6 +1,6 @@
 module github.com/EtherVerseCodeMate/giza-cyber-shield
 
-go 1.25.5
+go 1.25.8
 
 require (
 	github.com/anchore/clio v0.1.0
@@ -20,7 +20,7 @@ require (
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/crypto v0.50.0
 	golang.org/x/sys v0.43.0
-	google.golang.org/grpc v1.81.0
+	google.golang.org/grpc v1.81.1
 	modernc.org/sqlite v1.47.0
 	tailscale.com v1.88.1
 )
