@@ -258,20 +258,21 @@ func initInfrastructure(cfg *serverConfig) (dag.Store, *license.Manager) {
 	dagStore := dag.GlobalDAG()
 	log.Printf("DAG initialized with %d nodes", len(dagStore.All()))
 
-	// Initialize license manager
-	licMgr, err := license.NewManager(cfg.telemetryURL)
-	if err != nil {
-		log.Fatalf("Failed to create license manager: %v", err)
+	// ── License Bootstrap (ML-DSA-65 / NIST FIPS 204) ────────────────────────
+	// ValidateFromEnv() sets license.Global for package-level feature gating.
+	// Priority: offline .khepra file → KHEPRA_TELEMETRY_URL → community fallback.
+	// Community tier is NON-FATAL; a key present but invalid IS FATAL.
+	if os.Getenv("KHEPRA_TELEMETRY_URL") == "" {
+		os.Setenv("KHEPRA_TELEMETRY_URL", cfg.telemetryURL)
+	}
+	if err := license.ValidateFromEnv(); err != nil {
+		log.Fatalf("[FATAL] License key present but cryptographically invalid: %v\n"+
+			"  → Remove or replace KHEPRA_LICENSE_KEY / ~/.khepra/license.khepra", err)
 	}
 
-	if err := licMgr.Initialize(); err != nil {
-		log.Printf("License validation failed: %v", err)
-	} else {
-		log.Println("License validated - full features enabled")
-	}
-
-	return dagStore, licMgr
+	return dagStore, license.Global
 }
+
 
 func initServices(cfg *serverConfig, flags map[string]interface{}, dagStore dag.Store, licMgr *license.Manager) *apiserver.Server {
 	config := &apiserver.Config{
