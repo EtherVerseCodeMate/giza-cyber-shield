@@ -1,6 +1,10 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+
+// ── Supabase Edge Function base URL ────────────────────────────────────────
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 
 const PLANS = [
   {
@@ -47,6 +51,8 @@ const PLANS = [
   },
 ] as const;
 
+// Self-serve plans — planId maps to a server-side price on the Edge Function
+// Price IDs are NEVER sent from the client (server looks them up by planId)
 const SELF_SERVE = [
   {
     id: 'free',
@@ -56,6 +62,7 @@ const SELF_SERVE = [
     features: ['Unlimited scans', 'Exposure report', 'Basic STIG risk score', 'Community support'],
     cta: 'Run Free Scan',
     ctaAction: 'scan',
+    planId: null,
     highlight: false,
   },
   {
@@ -74,6 +81,7 @@ const SELF_SERVE = [
     ],
     cta: 'Get Certified',
     ctaAction: 'checkout',
+    planId: 'certify',
     highlight: false,
   },
   {
@@ -95,6 +103,7 @@ const SELF_SERVE = [
     ],
     cta: 'Start Autopilot',
     ctaAction: 'checkout',
+    planId: 'autopilot',
     highlight: true,
   },
 ] as const;
@@ -164,35 +173,56 @@ const ArrowIcon = () => (
 export default function SimpleBilling() {
   const navigate = useNavigate();
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null); // planId or null
 
   const handleAdvisory = () => {
-    // Mirrors the existing enterprise contact intent.
     globalThis.location.href =
       'mailto:skone@alumni.albany.edu?subject=ASAF%20Request%20Assessment';
   };
 
-  const handleCheckout = async () => {
-    setCheckoutLoading(true);
+  /**
+   * Calls the unified create-checkout-session Edge Function.
+   * planId is sent server-side; price is never exposed to the client.
+   */
+  const handleCheckout = async (planId: string) => {
+    setCheckoutLoading(planId);
     try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
+      // Get the current user's JWT from Supabase
+      const { data: { session }, error: sessErr } = await supabase.auth.getSession();
+      if (sessErr || !session) {
+        // Not logged in — redirect to auth with return URL
+        navigate(`/auth?redirect=/billing&plan=${planId}`);
+        return;
+      }
+
+      const res = await fetch(
+        `${SUPABASE_URL}/functions/v1/create-checkout-session`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ planId }),
+        }
+      );
+
       const data = await res.json();
-      if (data.url) globalThis.location.href = data.url;
-      else throw new Error(data.error || 'Checkout unavailable');
+      if (data.url) {
+        globalThis.location.href = data.url;
+      } else {
+        throw new Error(data.error || 'Checkout session unavailable');
+      }
     } catch (e: any) {
-      // Avoid bringing toast infrastructure into this pure inline-styles page.
-      alert(e?.message || 'Checkout error');
-      setCheckoutLoading(false);
+      alert(e?.message || 'Checkout error — please try again or contact support@nouchix.com');
+    } finally {
+      setCheckoutLoading(null);
     }
   };
 
-  const handleSelfServeCTA = (ctaAction: string) => {
+  const handleSelfServeCTA = (ctaAction: string, planId: string | null) => {
     if (ctaAction === 'scan') return navigate('/onboarding');
-    if (ctaAction === 'checkout') return handleCheckout();
+    if (ctaAction === 'checkout' && planId) return handleCheckout(planId);
     return undefined;
   };
 
@@ -384,11 +414,11 @@ export default function SimpleBilling() {
                   ...styles.ctaButton,
                   ...(plan.highlight ? styles.ctaAgent : styles.ctaAgentOutline),
                 }}
-                onClick={() => handleSelfServeCTA(plan.ctaAction)}
+                onClick={() => handleSelfServeCTA(plan.ctaAction, (plan as any).planId)}
                 type="button"
-                disabled={plan.ctaAction === 'checkout' && checkoutLoading}
+                disabled={plan.ctaAction === 'checkout' && checkoutLoading === (plan as any).planId}
               >
-                {plan.ctaAction === 'checkout' && checkoutLoading ? 'Redirecting...' : plan.cta}
+                {plan.ctaAction === 'checkout' && checkoutLoading === (plan as any).planId ? 'Redirecting...' : plan.cta}
                 <ArrowIcon />
               </button>
             </div>

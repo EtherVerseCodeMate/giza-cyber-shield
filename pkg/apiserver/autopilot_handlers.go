@@ -13,9 +13,16 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 )
 
 func (s *Server) handleAutopilotStart(c *gin.Context) {
+	// ── License gate: Autopilot requires Pilot tier or higher ─────────────────
+	if !s.licenseGate(c, license.FeatureCMMCAutopilot) {
+		return
+	}
+
 	// Parse optional config overrides
 	var req struct {
 		ScanIntervalMinutes int     `json:"scan_interval_minutes"`
@@ -58,6 +65,9 @@ func (s *Server) handleAutopilotStart(c *gin.Context) {
 }
 
 func (s *Server) handleAutopilotStop(c *gin.Context) {
+	if !s.licenseGate(c, license.FeatureCMMCAutopilot) {
+		return
+	}
 	if s.autopilot == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Autopilot not running"})
 		return
@@ -71,6 +81,9 @@ func (s *Server) handleAutopilotStop(c *gin.Context) {
 }
 
 func (s *Server) handleAutopilotPause(c *gin.Context) {
+	if !s.licenseGate(c, license.FeatureCMMCAutopilot) {
+		return
+	}
 	if s.autopilot == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Autopilot not running"})
 		return
@@ -84,6 +97,9 @@ func (s *Server) handleAutopilotPause(c *gin.Context) {
 }
 
 func (s *Server) handleAutopilotResume(c *gin.Context) {
+	if !s.licenseGate(c, license.FeatureCMMCAutopilot) {
+		return
+	}
 	if s.autopilot == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Autopilot not running"})
 		return
