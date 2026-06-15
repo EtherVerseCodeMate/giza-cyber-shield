@@ -27,10 +27,13 @@ export interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, metadata?: any) => Promise<{ error: any }>;
-  signOut: () => Promise<{ error: any }>;
-  resetPassword: (email: string) => Promise<{ error: any }>;
+  isSaasMode: boolean;
+  signIn:         (email: string, password: string) => Promise<{ error: any }>;
+  signUp:         (email: string, password: string, metadata?: any) => Promise<{ error: any }>;
+  signOut:        () => Promise<{ error: any }>;
+  resetPassword:  (email: string) => Promise<{ error: any }>;
+  signInWithOAuth: (provider: string) => Promise<{ error: any }>;
+  signInWithSSO:   (domain: string)   => Promise<{ error: any }>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
