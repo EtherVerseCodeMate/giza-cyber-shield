@@ -1,193 +1,139 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
-import { Shield, CheckCircle, AlertTriangle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+/**
+ * src/pages/AuthCallback.tsx
+ * SouHimBou AI · OAuth callback + session hydration
+ * NouchiX SecRed Knowledge Inc.
+ *
+ * Handles:
+ *   - Google / GitHub / LinkedIn / Microsoft OAuth redirects
+ *   - Email confirmation deep links
+ *   - Password reset links
+ *   - Detects first-time users and routes to onboarding
+ */
+'use client'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from '@/lib/supabase'
+import { Shield, Loader2, CheckCircle, XCircle } from 'lucide-react'
+
+type Stage = 'processing' | 'success' | 'error'
 
 const AuthCallback = () => {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { toast } = useToast();
+  const navigate = useNavigate()
+  const [stage,   setStage]   = useState<Stage>('processing')
+  const [message, setMessage] = useState('Verifying session…')
+  const [error,   setError]   = useState<string | null>(null)
 
   useEffect(() => {
-    const handleAuthCallback = async () => {
+    const handle = async () => {
       try {
-        console.log('Processing auth callback...');
+        // Exchange the code in the URL for a session (PKCE)
+        const { data, error } = await supabase.auth.exchangeCodeForSession(window.location.href)
 
-        // Extract hash parameters (tokens from Supabase)
-        const hashParams = new URLSearchParams(location.hash.substring(1));
-
-        // Check if we have auth tokens in the hash
-        const accessToken = hashParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token');
-        const type = hashParams.get('type');
-        const errorDescription = hashParams.get('error_description');
-
-        if (errorDescription) {
-          console.error('Auth error from hash:', errorDescription);
-          setError(errorDescription);
-          toast({
-            title: "Authentication Error",
-            description: errorDescription,
-            variant: "destructive"
-          });
-          navigate('/auth');
-          return;
+        if (error) {
+          console.error('[AUTH-CALLBACK]', error)
+          setError(error.message)
+          setStage('error')
+          return
         }
 
-        if (accessToken && refreshToken) {
-          console.log('Tokens found in URL, setting session...');
+        const user = data.session?.user
+        if (!user) {
+          setError('No user in session. Please try signing in again.')
+          setStage('error')
+          return
+        }
 
-          // Set the session directly in the client
-          const { error: sessionError } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
+        setMessage('Session established — checking your profile…')
 
-          if (sessionError) {
-            console.error('Session creation error:', sessionError);
-            setError('Failed to establish session');
+        // Check if this is a first-time user (no profile row)
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('id, onboarding_complete')
+          .eq('id', user.id)
+          .single()
 
-            toast({
-              title: "Session Error",
-              description: "Failed to establish user session",
-              variant: "destructive"
-            });
+        setStage('success')
 
-            // Clear the URL immediately for security
-            globalThis.history.replaceState({}, document.title, globalThis.location.pathname);
-            navigate('/auth?error=session_failed');
-            return;
-          }
-
-          // Clear the URL hash immediately for security
-          globalThis.history.replaceState({}, document.title, globalThis.location.pathname);
-
-          console.log('Auth session established successfully');
-
-          toast({
-            title: "Authentication Successful",
-            description: "Welcome back!",
-            variant: "default"
-          });
-
-          // Determine redirect based on type or default to dashboard
-          let redirectUrl = '/dashboard';
-          if (type === 'recovery') {
-            redirectUrl = '/auth/reset-password';
-          }
-
-          navigate(redirectUrl);
-
+        if (!profile || !profile.onboarding_complete) {
+          setMessage('Welcome! Setting up your workspace…')
+          setTimeout(() => navigate('/onboarding'), 1200)
         } else {
-          // No tokens found, check for error in search params
-          const urlParams = new URLSearchParams(location.search);
-          const errorParam = urlParams.get('error');
-          const errorDesc = urlParams.get('error_description');
-
-          if (errorParam || errorDesc) {
-            const msg = errorDesc || errorParam || 'Unknown error';
-            setError(`Authentication error: ${msg}`);
-            toast({
-              title: "Authentication Error",
-              description: msg,
-              variant: "destructive"
-            });
-          } else {
-            // Sometimes Supabase redirects to the callback URL with the tokens in the hash,
-            // but if we are here and no hash params, maybe it's a direct visit?
-            // Just redirect to auth page.
-            console.log("No tokens found, redirecting to login");
-            navigate('/auth');
-          }
+          setMessage('All set! Redirecting to dashboard…')
+          setTimeout(() => navigate('/dashboard'), 1000)
         }
-
-      } catch (error) {
-        console.error('Auth callback error:', error);
-        setError('Authentication processing failed');
-
-        toast({
-          title: "Authentication Error",
-          description: "Failed to process authentication callback",
-          variant: "destructive"
-        });
-
-        navigate('/auth?error=callback_exception');
-      } finally {
-        setLoading(false);
+      } catch (err: any) {
+        setError(err?.message ?? 'Unexpected error during authentication.')
+        setStage('error')
       }
-    };
+    }
 
-    handleAuthCallback();
-  }, [location, navigate, toast]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-dark flex items-center justify-center p-6">
-        <Card className="w-full max-w-md card-cyber backdrop-blur-lg">
-          <CardContent className="flex flex-col items-center space-y-4 p-8">
-            <Shield className="h-12 w-12 text-primary animate-pulse" />
-            <div className="text-center">
-              <h2 className="text-xl font-semibold text-foreground mb-2">
-                Securing Authentication
-              </h2>
-              <p className="text-muted-foreground">
-                Processing your authentication securely...
-              </p>
-            </div>
-            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-dark flex items-center justify-center p-6">
-        <Card className="w-full max-w-md card-cyber backdrop-blur-lg">
-          <CardContent className="flex flex-col items-center space-y-4 p-8">
-            <AlertTriangle className="h-12 w-12 text-destructive" />
-            <div className="text-center">
-              <h2 className="text-xl font-semibold text-foreground mb-2">
-                Authentication Error
-              </h2>
-              <p className="text-muted-foreground mb-4">
-                {error}
-              </p>
-              <button
-                onClick={() => navigate('/auth')}
-                className="text-primary hover:text-primary-glow transition-colors"
-              >
-                Return to Authentication
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+    handle()
+  }, [navigate])
 
   return (
-    <div className="min-h-screen bg-gradient-dark flex items-center justify-center p-6">
-      <Card className="w-full max-w-md card-cyber backdrop-blur-lg">
-        <CardContent className="flex flex-col items-center space-y-4 p-8">
-          <CheckCircle className="h-12 w-12 text-success" />
-          <div className="text-center">
-            <h2 className="text-xl font-semibold text-foreground mb-2">
-              Authentication Complete
-            </h2>
-            <p className="text-muted-foreground">
-              Redirecting you to the dashboard...
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
+    <div className="min-h-screen bg-[#050c16] flex flex-col items-center justify-center p-6"
+      style={{ fontFamily: "'Inter', sans-serif" }}>
 
-export default AuthCallback;
+      {/* Background glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] rounded-full bg-[#1a4f7a]/15 blur-[100px] pointer-events-none" />
+
+      <div className="relative z-10 text-center max-w-sm">
+        {/* Logo */}
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#1a9fe8] to-[#0d4f7a] shadow-lg shadow-[#1a9fe8]/20 mb-6">
+          <Shield className="h-8 w-8 text-white" />
+        </div>
+
+        {/* Status icon */}
+        <div className="flex justify-center mb-4">
+          {stage === 'processing' && (
+            <div className="flex items-center gap-2 text-[#1a9fe8]">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span className="text-sm font-medium">Authenticating</span>
+            </div>
+          )}
+          {stage === 'success' && (
+            <div className="flex items-center gap-2 text-emerald-400">
+              <CheckCircle className="h-5 w-5" />
+              <span className="text-sm font-medium">Authenticated</span>
+            </div>
+          )}
+          {stage === 'error' && (
+            <div className="flex items-center gap-2 text-red-400">
+              <XCircle className="h-5 w-5" />
+              <span className="text-sm font-medium">Authentication Failed</span>
+            </div>
+          )}
+        </div>
+
+        {/* Progress bar */}
+        {stage === 'processing' && (
+          <div className="w-48 mx-auto h-1 bg-white/10 rounded-full overflow-hidden mb-4">
+            <div className="h-full bg-gradient-to-r from-[#1a4f7a] to-[#1a9fe8] rounded-full animate-[progress_2s_ease-in-out_infinite]" style={{ width: '60%' }} />
+          </div>
+        )}
+
+        {/* Message */}
+        <p className="text-sm text-[#6b8aaa] mb-2">{message}</p>
+
+        {error && (
+          <div className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-left">
+            {error}
+            <br />
+            <button
+              onClick={() => navigate('/auth')}
+              className="mt-2 text-xs underline hover:text-red-300 transition-colors"
+            >
+              Return to sign in →
+            </button>
+          </div>
+        )}
+      </div>
+
+      <style>{`
+        @keyframes progress { 0%{margin-left:0;width:40%} 50%{margin-left:30%;width:60%} 100%{margin-left:100%;width:10%} }
+      `}</style>
+    </div>
+  )
+}
+
+export default AuthCallback

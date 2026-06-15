@@ -6,17 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import {
-  Brain,
-  MapPin,
-  CheckCircle,
-  AlertTriangle,
-  Clock,
-  Zap,
-  TrendingUp,
-  Download,
-  RefreshCw
-} from 'lucide-react';
+import { MapPin, CheckCircle, AlertTriangle, Clock, Brain, Zap, TrendingUp, Download, RefreshCw } from 'lucide-react';
 
 interface ControlMapping {
   id: string;
@@ -101,7 +91,7 @@ export const ComplianceControlMapper: React.FC = () => {
 
     try {
       // Enhanced AI-powered cross-framework mapping
-      const { data, error } = await supabase.functions.invoke('grok-ai-agent', {
+      const { data: _data, error } = await supabase.functions.invoke('grok-ai-agent', {
         body: {
           action: 'cross_framework_mapping',
           frameworks: selectedFrameworks,
@@ -164,6 +154,7 @@ export const ComplianceControlMapper: React.FC = () => {
       case 'mapped': return <CheckCircle className="h-4 w-4 text-green-500" />;
       case 'partial': return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
       case 'gap': return <AlertTriangle className="h-4 w-4 text-red-500" />;
+      case 'not-applicable': return <Clock className="h-4 w-4 text-gray-500" />;
       default: return <Clock className="h-4 w-4 text-gray-500" />;
     }
   };
@@ -408,8 +399,8 @@ export const ComplianceControlMapper: React.FC = () => {
                         AI-Powered Cross-Framework Mappings
                       </h4>
                       <div className="space-y-3">
-                        {mapping.mappedControls.map((mapped) => (
-                          <div key={`${mapping.id}-mapped-${mapped.id}`} className="p-3 bg-slate-700/40 rounded border border-slate-600/20">
+                        {mapping.mappedControls.map((mapped, index) => (
+                          <div key={index} className="p-3 bg-slate-700/40 rounded border border-slate-600/20">
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-3">
                                 <Badge variant="outline">{mapped.id}</Badge>
@@ -447,7 +438,7 @@ export const ComplianceControlMapper: React.FC = () => {
                         </h4>
                         <ul className="text-gray-300 text-xs space-y-1">
                           {mapping.implementation.aiRecommendations.map((rec, idx) => (
-                            <li key={`${mapping.id}-rec-${idx}`}>• {rec}</li>
+                            <li key={idx}>• {rec}</li>
                           ))}
                         </ul>
                       </div>
@@ -521,7 +512,7 @@ export const ComplianceControlMapper: React.FC = () => {
                         <div className="text-gray-400 mb-2">Test Procedures</div>
                         <ul className="text-gray-300 space-y-1">
                           {mapping.implementation.testProcedures.slice(0, 2).map((procedure, idx) => (
-                            <li key={`${mapping.id}-test-${idx}`} className="text-xs">• {procedure}</li>
+                            <li key={idx} className="text-xs">• {procedure}</li>
                           ))}
                         </ul>
                       </div>
@@ -551,7 +542,7 @@ export const ComplianceControlMapper: React.FC = () => {
                     <h4 className="text-purple-400 font-medium mb-3">Priority Recommendations</h4>
                     <div className="space-y-2">
                       {aiAnalysis.recommendations.map((rec, idx) => (
-                        <div key={`strategy-rec-${idx}`} className="p-3 bg-purple-900/20 border border-purple-500/30 rounded">
+                        <div key={idx} className="p-3 bg-purple-900/20 border border-purple-500/30 rounded">
                           <div className="flex items-start gap-3">
                             <TrendingUp className="h-4 w-4 text-purple-400 mt-0.5" />
                             <span className="text-gray-300 text-sm">{rec}</span>
@@ -565,7 +556,7 @@ export const ComplianceControlMapper: React.FC = () => {
                     <h4 className="text-green-400 font-medium mb-3">Automation Opportunities</h4>
                     <div className="space-y-2">
                       {aiAnalysis.automationOpportunities.map((opp, idx) => (
-                        <div key={`auto-opp-${idx}`} className="p-3 bg-green-900/20 border border-green-500/30 rounded">
+                        <div key={idx} className="p-3 bg-green-900/20 border border-green-500/30 rounded">
                           <div className="flex items-start gap-3">
                             <Zap className="h-4 w-4 text-green-400 mt-0.5" />
                             <span className="text-gray-300 text-sm">{opp}</span>

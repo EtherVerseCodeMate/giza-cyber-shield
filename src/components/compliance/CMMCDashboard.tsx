@@ -60,7 +60,7 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
 
   const initializeCMMCData = () => {
     const cmmcFramework = frameworks.find(f => f.name.toLowerCase().includes('cmmc'));
-    // CMMC framework controls are initialized from the static levels below
+    void controls.filter(c => c.framework_id === cmmcFramework?.id);
 
     const levels: CMMCLevel[] = [
       {
@@ -119,8 +119,8 @@ export const CMMCDashboard: React.FC<CMMCDashboardProps> = ({ organizationId }) 
     }
   };
 
-  const getDomainIcon = (domain: string): React.ElementType => {
-    const icons: Record<string, React.ElementType> = {
+  const _getDomainIcon = (domain: string): React.ElementType => {
+    const icons: Record<string, any> = {
       'AC': Users,      // Access Control
       'AU': FileText,   // Audit and Accountability  
       'AT': TrendingUp, // Awareness and Training
