@@ -2,25 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import {
-  Shield,
-  CheckCircle,
-  Target,
-  Database,
-  Zap,
-  Users,
-  Building,
-  Globe,
-  FileText,
-  ArrowRight,
-  Search,
-  Filter,
-  Maximize,
-  Minimize
-} from 'lucide-react';
+import { Network, Shield, CheckCircle, Target, Database, Zap, Users, Building, Globe, FileText, ArrowRight, Search, Filter, Maximize, Minimize } from 'lucide-react';
 
 // Graph visualization component using canvas
 interface GraphNode {
@@ -97,10 +83,27 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
     animate();
   }, [graphData, selectedNode, hoveredNode, animationFrame]);
 
-  const drawEdges = (ctx: CanvasRenderingContext2D, edges: GraphEdge[], nodes: GraphNode[]) => {
-    edges.forEach(edge => {
-      const fromNode = nodes.find(n => n.id === edge.from);
-      const toNode = nodes.find(n => n.id === edge.to);
+  const drawGraph = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+    // Clear canvas
+    ctx.clearRect(0, 0, width, height);
+
+    // Apply filters
+    const filteredNodes = graphData.nodes.filter(node => {
+      const matchesSearch = searchTerm === '' ||
+        node.label.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesType = filterType === 'all' || node.type === filterType;
+      return matchesSearch && matchesType;
+    });
+
+    const filteredNodeIds = new Set(filteredNodes.map(n => n.id));
+    const filteredEdges = graphData.edges.filter(edge =>
+      filteredNodeIds.has(edge.from) && filteredNodeIds.has(edge.to)
+    );
+
+    // Draw edges first
+    filteredEdges.forEach(edge => {
+      const fromNode = filteredNodes.find(n => n.id === edge.from);
+      const toNode = filteredNodes.find(n => n.id === edge.to);
 
       if (!fromNode || !toNode) return;
 
@@ -139,10 +142,9 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
       ctx.closePath();
       ctx.fill();
     });
-  };
 
-  const drawNodes = (ctx: CanvasRenderingContext2D, nodes: GraphNode[]) => {
-    nodes.forEach(node => {
+    // Draw nodes
+    filteredNodes.forEach(node => {
       const isSelected = selectedNode?.id === node.id;
       const isHovered = hoveredNode?.id === node.id;
 
@@ -198,28 +200,6 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
     });
   };
 
-  const drawGraph = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height);
-
-    // Apply filters
-    const filteredNodes = graphData.nodes.filter(node => {
-      const matchesSearch = searchTerm === '' ||
-        node.label.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesType = filterType === 'all' || node.type === filterType;
-      return matchesSearch && matchesType;
-    });
-
-    const filteredNodeIds = new Set(filteredNodes.map(n => n.id));
-    const filteredEdges = graphData.edges.filter(edge =>
-      filteredNodeIds.has(edge.from) && filteredNodeIds.has(edge.to)
-    );
-
-    // Draw components
-    drawEdges(ctx, filteredEdges, filteredNodes);
-    drawNodes(ctx, filteredNodes);
-  };
-
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -230,7 +210,7 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
 
     // Find clicked node
     const clickedNode = graphData.nodes.find(node => {
-      const distance = Math.hypot(x - node.x, y - node.y);
+      const distance = Math.sqrt((x - node.x) ** 2 + (y - node.y) ** 2);
       return distance <= node.radius;
     });
 
@@ -254,7 +234,7 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
     const y = event.clientY - rect.top;
 
     const hoveredNode = graphData.nodes.find(node => {
-      const distance = Math.hypot(x - node.x, y - node.y);
+      const distance = Math.sqrt((x - node.x) ** 2 + (y - node.y) ** 2);
       return distance <= node.radius;
     });
 
@@ -265,7 +245,7 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
   const refreshGraph = async () => {
     try {
       // Simulate fetching updated graph data
-      await supabase.functions.invoke('grok-ai-agent', {
+      const { data: _data, error } = await supabase.functions.invoke('grok-ai-agent', {
         body: {
           action: 'generate_knowledge_graph',
           includeRemediations: true,
@@ -273,6 +253,7 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
         }
       });
 
+      if (error) throw error;
 
       // For now, regenerate pending data
       setGraphData(generatePendingGraphData());
@@ -321,7 +302,7 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <Zap className="h-5 w-5 text-purple-400" />
+                    <Network className="h-5 w-5" />
                     Compliance Knowledge Graph
                   </CardTitle>
                   <CardDescription>
@@ -418,13 +399,9 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
                         <Badge variant="outline">{selectedNode.type}</Badge>
                         {selectedNode.status && (
                           <Badge
-                            className={`ml-2 ${
-                              selectedNode.status === 'compliant'
-                                ? 'bg-green-500'
-                                : selectedNode.status === 'non-compliant'
-                                  ? 'bg-red-500'
-                                  : 'bg-gray-500'
-                            }`}
+                            className={`ml-2 ${selectedNode.status === 'compliant' ? 'bg-green-500' :
+                                selectedNode.status === 'non-compliant' ? 'bg-red-500' : 'bg-gray-500'
+                              }`}
                           >
                             {selectedNode.status}
                           </Badge>
@@ -513,7 +490,7 @@ export const ComplianceKnowledgeGraph: React.FC = () => {
                   const toNode = graphData.nodes.find(n => n.id === edge.to);
 
                   return (
-                    <div key={`${edge.from}-${edge.to}-${index}`} className="flex items-center justify-between p-3 border rounded">
+                    <div key={index} className="flex items-center justify-between p-3 border rounded">
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                           {fromNode && getTypeIcon(fromNode.type)}

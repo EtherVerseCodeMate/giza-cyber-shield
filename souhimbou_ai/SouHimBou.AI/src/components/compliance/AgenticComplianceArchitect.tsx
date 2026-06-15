@@ -7,18 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import {
-  Brain,
-  Shield,
-  CheckCircle,
-  AlertTriangle,
-  GitBranch,
-  Eye,
-  Play,
-  Pause,
-  FileCheck,
-  Network
-} from 'lucide-react';
+import { Brain, Shield, CheckCircle, AlertTriangle, GitBranch, Eye, Play, Pause, FileCheck, Network } from 'lucide-react';
 import { ControlTestEngine } from './ControlTestEngine';
 import { RemediationOrchestrator } from './RemediationOrchestrator';
 import { ConnectorSDK } from './ConnectorSDK';
@@ -27,6 +16,7 @@ import { AttestationEngine } from './AttestationEngine';
 import { EvidenceCollectionEngine } from './EvidenceCollectionEngine';
 import { ComplianceControlMapper } from './ComplianceControlMapper';
 import { POAMGenerator } from '../automation/POAMGenerator';
+
 import { ComplianceDemoScenarios } from '../demo/ComplianceDemoScenarios';
 
 interface AgentMode {
@@ -99,7 +89,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
   const [activeMode, setActiveMode] = useState<string>('observe');
   const [controlGaps, setControlGaps] = useState<ControlGap[]>([]);
   const [capabilities, setCapabilities] = useState<AgentCapability[]>([]);
-  const [overallCompliance] = useState(78);
+  const [overallCompliance, setOverallCompliance] = useState(78);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -131,27 +121,18 @@ export const AgenticComplianceArchitect: React.FC = () => {
     setControlGaps(prev => prev.map(g => g.id === gapId ? { ...g, status } : g));
   };
 
-  const mapToControlGap = (d: any): ControlGap => {
-    let remediationPlan = undefined;
-    if (d.remediation_plan) {
-      remediationPlan = typeof d.remediation_plan === 'string' 
-        ? JSON.parse(d.remediation_plan) 
-        : d.remediation_plan;
-    }
-
-    return {
-      id: d.id,
-      controlId: d.control_id,
-      framework: 'SOC2 / TBD',
-      severity: d.severity || 'medium',
-      status: d.status || 'detected',
-      description: d.description || '',
-      affectedAssets: 0,
-      estimatedTime: '4h',
-      blastRadius: 5,
-      remediationPlan
-    };
-  };
+  const mapToControlGap = (d: any): ControlGap => ({
+    id: d.id,
+    controlId: d.control_id,
+    framework: 'SOC2 / TBD',
+    severity: d.severity as any || 'medium',
+    status: d.status as any || 'detected',
+    description: d.description || '',
+    affectedAssets: 0,
+    estimatedTime: '4h',
+    blastRadius: 5,
+    remediationPlan: d.remediation_plan ? (typeof d.remediation_plan === 'string' ? JSON.parse(d.remediation_plan) : d.remediation_plan) : undefined
+  });
 
   const fetchControlGaps = async () => {
     setIsLoading(true);
@@ -198,7 +179,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
 
   const triggerComplianceScan = async () => {
     try {
-      const { error } = await supabase.functions.invoke('grok-ai-agent', {
+      const { data: _data, error } = await supabase.functions.invoke('grok-ai-agent', {
         body: {
           action: 'compliance_scan',
           mode: activeMode,
@@ -238,7 +219,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
 
       updateGapStatus(gap.id, 'remediating');
 
-      const { error } = await supabase.functions.invoke('grok-ai-agent', {
+      const { data: _data, error } = await supabase.functions.invoke('grok-ai-agent', {
         body: {
           action: 'execute_remediation',
           controlId: gap.controlId,
@@ -311,6 +292,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                 onClick={handleAgentToggle}
                 variant={agentStatus === 'running' ? 'outline' : 'default'}
                 className="flex items-center gap-2"
+                aria-label={agentStatus === 'running' ? 'Pause AI Agent' : 'Start AI Agent'}
               >
                 {agentStatus === 'running' ? (
                   <>
@@ -657,7 +639,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
         <TabsContent value="gaps" className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Active Control Gaps</h3>
-            <Button onClick={fetchControlGaps} disabled={isLoading}>
+            <Button onClick={fetchControlGaps} disabled={isLoading} aria-label="Refresh compliance gaps">
               {isLoading ? 'Scanning...' : 'Refresh'}
             </Button>
           </div>
@@ -702,7 +684,7 @@ export const AgenticComplianceArchitect: React.FC = () => {
                       <h5 className="font-medium">Remediation Plan ({gap.remediationPlan.tool})</h5>
                       <div className="bg-muted p-3 rounded space-y-1">
                         {gap.remediationPlan.steps.map((step, index) => (
-                          <div key={`remediation-step-${gap.id}-${index}`} className="text-sm">
+                          <div key={index} className="text-sm">
                             {index + 1}. {step}
                           </div>
                         ))}
@@ -746,8 +728,8 @@ export const AgenticComplianceArchitect: React.FC = () => {
 
         <TabsContent value="capabilities" className="space-y-4">
           <div className="grid gap-4">
-            {capabilities.map((capability) => (
-              <Card key={capability.name}>
+            {capabilities.map((capability, index) => (
+              <Card key={index}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
@@ -786,11 +768,9 @@ export const AgenticComplianceArchitect: React.FC = () => {
                       <CardTitle className="flex items-center gap-2">
                         {mode.name}
                         <Badge variant={
-                          (({
-                            high: 'destructive',
-                            medium: 'default',
-                            low: 'secondary'
-                          } as const)[mode.riskLevel] || 'secondary')
+                          mode.riskLevel === 'high' ? 'destructive' : 
+                          mode.riskLevel === 'medium' ? 'default' : 
+                          'secondary'
                         }>
                           {mode.riskLevel} risk
                         </Badge>
