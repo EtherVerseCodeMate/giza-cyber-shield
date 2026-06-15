@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "project": {
+    "initializedAt": "2026-06-15T07:23:13.156Z",
+    "merchantDisplayName": null,
+    "merchantId": "acct_1OPq4hDqGyad2D3V",
+    "projectId": "project_61Ursose3k7EXDqIM16PjlE4SSSQYeFCiJoQxYGjoW4W",
+    "projectName": "khepra protocol"
+  },
+  "providers": {
+    "vercel": {
+      "accountRequestId": "facctrq_61UrstSCovPCIMZx616PjlE4SSSQYeFCiJoQxYGjo58q",
+      "configuration": {},
+      "linkedAt": "2026-06-15T07:28:00.944Z",
+      "providerId": "prvdr_61ULUAr4zlQgZkvXY5LsG",
+      "providerName": "Vercel",
+      "redirectUrl": null,
+      "requestedAt": "2026-06-15T07:28:00.943Z",
+      "status": "complete"
+    }
+  },
+  "resources": {
+    "vercel-project": {
+      "configuration": {
+        "name": "khepra protocol"
+      },
+      "createdAt": "2026-06-15T07:28:02.787Z",
+      "lastRevealedAt": "2026-06-15T07:28:03.111Z",
+      "lastStatus": "complete",
+      "name": "vercel-project",
+      "providerId": "prvdr_61ULUAr4zlQgZkvXY5LsG",
+      "providerName": "Vercel",
+      "resourceId": "fres_61UrstXUieR1CZI9K16PjlE4SSSQYeFCiJoQxYGjoDRY",
+      "serviceId": "project"
+    }
+  }
+}
