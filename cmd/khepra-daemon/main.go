@@ -61,6 +61,9 @@ func main() {
 	http.HandleFunc("/adinkra/unweave", daemon.handleUnweave)
 	http.HandleFunc("/attest/verify", daemon.handleAttest)
 	http.HandleFunc("/status", daemon.handleStatus)
+	// Compliance Graph — DAG export + live CMMC scan results
+	http.HandleFunc("/dag/graph", daemon.handleDAGGraph)
+	http.HandleFunc("/compliance/scan-all", daemon.handleComplianceScanAll)
 
 	// Start server (localhost only for security)
 	addr := "127.0.0.1:" + *port

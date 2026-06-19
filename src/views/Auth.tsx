@@ -13,6 +13,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Shield, User, Lock, Building, Eye, EyeOff, CheckCircle, Fingerprint, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import PasswordResetOTP from '@/components/auth/PasswordResetOTP';
+import { OAuthProviders } from '@/components/auth/OAuthProviders';
+import { MFAChallenge } from '@/components/auth/MFAChallenge';
+import { MFAEnrollDialog } from '@/components/auth/MFAEnrollDialog';
+import { supabase } from '@/lib/supabase';
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -31,6 +35,9 @@ const Auth = () => {
   const [registeredEmail, setRegisteredEmail] = useState('');
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  // MFA state
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [showMFAEnroll, setShowMFAEnroll] = useState(false);
 
   const loginEmailRef = useRef<HTMLInputElement>(null);
   const regEmailRef = useRef<HTMLInputElement>(null);
@@ -198,6 +205,13 @@ const Auth = () => {
             timestamp: new Date().toISOString()
           });
 
+          // Check Authenticator Assurance Level — enforce MFA if factors enrolled.
+          const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+          if (aalData && aalData.nextLevel === 'aal2' && aalData.currentLevel !== 'aal2') {
+            setMfaRequired(true);
+            return; // Pause navigation until MFA verified.
+          }
+
           toast({
             title: "Access Granted",
             description: "Welcome back!",
@@ -263,6 +277,22 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen bg-gradient-dark flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
+      {/* MFA Challenge overlay — shown after password auth when AAL2 required */}
+      {mfaRequired && (
+        <MFAChallenge
+          userEmail={email}
+          onSuccess={() => { setMfaRequired(false); navigate('/dashboard'); }}
+          onBack={() => setMfaRequired(false)}
+        />
+      )}
+
+      {/* MFA Enrollment dialog — triggered post-registration or from settings */}
+      <MFAEnrollDialog
+        open={showMFAEnroll}
+        onClose={() => setShowMFAEnroll(false)}
+        onEnrolled={() => { setShowMFAEnroll(false); navigate('/dashboard'); }}
+      />
+
       {/* Background Effects */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--primary-glow)_0%,_transparent_50%)] opacity-10"></div>
       <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/5 via-transparent to-accent/5"></div>
@@ -448,6 +478,8 @@ const Auth = () => {
                     Forgot your password?
                   </button>
                 </div>
+
+                <OAuthProviders label="Continue with" disabled={loading || lockoutSeconds > 0} />
               </form>
             </TabsContent>
 
@@ -621,6 +653,25 @@ const Auth = () => {
                     </div>
                   )}
                 </Button>
+
+                <OAuthProviders label="Sign up with" disabled={loading} />
+
+                {/* MFA setup prompt — shown after account creation */}
+                {showEmailVerification && (
+                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-md">
+                    <p className="text-sm text-muted-foreground text-center">
+                      <Fingerprint className="h-4 w-4 inline mr-1 text-primary" />
+                      CMMC requires MFA.{' '}
+                      <button
+                        type="button"
+                        className="text-primary underline underline-offset-2 hover:text-primary/80"
+                        onClick={() => setShowMFAEnroll(true)}
+                      >
+                        Set up authenticator now
+                      </button>
+                    </p>
+                  </div>
+                )}
               </form>
             </TabsContent>
           </Tabs>
