@@ -1,0 +1,11 @@
+{
+  "id": "LMNNGLIUONHHEGUMTTYLNRGMRPGERPAMNTGYTEROSINMLAAMPKROAGTAUPLLPNOI",
+  "parents": null,
+  "action": "seshat-inscription",
+  "symbol": "maat-decision",
+  "time": "2026-06-22T23:02:31-04:00",
+  "pqc_metadata": {
+    "data": "map[action:banish autonomous:true isfet_id:CVE-2022-24999 kasa_wisdom:KASA unavailable realm:duat severity:SEVERE]"
+  },
+  "hash": "LMNNGLIUONHHEGUMTTYLNRGMRPGERPAMNTGYTEROSINMLAAMPKROAGTAUPLLPNOI"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "ASHMILGKELPSSOYAUHLYRIRGPYPGLPAIRTPKMLSEMEUOHHHSSLMUTNKKYOURAUNE",
+  "parents": null,
+  "action": "seshat-inscription",
+  "symbol": "maat-decision",
+  "time": "2026-06-22T14:28:21-04:00",
+  "pqc_metadata": {
+    "data": "map[action:banish autonomous:true isfet_id:CONFIG-SSL-001 kasa_wisdom:KASA unavailable realm:duat severity:SEVERE]"
+  },
+  "hash": "ASHMILGKELPSSOYAUHLYRIRGPYPGLPAIRTPKMLSEMEUOHHHSSLMUTNKKYOURAUNE"
+}
