@@ -1,4 +1,4 @@
-﻿// src/integrations/supabase/client.ts
+// src/integrations/supabase/client.ts
 //
 // LIVE MODE — Real Supabase client connected to xjknkjbrjgljuovaazeu.
 // Schema: public (tables are in public schema, not the api schema which is the PostgREST default).
@@ -12,13 +12,14 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-  ?? import.meta.env.NEXT_PUBLIC_SUPABASE_URL
-  ?? 'https://xjknkjbrjgljuovaazeu.supabase.co';
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ??
+  'https://xjknkjbrjgljuovaazeu.supabase.co';
 
-const supabaseAnon = import.meta.env.VITE_SUPABASE_ANON_KEY
-  ?? import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhqa25ramJyamdsanVvdmFhemV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4NTMzNDksImV4cCI6MjA3MTQyOTM0OX0.ioWr3_viAbWJHAaHnBxQrzSXtgUlcAAjrPWEsoSh6sk';
+const supabaseAnon =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhqa25ramJyamdsanVvdmFhemV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4NTMzNDksImV4cCI6MjA3MTQyOTM0OX0.ioWr3_viAbWJHAaHnBxQrzSXtgUlcAAjrPWEsoSh6sk';
+
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnon, {
   db: {
