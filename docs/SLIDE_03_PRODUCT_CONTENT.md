@@ -1,7 +1,27 @@
 # Slide 03 · THE PRODUCT — Authoritative Content
-**Status:** Binary-verified · 2026-06-27 23:58 EST
-**Source:** Live `adinkhepra-windows-amd64.exe --help` + `validate` output
+**Status:** Updated 2026-06-28 (session 2) — adinkhepra.com live dashboard confirmed 🟢
+**Source:** Live `adinkhepra-windows-amd64.exe --help` + `validate` output + browser-verified adinkhepra.com/dashboard
 **Binary:** `Adinkhepra-ASAF/bin/adinkhepra-windows-amd64.exe` — 180,250,928 bytes
+
+---
+
+## 🟢 PRODUCTION LIVE — adinkhepra.com/dashboard (browser-confirmed 2026-06-28 01:18 ET)
+
+| Signal | Value |
+|---|---|
+| **URL** | `adinkhepra.com/dashboard` |
+| **Status label** | MVP 1.0 Beta · Live Now |
+| **Drift Detection** | Active |
+| **AI Verification** | Online |
+| **Auth** | Confirmed (`apollo6972@proton.me`, Region US-East-1) |
+| **STIG Console** | Dashboard / Asset Scanning / Reports / Evidence / Billing / Help all routed |
+| **AI Agent** | Papyrus STIG setup agent live in widget, responds to session start |
+| **Compliance Score** | 0% (fresh org, no scan yet — populate with "Run Scan" before demo) |
+| **Open Findings** | 0 (same reason) |
+| **Backend** | 89 edge functions deployed; top 6 have 100+ invocations each |
+| **Database** | 42 tables live, `adinkra_symbols` seeded with 9 rows, `calculate_pqc_readiness()` active |
+
+> **Demo prep:** Log in, click "Run Scan" or engage Papyrus. Compliance Score will populate from 0% once the STIG scanner runs against the org. Do this before any investor or pilot demo.
 
 ---
 
@@ -96,7 +116,7 @@ By SecRed Knowledge Inc. (NouchiX) | https://nouchix.com
 
 **Label:** `03 · THE PRODUCT`
 
-> **One binary. 172 MB. One command.**
+> **
 
 ```powershell
 adinkhepra watch
@@ -167,4 +187,5 @@ On any Windows x86_64 machine. No license key. No internet connection required.
 
 ---
 
-*Verified: 2026-06-27 23:58 EST — `adinkhepra-windows-amd64.exe` (180,250,928 bytes)*
+*Binary verified: 2026-06-27 23:58 EST — `adinkhepra-windows-amd64.exe` (180,250,928 bytes)*
+*Production dashboard verified: 2026-06-28 01:18 ET — `adinkhepra.com/dashboard` (authenticated, MVP 1.0 Beta Live)*

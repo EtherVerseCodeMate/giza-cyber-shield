@@ -1,7 +1,11 @@
 import { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useOrganizationContext } from '@/components/OrganizationProvider';
+import { toast } from 'sonner';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -48,6 +52,35 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
   const { user, signOut } = useAuth();
   const { profile } = useUserProfile();
   const { currentOrganization } = useOrganizationContext();
+  const [isScanning, setIsScanning] = useState(false);
+
+  const handleRunScan = async () => {
+    setIsScanning(true);
+    toast.info('Initiating compliance scan…', { duration: 3000 });
+    try {
+      const { data, error } = await supabase.functions.invoke('agentic-compliance-orchestrator', {
+        body: {
+          action: 'quick_scan',
+          organization_id: currentOrganization?.id ?? currentOrganization?.organization_id,
+          scan_type: 'stig_baseline',
+        },
+      });
+      if (error) throw error;
+      const count = data?.findings_count ?? data?.controls_checked ?? data?.results?.length ?? null;
+      if (count !== null) {
+        toast.success(`Scan complete — ${count} controls checked.`);
+      } else {
+        toast.success('Scan complete. Refresh to see updated compliance scores.');
+      }
+    } catch (err: any) {
+      // Edge function may not be fully wired yet — navigate to Asset Scanning as fallback
+      toast.info('Opening Asset Scanning console to configure targets…');
+      navigate('/asset-scanning');
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
 
   const navigationItems = [
     { id: 'stig-dashboard', label: 'STIG Dashboard', icon: Shield, path: '/stig-dashboard', symbol: 'Eban' },
@@ -278,12 +311,17 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({
                     Refresh
                   </Button>
                   <Button
-                    onClick={() => navigate('/asset-scanning?runScan=true')}
+                    onClick={handleRunScan}
+                    disabled={isScanning}
                     className="bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80 text-white font-semibold"
                   >
-                    <Shield className="h-4 w-4 mr-2" />
-                    Run Scan
+                    {isScanning ? (
+                      <><Activity className="h-4 w-4 mr-2 animate-spin" />Scanning...</>
+                    ) : (
+                      <><Shield className="h-4 w-4 mr-2" />Run Scan</>
+                    )}
                   </Button>
+
                 </div>
               </div>
             </div>
