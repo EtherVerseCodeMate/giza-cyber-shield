@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
 // ── Supabase Edge Function base URL ────────────────────────────────────────
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://xjknkjbrjgljuovaazeu.supabase.co';
+
 
 const PLANS = [
   {
