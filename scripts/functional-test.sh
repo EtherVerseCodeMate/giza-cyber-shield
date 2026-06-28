@@ -1,7 +1,7 @@
 #!/bin/bash
 # Functional Testing for KHEPRA Protocol (Iron Bank Pipeline)
 # This script runs in the "functional-testing" stage of Iron Bank pipeline
-# Tests actual binaries: sonar, adinkhepra, khepra-daemon
+# Tests actual binaries: sonar, adinkhepra
 
 set -e  # Exit on any error
 set -o pipefail
@@ -52,12 +52,6 @@ else
     exit 1
 fi
 
-if command -v khepra-daemon &> /dev/null; then
-    test_pass "khepra-daemon binary found at $(which khepra-daemon)"
-else
-    test_info "khepra-daemon binary not found (optional)"
-fi
-
 echo ""
 
 # Test 2: Binary Execution - Help Commands
@@ -73,12 +67,6 @@ if adinkhepra --help &> /dev/null; then
     test_pass "adinkhepra --help works"
 else
     test_fail "adinkhepra --help failed"
-fi
-
-if command -v khepra-daemon &> /dev/null && khepra-daemon --help &> /dev/null; then
-    test_pass "khepra-daemon --help works"
-else
-    test_info "khepra-daemon --help not available"
 fi
 
 echo ""
@@ -174,7 +162,7 @@ echo ""
 # Test 8: File Permissions (Security Check)
 echo "Test 8: Verifying file permissions..."
 
-for binary in sonar adinkhepra khepra-daemon; do
+for binary in sonar adinkhepra; do
     if ! command -v "$binary" &> /dev/null; then
         test_info "$binary not found, skipping permission check"
         continue

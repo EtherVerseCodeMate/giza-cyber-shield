@@ -1,3 +1,5 @@
+"use client";
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -44,6 +46,23 @@ import NLChatPanel from "@/components/NLChatPanel";
 import Advisory from "./pages/Advisory";
 import ComplianceGraph from "./views/ComplianceGraph";
 
+// --- Previously orphaned pages — now wired ---
+import EnterpriseAgentManagement from "./pages/EnterpriseAgentManagement";
+import CMMCIntegrationDashboardPage from "./pages/CMMCIntegrationDashboard";
+import EnterpriseSTIGDashboardPage from "./pages/EnterpriseSTIGDashboard";
+import EnterpriseRemediationEnginePage from "./pages/EnterpriseRemediationEngine";
+import SouHimBouAI from "./pages/SouHimBouAI";
+import KhepraProtocol from "./pages/KhepraProtocol";
+import ComplianceAutopilot from "./pages/ComplianceAutopilot";
+import { ComplianceAutomation } from "./pages/ComplianceAutomation";
+import SecurityDashboard from "./pages/SecurityDashboard";
+import EvidenceCollection from "./pages/EvidenceCollection";
+import EnterpriseEvidenceCollection from "./pages/EnterpriseEvidenceCollection";
+import IntegrationsPage from "./pages/IntegrationsPage";
+import STIGCodexCenter from "./pages/STIGCodexCenter";
+import DeploymentOrchestrationDashboard from "./pages/DeploymentOrchestrationDashboard";
+import BusinessDevelopment from "./pages/BusinessDevelopment";
+
 /**
  * Invisible component that sets document.title per route.
  * Must be inside <BrowserRouter> to access useLocation.
@@ -72,7 +91,7 @@ const queryClient = new QueryClient({
 
 const App = () => {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <SecurityHeaders>
@@ -120,6 +139,27 @@ const App = () => {
                     <Route path="/threat-hunting" element={<ProtectedRoute><ThreatHuntingDashboard /></ProtectedRoute>} />
                     <Route path="/intelligence" element={<ProtectedRoute><GlobalIntelligenceDashboard /></ProtectedRoute>} />
                     <Route path="/compliance-graph" element={<ProtectedRoute><ComplianceGraph /></ProtectedRoute>} />
+
+                    {/* SOC / SouHimBou AI — Enterprise Agentic Layer */}
+                    <Route path="/souhimbou" element={<ProtectedRoute><SouHimBouAI /></ProtectedRoute>} />
+                    <Route path="/enterprise-agents" element={<ProtectedRoute><EnterpriseAgentManagement /></ProtectedRoute>} />
+                    <Route path="/cmmc-integration" element={<ProtectedRoute><CMMCIntegrationDashboardPage /></ProtectedRoute>} />
+                    <Route path="/enterprise-stig" element={<ProtectedRoute><EnterpriseSTIGDashboardPage /></ProtectedRoute>} />
+                    <Route path="/remediation-engine" element={<ProtectedRoute><EnterpriseRemediationEnginePage /></ProtectedRoute>} />
+                    <Route path="/compliance-autopilot" element={<ProtectedRoute><ComplianceAutopilot /></ProtectedRoute>} />
+                    <Route path="/compliance-automation" element={<ProtectedRoute><ComplianceAutomation /></ProtectedRoute>} />
+                    <Route path="/khepra-protocol" element={<ProtectedRoute><KhepraProtocol /></ProtectedRoute>} />
+
+                    {/* Security & Evidence */}
+                    <Route path="/security-dashboard" element={<ProtectedRoute><SecurityDashboard /></ProtectedRoute>} />
+                    <Route path="/evidence" element={<ProtectedRoute><EvidenceCollection /></ProtectedRoute>} />
+                    <Route path="/enterprise-evidence" element={<ProtectedRoute><EnterpriseEvidenceCollection /></ProtectedRoute>} />
+
+                    {/* Integrations & Deployment */}
+                    <Route path="/integrations" element={<ProtectedRoute><IntegrationsPage /></ProtectedRoute>} />
+                    <Route path="/stig-codex" element={<ProtectedRoute><STIGCodexCenter /></ProtectedRoute>} />
+                    <Route path="/deployment" element={<ProtectedRoute><DeploymentOrchestrationDashboard /></ProtectedRoute>} />
+                    <Route path="/business-development" element={<ProtectedRoute><BusinessDevelopment /></ProtectedRoute>} />
 
                     {/* DoD Solutions (public marketing page) */}
                     <Route path="/dod" element={<DoD />} />

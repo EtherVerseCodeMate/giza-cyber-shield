@@ -20,7 +20,16 @@
 //   custom_tool       — Execute any Khepra MCP tool from n8n
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { hmac } from 'https://deno.land/x/hmac@v2.0.1/mod.ts';
+
+/** Native SubtleCrypto HMAC-SHA256 — no external deps needed. */
+async function computeHmacSha256(secret: string, data: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(data));
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -56,7 +65,7 @@ Deno.serve(async (req) => {
     // ── Verify n8n HMAC-SHA256 signature ─────────────────────────────────────
     if (webhookSecret) {
       const signature = req.headers.get('x-n8n-signature') ?? '';
-      const expectedSig = await hmac('sha256', webhookSecret, bodyText, 'utf8', 'hex');
+      const expectedSig = await computeHmacSha256(webhookSecret, bodyText);
       if (signature !== `sha256=${expectedSig}`) {
         return new Response(
           JSON.stringify({ error: 'invalid_signature', hint: 'Check KHEPRA_WEBHOOK_SECRET in n8n credentials' }),

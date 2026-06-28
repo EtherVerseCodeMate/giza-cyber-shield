@@ -51,7 +51,9 @@ export const MFAChallenge = ({ onSuccess, onBack, userEmail }: MFAChallengeProps
   useEffect(() => {
     supabase.auth.mfa.listFactors().then(({ data, error }) => {
       if (error || !data) return;
-      const verified = (data.totp ?? []).filter((f: MFAFactor) => f.status === 'verified');
+      const verified: MFAFactor[] = (data.totp ?? [])
+        .filter(f => f.status === 'verified')
+        .map(f => ({ id: f.id, type: 'totp' as const, status: 'verified' as const, friendly_name: f.friendly_name }));
       setFactors(verified);
       if (verified.length > 0) {
         setActiveFactor(verified[0]);

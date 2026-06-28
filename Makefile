@@ -11,7 +11,7 @@ build:
 	go build -o bin/$(GATEWAY) ./cmd/gateway
 
 run-agent: build
-	ADINKHEPRA_AGENT_PORT=45444 ./bin/$(AGENT)
+	KHEPRA_AGENT_PORT=45446 ./bin/$(AGENT)
 
 run-gateway: build
 	./bin/$(GATEWAY) -addr=:8443 -debug

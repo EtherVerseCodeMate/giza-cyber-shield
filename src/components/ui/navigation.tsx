@@ -10,10 +10,19 @@ import {
   Crown,
   Zap,
   BarChart3,
-
   Plug,
   Briefcase,
-  Phone
+  Phone,
+  Brain,
+  Target,
+  GitBranch,
+  Database,
+  Search,
+  BookOpen,
+  Rocket,
+  ClipboardCheck,
+  Activity,
+  Network,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -24,19 +33,46 @@ interface NavigationItem {
   icon: React.ComponentType<{ className?: string }>;
   requiresAuth?: boolean;
   requiresAdmin?: boolean;
+  group?: string;
 }
 
 const navigationItems: NavigationItem[] = [
-  { id: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: Home, requiresAuth: true },
-  { id: 'security', label: 'Security', path: '/security', icon: Shield, requiresAuth: true },
-  { id: 'integrations', label: 'Integrations', path: '/integrations', icon: Plug, requiresAuth: true },
-  { id: 'business-dev', label: 'Business Development', path: '/business-development', icon: Briefcase, requiresAuth: true },
-  { id: 'automation', label: 'Automation', path: '/automation', icon: Bot, requiresAuth: true },
-  { id: 'khepra', label: 'KHEPRA Protocol', path: '/khepra', icon: Zap, requiresAuth: true },
-  { id: 'billing', label: 'Billing', path: '/billing', icon: BarChart3, requiresAuth: true },
-  { id: 'admin', label: 'Admin', path: '/admin', icon: Crown, requiresAuth: true, requiresAdmin: true },
-  { id: 'contact-sales', label: 'Book Advisory Call', path: '/advisory', icon: Phone, requiresAuth: false },
-  { id: 'legal', label: 'Legal', path: '/legal', icon: FileText, requiresAuth: true },
+  // Core
+  { id: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: Home, requiresAuth: true, group: 'core' },
+  { id: 'asset-scanning', label: 'Asset Scanning', path: '/asset-scanning', icon: Search, requiresAuth: true, group: 'core' },
+  { id: 'compliance-reports', label: 'Compliance Reports', path: '/compliance-reports', icon: FileText, requiresAuth: true, group: 'core' },
+  { id: 'evidence-collection', label: 'Evidence Collection', path: '/evidence-collection', icon: ClipboardCheck, requiresAuth: true, group: 'core' },
+  { id: 'compliance-graph', label: 'Compliance Graph', path: '/compliance-graph', icon: Network, requiresAuth: true, group: 'core' },
+
+  // CMMC / STIG
+  { id: 'compliance-autopilot', label: 'CMMC Autopilot', path: '/compliance-autopilot', icon: Zap, requiresAuth: true, group: 'cmmc' },
+  { id: 'cmmc-integration', label: 'CMMC Integration', path: '/cmmc-integration', icon: GitBranch, requiresAuth: true, group: 'cmmc' },
+  { id: 'enterprise-stig', label: 'Enterprise STIG', path: '/enterprise-stig', icon: Shield, requiresAuth: true, group: 'cmmc' },
+  { id: 'stig-codex', label: 'STIG Codex', path: '/stig-codex', icon: BookOpen, requiresAuth: true, group: 'cmmc' },
+  { id: 'compliance-automation', label: 'Compliance Automation', path: '/compliance-automation', icon: Bot, requiresAuth: true, group: 'cmmc' },
+
+  // SOC / Agentic
+  { id: 'souhimbou', label: 'SouHimBou AI', path: '/souhimbou', icon: Brain, requiresAuth: true, group: 'soc' },
+  { id: 'enterprise-agents', label: 'Enterprise Agents', path: '/enterprise-agents', icon: Bot, requiresAuth: true, group: 'soc' },
+  { id: 'remediation-engine', label: 'Remediation Engine', path: '/remediation-engine', icon: Target, requiresAuth: true, group: 'soc' },
+  { id: 'threat-hunting', label: 'Threat Hunting', path: '/threat-hunting', icon: Activity, requiresAuth: true, group: 'soc' },
+  { id: 'intelligence', label: 'Global Intelligence', path: '/intelligence', icon: Database, requiresAuth: true, group: 'soc' },
+
+  // Security & Evidence
+  { id: 'security-dashboard', label: 'Security Dashboard', path: '/security-dashboard', icon: Shield, requiresAuth: true, group: 'security' },
+  { id: 'enterprise-evidence', label: 'Enterprise Evidence', path: '/enterprise-evidence', icon: ClipboardCheck, requiresAuth: true, group: 'security' },
+  { id: 'command-center', label: 'Command Center', path: '/command-center', icon: Crown, requiresAuth: true, group: 'security' },
+
+  // Platform
+  { id: 'khepra-protocol', label: 'KHEPRA Protocol', path: '/khepra-protocol', icon: Zap, requiresAuth: true, group: 'platform' },
+  { id: 'integrations', label: 'Integrations', path: '/integrations', icon: Plug, requiresAuth: true, group: 'platform' },
+  { id: 'deployment', label: 'Deployment', path: '/deployment', icon: Rocket, requiresAuth: true, group: 'platform' },
+  { id: 'billing', label: 'Billing', path: '/billing', icon: BarChart3, requiresAuth: true, group: 'platform' },
+
+  // Business & Admin
+  { id: 'business-dev', label: 'Business Development', path: '/business-development', icon: Briefcase, requiresAuth: true, group: 'admin' },
+  { id: 'admin', label: 'Admin', path: '/admin', icon: Crown, requiresAuth: true, requiresAdmin: true, group: 'admin' },
+  { id: 'contact-sales', label: 'Book Advisory Call', path: '/advisory', icon: Phone, requiresAuth: false, group: 'admin' },
 ];
 
 interface BackButtonProps {

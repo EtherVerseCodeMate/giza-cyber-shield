@@ -45,14 +45,35 @@ const CommandPalette = ({ isAuthenticated = false }: CommandPaletteProps) => {
 
         // Auth
         ...(isAuthenticated ? [
-            { id: 'dashboard', label: 'STIG Dashboard', icon: Shield, section: 'Dashboard', keywords: ['dashboard', 'stig', 'overview'], action: () => runAndClose(() => navigate('/stig-dashboard')) },
-            { id: 'scanning', label: 'Asset Scanning', icon: Activity, section: 'Dashboard', keywords: ['scan', 'asset', 'vulnerability'], action: () => runAndClose(() => navigate('/asset-scanning')) },
-            { id: 'reports', label: 'Compliance Reports', icon: Globe, section: 'Dashboard', keywords: ['report', 'compliance', 'export'], action: () => runAndClose(() => navigate('/compliance-reports')) },
-            { id: 'evidence', label: 'Evidence Collection', icon: Lock, section: 'Dashboard', keywords: ['evidence', 'upload', 'collect'], action: () => runAndClose(() => navigate('/evidence-collection')) },
-            { id: 'billing', label: 'Billing', icon: Brain, section: 'Dashboard', keywords: ['billing', 'payment', 'subscription', 'plan'], action: () => runAndClose(() => navigate('/billing')) },
-            { id: 'threat-hunting', label: 'Threat Hunting', icon: Shield, section: 'Dashboard', keywords: ['threat', 'hunt', 'forensics', 'behavior'], action: () => runAndClose(() => navigate('/threat-hunting')) },
-            { id: 'compliance-autopilot', label: 'Compliance Autopilot', icon: Zap, section: 'Dashboard', keywords: ['compliance', 'autopilot', 'cmmc', 'stig', 'bridge'], action: () => runAndClose(() => navigate('/compliance-autopilot')) },
-            { id: 'polymorphic-connector', label: 'Polymorphic Connector', icon: Cloud, section: 'Infrastructure', keywords: ['connect', 'environment', 'agnostic', 'ingestion', 'aws', 'azure', 'iot'], action: () => runAndClose(() => navigate('/integrations?tab=polymorphic')) },
+            // Core
+            { id: 'dashboard', label: 'STIG Dashboard', icon: Shield, section: 'Core', keywords: ['dashboard', 'stig', 'overview'], action: () => runAndClose(() => navigate('/stig-dashboard')) },
+            { id: 'scanning', label: 'Asset Scanning', icon: Activity, section: 'Core', keywords: ['scan', 'asset', 'vulnerability'], action: () => runAndClose(() => navigate('/asset-scanning')) },
+            { id: 'reports', label: 'Compliance Reports', icon: Globe, section: 'Core', keywords: ['report', 'compliance', 'export'], action: () => runAndClose(() => navigate('/compliance-reports')) },
+            { id: 'evidence', label: 'Evidence Collection', icon: Lock, section: 'Core', keywords: ['evidence', 'upload', 'collect'], action: () => runAndClose(() => navigate('/evidence-collection')) },
+            { id: 'compliance-graph', label: 'Compliance Graph', icon: BarChart3, section: 'Core', keywords: ['graph', 'dag', 'compliance', 'visual'], action: () => runAndClose(() => navigate('/compliance-graph')) },
+            // CMMC / STIG
+            { id: 'compliance-autopilot', label: 'CMMC Autopilot', icon: Zap, section: 'CMMC / STIG', keywords: ['compliance', 'autopilot', 'cmmc', 'stig', 'bridge'], action: () => runAndClose(() => navigate('/compliance-autopilot')) },
+            { id: 'cmmc-integration', label: 'CMMC Integration Dashboard', icon: Shield, section: 'CMMC / STIG', keywords: ['cmmc', 'integration', 'dashboard'], action: () => runAndClose(() => navigate('/cmmc-integration')) },
+            { id: 'enterprise-stig', label: 'Enterprise STIG Dashboard', icon: Shield, section: 'CMMC / STIG', keywords: ['enterprise', 'stig', 'dashboard'], action: () => runAndClose(() => navigate('/enterprise-stig')) },
+            { id: 'stig-codex', label: 'STIG Codex', icon: FileText, section: 'CMMC / STIG', keywords: ['stig', 'codex', 'knowledge', 'library'], action: () => runAndClose(() => navigate('/stig-codex')) },
+            { id: 'compliance-automation', label: 'Compliance Automation', icon: Cloud, section: 'CMMC / STIG', keywords: ['compliance', 'automation', 'auto', 'remediation'], action: () => runAndClose(() => navigate('/compliance-automation')) },
+            // SOC / Agentic
+            { id: 'souhimbou', label: 'SouHimBou AI — Agentic Architect', icon: Brain, section: 'SOC / Agentic', keywords: ['souhimbou', 'ai', 'agent', 'architect', 'soc'], action: () => runAndClose(() => navigate('/souhimbou')) },
+            { id: 'enterprise-agents', label: 'Enterprise Agent Management', icon: Brain, section: 'SOC / Agentic', keywords: ['enterprise', 'agent', 'management', 'bot'], action: () => runAndClose(() => navigate('/enterprise-agents')) },
+            { id: 'remediation-engine', label: 'Remediation Engine', icon: Zap, section: 'SOC / Agentic', keywords: ['remediation', 'engine', 'fix', 'stig'], action: () => runAndClose(() => navigate('/remediation-engine')) },
+            { id: 'threat-hunting', label: 'Threat Hunting', icon: Shield, section: 'SOC / Agentic', keywords: ['threat', 'hunt', 'forensics', 'behavior'], action: () => runAndClose(() => navigate('/threat-hunting')) },
+            { id: 'intelligence', label: 'Global Intelligence', icon: Globe, section: 'SOC / Agentic', keywords: ['intelligence', 'global', 'threat', 'feed'], action: () => runAndClose(() => navigate('/intelligence')) },
+            // Security & Evidence
+            { id: 'security-dashboard', label: 'Security Dashboard', icon: Shield, section: 'Security', keywords: ['security', 'dashboard', 'overview'], action: () => runAndClose(() => navigate('/security-dashboard')) },
+            { id: 'enterprise-evidence', label: 'Enterprise Evidence Collection', icon: Lock, section: 'Security', keywords: ['enterprise', 'evidence', 'collection', 'c3pao'], action: () => runAndClose(() => navigate('/enterprise-evidence')) },
+            { id: 'command-center', label: 'Command Center', icon: Activity, section: 'Security', keywords: ['command', 'center', 'control'], action: () => runAndClose(() => navigate('/command-center')) },
+            // Platform
+            { id: 'khepra-protocol', label: 'KHEPRA Protocol Dashboard', icon: Zap, section: 'Platform', keywords: ['khepra', 'protocol', 'pqc', 'dag'], action: () => runAndClose(() => navigate('/khepra-protocol')) },
+            { id: 'integrations', label: 'Integrations Hub', icon: Cloud, section: 'Platform', keywords: ['integration', 'connect', 'splunk', 'siem', 'api'], action: () => runAndClose(() => navigate('/integrations')) },
+            { id: 'deployment', label: 'Deployment Orchestration', icon: Cloud, section: 'Platform', keywords: ['deploy', 'orchestration', 'k8s', 'docker'], action: () => runAndClose(() => navigate('/deployment')) },
+            { id: 'billing', label: 'Billing', icon: BarChart3, section: 'Platform', keywords: ['billing', 'payment', 'subscription', 'plan'], action: () => runAndClose(() => navigate('/billing')) },
+            // Admin
+            { id: 'business-dev', label: 'Business Development', icon: Activity, section: 'Admin', keywords: ['business', 'development', 'crm', 'pipeline'], action: () => runAndClose(() => navigate('/business-development')) },
         ] : [
             { id: 'signin', label: 'Sign In', icon: LogIn, section: 'Account', keywords: ['sign', 'login', 'account', 'auth'], action: () => runAndClose(() => navigate('/auth')) },
             { id: 'getstarted', label: 'Get Started', icon: ArrowRight, section: 'Account', keywords: ['start', 'register', 'signup', 'onboard'], action: () => runAndClose(() => navigate('/auth')) },

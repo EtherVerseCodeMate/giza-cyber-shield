@@ -1,16 +1,21 @@
 /**
  * DAGGraphService — fetches live DAG audit trail + CMMC compliance scan results
- * from the Khepra daemon (port 45444) and merges them into the 3d-force-graph
- * wire format consumed by DAGAuditViewer.
+ * from `adinkhepra serve` and merges them into the 3d-force-graph wire format
+ * consumed by DAGAuditViewer.
+ *
+ * These endpoints used to live on the standalone cmd/khepra-daemon process
+ * (port 45444). That binary has been retired — the handlers moved into
+ * pkg/webui/dag_api.go and are now served by `adinkhepra serve -port 8443`,
+ * sharing the same global DAG singleton as ERT/validation/the DAG viewer.
  *
  * Endpoint contracts:
- *   GET /dag/graph          → DAGGraphResponse  (daemon DAG nodes)
+ *   GET /dag/graph           → DAGGraphResponse  (global DAG nodes)
  *   GET /compliance/scan-all → ComplianceScanResponse (OSScanner results)
  */
 
-const DAEMON_BASE = 'http://127.0.0.1:45444';
+const DAEMON_BASE = 'http://127.0.0.1:8443';
 
-// ── Wire types (match handlers_graph.go) ──────────────────────────────────────
+// ── Wire types (match pkg/webui/dag_api.go) ───────────────────────────────────
 
 export interface ViewerNode {
   id: string;

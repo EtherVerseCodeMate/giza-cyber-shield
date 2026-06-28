@@ -62,6 +62,15 @@ type DAGViewer struct {
 	port        int
 	dagProvider DAGProvider // Interface to actual DAG storage
 	server      *http.Server
+	api         *DAGAPI // optional — registers /dag/add, /adinkra/weave, /compliance/scan-all, etc.
+}
+
+// WithAPI attaches the migrated khepra-daemon endpoints (DAG add, weave/unweave,
+// attest, status, compliance graph export, CMMC scan-all) to this viewer's mux.
+// Returns dv for chaining.
+func (dv *DAGViewer) WithAPI(api *DAGAPI) *DAGViewer {
+	dv.api = api
+	return dv
 }
 
 // DAGProvider interface allows plugging in different DAG storage backends
@@ -94,6 +103,12 @@ func (dv *DAGViewer) Start() error {
 	mux.HandleFunc("/api/dag/nodes", dv.handleGetNodes)
 	mux.HandleFunc("/api/dag/stats", dv.handleGetStats)
 	mux.HandleFunc("/api/dag/stream", dv.handleStreamUpdates)
+
+	// Migrated khepra-daemon endpoints (DAG add, weave/unweave, attest, status,
+	// compliance graph export, CMMC scan-all) — only if attached via WithAPI().
+	if dv.api != nil {
+		dv.api.RegisterRoutes(mux)
+	}
 
 	// Health check
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {

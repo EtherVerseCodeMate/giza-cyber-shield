@@ -30,9 +30,16 @@ func serveCmd(args []string) {
 	fmt.Printf("     http://localhost:%d/\n", port)
 	fmt.Println()
 	fmt.Println("  📊 API Endpoints:")
-	fmt.Printf("     http://localhost:%d/api/dag/nodes  - Get all DAG nodes\n", port)
-	fmt.Printf("     http://localhost:%d/api/dag/stats  - Get DAG statistics\n", port)
-	fmt.Printf("     http://localhost:%d/health         - Health check\n", port)
+	fmt.Printf("     http://localhost:%d/api/dag/nodes      - Get all DAG nodes\n", port)
+	fmt.Printf("     http://localhost:%d/api/dag/stats      - Get DAG statistics\n", port)
+	fmt.Printf("     http://localhost:%d/health             - Health check\n", port)
+	fmt.Printf("     http://localhost:%d/dag/add            - Log event to DAG\n", port)
+	fmt.Printf("     http://localhost:%d/adinkra/weave      - PQC obfuscate data\n", port)
+	fmt.Printf("     http://localhost:%d/adinkra/unweave    - Decrypt obfuscated data\n", port)
+	fmt.Printf("     http://localhost:%d/attest/verify      - Verify system integrity\n", port)
+	fmt.Printf("     http://localhost:%d/status             - Full server status\n", port)
+	fmt.Printf("     http://localhost:%d/dag/graph          - Compliance Graph UI export\n", port)
+	fmt.Printf("     http://localhost:%d/compliance/scan-all - CMMC 145-control scan\n", port)
 	fmt.Println()
 	fmt.Println("  Press Ctrl+C to stop the server")
 	fmt.Println("═══════════════════════════════════════════════════════════════")
@@ -49,8 +56,10 @@ func serveCmd(args []string) {
 	// Create production DAG provider (not mock!)
 	provider := webui.NewProductionDAGProvider(dagMemory)
 
-	// Create and start DAG viewer
-	viewer := webui.NewDAGViewer(port, provider)
+	// Create and start DAG viewer. WithAPI attaches the DAG/weave/attest/
+	// compliance-graph endpoints that previously ran as the standalone
+	// cmd/khepra-daemon process — now sharing this same global DAG singleton.
+	viewer := webui.NewDAGViewer(port, provider).WithAPI(webui.NewDAGAPI())
 
 	// Handle graceful shutdown
 	sigChan := make(chan os.Signal, 1)

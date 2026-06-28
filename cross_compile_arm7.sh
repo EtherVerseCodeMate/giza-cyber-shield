@@ -7,7 +7,7 @@
 # Run this on your DEV MACHINE (not the Pi)
 # Requires: Go 1.23+, git access to giza-cyber-shield repo
 #
-# Output: ./dist/arm7/{agent, sonar, khepra-daemon}
+# Output: ./dist/arm7/{agent, sonar}
 # Transfer: scp ./dist/arm7/* pi@<PI_IP>:/tmp/khepra/
 # =============================================================================
 
@@ -105,14 +105,10 @@ build_binary "agent" "./cmd/agent/..." \
 build_binary "sonar" "./cmd/sonar/main.go" \
   "-X main.VERSION=${VERSION} -X main.BUILD_DATE=${BUILD_DATE} -X main.VCS_REF=${VCS_REF}"
 
-# Khepra Daemon — Continuous monitoring / Ouroboros cycle manager
-build_binary "khepra-daemon" "./cmd/khepra-daemon/main.go" \
-  "-X main.version=${VERSION}"
-
 # ── Verify binaries ───────────────────────────────────────────────────────────
 echo ""
 log "Verifying ARM binaries..."
-for bin in agent sonar khepra-daemon; do
+for bin in agent sonar; do
   local_bin="${DIST_DIR}/${bin}"
   if file "${local_bin}" | grep -q "ARM"; then
     log "  ✓ ${bin}: $(file "${local_bin}" | grep -o 'ARM.*')"
@@ -125,7 +121,7 @@ done
 echo ""
 log "Generating SHA256 manifest..."
 pushd "${DIST_DIR}" > /dev/null
-sha256sum agent sonar khepra-daemon > SHA256SUMS
+sha256sum agent sonar > SHA256SUMS
 popd > /dev/null
 log "  ✓ ${DIST_DIR}/SHA256SUMS"
 

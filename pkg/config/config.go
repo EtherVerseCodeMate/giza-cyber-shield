@@ -45,7 +45,7 @@ func Load() Config {
 	return Config{
 		ExternalIP:      getenv("ADINKHEPRA_EXTERNAL_IP", "127.0.0.1"),
 		SSHExternalPort: getenvInt("ADINKHEPRA_SSH_PORT", 22),
-		AgentListenPort: getenvInt("ADINKHEPRA_AGENT_PORT", 45444),
+		AgentListenPort: getenvInt("KHEPRA_AGENT_PORT", 45446),
 		Username:        getenv("ADINKHEPRA_USER", "adinkhepra"),
 		Tenant:          getenv("ADINKHEPRA_TENANT", "adinkhepra://edge-node-1"),
 		Comment:         getenv("ADINKHEPRA_COMMENT", "skone@alumni.albany.edu eban:prod nkyinkyim:v1"),

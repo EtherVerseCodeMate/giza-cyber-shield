@@ -405,9 +405,9 @@ func (s *server) agiScan(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "scan": state})
 }
 
-func startTailscale(mux *http.ServeMux, _ config.Config) {
+func startTailscale(mux *http.ServeMux, cfg config.Config) {
 	ts, _ := tailnet.NewServer("adinkhepra-node-" + randID())
-	ln, _ := ts.Listen(context.Background(), ":45444")
+	ln, _ := ts.Listen(context.Background(), ":"+itoa(cfg.AgentListenPort))
 	log.Fatal(http.Serve(ln, sWithJSON(mux)))
 }
 
