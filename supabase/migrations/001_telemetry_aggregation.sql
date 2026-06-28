@@ -33,8 +33,8 @@ CREATE TABLE IF NOT EXISTS organizations (
     pqc_transition_complete BOOLEAN DEFAULT FALSE
 );
 
-CREATE INDEX idx_org_slug ON organizations(slug);
-CREATE INDEX idx_org_license_tier ON organizations(license_tier);
+CREATE INDEX IF NOT EXISTS idx_org_slug ON organizations(slug);
+CREATE INDEX IF NOT EXISTS idx_org_license_tier ON organizations(license_tier);
 
 -- ============================================================================
 -- CRYPTO INVENTORY (Dark Crypto Database Moat)
@@ -94,10 +94,10 @@ CREATE TABLE IF NOT EXISTS crypto_inventory (
     UNIQUE(organization_id, device_hash)
 );
 
-CREATE INDEX idx_crypto_org ON crypto_inventory(organization_id);
-CREATE INDEX idx_crypto_pqc_score ON crypto_inventory(pqc_readiness_score);
-CREATE INDEX idx_crypto_exposure ON crypto_inventory(quantum_exposure_score DESC);
-CREATE INDEX idx_crypto_last_scan ON crypto_inventory(last_scan_at);
+CREATE INDEX IF NOT EXISTS idx_crypto_org ON crypto_inventory(organization_id);
+CREATE INDEX IF NOT EXISTS idx_crypto_pqc_score ON crypto_inventory(pqc_readiness_score);
+CREATE INDEX IF NOT EXISTS idx_crypto_exposure ON crypto_inventory(quantum_exposure_score DESC);
+CREATE INDEX IF NOT EXISTS idx_crypto_last_scan ON crypto_inventory(last_scan_at);
 
 -- ============================================================================
 -- LICENSE TELEMETRY (Aggregated from Cloudflare D1)
@@ -145,10 +145,10 @@ CREATE TABLE IF NOT EXISTS license_telemetry (
     UNIQUE(organization_id, machine_id)
 );
 
-CREATE INDEX idx_license_org ON license_telemetry(organization_id);
-CREATE INDEX idx_license_status ON license_telemetry(compliance_status);
-CREATE INDEX idx_license_expires ON license_telemetry(expires_at);
-CREATE INDEX idx_license_heartbeat ON license_telemetry(last_heartbeat_at);
+CREATE INDEX IF NOT EXISTS idx_license_org ON license_telemetry(organization_id);
+CREATE INDEX IF NOT EXISTS idx_license_status ON license_telemetry(compliance_status);
+CREATE INDEX IF NOT EXISTS idx_license_expires ON license_telemetry(expires_at);
+CREATE INDEX IF NOT EXISTS idx_license_heartbeat ON license_telemetry(last_heartbeat_at);
 
 -- ============================================================================
 -- SECURITY EVENTS
@@ -189,11 +189,11 @@ CREATE TABLE IF NOT EXISTS security_events (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_events_org ON security_events(organization_id);
-CREATE INDEX idx_events_type ON security_events(event_type);
-CREATE INDEX idx_events_severity ON security_events(severity);
-CREATE INDEX idx_events_created ON security_events(created_at DESC);
-CREATE INDEX idx_events_unresolved ON security_events(resolved_at) WHERE resolved_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_events_org ON security_events(organization_id);
+CREATE INDEX IF NOT EXISTS idx_events_type ON security_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_events_severity ON security_events(severity);
+CREATE INDEX IF NOT EXISTS idx_events_created ON security_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_events_unresolved ON security_events(resolved_at) WHERE resolved_at IS NULL;
 
 -- ============================================================================
 -- DARK CRYPTO MOAT (Aggregate vulnerability analysis)
@@ -228,8 +228,8 @@ CREATE TABLE IF NOT EXISTS dark_crypto_moat (
 );
 
 CREATE UNIQUE INDEX idx_moat_algorithm ON dark_crypto_moat(algorithm_name, key_size);
-CREATE INDEX idx_moat_threat ON dark_crypto_moat(quantum_threat_level);
-CREATE INDEX idx_moat_vulnerability ON dark_crypto_moat(vulnerability_score DESC);
+CREATE INDEX IF NOT EXISTS idx_moat_threat ON dark_crypto_moat(quantum_threat_level);
+CREATE INDEX IF NOT EXISTS idx_moat_vulnerability ON dark_crypto_moat(vulnerability_score DESC);
 
 -- Seed initial algorithm data
 INSERT INTO dark_crypto_moat (algorithm_name, algorithm_type, key_size, vulnerability_score, quantum_threat_level, deprecation_status, recommended_replacement, migration_priority) VALUES
@@ -273,10 +273,10 @@ CREATE TABLE IF NOT EXISTS audit_log (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_audit_actor ON audit_log(actor);
-CREATE INDEX idx_audit_action ON audit_log(action);
-CREATE INDEX idx_audit_resource ON audit_log(resource_type, resource_id);
-CREATE INDEX idx_audit_created ON audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_log(actor);
+CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);
+CREATE INDEX IF NOT EXISTS idx_audit_resource ON audit_log(resource_type, resource_id);
+CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at DESC);
 
 -- ============================================================================
 -- ROW LEVEL SECURITY
