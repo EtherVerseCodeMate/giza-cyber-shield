@@ -4,11 +4,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
 )
+
 
 // scanStrategyDocuments finds strategy/roadmap documents
 func (e *Engine) scanStrategyDocuments() []string {
@@ -602,15 +604,39 @@ func (e *Engine) hasMultiFactorAuth() bool {
 }
 
 func (e *Engine) hasSecretsInRepo() bool {
-	// Check for common secret patterns
-	entries, _ := os.ReadDir(e.targetPath)
-	for _, entry := range entries {
-		name := entry.Name()
-		if strings.Contains(name, "secret") || strings.Contains(name, "key") || name == ".env" {
+	// Check git-tracked files only (not filesystem) to avoid false positives
+	// from gitignored key material that is correctly excluded from the repo.
+	// A file that exists on disk but is gitignored is NOT a security finding.
+	gitOutput, err := runCommand("git", "-C", e.targetPath, "ls-files")
+	if err != nil {
+		// git not available — fall back to filesystem scan of root only
+		entries, _ := os.ReadDir(e.targetPath)
+		for _, entry := range entries {
+			name := strings.ToLower(entry.Name())
+			if name == ".env" || name == ".env.production" || name == ".env.staging" {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Scan tracked files for secret-like names
+	for _, line := range strings.Split(gitOutput, "\n") {
+		base := strings.ToLower(filepath.Base(line))
+		// Only flag unambiguous secret files committed to the repo
+		if base == ".env" || base == ".env.production" || base == ".env.staging" ||
+			base == "secrets.yml" || base == "secrets.yaml" || base == "credentials.json" {
 			return true
 		}
 	}
 	return false
+}
+
+// runCommand executes a command and returns its combined stdout output.
+func runCommand(name string, args ...string) (string, error) {
+	cmd := exec.Command(name, args...) //nolint:gosec
+	out, err := cmd.Output()
+	return strings.TrimSpace(string(out)), err
 }
 
 func min(a, b int) int {
