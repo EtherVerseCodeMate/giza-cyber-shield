@@ -181,7 +181,7 @@ Their motivation: 36,195 mappings moat + PQC attestation + SDVOSB status + Iron 
 |---|---|---|
 | Direct pilot agreements (QCL warm prospects) | ❌ No | **Close NOW** |
 | AWS Marketplace GovCloud | ❌ No | **List NOW** |
-| MCP registry (modelcontextprotocol.io / mcpservers.org / cline.bot) | ❌ No | **Submit NOW** |
+| MCP registry (modelcontextprotocol.io / mcpservers.org / cline.bot / crossaitools.com/marketplaces) | ❌ No | **Submit NOW** |
 | MSP flat licensing | ❌ No | First call this week |
 | Platform One / P1 hardened catalog | ✅ Yes | Parallel track — Wednesday session |
 
@@ -269,6 +269,7 @@ go mod tidy && go mod download
 - registry.modelcontextprotocol.io (primary)
 - mcpservers.org (secondary)
 - cline.bot (secondary — GitHub issue: https://github.com/cline/mcp-marketplace/issues/new)
+- crossaitools.com/marketplaces (tertiary — added 2026-06-28)
 
 **Listing copy:**
 > KHEPRA MCP Server — Sovereign compliance engine with 36,195 STIG/CCI/NIST/CMMC mappings. Air-gappable. Zero token costs. Flat annual licensing. Run `ert_scan` → get a Godfather Report with dollar-denominated business impact. The only MCP compliance server that runs on your metal.
