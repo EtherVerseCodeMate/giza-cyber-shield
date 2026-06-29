@@ -139,3 +139,13 @@ cloudflare.key
 .env
 .env.*
 !.env.example
+
+# Key material — must never be committed
+cloudflare.key
+vps_key_*
+vps_key_*.pub
+vps_key_*.pub.adinkhepra.json
+test_key_*
+telemetry-keys/
+vercel.env
+*.key
