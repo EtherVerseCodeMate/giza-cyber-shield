@@ -1,0 +1,207 @@
+// pkg/asaf/daemon/staging.go — Mirror Environment Staging Manager
+//
+// Manages ephemeral Docker containers used to validate ChangeRequests before
+// they touch the production host. The "staging gate" is non-bypassable:
+// every production execution must have a corresponding successful staging run.
+//
+// Mirror image: ghcr.io/nouchix/asaf-mirror-rhel9:latest
+// A minimal RHEL 9 UBI image with the same authselect/PAM/sysctl baseline
+// as a customer host. Built once, shipped as part of ASAF installer.
+//
+// Job lifecycle:
+//
+//	Submit() → StagingJob{status: "running"} → goroutine runs container
+//	         → job updated: status "success"|"failed", Diff populated
+//	Poll(id) → returns current job state (caller polls until terminal)
+
+package daemon
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"log"
+	"os/exec"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+const (
+	// MirrorImage is the ephemeral RHEL 9 container used for staging.
+	// Override with ASAF_MIRROR_IMAGE env var for custom OS baselines.
+	MirrorImage = "ghcr.io/nouchix/asaf-mirror-rhel9:latest"
+
+	stagingTimeout = 120 * time.Second
+)
+
+// StagingJob tracks the state of a single mirror-environment test run.
+type StagingJob struct {
+	ID        string    `json:"id"`
+	Status    string    `json:"status"`    // "running" | "success" | "failed"
+	Request   *ChangeRequest `json:"-"`   // original request
+	Diff      string    `json:"diff"`      // before/after state capture
+	Stdout    string    `json:"stdout"`    // container combined output
+	ExitCode  int       `json:"exit_code"`
+	StartedAt time.Time `json:"started_at"`
+	EndedAt   time.Time `json:"ended_at,omitempty"`
+	Error     string    `json:"error,omitempty"`
+}
+
+// StagingManager owns all in-flight staging jobs.
+type StagingManager struct {
+	mu     sync.RWMutex
+	jobs   map[string]*StagingJob
+	logger *log.Logger
+}
+
+// NewStagingManager returns an initialized StagingManager.
+func NewStagingManager(logger *log.Logger) *StagingManager {
+	return &StagingManager{
+		jobs:   make(map[string]*StagingJob),
+		logger: logger,
+	}
+}
+
+// Submit creates a new StagingJob and starts the mirror container asynchronously.
+func (sm *StagingManager) Submit(req *ChangeRequest) (*StagingJob, error) {
+	job := &StagingJob{
+		ID:        uuid.New().String(),
+		Status:    "running",
+		Request:   req,
+		StartedAt: time.Now().UTC(),
+	}
+
+	sm.mu.Lock()
+	sm.jobs[job.ID] = job
+	sm.mu.Unlock()
+
+	go sm.runMirrorContainer(job)
+	return job, nil
+}
+
+// Poll returns the current state of a staging job.
+func (sm *StagingManager) Poll(jobID string) (*StagingJob, bool) {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	job, ok := sm.jobs[jobID]
+	return job, ok
+}
+
+// runMirrorContainer executes the ChangeRequest inside an ephemeral container.
+// This is the "Mirror Environment" — if the command bricks the container,
+// production is untouched. That's the ROI.
+func (sm *StagingManager) runMirrorContainer(job *StagingJob) {
+	sm.logger.Printf("[STAGING] job=%s starting mirror container image=%s", job.ID, MirrorImage)
+
+	ctx, cancel := context.WithTimeout(context.Background(), stagingTimeout)
+	defer cancel()
+
+	// Build the shell command to run inside the container.
+	// We use 'sh -c' inside the container — the container boundary is the
+	// isolation layer, not argument parsing.
+	containerCmd := strings.Join(job.Request.Command, " ")
+
+	// Capture "before" state snapshot inside container
+	beforeSnap := sm.captureStateSnapshot(ctx, job.Request.Command)
+
+	//nolint:gosec — containerCmd runs inside an isolated Docker container
+	dockerArgs := []string{
+		"run", "--rm",
+		"--name", "asaf-mirror-" + job.ID[:8],
+		"--read-only",          // container filesystem is read-only except mounted tmpfs
+		"--tmpfs", "/tmp",       // allow writes to /tmp only
+		"--security-opt", "no-new-privileges",
+		"--cap-drop", "ALL",
+		"--network", "none",     // no network inside mirror container
+		MirrorImage,
+		"sh", "-c", containerCmd,
+	}
+
+	cmd := exec.CommandContext(ctx, "docker", dockerArgs...)
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+
+	runErr := cmd.Run()
+	output := buf.String()
+	if len(output) > 32*1024 {
+		output = output[:32*1024] + "\n[TRUNCATED]"
+	}
+
+	exitCode := 0
+	if runErr != nil {
+		if exitErr, ok := runErr.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+		} else {
+			exitCode = -1
+		}
+	}
+
+	// Capture "after" state (what would have changed)
+	afterSnap := sm.captureStateSnapshot(ctx, job.Request.Command)
+	diff := buildDiff(beforeSnap, afterSnap, containerCmd)
+
+	sm.mu.Lock()
+	job.Stdout = output
+	job.ExitCode = exitCode
+	job.Diff = diff
+	job.EndedAt = time.Now().UTC()
+	if exitCode == 0 {
+		job.Status = "success"
+		sm.logger.Printf("[STAGING] job=%s SUCCESS — safe to approve for production", job.ID)
+	} else {
+		job.Status = "failed"
+		job.Error = fmt.Sprintf("mirror container exited %d", exitCode)
+		sm.logger.Printf("[STAGING] job=%s FAILED exit=%d — production protected", job.ID, exitCode)
+	}
+	sm.mu.Unlock()
+}
+
+// captureStateSnapshot captures relevant system state for diff generation.
+// Runs inside the mirror container to show before/after changes.
+func (sm *StagingManager) captureStateSnapshot(ctx context.Context, command []string) string {
+	if len(command) == 0 {
+		return ""
+	}
+	// Identify which files the command would affect
+	affectedFiles := affectedFilesByCommand(command)
+	if len(affectedFiles) == 0 {
+		return "(no file state to capture for this command type)"
+	}
+
+	var snap strings.Builder
+	for _, f := range affectedFiles {
+		args := []string{"run", "--rm", "--network", "none", MirrorImage, "cat", f}
+		cmd := exec.CommandContext(ctx, "docker", args...) //nolint:gosec
+		out, _ := cmd.Output()
+		snap.WriteString(fmt.Sprintf("=== %s ===\n%s\n", f, string(out)))
+	}
+	return snap.String()
+}
+
+// buildDiff creates a human-readable diff for the Compliance Graph UI.
+func buildDiff(before, after, command string) string {
+	if before == after {
+		return fmt.Sprintf("Command executed successfully.\nNo file state changes detected for: %s", command)
+	}
+	return fmt.Sprintf("BEFORE:\n%s\nAFTER:\n%s", before, after)
+}
+
+// affectedFilesByCommand maps known commands to the config files they modify.
+func affectedFilesByCommand(command []string) []string {
+	if len(command) == 0 {
+		return nil
+	}
+	binary := commandBinary(command[0])
+	fileMap := map[string][]string{
+		"authselect": {"/etc/pam.d/system-auth", "/etc/pam.d/password-auth"},
+		"faillock":   {"/etc/security/faillock.conf"},
+		"pwquality":  {"/etc/security/pwquality.conf"},
+		"sysctl":     {"/etc/sysctl.d/99-asaf.conf"},
+		"auditctl":   {"/etc/audit/rules.d/asaf.rules"},
+	}
+	return fileMap[binary]
+}

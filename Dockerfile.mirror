@@ -1,0 +1,67 @@
+# Dockerfile.mirror — ASAF Staging Mirror Environment
+#
+# Lightweight RHEL 9 UBI container used as the "mirror environment" for
+# staging ChangeRequests before they touch the production host.
+#
+# If the fix bricks this container, production is untouched.
+# That's the ROI story.
+#
+# This image is:
+#   - Network-isolated during staging runs (--network none)
+#   - Read-only filesystem except /tmp (--read-only --tmpfs /tmp)
+#   - No new privileges (--security-opt no-new-privileges)
+#   - All Linux capabilities dropped (--cap-drop ALL)
+#
+# Build:
+#   make setup-mirror
+#   # or:
+#   docker build -t asaf-mirror-rhel9:local -f Dockerfile.mirror .
+#
+# This image is NOT used for production — only for staging validation.
+
+FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
+
+LABEL maintainer="SecRed Knowledge Inc. <ops@adinkhepra.com>"
+LABEL description="ASAF Staging Mirror — RHEL 9 compliance test environment"
+LABEL org.opencontainers.image.source="https://github.com/nouchix/adinkhepra"
+
+# Install the packages that STIG remediations typically touch:
+#   - shadow-utils:  useradd, usermod, passwd
+#   - authselect:    PAM profile management (faillock, sssd)
+#   - util-linux:    sysctl, mount
+#   - procps-ng:     /proc utilities
+#   - audit:         auditd, auditctl
+#   - openssh-server: sshd_config management
+#   - policycoreutils: setenforce, restorecon
+RUN microdnf install -y \
+      shadow-utils \
+      authselect \
+      util-linux \
+      procps-ng \
+      audit \
+      openssh-server \
+      policycoreutils \
+    && microdnf clean all \
+    && rm -rf /var/cache/dnf
+
+# Create the config files that STIG controls expect to exist.
+# These start in "non-compliant" state so remediations have something to fix.
+RUN mkdir -p /etc/security /etc/audit/rules.d /etc/ssh && \
+    # faillock.conf — non-compliant defaults (deny=5 instead of 3)
+    printf '[defaults]\ndeny = 5\nunlock_time = 600\n' > /etc/security/faillock.conf && \
+    # pwquality.conf — missing minlen
+    printf '# pwquality defaults\n' > /etc/security/pwquality.conf && \
+    # sshd_config — permissive defaults for testing
+    printf 'PermitRootLogin yes\nPasswordAuthentication yes\nX11Forwarding yes\n' > /etc/ssh/sshd_config && \
+    # Fake /proc/sys values (can't use real /proc in container)
+    mkdir -p /proc/sys/kernel /proc/sys/crypto && \
+    printf '0\n' > /proc/sys/crypto/fips_enabled && \
+    printf '0\n' > /proc/sys/kernel/randomize_va_space && \
+    # Empty audit rules — non-compliant
+    touch /etc/audit/rules.d/audit.rules
+
+# Create non-root user for non-destructive operations
+RUN useradd -r -u 1001 -g 0 -s /sbin/nologin asaf-mirror
+
+# Default: sleep (staging runner overrides CMD with the actual command)
+CMD ["sleep", "infinity"]

@@ -1,0 +1,141 @@
+# ASAF Sovereign Stack — Docker Compose
+#
+# Services that run in containers:
+#   asaf-api   — Go REST API (compliance graph endpoints, DAG viewer)
+#   asaf-ui    — Next.js Compliance Graph UI
+#   ollama     — Sovereign LLM (llama3.1:8b, air-gap safe)
+#
+# The asaf-daemon does NOT run here.
+# It runs as a systemd service on the bare metal host with:
+#   sudo ./bin/asaf-daemon --socket /var/run/asaf/asaf.sock ...
+#
+# The Unix socket is shared via a host-mounted volume (/var/run/asaf).
+# The API container communicates with the daemon through that socket.
+#
+# Usage:
+#   docker compose -f docker-compose.asaf.yml up -d
+#   docker compose -f docker-compose.asaf.yml logs -f asaf-api
+#   docker compose -f docker-compose.asaf.yml down
+#
+# Quick start (see Makefile):
+#   make dev
+
+name: asaf-sovereign
+
+services:
+
+  # ─── ASAF REST API ───────────────────────────────────────────────────────────
+  # Go binary serving the compliance graph API and DAG viewer.
+  # Communicates with asaf-daemon through the Unix socket on the host.
+  asaf-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - BINARY=adinkhepra
+    image: ghcr.io/nouchix/adinkhepra:latest
+    container_name: asaf-api
+    restart: unless-stopped
+    command: serve --compliance-graph --port 8443
+    ports:
+      - "8443:8443"
+    volumes:
+      # Share Unix socket with daemon on the host
+      - /var/run/asaf:/var/run/asaf
+      # Persistent DAG storage
+      - asaf-dag:/var/lib/asaf/dag
+      # License key (read-only)
+      - ./license.adinkhepra:/etc/asaf/license.adinkhepra:ro
+    environment:
+      - KHEPRA_MODE=sovereign
+      - KHEPRA_LLM_PROVIDER=sovereign
+      - OLLAMA_HOST=http://ollama:11434
+      - ASAF_DAEMON_SOCKET=/var/run/asaf/asaf.sock
+      - ASAF_DAG_PATH=/var/lib/asaf/dag
+      - KHEPRA_LICENSE_PATH=/etc/asaf/license.adinkhepra
+      # Mirror image used by staging gate
+      - ASAF_MIRROR_IMAGE=asaf-mirror-rhel9:local
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - asaf-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8443/status"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ─── COMPLIANCE GRAPH UI ─────────────────────────────────────────────────────
+  # Next.js frontend — Compliance Graph, Policy Editor, Staging Gate, Evidence Export
+  asaf-ui:
+    build:
+      context: ./frontend/compliance-graph
+      dockerfile: Dockerfile
+    image: ghcr.io/nouchix/adinkhepra-ui:latest
+    container_name: asaf-ui
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8443
+      - NEXT_PUBLIC_KHEPRA_MODE=sovereign
+      - NODE_ENV=production
+    depends_on:
+      asaf-api:
+        condition: service_healthy
+    networks:
+      - asaf-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+
+  # ─── SOVEREIGN LLM (Ollama) ───────────────────────────────────────────────────
+  # Local AI inference — no egress, no API keys, no token costs.
+  # Models are pulled on first start and cached in the volume.
+  # Pull command: docker exec asaf-ollama ollama pull llama3.1:8b
+  ollama:
+    image: ollama/ollama:latest
+    container_name: asaf-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_MAX_LOADED_MODELS=2
+    networks:
+      - asaf-network
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+        # Remove 'deploy' block entirely if no GPU available
+
+# ─── Volumes ─────────────────────────────────────────────────────────────────
+volumes:
+  asaf-dag:
+    driver: local
+  ollama-models:
+    driver: local
+
+# ─── Networks ─────────────────────────────────────────────────────────────────
+networks:
+  asaf-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16

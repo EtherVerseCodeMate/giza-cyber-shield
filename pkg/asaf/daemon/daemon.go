@@ -128,7 +128,7 @@ func New(cfg Config) (*ASAFDaemon, error) {
 	}
 
 	// Open persistent DAG store
-	dagStore := dag.NewMemoryStore() // will be swapped to PersistentStore in production
+	dagStore := dag.NewMemory() // will be swapped to PersistentStore in production
 
 	return &ASAFDaemon{
 		cfg:      cfg,
@@ -209,7 +209,8 @@ func (d *ASAFDaemon) Execute(req *ChangeRequest) *ChangeResult {
 		return &ChangeResult{Error: "signature verification failed: cannot canonicalize request"}
 	}
 
-	if !adinkra.VerifyWithPublicKey(d.cfg.AgentPubKey, canonical, req.Signature) {
+	ok, verErr := adinkra.Verify(d.cfg.AgentPubKey, canonical, req.Signature)
+	if verErr != nil || !ok {
 		d.logSecurityEvent("SIGNATURE_REJECTED", req, "ML-DSA-65 verification failed")
 		d.logger.Printf("[SECURITY] UNAUTHORIZED ATTEMPT REJECTED — agent=%s control=%s command=%v",
 			req.AgentID, req.ControlID, req.Command)
