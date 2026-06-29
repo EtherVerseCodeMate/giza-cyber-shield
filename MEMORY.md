@@ -1,6 +1,6 @@
 # MEMORY.md — KHEPRA / NouchiX Strategic Operating Memory
 
-> **PERMANENT REFERENCE** — Last updated: 2026-05-24
+> **PERMANENT REFERENCE** — Last updated: 2026-06-29
 > This file is the strategic compass. CLAUDE.md holds technical norms. Together they are the full context.
 
 ---
@@ -471,4 +471,68 @@ claude_json_trust_flag_set  — alreadyTrusted flag added to a new path
 Gmail, Google Drive, Google Calendar, HubSpot, Notion, monday.com, Cloudflare, Intuit TurboTax.
 These are connected through `claude.ai` OAuth, not local MCP routing. They are outside the `~/.claude.json` injection path but represent the exact token surface the attack targets if a hook is ever injected in future.
 
+
 **Anthropic partial mitigation observed**: `tengu_mcp_local_oauth_blocked_hosts` blocks local OAuth for `gmail.mcp.claude.com`, `gcal.mcp.claude.com`, `microsoft365.mcp.claude.com`. Does NOT cover HubSpot, Notion, Google Drive, or KHEPRA.
+
+---
+
+## 🔧 Product C Connective-Tissue Build Spec
+
+> **Status snapshot**: 2026-06-29. **Target**: Presight meeting 2026-07-15.
+> **Full spec lives at**: `c:\Users\intel\blackbox\PQC-Khepra-MCP\docs\CONNECTIVE_TISSUE_BUILD_SPEC.md`
+
+### Architecture frame
+
+- **Product A** — AdinKhepra ASAF / Compliance Graph UI. CMMC/STIG installer bundle.
+- **Product B** — SouHimBou AI Flight Recorder (`souhimbou.ai`). Working beta dashboard with live WebSocket DAG viewer (`KhepraDAGVisualization.tsx`). Consumer of Product C.
+- **Product C** — PQC-Khepra-MCP. Must stay the most modular of the three — the connective tissue any downstream UI (A's or B's) can consume.
+
+### Verified live in Product C (as of 2026-06-29)
+
+- DEMARC gateway (`pkg/api/demarc_api.go`) — stdio pre-auth identity
+- Polymorphic envelope wrapping (`pkg/mcp/chain.go` `AdinkraPolymorphicEngine`)
+- DAG attestation (`pkg/mcp/chain.go` `DAGAttestor`) — ML-DSA-65 signed on every tool call
+- Loopback SSE live viewer (`pkg/mcp/live_viewer.go`) — `KHEPRA_VIEWER_PORT` env var
+- KASA orchestrator: `kasa_start`, `kasa_status`
+- EA Kernel: `ea_evolve`, `ea_threat_score`, `ea_risk_summary`
+- Ising optimizer: `quantum_optimize`
+- Ouroboros eyes: `ouroboros_waf_eye`, `ouroboros_stig_eye`, `ouroboros_vuln_eye`, `ouroboros_fim_eye`
+
+### Dead code (built, NOT registered as MCP tools — fix in Phase 1)
+
+`tools.HandleKASATask`, `tools.HandleKASAScan`, `tools.HandleKASAForensics`, `tools.HandleKASACryptoAgent` — all in `pkg/mcp/tools/kasa_tools.go`.
+
+### Critical structural risk — package fork drift
+
+`pkg/ea`, `pkg/sekhem`, `pkg/ouroboros`, `pkg/agi`, `pkg/ising`, `pkg/api` exist in BOTH `khepra protocol` AND `PQC-Khepra-MCP`. **Every single file differs** (confirmed via `diff -rq`). Both build clean independently. No shared module — two forks of a common ancestor that have already diverged.
+
+**Decision (2026-06-29)**: `PQC-Khepra-MCP` is the canonical source for shared security-kernel packages. Product A (`khepra protocol`) should consume Product C as a dependency rather than maintain an independently-edited fork.
+
+### Secondary structural issue
+
+KASA's autonomous loop writes to its OWN separate in-memory DAG store (`kasaStore` via `dag.NewMemory()` in `kasa_tools.go`'s `getKASA()`), which is NOT the same store the router/live-viewer's `EventEmitter` observes. KASA background actions do not surface in the SSE live viewer. Phase 1 task: unify these stores.
+
+### Build phases (July 15 target)
+
+**Phase 1 — Low risk, do first**
+1. Register 4 unregistered KASA handlers in `cmd/khepra-mcp/main.go` (`kasa_task`, `kasa_scan`, `kasa_forensics`, `kasa_crypto_agent`). Rebuild manifest hash.
+2. Unify KASA's DAG store with the router's observable event stream so autonomous KASA actions surface in the SSE feed.
+3. Smoke-test `kasa_start` → `kasa_task` → `kasa_status` → `kasa_crypto_agent` via real stdio JSON-RPC with `KHEPRA_VIEWER_PORT` set.
+
+**Phase 2 — Reconcile drift (before adding anything new)**
+1. Diff each of `pkg/ea`, `pkg/sekhem`, `pkg/ouroboros`, `pkg/agi`, `pkg/ising` file-by-file between both repos.
+2. Port any features Product C lacks into Product C (canonical).
+3. Document the canonical decision in both repos' AGENTS.md.
+
+**Phase 3 — Demo readiness**
+1. Verify SSE live viewer renders KASA/EA/Ising events with readable labels.
+2. Rehearse demo sequence: `kasa_start` → autonomous perimeter sweep visible in SSE feed → `ea_evolve`/`quantum_optimize` → `agent_record` for PQC attestation.
+3. Full stdio+SSE smoke test end-to-end before calling demo-ready.
+
+### Out of scope for July 15
+
+- Building a real ML model for `KASACryptoAgent` (currently rule-based thresholds — do not claim otherwise)
+- Porting `mitochondrial-proxy` Supabase Edge Function into Product C
+- Wiring SEKHEM WAF into live request filtering (no live HTTP ingress in stdio-first MCP)
+- Merging Product A's Compliance Graph UI with Product C's live feed (Product B's dashboard is the Presight demo consumer)
+
