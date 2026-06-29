@@ -1,20 +1,74 @@
 {
-  "timestamp": "2026-01-12T06:56:24.5947815+03:00",
+  "timestamp": "2026-06-28T23:33:28.4764109-04:00",
   "tenant": "production",
   "readiness": {
     "strategy_docs": [
       "COMMUNITY_TELEMETRY_STRATEGY.md",
+      "DOCKER_EXTENSION_STRATEGY.md",
       "IP_PROTECTION_STRATEGY.md",
       "IRONBANK_CONTAINER_TEST_PLAN.md",
       "IRON_BANK_SCANNER_STRATEGY.md",
-      "STIGVIEWER_IRONBANK_STRATEGY.md",
-      "TESTING_VALIDATION_PLAN.md",
-      "V1_5_STATUS_AND_ENHANCEMENT_ROADMAP.md",
-      "docs\\CSfC_INTEGRATION_PLAN.md",
-      "docs\\DAG_IMPLEMENTATION_PLAN.md",
-      "docs\\INTEGRATION_ROADMAP.md"
+      "NEMOCLAW_GTM_STRATEGY.md",
+      "NEMOCLAW_IMPLEMENTATION_PLAN.md",
+      "OMNIPOTENT_PQC_DEFENSE_STRATEGY.md",
+      "PQC_ARCHITECTURE_INTEGRATION_PLAN.md",
+      "PROJECT_PLAN_OMNIPOTENT_PQC_8_WEEKS.md"
     ],
     "compliance_gaps": [
+      {
+        "framework": "PQC-Readiness",
+        "control": "PQC-TLS-001",
+        "description": "TLS post-quantum readiness",
+        "severity": "High"
+      },
+      {
+        "framework": "PQC-Readiness",
+        "control": "PQC-SSH-001",
+        "description": "SSH post-quantum readiness",
+        "severity": "High"
+      },
+      {
+        "framework": "PQC-Readiness",
+        "control": "PQC-CERT-001",
+        "description": "X.509 certificate post-quantum readiness",
+        "severity": "Medium"
+      },
+      {
+        "framework": "PQC-Readiness",
+        "control": "PQC-VPN-001",
+        "description": "VPN post-quantum readiness",
+        "severity": "High"
+      },
+      {
+        "framework": "PQC-Readiness",
+        "control": "PQC-SIGN-001",
+        "description": "Code signing post-quantum readiness",
+        "severity": "Medium"
+      },
+      {
+        "framework": "PQC-Readiness",
+        "control": "PQC-INVENTORY-SUMMARY",
+        "description": "Post-Quantum Cryptography Readiness Summary",
+        "severity": "High"
+      },
+      {
+        "framework": "PQC-01-STIG-V1R1",
+        "control": "PQC-010010",
+        "description": "Systems SHALL use only NIST-approved PQC algorithms (FIPS 203/204/205)",
+        "severity": "CAT I"
+      },
+      {
+        "framework": "PQC-01-STIG-V1R1",
+        "control": "PQC-010040",
+        "description": "Systems SHALL NOT use deprecated, withdrawn, or broken PQC algorithms",
+        "severity": "CAT I"
+      },
+      {
+        "framework": "PQC-01-STIG-V1R1",
+        "control": "PQC-020020",
+        "description": "PQC private keys MUST be protected at rest with equivalent classical protections",
+        "severity": "CAT II"
+      },
       {
         "framework": "RHEL-09-STIG-V1R3",
         "control": "SV-257777r925318_rule",
@@ -80,79 +134,19 @@
         "control": "CIS-6.1.1",
         "description": "Audit system file permissions",
         "severity": "Medium"
-      },
-      {
-        "framework": "NIST-800-53-Rev5",
-        "control": "NIST-800-53:AC-1",
-        "description": "Access Control Policy and Procedures",
-        "severity": "High"
-      },
-      {
-        "framework": "NIST-800-53-Rev5",
-        "control": "NIST-800-53:SC-13",
-        "description": "Cryptographic Protection",
-        "severity": "CAT I"
-      },
-      {
-        "framework": "NIST-800-171-Rev2",
-        "control": "NIST-800-171:3.13.11",
-        "description": "Employ FIPS-validated cryptography",
-        "severity": "CAT I"
-      },
-      {
-        "framework": "CMMC-3.0-L3",
-        "control": "CMMC:SC.L2-3.13.11",
-        "description": "FIPS-validated cryptography (L2)",
-        "severity": "CAT I"
-      },
-      {
-        "framework": "CMMC-3.0-L3",
-        "control": "CMMC:SC.L3-3.13.X",
-        "description": "Post-quantum cryptography readiness (L3)",
-        "severity": "High"
-      },
-      {
-        "framework": "PQC-Readiness",
-        "control": "PQC-TLS-001",
-        "description": "TLS post-quantum readiness",
-        "severity": "High"
-      },
-      {
-        "framework": "PQC-Readiness",
-        "control": "PQC-SSH-001",
-        "description": "SSH post-quantum readiness",
-        "severity": "High"
-      },
-      {
-        "framework": "PQC-Readiness",
-        "control": "PQC-CERT-001",
-        "description": "X.509 certificate post-quantum readiness",
-        "severity": "Medium"
-      },
-      {
-        "framework": "PQC-Readiness",
-        "control": "PQC-VPN-001",
-        "description": "VPN post-quantum readiness",
-        "severity": "High"
       }
     ],
     "regulatory_conflicts": [
       "NIST 800-171 3.5.3: Multi-factor authentication required but not implemented"
     ],
-    "stig_score": 43,
-    "alignment_score": 60,
+    "stig_score": 87,
+    "alignment_score": 70,
     "roadmap": [
       {
         "priority": "URGENT",
         "action": "Resolve regulatory conflicts",
         "impact": "Prevents compliance violations and fines",
         "timeline": "60 days"
-      },
-      {
-        "priority": "STRATEGIC",
-        "action": "Implement AdinKhepra STIG Validation Suite",
-        "impact": "Achieves CMMC Level 2 compliance within 90 days",
-        "timeline": "90 days"
       },
       {
         "priority": "STRATEGIC",
@@ -164,8 +158,98 @@
   },
   "architecture": {
     "dependency_graph": {
+      "cel.dev/expr": [
+        "v0.25.1"
+      ],
+      "cloud.google.com/go": [
+        "v0.123.0"
+      ],
+      "cloud.google.com/go/auth": [
+        "v0.18.2"
+      ],
+      "cloud.google.com/go/auth/oauth2adapt": [
+        "v0.2.8"
+      ],
+      "cloud.google.com/go/compute/metadata": [
+        "v0.9.0"
+      ],
+      "cloud.google.com/go/iam": [
+        "v1.5.3"
+      ],
+      "cloud.google.com/go/monitoring": [
+        "v1.24.3"
+      ],
+      "cloud.google.com/go/storage": [
+        "v1.61.3"
+      ],
+      "dario.cat/mergo": [
+        "v1.0.2"
+      ],
       "filippo.io/edwards25519": [
-        "v1.1.0"
+        "v1.2.0"
+      ],
+      "github.com/Azure/go-ntlmssp": [
+        "v0.1.1"
+      ],
+      "github.com/BurntSushi/toml": [
+        "v1.6.0"
+      ],
+      "github.com/ChrisTrenkamp/goxpath": [
+        "v0.0.0-20210404020558-97928f7e12b6"
+      ],
+      "github.com/CycloneDX/cyclonedx-go": [
+        "v0.10.0"
+      ],
+      "github.com/DataDog/zstd": [
+        "v1.5.7"
+      ],
+      "github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp": [
+        "v1.31.0"
+      ],
+      "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric": [
+        "v0.55.0"
+      ],
+      "github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping": [
+        "v0.55.0"
+      ],
+      "github.com/Intevation/gval": [
+        "v1.3.0"
+      ],
+      "github.com/Intevation/jsonpath": [
+        "v0.2.1"
+      ],
+      "github.com/Masterminds/goutils": [
+        "v1.1.1"
+      ],
+      "github.com/Masterminds/semver/v3": [
+        "v3.4.0"
+      ],
+      "github.com/Masterminds/sprig/v3": [
+        "v3.3.0"
+      ],
+      "github.com/Microsoft/go-winio": [
+        "v0.6.3-0.20251027160822-ad3df93bed29"
+      ],
+      "github.com/Microsoft/hcsshim": [
+        "v0.15.0-rc.1"
+      ],
+      "github.com/OneOfOne/xxhash": [
+        "v1.2.8"
+      ],
+      "github.com/ProtonMail/go-crypto": [
+        "v1.4.0"
+      ],
+      "github.com/STARRY-S/zip": [
+        "v0.2.3"
+      ],
+      "github.com/acobaugh/osrelease": [
+        "v0.1.0"
+      ],
+      "github.com/adrg/xdg": [
+        "v0.5.3"
+      ],
+      "github.com/agext/levenshtein": [
+        "v1.2.3"
       ],
       "github.com/akutz/memconn": [
         "v0.1.0"
@@ -173,101 +257,521 @@
       "github.com/alexbrainman/sspi": [
         "v0.0.0-20231016080023-1a75b4708caa"
       ],
+      "github.com/anchore/clio": [
+        "v0.1.0"
+      ],
+      "github.com/anchore/fangs": [
+        "v0.1.0"
+      ],
+      "github.com/anchore/go-collections": [
+        "v0.1.0"
+      ],
+      "github.com/anchore/go-homedir": [
+        "v0.1.0"
+      ],
+      "github.com/anchore/go-logger": [
+        "v0.1.0"
+      ],
+      "github.com/anchore/go-lzo": [
+        "v0.1.0"
+      ],
+      "github.com/anchore/go-macholibre": [
+        "v0.1.0"
+      ],
+      "github.com/anchore/go-rpmdb": [
+        "v0.1.0"
+      ],
+      "github.com/anchore/go-struct-converter": [
+        "v0.1.0"
+      ],
+      "github.com/anchore/go-sync": [
+        "v0.1.0"
+      ],
+      "github.com/anchore/go-version": [
+        "v1.2.2-0.20210903204242-51efa5b487c4"
+      ],
+      "github.com/anchore/grype": [
+        "v0.112.0"
+      ],
+      "github.com/anchore/packageurl-go": [
+        "v0.2.0"
+      ],
+      "github.com/anchore/stereoscope": [
+        "v0.1.23"
+      ],
+      "github.com/anchore/syft": [
+        "v1.44.0"
+      ],
+      "github.com/andybalholm/brotli": [
+        "v1.2.0"
+      ],
+      "github.com/apparentlymart/go-textseg/v15": [
+        "v15.0.0"
+      ],
+      "github.com/aquasecurity/go-pep440-version": [
+        "v0.0.1"
+      ],
+      "github.com/aquasecurity/go-version": [
+        "v0.0.1"
+      ],
       "github.com/aws/aws-sdk-go-v2": [
-        "v1.36.0"
+        "v1.41.5"
+      ],
+      "github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream": [
+        "v1.7.8"
       ],
       "github.com/aws/aws-sdk-go-v2/config": [
-        "v1.29.5"
+        "v1.32.12"
       ],
       "github.com/aws/aws-sdk-go-v2/credentials": [
-        "v1.17.58"
+        "v1.19.12"
       ],
       "github.com/aws/aws-sdk-go-v2/feature/ec2/imds": [
-        "v1.16.27"
+        "v1.18.20"
       ],
       "github.com/aws/aws-sdk-go-v2/internal/configsources": [
-        "v1.3.31"
+        "v1.4.21"
       ],
       "github.com/aws/aws-sdk-go-v2/internal/endpoints/v2": [
-        "v2.6.31"
+        "v2.7.21"
       ],
       "github.com/aws/aws-sdk-go-v2/internal/ini": [
-        "v1.8.2"
+        "v1.8.6"
+      ],
+      "github.com/aws/aws-sdk-go-v2/internal/v4a": [
+        "v1.4.22"
       ],
       "github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding": [
-        "v1.12.2"
+        "v1.13.7"
+      ],
+      "github.com/aws/aws-sdk-go-v2/service/internal/checksum": [
+        "v1.9.13"
       ],
       "github.com/aws/aws-sdk-go-v2/service/internal/presigned-url": [
-        "v1.12.12"
+        "v1.13.21"
+      ],
+      "github.com/aws/aws-sdk-go-v2/service/internal/s3shared": [
+        "v1.19.21"
+      ],
+      "github.com/aws/aws-sdk-go-v2/service/s3": [
+        "v1.97.3"
+      ],
+      "github.com/aws/aws-sdk-go-v2/service/signin": [
+        "v1.0.8"
       ],
       "github.com/aws/aws-sdk-go-v2/service/ssm": [
         "v1.44.7"
       ],
       "github.com/aws/aws-sdk-go-v2/service/sso": [
-        "v1.24.14"
+        "v1.30.13"
       ],
       "github.com/aws/aws-sdk-go-v2/service/ssooidc": [
-        "v1.28.13"
+        "v1.35.17"
       ],
       "github.com/aws/aws-sdk-go-v2/service/sts": [
-        "v1.33.13"
+        "v1.41.9"
       ],
       "github.com/aws/smithy-go": [
-        "v1.22.2"
+        "v1.24.2"
+      ],
+      "github.com/aymanbagabas/go-osc52/v2": [
+        "v2.0.1"
+      ],
+      "github.com/becheran/wildmatch-go": [
+        "v1.0.0"
+      ],
+      "github.com/bgentry/go-netrc": [
+        "v0.0.0-20140422174119-9fd32a8b3d3d"
+      ],
+      "github.com/bitnami/go-version": [
+        "v0.0.0-20250505154626-452e8c5ee607"
+      ],
+      "github.com/blakesmith/ar": [
+        "v0.0.0-20190502131153-809d4375e1fb"
+      ],
+      "github.com/bmatcuk/doublestar/v2": [
+        "v2.0.4"
+      ],
+      "github.com/bmatcuk/doublestar/v4": [
+        "v4.10.0"
+      ],
+      "github.com/bodgit/ntlmssp": [
+        "v0.0.0-20240506230425-31973bb52d9b"
+      ],
+      "github.com/bodgit/plumbing": [
+        "v1.3.0"
+      ],
+      "github.com/bodgit/sevenzip": [
+        "v1.6.1"
+      ],
+      "github.com/bodgit/windows": [
+        "v1.0.1"
+      ],
+      "github.com/bytedance/gopkg": [
+        "v0.1.3"
+      ],
+      "github.com/bytedance/sonic": [
+        "v1.15.0"
+      ],
+      "github.com/bytedance/sonic/loader": [
+        "v0.5.0"
+      ],
+      "github.com/cespare/xxhash/v2": [
+        "v2.3.0"
+      ],
+      "github.com/charmbracelet/colorprofile": [
+        "v0.4.1"
+      ],
+      "github.com/charmbracelet/lipgloss": [
+        "v1.1.0"
+      ],
+      "github.com/charmbracelet/x/ansi": [
+        "v0.11.6"
+      ],
+      "github.com/charmbracelet/x/cellbuf": [
+        "v0.0.15"
+      ],
+      "github.com/charmbracelet/x/term": [
+        "v0.2.2"
+      ],
+      "github.com/clipperhouse/displaywidth": [
+        "v0.10.0"
+      ],
+      "github.com/clipperhouse/uax29/v2": [
+        "v2.6.0"
       ],
       "github.com/cloudflare/circl": [
-        "v1.6.1"
+        "v1.6.3"
+      ],
+      "github.com/cloudwego/base64x": [
+        "v0.1.6"
+      ],
+      "github.com/cncf/xds/go": [
+        "v0.0.0-20260202195803-dba9d589def2"
       ],
       "github.com/coder/websocket": [
         "v1.8.12"
       ],
+      "github.com/containerd/cgroups/v3": [
+        "v3.1.3"
+      ],
+      "github.com/containerd/containerd/api": [
+        "v1.11.1"
+      ],
+      "github.com/containerd/containerd/v2": [
+        "v2.3.2"
+      ],
+      "github.com/containerd/continuity": [
+        "v0.5.0"
+      ],
+      "github.com/containerd/errdefs": [
+        "v1.0.0"
+      ],
+      "github.com/containerd/errdefs/pkg": [
+        "v0.3.0"
+      ],
+      "github.com/containerd/fifo": [
+        "v1.1.0"
+      ],
+      "github.com/containerd/log": [
+        "v0.1.0"
+      ],
+      "github.com/containerd/platforms": [
+        "v1.0.0-rc.4"
+      ],
+      "github.com/containerd/plugin": [
+        "v1.1.0"
+      ],
+      "github.com/containerd/stargz-snapshotter/estargz": [
+        "v0.18.2"
+      ],
+      "github.com/containerd/ttrpc": [
+        "v1.2.8"
+      ],
+      "github.com/containerd/typeurl/v2": [
+        "v2.2.3"
+      ],
       "github.com/coreos/go-iptables": [
         "v0.7.1-0.20240112124308-65c67c9f46e6"
+      ],
+      "github.com/cyphar/filepath-securejoin": [
+        "v0.6.1"
+      ],
+      "github.com/danieljoos/wincred": [
+        "v1.2.3"
       ],
       "github.com/dblohm7/wingoes": [
         "v0.0.0-20240119213807-a09d6be7affa"
       ],
+      "github.com/deitch/magic": [
+        "v0.0.0-20240306090643-c67ab88f10cb"
+      ],
       "github.com/digitalocean/go-smbios": [
         "v0.0.0-20180907143718-390a4f403a8e"
+      ],
+      "github.com/diskfs/go-diskfs": [
+        "v1.7.0"
+      ],
+      "github.com/distribution/reference": [
+        "v0.6.0"
+      ],
+      "github.com/docker/cli": [
+        "v29.4.0+incompatible"
+      ],
+      "github.com/docker/docker-credential-helpers": [
+        "v0.9.5"
+      ],
+      "github.com/docker/go-connections": [
+        "v0.6.0"
+      ],
+      "github.com/docker/go-units": [
+        "v0.5.0"
+      ],
+      "github.com/dsnet/compress": [
+        "v0.0.2-0.20230904184137-39efe44ab707"
+      ],
+      "github.com/dustin/go-humanize": [
+        "v1.0.1"
+      ],
+      "github.com/elliotchance/phpserialize": [
+        "v1.4.0"
+      ],
+      "github.com/emirpasic/gods": [
+        "v1.18.1"
+      ],
+      "github.com/envoyproxy/go-control-plane/envoy": [
+        "v1.37.0"
+      ],
+      "github.com/envoyproxy/protoc-gen-validate": [
+        "v1.3.3"
+      ],
+      "github.com/facebookincubator/nvdtools": [
+        "v0.1.5"
+      ],
+      "github.com/fatih/color": [
+        "v1.18.0"
+      ],
+      "github.com/felixge/fgprof": [
+        "v0.9.5"
+      ],
+      "github.com/felixge/httpsnoop": [
+        "v1.0.4"
       ],
       "github.com/fsnotify/fsnotify": [
         "v1.9.0"
       ],
       "github.com/fxamacker/cbor/v2": [
-        "v2.7.0"
+        "v2.9.0"
+      ],
+      "github.com/gabriel-vasile/mimetype": [
+        "v1.4.13"
       ],
       "github.com/gaissmai/bart": [
-        "v0.18.0"
+        "v0.26.1"
+      ],
+      "github.com/gin-contrib/sse": [
+        "v1.1.0"
+      ],
+      "github.com/gin-gonic/gin": [
+        "v1.12.0"
+      ],
+      "github.com/github/go-spdx/v2": [
+        "v2.4.0"
+      ],
+      "github.com/glebarez/go-sqlite": [
+        "v1.22.0"
+      ],
+      "github.com/glebarez/sqlite": [
+        "v1.11.0"
+      ],
+      "github.com/go-git/gcfg": [
+        "v1.5.1-0.20230307220236-3a3c6141e376"
+      ],
+      "github.com/go-git/go-billy/v5": [
+        "v5.9.0"
+      ],
+      "github.com/go-git/go-git/v5": [
+        "v5.19.1"
+      ],
+      "github.com/go-jose/go-jose/v4": [
+        "v4.1.4"
       ],
       "github.com/go-json-experiment/json": [
         "v0.0.0-20250813024750-ebf49471dced"
       ],
+      "github.com/go-logr/logr": [
+        "v1.4.3"
+      ],
+      "github.com/go-logr/stdr": [
+        "v1.2.2"
+      ],
       "github.com/go-ole/go-ole": [
         "v1.3.0"
       ],
+      "github.com/go-pdf/fpdf": [
+        "v0.9.0"
+      ],
+      "github.com/go-playground/locales": [
+        "v0.14.1"
+      ],
+      "github.com/go-playground/universal-translator": [
+        "v0.18.1"
+      ],
+      "github.com/go-playground/validator/v10": [
+        "v10.30.1"
+      ],
+      "github.com/go-restruct/restruct": [
+        "v1.2.0-alpha"
+      ],
+      "github.com/go-viper/mapstructure/v2": [
+        "v2.5.0"
+      ],
+      "github.com/goccy/go-json": [
+        "v0.10.5"
+      ],
+      "github.com/goccy/go-yaml": [
+        "v1.19.2"
+      ],
+      "github.com/gocsaf/csaf/v3": [
+        "v3.5.1"
+      ],
       "github.com/godbus/dbus/v5": [
-        "v5.1.1-0.20230522191255-76236955d466"
+        "v5.2.2"
+      ],
+      "github.com/gofrs/uuid": [
+        "v4.4.0+incompatible"
+      ],
+      "github.com/gogo/protobuf": [
+        "v1.3.2"
+      ],
+      "github.com/gohugoio/hashstructure": [
+        "v0.6.0"
+      ],
+      "github.com/golang-jwt/jwt/v5": [
+        "v5.3.1"
       ],
       "github.com/golang/groupcache": [
-        "v0.0.0-20210331224755-41bb18bfe9da"
+        "v0.0.0-20241129210726-2c02b8208cf8"
       ],
       "github.com/google/btree": [
-        "v1.1.2"
+        "v1.1.3"
       ],
       "github.com/google/go-cmp": [
         "v0.7.0"
       ],
+      "github.com/google/go-containerregistry": [
+        "v0.21.5"
+      ],
+      "github.com/google/licensecheck": [
+        "v0.3.1"
+      ],
       "github.com/google/nftables": [
         "v0.2.1-0.20240414091927-5e242ec57806"
+      ],
+      "github.com/google/pprof": [
+        "v0.0.0-20250630185457-6e76a2b096b5"
+      ],
+      "github.com/google/s2a-go": [
+        "v0.1.9"
       ],
       "github.com/google/uuid": [
         "v1.6.0"
       ],
+      "github.com/googleapis/enterprise-certificate-proxy": [
+        "v0.3.14"
+      ],
+      "github.com/googleapis/gax-go/v2": [
+        "v2.17.0"
+      ],
+      "github.com/gookit/color": [
+        "v1.6.0"
+      ],
+      "github.com/gorilla/websocket": [
+        "v1.5.4-0.20250319132907-e064f32e3674"
+      ],
+      "github.com/gpustack/gguf-parser-go": [
+        "v0.24.0"
+      ],
+      "github.com/hako/durafmt": [
+        "v0.0.0-20210608085754-5c1018a4e16b"
+      ],
+      "github.com/hashicorp/aws-sdk-go-base/v2": [
+        "v2.0.0-beta.72"
+      ],
+      "github.com/hashicorp/errwrap": [
+        "v1.1.0"
+      ],
+      "github.com/hashicorp/go-cleanhttp": [
+        "v0.5.2"
+      ],
+      "github.com/hashicorp/go-getter": [
+        "v1.8.6"
+      ],
+      "github.com/hashicorp/go-multierror": [
+        "v1.1.1"
+      ],
+      "github.com/hashicorp/go-uuid": [
+        "v1.0.3"
+      ],
+      "github.com/hashicorp/go-version": [
+        "v1.8.0"
+      ],
+      "github.com/hashicorp/golang-lru/v2": [
+        "v2.0.7"
+      ],
+      "github.com/hashicorp/hcl/v2": [
+        "v2.24.0"
+      ],
       "github.com/hdevalence/ed25519consensus": [
         "v0.2.0"
       ],
+      "github.com/henvic/httpretty": [
+        "v0.1.4"
+      ],
+      "github.com/huandu/xstrings": [
+        "v1.5.0"
+      ],
+      "github.com/iancoleman/strcase": [
+        "v0.3.0"
+      ],
       "github.com/illarion/gonotify/v3": [
         "v3.0.2"
+      ],
+      "github.com/in-toto/attestation": [
+        "v1.2.0"
+      ],
+      "github.com/inconshreveable/mousetrap": [
+        "v1.1.0"
+      ],
+      "github.com/jbenet/go-context": [
+        "v0.0.0-20150711004518-d14ea06fba99"
+      ],
+      "github.com/jcmturner/aescts/v2": [
+        "v2.0.0"
+      ],
+      "github.com/jcmturner/dnsutils/v2": [
+        "v2.0.0"
+      ],
+      "github.com/jcmturner/gofork": [
+        "v1.7.6"
+      ],
+      "github.com/jcmturner/goidentity/v6": [
+        "v6.0.1"
+      ],
+      "github.com/jcmturner/gokrb5/v8": [
+        "v8.4.4"
+      ],
+      "github.com/jcmturner/rpc/v2": [
+        "v2.0.3"
+      ],
+      "github.com/jinzhu/copier": [
+        "v0.4.0"
+      ],
+      "github.com/jinzhu/inflection": [
+        "v1.0.0"
+      ],
+      "github.com/jinzhu/now": [
+        "v1.1.5"
       ],
       "github.com/jmespath/go-jmespath": [
         "v0.4.0"
@@ -275,8 +779,53 @@
       "github.com/jsimonetti/rtnetlink": [
         "v1.4.0"
       ],
+      "github.com/json-iterator/go": [
+        "v1.1.12"
+      ],
+      "github.com/kastenhq/goversion": [
+        "v0.0.0-20230811215019-93b2f8823953"
+      ],
+      "github.com/kevinburke/ssh_config": [
+        "v1.2.0"
+      ],
       "github.com/klauspost/compress": [
-        "v1.18.0"
+        "v1.18.5"
+      ],
+      "github.com/klauspost/cpuid/v2": [
+        "v2.3.0"
+      ],
+      "github.com/klauspost/pgzip": [
+        "v1.2.6"
+      ],
+      "github.com/knqyf263/go-apk-version": [
+        "v0.0.0-20200609155635-041fdbb8563f"
+      ],
+      "github.com/knqyf263/go-deb-version": [
+        "v0.0.0-20241115132648-6f4aee6ccd23"
+      ],
+      "github.com/leodido/go-urn": [
+        "v1.4.0"
+      ],
+      "github.com/lucasb-eyer/go-colorful": [
+        "v1.3.0"
+      ],
+      "github.com/masahiro331/go-mvn-version": [
+        "v0.0.0-20250131095131-f4974fa13b8a"
+      ],
+      "github.com/masterzen/simplexml": [
+        "v0.0.0-20190410153822-31eea3082786"
+      ],
+      "github.com/masterzen/winrm": [
+        "v0.0.0-20250927112105-5f8e6c707321"
+      ],
+      "github.com/mattn/go-colorable": [
+        "v0.1.14"
+      ],
+      "github.com/mattn/go-isatty": [
+        "v0.0.20"
+      ],
+      "github.com/mattn/go-runewidth": [
+        "v0.0.19"
       ],
       "github.com/mdlayher/genetlink": [
         "v1.3.2"
@@ -288,19 +837,154 @@
         "v1.0.0"
       ],
       "github.com/mdlayher/socket": [
-        "v0.5.0"
+        "v0.5.1"
+      ],
+      "github.com/mgutz/ansi": [
+        "v0.0.0-20200706080929-d51e80ef957d"
+      ],
+      "github.com/mholt/archives": [
+        "v0.1.5"
       ],
       "github.com/miekg/dns": [
         "v1.1.58"
       ],
+      "github.com/mikelolasagasti/xz": [
+        "v1.0.1"
+      ],
       "github.com/mikesmitty/edkey": [
         "v0.0.0-20170222072505-3356ea4e686a"
+      ],
+      "github.com/minio/minlz": [
+        "v1.0.1"
+      ],
+      "github.com/mitchellh/copystructure": [
+        "v1.2.0"
+      ],
+      "github.com/mitchellh/go-homedir": [
+        "v1.1.0"
       ],
       "github.com/mitchellh/go-ps": [
         "v1.0.0"
       ],
+      "github.com/mitchellh/go-wordwrap": [
+        "v1.0.1"
+      ],
+      "github.com/mitchellh/reflectwalk": [
+        "v1.0.2"
+      ],
+      "github.com/moby/docker-image-spec": [
+        "v1.3.1"
+      ],
+      "github.com/moby/locker": [
+        "v1.0.1"
+      ],
+      "github.com/moby/moby/api": [
+        "v1.54.1"
+      ],
+      "github.com/moby/moby/client": [
+        "v0.4.0"
+      ],
+      "github.com/moby/sys/mountinfo": [
+        "v0.7.2"
+      ],
+      "github.com/moby/sys/sequential": [
+        "v0.6.0"
+      ],
+      "github.com/moby/sys/signal": [
+        "v0.7.1"
+      ],
+      "github.com/moby/sys/user": [
+        "v0.4.0"
+      ],
+      "github.com/moby/sys/userns": [
+        "v0.1.0"
+      ],
+      "github.com/modern-go/concurrent": [
+        "v0.0.0-20180306012644-bacd9c7ef1dd"
+      ],
+      "github.com/modern-go/reflect2": [
+        "v1.0.3-0.20250322232337-35a7c28c31ee"
+      ],
+      "github.com/muesli/termenv": [
+        "v0.16.0"
+      ],
+      "github.com/ncruces/go-strftime": [
+        "v1.0.0"
+      ],
+      "github.com/nix-community/go-nix": [
+        "v0.0.0-20250101154619-4bdde671e0a1"
+      ],
+      "github.com/nwaples/rardecode/v2": [
+        "v2.2.0"
+      ],
+      "github.com/olekukonko/cat": [
+        "v0.0.0-20250911104152-50322a0618f6"
+      ],
+      "github.com/olekukonko/errors": [
+        "v1.2.0"
+      ],
+      "github.com/olekukonko/ll": [
+        "v0.1.6"
+      ],
+      "github.com/olekukonko/tablewriter": [
+        "v1.1.4"
+      ],
+      "github.com/opencontainers/go-digest": [
+        "v1.0.0"
+      ],
+      "github.com/opencontainers/image-spec": [
+        "v1.1.1"
+      ],
+      "github.com/opencontainers/runtime-spec": [
+        "v1.3.0"
+      ],
+      "github.com/openvex/go-vex": [
+        "v0.2.8"
+      ],
+      "github.com/package-url/packageurl-go": [
+        "v0.1.5"
+      ],
+      "github.com/pandatix/go-cvss": [
+        "v0.6.2"
+      ],
+      "github.com/pborman/indent": [
+        "v1.2.1"
+      ],
+      "github.com/pelletier/go-toml": [
+        "v1.9.5"
+      ],
+      "github.com/pelletier/go-toml/v2": [
+        "v2.3.0"
+      ],
+      "github.com/pierrec/lz4/v4": [
+        "v4.1.22"
+      ],
+      "github.com/pjbgf/sha1cd": [
+        "v0.6.0"
+      ],
+      "github.com/pkg/errors": [
+        "v0.9.1"
+      ],
+      "github.com/pkg/profile": [
+        "v1.7.0"
+      ],
+      "github.com/pkg/xattr": [
+        "v0.4.12"
+      ],
+      "github.com/planetscale/vtprotobuf": [
+        "v0.6.1-0.20240319094008-0393e58bdf10"
+      ],
       "github.com/prometheus-community/pro-bing": [
         "v0.4.0"
+      ],
+      "github.com/quic-go/qpack": [
+        "v0.6.0"
+      ],
+      "github.com/quic-go/quic-go": [
+        "v0.59.0"
+      ],
+      "github.com/remyoudompheng/bigfft": [
+        "v0.0.0-20230129092748-24d4a6f8daec"
       ],
       "github.com/richardlehane/mscfb": [
         "v1.0.4"
@@ -308,8 +992,83 @@
       "github.com/richardlehane/msoleps": [
         "v1.0.4"
       ],
+      "github.com/rivo/uniseg": [
+        "v0.4.7"
+      ],
+      "github.com/rust-secure-code/go-rustaudit": [
+        "v0.0.0-20250226111315-e20ec32e963c"
+      ],
       "github.com/safchain/ethtool": [
         "v0.3.0"
+      ],
+      "github.com/sagikazarmark/locafero": [
+        "v0.11.0"
+      ],
+      "github.com/saintfish/chardet": [
+        "v0.0.0-20230101081208-5e3ef4b5456d"
+      ],
+      "github.com/santhosh-tekuri/jsonschema/v6": [
+        "v6.0.2"
+      ],
+      "github.com/sassoftware/go-rpmutils": [
+        "v0.4.0"
+      ],
+      "github.com/scylladb/go-set": [
+        "v1.0.3-0.20200225121959-cc7b2070d91e"
+      ],
+      "github.com/sergi/go-diff": [
+        "v1.4.0"
+      ],
+      "github.com/shopspring/decimal": [
+        "v1.4.0"
+      ],
+      "github.com/sirupsen/logrus": [
+        "v1.9.4"
+      ],
+      "github.com/skeema/knownhosts": [
+        "v1.3.1"
+      ],
+      "github.com/smallnest/ringbuffer": [
+        "v0.0.0-20241116012123-461381446e3d"
+      ],
+      "github.com/sorairolake/lzip-go": [
+        "v0.3.8"
+      ],
+      "github.com/sourcegraph/conc": [
+        "v0.3.1-0.20240121214520-5f936abd7ae8"
+      ],
+      "github.com/spdx/gordf": [
+        "v0.0.0-20250128162952-000978ccd6fb"
+      ],
+      "github.com/spdx/tools-golang": [
+        "v0.5.7"
+      ],
+      "github.com/spf13/afero": [
+        "v1.15.0"
+      ],
+      "github.com/spf13/cast": [
+        "v1.10.0"
+      ],
+      "github.com/spf13/cobra": [
+        "v1.10.2"
+      ],
+      "github.com/spf13/pflag": [
+        "v1.0.10"
+      ],
+      "github.com/spf13/viper": [
+        "v1.21.0"
+      ],
+      "github.com/spiffe/go-spiffe/v2": [
+        "v2.6.0"
+      ],
+      "github.com/subosito/gotenv": [
+        "v1.6.0"
+      ],
+      "github.com/sylabs/sif/v2": [
+        "v2.24.0"
+      ],
+      "github.com/sylabs/squashfs": [
+        "v1.0.6"
       ],
       "github.com/tailscale/certstore": [
         "v0.1.1-0.20231202035212-d3fa0460f47e"
@@ -335,14 +1094,53 @@
       "github.com/tailscale/wireguard-go": [
         "v0.0.0-20250716170648-1d0488a3d7da"
       ],
+      "github.com/therootcompany/xz": [
+        "v1.0.1"
+      ],
+      "github.com/tidwall/transform": [
+        "v0.0.0-20201103190739-32f242e2dbde"
+      ],
       "github.com/tiendc/go-deepcopy": [
         "v1.7.1"
+      ],
+      "github.com/twitchyliquid64/golang-asm": [
+        "v0.15.1"
+      ],
+      "github.com/ugorji/go/codec": [
+        "v1.3.1"
+      ],
+      "github.com/ulikunitz/xz": [
+        "v0.5.15"
+      ],
+      "github.com/vbatts/go-mtree": [
+        "v0.7.0"
+      ],
+      "github.com/vbatts/tar-split": [
+        "v0.12.2"
+      ],
+      "github.com/vifraa/gopom": [
+        "v1.0.0"
       ],
       "github.com/vishvananda/netns": [
         "v0.0.5"
       ],
+      "github.com/wagoodman/go-partybus": [
+        "v0.0.0-20230516145632-8ccac152c651"
+      ],
+      "github.com/wagoodman/go-progress": [
+        "v0.0.0-20260303201901-10176f79b2c0"
+      ],
       "github.com/x448/float16": [
         "v0.8.4"
+      ],
+      "github.com/xanzy/ssh-agent": [
+        "v0.3.3"
+      ],
+      "github.com/xi2/xz": [
+        "v0.0.0-20171230120015-48954b6210f8"
+      ],
+      "github.com/xo/terminfo": [
+        "v0.0.0-20220910002029-abceb7e1c41e"
       ],
       "github.com/xuri/efp": [
         "v0.0.1"
@@ -353,41 +1151,98 @@
       "github.com/xuri/nfp": [
         "v0.0.2-0.20250530014748-2ddeb826f9a9"
       ],
+      "github.com/zalando/go-keyring": [
+        "v0.2.8"
+      ],
+      "github.com/zclconf/go-cty": [
+        "v1.16.3"
+      ],
+      "go.etcd.io/bbolt": [
+        "v1.4.3"
+      ],
+      "go.mongodb.org/mongo-driver/v2": [
+        "v2.5.0"
+      ],
+      "go.opencensus.io": [
+        "v0.24.0"
+      ],
+      "go.opentelemetry.io/auto/sdk": [
+        "v1.2.1"
+      ],
+      "go.opentelemetry.io/contrib/detectors/gcp": [
+        "v1.42.0"
+      ],
+      "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc": [
+        "v0.68.0"
+      ],
+      "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp": [
+        "v0.68.0"
+      ],
+      "go.opentelemetry.io/otel": [
+        "v1.43.0"
+      ],
+      "go.opentelemetry.io/otel/metric": [
+        "v1.43.0"
+      ],
+      "go.opentelemetry.io/otel/sdk": [
+        "v1.43.0"
+      ],
+      "go.opentelemetry.io/otel/sdk/metric": [
+        "v1.43.0"
+      ],
+      "go.opentelemetry.io/otel/trace": [
+        "v1.43.0"
+      ],
+      "go.yaml.in/yaml/v3": [
+        "v3.0.4"
+      ],
+      "go4.org": [
+        "v0.0.0-20230225012048-214862532bf5"
+      ],
       "go4.org/mem": [
         "v0.0.0-20240501181205-ae6ca9944745"
       ],
       "go4.org/netipx": [
         "v0.0.0-20231129151722-fdeea329fbba"
       ],
+      "golang.org/x/arch": [
+        "v0.22.0"
+      ],
       "golang.org/x/crypto": [
-        "v0.46.0"
+        "v0.53.0"
       ],
       "golang.org/x/exp": [
-        "v0.0.0-20250620022241-b7579e27df2b"
+        "v0.0.0-20260410095643-746e56fc9e2f"
       ],
       "golang.org/x/mod": [
-        "v0.30.0"
+        "v0.36.0"
       ],
       "golang.org/x/net": [
-        "v0.47.0"
+        "v0.56.0"
+      ],
+      "golang.org/x/oauth2": [
+        "v0.36.0"
       ],
       "golang.org/x/sync": [
-        "v0.19.0"
+        "v0.21.0"
       ],
       "golang.org/x/sys": [
-        "v0.39.0"
+        "v0.46.0"
       ],
       "golang.org/x/term": [
-        "v0.38.0"
+        "v0.44.0"
       ],
       "golang.org/x/text": [
-        "v0.32.0"
+        "v0.38.0"
       ],
       "golang.org/x/time": [
-        "v0.11.0"
+        "v0.15.0"
       ],
       "golang.org/x/tools": [
-        "v0.39.0"
+        "v0.45.0"
+      ],
+      "golang.org/x/xerrors": [
+        "v0.0.0-20240903120638-7835f813f4da"
       ],
       "golang.zx2c4.com/wintun": [
         "v0.0.0-20230126152724-0fa3db229ce2"
@@ -395,19 +1250,61 @@
       "golang.zx2c4.com/wireguard/windows": [
         "v0.5.3"
       ],
+      "gonum.org/v1/gonum": [
+        "v0.17.0"
+      ],
+      "google.golang.org/api": [
+        "v0.271.0"
+      ],
+      "google.golang.org/genproto": [
+        "v0.0.0-20260128011058-8636f8732409"
+      ],
+      "google.golang.org/genproto/googleapis/api": [
+        "v0.0.0-20260401024825-9d38bb4040a9"
+      ],
+      "google.golang.org/genproto/googleapis/rpc": [
+        "v0.0.0-20260406210006-6f92a3bedf2d"
+      ],
+      "google.golang.org/grpc": [
+        "v1.81.1"
+      ],
+      "google.golang.org/protobuf": [
+        "v1.36.12-0.20260120151049-f2248ac996af"
+      ],
+      "gopkg.in/warnings.v0": [
+        "v0.1.2"
+      ],
+      "gopkg.in/yaml.v3": [
+        "v3.0.1"
+      ],
+      "gorm.io/gorm": [
+        "v1.31.1"
+      ],
       "gvisor.dev/gvisor": [
         "v0.0.0-20250205023644-9414b50a5633"
       ],
       "honnef.co/go/tools": [
         "v0.6.1"
       ],
+      "modernc.org/libc": [
+        "v1.70.0"
+      ],
+      "modernc.org/mathutil": [
+        "v1.7.1"
+      ],
+      "modernc.org/memory": [
+        "v1.11.0"
+      ],
+      "modernc.org/sqlite": [
+        "v1.47.0"
+      ],
       "module": [
         "github.com/EtherVerseCodeMate/giza-cyber-shield"
       ]
     },
     "vulnerable_deps": [],
-    "module_count": 3620,
-    "file_count": 370966,
+    "module_count": 936,
+    "file_count": 15252,
     "shadow_it": [
       "JavaScript dependencies detected: requires separate CVE scanning"
     ],
@@ -421,132 +1318,189 @@
   },
   "crypto": {
     "source_hashes": [
-      "34adfb75dcb7d55e46865ebf8d8d94c2be3425a762ed7be50d75489c8bb3d5ee",
-      "5a9ea5bb6f23e98d87504de304cb107b5b9f5b29443e578e59cfcf6898bc3a8c",
-      "1d7753396521b5e23f03e8ef557d52d55f0c0802cf0c2780ee54e5d96d2889de",
-      "3b46a13903415188ffa38f4c46362f8a35d4b9a1bc6f9a04e7b87e1862ecff8c",
-      "f393701c97654036ca22d7ba23d80d0cdd4585fbe37713de8cd649578d915656",
-      "bce6af02fa8e9d2efce4dbea895ea6ce5346c6ee28c551841db4fa67f3593b93",
-      "e6535f6629aa98ac60dc82aba7b7a72404278637d026f33e73c82960c3fdcc47",
-      "5a9ea5bb6f23e98d87504de304cb107b5b9f5b29443e578e59cfcf6898bc3a8c",
-      "1d7753396521b5e23f03e8ef557d52d55f0c0802cf0c2780ee54e5d96d2889de",
-      "3b46a13903415188ffa38f4c46362f8a35d4b9a1bc6f9a04e7b87e1862ecff8c",
-      "f568a387099885100241ed6fd9bd3ac15f959a168c637ddf3e75dcb615259b89",
-      "bce6af02fa8e9d2efce4dbea895ea6ce5346c6ee28c551841db4fa67f3593b93",
-      "0abb34903664413be68442634e34aea9d2293c9dda22c5e7b85a0ebe6b122a8f",
-      "ea8743a2ea26bbef4702a5314fc7f5d3313bc749d7700dfe2133b0d80aa0656a",
-      "8e2214ba8c860cb119a10b9b1acdda498e486802fe2e8d3a9734b8fea9e18b60",
-      "1debb9cefbfa54a76b04771015ef6bb4d2b173c79a79ee3baade970b3cd802f4",
-      "9ac8290ad9215fd7758ec45eb3f3348431e470e3efe85833ec6c2f2fe4c4c37f",
-      "90e8e2dbfb4b1502a753e56539dc19d9403e559a5f6dc52bb410c3388235fd4d",
-      "9c4de5b39c4c1f1ca6e89199f43c595b416d08d6a6e2c7db1f95dd4113a810ed",
-      "2d7c8495d56c382d22fc609d70e59da5c6cb342685cb55697990e70e878c47ec",
-      "7aad16d3ecf8bd81c8232dc341a7e8b1ad05d7b59de48e34a27bc12d27ff7323",
-      "327c1cb2780a1e547c65be0f47523d02ce33d0cef4ced41fa44f9585591a4be2",
-      "4b3f3409c43f33cf350f06e819f30a912b8b4be2ae3c6925aa35b840a1d4c9ed",
-      "4263ee8183ef34414bc3249989e036c81b80ea4ef4281cbf1e2e28dbdf1cf98a",
-      "3d7b3ba2cc9b4b293b22ebb9b2598b2dc60b6ad64108f249c1793a09b05b9bba",
-      "714f623fe4c1b9d2bcc62d301a99084b40e6b294d4db09632e5830eb27d143b9",
-      "5dc699044ff44aa35047c2d37556a41f7c4a873b0c36d339806e3c2d81b07bb6",
-      "a8fdee0e427a596dd2087ea0708188af93102e8de4102a0d383132cab1968238",
-      "2483bd0a7349be9335e3c67dc1ff4bd31901dea8fa80d2b9c6dd816a771bdc43",
-      "fc5133e40acf09e6517b073ddd7b5c0c218d09938848902210f2cc13f08e1c81",
-      "b68da31fb6c435471346960895294e6b5213954e1c187936ee7f3af116c2fb3d",
-      "36feb6ff9eda2c958da55bdf3e7280596902cbaf7050cfaca0d5c68ee25d2be2",
-      "044a495c5b3a1884aac32e8c56b6815d85d038468754c1d94b4a2447e173ebee",
-      "c179c8f4eb31420bea70298f4f092a5a0b8ce44be08ed268d75fcc79a0356a88",
-      "f3afec4749ec17d560c88dd409989838f7033f2be8a4d9b0f7a54a4c5208419c",
-      "a9e31871c3503dd6f0e02b6d8e346588825e083d9d66dc4198afd5539605f62b",
-      "7184fa422df9c9389ef061d7efe984294463d10624282f3011a76461bf0f62e3",
-      "efe9a32a0d796bd6666f8903bf6e314ad7f946340e9a6c66e70122aed89983c0",
-      "6b3b5dc956e85b46a87abc8b9bc97e4b8bfa4fb6f59412070850fbbf6654932b",
-      "044c0066e86115f7033a0bea5c28d3e61a70618d19974a1055cdec6dbe10de4c",
-      "6aeaa6b9355736ff8739b45c5bcf55dd3558d78c0b43cfc642376c7d32b84ce6",
-      "0037cb255257bec297f43dbcafe9704590146413f4cb5fb2eed9049c7df0afff",
-      "c3292c24ab3aee6af7125f9e53a77145cabe687b3fc8de890a4d203615b5c0b4",
-      "2e157b1934c40b4a7389ae82ebd40e05650c65ddf2202a5d7ab3e44edbc16e6a",
-      "88576700983a2a7963164f2bbc5c0535090f28f06fa49b7d173df4d4ee625650",
-      "f933cbd3b90b62a026a85e46ef89a6af6121e24f46aaef7c839daf646684eac9",
-      "573a294ebc04e8311f1258d7d1429479f7da0cc1dbb1604ef3a6fe36340d642d",
-      "b6a9c215f61fcf74c2fadce414d4e0fad82f682f435523713842cf0a6654a4f5",
-      "84ee45549d5f5b2dc61381307d115ef7d886ef662acebf3dcb7c40e8375d82f2",
-      "ca791c0385164c0bb2f4f937414ac32ad1553a3c2bb8c22b7201aa7c552a60f3",
-      "3834ba371cff373992077541e9e33d7805db01d1fa40d1cb40b7c613bdd62582",
-      "e5dc5943893184f10eb74d11ffd6fa97ec95491c45a0692bb3c740c45ab73dc8",
-      "6dfe8542a3e5e757d5a7e3ce79d5ebed9d0febd2a30253214985b50c1693b867",
-      "c233e7edf8541d04e409994f06a3b75d169e341c2a512fabd0aefb1184c2cee4",
-      "f661e349997f17c2b3f1f4bfac8854d551352e2fff542b7430d02be874e05bb7",
-      "fc36042dbce57ca27a85e4af3aedc44041eb6b4346532c70eafd370e9ba0f33b",
-      "2a31aa0802042cc86a70a14bc2a69dc920bfe51ceea8ad8bdb5219c87c084622",
-      "f7aad1f3da395733818728180f6b45edf7f3b64e68712e5b9cf1e512353ab991",
-      "74acf17b5b8ff5ab7e784f1124d02bf31bafd423729882e3aaac1ebf82fb7446",
-      "49344486b3f1bf695cc1f0bb1251f0cf5f443fe26e1810e833aa03781cfbb1f9",
-      "c6499e18e2447bb7d8841111b83edd7f5b203f6ed0f5a0d22fa26c7ac8fdc84a",
-      "d951f416bdf41801dc777e496707eb1b589b417193b375acc7a62f151405ef46",
-      "f61ccd61bfdfb0df979078287713c5c8ecb1cd7cba3da5af06413051adb67743",
-      "31498335913587b4c828c464f1f255d1c17dd0adfadfc1182e4be434a650cc73",
-      "42cc2ad20242bf120d4e4d5430ea1713872577ce2ee6e1a989902ae57a469b51",
-      "2dc0a1b928c9d33a82f12f9592c8161a5fa4c3ca992c19c081d780c618f4a9b4",
-      "28f265e2cfbf7a4da991210b26413e3860677da56515373aa735061ec0b9d8c5",
-      "56d319ead8ac8191306b4c641b0cb3f167c50faaa924584b52a5c55d45230543",
-      "82988a0766ca9e15713ea826549cc9156917cdd794e8d3dcf05ef416ff1ce3ab",
-      "01107795aba82f35f25634d5367ec93e04ff7b81b0df257d6e44b606afb7bb44",
-      "fa2139d36d3626d1b1f2ddce1f5a1af5cc0750c63378b77c811ccd3805a82534",
-      "7e8e62b5805be99869fabf5044515e4c1e151e20d725c49243b7711868423801",
-      "cf784a49cb5545edef5c09e0eb7b5b77641b5e4f0419be19e50106dfa5959579",
-      "a8b467e8bc36f04900252b3e69764efb8c5543fea478eb370ae80bab45f3c058",
-      "51b54e84254383e45e669306a754778780d9772e4cb8855f20bf78dd3c8ca2a7",
-      "aabc56d8b08c17abd84d55711797c5ff3acbc95219db8cff4be1adcda62465e0",
-      "327b8336cfd272b28f17c3d516723ae059b65738b2e349518fcc72606ab226ef",
-      "7de3573e78ddd41ee155a289f1dd2241b3f4c5bd7c4589f7347301d2186f2811",
-      "74ae4bc97c53a19a299e7fd70734bda36ad6e5a2cfd12c4721630ce9200220fd",
-      "efa146b199b8d79a2dac847e1160b0b5dbca20e536fd91e7011ec3ef04e7eb57",
-      "e0c89caddf2c676328593485b5065273ecfabdc53a3f21bc8aa684bc7adc7b55",
-      "80fc270a4d5e4ebdb6abeef839f3eb3c7d8c6f3cb60be7707305aa2ca5aa30fa",
-      "7999d9dbc13476308beefb858baca4b693f7bb2b643c3c57db58c8c7b87e5df1",
-      "2035fcb2b962e73eb1de5b3ac4a833fa751a21a8b347dc22db489c30833c0b4e",
-      "9af96ac7db9e8ab67eaf1566a002293efeaba8fcb2f9276344e2cd9f4d4a60be",
-      "765b5f55dc46ab59292996d416e8f1f13093f3e45d8e4deb8d3db0f3237ba412",
-      "a59263d9ee505f742c1112b12c714ebbdec35fb62339fd99a486a105e3d6584f",
-      "4afa27e2a0767c55258eea704239a26b4d10e7c9f58c70225bc3b7c5d2daca79",
-      "c60c7b722cad0321e6040c9425194601115c7ad5883de4cf20b944f443655c79",
-      "b3be6e600207d70ec52574d917b36c00862e00eb5fefc50ab7ad0e842963162a",
-      "2abb6922900df892bb4ce2f227ad4ac6717beeef73adfb20240c1e39bc27890d",
-      "26fce3c7903d17742c9e327f34bf1216ccc634bf7623fc8d073ffc2a0901d065",
-      "765a12b1272ed620195394bab0e64c45050e84d67abdf86bf499868077f93f38",
-      "181efd43b85c09888fff0a296dfc1c9898444e0ecb31f8c478c4a487c13c096d",
-      "da988fc903d634365c134b13c45ea77c94d45e3978708d71f46ee84f6af54877",
-      "653f3e53e89b4f8548ff86c19e92bb3c6b84b6be7485a320b1e00893ed877479",
-      "c0b3f4ace4bb1547128ab73e6be3b788f6e7aaabdb9fb3ed6130a2454a008c1d",
-      "f6b9dd2effe975a4ba4063ac0cdf3b3487dab9097f251e95f9e82c7c615dab85",
-      "a2782b348f7143165e8c9c882773abd7aeca399317b26691c77010a5e8d6f5a9",
-      "fb16a0ed11374e1c5f798be308f3c5634257a899709287e35b01f47bc1010da4",
-      "fc5133e40acf09e6517b073ddd7b5c0c218d09938848902210f2cc13f08e1c81",
-      "11fa57daa1daa6d1d49ec74ba023a4b244b6b982a4764c490efa3b678b112a2c",
-      "8a36e58b2b8ba2c4df8d94e70f37be7c195efa4b2076c0742107201d2e605b0a",
-      "61cbe904faece970c40304293e27637abd4a1d75f69ba53f457e945403a32543",
-      "d0e407bc32a901c676fefe8586b6081adacd14365e8136bc7b059559385ba737"
+      "224d0ce78e2c772d68e47766908c2cce7c0a1c9ad86551c004564a927047a33e",
+      "47854c1b31f1ea158f91bf34147580b303365a71274ace0b9332ba36dbd53ffc",
+      "c0745a0f3c09cefe5f373ed0e02b21cd1a3a740e5874aab010959f05b8934ae7",
+      "ec97a6cc5e35c02351895fbcde0933acfd743e6590016e3c456a004e98b51906",
+      "76b85cdceb604b18aaf10776a246d236a1840501a35ac291b9c049755d94a722",
+      "a64a46fc7549e773ce6c3a3e85ac69aabc6213ae3b2d4a5741426edd31d70fc2",
+      "d27c911c26e5a4de08c193eb2341045f3145a40047cac65403d7fc2eed1a2f27",
+      "9dee24bf07ba1c243270c7925466d96243f93af0863fd3b7d56fd5dc86e44377",
+      "1bdc25b2eb78d246401699de272fabe507bc2ae47992b6ce7522f365a7a20c42",
+      "dca116072de11963d7dfd03b512a42a4cc8266b7b6afd2d417d749bb40119425",
+      "20c11c0da48d6e6159ad267a180c3273c03f1a34aa25237fb5e56d1c37799439",
+      "798c1b0ea6bafbd5e25268481c72eea02c35925c0f4dc0e92fbe207266fe8388",
+      "5113bc73ee0c097c4b0f8f8529b3f1d6040148e38b54d351b6f942720f9974e3",
+      "0cb41531a80f2ea0911c3133ea1b77454be38f57085937f5b525364f95cf2118",
+      "0eec38bb86f941fe3ac95420024872353a83e4260acb45e985cdff4905986658",
+      "892b5ea25b910e72a639c7a2c42f5ab378591fd33b0773fe8d33e11ec680bd12",
+      "2e71b2ffee1946161b81dbff78f47668e9ad22d51a639e3c0b8a03ccacd10600",
+      "0f34ec3f024f1a81c31a660da5f419fe1f7cf93cd0159660c4bd8c8c7a81326b",
+      "5530c6dccf7572d28b2426c4d10453b234cbea8ed607fdf1900cb7c2deb29129",
+      "fa89b413bd321cb014757629e8f4bb644882afb5dfb19da941ebf5a8f3b85e9e",
+      "6dcd337f2005ea4496ee45878f7232d4724344063dd1c585d894a44f9491000e",
+      "5adae1b2050cf54f9950cfa3d70a6b03abcad5e990e98174755498d53280ab87",
+      "463715f011dd4b40799ea2f58e4ebf7336b06b2e6dea2f08b58c4ae776a596a3",
+      "ce651139ef865614b33840278d0374b8e9c40b4344a27a18e12d1cab33ea529c",
+      "7d496475ea6bab2b0153c019739547615ef8a0686da0dc025c085f6fe08b665f",
+      "51224267c94988df4552db8b9d434cd7f31422043c60aa8798ac1b9f204f9483",
+      "c86b221ff2fc3c8b871f61d88b007cb6588139c8c0636f0452b9a49e758b9952",
+      "9f1d2a72238d8c0b55c355aa5f6fa556afeb0e61d8b75603d12ba6daba29482a",
+      "45e3e89c577b2197cee5f95362504f4b36fa94aabec3cce92f0b343662896ae9",
+      "a6a418c7fc7c47c59b33ca42ac23f9500358b26e6f27958e4546c42eb529abfc",
+      "4d07394b38c926f3497143bd3d4858e5c791f7282f5b918f72e3929b52ff34d2",
+      "45f23aca7a64fdb68896baeba269b893b3a07653b6c9bf524ebed7164b640add",
+      "210c1cd5cba8a15dbd0f445bab9d20b4827613a4eb4d1ee6d94440cb4998689a",
+      "bc39ef9bca48b5b5081e17d42e62b8d7805f94038ee2bdcd6f798e4fcc909f10",
+      "aa440d6efd2420bca32f07458fc0109f4fffce5d765592c9bb535ae4fc6eeec5",
+      "d1f774652a5b191ad3a4507412f02a10f1869db19297347af9b7ca5e042dae8e",
+      "553f83be0addf7404f642b368d2632344d53216171d043cafd3ef851e6ab465c",
+      "59a9407b82d1dd49e6cf85b326f0ab83b65c9fd2e728376c62071c93a579fcf7",
+      "3156c261a018ad33b6ae3a2533aae962b91848a8c8920c232ec0e31e4348da0f",
+      "e73207af666743855028f0dc056d65362434aa6251f04100516062a2e2300596",
+      "6d97d872337e5f8e17397cdb6a07f3689f4ea4863600a3611d463d2022bba4af",
+      "d85b118bb0b6a1c123822ed9f885b7c395c045e4515b8a9390c0bf5e242134ab",
+      "1b5b7d91d4b1b9a0fa0d291484a7977f255aaa287677cd4a938b8610a4722666",
+      "24b5af7fd82c704eea8e97517015bb02b87cf8b80543d45c64bbfa9c178d6e2f",
+      "7039ea4b4098e93e9d9007ddf8ddc8918e7dd33a8b47d8abf4adc3f093b20207",
+      "77cae4e23bc988c41480128ac770c417741933e187f20492b31d3804dce69933",
+      "0b14a84dbe13b69fd3092b99439e513d0b7d72b3d0976b6f699ad59707d42969",
+      "bb14bf347f6dc480fae8ee56ca1764838389cf4ce9922911b580cd01b1d3c784",
+      "c0afd7501018d773d875b092d6c7dd51c25a48ad94eaf7d418467eeb5bff499a",
+      "daddbc86acf66c47c43e4f7d60efa99e7604795e2341343a449fb35baeba3e5d",
+      "d385a79fac08defe329ac7f3147543470c60deba0c7e02ceaf45814a2e1f30aa",
+      "f69ddf4f13511d62d45b6613fe3aecfc1399150c1911e7e94c210edd32de4b37",
+      "bf59de538ae86c35d03ddb08a18cca9e7b9d9062561d32d306603c052f704920",
+      "f92f373004c3a1f011b5a0d4def10197e376b7b08eaa11c904aa6ad25d7f4803",
+      "6631c2c7129356bf401ecc8ff780305bee50e6e7a082e4d76937839d06d9110c",
+      "feeb263afb778e3446261e0d2552390142ae0a7f64f4e7689b27d7080b5d120a",
+      "fbfafae6bbc41e6b01567aa32c4cc01e42ee7d1e6e5476b59f9bc985d86ebd21",
+      "bca37fa209cdb5ecd63d7da359561b3c833fdf667682c8041d9154d3b11b863b",
+      "156ccc67da138865cc36ed664a8a95b6644ef7ab991d4220d93e171c58ec03d6",
+      "ff5165533ce7d493a4e40c2587bd68932bcd2f2b9be76ac87a9c3021fa67b63b",
+      "eaf35116ec48febdb01dcb0c79993e9e84d41ab548d5bac30399b29835fd21e6",
+      "0ec58d0c7010d4707474eeb44a39d2292a2a9a055942087ca871f4d70f901a3b",
+      "580f1915f0a16d240bf161fda38f6a572e0607773d4e5b38e5a5577d6da0823d",
+      "7dc0abc381fb089612b5a50cef16d4e16a6921d1eaf713f519dc2b4b1e73508f",
+      "d9f698dd2642405b7d9bbecfc009eced88008e21645ccd09272bd34fa9de8f17",
+      "24a180c678ce9e6d9684f5e6f39af2edd8b616fb0604ac128db4255e896bc256",
+      "f27bba29611fee053fbe38b83a7adafe6c2b1d9ccca427f05db776be2fbf1a02",
+      "4ef4d3f5b3360bb26e15465a549a32efefe4e2883b6c4e9869ef69ce1d145fb9",
+      "62be4355830bc6793a8a76f1f7f61235b96277987d28e910de23b49cd1369e7e",
+      "ca07af1c2e04e7c98e0247f8ae3c82fa08cb1c7b329b74102750eca264b9128a",
+      "6c63ea6e0cc24e9cfca17be47f73f3257891c89422b3dd0cea163436ca286408",
+      "3882a741f950a6e257a4cf700334d9d0820f5c49e4669187ca9bca02abf3eeae",
+      "77c51f7bd618fec1983218be96a102ba051571db7062e7d59fbe4f2b10bc94c4",
+      "b3255ed375b6bce5cb8fa1ed23f8563a604713387b62701e1f7d789739eacc2e",
+      "35110e904c07091a658d99c9c6bcb1d57b3fb611724a90bd611bc2e6fef93040",
+      "c3334fc6e6993868efa61ae9c948a41b5a1e22dfaf96083c8789705950f2a6a3",
+      "f092569757b003fe3be5a9d0134d77a7c0fa60e9f161da0bf10bba59dceae284",
+      "ab7aac8ced0227cf155ce1baf7c475da3f2e99820ef82919f89ffb55296facfa",
+      "7e4e2f00970ef6a80fe139d625a0e6f6f846b932084cb95ddd97760ca752d823",
+      "91b3f5dba8087a648d556f0d8afa6492cd797c6b0651853ec7e25f364fd0711a",
+      "40911a854531763fe7a179ccd2dd0583dc8ec53b8d6c0362230483daf3c1bf26",
+      "d16ce839836442cb5fda97c0c78972ca7ea434797c5f38e165ff53aeb7ac55be",
+      "36c3a23c02ea3737fffb1d3532a8cee336cf01aa514247099eb31dd2cd712cf7",
+      "6c7aefec95577baa6015dfe6fa65237a39319a4b681706daa1add16a2c0e4b1b",
+      "fb4e2b5533250f4b90aa0e9ce0899050310eab0f0a19febb6f16141eb60b0ab9",
+      "e9e87530346795ffd29dd2bec541a371f1798db46a2cddfdb0dde379ccc2ab5b",
+      "7fbd87a3878db084d1293ec09e33d6f892e9be395cdcbb0db998a041cf274846",
+      "8b9576621b5eb1082654ff76d90fa13eacd87863e965c781017de2a1d580d32f",
+      "07db29c54feff68f49a632578677fce47f112cc1d86e97312902c000d6923d08",
+      "73a43d607e2a68924c29f40217cd584df1e1c9940b859eb2eb8d0e39d01ce9ee",
+      "b1a1816ce7263125c02f78a4b7cdb83b94c9067f1df28e6e49edaae0b5f1fdb0",
+      "81a3342beb10b4b6e17470377d8532e263d326f8689425996f3b1f8e4824c149",
+      "2731670e55bdc22bdd1d226f71eaf0e7dee353459726e705f006f1846dfaa842",
+      "a4fbc1547d5e6c85b0fe1b94b725a8f54df3fd2803fc2dd5c88df77fe6635c94",
+      "70de9718165f697747377106ec718c5e8a9ebe8e1c59f7ef7bd76c3166d88dd7",
+      "e709c24ca6c26a7968dbbf9a0038acaa78a761c1d9451330e68e8ebc383c486b",
+      "537232e6e20eb84da7e01af885b9622083b2630d6ff76f545beafd2a3f38d3d2",
+      "c0be50317af3bc901c88dc3328edeecb1f96a5cc9b545f3576cd117c68793a9c",
+      "8628e2ac6198d00e0c86c7f12155038c7b420914f884391aeb5b43c4aee45c06",
+      "0f6158190e87c4e54870a6985c287b03787339aba65b244fcd70326d4cb32bfb",
+      "1874b6cb0e8fde8e8fead1e43d45df9cd75cfb6f6c59990cce3f213b0687dce7",
+      "66b1ac3582d3219acfeec2be13878e2b4b3e573d080e38b7ab1e5977b41b15ce",
+      "c95adbec4b6fbb1285d3b42812dbbc15c90be8d8943ba40351df586ccd95ae80",
+      "9ee2cfb67705c685999e5f6a02dfb215299c5ee3961cb54672a655034a3f0735",
+      "2782c23eb8fe9e8db8912c7db9ed57d6f7c3f83f01f72bf4ca55a6a23ee9edde",
+      "12669c2e8d8c7cb4b72a1089ec79de700d46cce2777514477604d867ba0cb25f",
+      "3730890f788221715525261c0bba2c387827da4b2194358a031e8d88cafc4266",
+      "371d0a3c14e4d4916968c843f42aa4223592251d61404193da6e22a9883f04db",
+      "77978fea032e35d191b5e118fe77b685e6874caf707f0f256d45526ef8825a42",
+      "b6a3fc474fbb3b20bb9dbe81664e076f78425c20a06aafcd780536627cab65fd",
+      "aa0eae436653b8e11289cd0bab30279115397c954008dc65a54c524fef117608",
+      "2b69b51a835a53fe70e007fd97f2e0b867d7000ed83b6eac1c6fd0c4ccffef73",
+      "f4518416d1a657f3b089b7b18d10567f5d1cdd7acb6fa1f8303408405a324111",
+      "299e70211b31b1e47bd3c3526e354619f2e43dec46433db12cb548f2f4b5f085",
+      "fdd90ef4eb3e53e01365fe939c06786bb57ec4d372d80640d4a3845c40cc9f50",
+      "22bd9c61834ce1c421866b816b06592c4660f60cbf0f558b8e5fa3e863daeef2",
+      "a570f20557d4c26740af7986a210ee6d42ecdf6e39242d32cd02d6622601b7a6",
+      "b130a658958e86ae86518db26e716b03ae9221eac12ee723e560cc6ab0171c4d",
+      "9bead9f1519a8c54ef8d87ba990fecba35b8c03a294469959d97dc6980069432",
+      "42250c7c00ec7ad0a62d87020fbcc7577469a00da6e11d71bc752ddca4eae42e",
+      "e1efc811adb7b8889f3da4cd9747e7649f5948ba3a8babcf7b64677f867c2fc9",
+      "78e7816c9d79e4f585c493d864bca9e629d5476c3376de5f48ee4f1c3ac61d39",
+      "96023884f28246cec30b62f9708c07e6f70fac3b95a49184637188564f600d7c",
+      "f8b297a142e6e40853b54d3487377369ddc8a3be6723b6e2ae95fbe68ba02384",
+      "e2b227994a47a98620e57cede1856027732830604338c7b74a8d8039db2c84d1",
+      "664668e3547102f27d71d93bbcae2d538babcc4353f17853b94db7d26c449a62",
+      "a194348b2ed8df5a0b93de8fdb9f7f47d677b0cd9e6a7feb54a058e36aedffc6",
+      "922276ce534bde782c09258601178831b9eca8bfea537bf6932354c96549f7a2",
+      "6799b773895005fec872507305de8151ff3115cbe9de30cf25a42ee1aba5934f",
+      "b4bac754ea96ff9c081ebad61a9ac90251f2a961aa476dc402dc6319c30fd066",
+      "e12f4aa23f4f83cf3f5715a3bc632ec467de8ea1b7bb5f49a4739e53b80ea16c",
+      "dc0e7b42561f79b18481d6ad47ccac195969d8ee9ddc2fdaee474d0f26929298",
+      "ef3f556c175315e8f8ad3aba0c6ecfb9fb0191817a8277de484c71b86dcb3f1d",
+      "84e99a76cfd618b6ab3bb60fe98c9c189600da53c6a3c5b73535ce5af11700ca",
+      "7705191339f1e6d6ccaeb9fc80519a5fdf455a9051faa16bf51ced395d322bbf",
+      "bb41c101a4e724cefef208a7704f53dd2b765327ae303f47ad12e3493451efcd",
+      "fb9d5d6bdff8ae61a611af6fb22cdace284ae00ab0acd8f80b4a656c564bdecb",
+      "3c9b47915dfdaa6d10df405d4c3d9165660b02ac3f0fe27ea7fce37f5043e976",
+      "342aea1c97e2da113bf7a18dad52507ee84e12653641eef85191b3e2485db01a",
+      "8b928d71273cad043c2c483783dc36c8e5dd4e5be0f478b65c9f4f3f7e0eb50b",
+      "e79ea5b6c872258dd20225d127e61a63815955d9c72f96bb411c56c8b0dd0ec7",
+      "c99620612494c58a90a8b2a225a76404259a5d9a4f812f10f7902d0a62e7f6a2",
+      "849888376703ae71a64f1fd0d740d558737f5427836c87d74d1e90531a10b7a3",
+      "032f85cc2ec0d493c3bc0117430e4ad9163fd22834f30f2af3174b690e6715b9",
+      "cbf1f3296cb41d518d8a361f3e7f0c310fc3cfaaec99960a725bbac92c62c36c",
+      "2e484fd2c2e0486744042d0d0938196b57869dcfb98950c3b6f67bb6645b8e2b",
+      "6724795d48e8c8f130e1abdd8aef946a829b5af200298b155c74212a4cc46f91",
+      "fb9d5d6bdff8ae61a611af6fb22cdace284ae00ab0acd8f80b4a656c564bdecb",
+      "d31baf0b2842829169d3c589384ea2324030b032bd6a5316fafbf3240a0c29c8",
+      "ae938bc083ce7f18918c5501ec4dfa2a7be716b510b77c314b0e7ca741470a2d",
+      "85bee30fb1c7a6b7f1d1a192a0135c8973c6f29b2c9c97e977ce796d31240217",
+      "479ba2cf9c65935303c2e7561235d10c7b508e3b96ec7adf78eab6e6f11bc9f9",
+      "b0feeb3142b9c3cec76f2d01b29a4516e8035f9f2c8adc70a17dd8135005f847",
+      "807caefd0b5d354859563c2dd70b7d5e1833bfbbf2e9d086c760ca2a5321709c",
+      "f2d4306aa8cce79ec13f1ac37b427834d76ec3fc6c49f2739fc2ca7bad096eec",
+      "9dac719a9f1542a65b50309444353ae0ade39b9b7e27c97d6dd22b3162d5dc68",
+      "3001989182eb7d3e661fb639e7ec2d8b8e58ad1881669546b8f1b8eda42acaf2",
+      "9ddaaf1d5a0502981a3e0de509cf8b37a72178741e0a2d32a54b4f925ee78c6e",
+      "eb3bdf7ad96ba64177bbb7b14fa65d247597dbfaba95c572ea4e825e8d046710",
+      "f21a2d2e1d1a100ee68e042fda768b1815a16a87ab16f48ee22ba74612f006dc",
+      "c8a067ea31a613c204026e1297cd3e340336f98f6dbea2186b68ab4b8729f0aa",
+      "9ee028a3797055b62bb31b6da51af15bcd108e41ab620288d55b8419085b7bda"
     ],
     "crypto_usage": {
-      "rsa": 102,
-      "ecdsa": 57,
-      "aes": 35,
-      "sha": 223,
-      "kyber": 286,
-      "dilithium": 291,
+      "rsa": 13,
+      "ecdsa": 38,
+      "aes": 49,
+      "sha": 434,
+      "kyber": 1005,
+      "dilithium": 1012,
       "has_legacy": true,
       "has_pqc": true
     },
     "ip_lineage": {
-      "proprietary_pct": 99.5393775980227,
-      "oss_pct": 0.4606224019773059,
+      "proprietary_pct": 97.40384615384615,
+      "oss_pct": 2.5961538461538463,
       "gpl_pct": 0,
       "clean": true
     },
     "pqc_readiness": "HYBRID"
   },
   "godfather": {
-    "timestamp": "2026-01-12T07:01:59.9849148+03:00",
+    "timestamp": "2026-06-28T23:34:57.4214248-04:00",
     "risk_level": "MODERATE",
     "causal_chain": [
       {
