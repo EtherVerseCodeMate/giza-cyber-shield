@@ -43,7 +43,7 @@
   "devDependencies": {
     "@types/node": "^25.5.0",
     "n8n-workflow": "*",
-    "turbo": "2.9.14",
+    "turbo": "2.10.2",
     "typescript": "^5.0.0"
   },
   "peerDependencies": {
