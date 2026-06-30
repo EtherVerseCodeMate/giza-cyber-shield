@@ -1,9 +1,10 @@
 # ASAF Sovereign Stack — Docker Compose
 #
-# Services that run in containers:
-#   asaf-api   — Go REST API (compliance graph endpoints, DAG viewer)
-#   asaf-ui    — Next.js Compliance Graph UI
-#   ollama     — Sovereign LLM (llama3.1:8b, air-gap safe)
+# Four containerised services:
+#   asaf-api    — Go REST API (compliance graph, DAG viewer, KASA, Sekhem)
+#   asaf-ui     — Next.js Compliance Graph UI
+#   ollama      — Sovereign LLM (llama3.1:8b, air-gap safe)
+#   khepra-mcp  — Sovereign MCP server (routes 72 tools to asaf-api, zero egress)
 #
 # The asaf-daemon does NOT run here.
 # It runs as a systemd service on the bare metal host with:
@@ -16,6 +17,11 @@
 #   docker compose -f docker-compose.asaf.yml up -d
 #   docker compose -f docker-compose.asaf.yml logs -f asaf-api
 #   docker compose -f docker-compose.asaf.yml down
+#
+# IDE integration (Claude Code / Cursor / Antigravity — stdio):
+#   { "mcpServers": { "asaf": { "command": "docker", "args": ["exec","-i","asaf-mcp","khepra-mcp"] } } }
+# CI/CD / HTTP/SSE:
+#   http://localhost:8765/mcp/v1
 #
 # Quick start (see Makefile):
 #   make dev
@@ -31,12 +37,15 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - BINARY=adinkhepra
     image: ghcr.io/nouchix/adinkhepra:latest
     container_name: asaf-api
     restart: unless-stopped
-    command: serve --compliance-graph --port 8443
+    # nouchix-adinkhepra is the real binary name baked by the root Dockerfile
+    # (there is no "BINARY" build arg — the image always builds all 9 tactical
+    # binaries). serve's only flag is "-port" (single dash); compliance-graph
+    # endpoints are always included by WithAPI(webui.NewDAGAPI()), there is no
+    # --compliance-graph flag. See cmd/adinkhepra/serve.go.
+    command: nouchix-adinkhepra serve -port 8443
     ports:
       - "8443:8443"
     volumes:
@@ -51,7 +60,10 @@ services:
       - KHEPRA_LLM_PROVIDER=sovereign
       - OLLAMA_HOST=http://ollama:11434
       - ASAF_DAEMON_SOCKET=/var/run/asaf/asaf.sock
-      - ASAF_DAG_PATH=/var/lib/asaf/dag
+      # KHEPRA_DAG_PATH (not ASAF_DAG_PATH) is what pkg/dag/factory.go actually
+      # reads — see pkg/dag/global.go:31. Without this exact name the DAG falls
+      # back to ~/.khepra/dag/ inside the container (lost on recreate).
+      - KHEPRA_DAG_PATH=/var/lib/asaf/dag
       - KHEPRA_LICENSE_PATH=/etc/asaf/license.adinkhepra
       # Mirror image used by staging gate
       - ASAF_MIRROR_IMAGE=asaf-mirror-rhel9:local
@@ -71,8 +83,18 @@ services:
   # Next.js frontend — Compliance Graph, Policy Editor, Staging Gate, Evidence Export
   asaf-ui:
     build:
-      context: ./frontend/compliance-graph
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.dashboard
+      args:
+        - NEXT_PUBLIC_ASAF_API_URL=http://localhost:8443
+        - NEXT_PUBLIC_APP_NAME=AdinKhepra ASAF
+        # Supabase anon key — public by design (RLS-protected), required at
+        # Next.js build time even for the sovereign on-prem image because
+        # /AuthCallback initializes the Supabase client at module scope.
+        # See the "sovereign mode still depends on cloud Supabase" note in
+        # CONNECTIVE_TISSUE_BUILD_SPEC.md / flagged to the user 2026-06-30.
+        - NEXT_PUBLIC_SUPABASE_URL=https://xjknkjbrjgljuovaazeu.supabase.co
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhqa25ramJyamdsanVvdmFhemV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4NTMzNDksImV4cCI6MjA3MTQyOTM0OX0.ioWr3_viAbWJHAaHnBxQrzSXtgUlcAAjrPWEsoSh6sk
     image: ghcr.io/nouchix/adinkhepra-ui:latest
     container_name: asaf-ui
     restart: unless-stopped
@@ -125,6 +147,61 @@ services:
               capabilities: [gpu]
         # Remove 'deploy' block entirely if no GPU available
 
+  # ─── SOVEREIGN MCP SERVER ───────────────────────────────────────────────────
+  # PQC-Khepra-MCP in KHEPRA_MODE=sovereign.
+  # Routes ALL 72 MCP tool calls to asaf-api on the internal network.
+  # Zero external API calls — fully air-gap compatible.
+  # No egress network attached — only asaf-network (internal).
+  #
+  # Exposes two transports:
+  #   stdio  — for IDE integration (Claude Code / Cursor / Antigravity)
+  #            Configure your IDE to run: docker exec -i asaf-mcp khepra-mcp
+  #   HTTP/SSE (localhost:8765) — for CI/CD pipelines and web-based agents
+  #
+  # Claude Code config example (~/.claude/claude_desktop_config.json):
+  #   {
+  #     "mcpServers": {
+  #       "asaf": {
+  #         "command": "docker",
+  #         "args": ["exec", "-i", "asaf-mcp", "khepra-mcp"]
+  #       }
+  #     }
+  #   }
+  #
+  # Cursor / Antigravity config example (settings.json):
+  #   { "mcp": { "servers": { "asaf": { "command": "docker exec -i asaf-mcp khepra-mcp" } } } }
+  khepra-mcp:
+    image: ghcr.io/nouchix/pqc-khepra-mcp:latest
+    container_name: asaf-mcp
+    restart: unless-stopped
+    environment:
+      - KHEPRA_MODE=sovereign
+      # Route all tool calls to the ASAF API on the internal network
+      - KHEPRA_MCP_UPSTREAM=http://asaf-api:8443
+      # Share the same DAG path — MCP tool attestations land in the same chain
+      - KHEPRA_DAG_PATH=/var/lib/asaf/dag
+      - KHEPRA_LICENSE_PATH=/etc/asaf/license.adinkhepra
+      # Sovereign LLM — no external inference calls
+      - OLLAMA_HOST=http://ollama:11434
+      - KHEPRA_LLM_PROVIDER=sovereign
+    ports:
+      # Bind to 127.0.0.1 only — HTTP/SSE not internet-exposed
+      - "127.0.0.1:8765:8765"
+    volumes:
+      - asaf-dag:/var/lib/asaf/dag
+      - ./license.adinkhepra:/etc/asaf/license.adinkhepra:ro
+    depends_on:
+      asaf-api:
+        condition: service_healthy
+    networks:
+      - asaf-network               # internal only — no external egress interface
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8765/mcp/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
 # ─── Volumes ─────────────────────────────────────────────────────────────────
 volumes:
   asaf-dag:
@@ -136,6 +213,8 @@ volumes:
 networks:
   asaf-network:
     driver: bridge
+    # Internal-only network — containers can reach each other but
+    # khepra-mcp has no internet-facing interface attached.
     ipam:
       config:
         - subnet: 172.30.0.0/16
