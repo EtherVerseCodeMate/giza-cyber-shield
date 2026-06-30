@@ -7,7 +7,7 @@ require (
 	github.com/anchore/grype v0.112.0
 	github.com/anchore/syft v1.44.0
 	github.com/cloudflare/circl v1.6.3
-	github.com/fsnotify/fsnotify v1.9.0
+	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gin-gonic/gin v1.12.0
 	github.com/glebarez/go-sqlite v1.22.0
 	github.com/go-pdf/fpdf v0.9.0
