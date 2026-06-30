@@ -200,20 +200,20 @@ github.com/akutz/memconn
 github.com/alexbrainman/sspi
 github.com/alexbrainman/sspi/internal/common
 github.com/alexbrainman/sspi/negotiate
-# github.com/anchore/clio v0.1.0
-## explicit; go 1.24.0
+# github.com/anchore/clio v0.1.1
+## explicit; go 1.25.0
 github.com/anchore/clio
-# github.com/anchore/fangs v0.1.0
-## explicit; go 1.23.0
+# github.com/anchore/fangs v0.1.1
+## explicit; go 1.25.0
 github.com/anchore/fangs
 # github.com/anchore/go-collections v0.1.0
 ## explicit; go 1.21.0
 github.com/anchore/go-collections
-# github.com/anchore/go-homedir v0.1.0
+# github.com/anchore/go-homedir v0.1.1
 ## explicit; go 1.19
 github.com/anchore/go-homedir
-# github.com/anchore/go-logger v0.1.0
-## explicit; go 1.24.0
+# github.com/anchore/go-logger v0.1.1
+## explicit; go 1.25.0
 github.com/anchore/go-logger
 github.com/anchore/go-logger/adapter/discard
 github.com/anchore/go-logger/adapter/logrus
@@ -1314,7 +1314,7 @@ github.com/googleapis/gax-go/v2/internallog
 github.com/googleapis/gax-go/v2/internallog/grpclog
 github.com/googleapis/gax-go/v2/internallog/internal
 github.com/googleapis/gax-go/v2/iterator
-# github.com/gookit/color v1.6.0
+# github.com/gookit/color v1.6.1
 ## explicit; go 1.18
 github.com/gookit/color
 # github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
