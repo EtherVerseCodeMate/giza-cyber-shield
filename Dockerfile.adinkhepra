@@ -1,0 +1,49 @@
+# Dockerfile.adinkhepra — lean image for the `adinkhepra` CLI / serve API.
+#
+# asaf-api (docker-compose.asaf.yml) only ever runs `adinkhepra serve` — one
+# binary. The root Dockerfile builds all 9 "tactical suite" binaries plus a
+# Python/PyTorch ML service this process never uses, and has accumulated
+# unrelated build breakage from drift (stale top_secret_intel path,
+# cmd/apiserver needing -tags saas never passed). This is the minimal,
+# single-purpose alternative — see project_product_a_architecture memory,
+# "asaf-api Docker image" decision, 2026-06-30.
+#
+# go-sqlite (pkg/auth/sqlite_provider.go's driver) is pure Go — CGO_ENABLED=0
+# works fine, no libsqlite3 needed in the runtime image.
+
+FROM golang:1.26-alpine AS builder
+
+WORKDIR /app
+
+RUN apk add --no-cache git
+
+COPY go.mod go.sum ./
+COPY vendor/ ./vendor/
+COPY pkg/ ./pkg/
+COPY cmd/adinkhepra/ ./cmd/adinkhepra/
+
+RUN CGO_ENABLED=0 go build -mod=vendor -o /usr/local/bin/adinkhepra ./cmd/adinkhepra/
+
+# ─── Runtime ──────────────────────────────────────────────────────────────────
+FROM alpine:3.21
+
+RUN apk add --no-cache ca-certificates wget && \
+    addgroup -S adinkhepra && adduser -S adinkhepra -G adinkhepra
+
+COPY --from=builder /usr/local/bin/adinkhepra /usr/local/bin/adinkhepra
+
+# DAG store, auth DB, and agent keys default under $HOME/.khepra — give the
+# non-root user a real home directory those os.MkdirAll calls can write to.
+RUN mkdir -p /home/adinkhepra/.khepra && chown -R adinkhepra:adinkhepra /home/adinkhepra
+ENV HOME=/home/adinkhepra
+
+USER adinkhepra
+WORKDIR /home/adinkhepra
+
+EXPOSE 8443
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -qO- http://localhost:8443/status || exit 1
+
+ENTRYPOINT ["adinkhepra"]
+CMD ["serve", "-port", "8443"]

@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="ASAF — AI-powered compliance scanning, CMMC, NIST 800-171, STIG attestation with post-quantum DAG anchoring by NouchiX.">
-<title>ASAF — Natural Language Security Platform · NouchiX</title>
+<meta name="description" content="KHEPRA Sovereign Security Platform — AI agent security, PQC attestation, compliance scanning by NouchiX / SecRed Knowledge Inc.">
+<title id="page-title">ASAF — Sovereign Security Platform · NouchiX</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
 <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
-<script src="/asaf-config.js" onerror="window.ASAF_CONFIG={apiURL:'http://localhost:45444',ollamaURL:'http://localhost:11434',lmstudioURL:'http://localhost:1234',version:'dev'}"></script>
+<script src="/asaf-config.js" onerror="window.ASAF_CONFIG={apiURL:'http://localhost:45444',ollamaURL:'http://localhost:11434',lmstudioURL:'http://localhost:1234',version:'dev',mode:'sovereign',frameworks:'CMMC,NIST800-171,STIG',orgName:'NouchiX',productName:'ASAF · Sovereign Security Platform',logoURL:''}"></script>
 <style>
 :root {
   --bg:#0a0c0f; --bg2:#111418; --bg3:#181c22; --bg4:#0d1117;
@@ -26,31 +26,32 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);overflow:hidden}
 
-/* ── App ── */
+/* ── App layout ── */
 #app{display:grid;grid-template-rows:var(--hh) 1fr;height:100vh}
 #main{display:grid;grid-template-columns:360px 1fr 300px;overflow:hidden;position:relative}
 
 /* ── Header ── */
-#header{display:flex;align-items:center;gap:10px;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--bd);z-index:100;flex-shrink:0;user-select:none}
-.logo{font-family:var(--fn);font-size:13px;font-weight:700;color:var(--a);letter-spacing:2px;white-space:nowrap}
+#header{display:flex;align-items:center;gap:8px;padding:0 14px;background:var(--bg2);border-bottom:1px solid var(--bd);z-index:100;flex-shrink:0;user-select:none;overflow:hidden}
+.logo{font-family:var(--fn);font-size:12px;font-weight:700;color:var(--a);letter-spacing:2px;white-space:nowrap}
 .logo span{color:var(--t3);font-weight:400}
 .sep{flex:1}
 .sdot{width:7px;height:7px;border-radius:50%;background:var(--t3);transition:background .3s;flex-shrink:0}
 .sdot.ok{background:var(--ok);box-shadow:0 0 6px var(--ok)}
 .sdot.warn{background:var(--warn);box-shadow:0 0 6px var(--warn)}
 .sdot.err{background:var(--err);box-shadow:0 0 6px var(--err)}
-.slabel{font-size:11px;color:var(--t3);font-family:var(--fn);white-space:nowrap}
-.badge{font-size:10px;font-family:var(--fn);padding:2px 8px;border-radius:3px;border:1px solid;white-space:nowrap}
+.slabel{font-size:10px;color:var(--t3);font-family:var(--fn);white-space:nowrap}
+.badge{font-size:10px;font-family:var(--fn);padding:2px 7px;border-radius:3px;border:1px solid;white-space:nowrap}
 .badge.pqc{color:var(--gold);border-color:var(--gold);background:rgba(232,184,75,.08)}
 .badge.ver{color:var(--t3);border-color:var(--bd2)}
-.hbtn{background:transparent;border:1px solid var(--bd2);border-radius:6px;color:var(--t2);cursor:pointer;font-size:12px;padding:4px 10px;transition:all .15s;flex-shrink:0}
+.badge.mode{color:var(--a2);border-color:rgba(0,153,255,.4);background:rgba(0,153,255,.06)}
+.hbtn{background:transparent;border:1px solid var(--bd2);border-radius:6px;color:var(--t2);cursor:pointer;font-size:11px;padding:3px 9px;transition:all .15s;flex-shrink:0}
 .hbtn:hover{border-color:var(--a2);color:var(--a2)}
 #dag-toggle{display:none}
 
-/* ── Chat panel ── */
+/* ── Left: Chat panel ── */
 #chat-panel{display:flex;flex-direction:column;border-right:1px solid var(--bd);background:var(--bg);overflow:hidden}
-#chat-hdr{padding:10px 16px;border-bottom:1px solid var(--bd);font-size:11px;font-family:var(--fn);color:var(--t3);letter-spacing:1px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-#mbadge{font-size:10px;color:var(--a2);background:rgba(0,153,255,.1);padding:2px 8px;border-radius:3px;border:1px solid rgba(0,153,255,.3)}
+#chat-hdr{padding:8px 16px;border-bottom:1px solid var(--bd);font-size:11px;font-family:var(--fn);color:var(--t3);letter-spacing:1px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+#mbadge{font-size:10px;color:var(--a2);background:rgba(0,153,255,.1);padding:2px 7px;border-radius:3px;border:1px solid rgba(0,153,255,.3)}
 #messages{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth}
 #messages::-webkit-scrollbar{width:4px}
 #messages::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:2px}
@@ -68,13 +69,13 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
 .thinking span{width:5px;height:5px;background:var(--a);border-radius:50%;animation:pulse 1.2s infinite}
 .thinking span:nth-child(2){animation-delay:.2s}
 .thinking span:nth-child(3){animation-delay:.4s}
-#ciw{padding:12px;border-top:1px solid var(--bd);display:flex;flex-direction:column;gap:8px;flex-shrink:0}
-#suggested{display:flex;flex-direction:column;gap:4px}
+#ciw{padding:10px;border-top:1px solid var(--bd);display:flex;flex-direction:column;gap:7px;flex-shrink:0}
+#suggested{display:flex;flex-direction:column;gap:3px}
 .sug{font-size:12px;color:var(--a2);cursor:pointer;padding:5px 10px;border-radius:6px;border:1px solid transparent;transition:all .15s;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sug:hover{border-color:rgba(0,153,255,.3);background:rgba(0,153,255,.07)}
 .sug::before{content:'→ ';opacity:.5}
-#llmsel{display:flex;gap:6px;flex-wrap:wrap}
-.llmbtn{font-size:10px;font-family:var(--fn);padding:3px 10px;border-radius:3px;border:1px solid var(--bd2);background:transparent;color:var(--t3);cursor:pointer;transition:all .15s}
+#llmsel{display:flex;gap:5px;flex-wrap:wrap}
+.llmbtn{font-size:10px;font-family:var(--fn);padding:3px 9px;border-radius:3px;border:1px solid var(--bd2);background:transparent;color:var(--t3);cursor:pointer;transition:all .15s}
 .llmbtn:hover{border-color:var(--a2);color:var(--a2)}
 .llmbtn.active{border-color:var(--a);color:var(--a);background:rgba(0,212,170,.08)}
 #irow{display:flex;gap:8px}
@@ -93,12 +94,13 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
 #orkl:focus{border-color:var(--gold)}
 #or-conn{margin-top:8px;background:var(--gold);color:#000;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer}
 
-/* ── Terminal panel ── */
+/* ── Center: Terminal / DAG / Agent Scan tabs ── */
 #term-panel{display:flex;flex-direction:column;background:var(--bg4);overflow:hidden}
 #thdr{padding:0 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;height:40px;flex-shrink:0}
-.tabbar{display:flex;flex:1}
-.tab{font-size:11px;font-family:var(--fn);padding:0 16px;height:40px;display:flex;align-items:center;cursor:pointer;color:var(--t3);border-bottom:2px solid transparent;transition:all .15s;text-transform:uppercase;letter-spacing:.5px}
+.tabbar{display:flex;flex:1;overflow-x:auto}
+.tab{font-size:11px;font-family:var(--fn);padding:0 14px;height:40px;display:flex;align-items:center;cursor:pointer;color:var(--t3);border-bottom:2px solid transparent;transition:all .15s;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;flex-shrink:0}
 .tab.active{color:var(--a);border-bottom-color:var(--a)}
+.tab.alert-tab{color:var(--warn)}
 #twrap{flex:1;padding:8px;overflow:hidden;min-height:0}
 #term{height:100%}
 #dagwrap{flex:1;overflow:hidden;display:none;position:relative}
@@ -109,38 +111,96 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
 .dag-node text{font-family:var(--fn);font-size:9px;fill:var(--t2);pointer-events:none}
 .dag-link{stroke:var(--bd2);stroke-width:1.5;fill:none;marker-end:url(#arrow)}
 
-/* ── DAG chain panel ── */
+/* ── Agent Scan panel ── */
+#scanwrap{flex:1;overflow-y:auto;display:none;flex-direction:column;gap:0;padding:0}
+#scan-form{padding:16px;border-bottom:1px solid var(--bd);display:flex;flex-direction:column;gap:10px;flex-shrink:0}
+#scan-form h3{font-size:13px;color:var(--a);font-family:var(--fn);letter-spacing:1px}
+#scan-form .frow{display:flex;gap:8px;align-items:stretch}
+#scan-url{flex:1;background:var(--bg3);border:1px solid var(--bd2);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--t);font-family:var(--fn);outline:none;transition:border-color .2s}
+#scan-url:focus{border-color:var(--a)}
+#scan-url::placeholder{color:var(--t3)}
+.scansel{background:var(--bg3);border:1px solid var(--bd2);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--t);font-family:var(--fn);outline:none;cursor:pointer}
+#scan-launch{background:linear-gradient(135deg,var(--err),#c0392b);color:#fff;border:none;border-radius:6px;padding:9px 18px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fn);transition:all .15s;white-space:nowrap}
+#scan-launch:hover{opacity:.9;transform:translateY(-1px)}
+#scan-launch:disabled{opacity:.4;cursor:default;transform:none}
+#scan-meta{font-size:11px;color:var(--t3);font-family:var(--fn)}
+#scan-layers{padding:12px 16px;display:flex;flex-direction:column;gap:8px;flex-shrink:0}
+.layer-row{display:flex;flex-direction:column;gap:4px}
+.layer-top{display:flex;align-items:center;gap:8px}
+.layer-num{width:20px;height:20px;border-radius:4px;background:var(--bg3);border:1px solid var(--bd);font-size:10px;font-family:var(--fn);color:var(--t3);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.layer-num.running{border-color:var(--a);color:var(--a);animation:pulse-border 1s infinite}
+.layer-num.complete{border-color:var(--ok);color:var(--ok);background:rgba(34,197,94,.08)}
+.layer-num.error{border-color:var(--err);color:var(--err)}
+.layer-name{font-size:12px;color:var(--t);flex:1}
+.layer-msg{font-size:10px;color:var(--t3);font-family:var(--fn)}
+.layer-count{font-size:10px;color:var(--warn);font-family:var(--fn);white-space:nowrap}
+.layer-bar-bg{height:3px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.layer-bar{height:100%;background:linear-gradient(90deg,var(--a),var(--a2));border-radius:2px;transition:width .4s ease;width:0}
+.layer-bar.complete{background:var(--ok)}
+.layer-bar.error{background:var(--err)}
+#scan-findings{flex:1;overflow-y:auto;padding:0 16px 16px}
+.finding-card{background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;margin-bottom:6px;animation:fi .2s ease}
+.finding-card.critical{border-left:3px solid var(--err)}
+.finding-card.high{border-left:3px solid var(--warn)}
+.finding-card.medium{border-left:3px solid var(--a2)}
+.finding-card.low{border-left:3px solid var(--t3)}
+.finding-card.info{border-left:3px solid var(--a3)}
+.fc-top{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.fc-sev{font-size:9px;font-family:var(--fn);padding:1px 6px;border-radius:2px;text-transform:uppercase;font-weight:700}
+.fc-sev.critical{background:rgba(239,68,68,.15);color:var(--err)}
+.fc-sev.high{background:rgba(245,158,11,.15);color:var(--warn)}
+.fc-sev.medium{background:rgba(0,153,255,.15);color:var(--a2)}
+.fc-sev.low{background:rgba(71,85,105,.3);color:var(--t3)}
+.fc-sev.info{background:rgba(124,58,237,.15);color:var(--a3)}
+.fc-title{font-size:12px;color:var(--t);font-weight:600}
+.fc-detail{font-size:11px;color:var(--t2);line-height:1.5;margin-bottom:4px}
+.fc-ctrl{font-size:10px;color:var(--a);font-family:var(--fn)}
+#scan-summary{padding:12px 16px;border-top:1px solid var(--bd);background:var(--bg2);flex-shrink:0;display:none}
+.summary-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.sum-item{display:flex;flex-direction:column;align-items:center;gap:2px}
+.sum-val{font-size:20px;font-weight:700;font-family:var(--fn)}
+.sum-val.risk-low{color:var(--ok)}
+.sum-val.risk-med{color:var(--warn)}
+.sum-val.risk-high{color:var(--err)}
+.sum-lbl{font-size:10px;color:var(--t3)}
+#export-btn{margin-left:auto;background:var(--a);color:#000;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fn)}
+#export-btn:hover{opacity:.9}
+
+/* ── Right: Security Ledger ── */
 #dag-panel{display:flex;flex-direction:column;border-left:1px solid var(--bd);background:var(--bg);overflow:hidden;transition:transform .3s cubic-bezier(.4,0,.2,1)}
 #dag-hdr{padding:12px 16px;border-bottom:1px solid var(--bd);flex-shrink:0}
 .dht{display:flex;align-items:center;gap:10px;margin-bottom:4px}
 #dag-badge{width:32px;height:32px;border-radius:4px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 0 6px rgba(232,184,75,.4))}
 #dag-title{font-size:11px;font-family:var(--fn);color:var(--t3);letter-spacing:1px}
 #dag-sub{font-size:11px;color:var(--t3);line-height:1.5}
-#ledger-xp{margin:8px;padding:10px 12px;background:var(--bg3);border:1px solid var(--bd);border-radius:8px;font-size:12px;color:var(--t2);line-height:1.6;flex-shrink:0}
-#ledger-xp strong{color:var(--a)}
-#chain-list{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:6px}
+#ledger-stats{display:flex;gap:12px;margin:8px 0 0;padding:8px;background:var(--bg3);border-radius:6px;border:1px solid var(--bd)}
+.lst-item{flex:1;text-align:center}
+.lst-val{font-size:16px;font-weight:700;font-family:var(--fn);color:var(--a)}
+.lst-lbl{font-size:9px;color:var(--t3)}
+#chain-list{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:5px}
 #chain-list::-webkit-scrollbar{width:3px}
 #chain-list::-webkit-scrollbar-thumb{background:var(--bd2)}
-.demo-node{background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;opacity:.55;animation:shimmer 2.5s infinite}
+.demo-node{background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;opacity:.45;animation:shimmer 2.5s infinite}
 .demo-node:nth-child(2){animation-delay:.5s}
 .demo-node:nth-child(3){animation-delay:1s}
 .dn-lbl{font-size:11px;color:var(--t2);margin-bottom:4px}
 .dn-hash{font-family:var(--fn);font-size:9px;color:var(--t3)}
-.dn-badges{display:flex;gap:4px;margin-top:6px}
+.dn-badges{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
 .chain-node{background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;cursor:pointer;transition:all .15s;animation:fi .25s ease}
 .chain-node:hover{border-color:var(--a);transform:translateX(2px)}
 .chain-node.cert{border-color:rgba(232,184,75,.4);animation:certglow 3s infinite}
+.chain-node.finding{border-color:rgba(239,68,68,.3)}
 .cn-hash{font-family:var(--fn);font-size:9px;color:var(--t3);margin-bottom:4px}
 .cn-lbl{font-size:12px;color:var(--t);font-weight:500;margin-bottom:6px}
 .cn-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .cbadge{font-size:9px;font-family:var(--fn);padding:1px 6px;border-radius:2px}
 .cbadge.pqc{background:rgba(0,212,170,.1);color:var(--a);border:1px solid rgba(0,212,170,.2)}
 .cbadge.gold{background:rgba(232,184,75,.1);color:var(--gold);border:1px solid rgba(232,184,75,.2)}
-.cbadge.cmmc{background:rgba(0,153,255,.1);color:var(--a2);border:1px solid rgba(0,153,255,.2)}
+.cbadge.fw{background:rgba(0,153,255,.1);color:var(--a2);border:1px solid rgba(0,153,255,.2)}
 .cbadge.stig{background:rgba(124,58,237,.1);color:var(--a3);border:1px solid rgba(124,58,237,.2)}
 .cn-time{font-size:9px;color:var(--t3);font-family:var(--fn);margin-left:auto}
 
-/* ── Papyrus / Souhimbou widget ── */
+/* ── Papyrus / Souhimbou ── */
 #pap-btn{position:fixed;bottom:24px;right:24px;z-index:1000;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#0f2a2a,#1a3a3a);border:2px solid var(--a);cursor:pointer;overflow:visible;box-shadow:0 4px 20px rgba(0,212,170,.3);transition:all .2s;padding:0;display:flex;align-items:center;justify-content:center}
 #pap-btn:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(0,212,170,.5)}
 #pap-btn-img{width:52px;height:52px;border-radius:50%;object-fit:cover;object-position:top center}
@@ -153,7 +213,7 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
 .phi{padding:10px 12px;flex:1}
 .pht{font-size:14px;font-weight:700;color:var(--a)}
 .phs{font-size:11px;color:var(--t2);margin-top:2px;line-height:1.4}
-.phm{display:flex;gap:5px;margin-top:8px}
+.phm{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
 .phmbtn{font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid var(--bd2);background:transparent;color:var(--t3);cursor:pointer;transition:all .15s}
 .phmbtn:hover,.phmbtn.active{border-color:var(--a);color:var(--a);background:rgba(0,212,170,.08)}
 #pap-close{padding:8px 10px;background:transparent;border:none;color:var(--t3);cursor:pointer;font-size:18px;align-self:flex-start;flex-shrink:0;transition:color .15s;line-height:1}
@@ -169,14 +229,12 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
 #pap-in:focus{border-color:var(--a)}
 #pap-send{background:var(--a);color:#000;border:none;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:700;cursor:pointer;line-height:1}
 
-/* ── Nudge toast ── */
+/* ── Help / Tour / Feedback (unchanged from original) ── */
 #pap-nudge{position:fixed;bottom:96px;right:92px;z-index:998;background:var(--bg2);border:1px solid var(--a);border-radius:12px;padding:14px 16px;max-width:210px;font-size:12px;color:var(--t);line-height:1.5;box-shadow:0 8px 24px rgba(0,0,0,.5);display:none}
 #pap-nudge.show{display:block;animation:slu .3s ease}
 #pap-nudge strong{color:var(--a);display:block;margin-bottom:6px}
 #nudge-tour{width:100%;background:var(--a);color:#000;border:none;border-radius:6px;padding:6px;font-size:11px;font-weight:700;cursor:pointer;margin-bottom:4px}
 #nudge-dismiss{width:100%;background:none;border:none;color:var(--t3);cursor:pointer;font-size:11px;padding:2px}
-
-/* ── Tour overlay ── */
 #tour-ov{position:fixed;inset:0;z-index:2000;display:none;pointer-events:none}
 #tour-ov.active{display:block}
 #tour-spot{position:absolute;border:2px solid var(--a);border-radius:10px;box-shadow:0 0 0 9999px rgba(0,0,0,.72),0 0 24px rgba(0,212,170,.4);transition:all .4s cubic-bezier(.4,0,.2,1);pointer-events:none}
@@ -188,8 +246,6 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
 .tc-skip{background:none;border:none;color:var(--t3);cursor:pointer;font-size:12px}
 .tc-skip:hover{color:var(--t)}
 .tc-prog{margin-left:auto;font-size:11px;color:var(--t3);font-family:var(--fn)}
-
-/* ── Help overlay ── */
 #help-ov{position:fixed;inset:0;z-index:1500;display:none;background:rgba(0,0,0,.5);backdrop-filter:blur(3px);align-items:flex-start;justify-content:flex-end;padding:60px 16px 0}
 #help-ov.open{display:flex}
 #help-menu{background:var(--bg2);border:1px solid var(--bd2);border-radius:12px;width:270px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.5);animation:sld .2s ease}
@@ -200,8 +256,6 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
 .hm-item:hover{background:var(--bg3);color:var(--t)}
 .hm-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0}
 .hm-sc{margin-left:auto;font-size:10px;font-family:var(--fn);color:var(--t3)}
-
-/* ── Feedback form ── */
 #fb-form{position:fixed;z-index:2000;bottom:24px;left:50%;transform:translateX(-50%);background:var(--bg2);border:1px solid var(--bd2);border-radius:12px;padding:16px 18px;width:320px;box-shadow:0 12px 40px rgba(0,0,0,.5);display:none}
 #fb-form.open{display:block;animation:slu .25s ease}
 #fb-form h4{font-size:13px;color:var(--t);margin-bottom:10px}
@@ -211,16 +265,12 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
 .fb-sub{background:var(--a);color:#000;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer}
 .fb-can{background:none;border:1px solid var(--bd2);border-radius:6px;padding:7px 14px;font-size:12px;color:var(--t2);cursor:pointer}
 
-/* ── Mobile bar ── */
+/* ── Mobile ── */
 #mob-bar{display:none;position:fixed;bottom:0;left:0;right:0;height:var(--mbh);background:var(--bg2);border-top:1px solid var(--bd);z-index:200}
 .mtab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;color:var(--t3);transition:color .15s;border:none;background:none}
 .mtab.active{color:var(--a)}
 .mt-ic{font-size:20px}
 .mt-lb{font-size:10px}
-
-/* ── API callout ── */
-.api-call{font-family:var(--fn);font-size:10px;background:rgba(0,212,170,.05);border:1px solid rgba(0,212,170,.15);border-radius:4px;padding:6px 10px;margin-top:6px;color:var(--a)}
-.api-call .method{color:var(--a2)}
 
 /* ── Animations ── */
 @keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
@@ -228,8 +278,9 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
 @keyframes sld{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pulse{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
 @keyframes pbadge{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
-@keyframes shimmer{0%,100%{opacity:.4}50%{opacity:.75}}
+@keyframes shimmer{0%,100%{opacity:.35}50%{opacity:.7}}
 @keyframes certglow{0%,100%{box-shadow:0 0 8px rgba(232,184,75,.15)}50%{box-shadow:0 0 18px rgba(232,184,75,.5)}}
+@keyframes pulse-border{0%,100%{opacity:1}50%{opacity:.5}}
 
 /* ── Responsive ── */
 @media(max-width:1200px){
@@ -255,11 +306,14 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
 <body>
 <div id="app">
   <header id="header">
-    <img src="/images/secred-seal.png" style="width:26px;height:26px;border-radius:50%;object-fit:cover;opacity:.8;flex-shrink:0" onerror="this.style.display='none'" alt="SecRed">
-    <div class="logo">ASAF <span>// Natural Language Security Platform</span></div>
-    <div class="sdot" id="api-dot"></div><div class="slabel" id="api-lbl">API</div>
-    <div class="sdot" id="llm-dot"></div><div class="slabel" id="llm-lbl">LLM</div>
+    <img id="hdr-logo" src="/images/secred-seal.png" style="width:26px;height:26px;border-radius:50%;object-fit:cover;opacity:.8;flex-shrink:0" onerror="this.style.display='none'" alt="Logo">
+    <div class="logo" id="hdr-title">ASAF <span>// Sovereign Security Platform</span></div>
+    <div class="sdot" id="api-dot" title="API"></div><div class="slabel" id="api-lbl">API</div>
+    <div class="sdot" id="llm-dot" title="LLM"></div><div class="slabel" id="llm-lbl">LLM</div>
+    <div class="sdot" id="waf-dot" title="WAF"></div><div class="slabel">WAF</div>
+    <div class="sdot" id="kasa-dot" title="KASA"></div><div class="slabel">KASA</div>
     <div class="sep"></div>
+    <div class="badge mode" id="mode-badge">sovereign</div>
     <div class="badge pqc">ML-DSA-65</div>
     <div class="badge ver" id="ver-badge">v--</div>
     <button class="hbtn" id="dag-toggle" onclick="toggleDagDrawer()">🔒 Ledger</button>
@@ -275,40 +329,32 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
       </div>
       <div id="messages"></div>
       <div id="ciw">
-        <div id="suggested">
-          <div class="sug" onclick="usePrompt(this)">Check if my systems meet government security standards</div>
-          <div class="sug" onclick="usePrompt(this)">What does STIG V-72213 require in plain English?</div>
-          <div class="sug" onclick="usePrompt(this)">Create a compliance proof for my organization</div>
-        </div>
+        <div id="suggested"></div>
         <div id="llmsel">
           <button class="llmbtn active" data-p="ollama">Ollama</button>
           <button class="llmbtn" data-p="lmstudio">LM Studio</button>
           <button class="llmbtn" data-p="openrouter">OpenRouter</button>
         </div>
         <div id="irow">
-          <textarea id="cinput" rows="1" placeholder="Ask anything about compliance, security, or threats..."></textarea>
+          <textarea id="cinput" rows="1" placeholder="Ask anything about security, compliance, or threats..."></textarea>
           <button id="sbtn" onclick="sendMsg()">SEND</button>
         </div>
         <div id="or-card">
           <h4>🔑 Connect your AI engine</h4>
-          <p>No local AI detected. Get a free API key from OpenRouter to power the advisor:</p>
-          <div style="font-size:12px;color:var(--t2);line-height:1.9">
-            1. Visit <a href="https://openrouter.ai" target="_blank">openrouter.ai</a> → Sign up (free)<br>
-            2. Create an API key<br>
-            3. Paste it below — done!
-          </div>
+          <p>No local AI detected. Get a free key from <a href="https://openrouter.ai" target="_blank">openrouter.ai</a>:</p>
           <input id="orkl" type="password" placeholder="sk-or-v1-...">
           <button id="or-conn" onclick="connectOR()">Connect ✓</button>
         </div>
       </div>
     </section>
 
-    <!-- Center: Terminal + DAG graph -->
+    <!-- Center: Terminal / DAG / Agent Scan -->
     <section id="term-panel">
       <div id="thdr">
         <div class="tabbar">
-          <div class="tab active" onclick="switchTab('term',event)">SCAN OUTPUT</div>
-          <div class="tab" onclick="switchTab('dag',event)">DAG GRAPH</div>
+          <div class="tab active" id="tab-term" onclick="switchTab('term',event)">SCAN OUTPUT</div>
+          <div class="tab" id="tab-dag" onclick="switchTab('dag',event)">DAG GRAPH</div>
+          <div class="tab" id="tab-agent" onclick="switchTab('agent',event)">🔍 AI AGENT SCAN</div>
         </div>
       </div>
       <div id="twrap"><div id="term"></div></div>
@@ -316,32 +362,72 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
         <svg id="dag-svg"></svg>
         <div class="dag-tt" id="dag-tt"></div>
       </div>
+      <!-- Agent Scan panel -->
+      <div id="scanwrap">
+        <div id="scan-form">
+          <h3>⚡ OMNIPOTENT AI AGENT SCANNER</h3>
+          <div class="frow">
+            <input id="scan-url" type="url" placeholder="http://agent-endpoint:3000" autocomplete="off">
+            <select class="scansel" id="scan-type">
+              <option value="http">HTTP</option>
+              <option value="mcp">MCP</option>
+              <option value="openai">OpenAI API</option>
+              <option value="langserve">LangServe</option>
+              <option value="ollama">Ollama</option>
+            </select>
+            <select class="scansel" id="scan-tier">
+              <option value="free">Free (8 probes)</option>
+              <option value="pro" selected>Pro (18 probes)</option>
+              <option value="enterprise">Enterprise (27 probes)</option>
+            </select>
+          </div>
+          <div class="frow" style="justify-content:space-between;align-items:center">
+            <div id="scan-meta" class="scan-meta">6-layer scan · OWASP LLM Top 10 + MITRE ATLAS · ML-DSA-65 signed report</div>
+            <button id="scan-launch" onclick="launchAgentScan()">🔴 LAUNCH SCAN</button>
+          </div>
+        </div>
+        <div id="scan-layers">
+          <!-- 6 layer rows injected by JS -->
+        </div>
+        <div id="scan-findings"></div>
+        <div id="scan-summary">
+          <div class="summary-row">
+            <div class="sum-item"><div class="sum-val" id="sum-score">—</div><div class="sum-lbl">Risk Score</div></div>
+            <div class="sum-item"><div class="sum-val" id="sum-findings">0</div><div class="sum-lbl">Findings</div></div>
+            <div class="sum-item"><div class="sum-val" id="sum-critical">0</div><div class="sum-lbl">Critical</div></div>
+            <div class="sum-item"><div class="sum-val" id="sum-probes">0</div><div class="sum-lbl">Probes Fired</div></div>
+            <button id="export-btn" onclick="exportReport()">📄 Export Signed Report</button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- Right: Security Ledger -->
     <aside id="dag-panel">
       <div id="dag-hdr">
         <div class="dht">
-          <img id="dag-badge" src="/images/adinkhepra-badge.png" alt="ADINKHEPRA ASAF" onerror="this.textContent='🛡️';this.style.cssText='font-size:28px;width:32px;height:32px'">
+          <img id="dag-badge" src="/images/adinkhepra-badge.png" alt="KHEPRA" onerror="this.textContent='🛡️';this.style.cssText='font-size:28px;width:32px;height:32px'">
           <div>
             <div id="dag-title">SECURITY LEDGER</div>
-            <div id="dag-sub">Immutable compliance proof</div>
+            <div id="dag-sub">Immutable · ML-DSA-65 signed</div>
           </div>
         </div>
-      </div>
-      <div id="ledger-xp">
-        <strong>Every scan creates a tamper-proof record</strong> — like a notarized document, but cryptographic and post-quantum secure. Run a scan to anchor your first proof.
+        <div id="ledger-stats">
+          <div class="lst-item"><div class="lst-val" id="lst-nodes">0</div><div class="lst-lbl">Nodes</div></div>
+          <div class="lst-item"><div class="lst-val" id="lst-signed">0</div><div class="lst-lbl">Signed</div></div>
+          <div class="lst-item"><div class="lst-val" id="lst-fw">—</div><div class="lst-lbl">Framework</div></div>
+        </div>
       </div>
       <div id="chain-list">
-        <div class="demo-node"><div class="dn-lbl">⟳ Awaiting attestations...</div><div class="dn-hash">0x████████████████████████...</div><div class="dn-badges"><span class="cbadge pqc">ML-DSA-65</span><span class="cbadge cmmc">CMMC L2</span></div></div>
+        <div class="demo-node"><div class="dn-lbl">⟳ Awaiting attestations...</div><div class="dn-hash">0x████████████████████████...</div><div class="dn-badges"><span class="cbadge pqc">ML-DSA-65</span><span class="cbadge fw" id="demo-fw-badge">CMMC L2</span></div></div>
         <div class="demo-node"><div class="dn-lbl">⟳ Previous record encrypted</div><div class="dn-hash">0x████████████████████████...</div><div class="dn-badges"><span class="cbadge pqc">ML-DSA-65</span><span class="cbadge stig">STIG</span></div></div>
-        <div class="demo-node"><div class="dn-lbl">⟳ Chain integrity verified</div><div class="dn-hash">0x████████████████████████...</div><div class="dn-badges"><span class="cbadge gold">ADINKHEPRA</span></div></div>
+        <div class="demo-node"><div class="dn-lbl">⟳ Chain integrity verified</div><div class="dn-hash">0x████████████████████████...</div><div class="dn-badges"><span class="cbadge gold">KHEPRA</span></div></div>
       </div>
     </aside>
   </main>
 </div>
 
-<!-- Papyrus nudge toast -->
+<!-- Nudge toast -->
 <div id="pap-nudge">
   <strong>👋 Hey, I'm Souhimbou!</strong>
   Want a quick 2-min tour of the platform?
@@ -358,13 +444,14 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
 <!-- Papyrus chat panel -->
 <div id="pap-panel">
   <div id="pap-hdr">
-    <img id="pap-portrait" src="/images/souhimbou-warrior.png" alt="I AM SOUHIMBOU" onerror="this.style.display='none'">
+    <img id="pap-portrait" src="/images/souhimbou-warrior.png" alt="SOUHIMBOU" onerror="this.style.display='none'">
     <div class="phi">
       <div class="pht">SOUHIMBOU AI</div>
-      <div class="phs">AI Security Architect &amp; Platform Guide<br>by NouchiX / SecRed Knowledge Inc.</div>
+      <div class="phs">AI Security Architect &amp; Guide<br>by NouchiX / SecRed Knowledge Inc.</div>
       <div class="phm">
         <button class="phmbtn active" onclick="setPapMode('chat',this)">💬 Chat</button>
         <button class="phmbtn" onclick="startTour();togglePapyrus()">🗺 Tour</button>
+        <button class="phmbtn" onclick="launchQuickScan()">🔍 Scan</button>
         <button class="phmbtn" onclick="openHelp()">📖 Help</button>
       </div>
     </div>
@@ -402,11 +489,10 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
     </div>
     <div class="hm-sec">
       <div class="hm-item" onclick="openFeedback();closeHelp()"><span class="hm-icon">💬</span>Send Feedback</div>
-      <div class="hm-item" onclick="requestFeature();closeHelp()"><span class="hm-icon">💡</span>Request Feature</div>
       <div class="hm-item" onclick="copyDiag();closeHelp()"><span class="hm-icon">🐛</span>Copy Diagnostic</div>
     </div>
     <div class="hm-sec">
-      <div class="hm-item" style="cursor:default;font-size:11px;opacity:.7"><span class="hm-icon">⌨</span>Enter=Send · Shift+Enter=Newline · Alt+T=Tour</div>
+      <div class="hm-item" style="cursor:default;font-size:11px;opacity:.7"><span class="hm-icon">⌨</span>Enter=Send · Shift+Enter=Newline · Alt+T=Tour · Alt+A=Agent Scan</div>
     </div>
   </div>
 </div>
@@ -425,85 +511,113 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--ui);
 <div id="mob-bar">
   <button class="mtab active" id="mtab-chat" onclick="mobileTab('chat')"><div class="mt-ic">💬</div><div class="mt-lb">Advisor</div></button>
   <button class="mtab" id="mtab-scan" onclick="mobileTab('scan')"><div class="mt-ic">🖥</div><div class="mt-lb">Scan</div></button>
+  <button class="mtab" id="mtab-agent" onclick="mobileTab('agent')"><div class="mt-ic">🔍</div><div class="mt-lb">Agent</div></button>
   <button class="mtab" id="mtab-dag" onclick="mobileTab('dag')"><div class="mt-ic">🔒</div><div class="mt-lb">Ledger</div></button>
 </div>
 
 <script>
-const CFG=window.ASAF_CONFIG||{apiURL:'http://localhost:45444',ollamaURL:'http://localhost:11434',lmstudioURL:'http://localhost:1234',version:'dev'};
-let provider='ollama',ollamaModel='llama3.1:8b',orKey='',dagNodes=[],term,fitAddon,isThinking=false,apiErrCount=0;
-
-// ── OS + Environment Detection (Polymorphic Connector) ────────────────────────
-// Server injects CFG.os (runtime.GOOS); browser UA is the fallback.
-const OS = CFG.os || (
-  navigator.userAgent.includes('Win') ? 'windows' :
-  navigator.userAgent.includes('Mac') ? 'mac' : 'linux'
-);
-
-// Per-OS: start command, polymorphic fallback ports, firewall whitelist,
-// known AV/EDR products, and any special notes (UAC, SIP, SELinux).
-const OS_PROFILE = {
-  windows: {
-    label: 'Windows',
-    startCmd: 'bin\\asaf-agent.exe --port 45444',
-    altPorts: [45444, 45445, 45446, 45447],
-    firewallCmd: 'netsh advfirewall firewall add rule name="ASAF Agent" dir=in action=allow protocol=TCP localport=45444',
-    avNames: 'Windows Defender / CrowdStrike Falcon / Bitdefender / SentinelOne',
-    edNote: 'Run Command Prompt as Administrator. If Windows Defender quarantined the binary, exclude the ASAF folder in Windows Security → Virus & threat protection → Exclusions.',
-  },
-  mac: {
-    label: 'macOS',
-    startCmd: './bin/asaf-agent --port 45444',
-    altPorts: [45444, 45445, 45446, 45447],
-    firewallCmd: 'sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add ./bin/asaf-agent && sudo /usr/libexec/ApplicationFirewall/socketfilterfw --unblockapp ./bin/asaf-agent',
-    avNames: 'XProtect / CrowdStrike Falcon / Malwarebytes / Carbon Black',
-    edNote: 'Allow in System Settings → Privacy & Security if macOS blocked execution. If CrowdStrike/SentinelOne is running, whitelist the ASAF agent binary in your EDR console.',
-  },
-  linux: {
-    label: 'Linux',
-    startCmd: './bin/asaf-agent --port 45444',
-    altPorts: [45444, 45445, 45446, 45447],
-    firewallCmd: 'sudo ufw allow 45444/tcp\n# OR for firewalld:\nsudo firewall-cmd --add-port=45444/tcp --permanent && sudo firewall-cmd --reload\n# SELinux:\nsudo semanage port -a -t http_port_t -p tcp 45444',
-    avNames: 'ClamAV / Wazuh / Falco / Crowdstrike Falcon for Linux / SELinux / AppArmor',
-    edNote: 'Check SELinux: sudo getenforce. Check AppArmor: sudo aa-status. If blocking, add an exception or temporarily set to permissive for testing.',
-  },
-}[OS] || {
-  label: 'your OS',
-  startCmd: './asaf-agent --port 45444',
-  altPorts: [45444, 45445, 45446, 45447],
-  firewallCmd: 'Allow port 45444 in your firewall settings',
-  avNames: 'your antivirus / EDR / XDR',
-  edNote: '',
+// ── Config ────────────────────────────────────────────────────────────────────
+const CFG = window.ASAF_CONFIG || {
+  apiURL:'http://localhost:45444', ollamaURL:'http://localhost:11434',
+  lmstudioURL:'http://localhost:1234', version:'dev', mode:'sovereign',
+  frameworks:'CMMC,NIST800-171,STIG', orgName:'NouchiX',
+  productName:'ASAF · Sovereign Security Platform', logoURL:''
 };
 
-// Polymorphic API Engine state
-let _resolvedAPIURL = null;   // set after successful port negotiation
-let _apiRetryTimer = null;
-let _apiRetryCount = 0;
-// Progressive retry schedule: immediate → 5 s → 15 s → 30 s → stop + cloud mode
-const POLY_RETRY_MS = [5000, 15000, 30000];
+// ── Mode-aware framework context ──────────────────────────────────────────────
+const FRAMEWORKS = (CFG.frameworks || 'CMMC,NIST800-171,STIG').split(',').map(s => s.trim());
+const PRIMARY_FW = FRAMEWORKS[0] || 'CMMC';
+
+// Suggestions are mode-aware — adapt to the compliance frameworks injected
+const MODE_SUGGESTIONS = {
+  'NESA':      ['Are our AI agents meeting NESA IAS requirements?', 'Generate an ISO 42001 compliance evidence package', 'What UAE PDPL controls apply to our AI data pipeline?'],
+  'ISO42001':  ['Generate an ISO/IEC 42001 AI management audit package', 'Check AI governance controls for our agent fleet', 'Map our AI risks to ISO 42001 Annex A'],
+  'CMMC':      ['Check if my systems meet CMMC Level 2 requirements', 'What does STIG V-72213 require in plain English?', 'Create a compliance proof for my organization'],
+  'SOC2':      ['Generate a SOC 2 Type II evidence summary', 'Map our security controls to SOC 2 Trust Criteria', 'What AI agent risks affect SOC 2 availability?'],
+  'OWASP':     ['Scan this AI agent endpoint for OWASP LLM Top 10 risks', 'What MITRE ATLAS techniques apply to my agent?', 'Generate a threat model for my MCP server'],
+};
+function getSuggestions() {
+  for (const fw of FRAMEWORKS) {
+    if (MODE_SUGGESTIONS[fw]) return MODE_SUGGESTIONS[fw];
+  }
+  return MODE_SUGGESTIONS['CMMC'];
+}
+
+// Mode-aware system prompt
+const SYS = `You are the KHEPRA Security Advisor — an expert in AI agent security, post-quantum cryptography, and ${FRAMEWORKS.join(', ')} compliance frameworks. Operating mode: ${CFG.mode}. Org: ${CFG.orgName}.
+1. Answer concisely — no hedging, no disclaimers.
+2. For scan/attest/stig/export actions emit a JSON command block:
+ASAF API (base: ${CFG.apiURL}):
+  POST /api/v1/scan/agent           — AI agent omnipotent scanner (6 layers, 27 probes)
+  POST /api/v1/onboarding/scan      — host/network scan
+  GET  /api/v1/compliance/score     — compliance posture score
+  GET  /api/v1/stigs/:id            — STIG control lookup
+  POST /api/v1/attestation/export   — ML-DSA-65 signed evidence package
+  GET  /api/v1/dag/:id              — DAG node lookup
+Command format: ASAF_CMD:{"action":"<scan|stig|attest|dag|intel|score|agent_scan>","endpoint":"<path>","method":"<GET|POST>","body":<json|null>,"description":"<one line>"}
+3. For agent scan requests, emit ASAF_CMD with action "agent_scan" and body {"url":"<target>","type":"<mcp|openai|http>","tier":"<free|pro|enterprise>"}.
+4. Always map findings to ${PRIMARY_FW} controls. Translate all jargon into clear, plain-English findings.`;
+
+const PAP_SYS = `You are Souhimbou, the AI Security Architect and guide for the KHEPRA Sovereign Security Platform by NouchiX / SecRed Knowledge Inc.
+Personality: warm, encouraging, patient, plain English only.
+Framework context: ${FRAMEWORKS.join(', ')}. Mode: ${CFG.mode}. Org: ${CFG.orgName}.
+Key capabilities: AI agent scanning (6-layer, 27 adversarial probes), PQC attestation (ML-DSA-65), compliance scanning, immutable DAG ledger.
+To launch an AI agent scan: switch to the "AI AGENT SCAN" tab and enter the agent URL.
+User OS: ${CFG.os || 'unknown'}. API: ${CFG.apiURL}.
+Celebrate user progress! Guide them toward their first agent scan or attestation export.`;
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let provider='ollama', ollamaModel='llama3.1:8b', orKey='', dagNodes=[];
+let term, fitAddon, isThinking=false, apiErrCount=0;
+let currentScanID=null, scanSSE=null, currentReport=null;
+let papOpen=false, papHistory=[];
+
+// ── OS + Polymorphic Connector ────────────────────────────────────────────────
+const OS = CFG.os || (navigator.userAgent.includes('Win')?'windows':navigator.userAgent.includes('Mac')?'mac':'linux');
+const OS_PROFILE = {
+  windows:{label:'Windows',startCmd:'bin\\asaf-agent.exe --port 45444',altPorts:[45444,45445,45446,45447],firewallCmd:'netsh advfirewall firewall add rule name="ASAF Agent" dir=in action=allow protocol=TCP localport=45444',avNames:'Windows Defender / CrowdStrike / SentinelOne',edNote:'Run as Administrator. If Defender quarantined the binary, add an exclusion in Windows Security → Exclusions.'},
+  mac:{label:'macOS',startCmd:'./bin/asaf-agent --port 45444',altPorts:[45444,45445,45446,45447],firewallCmd:'sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add ./bin/asaf-agent',avNames:'XProtect / CrowdStrike / Carbon Black',edNote:'Allow in System Settings → Privacy & Security if macOS blocked execution.'},
+  linux:{label:'Linux',startCmd:'./bin/asaf-agent --port 45444',altPorts:[45444,45445,45446,45447],firewallCmd:'sudo ufw allow 45444/tcp',avNames:'ClamAV / Wazuh / Falco / SELinux',edNote:'Check SELinux: sudo getenforce. Check AppArmor: sudo aa-status.'},
+}[OS]||{label:'your OS',startCmd:'./asaf-agent --port 45444',altPorts:[45444,45445,45446,45447],firewallCmd:'Allow port 45444 in your firewall',avNames:'your antivirus / EDR',edNote:''};
+
+let _resolvedAPIURL=null, _apiRetryTimer=null, _apiRetryCount=0;
+const POLY_RETRY_MS=[5000,15000,30000];
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
 const Analytics={
   ev:JSON.parse(localStorage.getItem('asaf_ev')||'[]'),
-  track(e,d={}){
-    const ev={t:Date.now(),e,...d};
-    this.ev.push(ev);if(this.ev.length>500)this.ev.shift();
-    localStorage.setItem('asaf_ev',JSON.stringify(this.ev));
-    // fetch() returns a Promise — a sync try/catch won't catch async rejections.
-    // Use .catch(()=>{}) so Chrome PNA / CORS / offline errors stay silent.
-    fetch(CFG.apiURL+'/api/v1/telemetry',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ev)}).catch(()=>{});
-  }
+  track(e,d={}){const ev={t:Date.now(),e,...d};this.ev.push(ev);if(this.ev.length>500)this.ev.shift();localStorage.setItem('asaf_ev',JSON.stringify(this.ev));fetch(CFG.apiURL+'/api/v1/telemetry',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ev)}).catch(()=>{});}
 };
+
+// ── White-label bootstrap ─────────────────────────────────────────────────────
+function applyBranding() {
+  if(CFG.productName) {
+    document.getElementById('hdr-title').innerHTML = CFG.productName.replace(' · ','<span> // </span>').replace(' // ','<span> // </span>');
+    document.title = CFG.productName + ' · ' + CFG.orgName;
+    document.getElementById('page-title').textContent = document.title;
+  }
+  if(CFG.logoURL) document.getElementById('hdr-logo').src = CFG.logoURL;
+  document.getElementById('mode-badge').textContent = CFG.mode || 'sovereign';
+  // Framework badge on demo ledger node
+  const fwBadge = document.getElementById('demo-fw-badge');
+  if(fwBadge) fwBadge.textContent = PRIMARY_FW;
+  // Ledger framework counter
+  document.getElementById('lst-fw').textContent = PRIMARY_FW;
+  // Inject mode-aware suggestions
+  const sugEl = document.getElementById('suggested');
+  sugEl.innerHTML = getSuggestions().map(s=>`<div class="sug" onclick="usePrompt(this)">${s}</div>`).join('');
+}
 
 // ── Terminal ──────────────────────────────────────────────────────────────────
 function initTerm(){
   term=new Terminal({theme:{background:'#0d1117',foreground:'#e2e8f0',cursor:'#00d4aa',selectionBackground:'#2a3545'},fontFamily:"'JetBrains Mono','Fira Code',monospace",fontSize:12,lineHeight:1.4,cursorBlink:true,scrollback:5000});
   fitAddon=new FitAddon.FitAddon();term.loadAddon(fitAddon);term.open(document.getElementById('term'));fitAddon.fit();
-  termPrint('\x1b[38;5;36m┌─────────────────────────────────────────────────────┐\x1b[0m');
-  termPrint('\x1b[38;5;36m│\x1b[0m  ASAF — Agentic Security Attestation Framework       \x1b[38;5;36m│\x1b[0m');
-  termPrint('\x1b[38;5;36m│\x1b[0m  Post-Quantum Certified · NouchiX / SecRed Knowledge \x1b[38;5;36m│\x1b[0m');
-  termPrint('\x1b[38;5;36m└─────────────────────────────────────────────────────┘\x1b[0m');
-  termPrint('');
+  tP('\x1b[38;5;36m┌───────────────────────────────────────────────────────────┐\x1b[0m');
+  tP('\x1b[38;5;36m│\x1b[0m  KHEPRA Sovereign Security Platform                        \x1b[38;5;36m│\x1b[0m');
+  tP('\x1b[38;5;36m│\x1b[0m  Post-Quantum Certified · NouchiX / SecRed Knowledge Inc.  \x1b[38;5;36m│\x1b[0m');
+  tP('\x1b[38;5;36m│\x1b[0m  Mode: \x1b[38;5;33m'+(CFG.mode||'sovereign').padEnd(12)+'\x1b[0m Frameworks: \x1b[38;5;33m'+(CFG.frameworks||'CMMC')+'  \x1b[38;5;36m│\x1b[0m');
+  tP('\x1b[38;5;36m└───────────────────────────────────────────────────────────┘\x1b[0m');
+  tP('');
   window.addEventListener('resize',()=>fitAddon.fit());
 }
 const tP=s=>term.writeln(s);
@@ -513,13 +627,16 @@ function termOk(m){tP('\x1b[38;5;40m[ OK ]\x1b[0m  '+m)}
 function termErr(m){tP('\x1b[38;5;196m[ ERR]\x1b[0m  '+m)}
 function termWarn(m){tP('\x1b[38;5;214m[WARN]\x1b[0m  '+m)}
 function termData(k,v){tP(`  \x1b[38;5;245m${k.padEnd(18)}\x1b[0m ${v}`)}
-function termSep(){tP('\x1b[38;5;237m'+'─'.repeat(54)+'\x1b[0m')}
+function termSep(){tP('\x1b[38;5;237m'+'─'.repeat(60)+'\x1b[0m')}
 
 // ── Tab switch ────────────────────────────────────────────────────────────────
 function switchTab(tab,ev){
-  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===(tab==='term'?0:1)));
+  ['term','dag','agent'].forEach(t=>{
+    document.getElementById('tab-'+t)?.classList.toggle('active',t===tab);
+  });
   document.getElementById('twrap').style.display=tab==='term'?'flex':'none';
-  document.getElementById('dagwrap').style.display=tab==='dag'?'flex':'none';
+  const dagwrap=document.getElementById('dagwrap');dagwrap.style.display=tab==='dag'?'flex':'none';
+  const scanwrap=document.getElementById('scanwrap');scanwrap.style.display=tab==='agent'?'flex':'none';
   if(tab==='term')fitAddon.fit();
   if(tab==='dag')renderDAGGraph();
   Analytics.track('tab',{tab});
@@ -528,365 +645,431 @@ function switchTab(tab,ev){
 // ── Status dots ───────────────────────────────────────────────────────────────
 function setDot(id,state,title){
   const d=document.getElementById(id+'-dot'),l=document.getElementById(id+'-lbl');
+  if(!d)return;
   d.className='sdot '+state;d.title=title;
   if(l)l.textContent=title.split('·')[0].trim();
 }
 
+// ── SEKHEM / WAF / KASA status polling ────────────────────────────────────────
+async function checkSekhem(){
+  try{
+    const r=await fetch(CFG.apiURL+'/api/dag/stats',{signal:AbortSignal.timeout(2000)});
+    if(r.ok){
+      const d=await r.json();
+      setDot('waf','ok','WAF · active');
+      setDot('kasa','ok','KASA · '+d.total_nodes+' nodes');
+      document.getElementById('lst-nodes').textContent=d.total_nodes||0;
+      document.getElementById('lst-signed').textContent=d.signed_nodes||0;
+    }
+  }catch{setDot('waf','warn','WAF · unreachable');setDot('kasa','warn','KASA · unreachable');}
+}
+
 // ── LLM detection ─────────────────────────────────────────────────────────────
 async function detectLLM(){
-  try{const r=await fetch(CFG.ollamaURL+'/api/tags',{signal:AbortSignal.timeout(2000)});if(r.ok){const d=await r.json();ollamaModel=(d.models||[])[0]?.name||'llama3.1:8b';setProvider('ollama');document.getElementById('mbadge').textContent=ollamaModel;setDot('llm','ok','Ollama · '+ollamaModel);termOk('Ollama: '+ollamaModel);return;}}catch{}
+  try{
+    const r=await fetch(CFG.ollamaURL+'/api/tags',{signal:AbortSignal.timeout(2000)});
+    if(r.ok){
+      const d=await r.json();
+      const models=d.models||[];
+      // Prefer smaller models first to avoid OOM 500s (phi4 = 9GB, often fails mid-session)
+      const preferred=['gemma3:4b','llama3.2:3b','llama3.1:8b','mistral:7b','phi3:mini'];
+      let chosen=models[0]?.name||'llama3.1:8b';
+      for(const pref of preferred){
+        if(models.find(m=>m.name===pref)){chosen=pref;break;}
+      }
+      // If no preferred found, pick smallest by size
+      if(!preferred.includes(chosen)&&models.length>1){
+        const sorted=[...models].sort((a,b)=>(a.size||0)-(b.size||0));
+        chosen=sorted[0].name;
+      }
+      ollamaModel=chosen;
+      setProvider('ollama');
+      document.getElementById('mbadge').textContent=ollamaModel;
+      setDot('llm','ok','Ollama · '+ollamaModel);
+      termOk('Ollama: '+ollamaModel+(models.length>1?' ('+models.length+' models available)':''));
+      return;
+    }
+  }catch{}
   try{const r=await fetch(CFG.lmstudioURL+'/v1/models',{signal:AbortSignal.timeout(2000)});if(r.ok){const d=await r.json();const m=d.data?.[0]?.id||'local-model';setProvider('lmstudio');document.getElementById('mbadge').textContent='LM Studio · '+m;setDot('llm','ok','LM Studio');termOk('LM Studio: '+m);return;}}catch{}
   setProvider('openrouter');setDot('llm','warn','No local LLM — OpenRouter fallback');termWarn('No local LLM. Enter OpenRouter API key below.');
   document.getElementById('mbadge').textContent='OpenRouter';document.getElementById('or-card').style.display='block';
-  setTimeout(()=>papSay("I noticed you need an API key! Visit openrouter.ai, sign up free, create a key, paste it in the box. Takes about 2 minutes. Want me to guide you step by step?"),1500);
+  setTimeout(()=>papSay("I noticed you need an API key! Visit openrouter.ai, sign up free, create a key, paste it in the box below. Takes about 2 minutes!"),1500);
 }
-function setProvider(p){
-  provider=p;document.querySelectorAll('.llmbtn').forEach(b=>b.classList.toggle('active',b.dataset.p===p));
-  document.getElementById('or-card').style.display=p==='openrouter'?'block':'none';
-}
-document.querySelectorAll('.llmbtn').forEach(b=>b.addEventListener('click',()=>{setProvider(b.dataset.p);if(b.dataset.p!=='openrouter')detectLLM();Analytics.track('llm',{p:b.dataset.p});}));
-function connectOR(){
-  const k=document.getElementById('orkl').value.trim();if(!k)return;
-  orKey=k;setProvider('openrouter');document.getElementById('or-card').style.display='none';
-  setDot('llm','ok','OpenRouter connected');document.getElementById('mbadge').textContent='OpenRouter · Hermes-3';termOk('OpenRouter connected');
-  papSay('🎉 Connected! You\'re ready to run your first security scan. Try clicking one of the suggestion chips or just type a question!');
-  Analytics.track('or_connected');
-}
+function setProvider(p){provider=p;document.querySelectorAll('.llmbtn').forEach(b=>b.classList.toggle('active',b.dataset.p===p));document.getElementById('or-card').style.display=p==='openrouter'?'block':'none';}
+document.querySelectorAll('.llmbtn').forEach(b=>b.addEventListener('click',()=>{setProvider(b.dataset.p);if(b.dataset.p!=='openrouter')detectLLM();}));
+function connectOR(){const k=document.getElementById('orkl').value.trim();if(!k)return;orKey=k;setProvider('openrouter');document.getElementById('or-card').style.display='none';setDot('llm','ok','OpenRouter connected');document.getElementById('mbadge').textContent='OpenRouter · Hermes-3';termOk('OpenRouter connected');papSay('🎉 Connected! Run your first AI agent scan by clicking the "AI AGENT SCAN" tab.');}
 
 // ── Polymorphic API Engine ────────────────────────────────────────────────────
-// Probes a single URL/port and classifies the failure mode:
-//   'timeout'  → port is reachable but no response in 4 s → firewall/AV/EDR/IDS
-//                is silently dropping packets (ETIMEDOUT pattern)
-//   'refused'  → TCP RST / immediate rejection → process not running (ECONNREFUSED)
-async function _probePort(baseURL) {
-  const ctrl = new AbortController();
-  const tid = setTimeout(() => ctrl.abort(), 4000);
-  try {
-    const r = await fetch(baseURL + '/healthz', { signal: ctrl.signal });
-    clearTimeout(tid);
-    return { ok: r.ok, errType: null };
-  } catch (e) {
-    clearTimeout(tid);
-    return { ok: false, errType: e.name === 'AbortError' ? 'timeout' : 'refused' };
-  }
-}
-
-// Tries each port in OS_PROFILE.altPorts in order (polymorphic port negotiation).
-// Updates CFG.apiURL and _resolvedAPIURL on success.
-async function _polymorphicConnect() {
-  const ports = OS_PROFILE.altPorts;
-  let lastErrType = 'refused';
-  for (let i = 0; i < ports.length; i++) {
-    const port = ports[i];
-    const url = 'http://localhost:' + port;
-    if (i > 0) termInfo('Polymorphic connector → trying port ' + port + '...');
-    const { ok, errType } = await _probePort(url);
-    if (ok) {
-      _resolvedAPIURL = url;
-      CFG.apiURL = url;   // update live so dispatchCmd picks up new port
-      return { connected: true, url, port };
-    }
-    lastErrType = errType;
-    // timeout on primary = firewall blockage; no point waiting for other ports either,
-    // so break early and report the firewall condition (ports 45445+ would also be blocked).
-    if (errType === 'timeout' && i === 0) break;
-  }
-  return { connected: false, errType: lastErrType };
-}
-
-// Souhimbou guidance messages, keyed by retry count + error type
-function _papAPIGuidance(retryCount, errType) {
-  const p = OS_PROFILE;
-  if (errType === 'timeout') {
-    if (retryCount === 1)
-      return `Port 45444 is not responding (timeout) on ${p.label} — your ${p.avNames} may be silently blocking the ASAF agent. I tried alternate ports automatically.\n\nTo add a firewall exception:\n  ${p.firewallCmd}`;
-    if (retryCount === 2)
-      return `Still blocked. ${p.edNote || 'Check your security software.'}\n\nFirewall whitelist command:\n  ${p.firewallCmd}`;
-  } else {
-    if (retryCount === 1)
-      return `ASAF agent isn't running on ${p.label}. Start it with:\n\n  ${p.startCmd}\n\n${p.edNote || ''}`;
-    if (retryCount === 2)
-      return `Still offline. Double-check ASAF is running:\n\n  ${p.startCmd}\n\nIf ${p.avNames} quarantined the binary, whitelist it first, then retry.`;
-  }
-  // retryCount >= 3 → cloud fallback
-  return `I've switched to cloud-only mode — scans will use AI analysis without the local ASAF agent. Reconnect anytime by starting:\n\n  ${p.startCmd}`;
-}
-
-async function checkAPI() {
-  const result = await _polymorphicConnect();
-
-  if (result.connected) {
-    const portNote = result.port !== 45444 ? ` [polymorphic: port ${result.port}]` : '';
-    setDot('api', 'ok', 'ASAF API · ' + result.url);
-    termOk('ASAF API: ' + result.url + portNote);
-    loadDAGChain();
-    _apiRetryCount = 0;
-    apiErrCount = 0;
-    if (_apiRetryTimer) { clearTimeout(_apiRetryTimer); _apiRetryTimer = null; }
-    return;
-  }
-
-  _apiRetryCount++;
-  apiErrCount++;
-  const { errType } = result;
-
-  // Visual status
-  if (errType === 'timeout') {
-    setDot('api', 'warn', 'API blocked · firewall/AV/EDR may be intercepting port 45444');
-    termWarn('Port 45444 unreachable (timeout) — firewall, AV, or EDR may be blocking ASAF');
-  } else {
-    setDot('api', 'err', 'API offline · ASAF agent not running');
-    termWarn('ASAF API offline (connection refused) — agent not running on ' + OS_PROFILE.label);
-  }
-  termInfo('OS detected: ' + OS_PROFILE.label + ' · Retry ' + _apiRetryCount + ' of 3');
-
-  // Progressive Souhimbou guidance
-  setTimeout(() => papSay(_papAPIGuidance(_apiRetryCount, errType)), 1500);
-
-  if (_apiRetryCount >= 3) {
-    // Cloud fallback — stop polling
-    setDot('api', 'warn', 'Cloud mode · ASAF agent unreachable');
-    termWarn('Entering cloud-only mode after 3 failed attempts');
-    _apiRetryTimer = null;
-    return;
-  }
-
-  // Schedule next probe
-  const delay = POLY_RETRY_MS[_apiRetryCount - 1] || 30000;
-  termInfo('Next connection attempt in ' + (delay / 1000) + 's...');
-  _apiRetryTimer = setTimeout(checkAPI, delay);
-}
-
-// ── System prompt ─────────────────────────────────────────────────────────────
-const SYS=`You are ASAF Security Advisor, an expert in CMMC, NIST 800-171, STIG, and post-quantum cryptography by NouchiX / SecRed Knowledge Inc.
-1. Answer concisely — no hedging, no disclaimers. 2. For scan/attest/stig/export actions emit a JSON command block:
-ASAF API (base: ${CFG.apiURL}): POST /api/v1/scans/trigger | GET /api/v1/compliance/score | GET /api/v1/stigs/:id | POST /api/v1/attestation/export | GET /api/v1/dag/:id | GET /api/v1/intel/query?q=
-Command format: ASAF_CMD:{"action":"<scan|stig|attest|dag|intel|score>","endpoint":"<path>","method":"<GET|POST>","body":<json|null>,"description":"<one line>"}
-Always translate compliance jargon into clear findings. Map findings to STIG rules or CMMC practices.`;
-
-// ── Papyrus system prompt ─────────────────────────────────────────────────────
-const PAP_SYS=`You are Souhimbou, the AI Security Architect and friendly guide for the ASAF Natural Language Security Platform by NouchiX / SecRed Knowledge Inc. You GUIDE and ONBOARD users — the main Security Advisor handles scans.
-Personality: warm, encouraging, patient, plain English only. Explain every technical term immediately.
-When users ask how to do something: give clear step-by-step guidance and point to specific UI elements.
-Key facts: ASAF = compliance automation tool. Every scan creates an immutable cryptographic record (DAG chain). ADINKHEPRA = post-quantum security protocol. OpenRouter = free cloud AI fallback.
-User's OS: ${OS_PROFILE.label}. To start ASAF on their machine: ${OS_PROFILE.startCmd}
-If ASAF is blocked by firewall/AV/EDR (${OS_PROFILE.avNames}), guide them to run: ${OS_PROFILE.firewallCmd.split('\n')[0]}
-Additional OS note: ${OS_PROFILE.edNote}
-Always be Souhimbou the guardian. Celebrate user progress!`;
+async function _probePort(baseURL){const ctrl=new AbortController();const tid=setTimeout(()=>ctrl.abort(),4000);try{const r=await fetch(baseURL+'/healthz',{signal:ctrl.signal});clearTimeout(tid);return{ok:r.ok,errType:null};}catch(e){clearTimeout(tid);return{ok:false,errType:e.name==='AbortError'?'timeout':'refused'};}}
+async function _polymorphicConnect(){const ports=OS_PROFILE.altPorts;let lastErrType='refused';for(let i=0;i<ports.length;i++){const port=ports[i];const url='http://localhost:'+port;if(i>0)termInfo('Polymorphic connector → trying port '+port+'...');const{ok,errType}=await _probePort(url);if(ok){_resolvedAPIURL=url;CFG.apiURL=url;return{connected:true,url,port};}lastErrType=errType;if(errType==='timeout'&&i===0)break;}return{connected:false,errType:lastErrType};}
+function _papAPIGuidance(retryCount,errType){const p=OS_PROFILE;if(errType==='timeout'){if(retryCount===1)return`Port 45444 timeout on ${p.label} — ${p.avNames} may be blocking ASAF.\n\nFirewall exception:\n  ${p.firewallCmd}`;if(retryCount===2)return`Still blocked. ${p.edNote||'Check your security software.'}`;}else{if(retryCount===1)return`ASAF agent not running on ${p.label}. Start it:\n\n  ${p.startCmd}\n\n${p.edNote||''}`;if(retryCount===2)return`Still offline. Double-check ASAF is running:\n\n  ${p.startCmd}`;}return`Switched to cloud-only mode after 3 failed attempts. Reconnect by starting:\n\n  ${p.startCmd}`;}
+async function checkAPI(){const result=await _polymorphicConnect();if(result.connected){const portNote=result.port!==45444?` [polymorphic: port ${result.port}]`:'';setDot('api','ok','ASAF API · '+result.url);termOk('ASAF API: '+result.url+portNote);loadDAGChain();checkSekhem();setInterval(checkSekhem,15000);_apiRetryCount=0;apiErrCount=0;if(_apiRetryTimer){clearTimeout(_apiRetryTimer);_apiRetryTimer=null;}return;}_apiRetryCount++;apiErrCount++;const{errType}=result;if(errType==='timeout'){setDot('api','warn','API blocked · firewall/AV/EDR');termWarn('Port 45444 unreachable (timeout) — firewall, AV, or EDR may be blocking');}else{setDot('api','err','API offline · ASAF agent not running');termWarn('ASAF API offline (connection refused) — agent not running on '+OS_PROFILE.label);}termInfo('OS: '+OS_PROFILE.label+' · Retry '+_apiRetryCount+' of 3');setTimeout(()=>papSay(_papAPIGuidance(_apiRetryCount,errType)),1500);if(_apiRetryCount>=3){setDot('api','warn','Cloud mode · ASAF agent unreachable');termWarn('Entering cloud-only mode');_apiRetryTimer=null;return;}const delay=POLY_RETRY_MS[_apiRetryCount-1]||30000;termInfo('Next attempt in '+(delay/1000)+'s...');_apiRetryTimer=setTimeout(checkAPI,delay);}
 
 // ── LLM call ──────────────────────────────────────────────────────────────────
 async function callLLM(msgs){
   if(provider==='ollama'){const r=await fetch(CFG.ollamaURL+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:ollamaModel,messages:msgs,stream:true})});if(!r.ok)throw new Error('Ollama '+r.status);return streamOllama(r);}
   if(provider==='lmstudio'){const r=await fetch(CFG.lmstudioURL+'/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'local-model',messages:msgs,stream:true,max_tokens:2048})});if(!r.ok)throw new Error('LM Studio '+r.status);return streamOAI(r);}
-  if(provider==='openrouter'){const k=orKey||document.getElementById('orkl')?.value;if(!k)throw new Error('OpenRouter API key required');orKey=k;const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+k,'HTTP-Referer':'https://nouchix.com','X-Title':'ASAF Security Platform'},body:JSON.stringify({model:'nousresearch/hermes-3-llama-3.1-70b',messages:msgs,stream:true,max_tokens:2048})});if(!r.ok)throw new Error('OpenRouter '+r.status);return streamOAI(r);}
+  if(provider==='openrouter'){const k=orKey||document.getElementById('orkl')?.value;if(!k)throw new Error('OpenRouter API key required');orKey=k;const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+k,'HTTP-Referer':'https://nouchix.com','X-Title':'KHEPRA Security Platform'},body:JSON.stringify({model:'nousresearch/hermes-3-llama-3.1-70b',messages:msgs,stream:true,max_tokens:2048})});if(!r.ok)throw new Error('OpenRouter '+r.status);return streamOAI(r);}
 }
-async function* streamOllama(r){const rd=r.body.getReader();const dc=new TextDecoder();let buf='';while(true){const{done,value}=await rd.read();if(done)break;buf+=dc.decode(value,{stream:true});const ls=buf.split('\n');buf=ls.pop();for(const l of ls){if(!l.trim())continue;try{const o=JSON.parse(l);if(o.message?.content)yield o.message.content;}catch{}}}}
-async function* streamOAI(r){const rd=r.body.getReader();const dc=new TextDecoder();let buf='';while(true){const{done,value}=await rd.read();if(done)break;buf+=dc.decode(value,{stream:true});const ls=buf.split('\n');buf=ls.pop();for(const l of ls){if(!l.startsWith('data: '))continue;const d=l.slice(6).trim();if(d==='[DONE]')return;try{const o=JSON.parse(d);const c=o.choices?.[0]?.delta?.content;if(c)yield c;}catch{}}}}
+async function* streamOllama(r){const reader=r.body.getReader();const dec=new TextDecoder();while(true){const{done,value}=await reader.read();if(done)break;const lines=dec.decode(value).split('\n').filter(Boolean);for(const l of lines){try{const j=JSON.parse(l);if(j.message?.content)yield j.message.content;}catch{}}}
+}
+async function* streamOAI(r){const reader=r.body.getReader();const dec=new TextDecoder();let buf='';while(true){const{done,value}=await reader.read();if(done)break;buf+=dec.decode(value);const lines=buf.split('\n');buf=lines.pop()||'';for(const l of lines){if(!l.startsWith('data: '))continue;const d=l.slice(6);if(d==='[DONE]')return;try{const j=JSON.parse(d);const c=j.choices?.[0]?.delta?.content;if(c)yield c;}catch{}}}
+}
 
-// ── ASAF command dispatch ─────────────────────────────────────────────────────
+// ── ASAF_CMD dispatcher ───────────────────────────────────────────────────────
+function extractCmd(text){const m=text.match(/ASAF_CMD:(\{[^}]+\})/s);if(!m)return null;try{return JSON.parse(m[1]);}catch{return null;}}
 async function dispatchCmd(cmd){
-  termSep();termInfo(cmd.description||cmd.action);termData('Endpoint',cmd.method+' '+CFG.apiURL+cmd.endpoint);
-  const opts={method:cmd.method,headers:{'Content-Type':'application/json'}};if(cmd.body)opts.body=JSON.stringify(cmd.body);
-  try{
-    const r=await fetch(CFG.apiURL+cmd.endpoint,opts);const txt=await r.text();
-    let d;try{d=JSON.parse(txt);}catch{d={raw:txt};}
-    if(!r.ok){termErr('HTTP '+r.status+': '+(d.error||txt.slice(0,120)));return d;}
-    termOk('Response ('+r.status+')');
-    if(d.risk_score!==undefined)termData('Risk Score',cScore(d.risk_score));
-    if(d.scan_id)termData('Scan ID',d.scan_id);
-    if(d.certified!==undefined)termData('Certified',d.certified?'\x1b[32m✓ YES\x1b[0m':'\x1b[33m✗ NO\x1b[0m');
-    if(d.framework)termData('Framework',d.framework);
-    if(d.findings?.length){termPrint('');termPrint('  \x1b[38;5;220mFindings:\x1b[0m');d.findings.slice(0,10).forEach(f=>{const s=f.severity==='critical'?'\x1b[31m':f.severity==='high'?'\x1b[33m':'\x1b[36m';termPrint(`  ${s}[${(f.severity||'info').toUpperCase().padEnd(8)}]\x1b[0m ${f.title||f.control_id||f.id}`);});if(d.findings.length>10)termPrint('  ... +'+(d.findings.length-10)+' more');}
-    if(d.dag_node||d.attestation)addDAGNode(d);
-    if(d.chain)renderDAGFromChain(d.chain);
-    termSep();Analytics.track('cmd',{action:cmd.action,ok:true});return d;
-  }catch(e){
-    termErr('Network: '+e.message);
-    // Distinguish error modes for actionable guidance
-    const isTimeout=e.name==='AbortError';
-    if(isTimeout){
-      termWarn('Request timed out — firewall/AV/EDR may be blocking ASAF on '+OS_PROFILE.label);
-      termWarn('Whitelist command: '+OS_PROFILE.firewallCmd.split('\n')[0]);
-    } else {
-      termWarn('Connection refused — is ASAF running? Start: '+OS_PROFILE.startCmd);
-    }
-    // Trigger reconnect probe
-    if(!_apiRetryTimer && _apiRetryCount<3){_apiRetryCount=0;checkAPI();}
-    Analytics.track('cmd_err',{msg:e.message,os:OS,errType:isTimeout?'timeout':'refused'});
-    throw e;
+  if(cmd.action==='agent_scan'){
+    // Switch to agent scan tab and pre-fill the form
+    switchTab('agent',null);
+    if(cmd.body?.url)document.getElementById('scan-url').value=cmd.body.url;
+    if(cmd.body?.type)document.getElementById('scan-type').value=cmd.body.type;
+    if(cmd.body?.tier)document.getElementById('scan-tier').value=cmd.body.tier;
+    papSay('🔍 Agent scan ready! I\'ve pre-filled the form. Click "LAUNCH SCAN" to begin the 6-layer omnipotent scan.');
+    return `[Switched to AI Agent Scanner — URL pre-filled: ${cmd.body?.url||''}]`;
   }
+  const url=CFG.apiURL+cmd.endpoint;
+  try{
+    const opts={method:cmd.method||'GET',headers:{'Content-Type':'application/json'}};
+    if(cmd.body&&cmd.method==='POST')opts.body=JSON.stringify(cmd.body);
+    const r=await fetch(url,opts);
+    const data=await r.json();
+    termInfo(`API → ${cmd.method||'GET'} ${cmd.endpoint}`);
+    termOk(cmd.description||'Done');
+    // Inject result into ledger
+    if(data.node_id||data.dag_id)addChainNode({id:data.node_id||data.dag_id,label:cmd.description||cmd.action,action:cmd.action,signed:true,ts:new Date()});
+    return JSON.stringify(data,null,2);
+  }catch(e){termErr(`API call failed: ${e.message}`);return `Error: ${e.message}`;}
 }
-function cScore(s){if(s>=80)return'\x1b[32m'+s+'/100 (GOOD)\x1b[0m';if(s>=60)return'\x1b[33m'+s+'/100 (FAIR)\x1b[0m';return'\x1b[31m'+s+'/100 (POOR)\x1b[0m';}
-function extractCmds(t){const re=/ASAF_CMD:(\{[^}]+\})/g;const cs=[];let m;while((m=re.exec(t))!==null){try{cs.push(JSON.parse(m[1]));}catch{}}return cs;}
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
-let history=[{role:'system',content:SYS}];
-function addMsg(role,content){
+let chatHistory=[];
+function addMsg(role,text){
   const msgs=document.getElementById('messages');
-  const el=document.createElement('div');el.className='msg '+role;
-  const av={user:'▲',assistant:'⬡',system:'◈'};
-  const t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-  el.innerHTML=`<div class="mav">${av[role]||'•'}</div><div class="mbody"><div class="mtext" id="m${Date.now()}">${esc(content)}</div><div class="mtime">${t}</div></div>`;
-  msgs.appendChild(el);msgs.scrollTop=msgs.scrollHeight;
-  return el.querySelector('.mtext');
+  const div=document.createElement('div');div.className='msg '+role;
+  const icon=role==='user'?'U':role==='assistant'?'◈':'◉';
+  div.innerHTML=`<div class="mav">${icon}</div><div class="mbody"><div class="mtext"></div><div class="mtime">${new Date().toLocaleTimeString()}</div></div>`;
+  div.querySelector('.mtext').textContent=text;
+  msgs.appendChild(div);msgs.scrollTop=msgs.scrollHeight;
+  return div.querySelector('.mtext');
 }
-function addThinking(){const d=document.getElementById('messages');const el=document.createElement('div');el.className='msg assistant';el.id='thinker';el.innerHTML='<div class="mav">⬡</div><div class="mbody"><div class="thinking"><span></span><span></span><span></span></div></div>';d.appendChild(el);d.scrollTop=d.scrollHeight;}
-function rmThinking(){document.getElementById('thinker')?.remove();}
-function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function fmt(t){return esc(t.replace(/ASAF_CMD:\{[^}]+\}/g,'').trim()).replace(/`([^`]+)`/g,'<code>$1</code>');}
-
+function usePrompt(el){document.getElementById('cinput').value=el.textContent.replace(/^→ /,'');document.getElementById('cinput').focus();}
 async function sendMsg(){
-  const inp=document.getElementById('cinput');const text=inp.value.trim();
-  if(!text||isThinking)return;
-  inp.value='';inp.style.height='';isThinking=true;document.getElementById('sbtn').disabled=true;
-  addMsg('user',text);history.push({role:'user',content:text});addThinking();
-  let full='',textEl=null;
+  const inp=document.getElementById('cinput');const text=inp.value.trim();if(!text||isThinking)return;inp.value='';inp.style.height='auto';
+  addMsg('user',text);chatHistory.push({role:'user',content:text});
+  isThinking=true;document.getElementById('sbtn').disabled=true;
+  const thinkEl=document.createElement('div');thinkEl.className='msg assistant';
+  thinkEl.innerHTML='<div class="mav">◈</div><div class="mbody"><div class="thinking"><span></span><span></span><span></span></div></div>';
+  document.getElementById('messages').appendChild(thinkEl);document.getElementById('messages').scrollTop=1e9;
   try{
-    const stream=callLLM(history);rmThinking();textEl=addMsg('assistant','');
-    for await(const chunk of await stream){full+=chunk;textEl.innerHTML=fmt(full);document.getElementById('messages').scrollTop=999999;}
-    const cmds=extractCmds(full);for(const cmd of cmds){try{await dispatchCmd(cmd);}catch{}}
-    history.push({role:'assistant',content:full});
-    Analytics.track('prompt',{len:text.length,provider});
-  }catch(e){rmThinking();if(!textEl)textEl=addMsg('assistant','');textEl.innerHTML=fmt('Error: '+e.message+'\n\nCheck your LLM connection.');termErr('LLM: '+e.message);}
-  finally{isThinking=false;document.getElementById('sbtn').disabled=false;}
+    const msgs=[{role:'system',content:SYS},...chatHistory];
+    let full='';const stream=callLLM(msgs);
+    const responseEl=addMsg('assistant','');thinkEl.remove();
+    for await(const c of await stream){full+=c;responseEl.textContent=full;document.getElementById('messages').scrollTop=1e9;}
+    chatHistory.push({role:'assistant',content:full});
+    const cmd=extractCmd(full);
+    if(cmd){const result=await dispatchCmd(cmd);if(result&&!result.startsWith('['))addMsg('system','API result:\n'+result);}
+    Analytics.track('chat',{len:text.length});
+  }catch(e){
+    thinkEl.remove();
+    const errMsg=e.message||'unknown error';
+    if(errMsg.includes('500')&&provider==='ollama'){
+      // Ollama 500 = model likely not loaded in VRAM — switch to OpenRouter
+      termErr('Ollama 500 — model not loaded or OOM. Switching to OpenRouter fallback.');
+      setProvider('openrouter');
+      addMsg('system','⚠️ Ollama returned 500 (model may not be loaded or out of memory).\n\nSwitching to OpenRouter fallback. Enter your free API key below to continue, or click the LM Studio button if you have it running.');
+      document.getElementById('or-card').style.display='block';
+      setDot('llm','warn','Ollama 500 — enter OpenRouter key');
+    } else {
+      addMsg('system','Error: '+errMsg);
+    }
+  }
+  isThinking=false;document.getElementById('sbtn').disabled=false;
 }
-function usePrompt(el){document.getElementById('cinput').value=el.textContent.replace('→ ','');document.getElementById('cinput').focus();Analytics.track('sug_click',{text:el.textContent.slice(0,40)});}
-document.getElementById('cinput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
-document.getElementById('cinput').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';});
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('cinput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
+  document.getElementById('cinput').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';});
+});
 
 // ── DAG chain ─────────────────────────────────────────────────────────────────
-async function loadDAGChain(){
-  try{const r=await fetch(CFG.apiURL+'/api/v1/dag/recent?limit=10',{signal:AbortSignal.timeout(3000)});if(!r.ok)return;const d=await r.json();if(d.nodes?.length){dagNodes=d.nodes;renderChain();}}catch{}
+let dagSSE=null;
+function loadDAGChain(){
+  if(dagSSE)dagSSE.close();
+  dagSSE=new EventSource(CFG.apiURL+'/api/dag/stream');
+  dagSSE.onmessage=e=>{
+    try{
+      const d=JSON.parse(e.data);
+      if(d.type==='snapshot'&&d.nodes){dagNodes=d.nodes;renderChainList();}
+      if(d.type==='stats'){document.getElementById('lst-nodes').textContent=d.total_nodes||0;document.getElementById('lst-signed').textContent=d.signed_nodes||0;}
+    }catch{}
+  };
+  dagSSE.onerror=()=>{dagSSE.close();};
 }
-function addDAGNode(data){
-  const node={id:data.dag_node?.id||data.scan_id||('n-'+Date.now()),label:data.scan_target||data.framework||'Attestation',hash:data.dag_node?.hash||data.attestation?.hash||'0x'+Math.random().toString(16).slice(2,18),timestamp:new Date().toISOString(),cert:data.certified||false,framework:data.framework||'CMMC_L2',pqc:true};
-  dagNodes.unshift(node);if(dagNodes.length>20)dagNodes.pop();renderChain();
+function addChainNode({id,label,action,signed=true,ts=new Date()}){
+  dagNodes.unshift({ID:id,Action:action||label,Signature:signed?'ml-dsa-65':''});
+  renderChainList();
+  document.getElementById('lst-nodes').textContent=dagNodes.length;
 }
-function renderChain(){
+function renderChainList(){
   const list=document.getElementById('chain-list');
-  list.querySelectorAll('.chain-node').forEach(n=>n.remove());
-  list.querySelectorAll('.demo-node').forEach(n=>n.style.display='none');
-  dagNodes.forEach(node=>{
-    const div=document.createElement('div');div.className='chain-node'+(node.cert?' cert':'');
-    div.innerHTML=`<div class="cn-hash">${(node.hash||'').slice(0,28)}...</div><div class="cn-lbl">${esc(node.label||node.id)}</div><div class="cn-row">${node.pqc?'<span class="cbadge pqc">ML-DSA-65</span>':''}${node.cert?'<span class="cbadge gold">ADINKHEPRA ✓</span>':''}${node.framework?`<span class="cbadge cmmc">${node.framework}</span>`:''}<span class="cn-time">${new Date(node.timestamp).toLocaleTimeString()}</span></div>`;
-    div.addEventListener('click',()=>{switchTab('dag',null);document.querySelectorAll('.tab')[1].classList.add('active');document.querySelectorAll('.tab')[0].classList.remove('active');});
-    list.appendChild(div);
+  if(!dagNodes||dagNodes.length===0){list.innerHTML='<div class="demo-node"><div class="dn-lbl">⟳ Awaiting attestations...</div><div class="dn-hash">0x████████████████████████...</div><div class="dn-badges"><span class="cbadge pqc">ML-DSA-65</span><span class="cbadge fw">'+PRIMARY_FW+'</span></div></div>';return;}
+  list.innerHTML='';
+  dagNodes.slice(0,50).forEach(n=>{
+    const d=document.createElement('div');
+    d.className='chain-node'+(n.Signature?'':' finding');
+    const hash=(n.ID||'0x').substring(0,18)+'...';
+    const label=n.Action||n.Label||'Event';
+    d.innerHTML=`<div class="cn-hash">${hash}</div><div class="cn-lbl">${label}</div><div class="cn-row">${n.Signature?'<span class="cbadge pqc">ML-DSA-65</span>':''}<span class="cbadge gold">KHEPRA</span><span class="cbadge fw">${PRIMARY_FW}</span><span class="cn-time">${new Date().toLocaleTimeString()}</span></div>`;
+    list.appendChild(d);
   });
 }
-function renderDAGFromChain(chain){if(!Array.isArray(chain))return;dagNodes=chain.map(n=>({...n,label:n.entity_id||n.id,pqc:true}));renderChain();}
 
-// ── D3 DAG graph ──────────────────────────────────────────────────────────────
+// ── D3 DAG Graph ──────────────────────────────────────────────────────────────
 function renderDAGGraph(){
-  const svg=d3.select('#dag-svg');svg.selectAll('*').remove();if(!dagNodes.length)return;
+  const svg=d3.select('#dag-svg');svg.selectAll('*').remove();
   const w=document.getElementById('dagwrap').clientWidth,h=document.getElementById('dagwrap').clientHeight;
-  svg.append('defs').append('marker').attr('id','arrow').attr('viewBox','0 -5 10 10').attr('refX',18).attr('refY',0).attr('markerWidth',6).attr('markerHeight',6).attr('orient','auto').append('path').attr('d','M0,-5L10,0L0,5').attr('fill','#2a3545');
-  const g=svg.append('g').attr('transform',`translate(${w/2},40)`);
-  const nodes=dagNodes.slice(0,8).map((n,i)=>({...n,x:(i%3-1)*120,y:Math.floor(i/3)*100}));
-  const links=nodes.slice(1).map((n,i)=>({source:nodes[i],target:n}));
-  g.selectAll('.dag-link').data(links).enter().append('line').attr('class','dag-link').attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
-  const tt=document.getElementById('dag-tt');
-  g.selectAll('.dag-node').data(nodes).enter().append('g').attr('class','dag-node').attr('transform',d=>`translate(${d.x},${d.y})`).each(function(d){
-    d3.select(this).append('circle').attr('r',14).attr('fill',d.cert?'rgba(0,212,170,.15)':'rgba(26,32,44,0.8)').attr('stroke',d.cert?'#00d4aa':'#2a3545').on('mouseover',(ev)=>{tt.style.opacity='1';tt.style.left=(ev.pageX+12)+'px';tt.style.top=(ev.pageY-28)+'px';tt.textContent=`${d.label}\n${(d.hash||'').slice(0,16)}...\n${d.framework||''} · ${d.cert?'CERTIFIED':'PENDING'}`;}).on('mouseout',()=>{tt.style.opacity='0';});
-    d3.select(this).append('text').attr('text-anchor','middle').attr('dy','0.35em').text((d.label||d.id).slice(0,6));
-  });
+  svg.append('defs').append('marker').attr('id','arrow').attr('viewBox','0 -5 10 10').attr('refX',20).attr('refY',0).attr('markerWidth',6).attr('markerHeight',6).attr('orient','auto').append('path').attr('d','M0,-5L10,0L0,5').attr('fill','#2a3545');
+  if(!dagNodes||dagNodes.length===0)return;
+  const nodes=dagNodes.slice(0,30).map((n,i)=>({id:n.ID||i,label:(n.Action||'Event').substring(0,20),signed:!!n.Signature}));
+  const links=nodes.slice(1).map((_,i)=>({source:nodes[i].id,target:nodes[i+1].id}));
+  const sim=d3.forceSimulation(nodes).force('link',d3.forceLink(links).id(d=>d.id).distance(60)).force('charge',d3.forceManyBody().strength(-120)).force('center',d3.forceCenter(w/2,h/2));
+  const g=svg.append('g');
+  const link=g.append('g').selectAll('line').data(links).join('line').attr('class','dag-link');
+  const node=g.append('g').selectAll('.dag-node').data(nodes).join('g').attr('class','dag-node').call(d3.drag().on('start',(_,d)=>{if(!d3.event?.active)sim.alphaTarget(.3).restart();d.fx=d.x;d.fy=d.y;}).on('drag',(_,d)=>{d.fx=d3.event.x;d.fy=d3.event.y;}).on('end',(_,d)=>{if(!d3.event?.active)sim.alphaTarget(0);d.fx=null;d.fy=null;}));
+  node.append('circle').attr('r',10).attr('fill',d=>d.signed?'rgba(0,212,170,.15)':'rgba(239,68,68,.15)').attr('stroke',d=>d.signed?'#00d4aa':'#ef4444');
+  node.append('text').attr('dy','1.8em').attr('text-anchor','middle').text(d=>d.label.substring(0,12));
+  sim.on('tick',()=>{link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);node.attr('transform',d=>`translate(${d.x},${d.y})`);});
 }
 
-// ── Papyrus / Souhimbou ───────────────────────────────────────────────────────
-let papHistory=[{role:'system',content:PAP_SYS}];let papOpen=false;
-function togglePapyrus(){papOpen=!papOpen;document.getElementById('pap-panel').classList.toggle('open',papOpen);document.getElementById('pap-badge').classList.remove('show');if(papOpen&&document.getElementById('pap-msgs').children.length===0)papSay("Hey! I'm Souhimbou, your AI guide for this platform 🛡️ Ask me anything, or click 🗺 Tour for an interactive walkthrough!");Analytics.track('papyrus',{open:papOpen});}
-function papSay(msg){
-  const d=document.getElementById('pap-msgs');const el=document.createElement('div');el.className='pmsg sou';el.textContent=msg;d.appendChild(el);d.scrollTop=d.scrollHeight;
-  if(!papOpen){document.getElementById('pap-badge').classList.add('show');}
+// ── AI Agent Scanner ──────────────────────────────────────────────────────────
+const LAYER_NAMES=['Network Surface','Service Discovery','Horus Static Analysis','Adversarial Probes','KASA Behavioral','ERT Multi-lane'];
+
+function initScanLayers(){
+  const el=document.getElementById('scan-layers');
+  el.innerHTML=LAYER_NAMES.map((name,i)=>`
+    <div class="layer-row" id="layer-${i}">
+      <div class="layer-top">
+        <div class="layer-num" id="lnum-${i}">${i+1}</div>
+        <div class="layer-name">${name}</div>
+        <div class="layer-count" id="lcnt-${i}"></div>
+        <div class="layer-msg" id="lmsg-${i}">queued</div>
+      </div>
+      <div class="layer-bar-bg"><div class="layer-bar" id="lbar-${i}"></div></div>
+    </div>`).join('');
 }
-async function sendPapMsg(){
-  const inp=document.getElementById('pap-in');const text=inp.value.trim();if(!text)return;inp.value='';
-  const d=document.getElementById('pap-msgs');const uel=document.createElement('div');uel.className='pmsg usr';uel.textContent=text;d.appendChild(uel);
-  papHistory.push({role:'user',content:text});
-  const ael=document.createElement('div');ael.className='pmsg sou';ael.textContent='...';d.appendChild(ael);d.scrollTop=d.scrollHeight;
+
+function updateLayer(idx,status,progress,msg,findings){
+  const num=document.getElementById('lnum-'+idx);
+  const bar=document.getElementById('lbar-'+idx);
+  const msgEl=document.getElementById('lmsg-'+idx);
+  const cntEl=document.getElementById('lcnt-'+idx);
+  if(num)num.className='layer-num '+status;
+  if(bar){bar.style.width=progress+'%';bar.className='layer-bar '+(status==='complete'?'complete':status==='error'?'error':'');}
+  if(msgEl)msgEl.textContent=msg||'';
+  if(cntEl&&findings)cntEl.textContent=findings+' findings';
+}
+
+function addFindingCard(f){
+  const el=document.getElementById('scan-findings');
+  const card=document.createElement('div');
+  card.className='finding-card '+f.severity;
+  card.innerHTML=`<div class="fc-top"><span class="fc-sev ${f.severity}">${f.severity}</span><span class="fc-title">${f.title}</span></div><div class="fc-detail">${f.detail}</div>${f.control?'<div class="fc-ctrl">'+f.control+'</div>':''}`;
+  el.appendChild(card);el.scrollTop=el.scrollHeight;
+  // Add to ledger
+  addChainNode({id:'find-'+Date.now(),label:f.title,action:'FINDING:'+f.severity.toUpperCase(),signed:true,ts:new Date()});
+}
+
+async function launchAgentScan(){
+  const url=document.getElementById('scan-url').value.trim();
+  if(!url){papSay('Please enter a target agent URL first — e.g. http://my-agent:3000');return;}
+  const type=document.getElementById('scan-type').value;
+  const tier=document.getElementById('scan-tier').value;
+
+  // Reset UI
+  document.getElementById('scan-findings').innerHTML='';
+  document.getElementById('scan-summary').style.display='none';
+  document.getElementById('scan-launch').disabled=true;
+  document.getElementById('scan-meta').textContent='Scan running...';
+  currentReport=null;
+  initScanLayers();
+
+  // Close previous SSE
+  if(scanSSE)scanSSE.close();
+
+  termSep();
+  termInfo('Launching AI Agent Scanner → '+url);
+  termInfo('Type: '+type+' · Tier: '+tier+' · Mode: '+CFG.mode);
+
   try{
-    let full='';const stream=callLLM(papHistory);
-    for await(const c of await stream){full+=c;ael.textContent=full;}
-    papHistory.push({role:'assistant',content:full});
-    Analytics.track('pap_msg',{len:text.length});
-  }catch(e){ael.textContent='Sorry, I need an AI connection to respond. Make sure your LLM is set up!';}
+    // POST to launch
+    const r=await fetch(CFG.apiURL+'/api/v1/scan/agent',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({url,type,tier})
+    });
+    const launch=await r.json();
+    if(!launch.scan_id){throw new Error(launch.error||'scan failed to start');}
+    currentScanID=launch.scan_id;
+    termOk('Scan queued: '+launch.scan_id);
+
+    // SSE progress stream
+    scanSSE=new EventSource(CFG.apiURL+'/api/v1/scan/agent/stream?id='+launch.scan_id);
+    scanSSE.onmessage=e=>{
+      try{
+        const ev=JSON.parse(e.data);
+        if(ev.type==='progress'){
+          const idx=(ev.layer||1)-1;
+          updateLayer(idx,ev.status,ev.progress||0,ev.message||'');
+          termInfo(`[L${ev.layer}] ${ev.name} ${ev.progress||0}%: ${ev.message||''}`);
+        }
+        if(ev.type==='finding'&&ev.finding){
+          addFindingCard(ev.finding);
+          const sev=ev.finding.severity;
+          if(sev==='critical')termErr('[FINDING:CRITICAL] '+ev.finding.title);
+          else if(sev==='high')termWarn('[FINDING:HIGH] '+ev.finding.title);
+          else termInfo('[FINDING:'+sev.toUpperCase()+'] '+ev.finding.title);
+        }
+        if(ev.type==='complete'){
+          currentReport=ev.report;
+          scanSSE.close();
+          onScanComplete(ev.report);
+        }
+        if(ev.type==='error'){
+          scanSSE.close();
+          termErr('Scan error: '+(ev.message||'unknown'));
+          document.getElementById('scan-launch').disabled=false;
+        }
+      }catch{}
+    };
+    scanSSE.onerror=()=>{
+      if(currentReport)return; // already complete
+      termErr('SSE stream error — scan may still be running');
+      document.getElementById('scan-launch').disabled=false;
+    };
+
+    Analytics.track('agent_scan',{url,type,tier});
+    papSay('🔴 Scan launched! I\'m firing '+tierProbeCount(tier)+' adversarial probes across 6 layers. Watch the progress bars — findings appear in real-time.');
+  }catch(err){
+    termErr('Scan failed: '+err.message);
+    document.getElementById('scan-launch').disabled=false;
+    document.getElementById('scan-meta').textContent='Scan failed: '+err.message;
+  }
 }
-document.getElementById('pap-in').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendPapMsg();}});
-document.getElementById('pap-in').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px';});
+
+function tierProbeCount(tier){return tier==='enterprise'?27:tier==='pro'?18:8;}
+
+function onScanComplete(report){
+  document.getElementById('scan-launch').disabled=false;
+  document.getElementById('scan-summary').style.display='block';
+  const score=report.risk_score||0;
+  const scoreEl=document.getElementById('sum-score');
+  scoreEl.textContent=(score*100).toFixed(0)+'%';
+  scoreEl.className='sum-val '+(score<.3?'risk-low':score<.7?'risk-med':'risk-high');
+  document.getElementById('sum-findings').textContent=report.total_findings||0;
+  const crits=(report.findings||[]).filter(f=>f.severity==='critical').length;
+  document.getElementById('sum-critical').textContent=crits;
+  document.getElementById('sum-probes').textContent=tierProbeCount(report.tier);
+  document.getElementById('scan-meta').textContent='Scan complete · Signed: '+report.signature?.substring(0,30)+'...';
+  termSep();
+  termOk('Scan complete. Risk score: '+(score*100).toFixed(0)+'% · Findings: '+report.total_findings);
+  termInfo('Signature: '+(report.signature||'pending'));
+  // Add to ledger
+  addChainNode({id:report.scan_id,label:'Agent Scan: '+report.target.substring(0,30),action:'AGENT_SCAN_COMPLETE',signed:!!report.signature,ts:new Date()});
+  papSay(`✅ Scan complete!\n\n📊 Risk Score: ${(score*100).toFixed(0)}%\n🔍 Findings: ${report.total_findings}\n🚨 Critical: ${crits}\n\nThe report is ML-DSA-65 signed. Click "Export Signed Report" to generate the attestation package.`);
+}
+
+function exportReport(){
+  if(!currentReport){papSay('No completed scan yet. Launch an agent scan first!');return;}
+  const blob=new Blob([JSON.stringify(currentReport,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='khepra-agent-scan-'+currentScanID+'.json';a.click();
+  termOk('Report exported: khepra-agent-scan-'+currentScanID+'.json');
+  addChainNode({id:'export-'+Date.now(),label:'Evidence Export: '+currentScanID,action:'EVIDENCE_EXPORT',signed:true,ts:new Date()});
+  Analytics.track('export',{scan_id:currentScanID});
+}
+
+function launchQuickScan(){
+  if(!papOpen)togglePapyrus();
+  setTimeout(()=>{switchTab('agent',null);document.getElementById('scan-url').focus();},300);
+}
+
+// ── Papyrus ───────────────────────────────────────────────────────────────────
+function togglePapyrus(){papOpen=!papOpen;document.getElementById('pap-panel').classList.toggle('open',papOpen);if(papOpen&&document.getElementById('pap-msgs').children.length===0)papSay('👋 Hi! I\'m Souhimbou, your AI Security Architect. I can guide you through:\n\n🔍 Scanning AI agents with 27 adversarial probes\n📋 Generating '+PRIMARY_FW+' compliance evidence\n🔐 PQC attestation with ML-DSA-65\n\nWhat do you want to secure today?');}
+function papSay(text){const d=document.getElementById('pap-msgs');const el=document.createElement('div');el.className='pmsg sou';el.textContent=text;d.appendChild(el);d.scrollTop=d.scrollHeight;}
+async function sendPapMsg(){const inp=document.getElementById('pap-in');const text=inp.value.trim();if(!text)return;inp.value='';const d=document.getElementById('pap-msgs');const uel=document.createElement('div');uel.className='pmsg usr';uel.textContent=text;d.appendChild(uel);papHistory.push({role:'user',content:text});const ael=document.createElement('div');ael.className='pmsg sou';ael.textContent='...';d.appendChild(ael);d.scrollTop=d.scrollHeight;try{let full='';const stream=callLLM([{role:'system',content:PAP_SYS},...papHistory]);for await(const c of await stream){full+=c;ael.textContent=full;}papHistory.push({role:'assistant',content:full});}catch(e){ael.textContent='Need an AI connection to respond. Make sure your LLM is set up!';}}
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('pap-in').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendPapMsg();}});
+  document.getElementById('pap-in').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px';});
+});
 function setPapMode(mode,btn){document.querySelectorAll('.phmbtn').forEach(b=>b.classList.remove('active'));btn?.classList.add('active');}
 
-// ── Nudge (10s first visit) ───────────────────────────────────────────────────
+// ── Nudge ─────────────────────────────────────────────────────────────────────
 function dismissNudge(){document.getElementById('pap-nudge').classList.remove('show');localStorage.setItem('asaf_nudged','1');}
-if(!localStorage.getItem('asaf_nudged'))setTimeout(()=>{document.getElementById('pap-nudge').classList.add('show');},10000);
+if(!localStorage.getItem('asaf_nudged'))setTimeout(()=>document.getElementById('pap-nudge').classList.add('show'),10000);
 
-// ── Tour engine ───────────────────────────────────────────────────────────────
+// ── Tour ──────────────────────────────────────────────────────────────────────
 const TOUR=[
-  {el:'#dag-panel',text:"🔒 This is your Security Ledger — immutable proof your systems are compliant. Every scan permanently anchors a tamper-proof record here.",card:'right'},
-  {el:'#cinput',text:"💬 Ask me anything in plain English — no technical knowledge needed. I'll translate your question into real security actions.",card:'above'},
-  {el:'#term-panel',text:"🖥 This is your live scan output — like a security camera for your systems. Watch real-time findings as scans run.",card:'left'},
-  {el:'#llmsel',text:"🤖 Connect your AI engine here. Ollama and LM Studio run locally (private). OpenRouter is a free cloud fallback.",card:'above'},
-  {el:'#suggested',text:"⚡ Quick actions — click any of these to instantly run a common security task. No typing required!",card:'above'},
-  {el:'#dag-panel',text:"⛓ After your first scan, this placeholder data is replaced with your real cryptographic proof — signed with post-quantum ML-DSA-65.",card:'right'},
-  {el:'#help-btn',text:"📖 The Help menu has documentation, shortcuts, and feedback. You can always restart this tour here.",card:'below'},
-  {el:'#pap-btn',text:"🛡 I'm always here! Click anytime to ask questions, get guidance, or restart the tour. You're all set!",card:'above'},
+  {el:'#dag-panel',text:'🔒 Security Ledger — every scan creates an immutable, ML-DSA-65 signed proof here. Auditor-ready at any time.',card:'right'},
+  {el:'#cinput',text:'💬 Ask me anything in plain English — I\'ll translate into real security actions and '+PRIMARY_FW+' compliance findings.',card:'above'},
+  {el:'#tab-agent',text:'🔍 AI AGENT SCAN — the flagship capability. Point this at any AI agent endpoint and fire 27 adversarial probes across 6 security layers.',card:'below'},
+  {el:'#term-panel',text:'🖥 Live scan output — like a security camera for your systems. Real-time findings appear here.',card:'left'},
+  {el:'#llmsel',text:'🤖 Connect your AI engine. Ollama and LM Studio run locally (sovereign, zero-egress). OpenRouter is a cloud fallback.',card:'above'},
+  {el:'#suggested',text:'⚡ Quick actions tuned for '+PRIMARY_FW+' — click to instantly run a common security task.',card:'above'},
+  {el:'#help-btn',text:'📖 Help menu — documentation, shortcuts, feedback. You can always restart this tour here.',card:'below'},
+  {el:'#pap-btn',text:'🛡 I\'m always here! Click anytime to ask questions, launch quick scans, or get guided attestation export.',card:'above'},
 ];
 let tourStep=0;
-function startTour(){tourStep=0;document.getElementById('tour-ov').classList.add('active');document.getElementById('tour-ov').style.pointerEvents='all';showTourStep();Analytics.track('tour_start');}
-function showTourStep(){
-  const s=TOUR[tourStep];const target=document.querySelector(s.el);
-  document.getElementById('tc-step').textContent='STEP '+(tourStep+1)+' OF '+TOUR.length;
-  document.getElementById('tc-text').textContent=s.text;
-  document.getElementById('tc-prog').textContent=(tourStep+1)+'/'+TOUR.length;
-  document.getElementById('tc-next').onclick=()=>{tourStep++;if(tourStep>=TOUR.length){endTour();}else{showTourStep();}};
-  if(target){const r=target.getBoundingClientRect();const spot=document.getElementById('tour-spot');spot.style.cssText=`left:${r.left-8}px;top:${r.top-8}px;width:${r.width+16}px;height:${r.height+16}px`;const card=document.getElementById('tour-card');card.style.cssText=`top:${Math.min(r.bottom+16,window.innerHeight-200)}px;left:${Math.max(Math.min(r.left,window.innerWidth-290),10)}px`;}
-  Analytics.track('tour_step',{step:tourStep});
-}
-function endTour(){document.getElementById('tour-ov').classList.remove('active');document.getElementById('tour-ov').style.pointerEvents='none';localStorage.setItem('asaf_toured','1');papSay('🎉 Tour complete! You\'re ready to run your first security scan. Just type a question or click a suggestion chip above.');togglePapyrus();Analytics.track('tour_end',{step:tourStep});}
+function startTour(){tourStep=0;document.getElementById('tour-ov').classList.add('active');document.getElementById('tour-ov').style.pointerEvents='all';showTourStep();}
+function showTourStep(){const s=TOUR[tourStep];const target=document.querySelector(s.el);document.getElementById('tc-step').textContent='STEP '+(tourStep+1)+' OF '+TOUR.length;document.getElementById('tc-text').textContent=s.text;document.getElementById('tc-prog').textContent=(tourStep+1)+'/'+TOUR.length;document.getElementById('tc-next').onclick=()=>{tourStep++;if(tourStep>=TOUR.length){endTour();}else{showTourStep();}};if(target){const r=target.getBoundingClientRect();const spot=document.getElementById('tour-spot');spot.style.cssText=`left:${r.left-8}px;top:${r.top-8}px;width:${r.width+16}px;height:${r.height+16}px`;const card=document.getElementById('tour-card');card.style.cssText=`top:${Math.min(r.bottom+16,window.innerHeight-200)}px;left:${Math.max(Math.min(r.left,window.innerWidth-290),10)}px`;}}
+function endTour(){document.getElementById('tour-ov').classList.remove('active');document.getElementById('tour-ov').style.pointerEvents='none';localStorage.setItem('asaf_toured','1');papSay('🎉 Tour complete! Try the "AI AGENT SCAN" tab to run your first omnipotent scan. Just enter an agent URL and hit Launch!');togglePapyrus();}
 
-// ── Help overlay ──────────────────────────────────────────────────────────────
-function openHelp(){document.getElementById('help-ov').classList.add('open');Analytics.track('help_open');}
+// ── Help ──────────────────────────────────────────────────────────────────────
+function openHelp(){document.getElementById('help-ov').classList.add('open');}
 function closeHelp(ev){if(!ev||ev.target===document.getElementById('help-ov'))document.getElementById('help-ov').classList.remove('open');}
-function showQuickRef(){closeHelp();papSay('⚡ Quick Reference:\n• "Scan [target] for CMMC L2 gaps"\n• "What does STIG [ID] require?"\n• "Check my compliance score"\n• "Show threat intel for CVE-[year]-[id]"\n• "Generate attestation for org [name]"\n• "Export my compliance certificate"');if(!papOpen)togglePapyrus();}
+function showQuickRef(){closeHelp();papSay('⚡ Quick Reference:\n• "Scan http://agent:3000 for OWASP LLM risks"\n• "What does '+PRIMARY_FW+' require for AI agents?"\n• "Generate attestation for org '+CFG.orgName+'"\n• "Check compliance score"\n• "Export signed evidence package"');if(!papOpen)togglePapyrus();}
 function openFeedback(){document.getElementById('fb-form').classList.add('open');}
-function submitFeedback(){const t=document.getElementById('fb-txt').value.trim();if(!t)return;fetch(CFG.apiURL+'/api/v1/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({feedback:t,ts:Date.now()})}).catch(()=>{});document.getElementById('fb-form').classList.remove('open');document.getElementById('fb-txt').value='';papSay('Thanks for your feedback! It helps us improve. 🙏');if(!papOpen)togglePapyrus();Analytics.track('feedback',{len:t.length});}
-function requestFeature(){window.location.href='mailto:support@nouchix.com?subject=Feature Request — ASAF Platform&body=Hi NouchiX team,%0A%0AFeature request:%0A%0A';}
-function copyDiag(){const d=JSON.stringify({v:CFG.version,ua:navigator.userAgent,provider,api:document.getElementById('api-dot').className,llm:document.getElementById('llm-dot').className,ts:new Date().toISOString()},null,2);navigator.clipboard?.writeText(d);papSay('📋 Diagnostic info copied to clipboard. Paste it when reporting a bug — thank you!');if(!papOpen)togglePapyrus();}
+function submitFeedback(){const t=document.getElementById('fb-txt').value.trim();if(!t)return;fetch(CFG.apiURL+'/api/v1/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({feedback:t,ts:Date.now()})}).catch(()=>{});document.getElementById('fb-form').classList.remove('open');document.getElementById('fb-txt').value='';papSay('Thanks for your feedback! 🙏');if(!papOpen)togglePapyrus();}
+function copyDiag(){const d=JSON.stringify({v:CFG.version,mode:CFG.mode,frameworks:CFG.frameworks,ua:navigator.userAgent,provider,api:document.getElementById('api-dot').className,llm:document.getElementById('llm-dot').className,ts:new Date().toISOString()},null,2);navigator.clipboard?.writeText(d);papSay('📋 Diagnostic info copied. Paste when reporting a bug.');}
 
-// ── DAG drawer (tablet) ───────────────────────────────────────────────────────
+// ── Drawer / Mobile ───────────────────────────────────────────────────────────
 function toggleDagDrawer(){document.getElementById('dag-panel').classList.toggle('open');}
-
-// ── Mobile tabs ───────────────────────────────────────────────────────────────
 function mobileTab(tab){
   const cp=document.getElementById('chat-panel'),tp=document.getElementById('term-panel'),dp=document.getElementById('dag-panel');
-  cp.style.display=tab==='chat'?'flex':'none';tp.style.display=tab==='scan'?'flex':'none';
+  cp.style.display=tab==='chat'?'flex':'none';
+  tp.style.display=(tab==='scan'||tab==='agent')?'flex':'none';
+  if(tab==='scan'||tab==='agent'){switchTab(tab==='agent'?'agent':'term',null);}
   dp.classList.toggle('open',tab==='dag');
   document.querySelectorAll('.mtab').forEach(b=>b.classList.remove('active'));
   document.getElementById('mtab-'+tab)?.classList.add('active');
   if(tab==='scan')fitAddon.fit();
-  Analytics.track('mob_tab',{tab});
 }
 
 // ── Keyboard shortcuts ────────────────────────────────────────────────────────
-document.addEventListener('keydown',e=>{if(e.altKey&&e.key==='t'){e.preventDefault();startTour();}if(e.altKey&&e.key==='l'){e.preventDefault();toggleDagDrawer();}if(e.key==='Escape'){document.getElementById('help-ov').classList.remove('open');document.getElementById('fb-form').classList.remove('open');}});
-
-// ── Analytics: scroll depth & click tracking ──────────────────────────────────
-document.getElementById('messages').addEventListener('scroll',function(){const d=Math.round((this.scrollTop/(this.scrollHeight-this.clientHeight||1))*100);if(d===100)Analytics.track('scroll_bottom',{panel:'chat'});});
-document.addEventListener('click',e=>{if(e.target.id)Analytics.track('click',{id:e.target.id});});
+document.addEventListener('keydown',e=>{
+  if(e.altKey&&e.key==='t'){e.preventDefault();startTour();}
+  if(e.altKey&&e.key==='l'){e.preventDefault();toggleDagDrawer();}
+  if(e.altKey&&e.key==='a'){e.preventDefault();switchTab('agent',null);}
+  if(e.key==='Escape'){document.getElementById('help-ov').classList.remove('open');document.getElementById('fb-form').classList.remove('open');}
+});
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
+  applyBranding();
   document.getElementById('ver-badge').textContent='v'+CFG.version;
   initTerm();
-  // OS detection + Polymorphic Connector bootstrap
+  initScanLayers();
+  termInfo('Mode: '+CFG.mode+' · Org: '+CFG.orgName);
+  termInfo('Frameworks: '+CFG.frameworks);
   termInfo('OS detected: '+OS_PROFILE.label+' ('+OS+')');
   termInfo('ASAF start command: '+OS_PROFILE.startCmd);
   termInfo('Polymorphic ports: '+OS_PROFILE.altPorts.join(', '));
   termInfo('Detecting LLM inference...');
   checkAPI();detectLLM();
+
   const msgs=document.getElementById('messages');
   const welcome=document.createElement('div');welcome.className='msg system';
-  welcome.innerHTML=`<div class="mav">◈</div><div class="mbody"><div class="mtext">ASAF Natural Language Security Platform — ready.\n\nType a security question or compliance request. Examples:\n• "Check if my systems meet government security standards"\n• "What does STIG V-72213 require?"\n• "Generate an ADINKHEPRA attestation for org acme-corp"\n• "Show me threat intel for CVE-2024-3400"</div><div class="mtime">system</div></div>`;
+  welcome.innerHTML=`<div class="mav">◉</div><div class="mbody"><div class="mtext">KHEPRA Sovereign Security Platform — ready.\nMode: ${CFG.mode} · Org: ${CFG.orgName} · Frameworks: ${CFG.frameworks}\n\nTry:\n• "Scan http://my-agent:3000 for AI security risks"\n• "Generate a ${PRIMARY_FW} compliance attestation"\n• "What are the OWASP LLM Top 10 risks for my MCP server?"\n\nOr click the 🔍 AI AGENT SCAN tab to blast any agent with 27 adversarial probes.</div><div class="mtime">system</div></div>`;
   msgs.appendChild(welcome);
-  Analytics.track('page_view',{ref:document.referrer,w:window.innerWidth,h:window.innerHeight});
+  Analytics.track('page_view',{mode:CFG.mode,org:CFG.orgName,ref:document.referrer,w:window.innerWidth});
 });
 </script>
 </body>

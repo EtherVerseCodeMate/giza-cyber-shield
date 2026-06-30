@@ -122,16 +122,19 @@ func printWatchBanner() {
 // printWatchEndpoints prints the listening address and endpoint list.
 func printWatchEndpoints(port int) {
 	fmt.Println()
-	fmt.Println("  ðŸ“Š Endpoints:")
-	fmt.Printf("     http://localhost:%d/                  â€” NLP Dashboard (browser)\n", port)
-	fmt.Printf("     http://localhost:%d/api/asaf/stream   â€” Live SSE feed\n", port)
-	fmt.Printf("     http://localhost:%d/api/asaf/sessions â€” Active sessions\n", port)
-	fmt.Printf("     http://localhost:%d/api/g0dm0d3/chat  â€” AI chat\n", port)
-	fmt.Printf("     http://localhost:%d/api/dag/nodes     â€” DAG nodes\n", port)
-	fmt.Printf("     http://localhost:%d/api/dag/stream    â€” DAG SSE (real-time)\n", port)
-	fmt.Printf("     http://localhost:%d/healthz           â€” Health check\n", port)
+	fmt.Println("  📊 Endpoints:")
+	fmt.Printf("     http://localhost:%d/                         — Sovereign UI Dashboard\n", port)
+	fmt.Printf("     http://localhost:%d/api/asaf/stream          — Flight Fabric SSE\n", port)
+	fmt.Printf("     http://localhost:%d/api/asaf/sessions        — Active sessions\n", port)
+	fmt.Printf("     http://localhost:%d/api/g0dm0d3/chat         — AI chat\n", port)
+	fmt.Printf("     http://localhost:%d/api/dag/nodes            — DAG nodes\n", port)
+	fmt.Printf("     http://localhost:%d/api/dag/stream           — DAG SSE (real-time)\n", port)
+	fmt.Printf("     http://localhost:%d/api/v1/scan/agent        — AI Agent Scanner (POST)\n", port)
+	fmt.Printf("     http://localhost:%d/api/v1/scan/agent/stream — Agent Scan SSE progress\n", port)
+	fmt.Printf("     http://localhost:%d/api/v1/onboarding/scan   — Sovereign host scan\n", port)
+	fmt.Printf("     http://localhost:%d/healthz                  — Health check\n", port)
 	fmt.Println()
-	fmt.Printf("  ðŸŒ Opening dashboard: http://localhost:%d\n", port)
+	fmt.Printf("  🌍 Opening dashboard: http://localhost:%d\n", port)
 	fmt.Println("  Press Ctrl+C to stop")
 	fmt.Println(watchDivider)
 }
@@ -146,14 +149,14 @@ func registerWatchRoutes(
 	defaultAgent *asaf.WrappedAgent,
 	port int,
 ) {
-	// â”€â”€ Static Dashboard (asaf-nlp.html embedded) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+	// ————————————————————————— Static Dashboard (asaf-nlp.html embedded) ——————————————————————————
 	sub, err := fs.Sub(watchStatic, "static")
 	if err != nil {
 		log.Fatalf("embed FS error: %v", err)
 	}
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(sub))))
 
-	// Serve index.html at / â€” the full NLP + DAG dashboard
+	// Serve index.html at / — the full NLP + DAG dashboard
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" && r.URL.Path != "/index.html" {
 			http.NotFound(w, r)
@@ -169,41 +172,87 @@ func registerWatchRoutes(
 		w.Write(data) //nolint:errcheck
 	})
 
-	// Runtime config injection â€” browser reads this as window.ASAF_CONFIG
+	// Runtime config injection — browser reads this as window.ASAF_CONFIG.
+	// All values are env-var configurable for white-label / OEM deployments.
 	mux.HandleFunc("/asaf-config.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript")
 		w.Header().Set("Cache-Control", "no-store")
+
+		// KHEPRA_MODE: sovereign | ironbank | hybrid | edge
+		mode := os.Getenv("KHEPRA_MODE")
+		if mode == "" {
+			mode = "sovereign"
+		}
+
+		// KHEPRA_FRAMEWORKS: comma-separated compliance frameworks for this deployment
+		// e.g. "NESA,ISO42001,ISO27001,PDPL" for Presight/UAE
+		// e.g. "CMMC,NIST800-171,STIG" for DoD/DIB
+		frameworks := os.Getenv("KHEPRA_FRAMEWORKS")
+		if frameworks == "" {
+			switch mode {
+			case "ironbank":
+				frameworks = "CMMC,NIST800-171,STIG,DISA"
+			case "hybrid":
+				frameworks = "SOC2,ISO27001,NISTCSF"
+			case "edge":
+				frameworks = "OWASP,ISO27001"
+			default:
+				frameworks = "CMMC,NIST800-171,STIG"
+			}
+		}
+
+		// White-label: org name, product name, logo URL
+		orgName := os.Getenv("KHEPRA_ORG_NAME")
+		if orgName == "" {
+			orgName = "NouchiX"
+		}
+		productName := os.Getenv("KHEPRA_PRODUCT_NAME")
+		if productName == "" {
+			productName = "ASAF · Natural Language Security Platform"
+		}
+		logoURL := os.Getenv("KHEPRA_LOGO_URL")
+
 		fmt.Fprintf(w, `window.ASAF_CONFIG = {
-  apiURL: "http://localhost:%d",
+  apiURL: %q,
   ollamaURL: "http://localhost:11434",
   lmstudioURL: "http://localhost:1234",
   llamafileURL: "",
-  version: "1.0",
-  os: "%s",
-  mode: "sovereign"
+  version: "1.5.0",
+  os: %q,
+  mode: %q,
+  frameworks: %q,
+  orgName: %q,
+  productName: %q,
+  logoURL: %q
 };
-`, port, runtime.GOOS)
+`,
+			fmt.Sprintf("http://localhost:%d", port),
+			runtime.GOOS, mode, frameworks, orgName, productName, logoURL,
+		)
 	})
 
-	// â”€â”€ ASAF endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+	// ————————————————————————— ASAF endpoints ——————————————————————————————————————————————————————
 	mux.HandleFunc("/api/asaf/stream", recorder.HandleSSE)
 	mux.HandleFunc("/api/asaf/sessions", recorder.HandleSessions)
 	mux.HandleFunc("/api/asaf/history", recorder.HandleHistory)
 	mux.HandleFunc("/api/asaf/record", buildRecordHandler(wrapper, recorder, defaultAgent))
 
-	// â”€â”€ G0DM0D3 AI endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+	// ————————————————————————— G0DM0D3 AI endpoints ———————————————————————————————————————————————
 	mux.HandleFunc("/api/g0dm0d3/chat", brain.HandleChat)
 	mux.HandleFunc("/api/g0dm0d3/status", brain.HandleStatus)
 
-	// â”€â”€ DAG endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+	// ————————————————————————— DAG endpoints ———————————————————————————————————————————————————————
 	mux.HandleFunc("/api/dag/nodes", buildDAGNodesHandler(dagStore))
 	mux.HandleFunc("/api/dag/stats", buildDAGStatsHandler(dagStore))
 	mux.HandleFunc("/api/dag/stream", buildDAGStreamHandler(dagStore))
 
-	// â”€â”€ Scan API (sovereign offline scanning) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+	// ————————————————————————— Scan API (sovereign offline scanning) —————————————————————————————
 	registerScanRoutes(mux)
 
-	// â”€â”€ Health checks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+	// ————————————————————————— AI Agent Omnipotent Scanner ————————————————————————————————————————
+	registerAgentScanRoutes(mux)
+
+	// ————————————————————————— Health checks ———————————————————————————————————————————————————————
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set(watchContentType, watchAppJSON)
 		json.NewEncoder(w).Encode(map[string]string{ //nolint:errcheck
