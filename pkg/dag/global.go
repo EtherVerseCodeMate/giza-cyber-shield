@@ -9,9 +9,10 @@ import (
 
 // Global singleton DAG instance for the entire AdinKhepra system
 var (
-	globalDAG        *PersistentMemory
-	globalDAGOnce    sync.Once
-	globalDAGStopCh  chan struct{} // For stopping auto-flush daemon
+	globalDAG             *PersistentMemory
+	globalDAGOnce         sync.Once
+	globalDAGStopCh       chan struct{} // For stopping auto-flush daemon
+	globalDAGReloadStopCh chan struct{} // For stopping auto-reload daemon
 )
 
 // GlobalDAG returns the singleton immutable DAG instance used across
@@ -76,6 +77,12 @@ func GlobalDAG() *PersistentMemory {
 
 		// Start auto-flush daemon (RAM → Disk every 5 seconds)
 		globalDAGStopCh = globalDAG.StartAutoFlushDaemon(5 * time.Second)
+
+		// Start auto-reload daemon (Disk → RAM every 5 seconds) so this
+		// process picks up nodes written by other processes sharing the same
+		// KHEPRA_DAG_PATH — e.g. asaf-daemon attesting ChangeRequest
+		// executions while adinkhepra serve's UI/KASA/Sekhem read here.
+		globalDAGReloadStopCh = globalDAG.StartAutoReloadDaemon(5 * time.Second)
 	})
 
 	return globalDAG

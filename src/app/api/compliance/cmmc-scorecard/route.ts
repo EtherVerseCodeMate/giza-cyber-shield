@@ -12,7 +12,11 @@ import { NextResponse } from 'next/server';
  *   Browser → Vercel (this route) → Fly.io Go API → embedded STIG DB
  */
 
-const INTERNAL_API = process.env.ASAF_INTERNAL_API_URL || 'http://172.19.0.1:45444';
+// Fallback matches the documented Vercel → Fly.io topology above (and
+// /api/scan's existing correct default) — was previously the on-prem
+// Docker host gateway IP pointing at the retired khepra-daemon port
+// (45444), inconsistent with this route's own architecture. Fixed 2026-06-30.
+const INTERNAL_API = process.env.ASAF_INTERNAL_API_URL || 'https://souhimbou-ai.fly.dev';
 
 export async function GET(request: Request) {
   try {

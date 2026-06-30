@@ -55,7 +55,7 @@ pkg/llm/mock/
 # Include ML service, models, data, and entrypoint for Fly.io
 !services/ml_anomaly/
 !models/
-!top_secret_intel/
+!docs/project-lore/
 !entrypoint.sh
 
 # Explicit excludes (large or sensitive items)

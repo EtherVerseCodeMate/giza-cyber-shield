@@ -1,9 +1,13 @@
 /**
- * src/contexts/AuthProvider.tsx  (v2 — Cloud + Sovereign hybrid)
+ * src/contexts/AuthProvider.tsx  (v3 — Cloud + Sovereign hybrid)
  * SouHimBou AI · NouchiX SecRed Knowledge Inc.
  *
- * Profile A (cloud):   Supabase Auth → Google / GitHub / LinkedIn / SSO / email
- * Profile B (sovereign): ASAF license key → localhost:45444/api/v1/license/validate
+ * Profile A (cloud):     Supabase Auth → Google / GitHub / LinkedIn / SSO / email
+ * Profile B (sovereign): on-premise SQLite auth, no external calls — see
+ *   pkg/auth/sqlite_provider.go + pkg/webui/auth_api.go (adinkhepra serve).
+ *   Previously pointed at localhost:45444/api/v1/license/validate, the
+ *   retired khepra-daemon port that was never connected to anything real —
+ *   fixed 2026-06-30, see project_product_a_architecture memory.
  *
  * Both profiles expose identical AuthContextType so all downstream components
  * work without modification.
@@ -17,9 +21,11 @@ import { supabase, isSaasMode, OAUTH_REDIRECT } from '@/lib/supabase'
 import type { Provider } from '@supabase/supabase-js'
 
 // ── ASAF sovereign constants ─────────────────────────────────────────────────
-const ASAF_API          = 'http://localhost:45444/api/v1'
-const LICENSE_STORAGE   = 'asaf_license_key'
-const USER_STORAGE      = 'asaf_user_profile'
+// NEXT_PUBLIC_ASAF_API_URL is baked at build time (Dockerfile.dashboard) —
+// defaults to the adinkhepra serve port (8443 in docker-compose.asaf.yml).
+const ASAF_API           = (process.env.NEXT_PUBLIC_ASAF_API_URL ?? 'http://localhost:8443') + '/api/v1'
+const SESSION_STORAGE    = 'asaf_session_token'
+const USER_STORAGE       = 'asaf_user_profile'
 
 // ── Synthetic user (keeps sovereign + cloud shapes compatible) ───────────────
 export interface ASAFUser {
@@ -64,21 +70,51 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, [saas])
 
   // ── SOVEREIGN BOOT ────────────────────────────────────────────────────────
+  // Re-validates the stored session against the local SQLite auth store on
+  // every load — a session token that's expired or was revoked server-side
+  // (e.g. admin deleted the user) no longer silently grants access just
+  // because it's sitting in localStorage.
   useEffect(() => {
     if (saas) return
     const stored = localStorage.getItem(USER_STORAGE)
-    const key    = localStorage.getItem(LICENSE_STORAGE)
-    if (stored && key) {
-      try {
-        const profile = JSON.parse(stored) as ASAFUser
-        setUser(profile)
-        setSession({ user: profile, access_token: key })
-      } catch {
-        localStorage.removeItem(USER_STORAGE)
-        localStorage.removeItem(LICENSE_STORAGE)
-      }
+    const token  = localStorage.getItem(SESSION_STORAGE)
+    if (!stored || !token) {
+      setLoading(false)
+      return
     }
-    setLoading(false)
+    let profile: ASAFUser
+    try {
+      profile = JSON.parse(stored) as ASAFUser
+    } catch {
+      localStorage.removeItem(USER_STORAGE)
+      localStorage.removeItem(SESSION_STORAGE)
+      setLoading(false)
+      return
+    }
+
+    fetch(`${ASAF_API}/auth/validate`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ session_token: token }),
+      signal:  AbortSignal.timeout(5000),
+    })
+      .then(r => r.ok ? r.json() : { valid: false })
+      .then(({ valid }) => {
+        if (valid) {
+          setUser(profile)
+          setSession({ user: profile, access_token: token })
+        } else {
+          localStorage.removeItem(USER_STORAGE)
+          localStorage.removeItem(SESSION_STORAGE)
+        }
+      })
+      .catch(() => {
+        // Backend unreachable — don't silently trust a stale local session
+        // against a server that might no longer agree it's valid.
+        localStorage.removeItem(USER_STORAGE)
+        localStorage.removeItem(SESSION_STORAGE)
+      })
+      .finally(() => setLoading(false))
   }, [saas])
 
   // ── SIGN IN ───────────────────────────────────────────────────────────────
@@ -87,8 +123,45 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       return { error }
     }
-    // Sovereign: validate license key
+    // Sovereign: authenticate against the local SQLite store (zero external calls)
     return sovereignSignIn(email, password, setUser, setSession)
+  }, [saas])
+
+  // ── BOOTSTRAP (sovereign first-run only) ─────────────────────────────────
+  // Creates the first admin account. Only succeeds while no admin exists —
+  // the backend 403s on every call after the first.
+  const bootstrapAdmin = useCallback(async (username: string, email: string, password: string) => {
+    if (saas) return { error: { message: 'Bootstrap is a sovereign-mode-only operation.' } }
+    try {
+      const resp = await fetch(`${ASAF_API}/auth/bootstrap`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ username, email, password }),
+        signal:  AbortSignal.timeout(5000),
+      })
+      const data = await resp.json()
+      if (!resp.ok) return { error: { message: data.error ?? 'Bootstrap failed.' } }
+      return handleLoginResponse(data, setUser, setSession)
+    } catch (e) {
+      return { error: { message: 'Cannot reach the ASAF API. Is adinkhepra serve running?' } }
+    }
+  }, [saas])
+
+  // Checks whether bootstrap is still available (no admin account exists yet).
+  // Drives Auth.tsx's decision to show a "create admin" form instead of the
+  // normal login form on a fresh install. Defaults to false (show login) on
+  // any error — a backend hiccup shouldn't trap the user on a setup screen
+  // for an install that's actually already configured.
+  const checkNeedsBootstrap = useCallback(async (): Promise<boolean> => {
+    if (saas) return false
+    try {
+      const resp = await fetch(`${ASAF_API}/auth/bootstrap`, { signal: AbortSignal.timeout(5000) })
+      if (!resp.ok) return false
+      const data = await resp.json()
+      return Boolean(data.needs_bootstrap)
+    } catch {
+      return false
+    }
   }, [saas])
 
   // ── SIGN IN WITH OAUTH ───────────────────────────────────────────────────
@@ -141,7 +214,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const { error } = await supabase.auth.signOut()
       return { error }
     }
-    localStorage.removeItem(LICENSE_STORAGE)
+    localStorage.removeItem(SESSION_STORAGE)
     localStorage.removeItem(USER_STORAGE)
     setUser(null)
     setSession(null)
@@ -166,13 +239,28 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     signIn, signUp, signOut, resetPassword,
     signInWithOAuth,
     signInWithSSO,
+    bootstrapAdmin,
+    checkNeedsBootstrap,
     isSaasMode: saas,
-  }), [user, session, loading, signIn, signUp, signOut, resetPassword, signInWithOAuth, signInWithSSO, saas])
+  }), [user, session, loading, signIn, signUp, signOut, resetPassword, signInWithOAuth, signInWithSSO, bootstrapAdmin, checkNeedsBootstrap, saas])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 // ── Sovereign auth helpers ────────────────────────────────────────────────────
+// Calls adinkhepra serve's /api/v1/auth/* endpoints (pkg/webui/auth_api.go),
+// backed by an on-premise SQLite database (pkg/auth/sqlite_provider.go) —
+// zero external calls, matching the Adinkhepra-ASAF README's Profile B claim.
+// There is no offline/regex fallback: the backend is local (same host or
+// same Docker network), so "unreachable" means the service isn't running,
+// not that the user is genuinely offline — that's a real error to surface,
+// not something to silently bypass with a fake validity check.
+
+interface LoginAPIResponse {
+  user: { id: string; username: string; email: string; roles: string[]; organizations: string[] | null }
+  session_token: string
+  expires_at: string
+}
 
 async function sovereignSignIn(
   email: string,
@@ -180,72 +268,48 @@ async function sovereignSignIn(
   setUser: (u: ASAFUser) => void,
   setSession: (s: { user: ASAFUser; access_token: string }) => void
 ) {
-  const key = password.startsWith('ASAF-') ? password : password
-
   try {
-    const resp = await fetch(`${ASAF_API}/license/validate`, {
+    const resp = await fetch(`${ASAF_API}/auth/login`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ license_key: key, email }),
-      signal:  AbortSignal.timeout(3000),
+      body:    JSON.stringify({ username: email, password }),
+      signal:  AbortSignal.timeout(5000),
     })
-    if (resp.ok) {
-      const claims = await resp.json()
-      return handleValidLicense(key, email, claims, setUser, setSession)
+    const data = await resp.json()
+    if (!resp.ok) {
+      return { error: { message: data.error ?? 'Invalid email or password.' } }
     }
-    if (resp.status === 401 || resp.status === 403) {
-      return { error: { message: 'Invalid license key. Purchase at nouchix.com' } }
-    }
+    return handleLoginResponse(data as LoginAPIResponse, setUser, setSession)
   } catch {
-    console.warn('[ASAF-AUTH] Agent offline — offline license check')
+    return { error: { message: 'Cannot reach the ASAF API. Is adinkhepra serve running?' } }
   }
-
-  if (/^ASAF-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(key)) {
-    return handleValidLicense(key, email, { tier: 'community' }, setUser, setSession)
-  }
-
-  if (process.env.NEXT_PUBLIC_ASAF_DEV === '1') {
-    const u = buildUser(email, 'dev-mode', { tier: 'dev' })
-    localStorage.setItem(LICENSE_STORAGE, 'dev-mode')
-    localStorage.setItem(USER_STORAGE, JSON.stringify(u))
-    setUser(u); setSession({ user: u, access_token: 'dev-mode' })
-    return { error: null }
-  }
-
-  return { error: { message: 'Enter your ASAF license key (ASAF-XXXX-XXXX-XXXX-XXXX)' } }
 }
 
-function handleValidLicense(
-  key: string,
-  email: string,
-  claims: { tenant?: string; tier?: string; capabilities?: string[] },
+function handleLoginResponse(
+  data: LoginAPIResponse,
   setUser: (u: ASAFUser) => void,
   setSession: (s: { user: ASAFUser; access_token: string }) => void
 ) {
-  const u = buildUser(email, key, claims)
-  localStorage.setItem(LICENSE_STORAGE, key)
+  const u = buildUser(data.user)
+  localStorage.setItem(SESSION_STORAGE, data.session_token)
   localStorage.setItem(USER_STORAGE, JSON.stringify(u))
   setUser(u)
-  setSession({ user: u, access_token: key })
+  setSession({ user: u, access_token: data.session_token })
   return { error: null }
 }
 
-function buildUser(
-  email: string,
-  key: string,
-  claims?: { tenant?: string; tier?: string }
-): ASAFUser {
+function buildUser(apiUser: LoginAPIResponse['user']): ASAFUser {
   return {
-    id:            btoa(email + key).slice(0, 36),
-    email,
+    id:    apiUser.id,
+    email: apiUser.email,
     user_metadata: {
-      full_name: claims?.tenant ?? email.split('@')[0],
-      username:  email.split('@')[0],
-      tenant:    claims?.tenant ?? email,
-      tier:      claims?.tier ?? 'community',
-      provider:  'license-key',
+      full_name: apiUser.username,
+      username:  apiUser.username,
+      tenant:    (apiUser.organizations ?? [])[0] ?? apiUser.email,
+      tier:      apiUser.roles.includes('admin') ? 'admin' : 'standard',
+      provider:  'sovereign-sqlite',
     },
-    app_metadata: { role: 'user', provider: 'license-key' },
+    app_metadata: { role: apiUser.roles[0] ?? 'viewer', provider: 'sovereign-sqlite' },
     aud:          'asaf',
     created_at:   new Date().toISOString(),
   }

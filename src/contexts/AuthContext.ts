@@ -3,7 +3,7 @@
 // The User and Session types mirror the Supabase shape for interface compatibility
 // with all existing callers of useAuth() — zero downstream breakage.
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext } from 'react';
 
 // ── Minimal User/Session types that satisfy all callers ──────────────────────
 // These mirror @supabase/supabase-js types at the used-field level.
@@ -34,6 +34,12 @@ export interface AuthContextType {
   resetPassword:  (email: string) => Promise<{ error: any }>;
   signInWithOAuth: (provider: string) => Promise<{ error: any }>;
   signInWithSSO:   (domain: string)   => Promise<{ error: any }>;
+  // Sovereign-mode-only: creates the first admin account. Backend 403s once
+  // an admin already exists. No-op error in cloud (SaaS) mode.
+  bootstrapAdmin:  (username: string, email: string, password: string) => Promise<{ error: any }>;
+  // Sovereign-mode-only: true if no admin account exists yet. Always false
+  // in cloud (SaaS) mode or if the check itself fails.
+  checkNeedsBootstrap: () => Promise<boolean>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -46,46 +52,20 @@ export const useAuth = () => {
   return context;
 };
 
-// Hook to get user role — returns 'admin' for licensed users, 'viewer' otherwise.
-// Uses the ASAF agent's role endpoint when available; falls back to 'user'.
+// Hook to get user role.
+// The role already comes back from the auth backend on login/session-validate
+// (Supabase app_metadata.role for cloud, the SQLite user's primary role for
+// sovereign — see AuthProvider.tsx's buildUser()) and is stored on the user
+// object. No separate network round-trip needed — there used to be one
+// against a dead port (the retired khepra-daemon on :45444), which always
+// failed and silently fell back to a tier-guess. Fixed 2026-06-30.
 export const useUserRoles = () => {
-  const { user } = useAuth();
-  const [role, setRole] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchRole = async () => {
-      if (!user) {
-        setRole(null);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const resp = await fetch('http://localhost:45444/api/v1/me/role', {
-          signal: AbortSignal.timeout(2000),
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          setRole(data?.role ?? 'user');
-          return;
-        }
-      } catch {
-        // Agent offline — derive role from license tier
-      }
-
-      // Offline fallback: tier → role mapping
-      const tier = user.user_metadata?.tier ?? 'community';
-      setRole(tier === 'enterprise' || tier === 'partner' ? 'admin' : 'user');
-      setLoading(false);
-    };
-
-    fetchRole().finally(() => setLoading(false));
-  }, [user]);
+  const { user, loading: authLoading } = useAuth();
+  const role = user?.app_metadata?.role ?? null;
 
   return {
     role,
-    loading,
+    loading: authLoading,
     hasRole: (checkRole: string) => role === checkRole,
     isAdmin: () => role === 'admin',
   };

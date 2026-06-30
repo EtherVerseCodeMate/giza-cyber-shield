@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 
-const AGENT = process.env.AGENT_URL ?? 'http://localhost:45444';
+// Was the retired khepra-daemon port (45444). adinkhepra serve is the
+// current local API process — see cmd/adinkhepra/serve.go. Fixed 2026-06-30.
+const AGENT = process.env.AGENT_URL ?? 'http://localhost:8443';
 
 export async function GET() {
   try {

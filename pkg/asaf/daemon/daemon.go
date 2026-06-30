@@ -52,20 +52,31 @@ type ChangeRequest struct {
 	Staging  bool `json:"staging"`  // true = execute in mirror container only
 	Approved bool `json:"approved"` // true = human approved for production
 
+	// Poll, when non-empty, requests the status of a previously-submitted
+	// staging job instead of executing Command (which is empty for a poll).
+	// Still requires a valid signature like every other request — read access
+	// to staging job state is authenticated the same way write access is.
+	// Added 2026-06-30 to close the gap where StagingManager.Poll() existed
+	// in-process but nothing outside the daemon could ever reach it.
+	Poll string `json:"poll,omitempty"`
+
 	// PQC attestation
 	Signature []byte `json:"signature"` // ML-DSA-65 signature over canonical JSON
 	Timestamp string `json:"timestamp"` // ISO-8601, included in signed bytes
 }
 
-// ChangeResult is returned over the Unix socket after execution.
+// ChangeResult is returned over the Unix socket after execution, or after a
+// poll request — StagingStatus/StagingDiff are only populated by a poll.
 type ChangeResult struct {
-	Success   bool   `json:"success"`
-	ExitCode  int    `json:"exit_code"`
-	Stdout    string `json:"stdout"`
-	Stderr    string `json:"stderr"`
-	DAGNodeID string `json:"dag_node_id"` // ML-DSA-65 signed execution record
-	StagingID string `json:"staging_id,omitempty"` // populated when Staging=true
-	Error     string `json:"error,omitempty"`
+	Success       bool   `json:"success"`
+	ExitCode      int    `json:"exit_code"`
+	Stdout        string `json:"stdout"`
+	Stderr        string `json:"stderr"`
+	DAGNodeID     string `json:"dag_node_id"` // ML-DSA-65 signed execution record
+	StagingID     string `json:"staging_id,omitempty"`     // populated when Staging=true
+	StagingStatus string `json:"staging_status,omitempty"` // "running" | "success" | "failed" — poll response only
+	StagingDiff   string `json:"staging_diff,omitempty"`   // before/after state capture — poll response only
+	Error         string `json:"error,omitempty"`
 }
 
 // SecurityEvent is logged to the DAG for every authorization failure.
@@ -217,6 +228,15 @@ func (d *ASAFDaemon) Execute(req *ChangeRequest) *ChangeResult {
 		return &ChangeResult{Error: "unauthorized: ML-DSA-65 signature verification failed"}
 	}
 
+	// ── 1.5 STAGING JOB POLL (read-only, still requires the same signature) ──
+	// A poll request has Poll set and Command empty — it never reaches the
+	// symbol/command/staging/production gates below, those don't apply to a
+	// status read. Authentication above still applies: only a holder of the
+	// agent private key can poll job state.
+	if req.Poll != "" {
+		return d.pollStaging(req.Poll)
+	}
+
 	// ── 2. SYMBOL-BASED AUTHORIZATION (EBAN ENFORCEMENT) ─────────────────────
 	// Kernel-level operations require Eban (fortress symbol).
 	// This is a hard constraint — not configurable, not bypassable.
@@ -274,7 +294,26 @@ func (d *ASAFDaemon) runStaging(req *ChangeRequest) *ChangeResult {
 	return &ChangeResult{
 		Success:   true,
 		StagingID: job.ID,
-		Stdout:    fmt.Sprintf("Staging job submitted. Poll /api/compliance/staging/%s for results.", job.ID),
+		Stdout:    fmt.Sprintf("Staging job submitted. Poll with {\"poll\":%q} for results.", job.ID),
+	}
+}
+
+// pollStaging returns the current state of a previously-submitted staging
+// job. Terminal states ("success"/"failed") are stable — once reached, the
+// job's fields no longer change, so the caller can stop polling.
+func (d *ASAFDaemon) pollStaging(jobID string) *ChangeResult {
+	job, found := d.staging.Poll(jobID)
+	if !found {
+		return &ChangeResult{Error: fmt.Sprintf("unknown staging job: %s", jobID)}
+	}
+	return &ChangeResult{
+		Success:       job.Status == "success",
+		ExitCode:      job.ExitCode,
+		Stdout:        job.Stdout,
+		StagingID:     job.ID,
+		StagingStatus: job.Status,
+		StagingDiff:   job.Diff,
+		Error:         job.Error,
 	}
 }
 

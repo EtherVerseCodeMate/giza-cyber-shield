@@ -13,7 +13,10 @@ import { createClient } from '@supabase/supabase-js';
  *   Vercel → Fly.io (get scorecard) → Supabase Edge Fn (send email via Autosend)
  */
 
-const INTERNAL_API = process.env.ASAF_INTERNAL_API_URL || 'http://172.19.0.1:45444';
+// Fallback matches the documented Vercel → Fly.io topology above — was
+// previously the on-prem Docker host gateway IP pointing at the retired
+// khepra-daemon port (45444). Fixed 2026-06-30.
+const INTERNAL_API = process.env.ASAF_INTERNAL_API_URL || 'https://souhimbou-ai.fly.dev';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 

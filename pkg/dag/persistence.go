@@ -101,9 +101,18 @@ func (pm *PersistentMemory) FlushNode(nodeID string) error {
 	}
 
 	// Write to disk: {storePath}/{nodeID}.json
+	// Atomic write (temp file + rename within the same directory) so a
+	// concurrent reader — including another process sharing this storePath,
+	// e.g. asaf-daemon and adinkhepra serve both writing/reading the same
+	// DAG directory — never observes a partially-written file. os.Rename
+	// is atomic on the same volume on both Linux and Windows NTFS.
 	nodePath := filepath.Join(pm.storePath, nodeID+".json")
-	if err := os.WriteFile(nodePath, data, 0644); err != nil {
+	tmpPath := nodePath + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
 		return fmt.Errorf("failed to write node to disk: %w", err)
+	}
+	if err := os.Rename(tmpPath, nodePath); err != nil {
+		return fmt.Errorf("failed to finalize node write: %w", err)
 	}
 
 	// Mark as clean
@@ -197,6 +206,41 @@ func (pm *PersistentMemory) quarantineFile(nodePath, entryName, reason string) {
 		fmt.Fprintf(os.Stderr, "[DAG] WARN: quarantined %s → %s (%s)\n",
 			entryName, filepath.Base(quarantinePath), reason)
 	}
+}
+
+// StartAutoReloadDaemon starts a background goroutine that periodically calls
+// LoadFromDisk(), merging in any node files written by OTHER processes
+// sharing this storePath (e.g. asaf-daemon writing ChangeRequest attestations
+// while adinkhepra serve's KASA/Sekhem/Compliance Graph UI read from the same
+// directory). LoadFromDisk is a plain idempotent map-overwrite by node ID
+// (see LoadFromDisk), so re-running it on a timer is safe — it never
+// duplicates or corrupts already-loaded nodes, it only adds new ones.
+//
+// This does NOT replace StartAutoFlushDaemon — a process typically runs both:
+// flush pushes this process's writes out, reload pulls other processes'
+// writes in. Safe to call on a PersistentMemory that only one process ever
+// writes to as well; LoadFromDisk then just re-reads its own files, a no-op
+// in practice since the in-memory map already has them.
+func (pm *PersistentMemory) StartAutoReloadDaemon(interval time.Duration) chan struct{} {
+	stopChan := make(chan struct{})
+
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				if err := pm.LoadFromDisk(); err != nil {
+					fmt.Fprintf(os.Stderr, "[DAG] Auto-reload failed: %v\n", err)
+				}
+			case <-stopChan:
+				return
+			}
+		}
+	}()
+
+	return stopChan
 }
 
 // StartAutoFlushDaemon starts a background goroutine that periodically flushes dirty nodes

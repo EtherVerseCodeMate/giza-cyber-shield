@@ -27,6 +27,8 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/sekhem"
 )
 
 //go:embed static/*
@@ -62,7 +64,10 @@ type DAGViewer struct {
 	port        int
 	dagProvider DAGProvider // Interface to actual DAG storage
 	server      *http.Server
-	api         *DAGAPI // optional — registers /dag/add, /adinkra/weave, /compliance/scan-all, etc.
+	api         *DAGAPI           // optional — registers /dag/add, /adinkra/weave, /compliance/scan-all, etc.
+	authAPI     *AuthAPI          // optional — registers /api/v1/auth/login, /validate, /bootstrap
+	remediateAPI *RemediateAPI    // optional — registers /api/v1/asaf/remediate, /staging
+	wafShield   *sekhem.WAFShield // optional — bilateral ingress/egress WAF, see WithWAF
 }
 
 // WithAPI attaches the migrated khepra-daemon endpoints (DAG add, weave/unweave,
@@ -70,6 +75,32 @@ type DAGViewer struct {
 // Returns dv for chaining.
 func (dv *DAGViewer) WithAPI(api *DAGAPI) *DAGViewer {
 	dv.api = api
+	return dv
+}
+
+// WithAuth attaches the sovereign SQLite-backed auth endpoints to this
+// viewer's mux. Returns dv for chaining.
+func (dv *DAGViewer) WithAuth(authAPI *AuthAPI) *DAGViewer {
+	dv.authAPI = authAPI
+	return dv
+}
+
+// WithRemediate attaches the asaf-daemon ChangeRequest relay endpoints
+// (/api/v1/asaf/remediate, /staging) to this viewer's mux. Returns dv for
+// chaining.
+func (dv *DAGViewer) WithRemediate(remediateAPI *RemediateAPI) *DAGViewer {
+	dv.remediateAPI = remediateAPI
+	return dv
+}
+
+// WithWAF attaches the SEKHEM bilateral WAF (ingress request inspection +
+// egress secret scrubbing) in front of every route on this viewer — the
+// DAG/auth/compliance-graph API surface this process exposes. Returns dv
+// for chaining. The WAFShield itself (and the KASA engine + DuatRealm it's
+// constructed from) lives in cmd/adinkhepra/serve.go, not here — this is
+// just where it gets attached to the HTTP handler chain.
+func (dv *DAGViewer) WithWAF(waf *sekhem.WAFShield) *DAGViewer {
+	dv.wafShield = waf
 	return dv
 }
 
@@ -110,15 +141,34 @@ func (dv *DAGViewer) Start() error {
 		dv.api.RegisterRoutes(mux)
 	}
 
+	// Sovereign auth endpoints — only if attached via WithAuth().
+	if dv.authAPI != nil {
+		dv.authAPI.RegisterRoutes(mux)
+	}
+
+	// asaf-daemon ChangeRequest relay — only if attached via WithRemediate().
+	if dv.remediateAPI != nil {
+		dv.remediateAPI.RegisterRoutes(mux)
+	}
+
 	// Health check
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
 
+	// Handler chain (outer to inner): CORS → WAF (if attached) → logging → mux.
+	// Matches sekhem.HTTPMiddleware's documented ordering — WAF inspects/scrubs
+	// every route this process exposes (DAG, auth, compliance-graph).
+	var handler http.Handler = dv.withLogging(mux)
+	if dv.wafShield != nil {
+		handler = sekhem.HTTPMiddleware(dv.wafShield)(handler)
+	}
+	handler = dv.withCORS(handler)
+
 	dv.server = &http.Server{
 		Addr:         fmt.Sprintf(":%d", dv.port),
-		Handler:      dv.withCORS(dv.withLogging(mux)),
+		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,

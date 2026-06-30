@@ -100,6 +100,112 @@ function PasswordStrength({ password }: { password: string }) {
   )
 }
 
+// ── First-run bootstrap form (sovereign mode, no admin account yet) ────────
+function BootstrapForm({
+  onSuccess,
+}: {
+  onSuccess: () => void
+}) {
+  const { bootstrapAdmin } = useAuth() as any
+  const { toast } = useToast()
+  const [username, setUsername] = useState('')
+  const [email,    setEmail]    = useState('')
+  const [password, setPassword] = useState('')
+  const [confirm,  setConfirm]  = useState('')
+  const [showPass, setShowPass] = useState(false)
+  const [loading,  setLoading]  = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (password.length < 12) {
+      toast({ title: 'Password Too Short', description: 'Use at least 12 characters.', variant: 'destructive' })
+      return
+    }
+    if (password !== confirm) {
+      toast({ title: 'Passwords Do Not Match', description: 'Re-enter the same password in both fields.', variant: 'destructive' })
+      return
+    }
+    setLoading(true)
+    try {
+      const { error } = await bootstrapAdmin(username, email, password)
+      if (error) {
+        toast({ title: 'Setup Failed', description: error.message, variant: 'destructive' })
+      } else {
+        toast({ title: 'Admin Account Created', description: `Welcome, ${username}.`, variant: 'default' })
+        onSuccess()
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="bg-white/[0.04] border border-white/10 rounded-2xl overflow-hidden backdrop-blur-xl shadow-2xl shadow-black/40">
+      <div className="px-6 pt-6 pb-2">
+        <h2 className="text-base font-semibold text-white">Create the First Admin Account</h2>
+        <p className="text-xs text-[#6b8aaa] mt-1.5 leading-relaxed">
+          This sovereign install has no admin account yet. This account is created locally
+          (on-premise SQLite — zero external calls) and is the one-time setup step. This form
+          stops working once an account exists.
+        </p>
+      </div>
+      <form onSubmit={handleSubmit} className="px-6 pb-6 pt-4 space-y-4">
+        <div>
+          <label className="block text-xs font-medium text-[#6b8aaa] mb-1.5 uppercase tracking-wider">Username</label>
+          <input
+            type="text" value={username} onChange={e => setUsername(e.target.value)} required
+            placeholder="ciso1"
+            className="w-full h-10 px-3.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/25
+              focus:outline-none focus:border-[#1a9fe8]/60 focus:bg-white/8 transition-all"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-[#6b8aaa] mb-1.5 uppercase tracking-wider">Email</label>
+          <input
+            type="email" value={email} onChange={e => setEmail(e.target.value)} required
+            placeholder="ciso@yourorg.mil"
+            className="w-full h-10 px-3.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/25
+              focus:outline-none focus:border-[#1a9fe8]/60 focus:bg-white/8 transition-all"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-[#6b8aaa] mb-1.5 uppercase tracking-wider">Password</label>
+          <div className="relative">
+            <input
+              type={showPass ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required
+              placeholder="12+ characters"
+              className="w-full h-10 px-3.5 pr-10 rounded-lg bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/25
+                focus:outline-none focus:border-[#1a9fe8]/60 focus:bg-white/8 transition-all font-mono"
+            />
+            <button type="button" tabIndex={-1} onClick={() => setShowPass(p => !p)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6b8aaa] hover:text-white transition-colors">
+              {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          <PasswordStrength password={password} />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-[#6b8aaa] mb-1.5 uppercase tracking-wider">Confirm Password</label>
+          <input
+            type={showPass ? 'text' : 'password'} value={confirm} onChange={e => setConfirm(e.target.value)} required
+            placeholder="Re-enter password"
+            className="w-full h-10 px-3.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/25
+              focus:outline-none focus:border-[#1a9fe8]/60 focus:bg-white/8 transition-all font-mono"
+          />
+        </div>
+        <button
+          type="submit" disabled={loading}
+          className="w-full h-11 rounded-lg bg-gradient-to-r from-[#1a9fe8] to-[#0d4f7a] text-sm font-semibold text-white
+            hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
+          {loading ? 'Creating Account…' : 'Create Admin Account'}
+        </button>
+      </form>
+    </div>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 type AuthTab = 'sign-in' | 'sign-up'
 
@@ -109,6 +215,7 @@ const Auth = () => {
   const { toast }      = useToast()
   const {
     signIn, signUp, signInWithOAuth, signInWithSSO, user, isSaasMode,
+    checkNeedsBootstrap,
   } = useAuth() as any
 
   const { validateInput, trackAuthAttempt, isAccountLocked, getLockoutTimeRemaining, checkPasswordStrength }
@@ -126,9 +233,20 @@ const Auth = () => {
   const [oauthLoading, setOAuthLoading] = useState<string | null>(null)
   const [showSSO,     setShowSSO]     = useState(false)
   const [timerTick,   setTimerTick]   = useState(0)
+  const [needsBootstrap, setNeedsBootstrap] = useState(false)
+  const [bootstrapChecked, setBootstrapChecked] = useState(false)
 
   // Redirect if already authed
   useEffect(() => { if (user) navigate('/dashboard') }, [user])
+
+  // Sovereign-mode-only: detect a fresh install with no admin account yet,
+  // and show the bootstrap form instead of the normal login form.
+  useEffect(() => {
+    if (isSaasMode !== false) { setBootstrapChecked(true); return }
+    checkNeedsBootstrap()
+      .then(setNeedsBootstrap)
+      .finally(() => setBootstrapChecked(true))
+  }, [isSaasMode])
 
   // Lockout timer
   useEffect(() => {
@@ -247,7 +365,13 @@ const Auth = () => {
           </div>
 
           {/* ── Auth card ────────────────────────────────────────────── */}
-          {showReset ? (
+          {!bootstrapChecked ? (
+            <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-10 backdrop-blur-xl flex items-center justify-center">
+              <Loader2 className="h-6 w-6 text-[#1a9fe8] animate-spin" />
+            </div>
+          ) : needsBootstrap ? (
+            <BootstrapForm onSuccess={() => navigate('/dashboard')} />
+          ) : showReset ? (
             <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
               <PasswordResetOTP
                 onBack={() => setShowReset(false)}
@@ -369,7 +493,7 @@ const Auth = () => {
                   <div>
                     <label className="block text-xs font-medium text-[#6b8aaa] mb-1.5 uppercase tracking-wider">
                       <span className="flex items-center gap-1.5"><Lock className="h-3 w-3" />
-                        {isSaasMode === false ? 'License Key or Password' : 'Password'}
+                        Password
                       </span>
                     </label>
                     <div className="relative">
@@ -378,7 +502,7 @@ const Auth = () => {
                         type={showPass ? 'text' : 'password'}
                         value={password}
                         onChange={e => setPassword(e.target.value)}
-                        placeholder={isSaasMode === false ? 'ASAF-XXXX-XXXX-XXXX-XXXX' : '••••••••••••'}
+                        placeholder="••••••••••••"
                         required
                         autoComplete={tab === 'sign-in' ? 'current-password' : 'new-password'}
                         className="w-full h-10 px-3.5 pr-10 rounded-lg bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/25

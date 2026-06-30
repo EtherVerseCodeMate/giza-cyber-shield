@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -30,12 +31,29 @@ import (
 )
 
 const (
-	// MirrorImage is the ephemeral RHEL 9 container used for staging.
-	// Override with ASAF_MIRROR_IMAGE env var for custom OS baselines.
-	MirrorImage = "ghcr.io/nouchix/asaf-mirror-rhel9:latest"
+	// defaultMirrorImage is the ephemeral RHEL 9 container used for staging
+	// when ASAF_MIRROR_IMAGE is unset. Use mirrorImage() to read the
+	// effective value — the env var was previously documented but never
+	// actually read (fixed 2026-06-30, see project_product_a_architecture
+	// memory: this constant was also wrongly set on the asaf-api Docker
+	// service in docker-compose.asaf.yml, even though asaf-daemon — the
+	// only process that uses it — runs on bare metal, not in that compose
+	// file at all).
+	defaultMirrorImage = "ghcr.io/nouchix/asaf-mirror-rhel9:latest"
 
 	stagingTimeout = 120 * time.Second
 )
+
+// mirrorImage returns ASAF_MIRROR_IMAGE if set, else defaultMirrorImage.
+// Read fresh on every call (not cached) so a systemd unit's Environment=
+// override or a manual env change takes effect without a daemon restart
+// being strictly required for the *next* staging job.
+func mirrorImage() string {
+	if img := os.Getenv("ASAF_MIRROR_IMAGE"); img != "" {
+		return img
+	}
+	return defaultMirrorImage
+}
 
 // StagingJob tracks the state of a single mirror-environment test run.
 type StagingJob struct {
@@ -94,7 +112,7 @@ func (sm *StagingManager) Poll(jobID string) (*StagingJob, bool) {
 // This is the "Mirror Environment" — if the command bricks the container,
 // production is untouched. That's the ROI.
 func (sm *StagingManager) runMirrorContainer(job *StagingJob) {
-	sm.logger.Printf("[STAGING] job=%s starting mirror container image=%s", job.ID, MirrorImage)
+	sm.logger.Printf("[STAGING] job=%s starting mirror container image=%s", job.ID, mirrorImage())
 
 	ctx, cancel := context.WithTimeout(context.Background(), stagingTimeout)
 	defer cancel()
@@ -116,7 +134,7 @@ func (sm *StagingManager) runMirrorContainer(job *StagingJob) {
 		"--security-opt", "no-new-privileges",
 		"--cap-drop", "ALL",
 		"--network", "none",     // no network inside mirror container
-		MirrorImage,
+		mirrorImage(),
 		"sh", "-c", containerCmd,
 	}
 
@@ -174,7 +192,7 @@ func (sm *StagingManager) captureStateSnapshot(ctx context.Context, command []st
 
 	var snap strings.Builder
 	for _, f := range affectedFiles {
-		args := []string{"run", "--rm", "--network", "none", MirrorImage, "cat", f}
+		args := []string{"run", "--rm", "--network", "none", mirrorImage(), "cat", f}
 		cmd := exec.CommandContext(ctx, "docker", args...) //nolint:gosec
 		out, _ := cmd.Output()
 		snap.WriteString(fmt.Sprintf("=== %s ===\n%s\n", f, string(out)))

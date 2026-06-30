@@ -60,13 +60,18 @@ COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh && \
     useradd -m -u 1000 khepra && \
     mkdir -p models && touch models/.keep && \
-    mkdir -p top_secret_intel && touch top_secret_intel/.keep && \
+    mkdir -p docs/project-lore && touch docs/project-lore/.keep && \
     chown -R khepra:khepra /app
 
 # Copy application code
 COPY services/ml_anomaly /app/services/ml_anomaly
 COPY models /app/models
-COPY top_secret_intel /app/top_secret_intel
+# Was top_secret_intel/ — renamed to docs/project-lore/ in commit f5fe883
+# (2026-05-30, hardening_manifest.yaml declares CUI=NO/classified=NO for
+# this content) but the Dockerfile was never updated to match. Fixed
+# 2026-06-30. No code reads ADINKHEPRA_ML_CLASSIFIED_DOCS_PATH (fly.toml) —
+# that env var is vestigial, not load-bearing.
+COPY docs/project-lore /app/docs/project-lore
 
 # Switch to non-root user
 USER khepra

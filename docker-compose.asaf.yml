@@ -8,7 +8,13 @@
 #
 # The asaf-daemon does NOT run here.
 # It runs as a systemd service on the bare metal host with:
-#   sudo ./bin/asaf-daemon --socket /var/run/asaf/asaf.sock ...
+#   sudo ASAF_MIRROR_IMAGE=asaf-mirror-rhel9:local \
+#     ./bin/asaf-daemon --socket /var/run/asaf/asaf.sock --dag-path ... --key-path ...
+# ASAF_MIRROR_IMAGE belongs in that systemd unit's Environment=, not in this
+# compose file — it was previously (wrongly) set on asaf-api below, which
+# never reads it; only asaf-daemon's staging.go does. No systemd unit file
+# exists yet (deployment-packaging gap — see project_product_a_architecture
+# memory, same family of gap as "no real installer bundle").
 #
 # The Unix socket is shared via a host-mounted volume (/var/run/asaf).
 # The API container communicates with the daemon through that socket.
@@ -36,16 +42,17 @@ services:
   asaf-api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.adinkhepra
     image: ghcr.io/nouchix/adinkhepra:latest
     container_name: asaf-api
     restart: unless-stopped
-    # nouchix-adinkhepra is the real binary name baked by the root Dockerfile
-    # (there is no "BINARY" build arg — the image always builds all 9 tactical
-    # binaries). serve's only flag is "-port" (single dash); compliance-graph
-    # endpoints are always included by WithAPI(webui.NewDAGAPI()), there is no
-    # --compliance-graph flag. See cmd/adinkhepra/serve.go.
-    command: nouchix-adinkhepra serve -port 8443
+    # Dockerfile.adinkhepra's ENTRYPOINT/CMD already default to
+    # "adinkhepra serve -port 8443" — no command override needed. This
+    # replaced the root Dockerfile (9 unrelated "tactical suite" binaries +
+    # a Python/PyTorch ML service this process never uses) 2026-06-30 after
+    # it accumulated unrelated build breakage (stale top_secret_intel path,
+    # cmd/apiserver needing -tags saas never passed). See
+    # project_product_a_architecture memory.
     ports:
       - "8443:8443"
     volumes:
@@ -65,8 +72,6 @@ services:
       # back to ~/.khepra/dag/ inside the container (lost on recreate).
       - KHEPRA_DAG_PATH=/var/lib/asaf/dag
       - KHEPRA_LICENSE_PATH=/etc/asaf/license.adinkhepra
-      # Mirror image used by staging gate
-      - ASAF_MIRROR_IMAGE=asaf-mirror-rhel9:local
     depends_on:
       ollama:
         condition: service_healthy
