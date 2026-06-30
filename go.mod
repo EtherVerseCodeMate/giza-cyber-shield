@@ -6,7 +6,7 @@ require (
 	github.com/anchore/clio v0.1.0
 	github.com/anchore/grype v0.112.0
 	github.com/anchore/syft v1.44.0
-	github.com/cloudflare/circl v1.6.3
+	github.com/cloudflare/circl v1.6.4
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/glebarez/go-sqlite v1.22.0
