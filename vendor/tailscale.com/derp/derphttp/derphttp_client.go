@@ -1,4 +1,4 @@
-// Copyright (c) Tailscale Inc & AUTHORS
+// Copyright (c) Tailscale Inc & contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
 // Package derphttp implements DERP-over-HTTP.
@@ -32,6 +32,8 @@ import (
 	"tailscale.com/derp"
 	"tailscale.com/derp/derpconst"
 	"tailscale.com/envknob"
+	"tailscale.com/feature"
+	"tailscale.com/feature/buildfeatures"
 	"tailscale.com/health"
 	"tailscale.com/net/dnscache"
 	"tailscale.com/net/netmon"
@@ -39,7 +41,6 @@ import (
 	"tailscale.com/net/netx"
 	"tailscale.com/net/sockstats"
 	"tailscale.com/net/tlsdial"
-	"tailscale.com/net/tshttpproxy"
 	"tailscale.com/syncs"
 	"tailscale.com/tailcfg"
 	"tailscale.com/tstime"
@@ -279,10 +280,16 @@ func (c *Client) urlString(node *tailcfg.DERPNode) string {
 		return c.url.String()
 	}
 	proto := "https"
+	defaultPort := 443
 	if debugUseDERPHTTP() {
 		proto = "http"
+		defaultPort = 80
 	}
-	return fmt.Sprintf("%s://%s/derp", proto, node.HostName)
+	host := node.HostName
+	if node.DERPPort != 0 && node.DERPPort != defaultPort {
+		host = net.JoinHostPort(host, fmt.Sprint(node.DERPPort))
+	}
+	return fmt.Sprintf("%s://%s/derp", proto, host)
 }
 
 // AddressFamilySelector decides whether IPv6 is preferred for
@@ -522,7 +529,7 @@ func (c *Client) connect(ctx context.Context, caller string) (client *derp.Clien
 		// just to get routed into the server's HTTP Handler so it
 		// can Hijack the request, but we signal with a special header
 		// that we don't want to deal with its HTTP response.
-		req.Header.Set(fastStartHeader, "1") // suppresses the server's HTTP response
+		req.Header.Set(derp.FastStartHeader, "1") // suppresses the server's HTTP response
 		if err := req.Write(brw); err != nil {
 			return nil, 0, err
 		}
@@ -734,8 +741,12 @@ func (c *Client) dialNode(ctx context.Context, n *tailcfg.DERPNode) (net.Conn, e
 			Path:   "/", // unused
 		},
 	}
-	if proxyURL, err := tshttpproxy.ProxyFromEnvironment(proxyReq); err == nil && proxyURL != nil {
-		return c.dialNodeUsingProxy(ctx, n, proxyURL)
+	if buildfeatures.HasUseProxy {
+		if proxyFromEnv, ok := feature.HookProxyFromEnvironment.GetOk(); ok {
+			if proxyURL, err := proxyFromEnv(proxyReq); err == nil && proxyURL != nil {
+				return c.dialNodeUsingProxy(ctx, n, proxyURL)
+			}
+		}
 	}
 
 	type res struct {
@@ -862,13 +873,25 @@ func (c *Client) dialNodeUsingProxy(ctx context.Context, n *tailcfg.DERPNode, pr
 		}
 	}()
 
-	target := net.JoinHostPort(n.HostName, "443")
+	// Keep port selection in sync with dialNode.
+	port := "443"
+	if !c.useHTTPS() {
+		port = "3340"
+	}
+	if n.DERPPort != 0 {
+		port = fmt.Sprint(n.DERPPort)
+	}
+	target := net.JoinHostPort(n.HostName, port)
 
 	var authHeader string
-	if v, err := tshttpproxy.GetAuthHeader(pu); err != nil {
-		c.logf("derphttp: error getting proxy auth header for %v: %v", proxyURL, err)
-	} else if v != "" {
-		authHeader = fmt.Sprintf("Proxy-Authorization: %s\r\n", v)
+	if buildfeatures.HasUseProxy {
+		if getAuthHeader, ok := feature.HookProxyGetAuthHeader.GetOk(); ok {
+			if v, err := getAuthHeader(pu); err != nil {
+				c.logf("derphttp: error getting proxy auth header for %v: %v", proxyURL, err)
+			} else if v != "" {
+				authHeader = fmt.Sprintf("Proxy-Authorization: %s\r\n", v)
+			}
+		}
 	}
 
 	if _, err := fmt.Fprintf(proxyConn, "CONNECT %s HTTP/1.1\r\nHost: %s\r\n%s\r\n", target, target, authHeader); err != nil {

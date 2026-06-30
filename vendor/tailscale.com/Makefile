@@ -10,7 +10,7 @@ vet: ## Run go vet
 
 tidy: ## Run go mod tidy and update nix flake hashes
 	./tool/go mod tidy
-	./update-flake.sh
+	./tool/go run ./tool/updateflakes
 
 lint: ## Run golangci-lint
 	./tool/go run github.com/golangci/golangci-lint/cmd/golangci-lint run
@@ -18,28 +18,36 @@ lint: ## Run golangci-lint
 updatedeps: ## Update depaware deps
 	# depaware (via x/tools/go/packages) shells back to "go", so make sure the "go"
 	# it finds in its $$PATH is the right one.
-	PATH="$$(./tool/go env GOROOT)/bin:$$PATH" ./tool/go run github.com/tailscale/depaware --update --internal \
+	PATH="$$(./tool/go env GOROOT)/bin:$$PATH" ./tool/go run github.com/tailscale/depaware --update --vendor --internal \
 		tailscale.com/cmd/tailscaled \
 		tailscale.com/cmd/tailscale \
 		tailscale.com/cmd/derper \
 		tailscale.com/cmd/k8s-operator \
 		tailscale.com/cmd/stund \
 		tailscale.com/cmd/tsidp
-	PATH="$$(./tool/go env GOROOT)/bin:$$PATH" ./tool/go run github.com/tailscale/depaware --update -goos=linux,darwin,windows,android,ios --internal \
+	PATH="$$(./tool/go env GOROOT)/bin:$$PATH" ./tool/go run github.com/tailscale/depaware --update --goos=linux,darwin,windows,android,ios --vendor --internal \
 		tailscale.com/tsnet
+	PATH="$$(./tool/go env GOROOT)/bin:$$PATH" ./tool/go run github.com/tailscale/depaware --update --file=depaware-minbox.txt --goos=linux --tags="$$(./tool/go run ./cmd/featuretags --min --add=cli)" --vendor --internal \
+		tailscale.com/cmd/tailscaled
+	PATH="$$(./tool/go env GOROOT)/bin:$$PATH" ./tool/go run github.com/tailscale/depaware --update --file=depaware-min.txt --goos=linux --tags="$$(./tool/go run ./cmd/featuretags --min)" --vendor --internal \
+		tailscale.com/cmd/tailscaled
 
 depaware: ## Run depaware checks
 	# depaware (via x/tools/go/packages) shells back to "go", so make sure the "go"
 	# it finds in its $$PATH is the right one.
-	PATH="$$(./tool/go env GOROOT)/bin:$$PATH" ./tool/go run github.com/tailscale/depaware --check --internal \
+	PATH="$$(./tool/go env GOROOT)/bin:$$PATH" ./tool/go run github.com/tailscale/depaware --check --vendor --internal \
 		tailscale.com/cmd/tailscaled \
 		tailscale.com/cmd/tailscale \
 		tailscale.com/cmd/derper \
 		tailscale.com/cmd/k8s-operator \
 		tailscale.com/cmd/stund \
 		tailscale.com/cmd/tsidp
-	PATH="$$(./tool/go env GOROOT)/bin:$$PATH" ./tool/go run github.com/tailscale/depaware --check --goos=linux,darwin,windows,android,ios --internal \
+	PATH="$$(./tool/go env GOROOT)/bin:$$PATH" ./tool/go run github.com/tailscale/depaware --check --goos=linux,darwin,windows,android,ios --vendor --internal \
 		tailscale.com/tsnet
+	PATH="$$(./tool/go env GOROOT)/bin:$$PATH" ./tool/go run github.com/tailscale/depaware --check --file=depaware-minbox.txt --goos=linux --tags="$$(./tool/go run ./cmd/featuretags --min --add=cli)" --vendor --internal \
+		tailscale.com/cmd/tailscaled
+	PATH="$$(./tool/go env GOROOT)/bin:$$PATH" ./tool/go run github.com/tailscale/depaware --check --file=depaware-min.txt --goos=linux --tags="$$(./tool/go run ./cmd/featuretags --min)" --vendor --internal \
+		tailscale.com/cmd/tailscaled
 
 buildwindows: ## Build tailscale CLI for windows/amd64
 	GOOS=windows GOARCH=amd64 ./tool/go install tailscale.com/cmd/tailscale tailscale.com/cmd/tailscaled
@@ -129,10 +137,12 @@ publishdevproxy: check-image-repo ## Build and publish k8s-proxy image to locati
 sshintegrationtest: ## Run the SSH integration tests in various Docker containers
 	@GOOS=linux GOARCH=amd64 CGO_ENABLED=0 ./tool/go test -tags integrationtest -c ./ssh/tailssh -o ssh/tailssh/testcontainers/tailssh.test && \
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 ./tool/go build -o ssh/tailssh/testcontainers/tailscaled ./cmd/tailscaled && \
-	echo "Testing on ubuntu:focal" && docker build --build-arg="BASE=ubuntu:focal" -t ssh-ubuntu-focal ssh/tailssh/testcontainers && \
-	echo "Testing on ubuntu:jammy" && docker build --build-arg="BASE=ubuntu:jammy" -t ssh-ubuntu-jammy ssh/tailssh/testcontainers && \
-	echo "Testing on ubuntu:noble" && docker build --build-arg="BASE=ubuntu:noble" -t ssh-ubuntu-noble ssh/tailssh/testcontainers && \
-	echo "Testing on alpine:latest" && docker build --build-arg="BASE=alpine:latest" -t ssh-alpine-latest ssh/tailssh/testcontainers
+	echo "Testing on ubuntu:focal, ubuntu:jammy, ubuntu:noble, alpine:latest (in parallel)" && \
+	docker build --build-arg="BASE=ubuntu:focal" -t ssh-ubuntu-focal ssh/tailssh/testcontainers & \
+	docker build --build-arg="BASE=ubuntu:jammy" -t ssh-ubuntu-jammy ssh/tailssh/testcontainers & \
+	docker build --build-arg="BASE=ubuntu:noble" -t ssh-ubuntu-noble ssh/tailssh/testcontainers & \
+	docker build --build-arg="BASE=alpine:latest" -t ssh-alpine-latest ssh/tailssh/testcontainers & \
+	wait
 
 .PHONY: generate
 generate: ## Generate code

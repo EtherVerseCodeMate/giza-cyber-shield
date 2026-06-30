@@ -1,4 +1,4 @@
-// Copyright (c) Tailscale Inc & AUTHORS
+// Copyright (c) Tailscale Inc & contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
 package ipnlocal
@@ -6,28 +6,31 @@ package ipnlocal
 import (
 	"cmp"
 	"context"
+	"maps"
 	"net/netip"
 	"slices"
 	"sync"
 	"sync/atomic"
 
 	"go4.org/netipx"
+	"tailscale.com/appc"
+	"tailscale.com/feature/buildfeatures"
 	"tailscale.com/ipn"
 	"tailscale.com/net/dns"
 	"tailscale.com/net/tsaddr"
+	"tailscale.com/syncs"
 	"tailscale.com/tailcfg"
 	"tailscale.com/types/dnstype"
 	"tailscale.com/types/key"
 	"tailscale.com/types/logger"
 	"tailscale.com/types/netmap"
-	"tailscale.com/types/ptr"
 	"tailscale.com/types/views"
 	"tailscale.com/util/dnsname"
 	"tailscale.com/util/eventbus"
 	"tailscale.com/util/mak"
 	"tailscale.com/util/slicesx"
+	"tailscale.com/util/testenv"
 	"tailscale.com/wgengine/filter"
-	"tailscale.com/wgengine/magicsock"
 )
 
 // nodeBackend is node-specific [LocalBackend] state. It is usually the current node.
@@ -64,6 +67,8 @@ import (
 // Even if they're tied to the local node, instead of moving them here, we should extract the entire feature
 // into a separate package and have it install proper hooks.
 type nodeBackend struct {
+	logf logger.Logf
+
 	ctx       context.Context         // canceled by [nodeBackend.shutdown]
 	ctxCancel context.CancelCauseFunc // cancels ctx
 
@@ -72,13 +77,18 @@ type nodeBackend struct {
 	filterAtomic atomic.Pointer[filter.Filter]
 
 	// initialized once and immutable
-	eventClient  *eventbus.Client
-	filterPub    *eventbus.Publisher[magicsock.FilterUpdate]
-	nodeViewsPub *eventbus.Publisher[magicsock.NodeViewsUpdate]
-	nodeMutsPub  *eventbus.Publisher[magicsock.NodeMutationsUpdate]
+	eventClient    *eventbus.Client
+	derpMapViewPub *eventbus.Publisher[tailcfg.DERPMapView]
+
+	// homeDERP lives here temporarily. as long as mapSession is short lived, we
+	// don't have a location delivering netmaps to local backend that knows our
+	// homeDERP hence why it is cached here for now.
+	// TODO(cmol): move this field into a refactored mapSession that is not
+	// short lived.
+	homeDERP atomic.Int64
 
 	// TODO(nickkhyl): maybe use sync.RWMutex?
-	mu sync.Mutex // protects the following fields
+	mu syncs.Mutex // protects the following fields
 
 	shutdownOnce sync.Once     // guards calling [nodeBackend.shutdown]
 	readyCh      chan struct{} // closed by [nodeBackend.ready]; nil after shutdown
@@ -101,11 +111,36 @@ type nodeBackend struct {
 	// nodeByAddr maps nodes' own addresses (excluding subnet routes) to node IDs.
 	// It is mutated in place (with mu held) and must not escape the [nodeBackend].
 	nodeByAddr map[netip.Addr]tailcfg.NodeID
+
+	// nodeByKey is an index of node public key to node ID for fast lookups.
+	// It is mutated in place (with mu held) and must not escape the [nodeBackend].
+	nodeByKey map[key.NodePublic]tailcfg.NodeID
+
+	// userProfiles is the live set of user profiles, updated incrementally
+	// by mergeUserProfiles as deltas arrive. It parallels the peers map:
+	// netMap.UserProfiles is the frozen snapshot from the last full install,
+	// while this field reflects incremental updates. Readers that need a
+	// snapshot (e.g. the legacy Notify.NetMap path) must clone this map.
+	userProfiles map[tailcfg.UserID]tailcfg.UserProfileView
+
+	// packetFilterRules and packetFilter are the live packet filter state,
+	// updated by setPacketFilter as deltas arrive. Like userProfiles, they
+	// exist separately from netMap's frozen fields so that concurrent
+	// JSON-encoding of a Notify.NetMap snapshot doesn't race with writes.
+	packetFilterRules views.Slice[tailcfg.FilterRule]
+	packetFilter      []filter.Match
+
+	// keyWaitersForTest is the test-only registry of channels waiting for
+	// a given peer key to first appear in the netmap. See
+	// [nodeBackend.AwaitNodeKeyForTest]. It is populated lazily and remains
+	// nil in production, where no test installs a waiter.
+	keyWaitersForTest map[key.NodePublic]chan struct{}
 }
 
-func newNodeBackend(ctx context.Context, bus *eventbus.Bus) *nodeBackend {
+func newNodeBackend(ctx context.Context, logf logger.Logf, bus *eventbus.Bus) *nodeBackend {
 	ctx, ctxCancel := context.WithCancelCause(ctx)
 	nb := &nodeBackend{
+		logf:        logf,
 		ctx:         ctx,
 		ctxCancel:   ctxCancel,
 		eventClient: bus.Client("ipnlocal.nodeBackend"),
@@ -114,10 +149,7 @@ func newNodeBackend(ctx context.Context, bus *eventbus.Bus) *nodeBackend {
 	// Default filter blocks everything and logs nothing.
 	noneFilter := filter.NewAllowNone(logger.Discard, &netipx.IPSet{})
 	nb.filterAtomic.Store(noneFilter)
-	nb.filterPub = eventbus.Publish[magicsock.FilterUpdate](nb.eventClient)
-	nb.nodeViewsPub = eventbus.Publish[magicsock.NodeViewsUpdate](nb.eventClient)
-	nb.nodeMutsPub = eventbus.Publish[magicsock.NodeMutationsUpdate](nb.eventClient)
-	nb.filterPub.Publish(magicsock.FilterUpdate{Filter: nb.filterAtomic.Load()})
+	nb.derpMapViewPub = eventbus.Publish[tailcfg.DERPMapView](nb.eventClient)
 	return nb
 }
 
@@ -128,6 +160,7 @@ func (nb *nodeBackend) Context() context.Context {
 	return nb.ctx
 }
 
+// Self returns the current node.
 func (nb *nodeBackend) Self() tailcfg.NodeView {
 	nb.mu.Lock()
 	defer nb.mu.Unlock()
@@ -192,19 +225,8 @@ func (nb *nodeBackend) NodeByAddr(ip netip.Addr) (_ tailcfg.NodeID, ok bool) {
 func (nb *nodeBackend) NodeByKey(k key.NodePublic) (_ tailcfg.NodeID, ok bool) {
 	nb.mu.Lock()
 	defer nb.mu.Unlock()
-	if nb.netMap == nil {
-		return 0, false
-	}
-	if self := nb.netMap.SelfNode; self.Valid() && self.Key() == k {
-		return self.ID(), true
-	}
-	// TODO(bradfitz,nickkhyl): add nodeByKey like nodeByAddr instead of walking peers.
-	for _, n := range nb.peers {
-		if n.Key() == k {
-			return n.ID(), true
-		}
-	}
-	return 0, false
+	nid, ok := nb.nodeByKey[k]
+	return nid, ok
 }
 
 func (nb *nodeBackend) NodeByID(id tailcfg.NodeID) (_ tailcfg.NodeView, ok bool) {
@@ -232,12 +254,8 @@ func (nb *nodeBackend) PeerByStableID(id tailcfg.StableNodeID) (_ tailcfg.NodeVi
 
 func (nb *nodeBackend) UserByID(id tailcfg.UserID) (_ tailcfg.UserProfileView, ok bool) {
 	nb.mu.Lock()
-	nm := nb.netMap
-	nb.mu.Unlock()
-	if nm == nil {
-		return tailcfg.UserProfileView{}, false
-	}
-	u, ok := nm.UserProfiles[id]
+	defer nb.mu.Unlock()
+	u, ok := nb.userProfiles[id]
 	return u, ok
 }
 
@@ -256,6 +274,12 @@ func (nb *nodeBackend) PeersForTest() []tailcfg.NodeView {
 		return cmp.Compare(a.ID(), b.ID())
 	})
 	return ret
+}
+
+func (nb *nodeBackend) CollectServices() bool {
+	nb.mu.Lock()
+	defer nb.mu.Unlock()
+	return nb.netMap != nil && nb.netMap.CollectServices
 }
 
 // AppendMatchingPeers returns base with all peers that match pred appended.
@@ -318,6 +342,46 @@ func (nb *nodeBackend) peerCapsLocked(src netip.Addr) tailcfg.PeerCapMap {
 	return nil
 }
 
+// PeerCapsForIP returns the capabilities that remote src IP has when
+// talking to the given destination IP on this node. The destination may
+// be any IP the node handles: its own tailnet address, a VIP service
+// address, or any future routable IP.
+func (nb *nodeBackend) PeerCapsForIP(src, dst netip.Addr) tailcfg.PeerCapMap {
+	nb.mu.Lock()
+	defer nb.mu.Unlock()
+	if nb.netMap == nil {
+		return nil
+	}
+	filt := nb.filterAtomic.Load()
+	if filt == nil {
+		return nil
+	}
+	return filt.CapsWithValues(src, dst)
+}
+
+// PeerCapsForService returns the capabilities that remote src IP has when
+// talking to the named VIP service on this node. The service name is
+// resolved to its VIP addresses via the node's service IP mappings, and
+// the first address matching the src IP family is used for cap lookup.
+func (nb *nodeBackend) PeerCapsForService(src netip.Addr, svcName tailcfg.ServiceName) tailcfg.PeerCapMap {
+	nb.mu.Lock()
+	defer nb.mu.Unlock()
+	if nb.netMap == nil {
+		return nil
+	}
+	filt := nb.filterAtomic.Load()
+	if filt == nil {
+		return nil
+	}
+	addrs := nb.netMap.GetVIPServiceIPMap()[svcName]
+	for _, ip := range addrs {
+		if ip.BitLen() == src.BitLen() {
+			return filt.CapsWithValues(src, ip)
+		}
+	}
+	return nil
+}
+
 // PeerHasCap reports whether the peer contains the given capability string,
 // with any value(s).
 func (nb *nodeBackend) PeerHasCap(peer tailcfg.NodeView, wantCap tailcfg.PeerCapability) bool {
@@ -352,6 +416,40 @@ func (nb *nodeBackend) PeerAPIBase(p tailcfg.NodeView) string {
 	return peerAPIBase(nm, p)
 }
 
+// PeerIsReachable reports whether the current node can reach p. If the ctx is
+// done, this function may return a result based on stale reachability data.
+func (nb *nodeBackend) PeerIsReachable(ctx context.Context, p tailcfg.NodeView) bool {
+	if !nb.SelfHasCap(tailcfg.NodeAttrClientSideReachability) {
+		// Legacy behavior is to always trust the control plane, which
+		// isn’t always correct because the peer could be slow to check
+		// in so that control marks it as offline.
+		// See tailscale/corp#32686.
+		return p.Online().Get()
+	}
+
+	nb.mu.Lock()
+	nm := nb.netMap
+	nb.mu.Unlock()
+
+	if self := nm.SelfNode; self.Valid() && self.ID() == p.ID() {
+		// This node can always reach itself.
+		return true
+	}
+	return nb.peerIsReachable(ctx, p)
+}
+
+func (nb *nodeBackend) peerIsReachable(ctx context.Context, p tailcfg.NodeView) bool {
+	// TODO(sfllaw): The following does not actually test for client-side
+	// reachability. This would require a mechanism that tracks whether the
+	// current node can actually reach this peer, either because they are
+	// already communicating or because they can ping each other.
+	//
+	// Instead, it makes the client ignore p.Online completely.
+	//
+	// See tailscale/corp#32686.
+	return true
+}
+
 func nodeIP(n tailcfg.NodeView, pred func(netip.Addr) bool) netip.Addr {
 	for _, pfx := range n.Addresses().All() {
 		if pfx.IsSingleIP() && pred(pfx.Addr()) {
@@ -373,11 +471,14 @@ func (nb *nodeBackend) netMapWithPeers() *netmap.NetworkMap {
 	if nb.netMap == nil {
 		return nil
 	}
-	nm := ptr.To(*nb.netMap) // shallow clone
+	nm := new(*nb.netMap) // shallow clone
 	nm.Peers = slicesx.MapValues(nb.peers)
 	slices.SortFunc(nm.Peers, func(a, b tailcfg.NodeView) int {
 		return cmp.Compare(a.ID(), b.ID())
 	})
+	nm.UserProfiles = maps.Clone(nb.userProfiles)
+	nm.PacketFilterRules = nb.packetFilterRules
+	nm.PacketFilter = nb.packetFilter
 	return nm
 }
 
@@ -386,13 +487,57 @@ func (nb *nodeBackend) SetNetMap(nm *netmap.NetworkMap) {
 	defer nb.mu.Unlock()
 	nb.netMap = nm
 	nb.updateNodeByAddrLocked()
+	nb.updateNodeByKeyLocked()
 	nb.updatePeersLocked()
-	nv := magicsock.NodeViewsUpdate{}
+	nb.signalKeyWaitersForTestLocked()
 	if nm != nil {
-		nv.SelfNode = nm.SelfNode
-		nv.Peers = nm.Peers
+		nb.userProfiles = maps.Clone(nm.UserProfiles)
+		nb.packetFilterRules = nm.PacketFilterRules
+		nb.packetFilter = nm.PacketFilter
+		nb.derpMapViewPub.Publish(nm.DERPMap.View())
+	} else {
+		nb.userProfiles = nil
+		nb.packetFilterRules = views.Slice[tailcfg.FilterRule]{}
+		nb.packetFilter = nil
+		nb.derpMapViewPub.Publish(tailcfg.DERPMapView{})
 	}
-	nb.nodeViewsPub.Publish(nv)
+}
+
+// AwaitNodeKeyForTest returns a channel that is closed once a peer with the
+// given node key first appears in this nodeBackend's peer index, or
+// immediately (a closed channel) if it's already present. It is intended for
+// in-process benchmarks that drive synthetic netmap deltas and need a
+// zero-overhead signal that the client has applied a delta, replacing
+// poll-based [local.Client.WhoIsNodeKey] loops in tests. It panics outside
+// of tests.
+func (nb *nodeBackend) AwaitNodeKeyForTest(k key.NodePublic) <-chan struct{} {
+	testenv.AssertInTest()
+	nb.mu.Lock()
+	defer nb.mu.Unlock()
+	if _, ok := nb.nodeByKey[k]; ok {
+		return syncs.ClosedChan()
+	}
+	if ch, ok := nb.keyWaitersForTest[k]; ok {
+		return ch
+	}
+	ch := make(chan struct{})
+	mak.Set(&nb.keyWaitersForTest, k, ch)
+	return ch
+}
+
+// signalKeyWaitersForTestLocked closes any waiter channels whose keys now
+// appear in nb.nodeByKey. It is cheap when there are no waiters, which is
+// the common case in production. It is called from [nodeBackend.SetNetMap]
+// after the per-key index has been rebuilt.
+//
+// Caller must hold nb.mu.
+func (nb *nodeBackend) signalKeyWaitersForTestLocked() {
+	for k, ch := range nb.keyWaitersForTest {
+		if _, ok := nb.nodeByKey[k]; ok {
+			close(ch)
+			delete(nb.keyWaitersForTest, k)
+		}
+	}
 }
 
 func (nb *nodeBackend) updateNodeByAddrLocked() {
@@ -431,6 +576,37 @@ func (nb *nodeBackend) updateNodeByAddrLocked() {
 	}
 }
 
+func (nb *nodeBackend) updateNodeByKeyLocked() {
+	nm := nb.netMap
+	if nm == nil {
+		nb.nodeByKey = nil
+		return
+	}
+
+	if nb.nodeByKey == nil {
+		nb.nodeByKey = map[key.NodePublic]tailcfg.NodeID{}
+	}
+	// First pass, mark everything unwanted.
+	for k := range nb.nodeByKey {
+		nb.nodeByKey[k] = 0
+	}
+	addNode := func(n tailcfg.NodeView) {
+		nb.nodeByKey[n.Key()] = n.ID()
+	}
+	if nm.SelfNode.Valid() {
+		addNode(nm.SelfNode)
+	}
+	for _, p := range nm.Peers {
+		addNode(p)
+	}
+	// Third pass, actually delete the unwanted items.
+	for k, v := range nb.nodeByKey {
+		if v == 0 {
+			delete(nb.nodeByKey, k)
+		}
+	}
+}
+
 func (nb *nodeBackend) updatePeersLocked() {
 	nm := nb.netMap
 	if nm == nil {
@@ -456,10 +632,39 @@ func (nb *nodeBackend) updatePeersLocked() {
 	}
 }
 
+// setPacketFilter stores the live packet filter rules and parsed
+// matches. It does not touch the frozen netMap. nb.mu is acquired by
+// this method.
+func (nb *nodeBackend) setPacketFilter(rules views.Slice[tailcfg.FilterRule], parsed []filter.Match) {
+	nb.mu.Lock()
+	defer nb.mu.Unlock()
+	nb.packetFilterRules = rules
+	nb.packetFilter = parsed
+}
+
+// PacketFilter returns the current live packet filter matches.
+func (nb *nodeBackend) PacketFilter() []filter.Match {
+	nb.mu.Lock()
+	defer nb.mu.Unlock()
+	return nb.packetFilter
+}
+
+// mergeUserProfiles merges new/updated [tailcfg.UserProfileView]
+// entries into the live userProfiles map. It does not touch
+// netMap.UserProfiles (which is frozen once set). Callers must hold
+// [LocalBackend.mu]. nb.mu is acquired by this method.
+func (nb *nodeBackend) mergeUserProfiles(profiles map[tailcfg.UserID]tailcfg.UserProfileView) {
+	nb.mu.Lock()
+	defer nb.mu.Unlock()
+	for id, up := range profiles {
+		mak.Set(&nb.userProfiles, id, up)
+	}
+}
+
 func (nb *nodeBackend) UpdateNetmapDelta(muts []netmap.NodeMutation) (handled bool) {
 	nb.mu.Lock()
 	defer nb.mu.Unlock()
-	if nb.netMap == nil || len(nb.peers) == 0 {
+	if nb.netMap == nil {
 		return false
 	}
 
@@ -468,27 +673,49 @@ func (nb *nodeBackend) UpdateNetmapDelta(muts []netmap.NodeMutation) (handled bo
 	// call (e.g. its endpoints + online status both change)
 	var mutableNodes map[tailcfg.NodeID]*tailcfg.Node
 
-	update := magicsock.NodeMutationsUpdate{
-		Mutations: make([]netmap.NodeMutation, 0, len(muts)),
-	}
 	for _, m := range muts {
-		n, ok := mutableNodes[m.NodeIDBeingMutated()]
+		switch m := m.(type) {
+		case netmap.NodeMutationUpsert:
+			nid := m.Node.ID()
+			mak.Set(&nb.peers, nid, m.Node)
+			for _, ipp := range m.Node.Addresses().All() {
+				if ipp.IsSingleIP() {
+					mak.Set(&nb.nodeByAddr, ipp.Addr(), nid)
+				}
+			}
+			mak.Set(&nb.nodeByKey, m.Node.Key(), nid)
+			continue
+		case netmap.NodeMutationRemove:
+			nid := m.NodeIDBeingMutated()
+			if old, ok := nb.peers[nid]; ok {
+				for _, ipp := range old.Addresses().All() {
+					if ipp.IsSingleIP() {
+						delete(nb.nodeByAddr, ipp.Addr())
+					}
+				}
+				delete(nb.nodeByKey, old.Key())
+				delete(nb.peers, nid)
+			}
+			continue
+		}
+		// Per-field mutation.
+		nid := m.NodeIDBeingMutated()
+		n, ok := mutableNodes[nid]
 		if !ok {
-			nv, ok := nb.peers[m.NodeIDBeingMutated()]
+			nv, ok := nb.peers[nid]
 			if !ok {
 				// TODO(bradfitz): unexpected metric?
 				return false
 			}
 			n = nv.AsStruct()
 			mak.Set(&mutableNodes, nv.ID(), n)
-			update.Mutations = append(update.Mutations, m)
 		}
 		m.Apply(n)
 	}
 	for nid, n := range mutableNodes {
 		nb.peers[nid] = n.View()
 	}
-	nb.nodeMutsPub.Publish(update)
+	nb.signalKeyWaitersForTestLocked()
 	return true
 }
 
@@ -510,16 +737,18 @@ func (nb *nodeBackend) filter() *filter.Filter {
 
 func (nb *nodeBackend) setFilter(f *filter.Filter) {
 	nb.filterAtomic.Store(f)
-	nb.filterPub.Publish(magicsock.FilterUpdate{Filter: f})
 }
 
-func (nb *nodeBackend) dnsConfigForNetmap(prefs ipn.PrefsView, selfExpired bool, logf logger.Logf, versionOS string) *dns.Config {
+func (nb *nodeBackend) dnsConfigForNetmap(prefs ipn.PrefsView, selfExpired bool, versionOS string) *dns.Config {
 	nb.mu.Lock()
 	defer nb.mu.Unlock()
-	return dnsConfigForNetmap(nb.netMap, nb.peers, prefs, selfExpired, logf, versionOS)
+	return dnsConfigForNetmap(nb.netMap, nb.peers, prefs, selfExpired, nb.logf, versionOS)
 }
 
 func (nb *nodeBackend) exitNodeCanProxyDNS(exitNodeID tailcfg.StableNodeID) (dohURL string, ok bool) {
+	if !buildfeatures.HasUseExitNode {
+		return "", false
+	}
 	nb.mu.Lock()
 	defer nb.mu.Unlock()
 	return exitNodeCanProxyDNS(nb.netMap, nb.peers, exitNodeID)
@@ -624,6 +853,9 @@ func dnsConfigForNetmap(nm *netmap.NetworkMap, peers map[tailcfg.NodeID]tailcfg.
 	if nm == nil {
 		return nil
 	}
+	if !buildfeatures.HasDNS {
+		return &dns.Config{}
+	}
 
 	// If the current node's key is expired, then we don't program any DNS
 	// configuration into the operating system. This ensures that if the
@@ -638,8 +870,9 @@ func dnsConfigForNetmap(nm *netmap.NetworkMap, peers map[tailcfg.NodeID]tailcfg.
 	}
 
 	dcfg := &dns.Config{
-		Routes: map[dnsname.FQDN][]*dnstype.Resolver{},
-		Hosts:  map[dnsname.FQDN][]netip.Addr{},
+		AcceptDNS: prefs.CorpDNS(),
+		Routes:    map[dnsname.FQDN][]*dnstype.Resolver{},
+		Hosts:     map[dnsname.FQDN][]netip.Addr{},
 	}
 
 	// selfV6Only is whether we only have IPv6 addresses ourselves.
@@ -692,9 +925,21 @@ func dnsConfigForNetmap(nm *netmap.NetworkMap, peers map[tailcfg.NodeID]tailcfg.
 		}
 		dcfg.Hosts[fqdn] = ips
 	}
-	set(nm.Name, nm.GetAddresses())
+	set(nm.SelfName(), nm.GetAddresses())
+	if nm.AllCaps.Contains(tailcfg.NodeAttrDNSSubdomainResolve) {
+		if fqdn, err := dnsname.ToFQDN(nm.SelfName()); err == nil {
+			dcfg.SubdomainHosts.Make()
+			dcfg.SubdomainHosts.Add(fqdn)
+		}
+	}
 	for _, peer := range peers {
 		set(peer.Name(), peer.Addresses())
+		if peer.CapMap().Contains(tailcfg.NodeAttrDNSSubdomainResolve) {
+			if fqdn, err := dnsname.ToFQDN(peer.Name()); err == nil {
+				dcfg.SubdomainHosts.Make()
+				dcfg.SubdomainHosts.Add(fqdn)
+			}
+		}
 	}
 	for _, rec := range nm.DNS.ExtraRecords {
 		switch rec.Type {
@@ -756,18 +1001,20 @@ func dnsConfigForNetmap(nm *netmap.NetworkMap, peers map[tailcfg.NodeID]tailcfg.
 	// If we're using an exit node and that exit node is new enough (1.19.x+)
 	// to run a DoH DNS proxy, then send all our DNS traffic through it,
 	// unless we find resolvers with UseWithExitNode set, in which case we use that.
-	if dohURL, ok := exitNodeCanProxyDNS(nm, peers, prefs.ExitNodeID()); ok {
-		filtered := useWithExitNodeResolvers(nm.DNS.Resolvers)
-		if len(filtered) > 0 {
-			addDefault(filtered)
-		} else {
-			// If no default global resolvers with the override
-			// are configured, configure the exit node's resolver.
-			addDefault([]*dnstype.Resolver{{Addr: dohURL}})
-		}
+	if buildfeatures.HasUseExitNode {
+		if dohURL, ok := exitNodeCanProxyDNS(nm, peers, prefs.ExitNodeID()); ok {
+			filtered := useWithExitNodeResolvers(nm.DNS.Resolvers)
+			if len(filtered) > 0 {
+				addDefault(filtered)
+			} else {
+				// If no default global resolvers with the override
+				// are configured, configure the exit node's resolver.
+				addDefault([]*dnstype.Resolver{{Addr: dohURL}})
+			}
 
-		addSplitDNSRoutes(useWithExitNodeRoutes(nm.DNS.Routes))
-		return dcfg
+			addSplitDNSRoutes(useWithExitNodeRoutes(nm.DNS.Routes))
+			return dcfg
+		}
 	}
 
 	// If the user has set default resolvers ("override local DNS"), prefer to
@@ -775,7 +1022,7 @@ func dnsConfigForNetmap(nm *netmap.NetworkMap, peers map[tailcfg.NodeID]tailcfg.
 	// node resolvers, use those as the default.
 	if len(nm.DNS.Resolvers) > 0 {
 		addDefault(nm.DNS.Resolvers)
-	} else {
+	} else if buildfeatures.HasUseExitNode {
 		if resolvers, ok := wireguardExitNodeDNSResolvers(nm, peers, prefs.ExitNodeID()); ok {
 			addDefault(resolvers)
 		}
@@ -783,6 +1030,13 @@ func dnsConfigForNetmap(nm *netmap.NetworkMap, peers map[tailcfg.NodeID]tailcfg.
 
 	// Add split DNS routes, with no regard to exit node configuration.
 	addSplitDNSRoutes(nm.DNS.Routes)
+
+	if buildfeatures.HasConn25 && !prefs.AppConnector().Advertise {
+		// Add split DNS routes for conn25
+		if appRoutes := appc.AppDNSRoutes(nm.HasCap, nm.SelfNode); appRoutes != nil {
+			addSplitDNSRoutes(appRoutes)
+		}
+	}
 
 	// Set FallbackResolvers as the default resolvers in the
 	// scenarios that can't handle a purely split-DNS config. See

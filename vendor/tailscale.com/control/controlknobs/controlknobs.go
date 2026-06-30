@@ -1,4 +1,4 @@
-// Copyright (c) Tailscale Inc & AUTHORS
+// Copyright (c) Tailscale Inc & contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
 // Package controlknobs contains client options configurable from control which can be turned on
@@ -20,11 +20,6 @@ import (
 type Knobs struct {
 	// DisableUPnP indicates whether to attempt UPnP mapping.
 	DisableUPnP atomic.Bool
-
-	// KeepFullWGConfig is whether we should disable the lazy wireguard
-	// programming and instead give WireGuard the full netmap always, even for
-	// idle peers.
-	KeepFullWGConfig atomic.Bool
 
 	// RandomizeClientPort is whether control says we should randomize
 	// the client port.
@@ -61,11 +56,6 @@ type Knobs struct {
 	// LinuxForceNfTables is whether the node should use nftables for Linux
 	// netfiltering, unless overridden by the user.
 	LinuxForceNfTables atomic.Bool
-
-	// SeamlessKeyRenewal is whether to enable the alpha functionality of
-	// renewing node keys without breaking connections.
-	// http://go/seamless-key-renewal
-	SeamlessKeyRenewal atomic.Bool
 
 	// ProbeUDPLifetime is whether the node should probe UDP path lifetime on
 	// the tail end of an active direct connection in magicsock.
@@ -106,6 +96,45 @@ type Knobs struct {
 	// of queued netmap.NetworkMap between the controlclient and LocalBackend.
 	// See tailscale/tailscale#14768.
 	DisableSkipStatusQueue atomic.Bool
+
+	// DisableHostsFileUpdates indicates that the node's DNS manager should not create
+	// hosts file entries when it normally would, such as when we're not the primary
+	// resolver on Windows or when the host is domain-joined and its primary domain
+	// takes precedence over MagicDNS. As of 2026-02-13, it is only used on Windows.
+	DisableHostsFileUpdates atomic.Bool
+
+	// ForceRegisterMagicDNSIPv4Only is whether the node should only register
+	// its IPv4 MagicDNS service IP and not its IPv6 one. The IPv6 one,
+	// tsaddr.TailscaleServiceIPv6String, still works in either case. This knob
+	// controls only whether we tell systemd/etc about the IPv6 one.
+	// See https://github.com/tailscale/tailscale/issues/15404.
+	// TODO(bradfitz): remove this a few releases after 2026-02-16.
+	ForceRegisterMagicDNSIPv4Only atomic.Bool
+
+	// EmitRuntimeMetrics is whether the node should poll and emit [runtime/metrics]
+	// as [tailscale.com/util/clientmetric]'s.
+	EmitRuntimeMetrics atomic.Bool
+
+	// DisableUDPGRO disables UDP GRO on the magicsock UDP socket. See
+	// [tailcfg.NodeAttrDisableUDPGRO].
+	DisableUDPGRO atomic.Bool
+
+	// DisableUDPGSO disables UDP GSO on the magicsock UDP socket. See
+	// [tailcfg.NodeAttrDisableUDPGSO].
+	DisableUDPGSO atomic.Bool
+
+	// DisableTUNUDPGRO disables UDP GRO on the Tailscale TUN device. See
+	// [tailcfg.NodeAttrDisableTUNUDPGRO].
+	DisableTUNUDPGRO atomic.Bool
+
+	// DisableTUNTCPGRO disables TCP GRO on the Tailscale TUN device. See
+	// [tailcfg.NodeAttrDisableTUNTCPGRO].
+	DisableTUNTCPGRO atomic.Bool
+
+	// NeverGSOEqualTail enables a UDP GSO sentinel-tail workaround in the
+	// underlay UDP packet TX path on Linux. Applies to magicsock and peer relay
+	// UDP sockets. See [tailcfg.NodeAttrNeverGSOEqualTail].
+	NeverGSOEqualTail atomic.Bool
 }
 
 // UpdateFromNodeAttributes updates k (if non-nil) based on the provided self
@@ -116,7 +145,6 @@ func (k *Knobs) UpdateFromNodeAttributes(capMap tailcfg.NodeCapMap) {
 	}
 	has := capMap.Contains
 	var (
-		keepFullWG                           = has(tailcfg.NodeAttrDebugDisableWGTrim)
 		disableUPnP                          = has(tailcfg.NodeAttrDisableUPnP)
 		randomizeClientPort                  = has(tailcfg.NodeAttrRandomizeClientPort)
 		disableDeltaUpdates                  = has(tailcfg.NodeAttrDisableDeltaUpdates)
@@ -127,7 +155,6 @@ func (k *Knobs) UpdateFromNodeAttributes(capMap tailcfg.NodeCapMap) {
 		silentDisco                          = has(tailcfg.NodeAttrSilentDisco)
 		forceIPTables                        = has(tailcfg.NodeAttrLinuxMustUseIPTables)
 		forceNfTables                        = has(tailcfg.NodeAttrLinuxMustUseNfTables)
-		seamlessKeyRenewal                   = has(tailcfg.NodeAttrSeamlessKeyRenewal)
 		probeUDPLifetime                     = has(tailcfg.NodeAttrProbeUDPLifetime)
 		appCStoreRoutes                      = has(tailcfg.NodeAttrStoreAppCRoutes)
 		userDialUseRoutes                    = has(tailcfg.NodeAttrUserDialUseRoutes)
@@ -135,6 +162,14 @@ func (k *Knobs) UpdateFromNodeAttributes(capMap tailcfg.NodeCapMap) {
 		disableLocalDNSOverrideViaNRPT       = has(tailcfg.NodeAttrDisableLocalDNSOverrideViaNRPT)
 		disableCaptivePortalDetection        = has(tailcfg.NodeAttrDisableCaptivePortalDetection)
 		disableSkipStatusQueue               = has(tailcfg.NodeAttrDisableSkipStatusQueue)
+		disableHostsFileUpdates              = has(tailcfg.NodeAttrDisableHostsFileUpdates)
+		forceRegisterMagicDNSIPv4Only        = has(tailcfg.NodeAttrForceRegisterMagicDNSIPv4Only)
+		emitRuntimeMetrics                   = has(tailcfg.NodeAttrEmitRuntimeMetrics)
+		disableUDPGRO                        = has(tailcfg.NodeAttrDisableUDPGRO)
+		disableUDPGSO                        = has(tailcfg.NodeAttrDisableUDPGSO)
+		disableTUNUDPGRO                     = has(tailcfg.NodeAttrDisableTUNUDPGRO)
+		disableTUNTCPGRO                     = has(tailcfg.NodeAttrDisableTUNTCPGRO)
+		neverGSOEqualTail                    = has(tailcfg.NodeAttrNeverGSOEqualTail)
 	)
 
 	if has(tailcfg.NodeAttrOneCGNATEnable) {
@@ -143,7 +178,6 @@ func (k *Knobs) UpdateFromNodeAttributes(capMap tailcfg.NodeCapMap) {
 		oneCGNAT.Set(false)
 	}
 
-	k.KeepFullWGConfig.Store(keepFullWG)
 	k.DisableUPnP.Store(disableUPnP)
 	k.RandomizeClientPort.Store(randomizeClientPort)
 	k.OneCGNAT.Store(oneCGNAT)
@@ -154,7 +188,6 @@ func (k *Knobs) UpdateFromNodeAttributes(capMap tailcfg.NodeCapMap) {
 	k.SilentDisco.Store(silentDisco)
 	k.LinuxForceIPTables.Store(forceIPTables)
 	k.LinuxForceNfTables.Store(forceNfTables)
-	k.SeamlessKeyRenewal.Store(seamlessKeyRenewal)
 	k.ProbeUDPLifetime.Store(probeUDPLifetime)
 	k.AppCStoreRoutes.Store(appCStoreRoutes)
 	k.UserDialUseRoutes.Store(userDialUseRoutes)
@@ -162,6 +195,14 @@ func (k *Knobs) UpdateFromNodeAttributes(capMap tailcfg.NodeCapMap) {
 	k.DisableLocalDNSOverrideViaNRPT.Store(disableLocalDNSOverrideViaNRPT)
 	k.DisableCaptivePortalDetection.Store(disableCaptivePortalDetection)
 	k.DisableSkipStatusQueue.Store(disableSkipStatusQueue)
+	k.DisableHostsFileUpdates.Store(disableHostsFileUpdates)
+	k.ForceRegisterMagicDNSIPv4Only.Store(forceRegisterMagicDNSIPv4Only)
+	k.EmitRuntimeMetrics.Store(emitRuntimeMetrics)
+	k.DisableUDPGRO.Store(disableUDPGRO)
+	k.DisableUDPGSO.Store(disableUDPGSO)
+	k.DisableTUNUDPGRO.Store(disableTUNUDPGRO)
+	k.DisableTUNTCPGRO.Store(disableTUNTCPGRO)
+	k.NeverGSOEqualTail.Store(neverGSOEqualTail)
 }
 
 // AsDebugJSON returns k as something that can be marshalled with json.Marshal
@@ -171,18 +212,22 @@ func (k *Knobs) AsDebugJSON() map[string]any {
 		return nil
 	}
 	ret := map[string]any{}
-	rt := reflect.TypeFor[Knobs]()
 	rv := reflect.ValueOf(k).Elem() // of *k
-	for i := 0; i < rt.NumField(); i++ {
-		name := rt.Field(i).Name
-		switch v := rv.Field(i).Addr().Interface().(type) {
+	for sf, fv := range rv.Fields() {
+		switch v := fv.Addr().Interface().(type) {
 		case *atomic.Bool:
-			ret[name] = v.Load()
+			ret[sf.Name] = v.Load()
 		case *syncs.AtomicValue[opt.Bool]:
-			ret[name] = v.Load()
+			ret[sf.Name] = v.Load()
 		default:
-			panic(fmt.Sprintf("unknown field type %T for %v", v, name))
+			panic(fmt.Sprintf("unknown field type %T for %v", v, sf.Name))
 		}
 	}
 	return ret
+}
+
+// ShouldForceRegisterMagicDNSIPv4Only reports the value of
+// ForceRegisterMagicDNSIPv4Only, or false if k is nil.
+func (k *Knobs) ShouldForceRegisterMagicDNSIPv4Only() bool {
+	return k != nil && k.ForceRegisterMagicDNSIPv4Only.Load()
 }

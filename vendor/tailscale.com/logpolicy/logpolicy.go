@@ -1,4 +1,4 @@
-// Copyright (c) Tailscale Inc & AUTHORS
+// Copyright (c) Tailscale Inc & contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
 // Package logpolicy manages the creation or reuse of logtail loggers,
@@ -31,6 +31,8 @@ import (
 	"golang.org/x/term"
 	"tailscale.com/atomicfile"
 	"tailscale.com/envknob"
+	"tailscale.com/feature"
+	"tailscale.com/feature/buildfeatures"
 	"tailscale.com/health"
 	"tailscale.com/hostinfo"
 	"tailscale.com/log/filelogger"
@@ -41,14 +43,15 @@ import (
 	"tailscale.com/net/netknob"
 	"tailscale.com/net/netmon"
 	"tailscale.com/net/netns"
+	"tailscale.com/net/netutil"
 	"tailscale.com/net/netx"
 	"tailscale.com/net/tlsdial"
-	"tailscale.com/net/tshttpproxy"
 	"tailscale.com/paths"
 	"tailscale.com/safesocket"
 	"tailscale.com/types/logger"
 	"tailscale.com/types/logid"
 	"tailscale.com/util/clientmetric"
+	"tailscale.com/util/eventbus"
 	"tailscale.com/util/must"
 	"tailscale.com/util/racebuild"
 	"tailscale.com/util/syspolicy/pkey"
@@ -106,6 +109,7 @@ type Policy struct {
 	// Logtail is the logger.
 	Logtail *logtail.Logger
 	// PublicID is the logger's instance identifier.
+	// It may be the zero value if logging is not in use.
 	PublicID logid.PublicID
 	// Logf is where to write informational messages about this Logger.
 	Logf logger.Logf
@@ -190,8 +194,8 @@ type logWriter struct {
 	logger *log.Logger
 }
 
-func (l logWriter) Write(buf []byte) (int, error) {
-	l.logger.Printf("%s", buf)
+func (lg logWriter) Write(buf []byte) (int, error) {
+	lg.logger.Printf("%s", buf)
 	return len(buf), nil
 }
 
@@ -464,18 +468,6 @@ func New(collection string, netMon *netmon.Monitor, health *health.Tracker, logf
 	}.New()
 }
 
-// Deprecated: Use [Options.New] instead.
-func NewWithConfigPath(collection, dir, cmdName string, netMon *netmon.Monitor, health *health.Tracker, logf logger.Logf) *Policy {
-	return Options{
-		Collection: collection,
-		Dir:        dir,
-		CmdName:    cmdName,
-		NetMon:     netMon,
-		Health:     health,
-		Logf:       logf,
-	}.New()
-}
-
 // Options is used to construct a [Policy].
 type Options struct {
 	// Collection is a required collection to upload logs under.
@@ -498,6 +490,11 @@ type Options struct {
 	// Health is an optional parameter for health status.
 	// If non-nil, it's used to construct the default HTTP client.
 	Health *health.Tracker
+
+	// Bus is an optional parameter for communication on the eventbus.
+	// If non-nil, it's passed to logtail for use in interface monitoring.
+	// TODO(cmol): Make this non-optional when it's plumbed in by the clients.
+	Bus *eventbus.Bus
 
 	// Logf is an optional logger to use.
 	// If nil, [log.Printf] will be used instead.
@@ -625,6 +622,7 @@ func (opts Options) init(disableLogging bool) (*logtail.Config, *Policy) {
 		Stderr:        logWriter{console},
 		CompressLogs:  true,
 		MaxUploadSize: opts.MaxUploadSize,
+		Bus:           opts.Bus,
 	}
 	if opts.Collection == logtail.CollectionNode {
 		conf.MetricsDelta = clientmetric.EncodeLogTailMetricsDelta
@@ -643,10 +641,16 @@ func (opts Options) init(disableLogging bool) (*logtail.Config, *Policy) {
 
 		logHost := logtail.DefaultHost
 		if val := getLogTarget(); val != "" {
-			opts.Logf("You have enabled a non-default log target. Doing without being told to by Tailscale staff or your network administrator will make getting support difficult.")
-			conf.BaseURL = val
-			u, _ := url.Parse(val)
-			logHost = u.Host
+			u, err := url.Parse(val)
+			if err != nil {
+				opts.Logf("logpolicy: invalid TS_LOG_TARGET %q: %v; using default log host", val, err)
+			} else if u.Host == "" {
+				opts.Logf("logpolicy: invalid TS_LOG_TARGET %q: missing host; using default log host", val)
+			} else {
+				opts.Logf("You have enabled a non-default log target. Doing without being told to by Tailscale staff or your network administrator will make getting support difficult.")
+				conf.BaseURL = val
+				logHost = u.Host
+			}
 		}
 
 		if conf.HTTPC == nil {
@@ -694,7 +698,7 @@ func (opts Options) init(disableLogging bool) (*logtail.Config, *Policy) {
 
 // New returns a new log policy (a logger and its instance ID).
 func (opts Options) New() *Policy {
-	disableLogging := envknob.NoLogsNoSupport() || testenv.InTest() || runtime.GOOS == "plan9"
+	disableLogging := envknob.NoLogsNoSupport() || testenv.InTest() || runtime.GOOS == "plan9" || !buildfeatures.HasLogTail
 	_, policy := opts.init(disableLogging)
 	return policy
 }
@@ -868,20 +872,24 @@ type TransportOptions struct {
 // New returns an HTTP Transport particularly suited to uploading logs
 // to the given host name. See [DialContext] for details on how it works.
 func (opts TransportOptions) New() http.RoundTripper {
-	if testenv.InTest() {
+	if testenv.InTest() || envknob.NoLogsNoSupport() {
 		return noopPretendSuccessTransport{}
 	}
 	if opts.NetMon == nil {
 		opts.NetMon = netmon.NewStatic()
 	}
 	// Start with a copy of http.DefaultTransport and tweak it a bit.
-	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr := netutil.NewDefaultTransport()
 	if opts.TLSClientConfig != nil {
 		tr.TLSClientConfig = opts.TLSClientConfig.Clone()
 	}
 
-	tr.Proxy = tshttpproxy.ProxyFromEnvironment
-	tshttpproxy.SetTransportGetProxyConnectHeader(tr)
+	if buildfeatures.HasUseProxy {
+		tr.Proxy = feature.HookProxyFromEnvironment.GetOrNil()
+		if set, ok := feature.HookProxySetTransportGetProxyConnectHeader.GetOk(); ok {
+			set(tr)
+		}
+	}
 
 	// We do our own zstd compression on uploads, and responses never contain any payload,
 	// so don't send "Accept-Encoding: gzip" to save a few bytes on the wire, since there

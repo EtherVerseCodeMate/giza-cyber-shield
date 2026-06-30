@@ -308,7 +308,7 @@ func (device *Device) CreateMessageInitiation(peer *Peer) (*MessageInitiation, e
 		handshake.chainKey[:],
 		ss[:],
 	)
-	aead, _ := chacha20poly1305.New(key[:])
+	aead, _ := chacha20poly1305New(key[:])
 	aead.Seal(msg.Static[:0], ZeroNonce[:], device.staticIdentity.publicKey[:], handshake.hash[:])
 	handshake.mixHash(msg.Static[:])
 
@@ -323,7 +323,7 @@ func (device *Device) CreateMessageInitiation(peer *Peer) (*MessageInitiation, e
 		handshake.precomputedStaticStatic[:],
 	)
 	timestamp := tai64n.Now()
-	aead, _ = chacha20poly1305.New(key[:])
+	aead, _ = chacha20poly1305New(key[:])
 	aead.Seal(msg.Timestamp[:0], ZeroNonce[:], timestamp[:], handshake.hash[:])
 
 	// assign index
@@ -349,22 +349,27 @@ func (device *Device) ConsumeMessageInitiation(msg *MessageInitiation, endpoint 
 		return nil
 	}
 
+	// Snapshot staticIdentity so we don't hold the RLock across LookupPeer,
+	// which may call NewPeer (reentrant RLock deadlocks against a pending
+	// SetPrivateKey writer; see lock-ordering.md).
 	device.staticIdentity.RLock()
-	defer device.staticIdentity.RUnlock()
+	publicKey := device.staticIdentity.publicKey
+	privateKey := device.staticIdentity.privateKey
+	device.staticIdentity.RUnlock()
 
-	mixHash(&hash, &InitialHash, device.staticIdentity.publicKey[:])
+	mixHash(&hash, &InitialHash, publicKey[:])
 	mixHash(&hash, &hash, msg.Ephemeral[:])
 	mixKey(&chainKey, &InitialChainKey, msg.Ephemeral[:])
 
 	// decrypt static key
 	var peerPK NoisePublicKey
 	var key [chacha20poly1305.KeySize]byte
-	ss, err := device.staticIdentity.privateKey.sharedSecret(msg.Ephemeral)
+	ss, err := privateKey.sharedSecret(msg.Ephemeral)
 	if err != nil {
 		return nil
 	}
 	KDF2(&chainKey, &key, chainKey[:], ss[:])
-	aead, _ := chacha20poly1305.New(key[:])
+	aead, _ := chacha20poly1305New(key[:])
 	_, err = aead.Open(peerPK[:0], ZeroNonce[:], msg.Static[:], hash[:])
 	if err != nil {
 		return nil
@@ -401,7 +406,7 @@ func (device *Device) ConsumeMessageInitiation(msg *MessageInitiation, endpoint 
 		chainKey[:],
 		handshake.precomputedStaticStatic[:],
 	)
-	aead, _ = chacha20poly1305.New(key[:])
+	aead, _ = chacha20poly1305New(key[:])
 	_, err = aead.Open(timestamp[:0], ZeroNonce[:], msg.Timestamp[:], hash[:])
 	if err != nil {
 		handshake.mutex.RUnlock()
@@ -507,7 +512,7 @@ func (device *Device) CreateMessageResponse(peer *Peer) (*MessageResponse, error
 
 	handshake.mixHash(tau[:])
 
-	aead, _ := chacha20poly1305.New(key[:])
+	aead, _ := chacha20poly1305New(key[:])
 	aead.Seal(msg.Empty[:0], ZeroNonce[:], nil, handshake.hash[:])
 	handshake.mixHash(msg.Empty[:])
 
@@ -534,6 +539,14 @@ func (device *Device) ConsumeMessageResponse(msg *MessageResponse) *Peer {
 		chainKey [blake2s.Size]byte
 	)
 
+	// Snapshot the static private key before acquiring handshake.mutex so
+	// that handshake.mutex is never held while acquiring staticIdentity
+	// (which would invert the staticIdentity < handshake.mutex hierarchy;
+	// see lock-ordering.md).
+	device.staticIdentity.RLock()
+	privateKey := device.staticIdentity.privateKey
+	device.staticIdentity.RUnlock()
+
 	ok := func() bool {
 		// lock handshake state
 
@@ -543,11 +556,6 @@ func (device *Device) ConsumeMessageResponse(msg *MessageResponse) *Peer {
 		if handshake.state != handshakeInitiationCreated {
 			return false
 		}
-
-		// lock private key for reading
-
-		device.staticIdentity.RLock()
-		defer device.staticIdentity.RUnlock()
 
 		// finish 3-way DH
 
@@ -561,7 +569,7 @@ func (device *Device) ConsumeMessageResponse(msg *MessageResponse) *Peer {
 		mixKey(&chainKey, &chainKey, ss[:])
 		setZero(ss[:])
 
-		ss, err = device.staticIdentity.privateKey.sharedSecret(msg.Ephemeral)
+		ss, err = privateKey.sharedSecret(msg.Ephemeral)
 		if err != nil {
 			return false
 		}
@@ -583,7 +591,7 @@ func (device *Device) ConsumeMessageResponse(msg *MessageResponse) *Peer {
 
 		// authenticate transcript
 
-		aead, _ := chacha20poly1305.New(key[:])
+		aead, _ := chacha20poly1305New(key[:])
 		_, err = aead.Open(nil, ZeroNonce[:], msg.Empty[:], hash[:])
 		if err != nil {
 			return false
@@ -658,8 +666,8 @@ func (peer *Peer) BeginSymmetricSession() error {
 	// create AEAD instances
 
 	keypair := new(Keypair)
-	keypair.send, _ = chacha20poly1305.New(sendKey[:])
-	keypair.receive, _ = chacha20poly1305.New(recvKey[:])
+	keypair.send, _ = chacha20poly1305New(sendKey[:])
+	keypair.receive, _ = chacha20poly1305New(recvKey[:])
 
 	setZero(sendKey[:])
 	setZero(recvKey[:])

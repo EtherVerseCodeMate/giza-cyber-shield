@@ -1,4 +1,4 @@
-// Copyright (c) Tailscale Inc & AUTHORS
+// Copyright (c) Tailscale Inc & contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
 //go:build !android && !ios
@@ -21,13 +21,16 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"tailscale.com/feature"
 	"tailscale.com/health"
 	"tailscale.com/net/dns/resolvconffile"
 	"tailscale.com/net/tsaddr"
 	"tailscale.com/types/logger"
 	"tailscale.com/util/dnsname"
+	"tailscale.com/util/eventbus"
 	"tailscale.com/version/distro"
 )
 
@@ -134,6 +137,11 @@ type directManager struct {
 	// but is better than having non-functioning DNS.
 	renameBroken bool
 
+	trampleCount  atomic.Int64
+	trampleTimer  *time.Timer
+	eventClient   *eventbus.Client
+	trampleDNSPub *eventbus.Publisher[TrampleDNS]
+
 	ctx      context.Context    // valid until Close
 	ctxClose context.CancelFunc // closes ctx
 
@@ -144,11 +152,13 @@ type directManager struct {
 }
 
 //lint:ignore U1000 used in manager_{freebsd,openbsd}.go
-func newDirectManager(logf logger.Logf, health *health.Tracker) *directManager {
-	return newDirectManagerOnFS(logf, health, directFS{})
+func newDirectManager(logf logger.Logf, health *health.Tracker, bus *eventbus.Bus) *directManager {
+	return newDirectManagerOnFS(logf, health, bus, directFS{})
 }
 
-func newDirectManagerOnFS(logf logger.Logf, health *health.Tracker, fs wholeFileFS) *directManager {
+var trampleWatchDuration = 5 * time.Second
+
+func newDirectManagerOnFS(logf logger.Logf, health *health.Tracker, bus *eventbus.Bus, fs wholeFileFS) *directManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	m := &directManager{
 		logf:     logf,
@@ -157,6 +167,13 @@ func newDirectManagerOnFS(logf logger.Logf, health *health.Tracker, fs wholeFile
 		ctx:      ctx,
 		ctxClose: cancel,
 	}
+	if bus != nil {
+		m.eventClient = bus.Client("dns.directManager")
+		m.trampleDNSPub = eventbus.Publish[TrampleDNS](m.eventClient)
+	}
+	m.trampleTimer = time.AfterFunc(trampleWatchDuration, func() {
+		m.trampleCount.Store(0)
+	})
 	go m.runFileWatcher()
 	return m
 }
@@ -415,8 +432,93 @@ func (m *directManager) GetBaseConfig() (OSConfig, error) {
 	return oscfg, nil
 }
 
+// HookWatchFile is a hook for watching file changes, for platforms that support it.
+// The function is called with a directory and filename to watch, and a callback
+// to call when the file changes. It returns an error if the watch could not be set up.
+var HookWatchFile feature.Hook[func(ctx context.Context, dir, filename string, cb func()) error]
+
+func (m *directManager) runFileWatcher() {
+	watchFile, ok := HookWatchFile.GetOk()
+	if !ok {
+		return
+	}
+	dir := m.fs.ActualPath(filepath.Dir(resolvConf))
+	file := m.fs.ActualPath(resolvConf)
+	if err := watchFile(m.ctx, dir, file, m.checkForFileTrample); err != nil {
+		// This is all best effort for now, so surface warnings to users.
+		m.logf("dns: inotify: %s", err)
+	}
+}
+
+var resolvTrampleWarnable = health.Register(&health.Warnable{
+	Code:     "resolv-conf-overwritten",
+	Severity: health.SeverityMedium,
+	Title:    "DNS configuration issue",
+	Text:     health.StaticMessage("System DNS config not ideal. /etc/resolv.conf overwritten. See https://tailscale.com/s/dns-fight"),
+})
+
+// checkForFileTrample checks whether /etc/resolv.conf has been trampled
+// by another program on the system. (e.g. a DHCP client)
+func (m *directManager) checkForFileTrample() {
+	m.mu.Lock()
+	want := m.wantResolvConf
+	lastWarn := m.lastWarnContents
+	m.mu.Unlock()
+
+	if want == nil {
+		return
+	}
+
+	cur, err := m.fs.ReadFile(resolvConf)
+	if err != nil {
+		m.logf("trample: read error: %v", err)
+		return
+	}
+	if bytes.Equal(cur, want) {
+		m.health.SetHealthy(resolvTrampleWarnable)
+		if lastWarn != nil {
+			m.mu.Lock()
+			m.lastWarnContents = nil
+			m.mu.Unlock()
+			m.logf("trample: resolv.conf again matches expected content")
+		}
+		return
+	}
+	if bytes.Equal(cur, lastWarn) {
+		// We already logged about this, so not worth doing it again.
+		return
+	}
+
+	m.mu.Lock()
+	m.lastWarnContents = cur
+	m.mu.Unlock()
+
+	show := cur
+	if len(show) > 1024 {
+		show = show[:1024]
+	}
+	m.logf("trample: resolv.conf changed from what we expected. did some other program interfere? current contents: %q", show)
+	m.health.SetUnhealthy(resolvTrampleWarnable, nil)
+	if m.trampleDNSPub != nil {
+		n := m.trampleCount.Add(1)
+
+		if n < 10 {
+			m.trampleDNSPub.Publish(TrampleDNS{
+				LastTrample:       time.Now(),
+				TramplesInTimeout: n,
+			})
+			m.trampleTimer.Reset(trampleWatchDuration)
+		} else {
+			m.logf("trample: resolv.conf overwritten %d times, no longer attempting to replace it.", n)
+		}
+	}
+}
+
 func (m *directManager) Close() error {
 	m.ctxClose()
+	if m.eventClient != nil {
+		m.eventClient.Close()
+	}
 
 	// We used to keep a file for the tailscale config and symlinked
 	// to it, but then we stopped because /etc/resolv.conf being a
@@ -497,6 +599,19 @@ type wholeFileFS interface {
 	ReadFile(name string) ([]byte, error)
 	Remove(name string) error
 	Rename(oldName, newName string) error
+	// ActualPath returns the real filesystem path for the given absolute
+	// logical path. All other methods in this interface accept logical
+	// paths (like "/etc/resolv.conf") and translate them internally;
+	// ActualPath exposes that same translation for callers that need
+	// the real path for use outside the interface (e.g. setting up an
+	// inotify watch on the correct directory).
+	//
+	// For directFS with an empty prefix (production), the input is
+	// returned unchanged ("/etc" → "/etc"). For directFS with a test
+	// prefix like "/tmp/test123", the prefix is joined
+	// ("/etc" → "/tmp/test123/etc"). For wslFS the input is returned
+	// unchanged, since paths are passed through to wsl.exe as-is.
+	ActualPath(name string) string
 	Stat(name string) (isRegular bool, err error)
 	Truncate(name string) error
 	WriteFile(name string, contents []byte, perm os.FileMode) error
@@ -512,6 +627,8 @@ type directFS struct {
 }
 
 func (fs directFS) path(name string) string { return filepath.Join(fs.prefix, name) }
+
+func (fs directFS) ActualPath(name string) string { return fs.path(name) }
 
 func (fs directFS) Stat(name string) (isRegular bool, err error) {
 	fi, err := os.Stat(fs.path(name))

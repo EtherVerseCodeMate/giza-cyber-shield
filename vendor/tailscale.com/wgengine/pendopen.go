@@ -1,5 +1,7 @@
-// Copyright (c) Tailscale Inc & AUTHORS
+// Copyright (c) Tailscale Inc & contributors
 // SPDX-License-Identifier: BSD-3-Clause
+
+//go:build !ts_omit_debug
 
 package wgengine
 
@@ -19,6 +21,8 @@ import (
 	"tailscale.com/util/mak"
 	"tailscale.com/wgengine/filter"
 )
+
+type flowtrackTuple = flowtrack.Tuple
 
 const tcpTimeoutBeforeDebug = 5 * time.Second
 
@@ -56,6 +60,10 @@ func (e *userspaceEngine) noteFlowProblemFromPeer(f flowtrack.Tuple, problem pac
 	of.problem = problem
 }
 
+func tsRejectFlow(rh packet.TailscaleRejectedHeader) flowtrack.Tuple {
+	return flowtrack.MakeTuple(rh.Proto, rh.Src, rh.Dst)
+}
+
 func (e *userspaceEngine) trackOpenPreFilterIn(pp *packet.Parsed, t *tstun.Wrapper) (res filter.Response) {
 	res = filter.Accept // always
 
@@ -66,8 +74,8 @@ func (e *userspaceEngine) trackOpenPreFilterIn(pp *packet.Parsed, t *tstun.Wrapp
 			return
 		}
 		if rh.MaybeBroken {
-			e.noteFlowProblemFromPeer(rh.Flow(), rh.Reason)
-		} else if f := rh.Flow(); e.removeFlow(f) {
+			e.noteFlowProblemFromPeer(tsRejectFlow(rh), rh.Reason)
+		} else if f := tsRejectFlow(rh); e.removeFlow(f) {
 			e.logf("open-conn-track: flow %v %v > %v rejected due to %v", rh.Proto, rh.Src, rh.Dst, rh.Reason)
 		}
 		return
@@ -93,8 +101,8 @@ var (
 	appleIPRange = netip.MustParsePrefix("17.0.0.0/8")
 	canonicalIPs = sync.OnceValue(func() (checkIPFunc func(netip.Addr) bool) {
 		// https://bgp.he.net/AS41231#_prefixes
-		t := &bart.Table[bool]{}
-		for _, s := range strings.Fields(`
+		t := &bart.Lite{}
+		for s := range strings.FieldsSeq(`
 			91.189.89.0/24
 			91.189.91.0/24
 			91.189.92.0/24
@@ -107,12 +115,9 @@ var (
 			185.125.188.0/23
 			185.125.190.0/24
 			194.169.254.0/24`) {
-			t.Insert(netip.MustParsePrefix(s), true)
+			t.Insert(netip.MustParsePrefix(s))
 		}
-		return func(ip netip.Addr) bool {
-			v, _ := t.Lookup(ip)
-			return v
-		}
+		return t.Contains
 	})
 )
 
