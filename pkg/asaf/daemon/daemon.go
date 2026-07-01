@@ -237,21 +237,34 @@ func (d *ASAFDaemon) Execute(req *ChangeRequest) *ChangeResult {
 		return d.pollStaging(req.Poll)
 	}
 
-	// ── 2. SYMBOL-BASED AUTHORIZATION (EBAN ENFORCEMENT) ─────────────────────
-	// Kernel-level operations require Eban (fortress symbol).
-	// This is a hard constraint — not configurable, not bypassable.
-	if isKernelCommand(req.Command) && req.Symbol != "Eban" {
-		reason := fmt.Sprintf("kernel operation %v requires Symbol=Eban, got %q", req.Command, req.Symbol)
-		d.logSecurityEvent("SYMBOL_CONSTRAINT_VIOLATED", req, reason)
-		return &ChangeResult{Error: reason}
-	}
-
-	// ── 3. COMMAND VALIDATION ─────────────────────────────────────────────────
+	// ── 2. COMMAND VALIDATION ─────────────────────────────────────────────────
+	// Must run before the symbol check below: requiredSymbol() only knows
+	// about catalog commands, so an uncataloged command has to be rejected
+	// here first rather than silently passing symbol authorization with an
+	// empty "required" symbol.
 	if len(req.Command) == 0 {
 		return &ChangeResult{Error: "command is required"}
 	}
 	if err := validateCommand(req.Command); err != nil {
 		return &ChangeResult{Error: "command validation failed: " + err.Error()}
+	}
+
+	// ── 3. SYMBOL-BASED AUTHORIZATION (FULL CATALOG ENFORCEMENT) ─────────────
+	// Every catalog command has a required Adinkra symbol (see
+	// symbolRequirements in ops_catalog.go) — Eban for kernel-level ops,
+	// but also Nkyinkyim for services/files, Dwennimmen for user management,
+	// and Fawohodie for package installs. All four must be enforced, not just
+	// Eban: a request that only carries Nkyinkyim authorization must not be
+	// able to run useradd (Dwennimmen) or dnf install (Fawohodie) just
+	// because it wasn't a kernel command. Fixed 2026-07-01 — the previous
+	// check only compared against "Eban", which meant symbolRequirements
+	// entries for every other symbol were computed by requiredSymbol() but
+	// never actually consulted, so any signed request authorized ANY
+	// non-kernel catalog operation regardless of its claimed Symbol.
+	if want := requiredSymbol(req.Command); want != "" && req.Symbol != want {
+		reason := fmt.Sprintf("operation %v requires Symbol=%s, got %q", req.Command, want, req.Symbol)
+		d.logSecurityEvent("SYMBOL_CONSTRAINT_VIOLATED", req, reason)
+		return &ChangeResult{Error: reason}
 	}
 
 	// ── 4. STAGING GATE ───────────────────────────────────────────────────────
