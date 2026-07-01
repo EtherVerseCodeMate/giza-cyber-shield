@@ -1,4 +1,4 @@
-// Copyright (c) Tailscale Inc & AUTHORS
+// Copyright (c) Tailscale Inc & contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
 package magicsock
@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"tailscale.com/feature"
+	"tailscale.com/feature/buildfeatures"
 	"tailscale.com/tailcfg"
 	"tailscale.com/tstime/mono"
 	"tailscale.com/types/key"
@@ -24,6 +26,11 @@ import (
 // /debug/magicsock) or via peerapi to a peer that's owned by the same
 // user (so they can e.g. inspect their phones).
 func (c *Conn) ServeHTTPDebug(w http.ResponseWriter, r *http.Request) {
+	if !buildfeatures.HasDebug {
+		http.Error(w, feature.ErrUnavailable.Error(), http.StatusNotImplemented)
+		return
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -101,8 +108,8 @@ func (c *Conn) ServeHTTPDebug(w http.ResponseWriter, r *http.Request) {
 		}
 		sort.Slice(ent, func(i, j int) bool { return ent[i].pub.Less(ent[j].pub) })
 
-		peers := map[key.NodePublic]tailcfg.NodeView{}
-		for _, p := range c.peers.All() {
+		peers := make(map[key.NodePublic]tailcfg.NodeView, len(c.peersByID))
+		for _, p := range c.peersByID {
 			peers[p.Key()] = p
 		}
 

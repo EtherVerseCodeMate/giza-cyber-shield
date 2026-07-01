@@ -4,7 +4,7 @@
 # github.com/tailscale/mkctr.
 # By default the images will be tagged with the current version and git
 # hash of this repository as produced by ./cmd/mkversion.
-# This is the image build mechanim used to build the official Tailscale
+# This is the image build mechanism used to build the official Tailscale
 # container images.
 #
 # If you want to build local images for testing, you can use make, which provides few convenience wrappers around this script.
@@ -26,7 +26,7 @@ eval "$(./build_dist.sh shellvars)"
 
 DEFAULT_TARGET="client"
 DEFAULT_TAGS="v${VERSION_SHORT},v${VERSION_MINOR}"
-DEFAULT_BASE="tailscale/alpine-base:3.19"
+DEFAULT_BASE="tailscale/alpine-base:3.22"
 # Set a few pre-defined OCI annotations. The source annotation is used by tools such as Renovate that scan the linked
 # Github repo to find release notes for any new image tags. Note that for official Tailscale images the default
 # annotations defined here will be overriden by release scripts that call this script.
@@ -38,6 +38,8 @@ TARGET="${TARGET:-${DEFAULT_TARGET}}"
 TAGS="${TAGS:-${DEFAULT_TAGS}}"
 BASE="${BASE:-${DEFAULT_BASE}}"
 PLATFORM="${PLATFORM:-}" # default to all platforms
+GOARCH="${GOARCH:-arm,arm64,amd64,386,riscv64}"
+FILES="${FILES:-}" # default to no extra files
 # OCI annotations that will be added to the image.
 # https://github.com/opencontainers/image-spec/blob/main/annotations.md
 ANNOTATIONS="${ANNOTATIONS:-${DEFAULT_ANNOTATIONS}}"
@@ -61,7 +63,9 @@ case "$TARGET" in
       --repos="${REPOS}" \
       --push="${PUSH}" \
       --target="${PLATFORM}" \
+      --goarch="${GOARCH}" \
       --annotations="${ANNOTATIONS}" \
+      --files="${FILES}" \
       /usr/local/bin/containerboot
     ;;
   k8s-operator)
@@ -79,7 +83,9 @@ case "$TARGET" in
       --repos="${REPOS}" \
       --push="${PUSH}" \
       --target="${PLATFORM}" \
+      --goarch="${GOARCH}" \
       --annotations="${ANNOTATIONS}" \
+      --files="${FILES}" \
       /usr/local/bin/operator
     ;;
   k8s-nameserver)
@@ -97,7 +103,9 @@ case "$TARGET" in
       --repos="${REPOS}" \
       --push="${PUSH}" \
       --target="${PLATFORM}" \
+      --goarch="${GOARCH}" \
       --annotations="${ANNOTATIONS}" \
+      --files="${FILES}" \
       /usr/local/bin/k8s-nameserver
     ;;
   tsidp)
@@ -115,7 +123,9 @@ case "$TARGET" in
       --repos="${REPOS}" \
       --push="${PUSH}" \
       --target="${PLATFORM}" \
+      --goarch="${GOARCH}" \
       --annotations="${ANNOTATIONS}" \
+      --files="${FILES}" \
       /usr/local/bin/tsidp
     ;;
   k8s-proxy)
@@ -133,7 +143,9 @@ case "$TARGET" in
       --repos="${REPOS}" \
       --push="${PUSH}" \
       --target="${PLATFORM}" \
+      --goarch="${GOARCH}" \
       --annotations="${ANNOTATIONS}" \
+      --files="${FILES}" \
       /usr/local/bin/k8s-proxy
     ;;
   *)

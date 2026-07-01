@@ -1,4 +1,4 @@
-// Copyright (c) Tailscale Inc & AUTHORS
+// Copyright (c) Tailscale Inc & contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
 // Package pkey defines the keys used to store system policies in the registry.
@@ -46,6 +46,13 @@ const (
 	// to the Tailscale network following a user-initiated disconnect.
 	// An empty string or a zero duration disables automatic reconnection.
 	ReconnectAfter Key = "ReconnectAfter"
+
+	// AllowTailscaledRestart is a boolean key that controls whether users with write access
+	// to the LocalAPI are allowed to shutdown tailscaled with the intention of restarting it.
+	// On Windows, tailscaled will be restarted automatically by the service process
+	// (see babysitProc in cmd/tailscaled/tailscaled_windows.go).
+	// On other platforms, it is the client's responsibility to restart tailscaled.
+	AllowTailscaledRestart Key = "AllowTailscaledRestart"
 
 	// ExitNodeID is the exit node's node id. default ""; if blank, no exit node is forced.
 	// Exit node ID takes precedence over exit node IP.
@@ -129,8 +136,14 @@ const (
 	FlushDNSOnSessionUnlock Key = "FlushDNSOnSessionUnlock"
 
 	// EncryptState is a boolean setting that specifies whether to encrypt the
-	// tailscaled state file with a TPM device.
+	// tailscaled state file.
+	// Windows and Linux use a TPM device, Apple uses the Keychain.
+	// It's a noop on other platforms.
 	EncryptState Key = "EncryptState"
+
+	// HardwareAttestation is a boolean key that controls whether to use a
+	// hardware-backed key to bind the node identity to this device.
+	HardwareAttestation Key = "HardwareAttestation"
 
 	// PostureChecking indicates if posture checking is enabled and the client shall gather
 	// posture data.

@@ -4,7 +4,7 @@
 # environment for working on tailscale, for use with "nix develop".
 #
 # For more information about this and why this file is useful, see:
-# https://nixos.wiki/wiki/Flakes
+# https://wiki.nixos.org/wiki/Flakes
 #
 # Also look into direnv: https://direnv.net/, this can make it so that you can
 # automatically get your environment set up when you change folders into the
@@ -46,21 +46,37 @@
     systems,
     flake-compat,
   }: let
-    go125Version = "1.25.0";
-    goHash = "sha256-S9AekSlyB7+kUOpA1NWpOxtTGl5DhHOyoG4Y4HciciU=";
+    goVersion = nixpkgs.lib.fileContents ./go.toolchain.version;
+    toolChainRev = nixpkgs.lib.fileContents ./go.toolchain.rev;
+    flakeHashes = builtins.fromJSON (builtins.readFile ./flakehashes.json);
+    gitHash = flakeHashes.toolchain.sri;
     eachSystem = f:
       nixpkgs.lib.genAttrs (import systems) (system:
         f (import nixpkgs {
           system = system;
           overlays = [
             (final: prev: {
-              go_1_25 = prev.go_1_25.overrideAttrs {
-                version = go125Version;
-                src = prev.fetchurl {
-                  url = "https://go.dev/dl/go${go125Version}.src.tar.gz";
-                  hash = goHash;
+              go_1_26 = prev.go_1_26.overrideAttrs (old: {
+                version = goVersion;
+                src = prev.fetchFromGitHub {
+                  owner = "tailscale";
+                  repo = "go";
+                  rev = toolChainRev;
+                  sha256 = gitHash;
                 };
-              };
+                # The Tailscale Go fork carries a placeholder in
+                # src/runtime/debug/mod.go that must be replaced with
+                # the actual toolchain git rev at build time. Without
+                # this, binaries report an empty tailscale.toolchain.rev
+                # and the runtime assertion in
+                # assert_ts_toolchain_match.go panics.
+                postPatch =
+                  (old.postPatch or "")
+                  + ''
+                    substituteInPlace src/runtime/debug/mod.go \
+                      --replace-fail "TAILSCALE_GIT_REV_TO_BE_REPLACED_AT_BUILD_TIME" "${toolChainRev}"
+                  '';
+              });
             })
           ];
         }));
@@ -84,11 +100,11 @@
     # you're an end user you should be prepared for this flake to not
     # build periodically.
     packages = eachSystem (pkgs: rec {
-      default = pkgs.buildGo125Module {
+      default = pkgs.buildGo126Module {
         name = "tailscale";
         pname = "tailscale";
         src = ./.;
-        vendorHash = pkgs.lib.fileContents ./go.mod.sri;
+        vendorHash = flakeHashes.vendor.sri;
         nativeBuildInputs = [pkgs.makeWrapper pkgs.installShellFiles];
         ldflags = ["-X tailscale.com/version.gitCommitStamp=${tailscaleRev}"];
         env.CGO_ENABLED = 0;
@@ -129,7 +145,7 @@
     });
 
     devShells = eachSystem (pkgs: {
-      devShell = pkgs.mkShell {
+      default = pkgs.mkShell {
         packages = with pkgs; [
           curl
           git
@@ -137,7 +153,7 @@
           gotools
           graphviz
           perl
-          go_1_25
+          go_1_26
           yarn
 
           # qemu and e2fsprogs are needed for natlab
@@ -148,5 +164,4 @@
     });
   };
 }
-# nix-direnv cache busting line: sha256-8aE6dWMkTLdWRD9WnLVSzpOQQh61voEnjZAJHtbGCSs=
-
+# nix-direnv cache busting line: sha256-2J5X1EddqDfr1X2lk7fZL0/eFbwDbfwuBS9K6JGZQv0=

@@ -1,4 +1,4 @@
-// Copyright (c) Tailscale Inc & AUTHORS
+// Copyright (c) Tailscale Inc & contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
 package health
@@ -9,11 +9,16 @@ import (
 	"encoding/json"
 	"time"
 
+	"tailscale.com/feature/buildfeatures"
 	"tailscale.com/tailcfg"
+	"tailscale.com/util/mak"
 )
 
 // State contains the health status of the backend, and is
 // provided to the client UI via LocalAPI through ipn.Notify.
+//
+// It is also exposed via c2n for debugging purposes, so try
+// not to change its structure too gratuitously.
 type State struct {
 	// Each key-value pair in Warnings represents a Warnable that is currently
 	// unhealthy. If a Warnable is healthy, it will not be present in this map.
@@ -117,18 +122,14 @@ func (w *Warnable) unhealthyState(ws *warningState) *UnhealthyState {
 // The returned State is a snapshot of shared memory, and the caller should not
 // mutate the returned value.
 func (t *Tracker) CurrentState() *State {
-	if t.nil() {
+	if !buildfeatures.HasHealth || t.nil() {
 		return &State{}
 	}
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	if t.warnableVal == nil || len(t.warnableVal) == 0 {
-		return &State{}
-	}
-
-	wm := map[WarnableCode]UnhealthyState{}
+	var wm map[WarnableCode]UnhealthyState
 
 	for w, ws := range t.warnableVal {
 		if !w.IsVisible(ws, t.now) {
@@ -141,7 +142,7 @@ func (t *Tracker) CurrentState() *State {
 			continue
 		}
 		state := w.unhealthyState(ws)
-		wm[w.Code] = state.withETag()
+		mak.Set(&wm, w.Code, state.withETag())
 	}
 
 	for id, msg := range t.lastNotifiedControlMessages {
@@ -161,7 +162,7 @@ func (t *Tracker) CurrentState() *State {
 			}
 		}
 
-		wm[state.WarnableCode] = state.withETag()
+		mak.Set(&wm, state.WarnableCode, state.withETag())
 	}
 
 	return &State{
