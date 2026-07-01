@@ -1,0 +1,41 @@
+{
+  "Reggenomedocumentmetadata": {
+    "@type": "Reggenomedocumentmetadata",
+    "schemaVersion": 1,
+    "document_id": {
+      "@type": "Document_id"
+    },
+    "source_urls": [
+      {
+        "source_urls(item)": "URL"
+      }
+    ],
+    "publisher": {
+      "@type": "Publisher",
+      "id": "String",
+      "name": "String",
+      "jurisdiction": "String"
+    },
+    "doctype": "String",
+    "published": "Datetime",
+    "last_updated": "Datetime",
+    "crawled": "Datetime",
+    "processed": "Datetime",
+    "sector": {
+      "@type": "Sector",
+      "level_1": "String",
+      "level_2": "String",
+      "level_3": "String",
+      "level_4": "String"
+    },
+    "cyber_score": "Decimal",
+    "authoritative": [
+      {
+        "authoritative(item)": "String"
+      }
+    ],
+    "content_type": "String",
+    "restriction": "String",
+    "copyright_notice": "String"
+  }
+}

@@ -1,0 +1,271 @@
+{
+  "MappingCollection": {
+    "@type": "MappingCollection",
+    "schemaVersion": 1,
+    "uuid": "String",
+    "metadata": {
+      "@type": "Metadata",
+      "title": "String",
+      "published": "Datetime",
+      "last-modified": "Datetime",
+      "version": "String",
+      "oscal-version": "String",
+      "revisions": [
+        {
+          "revisions(item)": {
+            "@type": "Revisions(item)",
+            "props": [
+              {
+                "props(item)": {
+                  "@type": "Props(item)",
+                  "name": "String",
+                  "ns": "URI",
+                  "value": "String",
+                  "class": "String",
+                  "group": "String",
+                  "remarks": "String"
+                }
+              }
+            ],
+            "links": [
+              {
+                "links(item)": {
+                  "@type": "Links(item)",
+                  "href": "URI",
+                  "rel": "String",
+                  "media-type": "String",
+                  "resource-fragment": "String",
+                  "text": "String"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "document-ids": [
+        {
+          "document-ids(item)": {
+            "@type": "Document-ids(item)",
+            "scheme": "URI",
+            "identifier": "String"
+          }
+        }
+      ],
+      "roles": [
+        {
+          "roles(item)": {
+            "@type": "Roles(item)",
+            "description": "String",
+            "id": "String",
+            "short-name": "String"
+          }
+        }
+      ],
+      "locations": [
+        {
+          "locations(item)": {
+            "@type": "Locations(item)",
+            "address": {
+              "@type": "Address",
+              "type": "String",
+              "addr-lines": [
+                {
+                  "addr-lines(item)": "String"
+                }
+              ],
+              "city": "String",
+              "state": "String",
+              "postal-code": "String",
+              "country": "String"
+            },
+            "email-addresses": [
+              {
+                "email-addresses(item)": "String"
+              }
+            ],
+            "telephone-numbers": [
+              {
+                "telephone-numbers(item)": "TelephoneNumber"
+              }
+            ],
+            "urls": [
+              {
+                "urls(item)": "URI"
+              }
+            ]
+          }
+        }
+      ],
+      "parties": [
+        {
+          "parties(item)": {
+            "@type": "Parties(item)",
+            "external-ids": [
+              {
+                "external-ids(item)": {
+                  "@type": "External-ids(item)"
+                }
+              }
+            ],
+            "addresses": [
+              {
+                "addresses(item)": {
+                  "@type": "Addresses(item)"
+                }
+              }
+            ],
+            "member-of-organizations": [
+              {
+                "member-of-organizations(item)": "String"
+              }
+            ],
+            "location-uuids": [
+              {
+                "location-uuids(item)": "String"
+              }
+            ]
+          }
+        }
+      ],
+      "responsible-parties": [
+        {
+          "responsible-parties(item)": {
+            "@type": "Responsible-parties(item)",
+            "role-id": "String",
+            "party-uuids": [
+              {
+                "party-uuids(item)": "String"
+              }
+            ]
+          }
+        }
+      ],
+      "actions": [
+        {
+          "actions(item)": {
+            "@type": "Actions(item)",
+            "date": "Datetime",
+            "system": "URI"
+          }
+        }
+      ]
+    },
+    "provenance": {
+      "@type": "Provenance",
+      "method": "String",
+      "matching-rationale": "String",
+      "status": "String",
+      "confidence-score": {
+        "@type": "Confidence-score",
+        "category": "String",
+        "percentage": "Decimal"
+      },
+      "coverage": {
+        "@type": "Coverage",
+        "generation-method": "String",
+        "target-coverage": "Decimal"
+      },
+      "mapping-description": "String"
+    },
+    "mappings": {
+      "@type": "Mappings",
+      "source-resource": {
+        "@type": "Source-resource"
+      },
+      "target-resource": {
+        "@type": "Target-resource"
+      },
+      "maps": [
+        {
+          "maps(item)": {
+            "@type": "Maps(item)",
+            "relationship": "String",
+            "sources": [
+              {
+                "sources(item)": {
+                  "@type": "Sources(item)",
+                  "id-ref": "String"
+                }
+              }
+            ],
+            "targets": [
+              {
+                "targets(item)": {
+                  "@type": "Targets(item)"
+                }
+              }
+            ],
+            "qualifiers": [
+              {
+                "qualifiers(item)": {
+                  "@type": "Qualifiers(item)",
+                  "subject": "String",
+                  "predicate": "String"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "source-gap-summary": {
+        "@type": "Source-gap-summary",
+        "unmapped-controls": [
+          {
+            "unmapped-controls(item)": {
+              "@type": "Unmapped-controls(item)",
+              "with-child-controls": "String",
+              "with-ids": [
+                {
+                  "with-ids(item)": "String"
+                }
+              ],
+              "matching": [
+                {
+                  "matching(item)": {
+                    "@type": "Matching(item)",
+                    "pattern": "String"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "target-gap-summary": {
+        "@type": "Target-gap-summary"
+      }
+    },
+    "back-matter": {
+      "@type": "Back-matter",
+      "resources": [
+        {
+          "resources(item)": {
+            "@type": "Resources(item)",
+            "citation": {
+              "@type": "Citation"
+            },
+            "rlinks": [
+              {
+                "rlinks(item)": {
+                  "@type": "Rlinks(item)",
+                  "hashes": [
+                    {
+                      "hashes(item)": {
+                        "@type": "Hashes(item)",
+                        "algorithm": "String"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "base64": {
+              "@type": "Base64",
+              "filename": "String"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

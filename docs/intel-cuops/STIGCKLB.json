@@ -1,0 +1,47 @@
+{
+  "STIGCKLB": {
+    "@type": "STIGCKLB",
+    "schemaVersion": 1,
+    "id": "Integer",
+    "benchmarkId": "String",
+    "slug": "String",
+    "status": "String",
+    "statusDate": "Datetime",
+    "title": "String",
+    "description": "String",
+    "version": "String",
+    "createdAt": "Datetime",
+    "updatedAt": "Datetime",
+    "groups": [
+      {
+        "groups(item)": {
+          "@type": "Groups(item)",
+          "groupId": "String",
+          "ruleId": "String",
+          "ruleWeight": "String",
+          "ruleSeverity": "String",
+          "ruleVersion": "String",
+          "ruleTitle": "String",
+          "ruleVulnDiscussion": "String",
+          "ruleFalsePositives": "String",
+          "ruleFalseNegatives": "String",
+          "ruleDocumentable": "String",
+          "ruleMitigations": "String",
+          "ruleIdent": "String",
+          "ruleFixText": "String",
+          "ruleFixId": "String",
+          "ruleCheckSystem": "String",
+          "ruleCheckContent": "String"
+        }
+      }
+    ],
+    "profiles": [
+      {
+        "profiles(item)": {
+          "@type": "Profiles(item)",
+          "profileId": "String"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "License": {
+    "@type": "License",
+    "schemaVersion": 1,
+    "@id": "URL",
+    "authoritySource": {
+      "@type": "AuthoritySource",
+      "abbreviation": "String",
+      "coreMetaData": {
+        "@type": "CoreMetaData",
+        "checksum": "String",
+        "created": {
+          "@type": "Created",
+          "organization": {
+            "@type": "Organization",
+            "elementId": "String",
+            "name": "String"
+          },
+          "person": {
+            "@type": "Person"
+          },
+          "timeStamp": "Datetime"
+        },
+        "deprecatedBy": "URL",
+        "live": "Boolean",
+        "modified": {
+          "@type": "Modified"
+        },
+        "notes": "String",
+        "status": "String",
+        "supersededBy": "URL",
+        "validated": "Integer"
+      },
+      "url": "URL"
+    },
+    "language": {
+      "@type": "Language",
+      "languageCodeAlpha2": "String",
+      "languageCodeAlpha3": "String"
+    },
+    "licenseType": {
+      "@type": "LicenseType",
+      "details": "String",
+      "rightsToDerivate": "Boolean",
+      "rightsToRedistribute": "Boolean",
+      "rightsToScrape": "Boolean",
+      "rightsToTag": "Boolean",
+      "rightsToTransform": "Boolean",
+      "usageLicenseType": "String",
+      "usageRulesExamined": [
+        {
+          "usageRulesExamined(item)": {
+            "@type": "UsageRulesExamined(item)",
+            "usageRuleExamined": {
+              "@type": "UsageRuleExamined",
+              "checked": "Boolean",
+              "confidenceScore": "Decimal",
+              "statusText": "String"
+            }
+          }
+        }
+      ]
+    },
+    "version": "String"
+  }
+}

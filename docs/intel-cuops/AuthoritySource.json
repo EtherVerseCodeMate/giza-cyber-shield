@@ -1,0 +1,34 @@
+{
+  "AuthoritySource": {
+    "@type": "AuthoritySource",
+    "schemaVersion": 1,
+    "@id": "URL",
+    "abbreviation": "String",
+    "coreMetaData": {
+      "@type": "CoreMetaData",
+      "checksum": "String",
+      "created": {
+        "@type": "Created",
+        "organization": {
+          "@type": "Organization",
+          "elementId": "String",
+          "name": "String"
+        },
+        "person": {
+          "@type": "Person"
+        },
+        "timeStamp": "Datetime"
+      },
+      "deprecatedBy": "URL",
+      "live": "Boolean",
+      "modified": {
+        "@type": "Modified"
+      },
+      "notes": "String",
+      "status": "String",
+      "supersededBy": "URL",
+      "validated": "Integer"
+    },
+    "url": "URL"
+  }
+}
