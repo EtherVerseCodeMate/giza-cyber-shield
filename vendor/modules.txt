@@ -56,6 +56,63 @@ dario.cat/mergo
 ## explicit; go 1.24.0
 filippo.io/edwards25519
 filippo.io/edwards25519/field
+# fyne.io/fyne/v2 v2.7.4
+## explicit; go 1.19
+fyne.io/fyne/v2
+fyne.io/fyne/v2/app
+fyne.io/fyne/v2/canvas
+fyne.io/fyne/v2/container
+fyne.io/fyne/v2/data/binding
+fyne.io/fyne/v2/dialog
+fyne.io/fyne/v2/driver
+fyne.io/fyne/v2/driver/desktop
+fyne.io/fyne/v2/driver/embedded
+fyne.io/fyne/v2/driver/mobile
+fyne.io/fyne/v2/driver/software
+fyne.io/fyne/v2/internal
+fyne.io/fyne/v2/internal/animation
+fyne.io/fyne/v2/internal/app
+fyne.io/fyne/v2/internal/async
+fyne.io/fyne/v2/internal/build
+fyne.io/fyne/v2/internal/cache
+fyne.io/fyne/v2/internal/color
+fyne.io/fyne/v2/internal/driver
+fyne.io/fyne/v2/internal/driver/common
+fyne.io/fyne/v2/internal/driver/embedded
+fyne.io/fyne/v2/internal/driver/glfw
+fyne.io/fyne/v2/internal/driver/mobile
+fyne.io/fyne/v2/internal/driver/mobile/app
+fyne.io/fyne/v2/internal/driver/mobile/app/callfn
+fyne.io/fyne/v2/internal/driver/mobile/event/key
+fyne.io/fyne/v2/internal/driver/mobile/event/lifecycle
+fyne.io/fyne/v2/internal/driver/mobile/event/paint
+fyne.io/fyne/v2/internal/driver/mobile/event/size
+fyne.io/fyne/v2/internal/driver/mobile/event/touch
+fyne.io/fyne/v2/internal/driver/mobile/gl
+fyne.io/fyne/v2/internal/driver/mobile/mobileinit
+fyne.io/fyne/v2/internal/metadata
+fyne.io/fyne/v2/internal/painter
+fyne.io/fyne/v2/internal/painter/gl
+fyne.io/fyne/v2/internal/painter/software
+fyne.io/fyne/v2/internal/repository
+fyne.io/fyne/v2/internal/repository/mime
+fyne.io/fyne/v2/internal/scale
+fyne.io/fyne/v2/internal/svg
+fyne.io/fyne/v2/internal/test
+fyne.io/fyne/v2/internal/theme
+fyne.io/fyne/v2/internal/widget
+fyne.io/fyne/v2/lang
+fyne.io/fyne/v2/layout
+fyne.io/fyne/v2/storage
+fyne.io/fyne/v2/storage/repository
+fyne.io/fyne/v2/test
+fyne.io/fyne/v2/theme
+fyne.io/fyne/v2/widget
+# fyne.io/systray v1.12.1
+## explicit; go 1.19
+fyne.io/systray
+fyne.io/systray/internal/generated/menu
+fyne.io/systray/internal/generated/notifier
 # github.com/Azure/go-ntlmssp v0.1.1
 ## explicit; go 1.24
 github.com/Azure/go-ntlmssp
@@ -895,6 +952,9 @@ github.com/cyphar/filepath-securejoin/internal/consts
 # github.com/danieljoos/wincred v1.2.3
 ## explicit; go 1.18
 github.com/danieljoos/wincred
+# github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
+## explicit
+github.com/davecgh/go-spew/spew
 # github.com/dblohm7/wingoes v0.0.0-20240119213807-a09d6be7affa
 ## explicit; go 1.21
 github.com/dblohm7/wingoes
@@ -1019,6 +1079,9 @@ github.com/felixge/fgprof
 # github.com/felixge/httpsnoop v1.0.4
 ## explicit; go 1.13
 github.com/felixge/httpsnoop
+# github.com/fredbi/uri v1.1.1
+## explicit; go 1.19
+github.com/fredbi/uri
 # github.com/fsnotify/fsnotify v1.9.0
 ## explicit; go 1.17
 github.com/fsnotify/fsnotify
@@ -1026,6 +1089,18 @@ github.com/fsnotify/fsnotify/internal
 # github.com/fxamacker/cbor/v2 v2.9.0
 ## explicit; go 1.20
 github.com/fxamacker/cbor/v2
+# github.com/fyne-io/gl-js v0.2.0
+## explicit; go 1.19
+github.com/fyne-io/gl-js
+# github.com/fyne-io/glfw-js v0.3.0
+## explicit; go 1.19
+github.com/fyne-io/glfw-js
+# github.com/fyne-io/image v0.1.1
+## explicit; go 1.19
+github.com/fyne-io/image/ico
+# github.com/fyne-io/oksvg v0.2.0
+## explicit; go 1.19
+github.com/fyne-io/oksvg
 # github.com/gabriel-vasile/mimetype v1.4.13
 ## explicit; go 1.21
 github.com/gabriel-vasile/mimetype
@@ -1131,6 +1206,21 @@ github.com/go-git/go-git/v5/utils/merkletrie/internal/frame
 github.com/go-git/go-git/v5/utils/merkletrie/noder
 github.com/go-git/go-git/v5/utils/sync
 github.com/go-git/go-git/v5/utils/trace
+# github.com/go-gl/gl v0.0.0-20231021071112-07e5d0ea2e71
+## explicit; go 1.12
+github.com/go-gl/gl/v2.1/gl
+github.com/go-gl/gl/v2.1/gl/KHR
+github.com/go-gl/gl/v3.1/gles2
+github.com/go-gl/gl/v3.1/gles2/KHR
+# github.com/go-gl/glfw/v3.3/glfw v0.0.0-20240506104042-037f3cc74f2a
+## explicit; go 1.10
+github.com/go-gl/glfw/v3.3/glfw
+github.com/go-gl/glfw/v3.3/glfw/glfw/deps
+github.com/go-gl/glfw/v3.3/glfw/glfw/deps/glad
+github.com/go-gl/glfw/v3.3/glfw/glfw/deps/mingw
+github.com/go-gl/glfw/v3.3/glfw/glfw/deps/vs2008
+github.com/go-gl/glfw/v3.3/glfw/glfw/include/GLFW
+github.com/go-gl/glfw/v3.3/glfw/glfw/src
 # github.com/go-jose/go-jose/v4 v4.1.4
 ## explicit; go 1.24.0
 github.com/go-jose/go-jose/v4
@@ -1172,6 +1262,23 @@ github.com/go-playground/validator/v10
 ## explicit; go 1.12
 github.com/go-restruct/restruct
 github.com/go-restruct/restruct/expr
+# github.com/go-text/render v0.2.1
+## explicit; go 1.19
+github.com/go-text/render
+# github.com/go-text/typesetting v0.3.4
+## explicit; go 1.19
+github.com/go-text/typesetting/di
+github.com/go-text/typesetting/font
+github.com/go-text/typesetting/font/cff
+github.com/go-text/typesetting/font/cff/interpreter
+github.com/go-text/typesetting/font/opentype
+github.com/go-text/typesetting/font/opentype/tables
+github.com/go-text/typesetting/fontscan
+github.com/go-text/typesetting/harfbuzz
+github.com/go-text/typesetting/internal/unicodedata
+github.com/go-text/typesetting/language
+github.com/go-text/typesetting/segmenter
+github.com/go-text/typesetting/shaping
 # github.com/go-viper/mapstructure/v2 v2.5.0
 ## explicit; go 1.18
 github.com/go-viper/mapstructure/v2
@@ -1206,6 +1313,8 @@ github.com/gocsaf/csaf/v3/util
 # github.com/godbus/dbus/v5 v5.2.2
 ## explicit; go 1.20
 github.com/godbus/dbus/v5
+github.com/godbus/dbus/v5/introspect
+github.com/godbus/dbus/v5/prop
 # github.com/gofrs/uuid v4.4.0+incompatible
 ## explicit
 github.com/gofrs/uuid
@@ -1332,6 +1441,15 @@ github.com/gpustack/gguf-parser-go/util/osx
 github.com/gpustack/gguf-parser-go/util/ptr
 github.com/gpustack/gguf-parser-go/util/slicex
 github.com/gpustack/gguf-parser-go/util/stringx
+# github.com/hack-pad/go-indexeddb v0.3.2
+## explicit; go 1.18
+github.com/hack-pad/go-indexeddb/idb
+github.com/hack-pad/go-indexeddb/idb/internal/jscache
+# github.com/hack-pad/safejs v0.1.0
+## explicit; go 1.18
+github.com/hack-pad/safejs
+github.com/hack-pad/safejs/internal/catch
+github.com/hack-pad/safejs/internal/stackerr
 # github.com/hako/durafmt v0.0.0-20210608085754-5c1018a4e16b
 ## explicit; go 1.11
 github.com/hako/durafmt
@@ -1449,6 +1567,9 @@ github.com/jcmturner/gokrb5/v8/types
 ## explicit; go 1.13
 github.com/jcmturner/rpc/v2/mstypes
 github.com/jcmturner/rpc/v2/ndr
+# github.com/jeandeaual/go-locale v0.0.0-20250612000132-0ef82f21eade
+## explicit; go 1.18
+github.com/jeandeaual/go-locale
 # github.com/jinzhu/copier v0.4.0
 ## explicit; go 1.13
 github.com/jinzhu/copier
@@ -1468,6 +1589,9 @@ github.com/jsimonetti/rtnetlink/internal/unix
 # github.com/json-iterator/go v1.1.12
 ## explicit; go 1.12
 github.com/json-iterator/go
+# github.com/jsummers/gobmp v0.0.0-20230614200233-a9de23ed2e25
+## explicit
+github.com/jsummers/gobmp
 # github.com/kastenhq/goversion v0.0.0-20230811215019-93b2f8823953
 ## explicit; go 1.21
 github.com/kastenhq/goversion/version
@@ -1636,6 +1760,15 @@ github.com/muesli/termenv
 # github.com/ncruces/go-strftime v1.0.0
 ## explicit; go 1.17
 github.com/ncruces/go-strftime
+# github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
+## explicit
+github.com/nfnt/resize
+# github.com/nicksnyder/go-i18n/v2 v2.5.1
+## explicit; go 1.18
+github.com/nicksnyder/go-i18n/v2/i18n
+github.com/nicksnyder/go-i18n/v2/i18n/template
+github.com/nicksnyder/go-i18n/v2/internal
+github.com/nicksnyder/go-i18n/v2/internal/plural
 # github.com/nix-community/go-nix v0.0.0-20250101154619-4bdde671e0a1
 ## explicit; go 1.20
 github.com/nix-community/go-nix/pkg/derivation
@@ -1731,6 +1864,9 @@ github.com/planetscale/vtprotobuf/types/known/emptypb
 github.com/planetscale/vtprotobuf/types/known/structpb
 github.com/planetscale/vtprotobuf/types/known/timestamppb
 github.com/planetscale/vtprotobuf/types/known/wrapperspb
+# github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
+## explicit
+github.com/pmezard/go-difflib/difflib
 # github.com/prometheus-community/pro-bing v0.4.0
 ## explicit; go 1.19
 github.com/prometheus-community/pro-bing
@@ -1772,6 +1908,17 @@ github.com/rivo/uniseg
 # github.com/rust-secure-code/go-rustaudit v0.0.0-20250226111315-e20ec32e963c
 ## explicit; go 1.18
 github.com/rust-secure-code/go-rustaudit
+# github.com/rymdport/portal v0.4.2
+## explicit; go 1.19
+github.com/rymdport/portal
+github.com/rymdport/portal/filechooser
+github.com/rymdport/portal/internal/apis
+github.com/rymdport/portal/internal/convert
+github.com/rymdport/portal/internal/request
+github.com/rymdport/portal/notification
+github.com/rymdport/portal/openuri
+github.com/rymdport/portal/settings
+github.com/rymdport/portal/settings/appearance
 # github.com/safchain/ethtool v0.3.0
 ## explicit; go 1.16
 github.com/safchain/ethtool
@@ -1874,6 +2021,17 @@ github.com/spiffe/go-spiffe/v2/internal/jwtutil
 github.com/spiffe/go-spiffe/v2/internal/pemutil
 github.com/spiffe/go-spiffe/v2/internal/x509util
 github.com/spiffe/go-spiffe/v2/spiffeid
+# github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c
+## explicit; go 1.17
+github.com/srwiley/oksvg
+# github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef
+## explicit; go 1.17
+github.com/srwiley/rasterx
+# github.com/stretchr/testify v1.11.1
+## explicit; go 1.17
+github.com/stretchr/testify/assert
+github.com/stretchr/testify/assert/yaml
+github.com/stretchr/testify/require
 # github.com/subosito/gotenv v1.6.0
 ## explicit; go 1.18
 github.com/subosito/gotenv
@@ -2012,6 +2170,15 @@ github.com/xuri/excelize/v2
 # github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9
 ## explicit; go 1.15
 github.com/xuri/nfp
+# github.com/yuin/goldmark v1.7.8
+## explicit; go 1.19
+github.com/yuin/goldmark
+github.com/yuin/goldmark/ast
+github.com/yuin/goldmark/parser
+github.com/yuin/goldmark/renderer
+github.com/yuin/goldmark/renderer/html
+github.com/yuin/goldmark/text
+github.com/yuin/goldmark/util
 # github.com/zalando/go-keyring v0.2.8
 ## explicit; go 1.18
 github.com/zalando/go-keyring
@@ -2158,6 +2325,16 @@ golang.org/x/crypto/ssh/knownhosts
 ## explicit; go 1.25.0
 golang.org/x/exp/constraints
 golang.org/x/exp/maps
+# golang.org/x/image v0.27.0
+## explicit; go 1.23.0
+golang.org/x/image/ccitt
+golang.org/x/image/colornames
+golang.org/x/image/draw
+golang.org/x/image/math/f64
+golang.org/x/image/math/fixed
+golang.org/x/image/tiff
+golang.org/x/image/tiff/lzw
+golang.org/x/image/vector
 # golang.org/x/mod v0.36.0
 ## explicit; go 1.25.0
 golang.org/x/mod/internal/lazyregexp
