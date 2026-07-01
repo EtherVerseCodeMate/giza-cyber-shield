@@ -63,6 +63,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - FIPS mode testing in `scripts/fips-test.sh`
 - Quick verification binary in `examples/quick_verify.go`
 
+## [1.1.0] - 2026-06-30
+
+### Security — Critical Hardening (TRL10)
+
+This release closes five security gaps that existed in the v1.0.x codebase before any customer deployment:
+
+- **CVE-equivalent: Unauthenticated privileged daemon access** — `POST /api/v1/asaf/remediate` had no authentication check. Any process reaching the HTTP port could trigger `asaf-daemon` operations (CAP_SYS_ADMIN privileged executor). Fixed: `RemediateAPI.authorize()` now validates `Authorization: Bearer <token>` → `GetSession()` → `VerifyPermission("remediation", "write")` before any daemon contact.
+
+- **Session token plaintext storage** — Session tokens were stored unhashed in the SQLite database. Fixed: SHA-256 hash stored (`hashToken()`), raw token returned to client only at creation time.
+
+- **No server-side login rate limiting** — Failed logins were uncapped. Fixed: in-memory per-username attempt counter with 5-attempt / 15-min window, 15-min lockout, and `Retry-After` header on 429 responses.
+
+- **Database file world-readable** — SQLite auth DB created with default umask. Fixed: `os.Chmod(dbPath, 0600)` on non-Windows immediately after open.
+
+- **Dead port fallback** — Sovereign auth pointed to `localhost:45444` (retired khepra-daemon, never connected to anything real). Auth silently appeared to work while actually doing nothing. Fixed: all six call sites now target `localhost:8443` (configurable via `NEXT_PUBLIC_ASAF_API_URL`).
+
+### Added
+
+#### Sovereign SQLite Auth Backend (`pkg/auth/sqlite_provider.go`)
+- On-premise SQLite-backed `AuthProvider` — zero external calls, CMMC-compliant air-gap safe
+- Argon2id key derivation (OWASP 2024 recommended params: time=1, memory=64MB, threads=4)
+- Per-user random salts via `kms.NewSalt()` + `kms.DeriveKey()`
+- `subtle.ConstantTimeCompare` for timing-safe hash comparison
+- `GetSession()` returns full `*auth.Session` with roles for role-based authorization
+- `HasAnyUsers()` for first-run bootstrap detection
+
+#### HTTP Auth API (`pkg/webui/auth_api.go`)
+- `POST /api/v1/auth/login` — credential validation + rate-limit gate + DAG audit log
+- `POST /api/v1/auth/validate` — session token validation (called on every page load)
+- `GET  /api/v1/auth/bootstrap` — returns `{"needs_bootstrap": true/false}`
+- `POST /api/v1/auth/bootstrap` — creates first admin account; 403 after first call
+- DAG audit node written for every auth event (success, failure, rate-limited, bootstrap) — satisfies CMMC AC-2/AU-2
+
+#### Remediate API with Auth Gate (`pkg/webui/remediate_api.go`)
+- `POST /api/v1/asaf/remediate` — ML-DSA-65 signed ChangeRequest submission to asaf-daemon; auth-gated
+- `GET  /api/v1/asaf/remediate/status` — staging job poll; auth-gated
+- DAG node written at `REMEDIATE_REQUESTED` before any daemon contact (immutable audit trail)
+
+#### ASAF Daemon Client (`pkg/asaf/client/`)
+- `client.go` — Unix socket client; JSON `ChangeRequest` in, `ChangeResult` out; 30s deadline
+- `keys.go` — ML-DSA-65 agent keypair management (auto-generated if absent)
+
+#### Sekhem WAF HTTP Middleware (`pkg/sekhem/http_middleware.go`)
+- `HTTPMiddleware(ws *WAFShield) func(http.Handler) http.Handler`
+- Ingress: body-size cap, spectral fingerprint, 8 L7 rules (block/challenge)
+- Egress: secret scrubbing, `X-Sekhem-FP` header injection
+- SSE-safe: `captureWriter.Flush()` forwards buffer immediately for streaming paths
+
+#### DAG Atomic Writes + Cross-Process Reload (`pkg/dag/persistence.go`, `global.go`)
+- `FlushNode()` now writes to `.tmp` then `os.Rename()` — atomic, safe for concurrent readers
+- `StartAutoReloadDaemon(interval)` — periodic `LoadFromDisk()` for cross-process DAG state sync
+- Global DAG now starts 5-second auto-reload daemon on first access
+
+#### Lean Docker Image (`Dockerfile.adinkhepra`)
+- Single `adinkhepra` binary image (replaces 9-binary root Dockerfile)
+- `CGO_ENABLED=0` — pure Go, no system library dependencies
+- Alpine 3.21 runtime, non-root user `adinkhepra`, `HOME=/home/adinkhepra` for key storage
+- Resolves two pre-existing build failures: stale `top_secret_intel` path, `cmd/apiserver -tags saas`
+
+### Changed
+
+#### Frontend Sovereign Auth (`src/contexts/AuthProvider.tsx`, `AuthContext.ts`)
+- Sovereign boot now POSTs to `/api/v1/auth/validate` on every page load to re-validate stored session against live SQLite store (revoked sessions no longer silently re-grant access)
+- `sovereignSignIn()` calls `POST /api/v1/auth/login` — no more license-key regex fallback
+- `bootstrapAdmin(username, email, password)` added to context for first-run setup flow
+- `checkNeedsBootstrap()` added to context — drives Auth.tsx setup screen on fresh install
+- `useUserRoles()` reads `app_metadata.role` directly from user object; removed dead port round-trip
+
+#### Docker Compose (`docker-compose.asaf.yml`)
+- `asaf-api` now uses `Dockerfile.adinkhepra` (no command override needed)
+- `ASAF_DAG_PATH` → `KHEPRA_DAG_PATH` (matches `pkg/dag/global.go` actual env var name)
+- Added `khepra-mcp` as 4th service — PQC-Khepra-MCP sovereign sidecar, zero egress
+- `asaf-mcp` bound to `127.0.0.1:8765` only (MCP HTTP/SSE not internet-exposed)
+
+### Fixed
+
+- Six dead-port references (`localhost:45444`) across `AuthProvider.tsx` and five API route files
+- Docker compose `command:` override used wrong flag syntax (`--port` → `-port`) and non-existent flags; removed in favor of Dockerfile `CMD` default
+
+### Dependencies Added
+
+- `github.com/glebarez/go-sqlite` — pure-Go SQLite driver (CGO_ENABLED=0 compatible)
+
 ## [Unreleased] - 2026-01-12
 
 ### Added - DoD Platform One ECRs
