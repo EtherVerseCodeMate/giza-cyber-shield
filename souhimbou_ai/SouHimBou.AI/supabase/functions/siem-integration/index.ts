@@ -583,15 +583,8 @@ async function sendAlertToSIEM(config: any, organizationId: string) {
   };
 }
 
-  return {
-    alert,
-    delivery_results: deliveryResults,
-    total_platforms: siemPlatforms.length,
-    successful_deliveries: deliveryResults.filter(r => r.status === 'delivered').length
-  };
-}
+// Create Elastic index templates for SouHimBou security data
 
-// Create Elastic index templates for ARGUS security data
 async function createElasticIndexTemplates(elasticsearchUrl: string, apiKey: string) {
   const templates = [
     {

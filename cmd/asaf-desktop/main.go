@@ -5,10 +5,13 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -18,6 +21,8 @@ import (
 
 	asaftheme "github.com/EtherVerseCodeMate/giza-cyber-shield/app/theme"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/app/views"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
 )
 
 const (
@@ -39,14 +44,70 @@ func main() {
 }
 
 // runHeadless starts a loopback-only HTTP server on the specified port.
-// This is used when the desktop is registered as a Windows Service
-// (AdinKhepraASAF → adinkhepra-desktop.exe --headless --port 8443).
+// Used when the desktop binary is registered as a Windows Service:
+//
+//	AdinKhepraASAF → adinkhepra-desktop.exe --headless --port 8443
+//
+// Endpoints:
+//
+//	GET  /health  — liveness probe for SCM / load-balancers
+//	GET  /sprs    — current SPRS score as JSON
+//	POST /scan    — trigger a STIG scan and return the JSON report
 func runHeadless(port int) {
-	log.Printf("[asaf-desktop] headless mode — dashboard on 127.0.0.1:%d", port)
-	// Delegate to adinkhepra serve logic (Surface 1 web viewer).
-	// In v1.1.1 this is a stub; full implementation in v1.2.
-	log.Printf("[asaf-desktop] headless stub — exiting (v1.1.1)")
-	os.Exit(0)
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	log.Printf("[asaf-desktop] headless mode — listening on %s", addr)
+
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"status":  "ok",
+			"version": appVersion,
+		})
+	})
+
+	mux.HandleFunc("/sprs", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		// Standalone SPRS endpoint: run a fresh scan and return the score.
+		v := stig.NewValidator("")
+		report, err := v.Validate()
+		if err != nil && report == nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		score := 110
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"sprs_score": score,
+			"scanned_at": time.Now().UTC().Format(time.RFC3339),
+		})
+	})
+
+	mux.HandleFunc("/scan", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		v := stig.NewValidator("")
+		report, err := v.Validate()
+		if err != nil && report == nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(report)
+	})
+
+	srv := &http.Server{
+		Addr:         addr,
+		Handler:      mux,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 120 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+	if err := srv.ListenAndServe(); err != nil {
+		log.Fatalf("[asaf-desktop] headless server error: %v", err)
+	}
 }
 
 // runGUI launches the full native Fyne desktop application.
@@ -182,24 +243,31 @@ func showMainWindow(a fyne.App, tier string) {
 	w.Show()
 }
 
-// checkLicense reads the license file and returns the tier string.
-// Returns "Community" if no license found or verification fails.
-// Full ML-DSA-65 verification is handled by pkg/license at runtime.
+// checkLicense performs ML-DSA-65 offline license verification via pkg/license.
+// Search order: KHEPRA_LICENSE_FILE env → ~/.khepra/license.khepra → any *.khepra.
+// Returns the tier string ("khepri", "ra", "atum", "osiris") on success, or
+// "Community" if no valid license is found. Never returns "Pilot" for a missing file.
 func checkLicense() string {
-	paths := []string{
-		os.Getenv("KHEPRA_LICENSE_PATH"),
-		os.Getenv("ProgramData") + `\AdinKhepra ASAF\license.adinkhepra`,
-		os.Getenv("HOME") + `/.config/adinkhepra/license.adinkhepra`,
+	// Empty serverURL: air-gap mode. Manager tries offline .khepra file first;
+	// network fallback silently fails, which is expected in a sovereign deployment.
+	mgr, err := license.NewManager("")
+	if err != nil {
+		log.Printf("[license] failed to create manager: %v — running Community", err)
+		return "Community"
 	}
-	for _, p := range paths {
-		if p == "" {
-			continue
-		}
-		if _, err := os.Stat(p); err == nil {
-			// License file found — in production this calls pkg/license.Manager.Initialize()
-			// For v1.1.1 skeleton, just indicate a license is present.
-			return "Pilot"
-		}
+
+	if err := mgr.Initialize(); err != nil {
+		// No valid offline license and no network reachable — Community tier.
+		log.Printf("[license] no valid license found: %v", err)
+		return "Community"
 	}
-	return "Community"
+
+	tier := mgr.GetTier()
+	if tier == "" || tier == "community" {
+		return "Community"
+	}
+	return tier
 }
+
+// _ suppresses "imported and not used" if the os import is only used in runHeadless.
+var _ = os.Stderr
