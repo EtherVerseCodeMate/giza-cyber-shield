@@ -536,3 +536,73 @@ KASA's autonomous loop writes to its OWN separate in-memory DAG store (`kasaStor
 - Wiring SEKHEM WAF into live request filtering (no live HTTP ingress in stdio-first MCP)
 - Merging Product A's Compliance Graph UI with Product C's live feed (Product B's dashboard is the Presight demo consumer)
 
+---
+
+## 🔱 The 4-Layer SouHimBou Audit Framework (RUN FREQUENTLY)
+
+> **STANDING ORDER** — This is our recurring blindspot audit. Run it per-product-boundary
+> (never one blurred sweep across all three). The whole point is to catch the gap between
+> what we *claim* and what the code *does* before a C3PAO, an Iron Bank reviewer, or a
+> pilot customer catches it for us. A finding is only real with a `file:line` citation.
+
+### The three audit boundaries (always audit separately)
+
+| Boundary | What it is | Where the code lives |
+|---|---|---|
+| **Product A — AdinKhepra ASAF Desktop** | CISO-facing CMMC autopilot GUI + privileged daemon | `giza-cyber-shield`: `cmd/asaf-desktop`, `app/`, `pkg/stig`, `pkg/asaf/daemon` |
+| **Product B — PQC-Khepra-MCP** | Sovereign MCP server / scanner (agent channel) | `PQC-Khepra-MCP`: `cmd/khepra-mcp`, `pkg/mcp`, `pkg/gateway`, `pkg/stig` |
+| **Product C — SouHimBou AI** | Agentic SOC + Flight Recorder SaaS | `giza-cyber-shield`: `souhimbou_ai/`, `pkg/flight`, `pkg/souhimbou`, Supabase functions |
+
+### The four dimensions (every audit covers all four)
+
+1. **Top-Down (Strategy → Code)** — Take each marketing/spec claim and hunt for the code that
+   backs it. A claim with no implementation, or backed by a mock, is a Top-Down finding.
+   *Question: "We say we do X. Where is X in the code?"*
+2. **Bottom-Up (Code → Claims)** — Read the code and find behavior the docs don't admit:
+   hardcoded keys, dev backdoors, stubs, silent mock fallbacks, `TODO`/`STUB`/"in production".
+   *Question: "The code does Y. Do we admit Y anywhere?"*
+3. **Horizontal (Cross-Cutting)** — One concern across all languages/modules: is the same
+   pattern handled consistently? The classic trap is two sibling functions where one was
+   fixed and its near-twin was not. *Question: "Is this pattern uniform everywhere it appears?"*
+4. **Diagonal (Trust Boundary)** — Trace one feature/datum through every seam
+   (detect → store → act → display → operator). Find the seam where a component *claims*
+   success but the next hop never received the truth. *Question: "Where does 'done' become a lie?"*
+
+### Severity ladder
+
+- **CRITICAL** — Fabricated evidence in an audit trail, mocked security-critical action reporting
+  success (alerts, remediation, containment/rollback), auth backdoor, forgeable license/signature.
+  Disqualifying for TRL10 / C3PAO.
+- **HIGH** — Silent mock fallback in a production data path, unencrypted sensitive data,
+  claim-vs-reality gap in a customer-facing capability.
+- **MEDIUM** — Coverage overstatement, inconsistent cross-cutting handling, weak-but-not-broken auth.
+- **LOW** — Stale numbers/comments, cosmetic stubs behind an honest disclaimer, doc drift.
+
+### Required executive-summary table (top of every report)
+
+| Dimension | Findings | RESOLVED | CRITICAL | HIGH | MEDIUM | LOW |
+|-----------|----------|----------|----------|------|--------|-----|
+| **Top-Down** (Strategy → Code) | | | | | | |
+| **Bottom-Up** (Code → Claims) | | | | | | |
+| **Horizontal** (Cross-Cutting) | | | | | | |
+| **Diagonal** (Trust Boundary) | | | | | | |
+
+### The recurring anti-patterns to always grep for
+
+- **Silent mock fallback**: `if (!apiKey) return generateMock…()` / `catch { return mockData() }` —
+  must be replaced with fail-loud + telemetry. This is the #1 killer; it looks operational in a demo
+  and never delivers in production.
+- **Fabricated success**: a function that computes/returns `success: true` (or writes to the DAG)
+  without the real side effect actually happening. Worst when in the alert, remediation, or
+  containment/rollback path.
+- **Orphaned build artifacts**: a fixed file in `pkg/` with a stale, still-vulnerable twin under a
+  build/mirror directory. Grep the whole tree for the filename and diff.
+- **Coverage overstatement**: "full X coverage" strings where the code implements a sample subset.
+  Must carry a non-dismissible, *computed* disclaimer.
+
+### Cadence
+
+Run at the close of every sprint and before any pilot demo or Iron Bank resubmission. Reports live at
+repo root as `AUDIT_<PRODUCT>_<YYYY-MM-DD>.md`. Compare each run against the prior report's open items —
+a finding that regressed (came back after being marked RESOLVED) is automatically escalated one severity.
+
