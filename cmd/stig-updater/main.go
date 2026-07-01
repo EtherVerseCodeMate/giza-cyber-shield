@@ -30,10 +30,39 @@ func main() {
 	filter  := flag.String("filter", "", "Comma-separated STIG filename substrings to include (e.g. RHEL_9,Windows_11). Empty = all.")
 	list    := flag.Bool("list", false, "List available STIGs from cyber.mil and exit")
 	verbose := flag.Bool("v", false, "Verbose output")
+	// Code-gen flags: classify parsed rules and emit a Go CheckSpec table.
+	genGo    := flag.Bool("gen-go", false, "Generate a Go CheckSpec table from parsed STIG rules")
+	genOut   := flag.String("gen-out", "", "Output path for generated Go file (required with --gen-go)")
+	genVar   := flag.String("gen-var", "", "Go variable name for generated CheckSpec slice (derived from --filter if empty)")
 	flag.Parse()
 
 	if *list {
 		runList(*verbose)
+		return
+	}
+
+	if *genGo {
+		if *genOut == "" {
+			fatalf("--gen-out is required with --gen-go")
+		}
+		if *filter == "" {
+			fatalf("--filter is required with --gen-go (e.g. --filter RHEL_9)")
+		}
+		varName := *genVar
+		if varName == "" {
+			varName = deriveVarName(*filter)
+		}
+		switch *mode {
+		case "online":
+			runGenGo(*outDir, *cache, *filter, *genOut, varName, *verbose)
+		case "offline":
+			if *zipDir == "" {
+				fatalf("--zip-dir is required for offline mode")
+			}
+			runGenGoOffline(*zipDir, *outDir, *genOut, varName, *verbose)
+		default:
+			fatalf("unknown mode %q — use 'online' or 'offline'", *mode)
+		}
 		return
 	}
 
@@ -112,6 +141,117 @@ func runOffline(zipDir, outDir string, verbose bool) {
 	}
 
 	printResult(result, verbose)
+}
+
+// runGenGo fetches STIGs online, updates the CSV, then also emits a Go
+// CheckSpec table at genOut.
+func runGenGo(outDir, cache, filterStr, genOut, varName string, verbose bool) {
+	filters := splitFilter(filterStr)
+	ensureDir(outDir)
+	ensureDir(cache)
+
+	fmt.Printf("Fetching STIG rules from cyber.mil and generating Go check table …\n")
+	fmt.Printf("  Filter  : %s\n", filterStr)
+	fmt.Printf("  Var     : %s\n", varName)
+	fmt.Printf("  Gen out : %s\n\n", genOut)
+
+	pkgs, err := stig.ListAvailableSTIGs()
+	if err != nil {
+		fatalf("list STIGs: %v", err)
+	}
+	if len(filters) > 0 {
+		pkgs = stig.FilterPackages(pkgs, filters)
+	}
+
+	var allRules []stig.STIGRule
+	for _, pkg := range pkgs {
+		fmt.Printf("  Downloading %s …\n", pkg.FileName)
+		zipPath, err := stig.DownloadSTIG(pkg, cache)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  WARN: download %s: %v\n", pkg.FileName, err)
+			continue
+		}
+		rules, err := stig.ParseXCCDFZip(zipPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  WARN: parse %s: %v\n", pkg.FileName, err)
+			continue
+		}
+		if verbose {
+			fmt.Printf("  Parsed %d rules from %s\n", len(rules), pkg.FileName)
+		}
+		allRules = append(allRules, rules...)
+	}
+
+	fmt.Printf("\nClassifying %d rules → %s …\n", len(allRules), genOut)
+	family := filterStr
+	if err := stig.GenerateCheckTableGo(allRules, family, "stig", varName, genOut); err != nil {
+		fatalf("generate check table: %v", err)
+	}
+	fmt.Printf("Generated %s (%d rules).\n\n", genOut, len(allRules))
+	fmt.Println("Next steps:")
+	fmt.Printf("  1. Review %s — adjust any CheckManual entries.\n", genOut)
+	fmt.Println("  2. go build ./cmd/asaf-desktop/... — re-embed CSV + new table.")
+}
+
+// runGenGoOffline is the same but reads ZIPs from a local directory.
+func runGenGoOffline(zipDir, outDir, genOut, varName string, verbose bool) {
+	ensureDir(outDir)
+
+	fmt.Printf("Importing STIG ZIPs from %s and generating Go check table …\n\n", zipDir)
+
+	entries, err := os.ReadDir(zipDir)
+	if err != nil {
+		fatalf("read dir %s: %v", zipDir, err)
+	}
+
+	var allRules []stig.STIGRule
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".zip") {
+			continue
+		}
+		zipPath := filepath.Join(zipDir, e.Name())
+		rules, err := stig.ParseXCCDFZip(zipPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  WARN: parse %s: %v\n", e.Name(), err)
+			continue
+		}
+		if verbose {
+			fmt.Printf("  Parsed %d rules from %s\n", len(rules), e.Name())
+		}
+		allRules = append(allRules, rules...)
+	}
+
+	fmt.Printf("\nClassifying %d rules → %s …\n", len(allRules), genOut)
+	if err := stig.GenerateCheckTableGo(allRules, zipDir, "stig", varName, genOut); err != nil {
+		fatalf("generate check table: %v", err)
+	}
+	fmt.Printf("Generated %s (%d rules).\n", genOut, len(allRules))
+}
+
+// deriveVarName converts a filter string (e.g. "RHEL_9") to a Go var name
+// (e.g. "rhel09STIG").
+func deriveVarName(filter string) string {
+	s := strings.ToLower(filter)
+	s = strings.NewReplacer(
+		"rhel_9", "rhel09",
+		"rhel_8", "rhel08",
+		"windows_11", "win11",
+		"windows_10", "win10",
+		"ubuntu", "ubuntu",
+		" ", "_",
+		"-", "",
+	).Replace(s)
+	return s + "STIG"
+}
+
+func splitFilter(filterStr string) []string {
+	var out []string
+	for _, f := range strings.Split(filterStr, ",") {
+		if t := strings.TrimSpace(f); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 func printResult(r *stig.UpdateResult, verbose bool) {

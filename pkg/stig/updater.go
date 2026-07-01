@@ -598,7 +598,12 @@ func fetchURL(url string) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-// filterPackages keeps only packages whose FileName contains one of the filter strings.
+// FilterPackages keeps only packages whose FileName contains one of the filter strings.
+func FilterPackages(pkgs []STIGPackage, filter []string) []STIGPackage {
+	return filterPackages(pkgs, filter)
+}
+
+// filterPackages is the unexported implementation.
 func filterPackages(pkgs []STIGPackage, filter []string) []STIGPackage {
 	var out []STIGPackage
 	for _, p := range pkgs {
