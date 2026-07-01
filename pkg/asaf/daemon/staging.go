@@ -117,26 +117,31 @@ func (sm *StagingManager) runMirrorContainer(job *StagingJob) {
 	ctx, cancel := context.WithTimeout(context.Background(), stagingTimeout)
 	defer cancel()
 
-	// Build the shell command to run inside the container.
-	// We use 'sh -c' inside the container — the container boundary is the
-	// isolation layer, not argument parsing.
-	containerCmd := strings.Join(job.Request.Command, " ")
-
 	// Capture "before" state snapshot inside container
 	beforeSnap := sm.captureStateSnapshot(ctx, job.Request.Command)
 
-	//nolint:gosec — containerCmd runs inside an isolated Docker container
-	dockerArgs := []string{
+	// job.Request.Command was already run through validateCommand() (deny-by-
+	// default catalog + shell-metacharacter rejection) before it ever reached
+	// runStaging — see daemon.go Execute(). Passed here as discrete argv
+	// entries with no shell in between, matching the no-shell exec used for
+	// production in privileged.go. Previously this joined the args into a
+	// single string and ran it through `sh -c` inside the container, which
+	// (a) reopened word-splitting/quoting semantics that validateCommand()'s
+	// character blocklist doesn't fully account for (e.g. unquoted globs or
+	// unbalanced quotes), and (b) silently mangled any argument containing a
+	// space. The container boundary (--cap-drop ALL, --network none,
+	// --read-only) is still the primary isolation layer, but there's no
+	// reason to hand the mirror a shell it doesn't need. Fixed 2026-07-01.
+	dockerArgs := append([]string{
 		"run", "--rm",
 		"--name", "asaf-mirror-" + job.ID[:8],
-		"--read-only",          // container filesystem is read-only except mounted tmpfs
-		"--tmpfs", "/tmp",       // allow writes to /tmp only
+		"--read-only",       // container filesystem is read-only except mounted tmpfs
+		"--tmpfs", "/tmp",   // allow writes to /tmp only
 		"--security-opt", "no-new-privileges",
 		"--cap-drop", "ALL",
-		"--network", "none",     // no network inside mirror container
+		"--network", "none", // no network inside mirror container
 		mirrorImage(),
-		"sh", "-c", containerCmd,
-	}
+	}, job.Request.Command...)
 
 	cmd := exec.CommandContext(ctx, "docker", dockerArgs...)
 	var buf bytes.Buffer
@@ -160,7 +165,7 @@ func (sm *StagingManager) runMirrorContainer(job *StagingJob) {
 
 	// Capture "after" state (what would have changed)
 	afterSnap := sm.captureStateSnapshot(ctx, job.Request.Command)
-	diff := buildDiff(beforeSnap, afterSnap, containerCmd)
+	diff := buildDiff(beforeSnap, afterSnap, strings.Join(job.Request.Command, " "))
 
 	sm.mu.Lock()
 	job.Stdout = output
