@@ -135,16 +135,6 @@ func validateCommand(command []string) error {
 	return nil
 }
 
-// isKernelCommand returns true if the command requires Eban symbol authorization.
-func isKernelCommand(command []string) bool {
-	if len(command) == 0 {
-		return false
-	}
-	binary := CommandType(commandBinary(command[0]))
-	required, ok := symbolRequirements[binary]
-	return ok && required == "Eban"
-}
-
 // requiredSymbol returns the Adinkra symbol required for a command.
 // Returns empty string if the command is not in the catalog.
 func requiredSymbol(command []string) string {
