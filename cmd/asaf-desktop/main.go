@@ -17,6 +17,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	asaftheme "github.com/EtherVerseCodeMate/giza-cyber-shield/app/theme"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/app/views"
 )
 
 const (
@@ -109,10 +110,10 @@ func showSplash(a fyne.App) fyne.Window {
 
 func showMainWindow(a fyne.App, tier string) {
 	w := a.NewWindow("AdinKhepra ASAF — Compliance Graph")
-	w.Resize(fyne.NewSize(1280, 800))
+	w.Resize(fyne.NewSize(1440, 900))
 	w.CenterOnScreen()
 
-	// CUI banner
+	// CUI banner — always visible per CUI marking requirements
 	cuiBanner := canvas.NewText(
 		"⬛  CUI  //  CONTROLLED UNCLASSIFIED INFORMATION  //  SecRed Knowledge Inc.",
 		asaftheme.NodeRed,
@@ -120,7 +121,7 @@ func showMainWindow(a fyne.App, tier string) {
 	cuiBanner.TextStyle = fyne.TextStyle{Monospace: true}
 	cuiBanner.TextSize = 10
 
-	// Header
+	// Header row
 	appTitle := canvas.NewText("ADINKHEPRA  ASAF", asaftheme.NXBlue)
 	appTitle.TextSize = 18
 	appTitle.TextStyle = fyne.TextStyle{Bold: true}
@@ -134,34 +135,48 @@ func showMainWindow(a fyne.App, tier string) {
 		nil,
 	)
 
-	// Placeholder body — full graph implementation in v1.1.1 milestone
-	placeholder := container.NewCenter(
-		container.NewVBox(
-			canvas.NewText("CMMC Compliance Graph", asaftheme.NXBlue),
-			widget.NewLabel("3D force-directed compliance graph loads here."),
-			widget.NewLabel("Nodes = CMMC/STIG controls  |  Edges = dependencies"),
-			widget.NewLabel("Colors: Red=failing  Orange=at-risk  Green=passing"),
-			widget.NewSeparator(),
-			widget.NewLabel("Run: adinkhepra ert full . to populate the graph"),
-		),
-	)
+	// ── Tab 1: Compliance Graph (full implementation) ────────────────────────
+	tab1 := views.NewComplianceGraphTab()
 
-	// Footer
+	// ── Tabs 2–8: placeholders for future milestones ─────────────────────────
+	futureTab := func(label string) fyne.CanvasObject {
+		t := canvas.NewText(label+" — coming soon", asaftheme.TextMuted)
+		t.TextSize = 14
+		return container.NewCenter(t)
+	}
+
+	tabs := container.NewAppTabs(
+		container.NewTabItem("Compliance Graph", tab1.Content()),
+		container.NewTabItem("Asset Discovery", futureTab("Asset Discovery")),
+		container.NewTabItem("Security Plan (SSP)", futureTab("System Security Plan")),
+		container.NewTabItem("POA&M", futureTab("Plan of Action & Milestones")),
+		container.NewTabItem("Remediation", futureTab("Remediation Engine")),
+		container.NewTabItem("Readiness Gate", futureTab("Readiness Gate")),
+		container.NewTabItem("Evidence Package", futureTab("C3PAO Evidence Package")),
+	)
+	tabs.SetTabLocation(container.TabLocationTop)
+
+	// Footer — patent / copyright line
 	footer := container.NewHBox(
-		widget.NewLabel("CMMC_L2"),
+		widget.NewLabel(fmt.Sprintf("v%s", appVersion)),
 		widget.NewSeparator(),
-		widget.NewLabel("Scan: never"),
+		widget.NewLabel("CMMC Level 2  |  110 practices  |  25,185 control mappings"),
 		widget.NewSeparator(),
-		widget.NewLabel("ML-DSA-65: ready"),
+		widget.NewLabel("ML-DSA-65 (FIPS 204): ready"),
 		widget.NewSeparator(),
-		canvas.NewText("NouchiX ©", asaftheme.TextMuted),
+		canvas.NewText("USPTO #73565085  |  SecRed Knowledge Inc.", asaftheme.TextMuted),
 	)
 
 	w.SetContent(container.NewBorder(
-		container.NewVBox(container.NewPadded(cuiBanner), widget.NewSeparator(), container.NewPadded(header)),
+		container.NewVBox(
+			container.NewPadded(cuiBanner),
+			widget.NewSeparator(),
+			container.NewPadded(header),
+			widget.NewSeparator(),
+		),
 		container.NewPadded(footer),
 		nil, nil,
-		placeholder,
+		tabs,
 	))
 
 	w.Show()
