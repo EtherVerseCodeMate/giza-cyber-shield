@@ -8,6 +8,7 @@
 package models
 
 import (
+	"fmt"
 	"math"
 	"strings"
 	"sync"
@@ -248,15 +249,9 @@ func NewComplianceGraphModel() *ComplianceGraphModel {
 		SPRSScore:        110,
 		countedPractices: make(map[string]bool),
 		nodeByID:         make(map[string]*GraphNode),
-		FrameworkCoverage: map[string]string{
-			"RHEL-09-STIG-V1R3": "9 of 291+ controls (live checks — see Phase 4 coverage disclaimer)",
-			"CIS-RHEL-9-L1":     "sample coverage",
-			"CIS-RHEL-9-L2":     "sample coverage",
-			"NIST-800-53-Rev5":  "sample coverage",
-			"NIST-800-171-Rev2": "sample coverage",
-			"CMMC-3.0-L3":       "sample coverage",
-			"PQC-Readiness":     "full (PQC-01-STIG-V1R1)",
-		},
+		// FrameworkCoverage is populated dynamically by CoverageString after each scan.
+		// Hard-coded strings are prohibited — they overstate or understate reality.
+		FrameworkCoverage: make(map[string]string),
 	}
 	m.buildInitialGraph()
 	return m
@@ -481,6 +476,41 @@ func (m *ComplianceGraphModel) ResetFindings() {
 	}
 	m.SPRSScore = 110
 	m.countedPractices = make(map[string]bool)
+}
+
+// SetFrameworkCoverage records how many findings were assessed for a framework.
+// Called from the scan ingestion path after results are known.
+// Example: SetFrameworkCoverage("RHEL-09-STIG-V1R3", 9, 291)
+func (m *ComplianceGraphModel) SetFrameworkCoverage(framework string, assessed, total int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if assessed == 0 {
+		m.FrameworkCoverage[framework] = ""
+		return
+	}
+	m.FrameworkCoverage[framework] = fmt.Sprintf("%d of %d %s controls assessed", assessed, total, framework)
+}
+
+// CoverageString returns the computed coverage disclaimer for the given framework,
+// or "" if no scan data is available (which hides the disclaimer from the status bar).
+func (m *ComplianceGraphModel) CoverageString(framework string) string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.FrameworkCoverage[framework]
+}
+
+// FinalizeScan records scan completion metadata under the write lock,
+// preventing data races between the scan goroutine and the UI render thread.
+func (m *ComplianceGraphModel) FinalizeScan(scanTime time.Time, hostname string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.ScanRunning = false
+	if !scanTime.IsZero() {
+		m.LastScanTime = scanTime
+	}
+	if hostname != "" {
+		m.LastScanHost = hostname
+	}
 }
 
 // RLock / RUnlock expose the read lock for the widget renderer.

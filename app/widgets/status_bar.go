@@ -24,7 +24,9 @@ import (
 	asaftheme "github.com/EtherVerseCodeMate/giza-cyber-shield/app/theme"
 )
 
-const canonicalMappingCount = 25_185
+// defaultMappingCount is shown before the DB has been queried.
+// Replaced by the live RowCount() via SetMappingCount after startup.
+const defaultMappingCount = 0
 
 // StatusBar is the single-row footer strip at the bottom of the Compliance Graph.
 // Call Update to refresh all displayed values without rebuilding the widget tree.
@@ -36,7 +38,8 @@ type StatusBar struct {
 	assessmentTarget time.Time
 	lastScanTime     time.Time
 	scanRunning      bool
-	coverageNote     string // e.g. "9 of 291+ RHEL-09 STIG controls"
+	coverageNote     string // e.g. "9 of 291 RHEL-09 STIG controls assessed"
+	mappingCount     int    // live unique STIG ID count from db.RowCount()
 
 	// Canvas objects updated in place (no full rebuild on each tick)
 	sprsChip      *canvas.Text
@@ -60,6 +63,7 @@ func NewStatusBar(sprsScore int, assessmentTarget time.Time, coverageNote string
 		sprsScore:        sprsScore,
 		assessmentTarget: assessmentTarget,
 		coverageNote:     coverageNote,
+		mappingCount:     defaultMappingCount,
 	}
 	s.allocObjects()
 	s.sync()
@@ -88,6 +92,14 @@ func (s *StatusBar) Update(sprsScore int, lastScan time.Time, scanRunning bool) 
 // SetCoverageNote replaces the framework coverage disclaimer text.
 func (s *StatusBar) SetCoverageNote(note string) {
 	s.coverageNote = note
+	s.sync()
+	s.root.Refresh()
+}
+
+// SetMappingCount updates the live STIG mapping count from db.RowCount().
+// Call once at startup after GetDatabase() succeeds.
+func (s *StatusBar) SetMappingCount(n int) {
+	s.mappingCount = n
 	s.sync()
 	s.root.Refresh()
 }
@@ -127,11 +139,8 @@ func (s *StatusBar) allocObjects() {
 	s.scanTimeText = canvas.NewText("", asaftheme.TextMuted)
 	s.scanTimeText.TextSize = 11
 
-	// Canonical mapping count (always shown)
-	s.mappingText = canvas.NewText(
-		fmt.Sprintf("%d control mappings loaded", canonicalMappingCount),
-		asaftheme.NXBlue,
-	)
+	// Live mapping count — updated via SetMappingCount after DB load.
+	s.mappingText = canvas.NewText("", asaftheme.NXBlue)
 	s.mappingText.TextSize = 11
 
 	// SPRS chip = rect (background) stacked with score text
@@ -168,6 +177,13 @@ func (s *StatusBar) sync() {
 		s.coverageText.Text = "Coverage: " + s.coverageNote
 	} else {
 		s.coverageText.Text = ""
+	}
+
+	// Mapping count
+	if s.mappingCount > 0 {
+		s.mappingText.Text = fmt.Sprintf("%d control mappings loaded", s.mappingCount)
+	} else {
+		s.mappingText.Text = "loading mappings…"
 	}
 
 	// Scan timestamp

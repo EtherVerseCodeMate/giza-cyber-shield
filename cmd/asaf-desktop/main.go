@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -221,7 +220,7 @@ func showMainWindow(a fyne.App, tier string) {
 	footer := container.NewHBox(
 		widget.NewLabel(fmt.Sprintf("v%s", appVersion)),
 		widget.NewSeparator(),
-		widget.NewLabel("CMMC Level 2  |  110 practices  |  25,185 control mappings"),
+		widget.NewLabel("CMMC Level 2  |  110 practices  |  STIG/CCI/NIST mapping DB"),
 		widget.NewSeparator(),
 		widget.NewLabel("ML-DSA-65 (FIPS 204): ready"),
 		widget.NewSeparator(),
@@ -269,5 +268,3 @@ func checkLicense() string {
 	return tier
 }
 
-// _ suppresses "imported and not used" if the os import is only used in runHeadless.
-var _ = os.Stderr

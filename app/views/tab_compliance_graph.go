@@ -10,6 +10,8 @@
 package views
 
 import (
+	"time"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
@@ -44,8 +46,13 @@ func NewComplianceGraphTab() *ComplianceGraphTab {
 	t.statusBar = widgets.NewStatusBar(
 		t.model.SPRSScore,
 		t.model.AssessmentTarget,
-		"9 of 291+ RHEL-09 STIG controls", // Phase 4 coverage disclaimer
+		"", // populated after first scan via SetCoverageNote
 	)
+
+	// Seed the live mapping count from the embedded DB (sync.Once, fast after first call).
+	if db, err := stig.GetDatabase(); err == nil {
+		t.statusBar.SetMappingCount(db.RowCount())
+	}
 
 	// Node tap → sidebar
 	t.graphCanvas.OnNodeSelect = func(n *models.GraphNode) {
@@ -105,13 +112,18 @@ func (t *ComplianceGraphTab) runScan() {
 		report := t.executeScan()
 		t.ingestReport(report)
 
-		t.model.ScanRunning = false
+		// Finalize scan metadata under the model lock so the UI thread never
+		// reads ScanRunning / LastScanTime / LastScanHost in a torn state.
+		var scanTime time.Time
+		var hostname string
 		if report != nil {
-			t.model.LastScanTime = report.ScanDate
-			t.model.LastScanHost = report.Hostname
+			scanTime = report.ScanDate
+			hostname = report.Hostname
 		}
+		t.model.FinalizeScan(scanTime, hostname)
 
-		// Refresh UI on Fyne's next render pass
+		// canvas.Refresh is goroutine-safe in Fyne 2.x; widget setters below
+		// are also safe (they schedule redraws internally).
 		t.phasePanel.SetPhase(4, false)
 		t.statusBar.Update(t.model.SPRSScore, t.model.LastScanTime, false)
 		t.graphCanvas.TriggerLayout()

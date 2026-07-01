@@ -155,12 +155,21 @@ func (r *Remediator) RemediateFIPSMode() (*RemediationResult, error) {
 	return res, nil
 }
 
-// RemediateSSHConfig updates sshd_config with Augean Failsafe
+// RemediateSSHConfig updates sshd_config via the asaf-confedit helper.
+// asaf-confedit is an idempotent key=value setter registered in the daemon's
+// ops_catalog under Nkyinkyim — it never invokes a shell and supports
+// snapshot+rollback internally. This replaces the former "sudo bash -c" path
+// that bypassed the daemon's validateCommand / symbolRequirements gates.
 func (r *Remediator) RemediateSSHConfig(param, value string) (*RemediationResult, error) {
 	configPath := "/etc/ssh/sshd_config"
-	res := &RemediationResult{FindingID: "ssh_" + param, Command: "failsafe_update_sshd_config", RemediatedAt: time.Now()}
+	res := &RemediationResult{
+		FindingID:    "ssh_" + param,
+		Command:      fmt.Sprintf("asaf-confedit %s %s %s", configPath, param, value),
+		RemediatedAt: time.Now(),
+	}
 
-	// 1. Snapshot (Failsafe)
+	// 1. Snapshot before mutation (Failsafe — daemon also snapshots internally,
+	//    this gives a local rollback path if daemon is unavailable).
 	backup, err := r.snapshotFile(configPath)
 	if err != nil {
 		res.Status = "Failed"
@@ -168,27 +177,23 @@ func (r *Remediator) RemediateSSHConfig(param, value string) (*RemediationResult
 		return res, err
 	}
 
-	// 2. Perform Update
-	script := fmt.Sprintf("grep -q '^%s' %s && sed -i 's/^%s.*/%s %s/' %s || echo '%s %s' >> %s",
-		param, configPath, param, param, value, configPath, param, value, configPath)
-
-	out, err := r.link.Execute("sudo", []string{"bash", "-c", script})
+	// 2. Invoke asaf-confedit directly (no shell, no metacharacter injection risk).
+	//    argv: ["asaf-confedit", "/etc/ssh/sshd_config", "PermitRootLogin", "no"]
+	out, err := r.link.Execute("sudo", []string{"asaf-confedit", configPath, param, value})
 	res.Output = out
 
 	if err != nil {
 		res.Status = "Failed"
-		// 3. Auto-Rollback if script fails
 		r.rollbackFile(configPath, backup)
-		return res, err
+		return res, fmt.Errorf("asaf-confedit %s %s %s: %w", configPath, param, value, err)
 	}
 
-	// 4. Verify & Restart
-	_, err = r.link.Execute("sudo", []string{"systemctl", "reload", "sshd"})
-	if err != nil {
+	// 3. Reload sshd to apply the change.
+	if _, err = r.link.Execute("sudo", []string{"systemctl", "reload", "sshd"}); err != nil {
 		res.Status = "Failed"
 		res.Output += " [RELOAD FAILED - ROLLING BACK]"
 		r.rollbackFile(configPath, backup)
-		return res, err
+		return res, fmt.Errorf("systemctl reload sshd: %w", err)
 	}
 
 	res.Status = "Success"

@@ -6,7 +6,6 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"sort"
 	"strings"
 	"sync"
 )
@@ -473,63 +472,6 @@ func (d *ComplianceDatabase) RowCount() int {
 	return len(d.STIGtoCCI)
 }
 
-// STIGRuleSummary is a lightweight descriptor for one STIG rule, used by GetAllRulesForFamily.
-type STIGRuleSummary struct {
-	ID       string
-	Title    string
-	Severity string
-	StigFile string
-}
-
-// GetAllSTIGFamilies returns the sorted list of unique STIG_File values in the database.
-// Each entry corresponds to one STIG benchmark (e.g. "U_RHEL_9_STIG_V1R3_Manual-xccdf.xml").
-// The list drives the Tier 4 "Not Assessed" baseline — one aggregate node per family.
-func (d *ComplianceDatabase) GetAllSTIGFamilies() []string {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-
-	seen := make(map[string]struct{})
-	for _, mappings := range d.STIGtoCCI {
-		for _, m := range mappings {
-			if m.STIGFile != "" {
-				seen[m.STIGFile] = struct{}{}
-			}
-		}
-	}
-
-	out := make([]string, 0, len(seen))
-	for f := range seen {
-		out = append(out, f)
-	}
-	sort.Strings(out)
-	return out
-}
-
-// GetAllRulesForFamily returns one summary per unique STIG rule in the given STIGFile.
-// Used for Tier 4 drilldown and computing coverage denominators.
-func (d *ComplianceDatabase) GetAllRulesForFamily(stigFile string) []STIGRuleSummary {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-
-	var out []STIGRuleSummary
-	seen := make(map[string]struct{})
-	for stigID, mappings := range d.STIGtoCCI {
-		for _, m := range mappings {
-			if m.STIGFile != stigFile {
-				continue
-			}
-			if _, already := seen[stigID]; already {
-				break
-			}
-			seen[stigID] = struct{}{}
-			out = append(out, STIGRuleSummary{
-				ID:       stigID,
-				Title:    m.STIGTitle,
-				Severity: m.STIGSeverity,
-				StigFile: m.STIGFile,
-			})
-			break
-		}
-	}
-	return out
-}
+// GetAllSTIGFamilies and GetAllRulesForFamily are package-level functions in updater.go.
+// STIGRuleSummary type is also declared there.
+// Use those directly; do not redeclare here.
