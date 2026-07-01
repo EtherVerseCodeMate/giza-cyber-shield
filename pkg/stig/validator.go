@@ -21,6 +21,18 @@ const (
 	// Fills the gap left by DISA, which has no PQC-specific STIGs as of mid-2026.
 	// Aligned to NIST FIPS 203/204/205 and NSA CNSA 2.0.
 	FrameworkPQCStig    = "PQC-01-STIG-V1R1"
+
+	// Additional live-scan framework identifiers for multi-OS Tier 1 coverage.
+	FrameworkRHEL08STIG      = "RHEL-08-STIG"
+	FrameworkUbuntu2204      = "CAN_Ubuntu_22-04-STIG"
+	FrameworkUbuntu2404      = "CAN_Ubuntu_24-04-STIG"
+	FrameworkAlmaLinux9      = "AlmaLinux-OS-9-STIG"
+	FrameworkWindows10       = "Windows-10-STIG"
+	FrameworkWindows11       = "Windows-11-STIG"
+	FrameworkWinServer2019   = "Windows-Server-2019-STIG"
+	FrameworkWinServer2022   = "Windows-Server-2022-STIG"
+	FrameworkMacOS14         = "Apple-macOS-14-STIG"
+	FrameworkMacOS15         = "Apple-macOS-15-STIG"
 )
 
 // Validator performs comprehensive STIG validation
@@ -193,6 +205,8 @@ func (v *Validator) validateFramework(framework string) error {
 	case FrameworkPQCStig:
 		// World's First DoD PQC STIG — NouchiX PQC-01-STIG-V1R1
 		err = v.validatePQCStig(result)
+	case FrameworkWindows10, FrameworkWindows11, FrameworkWinServer2019, FrameworkWinServer2022:
+		err = v.validateWindowsSTIG(result)
 	default:
 		return fmt.Errorf("unknown framework: %s", framework)
 	}
@@ -511,4 +525,99 @@ func (v *Validator) updatePQCAndRisks(summary *ExecutiveSummary) {
 // GetReport returns the generated compliance report
 func (v *Validator) GetReport() *ComprehensiveReport {
 	return v.report
+}
+
+// ImportCKL parses a STIG Viewer .ckl XML checklist file and returns a
+// ComprehensiveReport.  Each iSTIG section in the file becomes a separate
+// ValidationResult keyed by the STIG title.  No live OS checks are run.
+func (v *Validator) ImportCKL(path string) (*ComprehensiveReport, error) {
+	start := time.Now()
+
+	results, err := ParseCKLFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("import CKL %s: %w", path, err)
+	}
+
+	report := &ComprehensiveReport{
+		Hostname:        v.report.Hostname,
+		OSVersion:       v.report.OSVersion,
+		ScanDate:        start,
+		Results:         make(map[string]*ValidationResult),
+		CrossReferences: make(map[string][]string),
+	}
+
+	for _, r := range results {
+		frameworkKey := cklFrameworkKey(r.STIGTitle, r.STIGFile)
+		vr := buildValidationResultFromFindings(frameworkKey, r.STIGFile, r.Findings, start)
+		report.Results[frameworkKey] = vr
+	}
+
+	report.ScanDuration = time.Since(start)
+	return report, nil
+}
+
+// ImportCKLB parses a STIG Viewer 2.x .cklb JSON checklist file and returns
+// a ComprehensiveReport.  Handles both canonical and flat CKLB format variants.
+func (v *Validator) ImportCKLB(path string) (*ComprehensiveReport, error) {
+	start := time.Now()
+
+	results, err := ParseCKLBFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("import CKLB %s: %w", path, err)
+	}
+
+	report := &ComprehensiveReport{
+		Hostname:        coalesce(results[0].Hostname, v.report.Hostname),
+		OSVersion:       v.report.OSVersion,
+		ScanDate:        start,
+		Results:         make(map[string]*ValidationResult),
+		CrossReferences: make(map[string][]string),
+	}
+
+	for _, r := range results {
+		frameworkKey := cklFrameworkKey(r.STIGTitle, r.BenchmarkID)
+		vr := buildValidationResultFromFindings(frameworkKey, r.Version, r.Findings, start)
+		report.Results[frameworkKey] = vr
+	}
+
+	report.ScanDuration = time.Since(start)
+	return report, nil
+}
+
+// cklFrameworkKey returns a stable map key for a ValidationResult from a CKL/CKLB import.
+func cklFrameworkKey(title, fileOrBenchmark string) string {
+	if title != "" {
+		return title
+	}
+	if fileOrBenchmark != "" {
+		return fileOrBenchmark
+	}
+	return "Imported-STIG"
+}
+
+// buildValidationResultFromFindings assembles a ValidationResult from a []Finding slice.
+func buildValidationResultFromFindings(framework, version string, findings []Finding, start time.Time) *ValidationResult {
+	end := time.Now()
+	vr := &ValidationResult{
+		Framework: framework,
+		Version:   version,
+		Findings:  findings,
+		StartTime: start,
+		EndTime:   end,
+		Duration:  end.Sub(start),
+	}
+	for _, f := range findings {
+		switch f.Status {
+		case "Pass":
+			vr.Passed++
+		case "Fail":
+			vr.Failed++
+		case "Not Applicable":
+			vr.NotApplicable++
+		default:
+			vr.ManualReview++
+		}
+	}
+	vr.TotalControls = len(findings)
+	return vr
 }
