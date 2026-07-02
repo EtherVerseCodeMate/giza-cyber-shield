@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
 )
 
 // NodeKind is the internal Sephirot-based node type classification.
@@ -170,6 +172,10 @@ type GraphNode struct {
 	IPAddress string
 	OS        string
 
+	// STIGFamily is the STIG_File value for Tier 4 aggregate nodes created by
+	// LoadNotAssessedBaseline.  Empty for all other node kinds.
+	STIGFamily string
+
 	// Visual glow hint (computed, never displayed as text)
 	Glow GlowKind
 
@@ -240,6 +246,10 @@ type ComplianceGraphModel struct {
 
 	// Coverage disclaimers per §4 Phase 4 error state (framework → human-readable coverage)
 	FrameworkCoverage map[string]string
+
+	// familyTotalRules stores STIG_File → total rule count from the DB, set by
+	// LoadNotAssessedBaseline.  Used by ResetFindings to restore node descriptions.
+	familyTotalRules map[string]int
 }
 
 // NewComplianceGraphModel creates an empty model seeded with the Governance Root
@@ -249,9 +259,8 @@ func NewComplianceGraphModel() *ComplianceGraphModel {
 		SPRSScore:        110,
 		countedPractices: make(map[string]bool),
 		nodeByID:         make(map[string]*GraphNode),
-		// FrameworkCoverage is populated dynamically by CoverageString after each scan.
-		// Hard-coded strings are prohibited — they overstate or understate reality.
 		FrameworkCoverage: make(map[string]string),
+		familyTotalRules:  make(map[string]int),
 	}
 	m.buildInitialGraph()
 	return m
@@ -473,9 +482,125 @@ func (m *ComplianceGraphModel) ResetFindings() {
 	m.nodeByID = make(map[string]*GraphNode, len(kept))
 	for _, n := range kept {
 		m.nodeByID[n.ID] = n
+		// Restore "0 of N assessed" description on Tier 4 STIG family aggregate nodes.
+		if n.STIGFamily != "" {
+			if total, ok := m.familyTotalRules[n.STIGFamily]; ok && total > 0 {
+				n.Description = fmt.Sprintf("0 of %d assessed", total)
+			}
+		}
 	}
 	m.SPRSScore = 110
 	m.countedPractices = make(map[string]bool)
+}
+
+// LoadNotAssessedBaseline populates the graph with one aggregate NodeChokmah node
+// per STIG benchmark family in the compliance database.  Each node shows the family
+// name and "0 of N assessed" until findings arrive or a checklist is imported.
+//
+// Designed to satisfy spec §11 aggregated render mode: at startup the graph has only
+// 1 root + 14 CMMC domain + ≤400 STIG family nodes — well below the 500-node threshold.
+// Per-rule detail nodes are added only by AddFinding and the import parsers.
+//
+// Idempotent: families whose node already exists are skipped; safe to call multiple times.
+func (m *ComplianceGraphModel) LoadNotAssessedBaseline() {
+	families, err := stig.GetAllSTIGFamilies()
+	if err != nil || len(families) == 0 {
+		return
+	}
+	counts, err := stig.FamilyRuleCounts()
+	if err != nil {
+		counts = make(map[string]int)
+	}
+
+	// Golden-angle spiral gives even distribution for arbitrary node counts.
+	// Nodes spiral outward from baseRadius to baseRadius+radiusSpan.
+	const (
+		goldenAngle = 2.39996322972865332 // math.Pi * (3 - math.Sqrt(5)), radians
+		baseRadius  = float32(460)
+		radiusSpan  = float32(440) // total spread: innermost at 460, outermost at 900
+	)
+	n := float64(len(families))
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for i, family := range families {
+		nodeID := "stig_fam_" + sanitizeFamilyID(family)
+		if _, exists := m.nodeByID[nodeID]; exists {
+			continue
+		}
+
+		ruleCount := counts[family]
+
+		// Spiral position: radius grows linearly; angle advances by golden angle.
+		t := float64(i) / n
+		r := baseRadius + float32(t)*radiusSpan
+		angle := float64(i) * goldenAngle
+
+		desc := fmt.Sprintf("0 of %d assessed", ruleCount)
+		if ruleCount == 0 {
+			desc = "Not mapped in database"
+		}
+
+		node := &GraphNode{
+			ID:          nodeID,
+			Kind:        NodeChokmah,
+			polar:       polarEarth,
+			STIGFamily:  family,
+			Label:       humanizeFamilyName(family),
+			Description: desc,
+			Status:      StatusNotReviewed,
+			X:           r * float32(math.Cos(angle)),
+			Y:           r * float32(math.Sin(angle)),
+			Radius:      10,
+			Glow:        GlowGray,
+			State:       HypercubeState{Lifecycle: true},
+		}
+		m.addNodeLocked(node)
+		m.addEdgeLocked(&graphEdge{
+			FromID:   "keter_root",
+			ToID:     nodeID,
+			edgeType: "not_assessed",
+			Strength: 0.2,
+		})
+
+		if ruleCount > 0 {
+			m.familyTotalRules[family] = ruleCount
+		}
+	}
+}
+
+// sanitizeFamilyID converts a STIG_File value to a valid graph node ID fragment.
+// Replaces any character that is not alphanumeric or underscore with '_'.
+func sanitizeFamilyID(name string) string {
+	var b strings.Builder
+	b.Grow(len(name))
+	for _, r := range name {
+		if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' {
+			b.WriteRune(r)
+		} else {
+			b.WriteRune('_')
+		}
+	}
+	return b.String()
+}
+
+// humanizeFamilyName strips the "U_" prefix, "_STIG" suffix, and version codes from
+// a STIG_File value to produce a short human-readable label (§10 compliant).
+// "U_RHEL_9_STIG_V1R3" → "RHEL 9"
+func humanizeFamilyName(name string) string {
+	s := strings.TrimPrefix(name, "U_")
+	if idx := strings.Index(s, "_STIG"); idx > 0 {
+		s = s[:idx]
+	}
+	// Strip trailing version fragment like "_V1R3" or "_V2R10"
+	if idx := strings.LastIndex(s, "_V"); idx > 0 {
+		tail := s[idx+1:]
+		if len(tail) >= 2 && tail[0] == 'V' {
+			s = s[:idx]
+		}
+	}
+	return strings.TrimSpace(strings.ReplaceAll(s, "_", " "))
 }
 
 // SetFrameworkCoverage records how many findings were assessed for a framework.

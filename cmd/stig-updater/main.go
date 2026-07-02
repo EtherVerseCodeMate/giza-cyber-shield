@@ -52,19 +52,24 @@ func main() {
 		if *genOut == "" {
 			fatalf("--gen-out is required with --gen-go")
 		}
-		if *filter == "" {
-			fatalf("--filter is required with --gen-go (e.g. --filter RHEL_9)")
-		}
 		varName := *genVar
-		if varName == "" {
-			varName = deriveVarName(*filter)
-		}
 		switch *mode {
 		case "online":
+			if *filter == "" {
+				fatalf("--filter is required with --gen-go in online mode (e.g. --filter RHEL_9)")
+			}
+			if varName == "" {
+				varName = deriveVarName(*filter)
+			}
 			runGenGo(*outDir, *cache, *filter, *genOut, varName, *verbose)
 		case "offline":
 			if *zipDir == "" {
 				fatalf("--zip-dir is required for offline mode")
+			}
+			if varName == "" && *filter != "" {
+				varName = deriveVarName(*filter)
+			} else if varName == "" {
+				fatalf("--gen-var is required with --gen-go in offline mode when --filter is not set")
 			}
 			runGenGoOffline(*zipDir, *outDir, *genOut, varName, *verbose)
 		default:

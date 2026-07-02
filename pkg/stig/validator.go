@@ -24,15 +24,21 @@ const (
 
 	// Additional live-scan framework identifiers for multi-OS Tier 1 coverage.
 	FrameworkRHEL08STIG      = "RHEL-08-STIG"
+	FrameworkRHEL07STIG      = "RHEL-07-STIG"
+	FrameworkOracleLinux8    = "Oracle-Linux-8-STIG"
+	FrameworkUbuntu1804      = "CAN_Ubuntu_18-04-STIG"
 	FrameworkUbuntu2204      = "CAN_Ubuntu_22-04-STIG"
 	FrameworkUbuntu2404      = "CAN_Ubuntu_24-04-STIG"
 	FrameworkAlmaLinux9      = "AlmaLinux-OS-9-STIG"
 	FrameworkWindows10       = "Windows-10-STIG"
 	FrameworkWindows11       = "Windows-11-STIG"
+	FrameworkWinServer2016   = "Windows-Server-2016-STIG"
 	FrameworkWinServer2019   = "Windows-Server-2019-STIG"
 	FrameworkWinServer2022   = "Windows-Server-2022-STIG"
+	FrameworkMacOS13         = "Apple-macOS-13-STIG"
 	FrameworkMacOS14         = "Apple-macOS-14-STIG"
 	FrameworkMacOS15         = "Apple-macOS-15-STIG"
+	FrameworkKubernetes      = "Kubernetes-STIG"
 )
 
 // Validator performs comprehensive STIG validation
@@ -205,8 +211,32 @@ func (v *Validator) validateFramework(framework string) error {
 	case FrameworkPQCStig:
 		// World's First DoD PQC STIG — NouchiX PQC-01-STIG-V1R1
 		err = v.validatePQCStig(result)
-	case FrameworkWindows10, FrameworkWindows11, FrameworkWinServer2019, FrameworkWinServer2022:
-		err = v.validateWindowsSTIG(result)
+	case FrameworkRHEL08STIG:
+		err = v.validateTableSTIG(result, "V2R7", rhel08STIG)
+	case FrameworkRHEL07STIG:
+		err = v.validateTableSTIG(result, "V3R15", rhel07STIG)
+	case FrameworkOracleLinux8:
+		err = v.validateTableSTIG(result, "V1R10", oracleLinux8STIG)
+	case FrameworkUbuntu1804:
+		err = v.validateTableSTIG(result, "V2R15", ubuntu1804STIG)
+	case FrameworkWindows10:
+		err = v.validateTableSTIG(result, "V2R9", win10STIG)
+	case FrameworkWindows11:
+		err = v.validateTableSTIG(result, "V1R6", win11STIG)
+	case FrameworkWinServer2016:
+		err = v.validateTableSTIG(result, "V2R10", winSrv2016STIG)
+	case FrameworkWinServer2019:
+		err = v.validateTableSTIG(result, "V2R9", winSrv2019STIG)
+	case FrameworkWinServer2022:
+		err = v.validateTableSTIG(result, "V1R5", winSrv2022STIG)
+	case FrameworkMacOS13:
+		err = v.validateTableSTIG(result, "V1R5", macos13STIG)
+	case FrameworkMacOS14:
+		err = v.validateTableSTIG(result, "V1R2", macos14STIG)
+	case FrameworkMacOS15:
+		err = v.validateTableSTIG(result, "V1R7", macos15STIG)
+	case FrameworkKubernetes:
+		err = v.validateTableSTIG(result, "V1R11", k8sStig)
 	default:
 		return fmt.Errorf("unknown framework: %s", framework)
 	}

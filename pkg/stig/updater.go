@@ -866,3 +866,35 @@ func GetAllRulesForFamily(stigFile string) ([]STIGRuleSummary, error) {
 	sort.Slice(rules, func(i, j int) bool { return rules[i].ID < rules[j].ID })
 	return rules, nil
 }
+
+// FamilyRuleCounts returns a map of STIG_File → unique rule count in a single O(N) pass
+// over the compliance database.  More efficient than calling GetAllRulesForFamily once per
+// family; use this to seed Tier 4 aggregate nodes at startup.
+func FamilyRuleCounts() (map[string]int, error) {
+	db, err := GetDatabase()
+	if err != nil {
+		return nil, err
+	}
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	// Build family → set-of-ruleIDs in one pass.
+	familyRules := make(map[string]map[string]struct{}, 400)
+	for ruleID, mappings := range db.STIGtoCCI {
+		for _, m := range mappings {
+			if m.STIGFile == "" {
+				continue
+			}
+			if _, ok := familyRules[m.STIGFile]; !ok {
+				familyRules[m.STIGFile] = make(map[string]struct{})
+			}
+			familyRules[m.STIGFile][ruleID] = struct{}{}
+		}
+	}
+
+	counts := make(map[string]int, len(familyRules))
+	for fam, rules := range familyRules {
+		counts[fam] = len(rules)
+	}
+	return counts, nil
+}
