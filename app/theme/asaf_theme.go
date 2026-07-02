@@ -22,6 +22,7 @@ var (
 	NXNavyBorder = color.NRGBA{R: 0x1a, G: 0x2e, B: 0x46, A: 0xff} // borders
 	TextPrimary  = color.NRGBA{R: 0xe8, G: 0xf0, B: 0xf8, A: 0xff} // body text
 	TextMuted    = color.NRGBA{R: 0x6b, G: 0x82, B: 0x9a, A: 0xff} // muted text
+	PanelBG      = color.NRGBA{R: 0x08, G: 0x12, B: 0x1e, A: 0xee} // panel card, 93% opaque
 )
 
 // ASAFTheme implements fyne.Theme with the AdinKhepra ASAF sovereign dark palette.

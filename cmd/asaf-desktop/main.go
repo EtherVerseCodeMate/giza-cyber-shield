@@ -5,9 +5,11 @@
 package main
 
 import (
+	_ "embed"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"image/color"
 	"log"
 	"net/http"
 	"time"
@@ -23,6 +25,12 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
 )
+
+//go:embed assets/icon.svg
+var iconSVG []byte
+
+//go:embed assets/lockup_dark.svg
+var lockupDarkSVG []byte
 
 const (
 	appID      = "com.secred.adinkhepra.asaf"
@@ -169,7 +177,15 @@ func showSplash(a fyne.App) fyne.Window {
 }
 
 func showMainWindow(a fyne.App, tier string) {
-	w := a.NewWindow("AdinKhepra ASAF — Compliance Graph")
+	// Brand resources — embedded at compile time, zero runtime I/O.
+	iconRes := fyne.NewStaticResource("icon.svg", iconSVG)
+	_ = lockupDarkSVG // reserved for future raster export path
+
+	// Set app icon (taskbar, alt-tab, dock) and window icon.
+	a.SetIcon(iconRes)
+
+	w := a.NewWindow("AdinKhepra ASAF — CMMC Graph UI Stargate")
+	w.SetIcon(iconRes)
 	w.Resize(fyne.NewSize(1440, 900))
 	w.CenterOnScreen()
 
@@ -181,16 +197,43 @@ func showMainWindow(a fyne.App, tier string) {
 	cuiBanner.TextStyle = fyne.TextStyle{Monospace: true}
 	cuiBanner.TextSize = 10
 
-	// Header row
-	appTitle := canvas.NewText("ADINKHEPRA  ASAF", asaftheme.NXBlue)
-	appTitle.TextSize = 18
-	appTitle.TextStyle = fyne.TextStyle{Bold: true}
+	// Brand lockup — native Fyne canvas reconstruction of the dark lockup SVG.
+	// Fyne's SVG renderer does not support <text> elements, so the wordmark is
+	// built from Fyne canvas primitives that match the SVG brand spec exactly.
+	//
+	// Left glyph: icon.svg (Eban fortress DAG) at 56×56
+	glyph := canvas.NewImageFromResource(iconRes)
+	glyph.FillMode = canvas.ImageFillContain
+	glyphBox := container.NewGridWrap(fyne.NewSize(56, 56), glyph)
+
+	// Top row: "AdinKhepra" — gradient approximated as near-white (#EAF6FF)
+	wordmark := canvas.NewText("AdinKhepra", color.NRGBA{R: 0xea, G: 0xf6, B: 0xff, A: 0xff})
+	wordmark.TextSize = 22
+	wordmark.TextStyle = fyne.TextStyle{Bold: true}
+
+	// Bottom row: "ASAF" cyan + divider + tagline muted blue
+	asafLabel := canvas.NewText("ASAF", color.NRGBA{R: 0x5b, G: 0xd4, B: 0xff, A: 0xff})
+	asafLabel.TextSize = 14
+	asafLabel.TextStyle = fyne.TextStyle{Bold: true}
+	divider := canvas.NewText("  |  ", color.NRGBA{R: 0x3c, G: 0x6c, B: 0xa8, A: 0xaa})
+	divider.TextSize = 14
+	tagline := canvas.NewText("Agentic Security Attestation Framework", color.NRGBA{R: 0x8f, G: 0xb3, B: 0xd4, A: 0xff})
+	tagline.TextSize = 11
+
+	textStack := container.NewVBox(
+		wordmark,
+		container.NewHBox(asafLabel, divider, tagline),
+	)
+	lockupRow := container.NewHBox(
+		glyphBox,
+		container.NewPadded(textStack),
+	)
 
 	tierBadge := canvas.NewText("License: "+tier, asaftheme.AKGold)
 	tierBadge.TextSize = 12
 
 	header := container.NewBorder(nil, nil,
-		container.NewPadded(appTitle),
+		container.NewPadded(lockupRow),
 		container.NewPadded(tierBadge),
 		nil,
 	)

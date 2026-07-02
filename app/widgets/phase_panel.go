@@ -69,7 +69,10 @@ func NewPhasePanel(currentPhase int) *PhasePanel {
 }
 
 func (p *PhasePanel) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(p.scroll)
+	// Semi-opaque card background so the panel contrasts against the graph canvas.
+	bg := canvas.NewRectangle(asaftheme.PanelBG)
+	bg.CornerRadius = 6
+	return widget.NewSimpleRenderer(container.NewStack(bg, p.scroll))
 }
 
 func (p *PhasePanel) MinSize() fyne.Size {
@@ -216,6 +219,7 @@ func phaseLabelColor(active, completed, locked bool) color.Color {
 	case completed:
 		return asaftheme.TextMuted
 	default:
-		return asaftheme.NXNavyBorder
+		// Locked phases: muted but readable against the card background.
+		return color.NRGBA{R: 0x44, G: 0x5f, B: 0x7a, A: 0xff}
 	}
 }
