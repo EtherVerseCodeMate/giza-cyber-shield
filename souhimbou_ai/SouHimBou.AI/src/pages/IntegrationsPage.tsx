@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { IndustryIntegrationHub } from '@/components/integrations/IndustryIntegrationHub';
+import { OmnibusConnectorHub } from '@/components/integrations/OmnibusConnectorHub';
 import { IntegrationHub } from '@/components/IntegrationHub';
 import { IntegrationMarketplace } from '@/components/marketplace/IntegrationMarketplace';
 import { MondayIntegrationCard } from '@/components/integrations/MondayIntegrationCard';
@@ -28,7 +29,8 @@ import {
   Plus,
   ExternalLink,
   Cloud,
-  Zap
+  Zap,
+  Bot
 } from 'lucide-react';
 
 interface IntegrationStatusCardProps {
@@ -308,15 +310,21 @@ export default function IntegrationsPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 overflow-x-auto h-auto p-1 bg-slate-100/50">
+          <TabsList className="grid w-full grid-cols-8 overflow-x-auto h-auto p-1 bg-slate-100/50">
+            {/* KHEPRA Omnibus Connector — flagship tab, shown first */}
+            <TabsTrigger value="omnibus" className="text-cyan-600 font-bold flex items-center gap-1.5 col-span-2">
+              <Plug className="w-3 h-3" />
+              KHEPRA Fabric
+              <Badge className="ml-1 text-xs bg-cyan-500/20 text-cyan-600 border-cyan-500/30">NEW</Badge>
+            </TabsTrigger>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="polymorphic" className="text-indigo-600 font-bold flex items-center gap-2">
               <Zap className="w-3 h-3" />
-              Polymorphic Connector
+              Polymorphic
             </TabsTrigger>
-            <TabsTrigger value="active">Active Integrations</TabsTrigger>
+            <TabsTrigger value="active">Active</TabsTrigger>
             <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
-            <TabsTrigger value="industry">Industry Hub</TabsTrigger>
+            <TabsTrigger value="industry">Industry</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
           </TabsList>
@@ -345,6 +353,11 @@ export default function IntegrationsPage() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* KHEPRA Omnibus Connector Hub — the new flagship integration surface */}
+          <TabsContent value="omnibus">
+            <OmnibusConnectorHub />
           </TabsContent>
 
           <TabsContent value="polymorphic">

@@ -389,7 +389,7 @@ export default function SimpleBilling() {
               }}
               onMouseEnter={() => setHoveredPlan(plan.id)}
               onMouseLeave={() => setHoveredPlan(null)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSelfServeCTA(plan.ctaAction); }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSelfServeCTA(plan.ctaAction, (plan as any).planId ?? null); }}
             >
               <h3 style={styles.agentCardName}>{plan.name}</h3>
               <div style={styles.priceRow}>

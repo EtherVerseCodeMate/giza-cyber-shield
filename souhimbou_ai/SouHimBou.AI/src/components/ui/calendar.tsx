@@ -7,9 +7,6 @@ import { buttonVariants } from "@/components/ui/button";
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
-const IconLeft = () => <ChevronLeft className="h-4 w-4" />;
-const IconRight = () => <ChevronRight className="h-4 w-4" />;
-
 function Calendar({
   className,
   classNames,
@@ -54,9 +51,12 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        IconLeft,
-        IconRight,
-      }}
+        // react-day-picker v9: Chevron replaces IconLeft / IconRight
+        Chevron: ({ orientation }: { orientation?: string }) =>
+          orientation === "left"
+            ? <ChevronLeft className="h-4 w-4" />
+            : <ChevronRight className="h-4 w-4" />,
+      } as any}
       {...props}
     />
   );
