@@ -196,7 +196,7 @@ func showMainWindow(a fyne.App, tier string) {
 	)
 
 	// ── Tab 1: Compliance Graph (full implementation) ────────────────────────
-	tab1 := views.NewComplianceGraphTab()
+	tab1 := views.NewComplianceGraphTab(w)
 
 	// ── Tabs 2–8: placeholders for future milestones ─────────────────────────
 	futureTab := func(label string) fyne.CanvasObject {

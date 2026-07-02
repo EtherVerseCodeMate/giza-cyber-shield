@@ -52,8 +52,9 @@ type PhasePanel struct {
 	currentPhase int // 1–8, or 0 for pre-scope
 	scanRunning  bool
 
-	OnPhaseSelect func(phase int)
-	OnScanNow     func()
+	OnPhaseSelect     func(phase int)
+	OnScanNow         func()
+	OnImportChecklist func()
 }
 
 // NewPhasePanel constructs the panel. currentPhase is the §0.6 phase the model
@@ -101,6 +102,7 @@ func (p *PhasePanel) rebuild() {
 
 	objs = append(objs, widget.NewSeparator())
 	objs = append(objs, p.buildScanButton())
+	objs = append(objs, p.buildImportButton())
 
 	p.inner.Objects = objs
 	p.inner.Refresh()
@@ -160,6 +162,19 @@ func (p *PhasePanel) buildPhaseRow(ph phaseDef) fyne.CanvasObject {
 	}
 
 	return container.NewPadded(row)
+}
+
+// buildImportButton returns the [Import Checklist] button.
+// Always enabled — import is available at any phase so assessors can load .ckl/.cklb/.json
+// files without first running a live scan.
+func (p *PhasePanel) buildImportButton() fyne.CanvasObject {
+	btn := widget.NewButton("Import Checklist", func() {
+		if p.OnImportChecklist != nil {
+			p.OnImportChecklist()
+		}
+	})
+	btn.Importance = widget.MediumImportance
+	return container.NewPadded(btn)
 }
 
 // buildScanButton returns the [Scan Now] button for Phase 4 (BASELINE).

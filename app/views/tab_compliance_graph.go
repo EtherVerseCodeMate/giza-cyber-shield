@@ -24,7 +24,8 @@ import (
 // ComplianceGraphTab holds all state for Tab 1. Create with NewComplianceGraphTab,
 // then call Content() to get the Fyne container to embed in AppTabs.
 type ComplianceGraphTab struct {
-	model      *models.ComplianceGraphModel
+	win         fyne.Window
+	model       *models.ComplianceGraphModel
 	graphCanvas *widgets.GraphCanvas
 	sidebar     *widgets.NodeSidebar
 	phasePanel  *widgets.PhasePanel
@@ -33,11 +34,13 @@ type ComplianceGraphTab struct {
 }
 
 // NewComplianceGraphTab constructs Tab 1 and wires all inter-widget callbacks.
-func NewComplianceGraphTab() *ComplianceGraphTab {
-	t := &ComplianceGraphTab{}
+// win is the parent window used for file dialogs and error sheets.
+func NewComplianceGraphTab(win fyne.Window) *ComplianceGraphTab {
+	t := &ComplianceGraphTab{win: win}
 
-	// Model — seeds governance root + 14 domain nodes
+	// Model — seeds governance root + 14 domain nodes + Tier 4 family baseline
 	t.model = models.NewComplianceGraphModel()
+	go t.model.LoadNotAssessedBaseline() // background: DB load + 397 node creation
 
 	// Widgets
 	t.graphCanvas = widgets.NewGraphCanvas(t.model)
@@ -79,6 +82,17 @@ func NewComplianceGraphTab() *ComplianceGraphTab {
 	}
 	t.sidebar.OnViewInSSPPressed = func(nodeID string) {
 		// View in SSP → Tab 3; surfaced here for discovery.
+	}
+
+	// Import Checklist — file picker for .ckl/.cklb/.json; additive (no pre-reset)
+	t.phasePanel.OnImportChecklist = func() {
+		db, _ := stig.GetDatabase()
+		widgets.ShowImportChecklistDialog(t.win, t.model, db, func(_ string) {
+			// Refresh graph and status bar after import (called from goroutine, safe in Fyne 2.x)
+			t.statusBar.Update(t.model.SPRSScore, t.model.LastScanTime, false)
+			t.graphCanvas.TriggerLayout()
+			canvas.Refresh(t.graphCanvas)
+		})
 	}
 
 	// Layout:  [PhasePanel | GraphCanvas | NodeSidebar]

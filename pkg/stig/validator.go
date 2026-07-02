@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -46,6 +47,11 @@ type Validator struct {
 	targetPath        string
 	enabledFrameworks []string
 	report            *ComprehensiveReport
+	// hostOS is set by collectSystemInfo() after OS detection.
+	// Values: "rhel9", "rhel8", "rhel7", "ubuntu1804", "oracle8",
+	//         "win10", "win11", "winsrv2016", "winsrv2019", "winsrv2022",
+	//         "macos13", "macos14", "macos15", "unknown"
+	hostOS string
 }
 
 // NewValidator creates a new STIG validator
@@ -160,11 +166,10 @@ func (v *Validator) collectSystemInfo() error {
 	v.report.Hostname = hostname
 	v.report.ScanDate = time.Now()
 
-	// Attempt to read OS version from /etc/os-release
+	// Read OS version from /etc/os-release (Linux) or runtime.GOOS (other platforms).
 	v.report.OSVersion = runtime.GOOS + " " + runtime.GOARCH
 	if data, err := os.ReadFile("/etc/os-release"); err == nil {
-		lines := strings.Split(string(data), "\n")
-		for _, line := range lines {
+		for _, line := range strings.Split(string(data), "\n") {
 			if strings.HasPrefix(line, "PRETTY_NAME=") {
 				v.report.OSVersion = strings.Trim(strings.TrimPrefix(line, "PRETTY_NAME="), "\"")
 				break
@@ -172,15 +177,230 @@ func (v *Validator) collectSystemInfo() error {
 		}
 	}
 
-	// Get kernel version via uname -r
-	cmd := exec.Command("uname", "-r")
-	if out, err := cmd.Output(); err == nil {
-		v.report.KernelVersion = strings.TrimSpace(string(out))
+	// Get kernel version via uname -r (Linux/macOS only; no-op on Windows)
+	if runtime.GOOS != "windows" {
+		cmd := exec.Command("uname", "-r")
+		if out, err := cmd.Output(); err == nil {
+			v.report.KernelVersion = strings.TrimSpace(string(out))
+		} else {
+			v.report.KernelVersion = "unknown"
+		}
 	} else {
-		v.report.KernelVersion = "unknown"
+		v.report.KernelVersion = "n/a"
 	}
 
+	// Detect host OS and auto-select the matching STIG Tier 1 framework.
+	v.autoSelectOSFramework()
 	return nil
+}
+
+// autoSelectOSFramework detects the host OS, sets v.hostOS, and adds the matching
+// OS-family STIG framework to v.enabledFrameworks if it is not already present.
+// Frameworks for the wrong OS are removed so that scans stay relevant.
+func (v *Validator) autoSelectOSFramework() {
+	var fw string
+	switch runtime.GOOS {
+	case "windows":
+		fw = detectWindowsSTIGFramework()
+		v.hostOS = windowsFWtoHostOS(fw)
+		// Windows scans don't need Linux-specific frameworks.
+		v.removeFramework(FrameworkRHEL09STIG)
+		v.removeFramework(FrameworkCISL1)
+		v.removeFramework(FrameworkCISL2)
+	case "darwin":
+		fw = detectMacOSSTIGFramework()
+		v.hostOS = macosFWtoHostOS(fw)
+		v.removeFramework(FrameworkRHEL09STIG)
+		v.removeFramework(FrameworkCISL1)
+		v.removeFramework(FrameworkCISL2)
+	default: // linux and other POSIX
+		osID, versionID := readOSRelease()
+		fw = detectLinuxSTIGFramework(osID, versionID)
+		v.hostOS = linuxFWtoHostOS(fw)
+		// Replace the default FrameworkRHEL09STIG with the detected one if different.
+		if fw != FrameworkRHEL09STIG {
+			v.removeFramework(FrameworkRHEL09STIG)
+		}
+	}
+	if fw != "" {
+		v.addFrameworkIfMissing(fw)
+	}
+}
+
+// addFrameworkIfMissing appends fw to enabledFrameworks when not already present.
+func (v *Validator) addFrameworkIfMissing(fw string) {
+	for _, f := range v.enabledFrameworks {
+		if f == fw {
+			return
+		}
+	}
+	v.enabledFrameworks = append(v.enabledFrameworks, fw)
+}
+
+// removeFramework removes all occurrences of fw from enabledFrameworks.
+func (v *Validator) removeFramework(fw string) {
+	out := v.enabledFrameworks[:0]
+	for _, f := range v.enabledFrameworks {
+		if f != fw {
+			out = append(out, f)
+		}
+	}
+	v.enabledFrameworks = out
+}
+
+// readOSRelease parses /etc/os-release and returns the ID and VERSION_ID values.
+func readOSRelease() (osID, versionID string) {
+	data, err := os.ReadFile("/etc/os-release")
+	if err != nil {
+		return "", ""
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		switch {
+		case strings.HasPrefix(line, "ID="):
+			osID = strings.ToLower(strings.Trim(strings.TrimPrefix(line, "ID="), "\""))
+		case strings.HasPrefix(line, "VERSION_ID="):
+			versionID = strings.Trim(strings.TrimPrefix(line, "VERSION_ID="), "\"")
+		}
+	}
+	return osID, versionID
+}
+
+// detectLinuxSTIGFramework maps /etc/os-release ID + VERSION_ID to a STIG framework.
+func detectLinuxSTIGFramework(osID, versionID string) string {
+	switch osID {
+	case "rhel", "redhat":
+		switch {
+		case strings.HasPrefix(versionID, "9"):
+			return FrameworkRHEL09STIG
+		case strings.HasPrefix(versionID, "8"):
+			return FrameworkRHEL08STIG
+		case strings.HasPrefix(versionID, "7"):
+			return FrameworkRHEL07STIG
+		}
+	case "ol": // Oracle Linux
+		if strings.HasPrefix(versionID, "8") {
+			return FrameworkOracleLinux8
+		}
+	case "ubuntu":
+		switch {
+		case strings.HasPrefix(versionID, "18"):
+			return FrameworkUbuntu1804
+		// Ubuntu 20.04/22.04/24.04 tables were not downloaded from DISA CDN;
+		// fall through to RHEL09 (best available general Linux baseline).
+		}
+	case "almalinux", "rocky":
+		// AlmaLinux and Rocky Linux are RHEL-compatible; use closest RHEL STIG.
+		if strings.HasPrefix(versionID, "9") {
+			return FrameworkRHEL09STIG
+		}
+		return FrameworkRHEL08STIG
+	}
+	return FrameworkRHEL09STIG // default: best available Linux baseline
+}
+
+// detectWindowsSTIGFramework maps the Windows build number to a STIG framework.
+// Falls back to Windows Server 2022 (most restrictive, appropriate for DIB targets).
+func detectWindowsSTIGFramework() string {
+	out, err := exec.Command("cmd", "/c", "ver").Output()
+	if err != nil {
+		return FrameworkWinServer2022
+	}
+	build := parseWindowsBuild(string(out))
+	switch {
+	case build >= 22000:
+		return FrameworkWindows11
+	case build >= 20348:
+		return FrameworkWinServer2022
+	case build >= 17763:
+		return FrameworkWinServer2019
+	case build >= 14393:
+		return FrameworkWinServer2016
+	default:
+		return FrameworkWindows10
+	}
+}
+
+// parseWindowsBuild extracts the build number from a "ver" command output like
+// "Microsoft Windows [Version 10.0.22631.4602]".
+func parseWindowsBuild(verOutput string) int {
+	// Find "10.0." or "6.x." and extract the third component.
+	idx := strings.Index(verOutput, "10.0.")
+	if idx < 0 {
+		return 0
+	}
+	rest := verOutput[idx+5:]
+	for i, c := range rest {
+		if c == '.' || c == ']' || c == ' ' || c == '\n' || c == '\r' {
+			build, _ := strconv.Atoi(rest[:i])
+			return build
+		}
+	}
+	return 0
+}
+
+// detectMacOSSTIGFramework maps the sw_vers product version to a STIG framework.
+func detectMacOSSTIGFramework() string {
+	out, err := exec.Command("sw_vers", "-productVersion").Output()
+	if err != nil {
+		return FrameworkMacOS15
+	}
+	ver := strings.TrimSpace(string(out))
+	switch {
+	case strings.HasPrefix(ver, "15."):
+		return FrameworkMacOS15
+	case strings.HasPrefix(ver, "14."):
+		return FrameworkMacOS14
+	case strings.HasPrefix(ver, "13."):
+		return FrameworkMacOS13
+	default:
+		return FrameworkMacOS15
+	}
+}
+
+// ── hostOS string helpers ─────────────────────────────────────────────────────
+
+func windowsFWtoHostOS(fw string) string {
+	switch fw {
+	case FrameworkWindows10:
+		return "win10"
+	case FrameworkWindows11:
+		return "win11"
+	case FrameworkWinServer2016:
+		return "winsrv2016"
+	case FrameworkWinServer2019:
+		return "winsrv2019"
+	case FrameworkWinServer2022:
+		return "winsrv2022"
+	}
+	return "windows"
+}
+
+func macosFWtoHostOS(fw string) string {
+	switch fw {
+	case FrameworkMacOS13:
+		return "macos13"
+	case FrameworkMacOS14:
+		return "macos14"
+	case FrameworkMacOS15:
+		return "macos15"
+	}
+	return "macos"
+}
+
+func linuxFWtoHostOS(fw string) string {
+	switch fw {
+	case FrameworkRHEL09STIG:
+		return "rhel9"
+	case FrameworkRHEL08STIG:
+		return "rhel8"
+	case FrameworkRHEL07STIG:
+		return "rhel7"
+	case FrameworkOracleLinux8:
+		return "oracle8"
+	case FrameworkUbuntu1804:
+		return "ubuntu1804"
+	}
+	return "linux"
 }
 
 // validateFramework runs validation for a specific framework
