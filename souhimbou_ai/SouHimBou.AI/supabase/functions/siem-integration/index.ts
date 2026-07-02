@@ -1,5 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
+import { serve } from 'std/http/server.ts';
+import { createClient } from '@supabase/supabase-js';
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -60,7 +61,8 @@ serve(async (req) => {
   } catch (error) {
     console.error('SIEM integration error:', error);
     return new Response(JSON.stringify({
-      error: error.message,
+      error: (error as Error).message,
+
       timestamp: new Date().toISOString()
     }), {
       status: 500,
@@ -128,7 +130,8 @@ async function integrateSplunk(config: any, organizationId: string, supabase: an
     return {
       results: {
         status: 'connection_failed',
-        error: error.message,
+        error: (error as Error).message,
+
         configured: false
       }
     };
@@ -234,7 +237,8 @@ async function integrateElastic(config: any, organizationId: string, supabase: a
     return {
       results: {
         status: 'connection_failed',
-        error: error.message,
+        error: (error as Error).message,
+
         configured: false
       }
     };

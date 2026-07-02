@@ -32,7 +32,8 @@
  * Patent-pending: USPTO #73565085 (KHEPRA Protocol)
  */
 
-import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -836,7 +837,8 @@ async function listConnectors(svc: SupabaseClient, orgId: string | null, body: a
   const { data, error } = await q;
   if (error) throw new Error(error.message);
   return { connectors: data ?? [], total: data?.length ?? 0,
-    summary: { active: data?.filter(c => c.status === 'active').length ?? 0, healthy: data?.filter(c => c.health_status === 'healthy').length ?? 0 } };
+    summary: { active: data?.filter((c: Record<string,any>) => c.status === 'active').length ?? 0, healthy: data?.filter((c: Record<string,any>) => c.health_status === 'healthy').length ?? 0 } };
+
 }
 
 // ── Action: update_connector ──────────────────────────────────────────────────
@@ -871,11 +873,12 @@ async function getUsage(svc: SupabaseClient, gwCtx: GatewayContext) {
   const { data } = await svc.from('connector_metering')
     .select('hour_bucket,call_count,llm_tokens_in,llm_tokens_out,llm_cost_usd_micro,connector_types_used,error_count,updated_at')
     .eq('license_key_id', gwCtx.licenseKeyId).eq('day_bucket', today).order('hour_bucket', { ascending: false });
-  const totals = (data ?? []).reduce((acc, r) => ({
+  const totals = (data ?? []).reduce((acc: { calls: number; tokens_in: number; tokens_out: number; cost_usd: number; errors: number }, r: Record<string,any>) => ({
     calls: acc.calls + r.call_count, tokens_in: acc.tokens_in + r.llm_tokens_in,
     tokens_out: acc.tokens_out + r.llm_tokens_out, cost_usd: acc.cost_usd + r.llm_cost_usd_micro / 1_000_000,
     errors: acc.errors + r.error_count,
   }), { calls: 0, tokens_in: 0, tokens_out: 0, cost_usd: 0, errors: 0 });
+
   return { today: totals, hourly: data, tier: gwCtx.tier, calls_this_hour: gwCtx.callsThisHour, calls_today: gwCtx.callsToday };
 }
 
@@ -957,7 +960,8 @@ function suggestAlias(field: string): string {
 function estimateTokens(text: string): number { return Math.ceil(text.length / 4); }
 
 async function recordEvent(svc: SupabaseClient, connectorId: string, orgId: string | null, direction: string, status: string, data: Record<string, any>) {
-  await svc.from('connector_events').insert({ connector_id: connectorId, org_id: orgId, direction, status, ...data }).catch(e => console.error('Event record failed:', e.message));
+  await svc.from('connector_events').insert({ connector_id: connectorId, org_id: orgId, direction, status, ...data }).catch((e: Error) => console.error('Event record failed:', e.message));
+
 }
 
 async function triggerSchemaLearning(connector: any, schemaResult: any) {

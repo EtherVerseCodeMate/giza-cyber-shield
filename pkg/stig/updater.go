@@ -76,48 +76,192 @@ func (r *UpdateResult) String() string {
 
 // ── cyber.mil scraper ─────────────────────────────────────────────────────────
 
-const cyberMilBase = "https://www.cyber.mil"
-const cyberMilDownloads = "https://www.cyber.mil/stigs/downloads/"
+// cyberMilCDN is the direct CDN used for STIG ZIP downloads.
+// cyber.mil migrated to Salesforce Experience Cloud for its downloads page
+// (fully JavaScript-rendered — HTML scraping no longer finds zip links).
+// The actual ZIP files remain on this CDN at a stable URL pattern:
+//   https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_<FAMILY>_<VERSION>_STIG.zip
+const cyberMilCDN = "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/"
 
 // cyberMilUserAgent mimics a standard browser to avoid 403s from WAF rules.
 const cyberMilUserAgent = "Mozilla/5.0 (compatible; ASAF-STIG-Updater/1.0; +https://secred.io)"
 
-// stigZipLinkRE matches direct download links to STIG ZIP files on cyber.mil.
-// Handles both the old dl.dod.cyber.mil CDN and the newer cyber.mil paths.
-var stigZipLinkRE = regexp.MustCompile(
-	`https?://(?:dl\.dod\.cyber\.mil|dl\.cyber\.mil|www\.cyber\.mil)[^"'\s<>]*U_[^"'\s<>]*\.zip`,
-)
+// stigCatalog lists every STIG family with its CDN filename stem and the
+// highest known major version.  ListAvailableSTIGs probes VxR1..VxR30 for
+// each entry to find the latest available release.
+//
+// Refresh this list when DISA adds new families: add a row with the new
+// CDN stem and set MaxMajor to the current major version (usually 1 or 2).
+// stigCatalog is the authoritative list of STIG families available on the
+// DISA CDN.  Each entry specifies the CDN filename stem and the range of
+// major versions to probe (V1..MaxMajor × R1..30).
+//
+// Confirmed from CDN probes 2026-07-01:
+//   RHEL 9 V1R3, RHEL 7 V3R15, Windows 10 V2R9, Windows 11 V1R6,
+//   WS2016 V2R10, WS2019 V2R9, WS2022 V1R5, Kubernetes V1R11,
+//   Oracle Linux 8 V1R10/V2R4/V2R5, Oracle DB 19c V1R5,
+//   macOS 13 V1R5, macOS 14 V1R2, Ubuntu 18.04 V2R15,
+//   Google Chrome V2R11, IE11 V2R7
+var stigCatalog = []stigCatalogEntry{
+	// ── Linux OS ──────────────────────────────────────────────────────────────
+	{Stem: "U_RHEL_9", Title: "Red Hat Enterprise Linux 9 STIG", MaxMajor: 1},
+	{Stem: "U_RHEL_8", Title: "Red Hat Enterprise Linux 8 STIG", MaxMajor: 2},
+	{Stem: "U_RHEL_7", Title: "Red Hat Enterprise Linux 7 STIG", MaxMajor: 3},
+	{Stem: "U_Oracle_Linux_8", Title: "Oracle Linux 8 STIG", MaxMajor: 2},
+	{Stem: "U_Oracle_Linux_7", Title: "Oracle Linux 7 STIG", MaxMajor: 2},
+	// Ubuntu: DISA uses "CAN" prefix for older releases, direct stem for newer
+	{Stem: "U_CAN_Ubuntu_18-04_LTS", Title: "Ubuntu 18.04 LTS STIG", MaxMajor: 2},
+	{Stem: "U_Canonical_Ubuntu_20-04_LTS", Title: "Ubuntu 20.04 LTS STIG", MaxMajor: 2},
+	{Stem: "U_Canonical_Ubuntu_22-04_LTS", Title: "Ubuntu 22.04 LTS STIG", MaxMajor: 2},
+	{Stem: "U_Canonical_Ubuntu_24-04_LTS", Title: "Ubuntu 24.04 LTS STIG", MaxMajor: 1},
 
-// relativeZipLinkRE matches relative paths like /wp-content/uploads/stigs/zip/U_*.zip
-var relativeZipLinkRE = regexp.MustCompile(`href="(/[^"]*U_[^"]*\.zip)"`)
+	// ── Windows OS ────────────────────────────────────────────────────────────
+	{Stem: "U_MS_Windows_10", Title: "Windows 10 STIG", MaxMajor: 2},
+	{Stem: "U_MS_Windows_11", Title: "Windows 11 STIG", MaxMajor: 2},
+	{Stem: "U_MS_Windows_Server_2016", Title: "Windows Server 2016 STIG", MaxMajor: 2},
+	{Stem: "U_MS_Windows_Server_2019", Title: "Windows Server 2019 STIG", MaxMajor: 2},
+	{Stem: "U_MS_Windows_Server_2022", Title: "Windows Server 2022 STIG", MaxMajor: 2},
 
-// ListAvailableSTIGs scrapes the cyber.mil STIG downloads page and returns
-// every STIG ZIP it finds.  Requires outbound internet access.
-func ListAvailableSTIGs() ([]STIGPackage, error) {
-	body, err := fetchURL(cyberMilDownloads)
-	if err != nil {
-		return nil, fmt.Errorf("cyber.mil fetch: %w", err)
-	}
+	// ── macOS ─────────────────────────────────────────────────────────────────
+	{Stem: "U_Apple_macOS_13", Title: "Apple macOS 13 Ventura STIG", MaxMajor: 1},
+	{Stem: "U_Apple_macOS_14", Title: "Apple macOS 14 Sonoma STIG", MaxMajor: 1},
+	{Stem: "U_Apple_macOS_15", Title: "Apple macOS 15 Sequoia STIG", MaxMajor: 1},
 
-	return parseSTIGLinks(string(body), cyberMilBase), nil
+	// ── Containers / Cloud ────────────────────────────────────────────────────
+	{Stem: "U_Kubernetes", Title: "Kubernetes STIG", MaxMajor: 2},
+	{Stem: "U_Container_Platform", Title: "Container Platform STIG", MaxMajor: 1},
+	{Stem: "U_OpenShift_Container_Platform_4", Title: "OpenShift Container Platform 4 STIG", MaxMajor: 1},
+
+	// ── Network / Infrastructure ──────────────────────────────────────────────
+	{Stem: "U_Cisco_IOS_XE_Router", Title: "Cisco IOS-XE Router STIG", MaxMajor: 1},
+	{Stem: "U_Cisco_IOS_XE_Switch_L2S", Title: "Cisco IOS-XE Switch L2S STIG", MaxMajor: 2},
+	{Stem: "U_Cisco_IOS_XE_Switch_NDM", Title: "Cisco IOS-XE Switch NDM STIG", MaxMajor: 2},
+	{Stem: "U_Cisco_NX-OS_Switch_RTR", Title: "Cisco NX-OS Switch RTR STIG", MaxMajor: 2},
+	{Stem: "U_Juniper_EX_Series_ALG", Title: "Juniper EX Series ALG STIG", MaxMajor: 1},
+	{Stem: "U_Juniper_SRX_Services_Gateway_NDM", Title: "Juniper SRX NDM STIG", MaxMajor: 2},
+	{Stem: "U_Palo_Alto_Networks_NDM", Title: "Palo Alto Networks NDM STIG", MaxMajor: 2},
+	{Stem: "U_F5_BIG-IP_Local_Traffic_Manager_11-x", Title: "F5 BIG-IP LTM STIG", MaxMajor: 2},
+
+	// ── Databases ─────────────────────────────────────────────────────────────
+	{Stem: "U_Oracle_Database_19c", Title: "Oracle Database 19c STIG", MaxMajor: 1},
+	{Stem: "U_MS_SQL_Server_2019", Title: "Microsoft SQL Server 2019 STIG", MaxMajor: 1},
+	{Stem: "U_MS_SQL_Server_2016", Title: "Microsoft SQL Server 2016 STIG", MaxMajor: 2},
+	{Stem: "U_PostgreSQL_9-x", Title: "PostgreSQL 9.x STIG", MaxMajor: 2},
+	{Stem: "U_MongoDB_Enterprise_Advanced", Title: "MongoDB Enterprise Advanced STIG", MaxMajor: 1},
+
+	// ── Web / Application ─────────────────────────────────────────────────────
+	{Stem: "U_Apache_Server_2-4_Unix_Server", Title: "Apache Server 2.4 Unix STIG", MaxMajor: 3},
+	{Stem: "U_MS_IIS_10-0_Server", Title: "Microsoft IIS 10.0 Server STIG", MaxMajor: 2},
+	{Stem: "U_MS_IIS_10-0_Site", Title: "Microsoft IIS 10.0 Site STIG", MaxMajor: 2},
+	{Stem: "U_Microsoft_Edge", Title: "Microsoft Edge STIG", MaxMajor: 2},
+	{Stem: "U_Google_Chrome", Title: "Google Chrome STIG", MaxMajor: 2},
+	{Stem: "U_Mozilla_FireFox", Title: "Mozilla Firefox STIG", MaxMajor: 6},
+	{Stem: "U_MS_IE11", Title: "Internet Explorer 11 STIG", MaxMajor: 2},
+
+	// ── Active Directory / Identity ───────────────────────────────────────────
+	{Stem: "U_Active_Directory_Domain", Title: "Active Directory Domain STIG", MaxMajor: 2},
+	{Stem: "U_Active_Directory_Forest", Title: "Active Directory Forest STIG", MaxMajor: 2},
+	{Stem: "U_MS_Exchange_2019_Edge", Title: "MS Exchange 2019 Edge STIG", MaxMajor: 1},
+	{Stem: "U_MS_Exchange_2019_Mailbox", Title: "MS Exchange 2019 Mailbox STIG", MaxMajor: 1},
+
+	// ── VMware / Virtualization ───────────────────────────────────────────────
+	{Stem: "U_VMware_vSphere_7-0_ESXi", Title: "VMware vSphere 7.0 ESXi STIG", MaxMajor: 1},
+	{Stem: "U_VMware_vSphere_8-0_ESXi", Title: "VMware vSphere 8.0 ESXi STIG", MaxMajor: 1},
 }
 
-// parseSTIGLinks extracts STIGPackage entries from raw HTML.
+type stigCatalogEntry struct {
+	Stem     string // CDN filename prefix, e.g. "U_RHEL_9"
+	Title    string // Human-readable title
+	MaxMajor int    // Highest major version known (probes V1..VMajor)
+}
+
+// ListAvailableSTIGs probes the DISA CDN for the latest release of each
+// catalogued STIG family.  For each family it tries VxR1..VxR30 for every
+// major version up to MaxMajor and returns the highest that responds HTTP 200.
+//
+// The cyber.mil downloads page migrated to Salesforce Experience Cloud (fully
+// JS-rendered) so the old HTML scraper is replaced by this CDN probe approach.
+func ListAvailableSTIGs() ([]STIGPackage, error) {
+	var pkgs []STIGPackage
+	for _, entry := range stigCatalog {
+		if pkg, found := probeLatestVersion(entry); found {
+			pkgs = append(pkgs, pkg)
+		}
+	}
+	sort.Slice(pkgs, func(i, j int) bool { return pkgs[i].FileName < pkgs[j].FileName })
+	return pkgs, nil
+}
+
+// probeLatestVersion tries every VxRy combination for a catalog entry and
+// returns the highest version that returns HTTP 200 from the CDN.
+func probeLatestVersion(entry stigCatalogEntry) (STIGPackage, bool) {
+	var best STIGPackage
+	found := false
+
+	client := &http.Client{
+		Timeout: 15 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return nil // follow redirects
+		},
+	}
+
+	for major := 1; major <= entry.MaxMajor; major++ {
+		for release := 1; release <= 30; release++ {
+			version := fmt.Sprintf("V%dR%d", major, release)
+			// Both naming patterns seen in DISA CDN:
+			// U_RHEL_9_V1R3_STIG.zip  and  U_RHEL_9_V1R3_Manual_xccdf.zip
+			filename := fmt.Sprintf("%s_%s_STIG.zip", entry.Stem, version)
+			url := cyberMilCDN + filename
+
+			req, err := http.NewRequest(http.MethodHead, url, nil)
+			if err != nil {
+				continue
+			}
+			req.Header.Set("User-Agent", cyberMilUserAgent)
+
+			resp, err := client.Do(req)
+			if err != nil {
+				continue
+			}
+			resp.Body.Close()
+
+			if resp.StatusCode == http.StatusOK {
+				best = STIGPackage{
+					Title:       entry.Title,
+					FileName:    filename,
+					DownloadURL: url,
+					Version:     version,
+				}
+				found = true
+				// continue probing — want the highest VxRy
+			} else {
+				// First miss after a hit means we've passed the latest release
+				if found {
+					break
+				}
+			}
+		}
+	}
+	return best, found
+}
+
+// parseSTIGLinks is retained for offline/legacy use (e.g. parsing a cached
+// HTML snapshot or a local index file).
 func parseSTIGLinks(html, base string) []STIGPackage {
 	seen := make(map[string]bool)
 	var pkgs []STIGPackage
 
-	// Absolute URLs
-	for _, u := range stigZipLinkRE.FindAllString(html, -1) {
+	re := regexp.MustCompile(
+		`https?://(?:dl\.dod\.cyber\.mil|dl\.cyber\.mil|www\.cyber\.mil)[^"'\s<>]*U_[^"'\s<>]*\.zip`)
+	for _, u := range re.FindAllString(html, -1) {
 		if seen[u] {
 			continue
 		}
 		seen[u] = true
 		pkgs = append(pkgs, packageFromURL(u))
 	}
-
-	// Relative paths
-	for _, m := range relativeZipLinkRE.FindAllStringSubmatch(html, -1) {
+	relRE := regexp.MustCompile(`href="(/[^"]*U_[^"]*\.zip)"`)
+	for _, m := range relRE.FindAllStringSubmatch(html, -1) {
 		u := base + m[1]
 		if seen[u] {
 			continue
@@ -125,7 +269,6 @@ func parseSTIGLinks(html, base string) []STIGPackage {
 		seen[u] = true
 		pkgs = append(pkgs, packageFromURL(u))
 	}
-
 	sort.Slice(pkgs, func(i, j int) bool { return pkgs[i].FileName < pkgs[j].FileName })
 	return pkgs
 }
