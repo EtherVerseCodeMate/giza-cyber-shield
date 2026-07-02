@@ -172,6 +172,12 @@ type GraphNode struct {
 	IPAddress string
 	OS        string
 
+	// FixArgv is the remediation command matrix from the STIG check table.
+	// Each inner slice is one argv-safe command (no shell; no metacharacters).
+	// nil means no automated fix is available — manual remediation required.
+	// Populated by ingestReport from stig.GetFixArgv(FindingID).
+	FixArgv [][]string
+
 	// STIGFamily is the STIG_File value for Tier 4 aggregate nodes created by
 	// LoadNotAssessedBaseline.  Empty for all other node kinds.
 	STIGFamily string
@@ -320,6 +326,28 @@ type FindingInput struct {
 	Remediation string
 	References  []string
 	CheckedAt   time.Time
+
+	// SPRSPracticeWeight is the CMMC Appendix A practice weight (1, 3, or 5).
+	// When non-zero it takes precedence over the CAT-severity heuristic in
+	// sprsWeightFor().  The check engine and CKL/CKLB/OSCAL importers populate
+	// this from db.GetCrossReferences (CCI → CMMC practice → Appendix A weight).
+	// Zero means "not resolved from DB"; fall back to severity-based heuristic.
+	SPRSPracticeWeight int
+}
+
+// resolveWeight returns the SPRS deduction for a finding.
+//
+// Priority order (per CMMC Appendix A / §0.5):
+//  1. f.SPRSPracticeWeight — populated by the check engine or importer from the
+//     STIG→CCI→CMMC mapping DB.  This is the correct axis: CMMC practice weight
+//     (1 = Level 1, 3 = most Level 2, 5 = high-value Level 2 practices).
+//  2. sprsWeightFor(f.SeverityRaw) — STIG CAT heuristic fallback when no DB
+//     cross-reference is available (e.g. manual review findings).
+func resolveWeight(f FindingInput) int {
+	if f.SPRSPracticeWeight > 0 {
+		return f.SPRSPracticeWeight
+	}
+	return sprsWeightFor(f.SeverityRaw)
 }
 
 // sprsWeightFor converts a raw STIG/CMMC severity string to its SPRS weight.
@@ -342,7 +370,7 @@ func (m *ComplianceGraphModel) AddFinding(f FindingInput) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	sprs := sprsWeightFor(f.SeverityRaw)
+	sprs := resolveWeight(f)
 
 	node := &GraphNode{
 		ID:          "finding_" + f.ID,

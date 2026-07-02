@@ -10,6 +10,7 @@
 package views
 
 import (
+	"context"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/app/models"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/app/widgets"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hub"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
 )
 
@@ -25,6 +27,7 @@ import (
 // then call Content() to get the Fyne container to embed in AppTabs.
 type ComplianceGraphTab struct {
 	win         fyne.Window
+	backend     hub.Backend
 	model       *models.ComplianceGraphModel
 	graphCanvas *widgets.GraphCanvas
 	sidebar     *widgets.NodeSidebar
@@ -35,8 +38,9 @@ type ComplianceGraphTab struct {
 
 // NewComplianceGraphTab constructs Tab 1 and wires all inter-widget callbacks.
 // win is the parent window used for file dialogs and error sheets.
-func NewComplianceGraphTab(win fyne.Window) *ComplianceGraphTab {
-	t := &ComplianceGraphTab{win: win}
+// backend provides the compliance data source (local or Hub).
+func NewComplianceGraphTab(win fyne.Window, backend hub.Backend) *ComplianceGraphTab {
+	t := &ComplianceGraphTab{win: win, backend: backend}
 
 	// Model — seeds governance root + 14 domain nodes + Tier 4 family baseline
 	t.model = models.NewComplianceGraphModel()
@@ -88,10 +92,12 @@ func NewComplianceGraphTab(win fyne.Window) *ComplianceGraphTab {
 	t.phasePanel.OnImportChecklist = func() {
 		db, _ := stig.GetDatabase()
 		widgets.ShowImportChecklistDialog(t.win, t.model, db, func(_ string) {
-			// Refresh graph and status bar after import (called from goroutine, safe in Fyne 2.x)
-			t.statusBar.Update(t.model.SPRSScore, t.model.LastScanTime, false)
-			t.graphCanvas.TriggerLayout()
-			canvas.Refresh(t.graphCanvas)
+			// onImported fires from a goroutine inside the dialog — marshal to UI thread.
+			fyne.Do(func() {
+				t.statusBar.Update(t.model.SPRS(), t.model.ScanTime(), false)
+				t.graphCanvas.TriggerLayout()
+				canvas.Refresh(t.graphCanvas)
+			})
 		})
 	}
 
@@ -137,26 +143,24 @@ func (t *ComplianceGraphTab) runScan() {
 		}
 		t.model.FinalizeScan(scanTime, hostname)
 
-		// Read model fields through the lock-guarded getters before passing to
-		// widgets.  canvas.Refresh and Fyne widget setters are goroutine-safe in
-		// Fyne 2.x (they schedule redraws on the main goroutine internally).
-		t.phasePanel.SetPhase(t.model.Phase(), false)
-		t.statusBar.Update(t.model.SPRS(), t.model.ScanTime(), false)
-		t.graphCanvas.TriggerLayout()
-		canvas.Refresh(t.graphCanvas)
+		// Marshal all post-scan UI updates to the Fyne main goroutine.
+		fyne.Do(func() {
+			t.phasePanel.SetPhase(t.model.Phase(), false)
+			t.statusBar.Update(t.model.SPRS(), t.model.ScanTime(), false)
+			t.graphCanvas.TriggerLayout()
+			canvas.Refresh(t.graphCanvas)
+		})
 	}()
 }
 
-// executeScan runs the STIG validator against the local system.
-// Returns nil on fatal error (error is already stored in the report's
-// ExecutiveSummary so it surfaces in the evidence package).
+// executeScan runs a STIG scan via the Backend (local or Hub depending on mode).
+// Returns nil on fatal error (partial results are valid for SPRS scoring).
 func (t *ComplianceGraphTab) executeScan() *stig.ComprehensiveReport {
-	v := stig.NewValidator("") // "" = local host
-	report, err := v.Validate()
-	if err != nil {
-		// Non-fatal: partial results are still valid for SPRS scoring.
-		// A nil report means the validator failed entirely (permission denied, etc.)
-		return report
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	report, err := t.backend.Scan(ctx, "")
+	if err != nil && report == nil {
+		return nil
 	}
 	return report
 }

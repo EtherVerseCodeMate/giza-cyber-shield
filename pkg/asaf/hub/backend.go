@@ -1,0 +1,79 @@
+package hub
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
+)
+
+// Backend is the single interface all Fyne views use to access compliance data.
+//
+// The local *models.ComplianceGraphModel is always a Fyne-side struct and is
+// NOT part of this interface — the Backend handles IO only.  Views check
+// Mode() and call the appropriate methods; the same view code runs in all modes.
+type Backend interface {
+	// Mode returns the current operating mode (Standalone/Connected/EmbeddedHub).
+	Mode() AppMode
+
+	// HubURL returns the configured Hub base URL, or "" in standalone mode.
+	// Used for the connection status badge in the main window header.
+	HubURL() string
+
+	// Ping verifies backend connectivity and returns version information.
+	// In standalone: returns local binary version with no network call.
+	Ping(ctx context.Context) (*HealthResponse, error)
+
+	// GetEnclaves returns all compliance boundary enclaves.
+	// In standalone: returns a single "Local Enclave" containing localhost.
+	// In connected: GET /api/v1/fleet/enclaves
+	GetEnclaves(ctx context.Context) ([]Enclave, error)
+
+	// GetAssets returns enrolled endpoints for an enclave.
+	// Pass enclaveID "" to return all assets across all enclaves.
+	// In standalone: returns a single Asset record for localhost.
+	// In connected: GET /api/v1/fleet/assets?enclave_id={enclaveID}
+	GetAssets(ctx context.Context, enclaveID string) ([]Asset, error)
+
+	// GetSPRS returns the SPRS computation for an enclave.
+	// In standalone: computed from the most recent local stig scan.
+	// In connected: GET /api/v1/fleet/sprs/{enclaveID}
+	GetSPRS(ctx context.Context, enclaveID string) (*SPRSResult, error)
+
+	// Scan runs a STIG baseline scan.
+	// In standalone: in-process via stig.NewValidator (embedded 25,185-row DB).
+	// In connected: POST /api/v1/scan on the Hub (Hub runs it on the asset).
+	Scan(ctx context.Context, assetID string) (*stig.ComprehensiveReport, error)
+
+	// GetPendingApprovals returns ChangeRequests awaiting CISO approval.
+	// In standalone: queries the local Imhotep daemon staging queue.
+	// In connected: GET /api/v1/imhotep/pending
+	GetPendingApprovals(ctx context.Context) ([]PendingChange, error)
+
+	// Approve approves a staged ChangeRequest for production execution.
+	// CALLERS MUST SHOW A CONFIRMATION DIALOG before invoking this method.
+	// This is the human-in-the-loop gate per §13 of the desktop agent spec.
+	// In standalone: calls daemon client with Approved=true via Unix socket.
+	// In connected: POST /api/v1/imhotep/approve/{id}
+	Approve(ctx context.Context, id string) error
+
+	// GetDAGHistory returns the compliance attestation chain.
+	// In standalone: reads the local pkg/dag Store.
+	// In connected: GET /api/v1/dag/history
+	GetDAGHistory(ctx context.Context) ([]DAGNode, error)
+
+	// Ask sends a natural language compliance query.
+	// In standalone: routes to local g0dm0d3 AI brain (Ollama → offline fallback).
+	// In connected: POST /api/v1/mcp/ask
+	Ask(ctx context.Context, query string) (*AskResponse, error)
+
+	// StreamKASA opens a real-time KASA event stream.
+	// In standalone: bridges the local pkg/agi Engine log.
+	// In connected: SSE GET /api/v1/kasa/stream
+	// The caller owns the context and must cancel it to close the stream.
+	StreamKASA(ctx context.Context) (<-chan KASAEvent, error)
+}
+
+// ErrNotConnected is returned by Hub-only operations when in ModeStandalone.
+// The UI surfaces this as a contextual message rather than a raw error.
+var ErrNotConnected = fmt.Errorf("hub: not connected to a Stargate Hub — start with --hub <url> or --embed-hub")

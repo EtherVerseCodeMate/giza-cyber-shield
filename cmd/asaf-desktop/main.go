@@ -1,6 +1,11 @@
-// cmd/asaf-desktop/main.go — AdinKhepra ASAF Compliance Graph Desktop
+// cmd/asaf-desktop/main.go — AdinKhepra ASAF Desktop
 // Surface 2: CISO-facing native GUI (fyne.io/fyne/v2)
 // Entry point: license check → splash → main window
+//
+// Three operating modes (selected by flag):
+//   (default)      — Standalone: local STIG engine + Imhotep daemon
+//   --hub <url>    — Connected: remote Stargate Hub via HTTPS
+//   --embed-hub    — Embedded Hub: asaf-hub subprocess on localhost
 
 package main
 
@@ -12,6 +17,8 @@ import (
 	"image/color"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -22,6 +29,8 @@ import (
 
 	asaftheme "github.com/EtherVerseCodeMate/giza-cyber-shield/app/theme"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/app/views"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hub"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
 )
@@ -38,8 +47,15 @@ const (
 )
 
 func main() {
+	// Existing flags — DO NOT REMOVE (Windows Service / headless mode)
 	headless := flag.Bool("headless", false, "Run as headless dashboard (Windows Service mode)")
 	port := flag.Int("port", 8443, "Dashboard port (headless mode)")
+
+	// New flags per desktop_agent_spec.md §5
+	hubURL   := flag.String("hub", "", "Stargate Hub URL (e.g. https://asaf.company.com:8443). Empty = standalone mode.")
+	embedHub := flag.Bool("embed-hub", false, "Launch embedded asaf-hub subprocess on localhost:8443")
+	agentID  := flag.String("agent-id", "", "Override agent identity for Hub connection (default: hostname)")
+	insecure := flag.Bool("insecure", false, "Skip TLS verification (development only — NEVER in production)")
 	flag.Parse()
 
 	if *headless {
@@ -47,7 +63,7 @@ func main() {
 		return
 	}
 
-	runGUI()
+	runGUI(*hubURL, *embedHub, *agentID, *insecure)
 }
 
 // runHeadless starts a loopback-only HTTP server on the specified port.
@@ -118,26 +134,102 @@ func runHeadless(port int) {
 }
 
 // runGUI launches the full native Fyne desktop application.
-func runGUI() {
+// hubURL/embedHub/agentID/insecure come from CLI flags (see main()).
+func runGUI(hubURL string, embedHub bool, agentID string, insecure bool) {
 	a := app.NewWithID(appID)
 	a.Settings().SetTheme(&asaftheme.ASAFTheme{})
 
-	// SVG icon embedded here as raw bytes would be placed via go:embed in a
-	// production build. For now, use a nil resource (Fyne default icon).
-	// TODO: add //go:embed ../../assets/icon.svg when assets/ is present.
-
-	// Splash screen while license loads
 	splash := showSplash(a)
-
-	// License check
 	tier := checkLicense()
+
+	// Determine AppMode and build the Backend.
+	var mode hub.AppMode
+	switch {
+	case embedHub:
+		mode = hub.ModeEmbeddedHub
+	case hubURL != "":
+		mode = hub.ModeConnected
+	default:
+		mode = hub.ModeStandalone
+	}
+
+	backend, err := buildBackend(mode, hubURL, agentID, insecure)
+	if err != nil {
+		log.Printf("[asaf-desktop] backend init failed: %v — falling back to Standalone", err)
+		backend = hub.NewLocalBackend(nil, nil, nil)
+	}
 
 	splash.Close()
 
-	// Main compliance graph window
-	showMainWindow(a, tier)
+	showMainWindow(a, tier, backend)
 
 	a.Run()
+}
+
+// buildBackend constructs the appropriate Backend for the given mode.
+func buildBackend(mode hub.AppMode, hubURL, agentID string, insecure bool) (hub.Backend, error) {
+	switch mode {
+	case hub.ModeStandalone:
+		return hub.NewLocalBackend(nil, nil, nil), nil
+
+	case hub.ModeConnected, hub.ModeEmbeddedHub:
+		effectiveURL := hubURL
+		if mode == hub.ModeEmbeddedHub {
+			// EmbeddedHub: the subprocess will be started by showMainWindow after this returns.
+			// Use localhost temporarily; the tab_settings view updates it post-launch.
+			effectiveURL = "http://localhost:8443"
+		}
+
+		id := agentID
+		if id == "" {
+			host, _ := os.Hostname()
+			id = "asaf-desktop-" + host
+		}
+
+		privKey, err := loadOrGenerateAgentKey()
+		if err != nil {
+			return nil, fmt.Errorf("agent key: %w", err)
+		}
+
+		return hub.New(hub.Config{
+			HubURL:   effectiveURL,
+			AgentID:  id,
+			PrivKey:  privKey,
+			Insecure: insecure,
+			Embedded: mode == hub.ModeEmbeddedHub,
+		})
+	}
+	return hub.NewLocalBackend(nil, nil, nil), nil
+}
+
+// loadOrGenerateAgentKey loads the ML-DSA-65 private key from ~/.asaf/keys/agent.key,
+// generating and persisting a new key pair if none exists.
+func loadOrGenerateAgentKey() ([]byte, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("home dir: %w", err)
+	}
+	keyDir := filepath.Join(home, ".asaf", "keys")
+	privPath := filepath.Join(keyDir, "agent.key")
+
+	data, err := os.ReadFile(privPath)
+	if err == nil && len(data) > 0 {
+		return data, nil // existing key
+	}
+
+	// Generate fresh ML-DSA-65 key pair and persist private key.
+	privKey, _, err := adinkra.GenerateDilithiumKey()
+	if err != nil {
+		return nil, fmt.Errorf("generate key: %w", err)
+	}
+	if err := os.MkdirAll(keyDir, 0700); err != nil {
+		return nil, fmt.Errorf("create key dir: %w", err)
+	}
+	if err := os.WriteFile(privPath, privKey, 0600); err != nil {
+		return nil, fmt.Errorf("persist key: %w", err)
+	}
+	log.Printf("[asaf-desktop] generated new ML-DSA-65 agent key at %s", privPath)
+	return privKey, nil
 }
 
 func showSplash(a fyne.App) fyne.Window {
@@ -176,7 +268,7 @@ func showSplash(a fyne.App) fyne.Window {
 	return w
 }
 
-func showMainWindow(a fyne.App, tier string) {
+func showMainWindow(a fyne.App, tier string, backend hub.Backend) {
 	// Brand resources — embedded at compile time, zero runtime I/O.
 	iconRes := fyne.NewStaticResource("icon.svg", iconSVG)
 	_ = lockupDarkSVG // reserved for future raster export path
@@ -184,7 +276,7 @@ func showMainWindow(a fyne.App, tier string) {
 	// Set app icon (taskbar, alt-tab, dock) and window icon.
 	a.SetIcon(iconRes)
 
-	w := a.NewWindow("AdinKhepra ASAF — CMMC Graph UI Stargate")
+	w := a.NewWindow("AdinKhepra ASAF — Agentic Security Attestation Framework")
 	w.SetIcon(iconRes)
 	w.Resize(fyne.NewSize(1440, 900))
 	w.CenterOnScreen()
@@ -229,43 +321,57 @@ func showMainWindow(a fyne.App, tier string) {
 		container.NewPadded(textStack),
 	)
 
+	// Mode badge — shows connection status per spec §14
+	var modeLabel string
+	switch backend.Mode() {
+	case hub.ModeConnected:
+		modeLabel = "● Remote Administration — " + backend.HubURL()
+	case hub.ModeEmbeddedHub:
+		modeLabel = "● Embedded Hub — localhost:8443"
+	default:
+		modeLabel = "○ Standalone"
+	}
+	modeBadge := canvas.NewText(modeLabel, asaftheme.NXBlue)
+	modeBadge.TextSize = 11
+
 	tierBadge := canvas.NewText("License: "+tier, asaftheme.AKGold)
 	tierBadge.TextSize = 12
 
 	header := container.NewBorder(nil, nil,
 		container.NewPadded(lockupRow),
-		container.NewPadded(tierBadge),
+		container.NewPadded(container.NewHBox(modeBadge, widget.NewSeparator(), tierBadge)),
 		nil,
 	)
 
-	// ── Tab 1: Compliance Graph (full implementation) ────────────────────────
-	tab1 := views.NewComplianceGraphTab(w)
-
-	// ── Tabs 2–8: placeholders for future milestones ─────────────────────────
-	futureTab := func(label string) fyne.CanvasObject {
-		t := canvas.NewText(label+" — coming soon", asaftheme.TextMuted)
-		t.TextSize = 14
-		return container.NewCenter(t)
-	}
+	// ── All 8 tabs — wired to the Backend interface ───────────────────────────
+	tab1 := views.NewComplianceGraphTab(w, backend)
+	tab2 := views.NewFleetManagerTab(w, backend)
+	tab3 := views.NewSSPTab(w, backend)
+	tab4 := views.NewPOAMTab(w, backend)
+	tab5 := views.NewRemediationTab(w, backend)
+	tab6 := views.NewReadinessTab(w, backend)
+	tab7 := views.NewEvidenceTab(w, backend)
+	tab8 := views.NewSettingsTab(w, backend)
 
 	tabs := container.NewAppTabs(
 		container.NewTabItem("Compliance Graph", tab1.Content()),
-		container.NewTabItem("Asset Discovery", futureTab("Asset Discovery")),
-		container.NewTabItem("Security Plan (SSP)", futureTab("System Security Plan")),
-		container.NewTabItem("POA&M", futureTab("Plan of Action & Milestones")),
-		container.NewTabItem("Remediation", futureTab("Remediation Engine")),
-		container.NewTabItem("Readiness Gate", futureTab("Readiness Gate")),
-		container.NewTabItem("Evidence Package", futureTab("C3PAO Evidence Package")),
+		container.NewTabItem("Fleet Manager", tab2.Content()),
+		container.NewTabItem("Security Plan (SSP)", tab3.Content()),
+		container.NewTabItem("POA&M", tab4.Content()),
+		container.NewTabItem("Remediation", tab5.Content()),
+		container.NewTabItem("Readiness Gate", tab6.Content()),
+		container.NewTabItem("Evidence Package", tab7.Content()),
+		container.NewTabItem("Settings", tab8.Content()),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
 
-	// Footer — patent / copyright line
+	// Footer — always visible per §13 (patent line required)
 	footer := container.NewHBox(
 		widget.NewLabel(fmt.Sprintf("v%s", appVersion)),
 		widget.NewSeparator(),
-		widget.NewLabel("CMMC Level 2  |  110 practices  |  STIG/CCI/NIST mapping DB"),
+		widget.NewLabel("CMMC Level 2  |  110 practices  |  25,185 STIG/CCI/NIST mappings"),
 		widget.NewSeparator(),
-		widget.NewLabel("ML-DSA-65 (FIPS 204): ready"),
+		widget.NewLabel("ML-DSA-65 (FIPS 204) · ML-KEM-768 (FIPS 203): ready"),
 		widget.NewSeparator(),
 		canvas.NewText("USPTO #73565085  |  SecRed Knowledge Inc.", asaftheme.TextMuted),
 	)
