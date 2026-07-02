@@ -1,6 +1,9 @@
 package stig
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"io"
 	"strings"
 	"testing"
 )
@@ -68,6 +71,66 @@ func TestGetAllSTIGFamilies(t *testing.T) {
 		t.Error("no RHEL STIG family found in GetAllSTIGFamilies() results")
 	}
 	t.Logf("GetAllSTIGFamilies: %d families", len(families))
+}
+
+// TestCSVChecksum verifies the embedded STIG_CCI_Map.csv SHA-256 matches
+// the pinned hash in data/CHECKSUMS.  This detects out-of-sync copies between
+// Product A (khepra protocol) and Product B (PQC-Khepra-MCP).
+// Fails with a clear diagnostic if the CSV was replaced without updating CHECKSUMS.
+func TestCSVChecksum(t *testing.T) {
+	// Read pinned hash from embedded CHECKSUMS file.
+	csFile, err := embeddedData.Open("data/CHECKSUMS")
+	if err != nil {
+		t.Fatalf("open data/CHECKSUMS: %v", err)
+	}
+	defer csFile.Close()
+
+	csBytes, err := io.ReadAll(csFile)
+	if err != nil {
+		t.Fatalf("read data/CHECKSUMS: %v", err)
+	}
+
+	// Parse first non-empty, non-comment line: "sha256:<hex>  <filename>"
+	var pinnedHex, pinnedFile string
+	for _, line := range strings.Split(string(csBytes), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.Fields(line)
+		if len(parts) < 2 {
+			continue
+		}
+		algo, digest, ok := strings.Cut(parts[0], ":")
+		if !ok || algo != "sha256" {
+			t.Fatalf("CHECKSUMS: unsupported algorithm in %q (want sha256:<hex>)", parts[0])
+		}
+		pinnedHex = digest
+		pinnedFile = parts[1]
+		break
+	}
+	if pinnedHex == "" {
+		t.Fatal("CHECKSUMS: no valid sha256 entry found")
+	}
+
+	// Hash the embedded CSV.
+	csvFile, err := embeddedData.Open("data/" + pinnedFile)
+	if err != nil {
+		t.Fatalf("open data/%s: %v", pinnedFile, err)
+	}
+	defer csvFile.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, csvFile); err != nil {
+		t.Fatalf("hash data/%s: %v", pinnedFile, err)
+	}
+	actualHex := hex.EncodeToString(h.Sum(nil))
+
+	if actualHex != pinnedHex {
+		t.Errorf("CSV checksum mismatch for %s:\n  pinned: %s\n  actual: %s\n"+
+			"Update pkg/stig/data/CHECKSUMS after syncing the CSV from PQC-Khepra-MCP.",
+			pinnedFile, pinnedHex, actualHex)
+	}
 }
 
 func TestFindingStruct(t *testing.T) {

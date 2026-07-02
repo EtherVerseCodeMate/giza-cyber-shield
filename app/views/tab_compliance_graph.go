@@ -117,17 +117,18 @@ func (t *ComplianceGraphTab) Content() fyne.CanvasObject {
 // The UI is updated progressively as findings arrive; the phase panel shows
 // "Scanning…" during the run and reverts when the scan completes.
 func (t *ComplianceGraphTab) runScan() {
-	t.model.ScanRunning = true
-	t.model.CurrentPhase = 4
+	// Atomically set ScanRunning=true and CurrentPhase=4 under the write lock
+	// to prevent the renderer from observing a torn intermediate state.
+	t.model.SetScanStarted(4)
 	t.phasePanel.SetPhase(4, true)
-	t.statusBar.Update(t.model.SPRSScore, t.model.LastScanTime, true)
+	t.statusBar.Update(t.model.SPRS(), t.model.ScanTime(), true)
 
 	go func() {
 		report := t.executeScan()
 		t.ingestReport(report)
 
-		// Finalize scan metadata under the model lock so the UI thread never
-		// reads ScanRunning / LastScanTime / LastScanHost in a torn state.
+		// Finalize under the model's write lock (sets ScanRunning=false,
+		// LastScanTime, LastScanHost atomically).
 		var scanTime time.Time
 		var hostname string
 		if report != nil {
@@ -136,10 +137,11 @@ func (t *ComplianceGraphTab) runScan() {
 		}
 		t.model.FinalizeScan(scanTime, hostname)
 
-		// canvas.Refresh is goroutine-safe in Fyne 2.x; widget setters below
-		// are also safe (they schedule redraws internally).
-		t.phasePanel.SetPhase(4, false)
-		t.statusBar.Update(t.model.SPRSScore, t.model.LastScanTime, false)
+		// Read model fields through the lock-guarded getters before passing to
+		// widgets.  canvas.Refresh and Fyne widget setters are goroutine-safe in
+		// Fyne 2.x (they schedule redraws on the main goroutine internally).
+		t.phasePanel.SetPhase(t.model.Phase(), false)
+		t.statusBar.Update(t.model.SPRS(), t.model.ScanTime(), false)
 		t.graphCanvas.TriggerLayout()
 		canvas.Refresh(t.graphCanvas)
 	}()

@@ -642,6 +642,37 @@ func (m *ComplianceGraphModel) FinalizeScan(scanTime time.Time, hostname string)
 func (m *ComplianceGraphModel) RLock()   { m.mu.RLock() }
 func (m *ComplianceGraphModel) RUnlock() { m.mu.RUnlock() }
 
+// SPRS returns the current SPRS score under a read lock.
+// Safe to call from any goroutine, including the scan goroutine.
+func (m *ComplianceGraphModel) SPRS() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.SPRSScore
+}
+
+// ScanTime returns the timestamp of the most recent completed scan.
+func (m *ComplianceGraphModel) ScanTime() time.Time {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.LastScanTime
+}
+
+// SetScanStarted marks the scan as running and sets the current phase,
+// all under a single write lock to prevent torn reads by the renderer.
+func (m *ComplianceGraphModel) SetScanStarted(phase int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.ScanRunning = true
+	m.CurrentPhase = phase
+}
+
+// Phase returns the current §0.6 phase index under a read lock.
+func (m *ComplianceGraphModel) Phase() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.CurrentPhase
+}
+
 // NodeByID returns the node with the given ID, nil if not found.
 // Must be called under at least a read lock.
 func (m *ComplianceGraphModel) NodeByID(id string) *GraphNode {

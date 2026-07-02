@@ -16,6 +16,7 @@ import (
 // produces a zero-mapping build with no compile-time error.
 //
 //go:embed data/*.csv
+//go:embed data/CHECKSUMS
 var embeddedData embed.FS
 
 // ErrLFSPointer is returned when the embedded CSV is a Git LFS pointer
