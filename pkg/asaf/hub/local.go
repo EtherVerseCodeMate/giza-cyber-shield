@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/client"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/connector"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
 )
@@ -28,15 +29,17 @@ const (
 // All operations run in-process or via the local Imhotep daemon Unix socket.
 // No network egress occurs.  Sovereign air-gap compliant.
 type LocalBackend struct {
-	daemonClient *client.Client   // nil if daemon not configured
-	dagStore     dag.Store        // local DAG (pkg/dag.Memory unless caller provides persistent)
-	aiProvider   AIProviderBridge // nil if offline / not configured
+	daemonClient *client.Client             // nil if daemon not configured
+	dagStore     dag.Store                  // local DAG (pkg/dag.Memory unless caller provides persistent)
+	aiProvider   AIProviderBridge           // nil if offline / not configured
+	registry     *connector.ConnectorRegistry // nil if agent key not loaded yet
 
-	mu           sync.RWMutex
-	lastSPRS     int
-	lastReport   *stig.ComprehensiveReport
-	lastScanHost string
-	lastScanTime time.Time
+	mu              sync.RWMutex
+	lastSPRS        int
+	lastReport      *stig.ComprehensiveReport
+	lastScanHost    string
+	lastScanTime    time.Time
+	enrolledAssets  []Asset // in-memory fleet enrolled via wizard
 }
 
 // NewLocalBackend constructs a LocalBackend.
@@ -52,8 +55,15 @@ func NewLocalBackend(daemonClient *client.Client, dagStore dag.Store, aiProvider
 		daemonClient: daemonClient,
 		dagStore:     dagStore,
 		aiProvider:   aiProvider,
-		lastSPRS:     110, // SPRS starts perfect; deducted as findings arrive
+		lastSPRS:     110,
 	}
+}
+
+// SetRegistry wires the ConnectorRegistry (called from main after agent key is loaded).
+func (b *LocalBackend) SetRegistry(reg *connector.ConnectorRegistry) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.registry = reg
 }
 
 // SetLastScan lets the Compliance Graph tab push updated state after a scan.
@@ -101,29 +111,38 @@ func (b *LocalBackend) GetEnclaves(_ context.Context) ([]Enclave, error) {
 	}, nil
 }
 
-// GetAssets implements Backend — returns the single localhost asset.
-func (b *LocalBackend) GetAssets(_ context.Context, _ string) ([]Asset, error) {
+// GetAssets implements Backend — returns localhost + any enrolled assets.
+func (b *LocalBackend) GetAssets(_ context.Context, enclaveID string) ([]Asset, error) {
 	b.mu.RLock()
 	sprs := b.lastSPRS
 	host := b.lastScanHost
 	t := b.lastScanTime
+	enrolled := make([]Asset, len(b.enrolledAssets))
+	copy(enrolled, b.enrolledAssets)
 	b.mu.RUnlock()
 	if host == "" {
 		host = b.hostname()
 	}
-	return []Asset{
-		{
-			ID:          localAssetID,
-			EnclaveID:   localEnclaveID,
-			Hostname:    host,
-			IPAddress:   "127.0.0.1",
-			OS:          localOS(),
-			STIGProfile: localSTIGProfile(),
-			SPRSScore:   sprs,
-			LastScan:    t,
-			Online:      true,
-		},
-	}, nil
+
+	localhost := Asset{
+		ID:          localAssetID,
+		EnclaveID:   localEnclaveID,
+		Hostname:    host,
+		IPAddress:   "127.0.0.1",
+		OS:          localOS(),
+		STIGProfile: localSTIGProfile(),
+		SPRSScore:   sprs,
+		LastScan:    t,
+		Online:      true,
+	}
+
+	result := []Asset{localhost}
+	for _, a := range enrolled {
+		if enclaveID == "" || a.EnclaveID == enclaveID {
+			result = append(result, a)
+		}
+	}
+	return result, nil
 }
 
 // GetSPRS implements Backend — returns computed SPRS from last scan.
