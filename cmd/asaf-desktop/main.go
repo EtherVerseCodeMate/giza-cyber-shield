@@ -30,6 +30,7 @@ import (
 	asaftheme "github.com/EtherVerseCodeMate/giza-cyber-shield/app/theme"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/app/views"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/connector"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hub"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/llm/ollama"
@@ -173,13 +174,27 @@ func runGUI(hubURL string, embedHub bool, agentID string, insecure bool) {
 
 // buildStandaloneBackend creates a LocalBackend, probing Ollama at the given URL.
 // If Ollama is not reachable, aiProvider is nil and Ask() returns an actionable message.
+// The agent ML-DSA-65 key is loaded/generated so the ConnectorRegistry can encrypt its vault.
 func buildStandaloneBackend(ollamaURL, ollamaModel string) hub.Backend {
 	var ai hub.AIProviderBridge // nil = offline mode
 	if probeOllama(ollamaURL) {
 		client := ollama.NewClient(ollamaURL, ollamaModel, "")
 		ai = &ollamaBridge{client: client, model: ollamaModel}
 	}
-	return hub.NewLocalBackend(nil, nil, ai)
+	b := hub.NewLocalBackend(nil, nil, ai)
+
+	// Wire the ConnectorRegistry so Mode A/B/D enrollment can persist configs.
+	// Non-fatal: if the key cannot be loaded the registry is simply absent (in-memory only).
+	if privKey, err := loadOrGenerateAgentKey(); err == nil {
+		if reg, regErr := connector.NewConnectorRegistry(privKey); regErr == nil {
+			b.SetRegistry(reg)
+		} else {
+			log.Printf("[asaf-desktop] connector registry init failed: %v", regErr)
+		}
+	} else {
+		log.Printf("[asaf-desktop] connector registry unavailable (key load error): %v", err)
+	}
+	return b
 }
 
 // buildBackend constructs the appropriate Backend for the given mode.

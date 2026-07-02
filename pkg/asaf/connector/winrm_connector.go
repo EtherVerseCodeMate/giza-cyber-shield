@@ -62,17 +62,14 @@ func (w *WinRMConnector) Test(ctx context.Context) (*TestResult, error) {
 	}
 	done := make(chan runResult, 1)
 	go func() {
-		stdout, _, _, err := client.RunWithContext(ctx, "Get-ComputerInfo -Property OsName,OsVersion | ConvertTo-Json", &strings.Builder{}, &strings.Builder{})
-		_ = stdout
-		// Run a simpler command that definitely works:
 		var sb, sbErr strings.Builder
-		exitCode, err2 := client.RunWithContext(ctx,
+		exitCode, err := client.RunWithContext(ctx,
 			"powershell -Command \"(Get-WmiObject Win32_OperatingSystem).Caption\"",
 			&sb, &sbErr,
 		)
 		_ = exitCode
-		if err2 != nil && err != nil {
-			done <- runResult{"", fmt.Errorf("WinRM exec: %v", err2)}
+		if err != nil {
+			done <- runResult{"", fmt.Errorf("WinRM exec: %v", err)}
 			return
 		}
 		done <- runResult{sb.String(), nil}

@@ -61,7 +61,9 @@ func (t *FleetManagerTab) Content() fyne.CanvasObject { return t.content }
 
 func (t *FleetManagerTab) build() {
 	toolbar := widget.NewToolbar(
-		widget.NewToolbarAction(theme.ContentAddIcon(), func() { t.showImportCSVDialog() }),
+		widget.NewToolbarAction(theme.ContentAddIcon(), func() {
+			ShowConnectWizard(t.win, t.backend, func() { go t.refresh() })
+		}),
 		widget.NewToolbarSeparator(),
 		widget.NewToolbarAction(theme.ViewRefreshIcon(), func() { go t.refresh() }),
 		widget.NewToolbarSeparator(),
@@ -321,10 +323,6 @@ func (t *FleetManagerTab) showKASAStream(a hub.Asset) {
 
 // ── Dialogs ───────────────────────────────────────────────────────────────────
 
-func (t *FleetManagerTab) showImportCSVDialog() {
-	dialog.ShowInformation("Import CSV",
-		"Provide a CSV with columns: hostname,ip,os,enclave\nto bulk-enroll assets.", t.win)
-}
 
 func (t *FleetManagerTab) showExportDialog() {
 	dialog.ShowInformation("Export Evidence",

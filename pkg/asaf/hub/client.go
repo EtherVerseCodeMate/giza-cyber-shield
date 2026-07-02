@@ -291,6 +291,100 @@ func (c *HubClient) signRequest(req *http.Request, bodyBytes []byte) error {
 	return nil
 }
 
+// ── Fleet connector methods ───────────────────────────────────────────────────
+
+// AddAsset implements Backend — POST /api/v1/fleet/assets.
+func (c *HubClient) AddAsset(ctx context.Context, r AddAssetRequest) (*Asset, error) {
+	var asset Asset
+	if err := c.post(ctx, "/api/v1/fleet/assets", r, &asset); err != nil {
+		return nil, fmt.Errorf("hub add asset: %w", err)
+	}
+	return &asset, nil
+}
+
+// TestConnection implements Backend — POST /api/v1/fleet/assets/test.
+func (c *HubClient) TestConnection(ctx context.Context, cfg ConnectorConfig, cred *ConnectorCred) (*TestResult, error) {
+	body := map[string]any{"config": cfg, "credential": cred}
+	var result TestResult
+	if err := c.post(ctx, "/api/v1/fleet/assets/test", body, &result); err != nil {
+		return nil, fmt.Errorf("hub test connection: %w", err)
+	}
+	return &result, nil
+}
+
+// ImportCSV implements Backend — POST /api/v1/fleet/assets/import.
+func (c *HubClient) ImportCSV(ctx context.Context, rows []CSVAssetRow, enclaveID string) (*ImportResult, error) {
+	body := map[string]any{"rows": rows, "enclave_id": enclaveID}
+	var result ImportResult
+	if err := c.post(ctx, "/api/v1/fleet/assets/import", body, &result); err != nil {
+		return nil, fmt.Errorf("hub import csv: %w", err)
+	}
+	return &result, nil
+}
+
+// DiscoverSubnet implements Backend — SSE GET /api/v1/fleet/discover?cidr=...
+func (c *HubClient) DiscoverSubnet(ctx context.Context, cidr string, opts DiscoveryOptions) (<-chan DiscoveredHost, error) {
+	url := c.baseURL + "/api/v1/fleet/discover?cidr=" + cidr
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("hub discover: %w", err)
+	}
+	req.Header.Set("Accept", "text/event-stream")
+	if err := c.signRequest(req, nil); err != nil {
+		return nil, err
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("hub discover: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, fmt.Errorf("hub discover: HTTP %d", resp.StatusCode)
+	}
+	ch := make(chan DiscoveredHost, 64)
+	go func() {
+		defer resp.Body.Close()
+		defer close(ch)
+		scanner := bufio.NewScanner(resp.Body)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if !strings.HasPrefix(line, "data: ") {
+				continue
+			}
+			var host DiscoveredHost
+			if err := json.Unmarshal([]byte(strings.TrimPrefix(line, "data: ")), &host); err != nil {
+				continue
+			}
+			select {
+			case ch <- host:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return ch, nil
+}
+
+// GetConnectors implements Backend — GET /api/v1/fleet/connectors.
+func (c *HubClient) GetConnectors(ctx context.Context) ([]ConnectorConfig, error) {
+	var resp struct {
+		Connectors []ConnectorConfig `json:"connectors"`
+	}
+	if err := c.get(ctx, "/api/v1/fleet/connectors", &resp); err != nil {
+		return nil, fmt.Errorf("hub get connectors: %w", err)
+	}
+	return resp.Connectors, nil
+}
+
+// SaveConnector implements Backend — POST /api/v1/fleet/connectors.
+func (c *HubClient) SaveConnector(ctx context.Context, cfg ConnectorConfig, cred *ConnectorCred) error {
+	body := map[string]any{"config": cfg, "credential": cred}
+	if err := c.post(ctx, "/api/v1/fleet/connectors", body, nil); err != nil {
+		return fmt.Errorf("hub save connector: %w", err)
+	}
+	return nil
+}
+
 func (c *HubClient) do(req *http.Request, result any) error {
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

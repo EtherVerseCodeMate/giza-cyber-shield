@@ -111,20 +111,18 @@ func (b *LocalBackend) GetEnclaves(_ context.Context) ([]Enclave, error) {
 	}, nil
 }
 
-// GetAssets implements Backend — returns localhost + any enrolled assets.
-func (b *LocalBackend) GetAssets(_ context.Context, enclaveID string) ([]Asset, error) {
+// GetAssets implements Backend — returns localhost asset plus any assets enrolled
+// during this session via AddAsset or ImportCSV.
+func (b *LocalBackend) GetAssets(_ context.Context, _ string) ([]Asset, error) {
 	b.mu.RLock()
 	sprs := b.lastSPRS
 	host := b.lastScanHost
 	t := b.lastScanTime
-	enrolled := make([]Asset, len(b.enrolledAssets))
-	copy(enrolled, b.enrolledAssets)
 	b.mu.RUnlock()
 	if host == "" {
 		host = b.hostname()
 	}
-
-	localhost := Asset{
+	local := Asset{
 		ID:          localAssetID,
 		EnclaveID:   localEnclaveID,
 		Hostname:    host,
@@ -135,14 +133,15 @@ func (b *LocalBackend) GetAssets(_ context.Context, enclaveID string) ([]Asset, 
 		LastScan:    t,
 		Online:      true,
 	}
+	b.mu.RLock()
+	enrolled := make([]Asset, len(b.enrolledAssets))
+	copy(enrolled, b.enrolledAssets)
+	b.mu.RUnlock()
 
-	result := []Asset{localhost}
-	for _, a := range enrolled {
-		if enclaveID == "" || a.EnclaveID == enclaveID {
-			result = append(result, a)
-		}
-	}
-	return result, nil
+	assets := make([]Asset, 0, 1+len(enrolled))
+	assets = append(assets, local)
+	assets = append(assets, enrolled...)
+	return assets, nil
 }
 
 // GetSPRS implements Backend — returns computed SPRS from last scan.
@@ -362,6 +361,121 @@ func localOS() string {
 
 // localSTIGProfile returns a best-guess STIG profile string for the localhost.
 func localSTIGProfile() string {
-	// Will be refined after the first scan.
 	return "Auto-detected"
+}
+
+// ── Fleet connector methods ───────────────────────────────────────────────────
+
+// AddAsset implements Backend — enrolls a new asset into the in-memory fleet.
+func (b *LocalBackend) AddAsset(_ context.Context, req AddAssetRequest) (*Asset, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	// Deduplicate by IP
+	for _, a := range b.enrolledAssets {
+		if a.IPAddress == req.IPAddress {
+			return &a, nil
+		}
+	}
+	a := Asset{
+		ID:          req.EnclaveID + "-" + req.IPAddress,
+		EnclaveID:   req.EnclaveID,
+		Hostname:    req.Hostname,
+		IPAddress:   req.IPAddress,
+		OS:          req.OS,
+		STIGProfile: req.STIGProfile,
+		SPRSScore:   110,
+		Online:      true,
+	}
+	if a.EnclaveID == "" {
+		a.EnclaveID = localEnclaveID
+	}
+	b.enrolledAssets = append(b.enrolledAssets, a)
+	return &a, nil
+}
+
+// TestConnection implements Backend — dispatches to the correct connector.
+func (b *LocalBackend) TestConnection(ctx context.Context, cfg ConnectorConfig, cred *ConnectorCred) (*TestResult, error) {
+	var c connector.Connector
+	switch cfg.Protocol {
+	case connector.ProtoSSH:
+		c = connector.NewSSHConnector(cfg, cred)
+	case connector.ProtoWinRM:
+		c = connector.NewWinRMConnector(cfg, cred)
+	case connector.ProtoNmap:
+		c = connector.NewSubnetConnector(cfg, connector.DiscoveryOptions{})
+	default:
+		return &TestResult{
+			Success: false,
+			Message: "unsupported protocol: " + string(cfg.Protocol),
+		}, nil
+	}
+	return c.Test(ctx)
+}
+
+// ImportCSV implements Backend — bulk-enrolls assets from parsed CSV rows.
+func (b *LocalBackend) ImportCSV(ctx context.Context, rows []CSVAssetRow, enclaveID string) (*ImportResult, error) {
+	result := &ImportResult{Total: len(rows)}
+	for _, row := range rows {
+		if row.IPAddress == "" && row.Hostname == "" {
+			result.Errors = append(result.Errors, "row missing hostname and IP — skipped")
+			result.Skipped++
+			continue
+		}
+		enclave := enclaveID
+		if enclave == "" {
+			enclave = localEnclaveID
+		}
+		_, err := b.AddAsset(ctx, AddAssetRequest{
+			EnclaveID:   enclave,
+			Hostname:    row.Hostname,
+			IPAddress:   row.IPAddress,
+			OS:          row.OS,
+			STIGProfile: row.STIGProfile,
+		})
+		if err != nil {
+			result.Errors = append(result.Errors, row.Hostname+": "+err.Error())
+			result.Skipped++
+		} else {
+			result.Enrolled++
+		}
+	}
+	return result, nil
+}
+
+// DiscoverSubnet implements Backend — runs subnet discovery via SubnetConnector.
+func (b *LocalBackend) DiscoverSubnet(ctx context.Context, cidr string, opts DiscoveryOptions) (<-chan DiscoveredHost, error) {
+	cfg := connector.ConnectorConfig{
+		CIDRRange: cidr,
+		EnclaveID: localEnclaveID,
+		Protocol:  connector.ProtoNmap,
+	}
+	dopts := connector.DiscoveryOptions{
+		Ports:           opts.Ports,
+		ConcurrentHosts: opts.MaxHosts,
+		DialTimeout:     opts.Timeout,
+	}
+	sc := connector.NewSubnetConnector(cfg, dopts)
+	return sc.Discover(ctx)
+}
+
+// GetConnectors implements Backend — returns saved connector configs from registry.
+func (b *LocalBackend) GetConnectors(_ context.Context) ([]ConnectorConfig, error) {
+	b.mu.RLock()
+	reg := b.registry
+	b.mu.RUnlock()
+	if reg == nil {
+		return nil, nil
+	}
+	return reg.ListConfigs(), nil
+}
+
+// SaveConnector implements Backend — persists a connector config (with optional credential).
+func (b *LocalBackend) SaveConnector(_ context.Context, cfg ConnectorConfig, cred *ConnectorCred) error {
+	b.mu.RLock()
+	reg := b.registry
+	b.mu.RUnlock()
+	if reg == nil {
+		return fmt.Errorf("connector registry not initialised — agent key not loaded yet")
+	}
+	return reg.Save(cfg, cred)
 }
