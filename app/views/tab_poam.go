@@ -79,15 +79,18 @@ func (t *POAMTab) build() {
 	// Filter controls
 	sevSelect := widget.NewSelect([]string{"All", "CAT I", "CAT II", "CAT III"}, func(v string) {
 		t.filterSev = v
-		fyne.Do(func() { t.table.Refresh() })
+		if t.table != nil {
+			fyne.Do(func() { t.table.Refresh() })
+		}
 	})
-	sevSelect.SetSelected("All")
 
 	ownerEntry := widget.NewEntry()
 	ownerEntry.SetPlaceHolder("Filter by owner…")
 	ownerEntry.OnChanged = func(v string) {
 		t.filterOwner = strings.ToLower(v)
-		fyne.Do(func() { t.table.Refresh() })
+		if t.table != nil {
+			fyne.Do(func() { t.table.Refresh() })
+		}
 	}
 
 	refreshBtn := widget.NewButtonWithIcon("", theme.ViewRefreshIcon(), func() { go t.refresh() })
@@ -125,6 +128,7 @@ func (t *POAMTab) build() {
 			lbl.SetText(t.cellText(row, cell.Col))
 		},
 	)
+	sevSelect.SetSelected("All") // safe here — t.table is now initialised
 	t.table.SetColumnWidth(0, 140)
 	t.table.SetColumnWidth(1, 75)
 	t.table.SetColumnWidth(2, 300)
