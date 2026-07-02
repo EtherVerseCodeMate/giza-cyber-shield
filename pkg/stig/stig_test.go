@@ -3,9 +3,12 @@ package stig
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/daemon"
 )
 
 func TestValidator(t *testing.T) {
@@ -130,6 +133,61 @@ func TestCSVChecksum(t *testing.T) {
 		t.Errorf("CSV checksum mismatch for %s:\n  pinned: %s\n  actual: %s\n"+
 			"Update pkg/stig/data/CHECKSUMS after syncing the CSV from PQC-Khepra-MCP.",
 			pinnedFile, pinnedHex, actualHex)
+	}
+}
+
+// TestFixSpecCoverage is a compile-time lint: every FixSpec.Argv[i][0] across
+// all 14 check tables must be in the daemon's authorized command catalog
+// (symbolRequirements).  Build fails if any table row references a binary the
+// daemon cannot execute — the complete, finite set of privileged commands is
+// always visible here.  C3PAO-presentable evidence that no unauthorized binary
+// can ever be invoked via the fix pipeline.
+func TestFixSpecCoverage(t *testing.T) {
+	allTables := []struct {
+		name  string
+		specs []CheckSpec
+	}{
+		{"rhel09", rhel09STIG},
+		{"rhel08", rhel08STIG},
+		{"rhel07", rhel07STIG},
+		{"oracleLinux8", oracleLinux8STIG},
+		{"ubuntu1804", ubuntu1804STIG},
+		{"win10", win10STIG},
+		{"win11", win11STIG},
+		{"winSrv2016", winSrv2016STIG},
+		{"winSrv2019", winSrv2019STIG},
+		{"winSrv2022", winSrv2022STIG},
+		{"macos13", macos13STIG},
+		{"macos14", macos14STIG},
+		{"macos15", macos15STIG},
+		{"k8s", k8sStig},
+	}
+
+	var failures []string
+	for _, tbl := range allTables {
+		for _, spec := range tbl.specs {
+			if spec.Fix == nil {
+				continue
+			}
+			for i, argv := range spec.Fix.Argv {
+				if len(argv) == 0 {
+					failures = append(failures,
+						fmt.Sprintf("[%s] %s Fix.Argv[%d] is empty", tbl.name, spec.RuleID, i))
+					continue
+				}
+				sym := daemon.RequiredSymbol(argv)
+				if sym == "" {
+					failures = append(failures,
+						fmt.Sprintf("[%s] %s Fix.Argv[%d][0]=%q: not in authorized catalog — denied",
+							tbl.name, spec.RuleID, i, argv[0]))
+				}
+			}
+		}
+	}
+
+	if len(failures) > 0 {
+		t.Errorf("%d FixSpec commands not in daemon catalog:\n%s",
+			len(failures), strings.Join(failures, "\n"))
 	}
 }
 
