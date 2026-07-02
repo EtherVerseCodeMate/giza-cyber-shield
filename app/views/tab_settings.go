@@ -1,8 +1,10 @@
 // Package views — Tab 8: Settings.
 //
-// Three-section layout: Connection Manager (Hub URL, mode, health check),
-// Agent Identity (agent ID, ML-DSA-65 key status), and Diagnostics
-// (DAG history count, STIG mapping count, version info).
+// Four-section layout:
+//  1. Connection Manager — Hub URL, mode, health check
+//  2. AI Provider        — Ollama URL, model selection, Ping AI button
+//  3. Agent Identity     — agent ID, ML-DSA-65 key status
+//  4. Diagnostics        — DAG history count, STIG mapping count, version info
 //
 // §10 rule: no Sephirot/Merkaba/Hypercube vocabulary in any user-visible string.
 package views
@@ -10,6 +12,8 @@ package views
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -23,15 +27,20 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hub"
 )
 
-// SettingsTab is Tab 8 — connection manager + agent identity + diagnostics.
+// SettingsTab is Tab 8 — connection manager + AI provider + agent identity + diagnostics.
 type SettingsTab struct {
 	win     fyne.Window
 	backend hub.Backend
 
 	// Connection section
-	modeLabel    *widget.Label
-	hubURLLabel  *widget.Label
-	pingStatus   *canvas.Text
+	modeLabel   *widget.Label
+	hubURLLabel *canvas.Text
+	pingStatus  *canvas.Text
+
+	// AI Provider section
+	ollamaURLEntry   *widget.Entry
+	ollamaModelEntry *widget.Entry
+	aiStatus         *canvas.Text
 
 	// Diagnostics section
 	dagCountLabel    *widget.Label
@@ -45,6 +54,7 @@ func NewSettingsTab(win fyne.Window, backend hub.Backend) *SettingsTab {
 	t := &SettingsTab{win: win, backend: backend}
 	t.build()
 	go t.refreshDiagnostics()
+	go t.autoDetectOllama() // probe Ollama on startup
 	return t
 }
 
@@ -70,8 +80,8 @@ func (t *SettingsTab) build() {
 	if hubURL == "" {
 		hubURL = "(Standalone — no Hub)"
 	}
-	t.hubURLLabel = widget.NewLabel(hubURL)
-	t.hubURLLabel.Wrapping = fyne.TextWrapWord
+	t.hubURLLabel = canvas.NewText(hubURL, asaftheme.TextMuted)
+	t.hubURLLabel.TextSize = 12
 
 	t.pingStatus = canvas.NewText("Not checked", asaftheme.TextMuted)
 	t.pingStatus.TextSize = 11
@@ -107,8 +117,53 @@ func (t *SettingsTab) build() {
 		container.NewHBox(pingBtn),
 	)
 
-	// ── Section 2: Agent Identity ─────────────────────────────────────────────
-	idTitle := canvas.NewText("2  Agent Identity", asaftheme.NXBlue)
+	// ── Section 2: AI Provider (Ollama / Local LLM) ────────────────────────────
+	aiTitle := canvas.NewText("2  AI Provider — Ask AI", asaftheme.NXBlue)
+	aiTitle.TextSize = 13
+	aiTitle.TextStyle = fyne.TextStyle{Bold: true}
+
+	t.ollamaURLEntry = widget.NewEntry()
+	t.ollamaURLEntry.SetPlaceHolder("http://localhost:11434")
+	t.ollamaURLEntry.SetText("http://localhost:11434")
+
+	t.ollamaModelEntry = widget.NewEntry()
+	t.ollamaModelEntry.SetPlaceHolder("llama3.1:8b")
+	t.ollamaModelEntry.SetText("llama3.1:8b")
+
+	t.aiStatus = canvas.NewText("Checking…", asaftheme.TextMuted)
+	t.aiStatus.TextSize = 11
+
+	pingOllamaBtn := widget.NewButtonWithIcon("Ping AI", theme.SearchIcon(), func() {
+		go t.pingOllama()
+	})
+
+	aiHelpText := widget.NewLabel(
+		"In Standalone mode, Ask AI connects to a local Ollama instance.\n" +
+			"Install Ollama: https://ollama.com — then run: ollama pull llama3.1:8b\n" +
+			"When connected to a Stargate Hub, AI routes through the Hub's LLM provider.",
+	)
+	aiHelpText.Wrapping = fyne.TextWrapWord
+	aiHelpText.TextStyle = fyne.TextStyle{Italic: true}
+
+	aiForm := widget.NewForm(
+		widget.NewFormItem("Ollama URL", t.ollamaURLEntry),
+		widget.NewFormItem("Model", t.ollamaModelEntry),
+		widget.NewFormItem("AI Status", t.aiStatus),
+	)
+
+	applyAIBtn := widget.NewButton("Apply & Save", func() {
+		go t.applyOllamaSettings()
+	})
+
+	aiSection := container.NewVBox(
+		aiTitle, widget.NewSeparator(),
+		aiForm,
+		container.NewPadded(aiHelpText),
+		container.NewHBox(pingOllamaBtn, applyAIBtn),
+	)
+
+	// ── Section 3: Agent Identity ─────────────────────────────────────────────
+	idTitle := canvas.NewText("3  Agent Identity", asaftheme.NXBlue)
 	idTitle.TextSize = 13
 	idTitle.TextStyle = fyne.TextStyle{Bold: true}
 
@@ -147,8 +202,8 @@ func (t *SettingsTab) build() {
 		container.NewHBox(genKeyBtn),
 	)
 
-	// ── Section 3: Diagnostics ────────────────────────────────────────────────
-	diagTitle := canvas.NewText("3  Diagnostics", asaftheme.NXBlue)
+	// ── Section 4: Diagnostics ────────────────────────────────────────────────
+	diagTitle := canvas.NewText("4  Diagnostics", asaftheme.NXBlue)
 	diagTitle.TextSize = 13
 	diagTitle.TextStyle = fyne.TextStyle{Bold: true}
 
@@ -184,6 +239,8 @@ func (t *SettingsTab) build() {
 			container.NewVBox(
 				connSection,
 				widget.NewSeparator(),
+				aiSection,
+				widget.NewSeparator(),
 				idSection,
 				widget.NewSeparator(),
 				diagSection,
@@ -191,6 +248,90 @@ func (t *SettingsTab) build() {
 		)),
 	)
 }
+
+// ── AI Provider ───────────────────────────────────────────────────────────────
+
+// autoDetectOllama probes localhost:11434 at startup and updates the AI status label.
+func (t *SettingsTab) autoDetectOllama() {
+	url := "http://localhost:11434/api/tags"
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Get(url)
+	fyne.Do(func() {
+		if err != nil || resp == nil || resp.StatusCode != http.StatusOK {
+			t.aiStatus.Text = "Ollama not detected — see instructions below"
+			t.aiStatus.Color = asaftheme.TextMuted
+		} else {
+			resp.Body.Close()
+			t.aiStatus.Text = "● Ollama running at localhost:11434 — Ask AI ready"
+			t.aiStatus.Color = asaftheme.NodeGreen
+		}
+		t.aiStatus.Refresh()
+	})
+}
+
+// pingOllama tests the configured Ollama URL on demand.
+func (t *SettingsTab) pingOllama() {
+	rawURL := strings.TrimRight(t.ollamaURLEntry.Text, "/")
+	if rawURL == "" {
+		rawURL = "http://localhost:11434"
+	}
+	url := rawURL + "/api/tags"
+
+	fyne.Do(func() {
+		t.aiStatus.Text = "Pinging Ollama…"
+		t.aiStatus.Color = asaftheme.NXBlue
+		t.aiStatus.Refresh()
+	})
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	start := time.Now()
+	resp, err := client.Get(url)
+	elapsed := time.Since(start)
+
+	fyne.Do(func() {
+		if err != nil {
+			t.aiStatus.Text = "✗ Ollama not reachable: " + err.Error()
+			t.aiStatus.Color = asaftheme.NodeRed
+		} else {
+			resp.Body.Close()
+			t.aiStatus.Text = fmt.Sprintf("● Ollama OK — %dms — model: %s",
+				elapsed.Milliseconds(), t.ollamaModelEntry.Text)
+			t.aiStatus.Color = asaftheme.NodeGreen
+		}
+		t.aiStatus.Refresh()
+	})
+}
+
+// applyOllamaSettings persists the Ollama URL/model to Fyne preferences
+// so they survive restarts. The Backend picks them up on next Ask() call
+// via the stored preference (see cmd/asaf-desktop/main.go buildBackend).
+func (t *SettingsTab) applyOllamaSettings() {
+	url := strings.TrimRight(t.ollamaURLEntry.Text, "/")
+	model := strings.TrimSpace(t.ollamaModelEntry.Text)
+	if url == "" {
+		url = "http://localhost:11434"
+	}
+	if model == "" {
+		model = "llama3.1:8b"
+	}
+
+	// Persist to Fyne app preferences (survives restarts).
+	a := fyne.CurrentApp()
+	if a != nil {
+		a.Preferences().SetString("ollama_url", url)
+		a.Preferences().SetString("ollama_model", model)
+	}
+
+	go t.pingOllama()
+
+	fyne.Do(func() {
+		dialog.ShowInformation("AI Provider Saved",
+			fmt.Sprintf("Ollama URL: %s\nModel: %s\n\nRestart the app to activate the new AI provider.", url, model),
+			t.win)
+	})
+}
+
+// ── Hub ───────────────────────────────────────────────────────────────────────
 
 func (t *SettingsTab) pingHub() {
 	fyne.Do(func() {
@@ -221,6 +362,8 @@ func (t *SettingsTab) pingHub() {
 		t.pingStatus.Refresh()
 	})
 }
+
+// ── Diagnostics ───────────────────────────────────────────────────────────────
 
 func (t *SettingsTab) refreshDiagnostics() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

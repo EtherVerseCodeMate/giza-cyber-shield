@@ -4,14 +4,15 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/client"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/g0dm0d3"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
 )
+
 
 // compile-time interface check
 var _ Backend = (*LocalBackend)(nil)
@@ -27,9 +28,9 @@ const (
 // All operations run in-process or via the local Imhotep daemon Unix socket.
 // No network egress occurs.  Sovereign air-gap compliant.
 type LocalBackend struct {
-	daemonClient *client.Client     // nil if daemon not configured
-	dagStore     dag.Store          // local DAG (pkg/dag.Memory unless caller provides persistent)
-	aiProvider   g0dm0d3.AIProvider // nil if offline / not configured
+	daemonClient *client.Client   // nil if daemon not configured
+	dagStore     dag.Store        // local DAG (pkg/dag.Memory unless caller provides persistent)
+	aiProvider   AIProviderBridge // nil if offline / not configured
 
 	mu           sync.RWMutex
 	lastSPRS     int
@@ -42,8 +43,8 @@ type LocalBackend struct {
 //
 //   - daemonClient may be nil — Approve will return a clear "no daemon" error.
 //   - dagStore may be nil — a new in-memory store is allocated automatically.
-//   - aiProvider may be nil — Ask falls back to ErrNotConnected.
-func NewLocalBackend(daemonClient *client.Client, dagStore dag.Store, aiProvider g0dm0d3.AIProvider) *LocalBackend {
+//   - aiProvider may be nil — Ask returns actionable Ollama setup instructions.
+func NewLocalBackend(daemonClient *client.Client, dagStore dag.Store, aiProvider AIProviderBridge) *LocalBackend {
 	if dagStore == nil {
 		dagStore = dag.NewMemory()
 	}
@@ -215,12 +216,21 @@ func (b *LocalBackend) GetDAGHistory(_ context.Context) ([]DAGNode, error) {
 	return out, nil
 }
 
-// Ask implements Backend — routes to local g0dm0d3 AI brain (Ollama → offline fallback).
+// Ask implements Backend — routes to local AI provider (Ollama → offline fallback).
 func (b *LocalBackend) Ask(_ context.Context, query string) (*AskResponse, error) {
 	if b.aiProvider == nil {
-		return nil, ErrNotConnected
+		// In Standalone mode with no Ollama: return actionable instructions.
+		return &AskResponse{
+			Answer: "[Standalone Mode — AI Not Configured]\n\n" +
+				"To enable Ask AI in Standalone mode, start Ollama locally:\n" +
+				"  ollama pull llama3.1:8b\n" +
+				"  ollama run llama3.1:8b\n\n" +
+				"Then go to Settings → AI Provider and click [Apply & Save].\n\n" +
+				"Or connect to a Stargate Hub (Settings → Hub URL) for cloud-routed AI.\n\n" +
+				"Your query was: " + query,
+		}, nil
 	}
-	msgs := []g0dm0d3.Message{{Role: "user", Content: query}}
+	msgs := []AIMessage{{Role: "user", Content: query}}
 	answer, err := b.aiProvider.Chat(msgs, false)
 	if err != nil {
 		return nil, fmt.Errorf("local ask: %w", err)
@@ -228,25 +238,41 @@ func (b *LocalBackend) Ask(_ context.Context, query string) (*AskResponse, error
 	return &AskResponse{Answer: answer}, nil
 }
 
+
 // StreamKASA implements Backend — publishes KASA-style events from the local
-// Standalone scan state.  In Standalone mode the stream sends a single
-// status event and then remains open until ctx is cancelled.
+// Standalone scan state. Sends initial status then heartbeats every 60s.
+//
+// In Standalone mode, KASA runs as a lightweight local monitor rather than
+// the full agentic loop (which requires Hub + Ollama). The heartbeat message
+// reflects the actual local scan state so the UI shows meaningful information.
 func (b *LocalBackend) StreamKASA(ctx context.Context) (<-chan KASAEvent, error) {
 	ch := make(chan KASAEvent, 16)
 	go func() {
 		defer close(ch)
 		host := b.hostname()
+
+		// Initial status event — describe standalone posture honestly.
+		b.mu.RLock()
+		lastScan := b.lastScanTime
+		b.mu.RUnlock()
+
+		initMsg := fmt.Sprintf("KASA Standalone — local monitor active on %s", host)
+		if !lastScan.IsZero() {
+			initMsg = fmt.Sprintf("KASA Standalone — %s | Last scan: %s",
+				host, lastScan.Format("15:04:05 UTC"))
+		}
 		select {
 		case ch <- KASAEvent{
 			Type:      "status",
-			Message:   fmt.Sprintf("KASA Standalone — monitoring %s", host),
+			Message:   initMsg,
 			Hostname:  host,
 			Timestamp: time.Now(),
 		}:
 		case <-ctx.Done():
 			return
 		}
-		// Pulse a heartbeat every 60 s so the UI feed stays live.
+
+		// Heartbeat every 60s — reflects real scan state.
 		ticker := time.NewTicker(60 * time.Second)
 		defer ticker.Stop()
 		for {
@@ -254,13 +280,26 @@ func (b *LocalBackend) StreamKASA(ctx context.Context) (<-chan KASAEvent, error)
 			case <-ticker.C:
 				b.mu.RLock()
 				t := b.lastScanTime
+				sprs := b.lastSPRS
 				b.mu.RUnlock()
-				msg := "Standalone mode — no KASA agent running"
-				if !t.IsZero() {
-					msg = fmt.Sprintf("Last scan: %s", t.Format("2006-01-02 15:04 UTC"))
+
+				var msg string
+				if t.IsZero() {
+					// No scan yet — guide user to take action.
+					msg = fmt.Sprintf(
+						"Standalone — no scan yet. Click [Compliance Graph → Scan] to assess %s.", host)
+				} else {
+					msg = fmt.Sprintf(
+						"Standalone | %s | SPRS %d/110 | Last: %s",
+						host, sprs, t.Format("15:04:05 UTC"))
 				}
 				select {
-				case ch <- KASAEvent{Type: "heartbeat", Message: msg, Timestamp: time.Now()}:
+				case ch <- KASAEvent{
+					Type:      "heartbeat",
+					Message:   msg,
+					Hostname:  host,
+					Timestamp: time.Now(),
+				}:
 				case <-ctx.Done():
 					return
 				}
@@ -290,8 +329,8 @@ func (b *LocalBackend) hostname() string {
 
 // localOS returns a human-readable OS name for the localhost asset record.
 func localOS() string {
-	// runtime.GOOS is always available; enriched by the STIG scan later.
-	switch os.Getenv("GOOS") {
+	// Use runtime.GOOS (compile-time constant) — not the GOOS env var.
+	switch runtime.GOOS {
 	case "windows":
 		return "Windows"
 	case "linux":
@@ -299,7 +338,7 @@ func localOS() string {
 	case "darwin":
 		return "macOS"
 	}
-	return "Unknown"
+	return runtime.GOOS
 }
 
 // localSTIGProfile returns a best-guess STIG profile string for the localhost.

@@ -32,6 +32,7 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hub"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/llm/ollama"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
 )
 
@@ -153,10 +154,14 @@ func runGUI(hubURL string, embedHub bool, agentID string, insecure bool) {
 		mode = hub.ModeStandalone
 	}
 
-	backend, err := buildBackend(mode, hubURL, agentID, insecure)
+	// Read Ollama settings persisted by the Settings tab.
+	ollamaURL := a.Preferences().StringWithFallback("ollama_url", "http://localhost:11434")
+	ollamaModel := a.Preferences().StringWithFallback("ollama_model", "llama3.1:8b")
+
+	backend, err := buildBackend(mode, hubURL, agentID, insecure, ollamaURL, ollamaModel)
 	if err != nil {
 		log.Printf("[asaf-desktop] backend init failed: %v — falling back to Standalone", err)
-		backend = hub.NewLocalBackend(nil, nil, nil)
+		backend = buildStandaloneBackend(ollamaURL, ollamaModel)
 	}
 
 	splash.Close()
@@ -166,11 +171,22 @@ func runGUI(hubURL string, embedHub bool, agentID string, insecure bool) {
 	a.Run()
 }
 
+// buildStandaloneBackend creates a LocalBackend, probing Ollama at the given URL.
+// If Ollama is not reachable, aiProvider is nil and Ask() returns an actionable message.
+func buildStandaloneBackend(ollamaURL, ollamaModel string) hub.Backend {
+	var ai hub.AIProviderBridge // nil = offline mode
+	if probeOllama(ollamaURL) {
+		client := ollama.NewClient(ollamaURL, ollamaModel, "")
+		ai = &ollamaBridge{client: client, model: ollamaModel}
+	}
+	return hub.NewLocalBackend(nil, nil, ai)
+}
+
 // buildBackend constructs the appropriate Backend for the given mode.
-func buildBackend(mode hub.AppMode, hubURL, agentID string, insecure bool) (hub.Backend, error) {
+func buildBackend(mode hub.AppMode, hubURL, agentID string, insecure bool, ollamaURL, ollamaModel string) (hub.Backend, error) {
 	switch mode {
 	case hub.ModeStandalone:
-		return hub.NewLocalBackend(nil, nil, nil), nil
+		return buildStandaloneBackend(ollamaURL, ollamaModel), nil
 
 	case hub.ModeConnected, hub.ModeEmbeddedHub:
 		effectiveURL := hubURL
@@ -199,8 +215,39 @@ func buildBackend(mode hub.AppMode, hubURL, agentID string, insecure bool) (hub.
 			Embedded: mode == hub.ModeEmbeddedHub,
 		})
 	}
-	return hub.NewLocalBackend(nil, nil, nil), nil
+	return buildStandaloneBackend(ollamaURL, ollamaModel), nil
 }
+
+// probeOllama pings the Ollama API tags endpoint with a short timeout.
+// Returns true if Ollama is reachable and responding.
+func probeOllama(baseURL string) bool {
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Get(baseURL + "/api/tags")
+	if err != nil || resp == nil {
+		return false
+	}
+	resp.Body.Close()
+	return resp.StatusCode == http.StatusOK
+}
+
+// ollamaBridge wraps ollama.Client to implement g0dm0d3.AIProvider.
+// Kept in main to avoid a circular import (cmd → pkg).
+type ollamaBridge struct {
+	client *ollama.Client
+	model  string
+}
+
+func (b *ollamaBridge) Chat(msgs []hub.AIMessage, _ bool) (string, error) {
+	if len(msgs) == 0 {
+		return "", nil
+	}
+	// Send the last user message as the prompt.
+	prompt := msgs[len(msgs)-1].Content
+	return b.client.Generate(prompt)
+}
+
+func (b *ollamaBridge) Name() string { return "ollama/" + b.model }
+
 
 // loadOrGenerateAgentKey loads the ML-DSA-65 private key from ~/.asaf/keys/agent.key,
 // generating and persisting a new key pair if none exists.

@@ -148,3 +148,17 @@ type KASAEvent struct {
 	ControlID string    `json:"control_id,omitempty"`
 	Timestamp time.Time `json:"timestamp"`
 }
+
+// AIMessage is a single chat turn passed to AIProviderBridge.
+type AIMessage struct {
+	Role    string // "user" | "assistant" | "system"
+	Content string
+}
+
+// AIProviderBridge is a minimal interface for passing an AI provider into
+// LocalBackend without importing g0dm0d3 (avoids circular dependency).
+// Implemented by ollamaBridge in cmd/asaf-desktop/main.go.
+type AIProviderBridge interface {
+	Chat(messages []AIMessage, stream bool) (string, error)
+	Name() string
+}
