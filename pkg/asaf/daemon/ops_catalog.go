@@ -34,7 +34,8 @@ const (
 	CmdPwquality  CommandType = "pwquality"
 
 	// Services — require Nkyinkyim
-	CmdSystemctl CommandType = "systemctl"
+	CmdSystemctl   CommandType = "systemctl"
+	CmdWindowsSC   CommandType = "sc" // Windows Service Control — equivalent to systemctl
 
 	// Security frameworks — require Eban
 	CmdSELinux  CommandType = "setenforce"
@@ -97,6 +98,7 @@ var symbolRequirements = map[CommandType]string{
 
 	// Nkyinkyim — adaptability (service and file management)
 	CmdSystemctl: "Nkyinkyim",
+	CmdWindowsSC: "Nkyinkyim",
 	CmdFirewall:  "Nkyinkyim",
 	CmdChmod:     "Nkyinkyim",
 	CmdChown:     "Nkyinkyim",
