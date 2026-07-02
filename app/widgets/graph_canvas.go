@@ -149,7 +149,7 @@ func (g *GraphCanvas) startPhysics() {
 			g.mu.Lock()
 			g.animTick++
 			g.mu.Unlock()
-			canvas.Refresh(g)
+			fyne.Do(func() { canvas.Refresh(g) })
 		}
 	}()
 }
