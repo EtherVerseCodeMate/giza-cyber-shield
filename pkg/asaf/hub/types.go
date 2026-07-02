@@ -9,7 +9,39 @@
 // import a concrete type.  This allows identical view code in all three modes.
 package hub
 
-import "time"
+import (
+	"time"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/connector"
+)
+
+// Re-export connector types used in the Backend interface so callers
+// only need to import "pkg/asaf/hub" rather than both hub and connector.
+type (
+	ConnectorConfig  = connector.ConnectorConfig
+	ConnectorCred    = connector.Credential
+	TestResult       = connector.TestResult
+	DiscoveredHost   = connector.DiscoveredHost
+	CSVAssetRow      = connector.CSVAssetRow
+	ImportResult     = connector.ImportResult
+)
+
+// AddAssetRequest holds the fields needed to enroll a new asset into the fleet.
+type AddAssetRequest struct {
+	EnclaveID   string `json:"enclave_id"`
+	Hostname    string `json:"hostname"`
+	IPAddress   string `json:"ip_address"`
+	OS          string `json:"os"`
+	STIGProfile string `json:"stig_profile"`
+	ConnectorID string `json:"connector_id,omitempty"` // link to a saved ConnectorConfig
+}
+
+// DiscoveryOptions controls subnet discovery behavior.
+type DiscoveryOptions struct {
+	Timeout  time.Duration `json:"timeout_ms"`
+	MaxHosts int           `json:"max_hosts"`
+	Ports    []int         `json:"ports,omitempty"`
+}
 
 // AppMode identifies the operating mode selected at startup.
 type AppMode uint8

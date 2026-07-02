@@ -241,9 +241,16 @@ func (b *ollamaBridge) Chat(msgs []hub.AIMessage, _ bool) (string, error) {
 	if len(msgs) == 0 {
 		return "", nil
 	}
-	// Send the last user message as the prompt.
+	// Build system prompt from any system messages, use last user message as prompt.
+	systemPrompt := "You are an AI compliance assistant for AdinKhepra ASAF. " +
+		"Answer questions about CMMC, STIG, NIST 800-171, and cybersecurity compliance."
+	for _, m := range msgs {
+		if m.Role == "system" {
+			systemPrompt = m.Content
+		}
+	}
 	prompt := msgs[len(msgs)-1].Content
-	return b.client.Generate(prompt)
+	return b.client.Generate(prompt, systemPrompt)
 }
 
 func (b *ollamaBridge) Name() string { return "ollama/" + b.model }

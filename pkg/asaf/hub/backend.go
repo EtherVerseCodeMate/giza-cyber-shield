@@ -72,6 +72,38 @@ type Backend interface {
 	// In connected: SSE GET /api/v1/kasa/stream
 	// The caller owns the context and must cancel it to close the stream.
 	StreamKASA(ctx context.Context) (<-chan KASAEvent, error)
+
+	// ── Fleet Connector methods ───────────────────────────────────────────────
+
+	// AddAsset enrolls a new endpoint into the fleet.
+	// In standalone: creates an in-memory asset record via ConnectorRegistry.
+	// In connected: POST /api/v1/fleet/assets
+	AddAsset(ctx context.Context, req AddAssetRequest) (*Asset, error)
+
+	// TestConnection verifies connectivity to a candidate endpoint.
+	// In standalone: dispatches to the appropriate pkg/asaf/connector.Connector.
+	// In connected: POST /api/v1/fleet/assets/test
+	TestConnection(ctx context.Context, cfg ConnectorConfig, cred *ConnectorCred) (*TestResult, error)
+
+	// ImportCSV bulk-enrolls assets from parsed CSV rows.
+	// In standalone: calls AddAsset for each valid row.
+	// In connected: POST /api/v1/fleet/assets/import
+	ImportCSV(ctx context.Context, rows []CSVAssetRow, enclaveID string) (*ImportResult, error)
+
+	// DiscoverSubnet scans a CIDR range and streams discovered hosts.
+	// In standalone: uses SubnetConnector (nmap or TCP fallback).
+	// In connected: SSE GET /api/v1/fleet/discover?cidr=...
+	DiscoverSubnet(ctx context.Context, cidr string, opts DiscoveryOptions) (<-chan DiscoveredHost, error)
+
+	// GetConnectors returns all saved connector configurations.
+	// In standalone: reads from ConnectorRegistry (~/.khepra/connectors.json).
+	// In connected: GET /api/v1/fleet/connectors
+	GetConnectors(ctx context.Context) ([]ConnectorConfig, error)
+
+	// SaveConnector persists a connector configuration (and optionally its credential).
+	// In standalone: writes to ConnectorRegistry.
+	// In connected: POST /api/v1/fleet/connectors
+	SaveConnector(ctx context.Context, cfg ConnectorConfig, cred *ConnectorCred) error
 }
 
 // ErrNotConnected is returned by Hub-only operations when in ModeStandalone.
