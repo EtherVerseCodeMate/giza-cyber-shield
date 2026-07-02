@@ -32,12 +32,19 @@ func main() {
 	verbose := flag.Bool("v", false, "Verbose output")
 	// Code-gen flags: classify parsed rules and emit a Go CheckSpec table.
 	genGo    := flag.Bool("gen-go", false, "Generate a Go CheckSpec table from parsed STIG rules")
+	genAll   := flag.Bool("gen-all", false, "Generate check tables for ALL OS families (ignores --filter, writes pkg/stig/generated/)")
 	genOut   := flag.String("gen-out", "", "Output path for generated Go file (required with --gen-go)")
 	genVar   := flag.String("gen-var", "", "Go variable name for generated CheckSpec slice (derived from --filter if empty)")
+	genDir   := flag.String("gen-dir", "pkg/stig", "Output directory for --gen-all")
 	flag.Parse()
 
 	if *list {
 		runList(*verbose)
+		return
+	}
+
+	if *genAll {
+		runGenAll(*genDir, *cache, *verbose)
 		return
 	}
 
@@ -141,6 +148,127 @@ func runOffline(zipDir, outDir string, verbose bool) {
 	}
 
 	printResult(result, verbose)
+}
+
+// osFamilyEntry describes one OS STIG family to generate a check table for.
+type osFamilyEntry struct {
+	Filter  string // substring passed to --filter (matches CDN filename)
+	VarName string // Go variable name in the generated file
+	OutFile string // filename under genDir
+}
+
+// osFamilies is the authoritative list of OS STIG families that ship
+// pre-generated in the product binary.  Non-OS families (network, DB, apps)
+// are intentionally excluded — their check text does not map to live OS
+// primitives and would produce only CheckManual rows.
+var osFamilies = []osFamilyEntry{
+	// ── Linux ─────────────────────────────────────────────────────────────────
+	{"U_RHEL_9", "rhel09STIG", "rhel09_checks_table.go"},
+	{"U_RHEL_8", "rhel08STIG", "rhel08_checks_table.go"},
+	{"U_RHEL_7", "rhel07STIG", "rhel07_checks_table.go"},
+	{"U_Oracle_Linux_7", "oracleLinux7STIG", "oracle_linux7_checks_table.go"},
+	{"U_Oracle_Linux_8", "oracleLinux8STIG", "oracle_linux8_checks_table.go"},
+	// Ubuntu — all three active LTS releases
+	{"U_CAN_Ubuntu_18-04_LTS", "ubuntu1804STIG", "ubuntu1804_checks_table.go"},
+	{"U_Canonical_Ubuntu_20-04_LTS", "ubuntu2004STIG", "ubuntu2004_checks_table.go"},
+	{"U_Canonical_Ubuntu_22-04_LTS", "ubuntu2204STIG", "ubuntu2204_checks_table.go"},
+	{"U_Canonical_Ubuntu_24-04_LTS", "ubuntu2404STIG", "ubuntu2404_checks_table.go"},
+	// ── Windows Workstation ───────────────────────────────────────────────────
+	{"U_MS_Windows_10", "win10STIG", "win10_checks_table.go"},
+	{"U_MS_Windows_11", "win11STIG", "win11_checks_table.go"},
+	// ── Windows Server ────────────────────────────────────────────────────────
+	{"U_MS_Windows_Server_2016", "winSrv2016STIG", "winsrv2016_checks_table.go"},
+	{"U_MS_Windows_Server_2019", "winSrv2019STIG", "winsrv2019_checks_table.go"},
+	{"U_MS_Windows_Server_2022", "winSrv2022STIG", "winsrv2022_checks_table.go"},
+	// ── macOS ─────────────────────────────────────────────────────────────────
+	{"U_Apple_macOS_13", "macos13STIG", "macos13_checks_table.go"},
+	{"U_Apple_macOS_14", "macos14STIG", "macos14_checks_table.go"},
+	{"U_Apple_macOS_15", "macos15STIG", "macos15_checks_table.go"},
+	// ── Kubernetes ────────────────────────────────────────────────────────────
+	{"U_Kubernetes", "k8sStig", "kubernetes_checks_table.go"},
+	{"U_OpenShift_Container_Platform_4", "openshiftStig", "openshift_checks_table.go"},
+}
+
+// runGenAll fetches and generates check tables for all OS families, writing
+// each to genDir.  This is the build-time step that populates the embedded
+// check tables shipped in the product binary.
+func runGenAll(genDir, cache string, verbose bool) {
+	ensureDir(genDir)
+	ensureDir(cache)
+
+	fmt.Printf("Generating embedded check tables for %d OS families → %s\n\n",
+		len(osFamilies), genDir)
+
+	// Probe CDN for the latest version of every family first (one pass).
+	fmt.Println("Probing DISA CDN for latest versions …")
+	available, err := stig.ListAvailableSTIGs()
+	if err != nil {
+		fatalf("list STIGs: %v", err)
+	}
+	// Build index: filter-stem → STIGPackage.
+	// Stem is the filename up to the first "_V" version marker, e.g.
+	// "U_RHEL_9_V1R3_STIG.zip" → "U_RHEL_9".
+	byFilter := make(map[string]stig.STIGPackage, len(available))
+	for _, p := range available {
+		idx := strings.Index(p.FileName, "_V")
+		if idx <= 0 {
+			// Unexpected filename format — skip to avoid panic.
+			continue
+		}
+		byFilter[p.FileName[:idx]] = p
+	}
+
+	ok, skipped, failed := 0, 0, 0
+	for _, fam := range osFamilies {
+		outPath := filepath.Join(genDir, fam.OutFile)
+
+		// Find the matching package from the CDN probe.
+		pkg, found := byFilter[fam.Filter]
+		if !found {
+			// Try a prefix match
+			for stem, p := range byFilter {
+				if strings.HasPrefix(stem, fam.Filter) || strings.HasPrefix(fam.Filter, stem) {
+					pkg = p
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			fmt.Printf("  SKIP  %-45s (not found on CDN)\n", fam.Filter)
+			skipped++
+			continue
+		}
+
+		fmt.Printf("  GEN   %-45s [%s] → %s\n", pkg.FileName, pkg.Version, fam.OutFile)
+
+		zipPath, err := stig.DownloadSTIG(pkg, cache)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  ERROR download %s: %v\n", pkg.FileName, err)
+			failed++
+			continue
+		}
+		rules, err := stig.ParseXCCDFZip(zipPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  ERROR parse %s: %v\n", pkg.FileName, err)
+			failed++
+			continue
+		}
+		if verbose {
+			fmt.Printf("        parsed %d rules\n", len(rules))
+		}
+		if err := stig.GenerateCheckTableGo(rules, fam.Filter, "stig", fam.VarName, outPath); err != nil {
+			fmt.Fprintf(os.Stderr, "  ERROR generate %s: %v\n", fam.OutFile, err)
+			failed++
+			continue
+		}
+		ok++
+	}
+
+	fmt.Printf("\nDone: %d generated, %d skipped (not on CDN), %d failed\n", ok, skipped, failed)
+	if ok > 0 {
+		fmt.Println("\nNext: go build ./cmd/asaf-desktop/... to embed updated tables.")
+	}
 }
 
 // runGenGo fetches STIGs online, updates the CSV, then also emits a Go

@@ -24,6 +24,44 @@ import (
 	"time"
 )
 
+// ── Platform detection ────────────────────────────────────────────────────────
+
+// Platform identifies the target OS/runtime of a STIG family.
+type Platform int
+
+const (
+	PlatformLinux      Platform = iota // RHEL, Ubuntu, Oracle Linux
+	PlatformWindows                    // Windows 10/11, Server 2016/2019/2022
+	PlatformMacOS                      // macOS 13/14/15
+	PlatformKubernetes                 // Kubernetes, OpenShift
+	PlatformUnknown
+)
+
+// DetectPlatform infers the target platform from the STIG family stem / title.
+func DetectPlatform(stigFamily string) Platform {
+	f := strings.ToLower(stigFamily)
+	switch {
+	case strings.Contains(f, "windows") || strings.Contains(f, "ms_win") ||
+		strings.Contains(f, "u_ms_win") || strings.Contains(f, "server_20") ||
+		strings.Contains(f, "active_directory") || strings.Contains(f, "exchange") ||
+		strings.Contains(f, "iis") || strings.Contains(f, "sql_server") ||
+		strings.Contains(f, "ms_ie") || strings.Contains(f, "edge"):
+		return PlatformWindows
+	case strings.Contains(f, "macos") || strings.Contains(f, "apple") ||
+		strings.Contains(f, "ventura") || strings.Contains(f, "sonoma") ||
+		strings.Contains(f, "sequoia"):
+		return PlatformMacOS
+	case strings.Contains(f, "kubernetes") || strings.Contains(f, "k8s") ||
+		strings.Contains(f, "openshift") || strings.Contains(f, "container_platform"):
+		return PlatformKubernetes
+	case strings.Contains(f, "rhel") || strings.Contains(f, "ubuntu") ||
+		strings.Contains(f, "oracle_linux") || strings.Contains(f, "canonical") ||
+		strings.Contains(f, "can_ubuntu"):
+		return PlatformLinux
+	}
+	return PlatformUnknown
+}
+
 // ── Classification patterns ───────────────────────────────────────────────────
 
 var (
@@ -101,6 +139,46 @@ var (
 	reFileContains = regexp.MustCompile(
 		`(?i)grep\s+(?:-[a-zA-Z]+\s+)?"?([^"\s]+)"?\s+(/etc/[\w/.-]+|/var/[\w/.-]+|/usr/[\w/.-]+)`)
 
+	// ── Windows patterns ──────────────────────────────────────────────────────
+
+	// Registry: Get-ItemProperty or reg query
+	reWinRegistry = regexp.MustCompile(
+		`(?i)(?:Get-ItemProperty\s+['""]?(HKLM|HKCU|HKCR|HKU)[:\\]([^'""\s]+)['""]?\s+[-–]\s*Name\s+['""]?(\w+)['""]?|` +
+			`reg\s+query\s+"?(HKLM|HKCU)[\\]([^"]+)"?\s+/v\s+(\S+))`)
+	// Simpler registry path: just a HKLM\path\value pattern
+	reWinRegPath = regexp.MustCompile(
+		`(?i)(HKEY_LOCAL_MACHINE|HKLM|HKEY_CURRENT_USER|HKCU)[\\:]([\\A-Za-z0-9 _.()-]+)`)
+
+	// Audit policy: auditpol /get /subcategory
+	reWinAuditPol = regexp.MustCompile(
+		`(?i)auditpol\s+/get\s+/subcategory:"?([^"]+)"?`)
+
+	// Windows features: Get-WindowsOptionalFeature or Get-WindowsFeature
+	reWinFeature = regexp.MustCompile(
+		`(?i)(?:Get-WindowsOptionalFeature|Get-WindowsFeature)\s+(?:-Online\s+)?-FeatureName\s+['""]?(\S+)['""]?`)
+
+	// Windows services: Get-Service or sc query
+	reWinService = regexp.MustCompile(
+		`(?i)(?:Get-Service\s+['""]?(\S+)['""]?|sc\s+query\s+['""]?(\S+)['""]?)`)
+
+	// ── macOS patterns ────────────────────────────────────────────────────────
+
+	// defaults read domain key
+	reMacDefaults = regexp.MustCompile(
+		`(?i)/usr/bin/defaults\s+read\s+([\w./]+)\s+(\w+)`)
+	// /usr/bin/profiles
+	reMacProfiles = regexp.MustCompile(
+		`(?i)/usr/bin/profiles\s+(?:-P|-show|show|list)`)
+	// Profile identifier
+	reMacProfileID = regexp.MustCompile(
+		`(?i)PayloadIdentifier|PayloadType|ProfileIdentifier\s*[=:]\s*['""]?([\w.]+)['""]?`)
+
+	// ── Kubernetes patterns ───────────────────────────────────────────────────
+
+	// kubectl get/describe
+	reKubectl = regexp.MustCompile(
+		`(?i)kubectl\s+(get|describe|exec|logs)\s+([\w-]+(?:\s+[\w-]+)*)`)
+
 	// FixText patterns for argv extraction
 	reFixSystemctl = regexp.MustCompile(
 		`(?i)systemctl\s+(enable|disable|start|stop|restart|enable\s+--now|mask)\s+([\w.@-]+)`)
@@ -119,56 +197,123 @@ var (
 // ── Public API ────────────────────────────────────────────────────────────────
 
 // ClassifyRule converts one parsed STIGRule into a CheckSpec.
+// Platform is detected from rule.StigFile so the right classifier chain runs.
 // Metadata (Title, Severity, CCIs) is intentionally NOT stored in the spec —
 // it lives in the CSV database and is resolved at runtime via GetSTIGTitle etc.
 func ClassifyRule(rule STIGRule) CheckSpec {
+	return ClassifyRuleForPlatform(rule, DetectPlatform(rule.StigFile))
+}
+
+// ClassifyRuleForPlatform classifies a rule using the appropriate chain for
+// the given platform.  Callers can supply the platform explicitly when the
+// StigFile name is not sufficient to determine it.
+func ClassifyRuleForPlatform(rule STIGRule, platform Platform) CheckSpec {
 	checkText := rule.CheckText
 	fixText := rule.FixText
 
-	// Priority order: most-specific patterns first.
-	if spec, ok := trySSHConfig(rule.ID, checkText, fixText); ok {
+	switch platform {
+	case PlatformWindows:
+		return classifyWindows(rule.ID, checkText, fixText)
+	case PlatformMacOS:
+		return classifyMacOS(rule.ID, checkText, fixText)
+	case PlatformKubernetes:
+		return classifyKubernetes(rule.ID, checkText, fixText)
+	default:
+		return classifyLinux(rule.ID, checkText, fixText)
+	}
+}
+
+// classifyLinux runs the Linux/UNIX classifier chain (RHEL, Ubuntu, Oracle Linux).
+func classifyLinux(ruleID, checkText, fixText string) CheckSpec {
+	if spec, ok := trySSHConfig(ruleID, checkText, fixText); ok {
 		return spec
 	}
-	if spec, ok := trySysctl(rule.ID, checkText, fixText); ok {
+	if spec, ok := trySysctl(ruleID, checkText, fixText); ok {
 		return spec
 	}
-	if spec, ok := tryPackage(rule.ID, checkText, fixText); ok {
+	if spec, ok := tryPackage(ruleID, checkText, fixText); ok {
 		return spec
 	}
-	if spec, ok := tryServiceActive(rule.ID, checkText, fixText); ok {
+	if spec, ok := tryServiceActive(ruleID, checkText, fixText); ok {
 		return spec
 	}
-	if spec, ok := tryServiceEnabled(rule.ID, checkText, fixText); ok {
+	if spec, ok := tryServiceEnabled(ruleID, checkText, fixText); ok {
 		return spec
 	}
-	if spec, ok := tryModuleDisabled(rule.ID, checkText, fixText); ok {
+	if spec, ok := tryModuleDisabled(ruleID, checkText, fixText); ok {
 		return spec
 	}
-	if spec, ok := tryAuditRule(rule.ID, checkText, fixText); ok {
+	if spec, ok := tryAuditRule(ruleID, checkText, fixText); ok {
 		return spec
 	}
-	if spec, ok := tryGrubArg(rule.ID, checkText, fixText); ok {
+	if spec, ok := tryGrubArg(ruleID, checkText, fixText); ok {
 		return spec
 	}
-	if spec, ok := tryPAMConfig(rule.ID, checkText, fixText); ok {
+	if spec, ok := tryPAMConfig(ruleID, checkText, fixText); ok {
 		return spec
 	}
-	if spec, ok := tryMountOption(rule.ID, checkText, fixText); ok {
+	if spec, ok := tryMountOption(ruleID, checkText, fixText); ok {
 		return spec
 	}
-	if spec, ok := tryFileMode(rule.ID, checkText, fixText); ok {
+	if spec, ok := tryFileMode(ruleID, checkText, fixText); ok {
 		return spec
 	}
-	if spec, ok := tryFileContains(rule.ID, checkText, fixText); ok {
+	if spec, ok := tryFileContains(ruleID, checkText, fixText); ok {
 		return spec
 	}
-	// Fallback: manual review
-	return CheckSpec{
-		RuleID:    rule.ID,
-		CheckType: CheckManual,
-		Target:    "",
-		Expected:  "",
+	return CheckSpec{RuleID: ruleID, CheckType: CheckManual}
+}
+
+// classifyWindows runs the Windows classifier chain.
+func classifyWindows(ruleID, checkText, fixText string) CheckSpec {
+	if spec, ok := tryWinRegistry(ruleID, checkText, fixText); ok {
+		return spec
 	}
+	if spec, ok := tryWinAuditPolicy(ruleID, checkText, fixText); ok {
+		return spec
+	}
+	if spec, ok := tryWinFeature(ruleID, checkText, fixText); ok {
+		return spec
+	}
+	if spec, ok := tryWinService(ruleID, checkText, fixText); ok {
+		return spec
+	}
+	// Windows can also have file-based checks for config files
+	if spec, ok := tryFileContains(ruleID, checkText, fixText); ok {
+		return spec
+	}
+	if spec, ok := tryFileExists(ruleID, checkText, fixText); ok {
+		return spec
+	}
+	return CheckSpec{RuleID: ruleID, CheckType: CheckManual}
+}
+
+// classifyMacOS runs the macOS classifier chain.
+func classifyMacOS(ruleID, checkText, fixText string) CheckSpec {
+	if spec, ok := tryMacDefaults(ruleID, checkText, fixText); ok {
+		return spec
+	}
+	if spec, ok := tryMacProfiles(ruleID, checkText, fixText); ok {
+		return spec
+	}
+	if spec, ok := tryFileContains(ruleID, checkText, fixText); ok {
+		return spec
+	}
+	if spec, ok := tryFileExists(ruleID, checkText, fixText); ok {
+		return spec
+	}
+	return CheckSpec{RuleID: ruleID, CheckType: CheckManual}
+}
+
+// classifyKubernetes runs the Kubernetes classifier chain.
+func classifyKubernetes(ruleID, checkText, fixText string) CheckSpec {
+	if spec, ok := tryKubectl(ruleID, checkText, fixText); ok {
+		return spec
+	}
+	if spec, ok := tryFileContains(ruleID, checkText, fixText); ok {
+		return spec
+	}
+	return CheckSpec{RuleID: ruleID, CheckType: CheckManual}
 }
 
 // GenerateCheckTableGo downloads/parses the given STIG (already parsed into
@@ -554,6 +699,223 @@ func tryFileContains(ruleID, checkText, fixText string) (CheckSpec, bool) {
 	}, true
 }
 
+// ── Windows classifiers ───────────────────────────────────────────────────────
+
+func tryWinRegistry(ruleID, checkText, fixText string) (CheckSpec, bool) {
+	// Try: reg query "HKLM\path" /v ValueName
+	reRegQuery := regexp.MustCompile(
+		`(?i)reg\s+query\s+"?(HKLM|HKCU|HKEY_LOCAL_MACHINE|HKEY_CURRENT_USER)[\\:]([^"'\s]+)"?\s+/v\s+"?(\S+?)"?(?:\s|$)`)
+	if m := reRegQuery.FindStringSubmatch(checkText); m != nil {
+		hive := normalizeHive(m[1])
+		key := strings.TrimRight(m[2], "\\")
+		val := m[3]
+		target := hive + "\\" + key + "\\" + val
+		expected := inferRegExpected(target, checkText, fixText)
+		return CheckSpec{
+			RuleID:    ruleID,
+			CheckType: CheckRegistryValue,
+			Target:    target,
+			Expected:  expected,
+		}, true
+	}
+
+	// Try: Get-ItemProperty "HKLM:\path" -Name ValueName
+	reGetItem := regexp.MustCompile(
+		`(?i)Get-ItemProperty\s+-Path\s+"?(HKLM|HKCU)[:\\]([^"']+)"?\s+(?:-Name\s+"?(\w+)"?)`)
+	if m := reGetItem.FindStringSubmatch(checkText); m != nil {
+		hive := normalizeHive(m[1])
+		key := strings.TrimRight(strings.ReplaceAll(m[2], "/", "\\"), "\\")
+		val := m[3]
+		target := hive + "\\" + key + "\\" + val
+		expected := inferRegExpected(target, checkText, fixText)
+		return CheckSpec{
+			RuleID:    ruleID,
+			CheckType: CheckRegistryValue,
+			Target:    target,
+			Expected:  expected,
+		}, true
+	}
+	return CheckSpec{}, false
+}
+
+func tryWinAuditPolicy(ruleID, checkText, fixText string) (CheckSpec, bool) {
+	m := reWinAuditPol.FindStringSubmatch(checkText)
+	if m == nil {
+		return CheckSpec{}, false
+	}
+	subcategory := strings.TrimSpace(m[1])
+	expected := inferAuditPolExpected(checkText)
+	return CheckSpec{
+		RuleID:    ruleID,
+		CheckType: CheckWinAuditPolicy,
+		Target:    subcategory,
+		Expected:  expected,
+	}, true
+}
+
+func tryWinFeature(ruleID, checkText, fixText string) (CheckSpec, bool) {
+	m := reWinFeature.FindStringSubmatch(checkText)
+	if m == nil {
+		return CheckSpec{}, false
+	}
+	feature := strings.TrimSpace(m[1])
+	// Determine if the check is asserting enabled or disabled
+	lower := strings.ToLower(checkText)
+	expected := "disabled"
+	if strings.Contains(lower, "must be installed") || strings.Contains(lower, "is installed") ||
+		strings.Contains(lower, "enabled") && !strings.Contains(lower, "not enabled") {
+		expected = "enabled"
+	}
+	var fix *FixSpec
+	if expected == "disabled" {
+		fix = &FixSpec{
+			Argv: [][]string{
+				{"powershell", "-NonInteractive", "-Command",
+					fmt.Sprintf("Disable-WindowsOptionalFeature -Online -FeatureName %s -NoRestart", feature)},
+			},
+			Reboot: true,
+		}
+	} else {
+		fix = &FixSpec{
+			Argv: [][]string{
+				{"powershell", "-NonInteractive", "-Command",
+					fmt.Sprintf("Enable-WindowsOptionalFeature -Online -FeatureName %s -NoRestart", feature)},
+			},
+			Reboot: true,
+		}
+	}
+	return CheckSpec{
+		RuleID:    ruleID,
+		CheckType: CheckWinFeature,
+		Target:    feature,
+		Expected:  expected,
+		Fix:       fix,
+	}, true
+}
+
+func tryWinService(ruleID, checkText, fixText string) (CheckSpec, bool) {
+	m := reWinService.FindStringSubmatch(checkText)
+	if m == nil {
+		return CheckSpec{}, false
+	}
+	svc := m[1]
+	if svc == "" {
+		svc = m[2]
+	}
+	if svc == "" {
+		return CheckSpec{}, false
+	}
+	lower := strings.ToLower(checkText)
+	expected := "disabled"
+	if strings.Contains(lower, "must be running") || strings.Contains(lower, "is running") {
+		expected = "running"
+	} else if strings.Contains(lower, "must be stopped") {
+		expected = "stopped"
+	}
+	var fix *FixSpec
+	switch expected {
+	case "disabled":
+		fix = &FixSpec{Argv: [][]string{{"sc", "config", svc, "start=", "disabled"}}}
+	case "running":
+		fix = &FixSpec{Argv: [][]string{{"sc", "start", svc}}}
+	}
+	return CheckSpec{
+		RuleID:    ruleID,
+		CheckType: CheckWinService,
+		Target:    svc,
+		Expected:  expected,
+		Fix:       fix,
+	}, true
+}
+
+// tryFileExists is shared across platforms.
+func tryFileExists(ruleID, checkText, fixText string) (CheckSpec, bool) {
+	m := reFileExists.FindStringSubmatch(checkText)
+	if m == nil {
+		return CheckSpec{}, false
+	}
+	path := m[1]
+	if !strings.HasPrefix(path, "/") && !strings.HasPrefix(path, "C:\\") &&
+		!strings.HasPrefix(path, "%") {
+		return CheckSpec{}, false
+	}
+	lower := strings.ToLower(checkText)
+	expected := ""
+	if strings.Contains(lower, "must not exist") || strings.Contains(lower, "should not exist") {
+		expected = "absent"
+	}
+	return CheckSpec{
+		RuleID:    ruleID,
+		CheckType: CheckFileExists,
+		Target:    path,
+		Expected:  expected,
+	}, true
+}
+
+// ── macOS classifiers ─────────────────────────────────────────────────────────
+
+func tryMacDefaults(ruleID, checkText, fixText string) (CheckSpec, bool) {
+	m := reMacDefaults.FindStringSubmatch(checkText)
+	if m == nil {
+		return CheckSpec{}, false
+	}
+	domain := m[1]
+	key := m[2]
+	target := domain + "|" + key
+	expected := inferMacDefaultsExpected(key, checkText)
+	var fix *FixSpec
+	if expected != "" {
+		fix = &FixSpec{
+			Argv: [][]string{
+				{"/usr/bin/defaults", "write", domain, key, expected},
+			},
+		}
+	}
+	return CheckSpec{
+		RuleID:    ruleID,
+		CheckType: CheckMacDefaults,
+		Target:    target,
+		Expected:  expected,
+		Fix:       fix,
+	}, true
+}
+
+func tryMacProfiles(ruleID, checkText, fixText string) (CheckSpec, bool) {
+	if !reMacProfiles.MatchString(checkText) {
+		return CheckSpec{}, false
+	}
+	// Extract profile identifier from check text
+	profileID := ""
+	if m := reMacProfileID.FindStringSubmatch(checkText); m != nil {
+		profileID = m[1]
+	}
+	return CheckSpec{
+		RuleID:    ruleID,
+		CheckType: CheckMacProfiles,
+		Target:    profileID,
+		Expected:  "",
+	}, true
+}
+
+// ── Kubernetes classifiers ────────────────────────────────────────────────────
+
+func tryKubectl(ruleID, checkText, fixText string) (CheckSpec, bool) {
+	m := reKubectl.FindStringSubmatch(checkText)
+	if m == nil {
+		return CheckSpec{}, false
+	}
+	// Build the kubectl subcommand string: "get pods --all-namespaces"
+	target := strings.TrimSpace(m[1] + " " + m[2])
+	// Try to extract what the check is looking for
+	expected := inferKubectlExpected(target, checkText)
+	return CheckSpec{
+		RuleID:    ruleID,
+		CheckType: CheckKubectl,
+		Target:    target,
+		Expected:  expected,
+	}, true
+}
+
 // ── Inference helpers ─────────────────────────────────────────────────────────
 
 // canonicalSSHParam normalises capitalisation from check-text variations.
@@ -771,6 +1133,88 @@ func padMode(s string) string {
 		return "0" + s
 	}
 	return s
+}
+
+func normalizeHive(s string) string {
+	switch strings.ToUpper(s) {
+	case "HKEY_LOCAL_MACHINE", "HKLM":
+		return "HKLM"
+	case "HKEY_CURRENT_USER", "HKCU":
+		return "HKCU"
+	case "HKEY_CLASSES_ROOT", "HKCR":
+		return "HKCR"
+	case "HKU", "HKEY_USERS":
+		return "HKU"
+	}
+	return s
+}
+
+func inferRegExpected(target, checkText, fixText string) string {
+	// Look for "= 1", "= 0", dword:00000001 patterns in checkText/fixText
+	reDword := regexp.MustCompile(`(?i)(?:=\s*|dword:0{6}|value\s+(?:is|must be|should be)\s+)(\d+)`)
+	for _, text := range []string{checkText, fixText} {
+		if m := reDword.FindStringSubmatch(text); m != nil {
+			return m[1]
+		}
+	}
+	// Enabled/disabled patterns
+	lower := strings.ToLower(checkText)
+	if strings.Contains(lower, "must be enabled") || strings.Contains(lower, "value of 1") {
+		return "1"
+	}
+	if strings.Contains(lower, "must be disabled") || strings.Contains(lower, "value of 0") {
+		return "0"
+	}
+	return ""
+}
+
+func inferAuditPolExpected(checkText string) string {
+	lower := strings.ToLower(checkText)
+	switch {
+	case strings.Contains(lower, "success and failure"):
+		return "Success and Failure"
+	case strings.Contains(lower, "success"):
+		return "Success"
+	case strings.Contains(lower, "failure"):
+		return "Failure"
+	case strings.Contains(lower, "no auditing"):
+		return "No Auditing"
+	}
+	return "Success and Failure" // STIG default
+}
+
+func inferMacDefaultsExpected(key, checkText string) string {
+	lower := strings.ToLower(checkText)
+	// Boolean fields
+	if strings.Contains(lower, "must be enabled") || strings.Contains(lower, "set to 1") ||
+		strings.Contains(lower, "set to true") {
+		return "1"
+	}
+	if strings.Contains(lower, "must be disabled") || strings.Contains(lower, "set to 0") ||
+		strings.Contains(lower, "set to false") {
+		return "0"
+	}
+	// Numeric value extraction
+	re := regexp.MustCompile(`(?i)set to (\d+)`)
+	if m := re.FindStringSubmatch(checkText); m != nil {
+		return m[1]
+	}
+	return ""
+}
+
+func inferKubectlExpected(target, checkText string) string {
+	// Look for quoted strings that represent required values
+	re := regexp.MustCompile(`"([^"]{3,50})"`)
+	matches := re.FindAllStringSubmatch(checkText, -1)
+	for _, m := range matches {
+		v := m[1]
+		// Skip obvious non-value strings
+		if strings.Contains(v, " ") && len(strings.Fields(v)) > 4 {
+			continue
+		}
+		return v
+	}
+	return ""
 }
 
 // ── Go source emitter ─────────────────────────────────────────────────────────

@@ -86,6 +86,44 @@ const (
 	// CheckManual always produces ManualReviewRequired.
 	// Used for controls that require human judgment or site-specific configuration.
 	CheckManual CheckType = "manual"
+
+	// ── Windows-specific ──────────────────────────────────────────────────────
+
+	// CheckRegistryValue reads a Windows registry value and compares it.
+	// Target = "HIVE\key\path\ValueName" (last segment is value name).
+	// Expected = required string representation of the value.
+	CheckRegistryValue CheckType = "registry_value"
+
+	// CheckWinAuditPolicy reads a Windows audit policy subcategory.
+	// Target = subcategory name (e.g. "Logon"), Expected = "Success and Failure".
+	CheckWinAuditPolicy CheckType = "win_audit_policy"
+
+	// CheckWinFeature asserts a Windows feature is installed or absent.
+	// Target = feature name (e.g. "SMB1Protocol"), Expected = "enabled"|"disabled".
+	CheckWinFeature CheckType = "win_feature"
+
+	// CheckWinService asserts a Windows service start type / status.
+	// Target = service name, Expected = "disabled"|"running"|"stopped".
+	CheckWinService CheckType = "win_service"
+
+	// ── macOS-specific ────────────────────────────────────────────────────────
+
+	// CheckMacDefaults reads a macOS defaults value.
+	// Target = "com.apple.domain|key" (pipe-separated domain and key).
+	// Expected = required value string.
+	CheckMacDefaults CheckType = "mac_defaults"
+
+	// CheckMacProfiles checks that a configuration profile is installed.
+	// Target = profile identifier or payload type substring.
+	// Expected = "" (presence) or specific payload value.
+	CheckMacProfiles CheckType = "mac_profiles"
+
+	// ── Kubernetes-specific ───────────────────────────────────────────────────
+
+	// CheckKubectl runs a kubectl command and checks its output.
+	// Target = kubectl command args (e.g. "get pods --all-namespaces").
+	// Expected = substring that must appear in output.
+	CheckKubectl CheckType = "kubectl"
 )
 
 // FixSpec describes the automated remediation for a CheckSpec.
@@ -178,6 +216,23 @@ func runDetection(spec CheckSpec, checker *SystemChecker) (status, actual string
 		return checkMountOption(spec)
 	case CheckManual:
 		return "Manual Review Required", "requires human review", nil
+	// Windows
+	case CheckRegistryValue:
+		return checkRegistryValue(spec, checker)
+	case CheckWinAuditPolicy:
+		return checkWinAuditPolicy(spec, checker)
+	case CheckWinFeature:
+		return checkWinFeature(spec, checker)
+	case CheckWinService:
+		return checkWinService(spec, checker)
+	// macOS
+	case CheckMacDefaults:
+		return checkMacDefaults(spec)
+	case CheckMacProfiles:
+		return checkMacProfiles(spec)
+	// Kubernetes
+	case CheckKubectl:
+		return checkKubectl(spec)
 	default:
 		return "Manual Review Required", fmt.Sprintf("unknown check type: %s", spec.CheckType), nil
 	}
@@ -386,6 +441,172 @@ func checkMountOption(spec CheckSpec) (string, string, error) {
 	return "Not Applicable", fmt.Sprintf("%s not mounted", spec.Target), nil
 }
 
+// ── Windows primitives ────────────────────────────────────────────────────────
+
+// checkRegistryValue splits "HIVE\path\to\ValueName" on the last backslash,
+// calls CheckRegistryValue, then compares against Expected.
+func checkRegistryValue(spec CheckSpec, checker *SystemChecker) (string, string, error) {
+	// Parse "HIVE\key\path\ValueName" → hive, keyPath, valueName
+	target := spec.Target
+	lastBS := strings.LastIndexByte(target, '\\')
+	if lastBS < 0 {
+		return "", "", fmt.Errorf("registry target %q must be HIVE\\key\\path\\ValueName", target)
+	}
+	fullKey := target[:lastBS]
+	valueName := target[lastBS+1:]
+
+	// Split HIVE from the rest
+	firstBS := strings.IndexByte(fullKey, '\\')
+	var hive, keyPath string
+	if firstBS < 0 {
+		hive = fullKey
+		keyPath = ""
+	} else {
+		hive = fullKey[:firstBS]
+		keyPath = fullKey[firstBS+1:]
+	}
+
+	actual, err := checker.CheckRegistryValue(hive, keyPath, valueName)
+	if err != nil {
+		// Value absent: fail unless Expected is "absent"
+		if strings.EqualFold(spec.Expected, "absent") {
+			return "Pass", "value absent (as required)", nil
+		}
+		return "Fail", fmt.Sprintf("value not found: %v", err), nil
+	}
+	if strings.EqualFold(spec.Expected, "absent") {
+		return "Fail", fmt.Sprintf("present (%s)", actual), nil
+	}
+	if strings.EqualFold(strings.TrimSpace(actual), strings.TrimSpace(spec.Expected)) {
+		return "Pass", actual, nil
+	}
+	return "Fail", actual, nil
+}
+
+// checkWinAuditPolicy reads a Windows audit policy subcategory.
+func checkWinAuditPolicy(spec CheckSpec, checker *SystemChecker) (string, string, error) {
+	actual, err := checker.CheckAuditPolicy(spec.Target)
+	if err != nil {
+		return "", "", fmt.Errorf("auditpol %s: %w", spec.Target, err)
+	}
+	if strings.EqualFold(strings.TrimSpace(actual), strings.TrimSpace(spec.Expected)) {
+		return "Pass", actual, nil
+	}
+	return "Fail", actual, nil
+}
+
+// checkWinFeature checks whether a Windows optional feature is enabled or disabled.
+func checkWinFeature(spec CheckSpec, checker *SystemChecker) (string, string, error) {
+	enabled, err := checker.CheckWindowsFeature(spec.Target)
+	if err != nil {
+		return "", "", fmt.Errorf("windows feature %s: %w", spec.Target, err)
+	}
+	wantEnabled := strings.EqualFold(spec.Expected, "enabled")
+	if enabled == wantEnabled {
+		if enabled {
+			return "Pass", "enabled", nil
+		}
+		return "Pass", "disabled", nil
+	}
+	if enabled {
+		return "Fail", "enabled (should be disabled)", nil
+	}
+	return "Fail", "disabled (should be enabled)", nil
+}
+
+// checkWinService checks a Windows service state against Expected.
+// Expected values: "running", "stopped", "disabled".
+func checkWinService(spec CheckSpec, checker *SystemChecker) (string, string, error) {
+	want := strings.ToLower(strings.TrimSpace(spec.Expected))
+	switch want {
+	case "running":
+		active, err := checker.CheckServiceActive(spec.Target)
+		if err != nil {
+			return "", "", err
+		}
+		if active {
+			return "Pass", "running", nil
+		}
+		return "Fail", "not running", nil
+	case "stopped":
+		active, err := checker.CheckServiceActive(spec.Target)
+		if err != nil {
+			return "", "", err
+		}
+		if !active {
+			return "Pass", "stopped", nil
+		}
+		return "Fail", "running (should be stopped)", nil
+	case "disabled":
+		enabled, err := checker.CheckServiceEnabled(spec.Target)
+		if err != nil {
+			return "", "", err
+		}
+		if !enabled {
+			return "Pass", "disabled", nil
+		}
+		return "Fail", "not disabled", nil
+	default:
+		return "Manual Review Required", fmt.Sprintf("unknown service state %q", spec.Expected), nil
+	}
+}
+
+// ── macOS primitives ──────────────────────────────────────────────────────────
+
+// checkMacDefaults reads a macOS preference value via `defaults read`.
+// Target format: "com.apple.domain|key"
+func checkMacDefaults(spec CheckSpec) (string, string, error) {
+	parts := strings.SplitN(spec.Target, "|", 2)
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("mac_defaults target must be 'domain|key', got %q", spec.Target)
+	}
+	domain, key := parts[0], parts[1]
+
+	out, err := exec.Command("/usr/bin/defaults", "read", domain, key).Output()
+	if err != nil {
+		if strings.EqualFold(spec.Expected, "absent") {
+			return "Pass", "key absent (as required)", nil
+		}
+		return "Fail", fmt.Sprintf("key not found: %v", err), nil
+	}
+	actual := strings.TrimSpace(string(out))
+	if strings.EqualFold(actual, strings.TrimSpace(spec.Expected)) {
+		return "Pass", actual, nil
+	}
+	return "Fail", actual, nil
+}
+
+// checkMacProfiles checks installed configuration profiles via `profiles list`.
+// Target is a substring that must appear in the profiles output.
+func checkMacProfiles(spec CheckSpec) (string, string, error) {
+	out, err := exec.Command("/usr/bin/profiles", "list").Output()
+	if err != nil {
+		return "", "", fmt.Errorf("profiles list: %w", err)
+	}
+	if strings.Contains(string(out), spec.Target) {
+		return "Pass", fmt.Sprintf("profile containing %q installed", spec.Target), nil
+	}
+	return "Fail", fmt.Sprintf("no profile matching %q found", spec.Target), nil
+}
+
+// ── Kubernetes primitives ─────────────────────────────────────────────────────
+
+// checkKubectl runs `kubectl <Target>` and checks that Expected appears in output.
+func checkKubectl(spec CheckSpec) (string, string, error) {
+	args := strings.Fields(spec.Target)
+	if len(args) == 0 {
+		return "", "", fmt.Errorf("kubectl target is empty")
+	}
+	out, err := exec.Command("kubectl", args...).Output()
+	if err != nil {
+		return "", "", fmt.Errorf("kubectl %s: %w", spec.Target, err)
+	}
+	if spec.Expected == "" || strings.Contains(string(out), spec.Expected) {
+		return "Pass", strings.TrimSpace(spec.Expected) + " present", nil
+	}
+	return "Fail", fmt.Sprintf("%q not found in kubectl output", spec.Expected), nil
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 // parseSeverity converts a raw DB severity string to a Severity constant.
@@ -438,6 +659,20 @@ func describeCheck(spec CheckSpec) string {
 		return fmt.Sprintf("%s must be mounted with option %q", spec.Target, spec.Expected)
 	case CheckManual:
 		return fmt.Sprintf("%s requires manual assessment", spec.Target)
+	case CheckRegistryValue:
+		return fmt.Sprintf("registry %s must equal %q", spec.Target, spec.Expected)
+	case CheckWinAuditPolicy:
+		return fmt.Sprintf("audit policy %q must be %q", spec.Target, spec.Expected)
+	case CheckWinFeature:
+		return fmt.Sprintf("Windows feature %q must be %s", spec.Target, spec.Expected)
+	case CheckWinService:
+		return fmt.Sprintf("Windows service %q must be %s", spec.Target, spec.Expected)
+	case CheckMacDefaults:
+		return fmt.Sprintf("macOS defaults %s must equal %q", spec.Target, spec.Expected)
+	case CheckMacProfiles:
+		return fmt.Sprintf("macOS profile %q must be installed", spec.Target)
+	case CheckKubectl:
+		return fmt.Sprintf("kubectl %s must include %q", spec.Target, spec.Expected)
 	}
 	return fmt.Sprintf("check %s on %s", spec.CheckType, spec.Target)
 }
