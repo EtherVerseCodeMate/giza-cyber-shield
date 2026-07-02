@@ -68,6 +68,14 @@ const (
 	// Certificate / PKI management — require Nkyinkyim
 	CmdUpdateCA CommandType = "update-ca-trust"
 	CmdCertutil CommandType = "certutil"
+
+	// Config file editing — require Nkyinkyim
+	// asaf-confedit is an idempotent key=value setter (no shell, snapshot+rollback).
+	// It is the only authorized mechanism for mutating configuration files.
+	CmdConfedit CommandType = "asaf-confedit"
+
+	// FIPS enablement — require Eban (kernel-level security boundary change)
+	CmdFIPSSetup CommandType = "fips-mode-setup"
 )
 
 // symbolRequirements maps the first token of a command to its required Adinkra symbol.
@@ -105,6 +113,12 @@ var symbolRequirements = map[CommandType]string{
 	// Fawohodie — freedom (careful autonomy for package management)
 	CmdDNF: "Fawohodie",
 	CmdRPM: "Fawohodie",
+
+	// Nkyinkyim — config file mutations and FIPS boundary change
+	CmdConfedit: "Nkyinkyim",
+
+	// Eban — FIPS mode enables a kernel-level cryptographic boundary
+	CmdFIPSSetup: "Eban",
 }
 
 // validateCommand checks that:
@@ -133,6 +147,14 @@ func validateCommand(command []string) error {
 	}
 
 	return nil
+}
+
+// RequiredSymbol returns the Adinkra symbol required for a command.
+// Returns empty string if the command is not in the authorized catalog.
+// Exported so unprivileged callers (e.g. Remediator) can build ChangeRequests
+// with the correct symbol without duplicating the symbolRequirements map.
+func RequiredSymbol(command []string) string {
+	return requiredSymbol(command)
 }
 
 // requiredSymbol returns the Adinkra symbol required for a command.
