@@ -701,8 +701,41 @@ func tryFileContains(ruleID, checkText, fixText string) (CheckSpec, bool) {
 
 // ── Windows classifiers ───────────────────────────────────────────────────────
 
+// reWinRegProse matches the DISA Windows STIG structured-prose registry check format:
+//   Registry Hive: HKEY_LOCAL_MACHINE
+//   Registry Path: \SOFTWARE\Policies\Microsoft\FVE\
+//   Value Name: UseAdvancedStartup
+//   Value: 0x00000001 (1)
+var reWinRegProse = regexp.MustCompile(
+	`(?i)Registry\s+Hive:\s*(HKEY_LOCAL_MACHINE|HKEY_CURRENT_USER|HKLM|HKCU|HKEY_USERS|HKU)\s+` +
+		`Registry\s+Path:\s*([^\n]+?)\s+Value\s+Name:\s*([^\n]+?)\s+` +
+		`(?:Type:[^\n]+\s+)?Value:\s*([^\n]+)`)
+
 func tryWinRegistry(ruleID, checkText, fixText string) (CheckSpec, bool) {
-	// Try: reg query "HKLM\path" /v ValueName
+	// Priority 1: DISA structured prose format (most common in real Windows STIGs)
+	//   Registry Hive: HKLM
+	//   Registry Path: \SOFTWARE\...
+	//   Value Name: FooBar
+	//   Value: 0x00000001 (1)
+	if m := reWinRegProse.FindStringSubmatch(checkText); m != nil {
+		hive := normalizeHive(strings.TrimSpace(m[1]))
+		path := strings.Trim(strings.TrimSpace(m[2]), `\`)
+		val := strings.TrimSpace(m[3])
+		expected := strings.TrimSpace(m[4])
+		// Clean up "0x00000001 (1)" → "1"
+		if hex := regexp.MustCompile(`0x[0-9a-fA-F]+\s+\((\d+)\)`).FindStringSubmatch(expected); len(hex) > 1 {
+			expected = hex[1]
+		}
+		target := hive + `\` + path + `\` + val
+		return CheckSpec{
+			RuleID:    ruleID,
+			CheckType: CheckRegistryValue,
+			Target:    target,
+			Expected:  expected,
+		}, true
+	}
+
+	// Priority 2: reg query "HKLM\path" /v ValueName (command-line style)
 	reRegQuery := regexp.MustCompile(
 		`(?i)reg\s+query\s+"?(HKLM|HKCU|HKEY_LOCAL_MACHINE|HKEY_CURRENT_USER)[\\:]([^"'\s]+)"?\s+/v\s+"?(\S+?)"?(?:\s|$)`)
 	if m := reRegQuery.FindStringSubmatch(checkText); m != nil {
@@ -719,7 +752,7 @@ func tryWinRegistry(ruleID, checkText, fixText string) (CheckSpec, bool) {
 		}, true
 	}
 
-	// Try: Get-ItemProperty "HKLM:\path" -Name ValueName
+	// Priority 3: Get-ItemProperty "HKLM:\path" -Name ValueName
 	reGetItem := regexp.MustCompile(
 		`(?i)Get-ItemProperty\s+-Path\s+"?(HKLM|HKCU)[:\\]([^"']+)"?\s+(?:-Name\s+"?(\w+)"?)`)
 	if m := reGetItem.FindStringSubmatch(checkText); m != nil {

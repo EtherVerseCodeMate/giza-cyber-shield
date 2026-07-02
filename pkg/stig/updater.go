@@ -25,8 +25,10 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -201,31 +203,18 @@ func probeLatestVersion(entry stigCatalogEntry) (STIGPackage, bool) {
 	client := &http.Client{
 		Timeout: 15 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return nil // follow redirects
+			return nil
 		},
 	}
 
 	for major := 1; major <= entry.MaxMajor; major++ {
 		for release := 1; release <= 30; release++ {
 			version := fmt.Sprintf("V%dR%d", major, release)
-			// Both naming patterns seen in DISA CDN:
-			// U_RHEL_9_V1R3_STIG.zip  and  U_RHEL_9_V1R3_Manual_xccdf.zip
 			filename := fmt.Sprintf("%s_%s_STIG.zip", entry.Stem, version)
 			url := cyberMilCDN + filename
 
-			req, err := http.NewRequest(http.MethodHead, url, nil)
-			if err != nil {
-				continue
-			}
-			req.Header.Set("User-Agent", cyberMilUserAgent)
-
-			resp, err := client.Do(req)
-			if err != nil {
-				continue
-			}
-			resp.Body.Close()
-
-			if resp.StatusCode == http.StatusOK {
+			exists := headCheckURL(client, url)
+			if exists {
 				best = STIGPackage{
 					Title:       entry.Title,
 					FileName:    filename,
@@ -233,12 +222,9 @@ func probeLatestVersion(entry stigCatalogEntry) (STIGPackage, bool) {
 					Version:     version,
 				}
 				found = true
-				// continue probing — want the highest VxRy
-			} else {
-				// First miss after a hit means we've passed the latest release
-				if found {
-					break
-				}
+			} else if found {
+				// First miss after at least one hit — we've passed the latest release.
+				break
 			}
 		}
 	}
@@ -308,19 +294,28 @@ func parseStigFilename(name string) (title, version string) {
 // ── Downloader ────────────────────────────────────────────────────────────────
 
 // DownloadSTIG downloads pkg into destDir and returns the local ZIP path.
+// On Windows, falls back to Invoke-WebRequest if Go's HTTP client fails due
+// to the pure-Go DNS resolver not resolving DoD CDN hostnames reliably.
 func DownloadSTIG(pkg STIGPackage, destDir string) (string, error) {
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		return "", err
 	}
 	dest := filepath.Join(destDir, pkg.FileName)
 
-	// Skip if already downloaded
 	if _, err := os.Stat(dest); err == nil {
 		return dest, nil
 	}
 
 	body, err := fetchURL(pkg.DownloadURL)
 	if err != nil {
+		// On Windows, Go's pure-Go DNS resolver occasionally fails to resolve
+		// DoD CDN hostnames.  Fall back to PowerShell's WinHTTP stack.
+		if runtime.GOOS == "windows" {
+			if werr := downloadViaPS(pkg.DownloadURL, dest); werr != nil {
+				return "", fmt.Errorf("download %s: go: %w; powershell: %v", pkg.FileName, err, werr)
+			}
+			return dest, nil
+		}
 		return "", fmt.Errorf("download %s: %w", pkg.FileName, err)
 	}
 
@@ -328,6 +323,59 @@ func DownloadSTIG(pkg STIGPackage, destDir string) (string, error) {
 		return "", err
 	}
 	return dest, nil
+}
+
+// headCheckURL returns true if url responds HTTP 200.  On Windows, if Go's
+// pure-Go DNS resolver fails, it retries using PowerShell's WinHTTP stack.
+func headCheckURL(client *http.Client, url string) bool {
+	req, err := http.NewRequest(http.MethodHead, url, nil)
+	if err != nil {
+		return false
+	}
+	req.Header.Set("User-Agent", cyberMilUserAgent)
+	resp, err := client.Do(req)
+	if err == nil {
+		resp.Body.Close()
+		return resp.StatusCode == http.StatusOK
+	}
+	// Go HTTP failed — on Windows fall back to PowerShell for the HEAD check.
+	if runtime.GOOS != "windows" {
+		return false
+	}
+	script := fmt.Sprintf(
+		`[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; `+
+			`try { $r = Invoke-WebRequest -Uri '%s' -Method Head -UserAgent 'ASAF-STIG-Updater/1.0' -TimeoutSec 10; `+
+			`$r.StatusCode } catch { 0 }`,
+		url)
+	out, err := exec.Command("powershell", "-NonInteractive", "-NoProfile", "-Command", script).Output()
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(string(out)) == "200"
+}
+
+// downloadViaPS downloads url to dest using PowerShell's Invoke-WebRequest,
+// which uses Windows' WinHTTP stack and system DNS/proxy settings.
+func downloadViaPS(url, dest string) error {
+	script := fmt.Sprintf(
+		`[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; `+
+			`Invoke-WebRequest -Uri '%s' -OutFile '%s' -UserAgent 'ASAF-STIG-Updater/1.0' -TimeoutSec 120`,
+		url, dest)
+	cmd := exec.Command("powershell", "-NonInteractive", "-NoProfile", "-Command", script)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(out)))
+	}
+	// Verify file was written and is non-trivial (reject HTML error pages < 50KB)
+	info, err := os.Stat(dest)
+	if err != nil {
+		return fmt.Errorf("file not created: %w", err)
+	}
+	if info.Size() < 50_000 {
+		_ = os.Remove(dest)
+		return fmt.Errorf("downloaded file is only %d bytes — likely an error page, not a ZIP", info.Size())
+	}
+	return nil
 }
 
 // ── XCCDF XML parser ──────────────────────────────────────────────────────────

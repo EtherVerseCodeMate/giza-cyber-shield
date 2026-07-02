@@ -152,122 +152,119 @@ func runOffline(zipDir, outDir string, verbose bool) {
 
 // osFamilyEntry describes one OS STIG family to generate a check table for.
 type osFamilyEntry struct {
-	Filter  string // substring passed to --filter (matches CDN filename)
+	Stem    string // CDN filename stem, e.g. "U_RHEL_9"
+	Version string // Known latest version from DISA CDN (empty = probe at runtime)
 	VarName string // Go variable name in the generated file
 	OutFile string // filename under genDir
 }
 
-// osFamilies is the authoritative list of OS STIG families that ship
-// pre-generated in the product binary.  Non-OS families (network, DB, apps)
-// are intentionally excluded — their check text does not map to live OS
-// primitives and would produce only CheckManual rows.
-var osFamilies = []osFamilyEntry{
-	// ── Linux ─────────────────────────────────────────────────────────────────
-	{"U_RHEL_9", "rhel09STIG", "rhel09_checks_table.go"},
-	{"U_RHEL_8", "rhel08STIG", "rhel08_checks_table.go"},
-	{"U_RHEL_7", "rhel07STIG", "rhel07_checks_table.go"},
-	{"U_Oracle_Linux_7", "oracleLinux7STIG", "oracle_linux7_checks_table.go"},
-	{"U_Oracle_Linux_8", "oracleLinux8STIG", "oracle_linux8_checks_table.go"},
-	// Ubuntu — all three active LTS releases
-	{"U_CAN_Ubuntu_18-04_LTS", "ubuntu1804STIG", "ubuntu1804_checks_table.go"},
-	{"U_Canonical_Ubuntu_20-04_LTS", "ubuntu2004STIG", "ubuntu2004_checks_table.go"},
-	{"U_Canonical_Ubuntu_22-04_LTS", "ubuntu2204STIG", "ubuntu2204_checks_table.go"},
-	{"U_Canonical_Ubuntu_24-04_LTS", "ubuntu2404STIG", "ubuntu2404_checks_table.go"},
-	// ── Windows Workstation ───────────────────────────────────────────────────
-	{"U_MS_Windows_10", "win10STIG", "win10_checks_table.go"},
-	{"U_MS_Windows_11", "win11STIG", "win11_checks_table.go"},
-	// ── Windows Server ────────────────────────────────────────────────────────
-	{"U_MS_Windows_Server_2016", "winSrv2016STIG", "winsrv2016_checks_table.go"},
-	{"U_MS_Windows_Server_2019", "winSrv2019STIG", "winsrv2019_checks_table.go"},
-	{"U_MS_Windows_Server_2022", "winSrv2022STIG", "winsrv2022_checks_table.go"},
-	// ── macOS ─────────────────────────────────────────────────────────────────
-	{"U_Apple_macOS_13", "macos13STIG", "macos13_checks_table.go"},
-	{"U_Apple_macOS_14", "macos14STIG", "macos14_checks_table.go"},
-	{"U_Apple_macOS_15", "macos15STIG", "macos15_checks_table.go"},
-	// ── Kubernetes ────────────────────────────────────────────────────────────
-	{"U_Kubernetes", "k8sStig", "kubernetes_checks_table.go"},
-	{"U_OpenShift_Container_Platform_4", "openshiftStig", "openshift_checks_table.go"},
+const disaCDN = "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/"
+
+// FileName returns the full ZIP filename for this entry's known version.
+func (e osFamilyEntry) FileName() string {
+	return fmt.Sprintf("%s_%s_STIG.zip", e.Stem, e.Version)
 }
 
-// runGenAll fetches and generates check tables for all OS families, writing
-// each to genDir.  This is the build-time step that populates the embedded
-// check tables shipped in the product binary.
+// DownloadURL returns the DISA CDN download URL for this entry.
+func (e osFamilyEntry) DownloadURL() string {
+	return disaCDN + e.FileName()
+}
+
+// osFamilies is the authoritative list of OS STIG families that ship
+// pre-generated in the product binary.  Versions are pinned to the latest
+// confirmed DISA CDN release (probe date: 2026-07-01).  Re-run with --list to
+// find newer releases, then update the Version field here.
+//
+// Non-OS families (network, DB, apps) are intentionally excluded — their
+// check text does not map to live OS primitives and would produce only
+// CheckManual rows.
+var osFamilies = []osFamilyEntry{
+	// ── Linux ─────────────────────────────────────────────────────────────────
+	{Stem: "U_RHEL_9", Version: "V1R3", VarName: "rhel09STIG", OutFile: "rhel09_checks_table.go"},
+	{Stem: "U_RHEL_8", Version: "V2R7", VarName: "rhel08STIG", OutFile: "rhel08_checks_table.go"},
+	{Stem: "U_RHEL_7", Version: "V3R15", VarName: "rhel07STIG", OutFile: "rhel07_checks_table.go"},
+	{Stem: "U_Oracle_Linux_7", Version: "V2R14", VarName: "oracleLinux7STIG", OutFile: "oracle_linux7_checks_table.go"},
+	{Stem: "U_Oracle_Linux_8", Version: "V1R10", VarName: "oracleLinux8STIG", OutFile: "oracle_linux8_checks_table.go"},
+	// Ubuntu — all four active LTS releases
+	{Stem: "U_CAN_Ubuntu_18-04_LTS", Version: "V2R15", VarName: "ubuntu1804STIG", OutFile: "ubuntu1804_checks_table.go"},
+	{Stem: "U_Canonical_Ubuntu_20-04_LTS", Version: "V1R12", VarName: "ubuntu2004STIG", OutFile: "ubuntu2004_checks_table.go"},
+	{Stem: "U_Canonical_Ubuntu_22-04_LTS", Version: "V2R2", VarName: "ubuntu2204STIG", OutFile: "ubuntu2204_checks_table.go"},
+	{Stem: "U_Canonical_Ubuntu_24-04_LTS", Version: "V1R1", VarName: "ubuntu2404STIG", OutFile: "ubuntu2404_checks_table.go"},
+	// ── Windows Workstation ───────────────────────────────────────────────────
+	{Stem: "U_MS_Windows_10", Version: "V2R9", VarName: "win10STIG", OutFile: "win10_checks_table.go"},
+	{Stem: "U_MS_Windows_11", Version: "V1R6", VarName: "win11STIG", OutFile: "win11_checks_table.go"},
+	// ── Windows Server ────────────────────────────────────────────────────────
+	{Stem: "U_MS_Windows_Server_2016", Version: "V2R10", VarName: "winSrv2016STIG", OutFile: "winsrv2016_checks_table.go"},
+	{Stem: "U_MS_Windows_Server_2019", Version: "V2R9", VarName: "winSrv2019STIG", OutFile: "winsrv2019_checks_table.go"},
+	{Stem: "U_MS_Windows_Server_2022", Version: "V1R5", VarName: "winSrv2022STIG", OutFile: "winsrv2022_checks_table.go"},
+	// ── macOS ─────────────────────────────────────────────────────────────────
+	{Stem: "U_Apple_macOS_13", Version: "V1R5", VarName: "macos13STIG", OutFile: "macos13_checks_table.go"},
+	{Stem: "U_Apple_macOS_14", Version: "V1R2", VarName: "macos14STIG", OutFile: "macos14_checks_table.go"},
+	{Stem: "U_Apple_macOS_15", Version: "V1R7", VarName: "macos15STIG", OutFile: "macos15_checks_table.go"},
+	// ── Kubernetes / Container ────────────────────────────────────────────────
+	{Stem: "U_Kubernetes", Version: "V1R11", VarName: "k8sStig", OutFile: "kubernetes_checks_table.go"},
+	{Stem: "U_OpenShift_Container_Platform_4", Version: "V1R3", VarName: "openshiftStig", OutFile: "openshift_checks_table.go"},
+}
+
+// runGenAll downloads and generates check tables for all OS families, writing
+// each to genDir.  Versions are pinned in osFamilies — no CDN probe required.
+// This is the build-time step that populates the embedded check tables shipped
+// in the product binary.
 func runGenAll(genDir, cache string, verbose bool) {
 	ensureDir(genDir)
 	ensureDir(cache)
 
-	fmt.Printf("Generating embedded check tables for %d OS families → %s\n\n",
-		len(osFamilies), genDir)
-
-	// Probe CDN for the latest version of every family first (one pass).
-	fmt.Println("Probing DISA CDN for latest versions …")
-	available, err := stig.ListAvailableSTIGs()
-	if err != nil {
-		fatalf("list STIGs: %v", err)
-	}
-	// Build index: filter-stem → STIGPackage.
-	// Stem is the filename up to the first "_V" version marker, e.g.
-	// "U_RHEL_9_V1R3_STIG.zip" → "U_RHEL_9".
-	byFilter := make(map[string]stig.STIGPackage, len(available))
-	for _, p := range available {
-		idx := strings.Index(p.FileName, "_V")
-		if idx <= 0 {
-			// Unexpected filename format — skip to avoid panic.
-			continue
-		}
-		byFilter[p.FileName[:idx]] = p
-	}
+	fmt.Printf("Generating embedded check tables for %d OS families → %s\n", len(osFamilies), genDir)
+	fmt.Println()
 
 	ok, skipped, failed := 0, 0, 0
 	for _, fam := range osFamilies {
 		outPath := filepath.Join(genDir, fam.OutFile)
+		filename := fam.FileName()
 
-		// Find the matching package from the CDN probe.
-		pkg, found := byFilter[fam.Filter]
-		if !found {
-			// Try a prefix match
-			for stem, p := range byFilter {
-				if strings.HasPrefix(stem, fam.Filter) || strings.HasPrefix(fam.Filter, stem) {
-					pkg = p
-					found = true
-					break
-				}
-			}
-		}
-		if !found {
-			fmt.Printf("  SKIP  %-45s (not found on CDN)\n", fam.Filter)
-			skipped++
-			continue
+		pkg := stig.STIGPackage{
+			Title:       fam.Stem,
+			FileName:    filename,
+			DownloadURL: fam.DownloadURL(),
+			Version:     fam.Version,
 		}
 
-		fmt.Printf("  GEN   %-45s [%s] → %s\n", pkg.FileName, pkg.Version, fam.OutFile)
+		fmt.Printf("  %-50s [%s]\n", filename, fam.Version)
 
 		zipPath, err := stig.DownloadSTIG(pkg, cache)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "  ERROR download %s: %v\n", pkg.FileName, err)
+			fmt.Fprintf(os.Stderr, "  ERROR download %s: %v\n", filename, err)
 			failed++
 			continue
 		}
 		rules, err := stig.ParseXCCDFZip(zipPath)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "  ERROR parse %s: %v\n", pkg.FileName, err)
+			fmt.Fprintf(os.Stderr, "  ERROR parse %s: %v\n", filename, err)
+			failed++
+			continue
+		}
+		if len(rules) == 0 {
+			fmt.Fprintf(os.Stderr, "  ERROR %s: 0 rules parsed — ZIP may be malformed\n", filename)
 			failed++
 			continue
 		}
 		if verbose {
-			fmt.Printf("        parsed %d rules\n", len(rules))
+			fmt.Printf("         %d rules classified\n", len(rules))
 		}
-		if err := stig.GenerateCheckTableGo(rules, fam.Filter, "stig", fam.VarName, outPath); err != nil {
+		if err := stig.GenerateCheckTableGo(rules, fam.Stem, "stig", fam.VarName, outPath); err != nil {
 			fmt.Fprintf(os.Stderr, "  ERROR generate %s: %v\n", fam.OutFile, err)
 			failed++
 			continue
 		}
+		if !verbose {
+			fmt.Printf("         → %s (%d rules)\n", fam.OutFile, len(rules))
+		}
 		ok++
 	}
 
-	fmt.Printf("\nDone: %d generated, %d skipped (not on CDN), %d failed\n", ok, skipped, failed)
+	fmt.Printf("\nDone: %d generated, %d skipped, %d failed\n", ok, skipped, failed)
 	if ok > 0 {
-		fmt.Println("\nNext: go build ./cmd/asaf-desktop/... to embed updated tables.")
+		fmt.Printf("\nNext: go build ./cmd/asaf-desktop/... to embed updated tables.\n")
 	}
 }
 
