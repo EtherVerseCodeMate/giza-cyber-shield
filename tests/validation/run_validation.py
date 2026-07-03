@@ -36,10 +36,21 @@ C = {
 
 
 def fixtures(kind):
-    pats = []
+    # Layout-agnostic: supports nested (fixtures/fail/<cat>/*.go) and flat
+    # (fixtures/fail/*.go) fixture trees.
+    base = os.path.join(HERE, "fixtures", kind)
+    out = set()
     for ext in ("go", "ts", "js", "py"):
-        pats += glob.glob(os.path.join(HERE, "fixtures", kind, "*", f"*.{ext}"))
-    return sorted(pats)
+        out.update(glob.glob(os.path.join(base, "**", f"*.{ext}"), recursive=True))
+        out.update(glob.glob(os.path.join(base, f"*.{ext}")))
+    return sorted(out)
+
+
+def category_of(path):
+    parent = os.path.basename(os.path.dirname(path))
+    if parent in ("fail", "pass"):  # flat layout → derive from filename stem
+        return os.path.splitext(os.path.basename(path))[0]
+    return parent
 
 
 def main():
@@ -63,7 +74,7 @@ def main():
     for path in fail_fx:
         rel = os.path.relpath(path, HERE)
         cats = {c for (c, _r, _l, _m) in detector.scan(path)}
-        expected = CATEGORY_MAP.get(os.path.basename(os.path.dirname(path)))
+        expected = CATEGORY_MAP.get(category_of(path))
         if cats:
             tp += 1
             if expected and expected not in cats:
