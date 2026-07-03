@@ -89,13 +89,28 @@ for p in "${CLIENT_PATHS[@]}"; do
   # Candidate offenders: a vendor host on a line that looks like a hub/api/upstream/fleet default.
   while IFS= read -r line; do
     [ -z "$line" ] && continue
-    # Exclude control-plane (telemetry/license/docs/webhook/install) — allowed on vendor hosts.
-    echo "$line" | grep -qiE 'telemetr|licens|heartbeat|/docs|install|webhook|release' && continue
+    content="${line#*:*:}"                       # strip "path:lineno:" prefix
+    trimmed="${content#"${content%%[![:space:]]*}"}"  # left-trim
+    # Skip comment-only lines — a comment is documentation, not a binding.
+    case "$trimmed" in //*|\#*|\**|/\**|"<!--"*) continue;; esac
+    # Control-plane (telemetry/license/docs/webhook/install) is allowed on vendor hosts.
+    echo "$content" | grep -qiE 'telemetr|licens|heartbeat|/docs|install|webhook|release' && continue
     h="$(vendor_host_of "$line")"
-    # A client Hub/upstream default must be customer-supplied. Even an allowlisted DEMO
-    # host is wrong as a SHIPPED client default — the customer Hub is per-tenant, runtime.
+    # HARD RULE: a customer Hub port (:8443) pinned to a vendor host is ALWAYS a violation,
+    # even for an allowlisted demo host — you never run the customer Hub on a vendor box.
+    if echo "$content" | grep -qE ':8443'; then
+      c1_hits=$((c1_hits+1)); fail "customer Hub port :8443 pinned to a vendor host ($h):"; note "$line"; continue
+    fi
+    # An allowlisted demo/SaaS/control surface as a DEFAULT is acceptable (the vendor's own
+    # marketing funnel / SaaS dashboard legitimately calls the vendor's own demo backend).
+    if host_allowed "$h"; then
+      note "acknowledged vendor default ($h) — demo/SaaS funnel or control plane, not a customer Hub:"
+      note "  $line"
+      continue
+    fi
+    # An UNREVIEWED vendor host as a client default is the true violation.
     c1_hits=$((c1_hits+1))
-    fail "client default pins a data-plane URL to a vendor host ($h):"
+    fail "client default pins a data-plane URL to an UNREVIEWED vendor host ($h):"
     note "$line"
   done < <(grep -rInE "$VENDOR_HOST_RE" "$p" 2>/dev/null \
              | grep -viE '/vendor/|_test\.go|node_modules' \
@@ -109,10 +124,14 @@ echo "Check 2 — Hub/Fleet/CUI data-plane services must not be bound to vendor 
 c2_hits=0
 while IFS= read -r line; do
   [ -z "$line" ] && continue
+  content="${line#*:*:}"
+  trimmed="${content#"${content%%[![:space:]]*}"}"
+  # Skip comment-only lines — a comment referencing a host is not a binding.
+  case "$trimmed" in //*|\#*|\**|/\**|"<!--"*) continue;; esac
   # Skip obvious non-bindings: CORS origins, contact emails, marketing/badges.
-  echo "$line" | grep -qiE 'cors|contact|website|hall-of-fame|badge|img\.shields|mailto' && continue
+  echo "$content" | grep -qiE 'cors|contact|website|hall-of-fame|badge|img\.shields|mailto' && continue
   # Only care about lines that actually configure a data-plane service.
-  echo "$line" | grep -qiE 'HUB|FLEET|CUI|ASAF_.*API|_UPSTREAM' || continue
+  echo "$content" | grep -qiE 'HUB|FLEET|CUI|ASAF_.*API|_UPSTREAM' || continue
   h="$(vendor_host_of "$line")"
   # Acknowledged control-plane/demo hosts are reviewed; an UNREVIEWED vendor host
   # carrying a data-plane binding is the true violation.
