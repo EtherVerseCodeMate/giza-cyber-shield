@@ -11,11 +11,14 @@ package views
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/app/models"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/app/widgets"
@@ -77,9 +80,64 @@ func NewComplianceGraphTab(win fyne.Window, backend hub.Backend) *ComplianceGrap
 		t.runScan()
 	}
 
-	// Action button stubs — acknowledged, wired in Tab 3 (SSP) / Tab 5 (POA&M)
+	// [Stage Fix] — look up the finding by nodeID, show a confirmation dialog,
+	// then submit signed ChangeRequests to the Imhotep daemon for staging.
+	// §13: human-in-the-loop gate; production execution requires separate Approve call.
 	t.sidebar.OnStageFixPressed = func(nodeID string) {
-		// Stage Fix → Tab 6 (Remediation); surfaced here for discovery.
+		// Acquire read lock to safely read node fields.
+		t.model.RLock()
+		node := t.model.NodeByID(nodeID)
+		if node == nil {
+			t.model.RUnlock()
+			return
+		}
+		findingID := node.FindingID
+		fixArgv := node.FixArgv
+		label := node.Label
+		t.model.RUnlock()
+
+		if len(fixArgv) == 0 {
+			dialog.ShowInformation("Manual Remediation Required",
+				fmt.Sprintf("Finding %s (%s) has no automated fix.\n\n"+
+					"See the Remediation guidance in the sidebar or the DISA STIG benchmark.", findingID, label),
+				t.win)
+			return
+		}
+
+		// Build a human-readable command summary for the confirmation dialog.
+		cmdLines := make([]string, len(fixArgv))
+		for i, argv := range fixArgv {
+			cmdLines[i] = "  " + strings.Join(argv, " ")
+		}
+		confirmMsg := fmt.Sprintf(
+			"Stage fix for finding:\n  %s\n  %s\n\nCommands to stage (container sandbox — no production effect):\n%s\n\n"+
+				"CISO approval will be required before production execution.\n\nProceed?",
+			findingID, label, strings.Join(cmdLines, "\n"))
+
+		dialog.ShowConfirm("Stage Fix — Confirmation Required", confirmMsg, func(ok bool) {
+			if !ok {
+				return
+			}
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+				stagingIDs, err := t.backend.StageChange(ctx, findingID, fixArgv)
+				fyne.Do(func() {
+					if err != nil {
+						dialog.ShowError(fmt.Errorf("Stage fix failed for %s:\n%w", findingID, err), t.win)
+						return
+					}
+					var idList string
+					if len(stagingIDs) > 0 {
+						idList = "\n\nStaging ID(s):\n  " + strings.Join(stagingIDs, "\n  ")
+					}
+					dialog.ShowInformation("Fix Staged Successfully",
+						fmt.Sprintf("Fix for %s is queued in the staging container.%s\n\n"+
+							"Open the Remediation tab to review results and approve for production.", findingID, idList),
+						t.win)
+				})
+			}()
+		}, t.win)
 	}
 	t.sidebar.OnOpenPOAMPressed = func(nodeID string) {
 		// Open POA&M → Tab 5; surfaced here for discovery.
@@ -130,21 +188,24 @@ func (t *ComplianceGraphTab) runScan() {
 	t.statusBar.Update(t.model.SPRS(), t.model.ScanTime(), true)
 
 	go func() {
+		// executeScan is slow (network I/O, up to 5 min) — stays off UI thread.
 		report := t.executeScan()
-		t.ingestReport(report)
 
-		// Finalize under the model's write lock (sets ScanRunning=false,
-		// LastScanTime, LastScanHost atomically).
-		var scanTime time.Time
-		var hostname string
-		if report != nil {
-			scanTime = report.ScanDate
-			hostname = report.Hostname
-		}
-		t.model.FinalizeScan(scanTime, hostname)
-
-		// Marshal all post-scan UI updates to the Fyne main goroutine.
+		// All model mutations and renderer refreshes run on the Fyne UI thread so
+		// the graph canvas renderer (also UI thread) never races with writes.
+		// ingestReport + FinalizeScan + TriggerLayout are all microsecond-scale;
+		// blocking the UI thread briefly here is correct and safe.
 		fyne.Do(func() {
+			t.ingestReport(report)
+
+			var scanTime time.Time
+			var hostname string
+			if report != nil {
+				scanTime = report.ScanDate
+				hostname = report.Hostname
+			}
+			t.model.FinalizeScan(scanTime, hostname)
+
 			t.phasePanel.SetPhase(t.model.Phase(), false)
 			t.statusBar.Update(t.model.SPRS(), t.model.ScanTime(), false)
 			t.graphCanvas.TriggerLayout()
@@ -202,16 +263,18 @@ func (t *ComplianceGraphTab) ingestReport(report *stig.ComprehensiveReport) {
 			practiceID := models.PracticeIDFromRefs(refs)
 
 			t.model.AddFinding(models.FindingInput{
-				ID:          f.ID,
-				Title:       f.Title,
-				Description: f.Description,
-				SeverityRaw: string(f.Severity),
-				Status:      status,
-				DomainCode:  domainCode,
-				PracticeID:  practiceID,
-				Remediation: f.Remediation,
-				References:  refs,
-				CheckedAt:   f.CheckedAt,
+				ID:                 f.ID,
+				Title:              f.Title,
+				Description:        f.Description,
+				SeverityRaw:        string(f.Severity),
+				Status:             status,
+				DomainCode:         domainCode,
+				PracticeID:         practiceID,
+				SPRSPracticeWeight: models.PracticeWeightFromID(practiceID),
+				Remediation:        f.Remediation,
+				References:         refs,
+				CheckedAt:          f.CheckedAt,
+				FixArgv:            stig.GetFixArgv(f.ID),
 			})
 		}
 	}

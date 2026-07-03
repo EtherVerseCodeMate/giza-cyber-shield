@@ -1,4 +1,4 @@
-package stig
+﻿package stig
 
 import (
 	"fmt"
@@ -133,7 +133,7 @@ func (v *Validator) Validate() (*ComprehensiveReport, error) {
 //
 // Compared to Validate(), this skips:
 //   - collectSystemInfo() — avoids exec.Command("uname") WSL hang on Windows
-//   - buildCrossReferences() — skips loading the 36,195-row compliance database
+//   - buildCrossReferences() — skips loading the 25,185-row compliance database (deduplicated)
 //   - analyzePQCBlastRadius() — skips full project blast-radius scan
 //   - generatePOAM() / generateExecutiveSummary() — skips report assembly
 //
@@ -485,7 +485,7 @@ func (v *Validator) validateFramework(framework string) error {
 
 // buildCrossReferences maps controls across frameworks using the moat database
 func (v *Validator) buildCrossReferences() {
-	// Load the comprehensive 36,195-row compliance mapping database
+	// Load the comprehensive 25,185-row compliance mapping database (deduplicated)
 	db, err := GetDatabase()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to load compliance database: %v\n", err)

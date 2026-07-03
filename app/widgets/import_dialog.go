@@ -139,17 +139,20 @@ func ingestCKLResults(results []stig.CKLImportResult, m *models.ComplianceGraphM
 				failed++
 			}
 			refs := resolveRefs(f.ID, f.References, db)
+			pid := models.PracticeIDFromRefs(refs)
 			m.AddFinding(models.FindingInput{
-				ID:          f.ID,
-				Title:       f.Title,
-				Description: f.Description,
-				SeverityRaw: string(f.Severity),
-				Status:      status,
-				DomainCode:  models.DomainCodeFromRefs(refs),
-				PracticeID:  models.PracticeIDFromRefs(refs),
-				Remediation: f.Remediation,
-				References:  refs,
-				CheckedAt:   f.CheckedAt,
+				ID:                 f.ID,
+				Title:              f.Title,
+				Description:        f.Description,
+				SeverityRaw:        string(f.Severity),
+				Status:             status,
+				DomainCode:         models.DomainCodeFromRefs(refs),
+				PracticeID:         pid,
+				SPRSPracticeWeight: models.PracticeWeightFromID(pid),
+				FixArgv:            stig.GetFixArgv(f.ID),
+				Remediation:        f.Remediation,
+				References:         refs,
+				CheckedAt:          f.CheckedAt,
 			})
 		}
 	}
@@ -174,17 +177,20 @@ func ingestCKLBResults(results []stig.CKLBImportResult, m *models.ComplianceGrap
 				failed++
 			}
 			refs := resolveRefs(f.ID, f.References, db)
+			pid := models.PracticeIDFromRefs(refs)
 			m.AddFinding(models.FindingInput{
-				ID:          f.ID,
-				Title:       f.Title,
-				Description: f.Description,
-				SeverityRaw: string(f.Severity),
-				Status:      status,
-				DomainCode:  models.DomainCodeFromRefs(refs),
-				PracticeID:  models.PracticeIDFromRefs(refs),
-				Remediation: f.Remediation,
-				References:  refs,
-				CheckedAt:   f.CheckedAt,
+				ID:                 f.ID,
+				Title:              f.Title,
+				Description:        f.Description,
+				SeverityRaw:        string(f.Severity),
+				Status:             status,
+				DomainCode:         models.DomainCodeFromRefs(refs),
+				PracticeID:         pid,
+				SPRSPracticeWeight: models.PracticeWeightFromID(pid),
+				FixArgv:            stig.GetFixArgv(f.ID),
+				Remediation:        f.Remediation,
+				References:         refs,
+				CheckedAt:          f.CheckedAt,
 			})
 		}
 	}
@@ -206,17 +212,20 @@ func ingestOSCALResults(results []stig.OSCALImportResult, m *models.ComplianceGr
 				failed++
 			}
 			refs := resolveRefs(f.ID, f.References, db)
+			pid := models.PracticeIDFromRefs(refs)
 			m.AddFinding(models.FindingInput{
-				ID:          f.ID,
-				Title:       f.Title,
-				Description: f.Description,
-				SeverityRaw: string(f.Severity),
-				Status:      status,
-				DomainCode:  models.DomainCodeFromRefs(refs),
-				PracticeID:  models.PracticeIDFromRefs(refs),
-				Remediation: f.Remediation,
-				References:  refs,
-				CheckedAt:   f.CheckedAt,
+				ID:                 f.ID,
+				Title:              f.Title,
+				Description:        f.Description,
+				SeverityRaw:        string(f.Severity),
+				Status:             status,
+				DomainCode:         models.DomainCodeFromRefs(refs),
+				PracticeID:         pid,
+				SPRSPracticeWeight: models.PracticeWeightFromID(pid),
+				FixArgv:            stig.GetFixArgv(f.ID),
+				Remediation:        f.Remediation,
+				References:         refs,
+				CheckedAt:          f.CheckedAt,
 			})
 		}
 	}

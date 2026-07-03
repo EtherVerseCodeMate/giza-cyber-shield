@@ -50,6 +50,14 @@ type Backend interface {
 	// In connected: GET /api/v1/imhotep/pending
 	GetPendingApprovals(ctx context.Context) ([]PendingChange, error)
 
+	// StageChange submits one ChangeRequest per command to the Imhotep daemon for
+	// staging (runs each command in an isolated container; no production effect).
+	// Returns a StagingID for each submitted command, in the same order as commands.
+	// CALLERS MUST SHOW A CONFIRMATION DIALOG before invoking this method.
+	// In standalone: signs and sends each ChangeRequest over the local Unix socket.
+	// In connected: POST /api/v1/imhotep/stage
+	StageChange(ctx context.Context, controlID string, commands [][]string) ([]string, error)
+
 	// Approve approves a staged ChangeRequest for production execution.
 	// CALLERS MUST SHOW A CONFIRMATION DIALOG before invoking this method.
 	// This is the human-in-the-loop gate per §13 of the desktop agent spec.

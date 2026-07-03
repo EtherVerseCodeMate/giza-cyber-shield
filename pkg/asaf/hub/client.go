@@ -160,6 +160,24 @@ func (c *HubClient) GetPendingApprovals(ctx context.Context) ([]PendingChange, e
 	return resp.Pending, nil
 }
 
+// StageChange implements Backend — POST /api/v1/imhotep/stage.
+// Sends all commands in a single request; the Hub daemon signs and stages each one.
+// Returns the StagingID slice (one ID per command).
+// Callers MUST show a confirmation dialog before calling this.
+func (c *HubClient) StageChange(ctx context.Context, controlID string, commands [][]string) ([]string, error) {
+	body := map[string]any{
+		"control_id": controlID,
+		"commands":   commands,
+	}
+	var resp struct {
+		StagingIDs []string `json:"staging_ids"`
+	}
+	if err := c.post(ctx, "/api/v1/imhotep/stage", body, &resp); err != nil {
+		return nil, fmt.Errorf("hub stage change for %s: %w", controlID, err)
+	}
+	return resp.StagingIDs, nil
+}
+
 // Approve implements Backend — POST /api/v1/imhotep/approve/{id}.
 // Callers MUST show a confirmation dialog before calling this.
 func (c *HubClient) Approve(ctx context.Context, id string) error {

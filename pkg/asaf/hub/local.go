@@ -10,6 +10,7 @@ import (
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/client"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/connector"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/daemon"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
 )
@@ -198,6 +199,37 @@ func (b *LocalBackend) GetPendingApprovals(_ context.Context) ([]PendingChange, 
 	// The daemon's staging queue is not directly enumerable via the client API;
 	// pending jobs are surfaced through the Stage Fix workflow.  Return empty.
 	return nil, nil
+}
+
+// StageChange implements Backend — submits one signed ChangeRequest per command
+// to the local Imhotep daemon with Staging=true. Each command runs in an isolated
+// container so no production state is affected until a CISO calls Approve.
+// Returns the StagingID slice (one ID per command), or an error on first failure.
+func (b *LocalBackend) StageChange(ctx context.Context, controlID string, commands [][]string) ([]string, error) {
+	if b.daemonClient == nil {
+		return nil, fmt.Errorf("hub: Imhotep daemon not configured — is asaf-daemon running?")
+	}
+	stagingIDs := make([]string, 0, len(commands))
+	for _, argv := range commands {
+		if len(argv) == 0 {
+			continue
+		}
+		symbol := daemon.RequiredSymbol(argv)
+		if symbol == "" {
+			return stagingIDs, fmt.Errorf("hub: command %q is not in the authorized daemon catalog", argv[0])
+		}
+		result, err := b.daemonClient.Submit(ctx, controlID, symbol, argv, "", true, false)
+		if err != nil {
+			return stagingIDs, fmt.Errorf("hub: stage command %v for %s: %w", argv, controlID, err)
+		}
+		if result.Error != "" {
+			return stagingIDs, fmt.Errorf("hub: daemon rejected command %v: %s", argv, result.Error)
+		}
+		if result.StagingID != "" {
+			stagingIDs = append(stagingIDs, result.StagingID)
+		}
+	}
+	return stagingIDs, nil
 }
 
 // Approve implements Backend — approves a staged job on the local daemon.

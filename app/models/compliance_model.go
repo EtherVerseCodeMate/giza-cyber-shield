@@ -333,6 +333,12 @@ type FindingInput struct {
 	// this from db.GetCrossReferences (CCI → CMMC practice → Appendix A weight).
 	// Zero means "not resolved from DB"; fall back to severity-based heuristic.
 	SPRSPracticeWeight int
+
+	// FixArgv is the remediation command matrix from the STIG check table.
+	// Each inner slice is one argv-safe command (no shell; no metacharacters).
+	// nil means no automated fix is available — manual remediation only.
+	// Populated from stig.GetFixArgv(ID) by ingestReport and CKL/CKLB importers.
+	FixArgv [][]string
 }
 
 // resolveWeight returns the SPRS deduction for a finding.
@@ -387,6 +393,7 @@ func (m *ComplianceGraphModel) AddFinding(f FindingInput) {
 		Remediation: f.Remediation,
 		References:  f.References,
 		CheckedAt:   f.CheckedAt,
+		FixArgv:     f.FixArgv,
 		Radius:      nodeRadiusForWeight(sprs),
 		State: HypercubeState{
 			Severity:  sprs >= 5,
@@ -907,4 +914,46 @@ func PracticeIDFromRefs(refs []string) string {
 		}
 	}
 	return ""
+}
+
+// PracticeWeightFromID returns the CMMC Appendix A SPRS point value for a practice.
+//
+// Source: NIST SP 800-171 DoD Assessment Methodology, Appendix A.
+// Weights: 1 for Level 1 practices, 5 for high-value Level 2 practices, 3 otherwise.
+// The 110-practice total deduction universe sums to 110.
+//
+// Level 1 (L1) — 17 practices, 1 pt each.
+// Level 2 (L2) — 110 total. The 14 listed below are 5 pts; remaining L2 are 3 pts.
+// Returns 0 when practiceID is empty (caller falls back to severity heuristic).
+func PracticeWeightFromID(practiceID string) int {
+	if practiceID == "" {
+		return 0
+	}
+	// Level 1 practices are worth 1 point each.
+	if strings.Contains(practiceID, ".L1-") {
+		return 1
+	}
+	// High-value Level 2 practices (5 points) per CMMC Appendix A.
+	switch practiceID {
+	case
+		// Access Control — CUI flow enforcement
+		"AC.L2-3.1.3",
+		// Audit & Accountability — protected audit logs
+		"AU.L2-3.3.1", "AU.L2-3.3.2",
+		// Identification & Authentication — MFA
+		"IA.L2-3.5.3", "IA.L2-3.5.4",
+		// Incident Response
+		"IR.L2-3.6.1", "IR.L2-3.6.2",
+		// Risk Assessment — threat modeling
+		"RA.L2-3.11.1", "RA.L2-3.11.2",
+		// System & Communications — FIPS / key management
+		"SC.L2-3.13.8", "SC.L2-3.13.10", "SC.L2-3.13.11",
+		// System & Information Integrity — flaw remediation
+		"SI.L2-3.14.1",
+		// Configuration Management — security baseline
+		"CM.L2-3.4.1":
+		return 5
+	}
+	// All other Level 2 practices: 3 points.
+	return 3
 }

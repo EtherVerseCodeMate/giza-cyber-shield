@@ -15,7 +15,7 @@ func main() {
 	fmt.Println()
 
 	// Test 1: Database Loading
-	fmt.Println("Test 1: Loading 36,195-row compliance database...")
+	fmt.Println("Test 1: Loading 25,185-row compliance database (deduplicated)...")
 	db, err := stig.GetDatabase()
 	if err != nil {
 		fmt.Printf("❌ FAILED: %v\n", err)
