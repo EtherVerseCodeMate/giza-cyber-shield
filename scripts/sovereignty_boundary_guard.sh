@@ -38,6 +38,8 @@ ALLOWLIST="scripts/sovereignty_allowlist.txt"
 VENDOR_HOST_RE='(souhimbou\.(ai|org)|khepra\.io|adinkhepra\.com|nouchix\.com|secredknowledgeinc\.tech)'
 
 # Client entrypoints/packages that get SHIPPED to (or run by) the customer.
+# Covers both the Go clients (giza / PQC-Khepra-MCP) and the Next.js deployment
+# repo (Adinkhepra-ASAF) — the guard runs identically in all three.
 CLIENT_PATHS=(
   "cmd/asaf-desktop"
   "cmd/khepra-reporter"
@@ -45,6 +47,7 @@ CLIENT_PATHS=(
   "pkg/asaf/client"
   "pkg/asaf/connector"
   "app"
+  "src"
 )
 
 FAIL=0
