@@ -40,6 +40,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          lfs: true   # materialize embedded compliance CSVs (A-TD-01)
 
       - name: Setup Go ${{ env.GO_VERSION }}
         uses: actions/setup-go@v5
@@ -102,6 +103,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          lfs: true   # materialize embedded compliance CSVs (A-TD-01)
 
       - name: Setup Go ${{ env.GO_VERSION }}
         uses: actions/setup-go@v5
@@ -264,6 +267,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          lfs: true   # materialize embedded compliance CSVs (A-TD-01)
 
       - name: Setup Go ${{ env.GO_VERSION }}
         uses: actions/setup-go@v5
