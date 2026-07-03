@@ -1,7 +1,62 @@
 # MEMORY.md — KHEPRA / NouchiX Strategic Operating Memory
 
-> **PERMANENT REFERENCE** — Last updated: 2026-06-29
+> **PERMANENT REFERENCE** — Last updated: 2026-07-02
 > This file is the strategic compass. CLAUDE.md holds technical norms. Together they are the full context.
+
+---
+
+## 🛰️ Sovereignty Boundary Policy (TRL10 control)
+
+> **INVIOLABLE.** This is the rule that makes "sovereign, network-native, zero vendor cloud"
+> true rather than a slogan. It is the difference between passing and failing the CMMC/DFARS
+> audit the product sells. Enforced by `scripts/sovereignty_boundary_guard.sh` +
+> `.github/workflows/sovereignty-boundary.yml` — run it in BOTH giza-cyber-shield and
+> PQC-Khepra-MCP. Reviewed exceptions live in `scripts/sovereignty_allowlist.txt`.
+
+### The one rule
+
+**A customer's CUI data plane never lands on a NouchiX-operated host.** The customer Hub
+(`:8443`), Fleet API, customer DAG/audit trail, scan findings, and the credential vault run
+on the CUSTOMER's infrastructure (their metal or their managed GovCloud) — per tenant, always.
+`asaf.company.com:8443` in the architecture docs is a **placeholder for the customer's own
+Hub**, NOT a URL we host. It must never be `mcp.souhimbou.ai`, `gateway.souhimbou.ai`, or any
+vendor subdomain. (Answered definitively 2026-07-02; see `TRL10_SOVEREIGNTY_BOUNDARY_2026-07-02.md`.)
+
+### Control plane vs data plane
+
+| Plane | May run on a vendor host? | Examples |
+|---|---|---|
+| **Control plane** | ✅ yes (allowlisted) | license validation/heartbeat (`telemetry.souhimbou.ai`), installer + checksums + docs (`get.nouchix.com`), Stripe webhook, release mirror |
+| **Demo / discovery** | ✅ yes, SYNTHETIC only (allowlisted, must be marked "no CUI") | public MCP tool endpoint (`mcp.souhimbou.ai`), public eval scan (`gateway.souhimbou.ai`) |
+| **Customer data plane** | ❌ **NEVER** | Hub `:8443`, Fleet API, customer DAG, scan findings, credential vault |
+
+### Why (the three reasons, in severity order)
+
+1. **DFARS/CMMC self-own** — CUI on a commercial VPS (not FedRAMP/GovCloud) is itself a
+   252.204-7012 violation. The tool would fail the audit it sells. Multi-tenanting several
+   DIB contractors' failure data on one box compounds it.
+2. **Kills the sovereignty value prop** that justifies $25K–250K/yr — a shared vendor Hub is
+   the Vanta/Drata SaaS model PART 0 of the Stargate architecture explicitly says NO to.
+3. **Conflates product boundaries** — the unified binary has TWO ports (`:8443` Hub / customer
+   data, `:8444` MCP / agent channel). Even MCP, when acting on a customer's assets, runs on
+   the customer's infra. Do not merge the SOC-SaaS (SouHimBou AI), the agent channel (PQC-MCP),
+   and the sovereign Hub under one vendor URL.
+
+### Verified state (2026-07-02)
+
+- ✅ **Client boundary intact**: `cmd/asaf-desktop` and `cmd/khepra-reporter` do NOT default
+  their Hub/upstream to any vendor host (only `telemetry.souhimbou.ai` for licensing — control
+  plane). Guard Check 1 passes.
+- ⚠️ **Demo scan surfaces need hardening**: `gateway.souhimbou.ai` exposes
+  `POST /api/v1/scan/agent` with `ASAF_ALLOW_EVAL_WITHOUT_LICENSE=true`, accepts an arbitrary
+  `Target` + `APIKey`, and shares a Supabase service-role key + a persistent DAG volume with
+  the demo MCP. Acceptable ONLY as SYNTHETIC demo with: input guard (no real CUI targets/creds),
+  a visible "DEMO — do not submit CUI" banner, and demo-DAG isolation. Tracked as TRL10 blockers.
+
+### When you touch anything that binds a URL
+
+Ask: is this the control plane, a demo surface, or the customer data plane? If data plane and
+the host is ours → STOP, it's a boundary violation. Run the guard before you push.
 
 ---
 
