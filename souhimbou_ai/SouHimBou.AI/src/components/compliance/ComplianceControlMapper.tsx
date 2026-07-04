@@ -58,7 +58,8 @@ interface AIAnalysisSummary {
   recommendations: string[];
 }
 
-export const ComplianceControlMapper: React.FC = () => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const ComplianceControlMapper: React.FC<{ organizationId?: string }> = ({ organizationId: _orgId }) => {
   const [controlMappings, setControlMappings] = useState<ControlMapping[]>([]);
   const [frameworkCoverage, setFrameworkCoverage] = useState<FrameworkCoverage[]>([]);
   const [selectedFrameworks, setSelectedFrameworks] = useState<string[]>(['NIST 800-171', 'CMMC 2.0']);

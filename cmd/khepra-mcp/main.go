@@ -1,4 +1,4 @@
-// Khepra MCP Server — Hardened Entry Point (AD-006 / AD-008)
+﻿// Khepra MCP Server — Hardened Entry Point (AD-006 / AD-008)
 //
 // This binary implements the world's first PQC-secured MCP server.
 // It runs as a subprocess launched by AI tools (Claude, Cursor, Windsurf)
@@ -365,7 +365,7 @@ func registerToolHandlers(executor *khepramcp.Executor) {
 	executor.RegisterFunc("khepra_export_attestation", tools.HandleKhepraExportAttestation)
 	// P0: POA&M — DFARS 252.204-7012 mandatory
 	executor.RegisterFunc("khepra_export_poam", tools.HandleKhepraExportPOAM)
-	// P1: STIG/CCI/NIST control lookup via embedded 36,195-row database
+	// P1: STIG/CCI/NIST control lookup via embedded 25,185-row (deduplicated) database
 	executor.RegisterFunc("khepra_query_stig", tools.HandleKhepraQuerySTIG)
 	// P1: Fast compliance score without full scan
 	executor.RegisterFunc("khepra_get_compliance_score", tools.HandleKhepraGetComplianceScore)
@@ -652,10 +652,10 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 
 		// ── CMMC Assessment ───────────────────────────────────────────────────
 		// Architecture Doc Layer 4 tool. Full CMMC 3.0 Level 1/2/3 assessment
-		// via the pkg/stig compliance database (36,195 control mappings).
+		// via the pkg/stig compliance database (25,185 control mappings, deduplicated).
 		{
 			Name: "cmmc_assess",
-			Description: "Assess a system or artifact against CMMC Level 1, 2, or 3 practices. Uses the KHEPRA compliance database (36,195 STIG→CCI→NIST→CMMC mappings). Returns satisfaction score, gap list, C3PAO readiness flag, and PQC status. Required before CMMC-AB assessment.",
+			Description: "Assess a system or artifact against CMMC Level 1, 2, or 3 practices. Uses the KHEPRA compliance database (25,185 STIG→CCI→NIST→CMMC mappings). Returns satisfaction score, gap list, C3PAO readiness flag, and PQC status. Required before CMMC-AB assessment.",
 			RiskClass:      khepramcp.RiskReadOnly, Scope: "compliance:read",
 			SchemaVersion:  "1.0.0", SchemaHash: hash("cmmc_assess"),
 			AllowedBackend: "in-process", TimeoutMs: 60000,
@@ -731,7 +731,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 
 		// ── NIST Map (offline BM25 semantic search) ──────────────────────────
 		// Zero token cost, zero network calls, air-gap safe.
-		// 36,195 NIST/CMMC/STIG control mappings indexed at startup.
+		// 25,185 NIST/CMMC/STIG control mappings indexed at startup.
 		{
 			Name: "nist_map",
 			Description: "Offline semantic search across NIST 800-53 Rev5, NIST 800-171 Rev2, CMMC 2.0, and STIG CCI mappings. BM25 ranked results. Zero token cost, air-gap safe.",
@@ -806,7 +806,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 		// P1 — STIG control lookup by ID or free-text search
 		{
 			Name:        "khepra_query_stig",
-			Description: "Look up STIG controls, CCI items, or NIST 800-53 controls by ID or keyword. Backed by the embedded 36,195-row STIG↔CCI↔NIST↔CMMC cross-reference database. Returns cross-references, severity, and remediation context. 100% offline.",
+			Description: "Look up STIG controls, CCI items, or NIST 800-53 controls by ID or keyword. Backed by the embedded 25,185-row (deduplicated) STIG↔CCI↔NIST↔CMMC cross-reference database. Returns cross-references, severity, and remediation context. 100% offline.",
 			RiskClass: khepramcp.RiskReadOnly, Scope: "stig:read",
 			SchemaVersion: "1.0.0", SchemaHash: hash("khepra_query_stig"),
 			AllowedBackend: "in-process", TimeoutMs: 10000,

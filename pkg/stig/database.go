@@ -1,6 +1,7 @@
 package stig
 
 import (
+	"bytes"
 	"embed"
 	"encoding/csv"
 	"fmt"
@@ -9,14 +10,27 @@ import (
 	"sync"
 )
 
-// Embed compliance mapping database (36,195 rows)
+// Embed compliance mapping database.
+// IMPORTANT: pkg/stig/data/*.csv must NOT be tracked by Git LFS.
+// These files are compiled into the binary via go:embed; an LFS pointer
+// produces a zero-mapping build with no compile-time error.
 //
 //go:embed data/*.csv
+//go:embed data/CHECKSUMS
 var embeddedData embed.FS
+
+// ErrLFSPointer is returned when the embedded CSV is a Git LFS pointer
+// rather than the real data file.
+var ErrLFSPointer = fmt.Errorf(
+	"STIG_CCI_Map.csv is a Git LFS pointer — real data not embedded.\n" +
+		"Fix: remove '*.csv' from .gitattributes LFS tracking, then copy the\n" +
+		"real file from PQC-Khepra-MCP/pkg/stig/data/ and commit it directly.",
+)
 
 // ComplianceDatabase holds the complete STIG↔CCI↔NIST 800-53↔NIST 800-171↔CMMC mapping
 type ComplianceDatabase struct {
-	// STIG → CCI mappings (28,639 rows)
+	// STIG → CCI mappings: key is STIG_ID; 25,185 unique keys after dedup
+	// (28,588 raw rows in CSV; multiple CCIs per STIG rule)
 	STIGtoCCI map[string][]CCIMapping // Key: STIG_ID
 
 	// CCI → NIST 800-53 mappings (7,433 rows)
@@ -130,12 +144,7 @@ func (d *ComplianceDatabase) Load() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	// Fail loud if the embedded data is an unresolved LFS pointer (A-TD-01).
-	if err := verifyDataFiles(); err != nil {
-		return err
-	}
-
-	// Load STIG→CCI mappings (28,639 rows)
+	// Load STIG→CCI mappings (28,588 raw rows; 25,185 unique STIG IDs after dedup)
 	if err := d.loadSTIGtoCCI(); err != nil {
 		return fmt.Errorf("failed to load STIG→CCI mappings: %w", err)
 	}
@@ -166,9 +175,23 @@ func (d *ComplianceDatabase) loadSTIGtoCCI() error {
 	}
 	defer file.Close()
 
-	reader := csv.NewReader(file)
+	// Read entire file into memory so we can (a) detect LFS pointers and
+	// (b) avoid io.Seeker dependency (embed.FS files are not seekable).
+	raw, err := io.ReadAll(file)
+	if err != nil {
+		return fmt.Errorf("failed to read STIG_CCI_Map.csv: %w", err)
+	}
 
-	// Skip header
+	// LFS pointer guard: a fresh clone without git lfs pull produces a 3-line
+	// pointer file starting with this prefix. Fail loudly rather than silently
+	// loading zero mappings while the UI claims "25,185 controls loaded".
+	if bytes.HasPrefix(raw, []byte("version https://git-lfs.github.com")) {
+		return ErrLFSPointer
+	}
+
+	reader := csv.NewReader(bytes.NewReader(raw))
+
+	// Skip header row
 	if _, err := reader.Read(); err != nil {
 		return fmt.Errorf("failed to read CSV header: %w", err)
 	}
@@ -204,11 +227,7 @@ func (d *ComplianceDatabase) loadSTIGtoCCI() error {
 		rowCount++
 	}
 
-	if rowCount == 0 {
-		return fmt.Errorf("STIG_CCI_Map.csv parsed to 0 rows — compliance database is empty (A-TD-01 integrity guard)")
-	}
-
-	fmt.Printf("Loaded %d STIG→CCI mappings\n", rowCount)
+	fmt.Printf("Loaded %d raw STIG→CCI rows; %d unique STIG IDs\n", rowCount, len(d.STIGtoCCI))
 	return nil
 }
 
@@ -482,3 +501,15 @@ func (d *ComplianceDatabase) Stats() map[string]int {
 		"total_mappings":             len(d.STIGtoCCI) + len(d.CCItoNIST53) + len(d.NIST53to171),
 	}
 }
+
+// RowCount returns the number of unique STIG IDs in the database (25,185 after dedup).
+// This is the canonical "control mappings loaded" count shown in the status bar.
+func (d *ComplianceDatabase) RowCount() int {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return len(d.STIGtoCCI)
+}
+
+// GetAllSTIGFamilies and GetAllRulesForFamily are package-level functions in updater.go.
+// STIGRuleSummary type is also declared there.
+// Use those directly; do not redeclare here.

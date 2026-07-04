@@ -52,8 +52,9 @@ type PhasePanel struct {
 	currentPhase int // 1–8, or 0 for pre-scope
 	scanRunning  bool
 
-	OnPhaseSelect func(phase int)
-	OnScanNow     func()
+	OnPhaseSelect     func(phase int)
+	OnScanNow         func()
+	OnImportChecklist func()
 }
 
 // NewPhasePanel constructs the panel. currentPhase is the §0.6 phase the model
@@ -68,7 +69,10 @@ func NewPhasePanel(currentPhase int) *PhasePanel {
 }
 
 func (p *PhasePanel) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(p.scroll)
+	// Semi-opaque card background so the panel contrasts against the graph canvas.
+	bg := canvas.NewRectangle(asaftheme.PanelBG)
+	bg.CornerRadius = 6
+	return widget.NewSimpleRenderer(container.NewStack(bg, p.scroll))
 }
 
 func (p *PhasePanel) MinSize() fyne.Size {
@@ -101,6 +105,7 @@ func (p *PhasePanel) rebuild() {
 
 	objs = append(objs, widget.NewSeparator())
 	objs = append(objs, p.buildScanButton())
+	objs = append(objs, p.buildImportButton())
 
 	p.inner.Objects = objs
 	p.inner.Refresh()
@@ -162,6 +167,19 @@ func (p *PhasePanel) buildPhaseRow(ph phaseDef) fyne.CanvasObject {
 	return container.NewPadded(row)
 }
 
+// buildImportButton returns the [Import Checklist] button.
+// Always enabled — import is available at any phase so assessors can load .ckl/.cklb/.json
+// files without first running a live scan.
+func (p *PhasePanel) buildImportButton() fyne.CanvasObject {
+	btn := widget.NewButton("Import Checklist", func() {
+		if p.OnImportChecklist != nil {
+			p.OnImportChecklist()
+		}
+	})
+	btn.Importance = widget.MediumImportance
+	return container.NewPadded(btn)
+}
+
 // buildScanButton returns the [Scan Now] button for Phase 4 (BASELINE).
 // Shows "Scanning…" with low importance when scanRunning is true.
 func (p *PhasePanel) buildScanButton() fyne.CanvasObject {
@@ -201,6 +219,7 @@ func phaseLabelColor(active, completed, locked bool) color.Color {
 	case completed:
 		return asaftheme.TextMuted
 	default:
-		return asaftheme.NXNavyBorder
+		// Locked phases: muted but readable against the card background.
+		return color.NRGBA{R: 0x44, G: 0x5f, B: 0x7a, A: 0xff}
 	}
 }

@@ -283,14 +283,32 @@ func (d *ASAFDaemon) Execute(req *ChangeRequest) *ChangeResult {
 	// ── 6. EXECUTE PRIVILEGED COMMAND ────────────────────────────────────────
 	result := executePrivileged(req.Command, d.logger)
 
-	// ── 7. DAG ATTESTATION ────────────────────────────────────────────────────
+	// ── 7. DAG ATTESTATION (FAIL-CLOSED) ─────────────────────────────────────
 	// Record the execution as a ML-DSA-65 signed DAG node.
 	// This is the tamper-evident proof that the command ran.
+	//
+	// SECURITY INVARIANT (B-DG-01): DAG attestation failure is fail-closed.
+	// If the signed audit node cannot be written, the caller MUST NOT treat
+	// the finding as closed — the compliance audit chain has a gap.
+	// The command already executed on the host; we report the gap explicitly
+	// so a CISO can investigate and re-attest rather than silently losing the
+	// audit trail. Acceptable risk: a second approval attempt re-runs the
+	// idempotent fix and produces a fresh DAG node. Unacceptable risk:
+	// a fix is "closed" in the UI with no cryptographic proof it happened.
 	nodeID, dagErr := d.attestExecution(req, result)
 	if dagErr != nil {
-		// DAG failure is logged but not fatal — execution already succeeded.
-		// The operator MUST investigate DAG write failures (possible disk issue).
-		d.logger.Printf("[WARN] DAG attestation failed for control %s: %v", req.ControlID, dagErr)
+		d.logger.Printf("[CRITICAL] DAG attestation failed for control %s command %v: %v — reporting to caller (fail-closed)",
+			req.ControlID, req.Command, dagErr)
+		return &ChangeResult{
+			Success:  false,
+			ExitCode: result.ExitCode,
+			Stdout:   result.Stdout,
+			Stderr:   result.Stderr,
+			Error: fmt.Sprintf(
+				"AUDIT CHAIN GAP: command executed (exit %d) but DAG attestation failed: %v. "+
+					"Re-run after resolving DAG store issue to produce a signed audit node.",
+				result.ExitCode, dagErr),
+		}
 	}
 
 	result.DAGNodeID = nodeID

@@ -382,3 +382,207 @@ func (s *SystemChecker) CheckListeningPorts() ([]string, error) {
 
 	return ports, nil
 }
+
+// ── Windows-specific primitives ───────────────────────────────────────────────
+
+// CheckRegistryValue reads a Windows registry value using reg.exe (native) or
+// PowerShell as fallback.  hive is the registry hive abbreviation (HKLM, HKCU,
+// HKEY_LOCAL_MACHINE, etc.), keyPath is the subkey path, valueName is the
+// value name to query.  Returns the string representation of the value.
+//
+// Only meaningful on Windows (runtime.GOOS == "windows"); returns an error on
+// other platforms.
+func (s *SystemChecker) CheckRegistryValue(hive, keyPath, valueName string) (string, error) {
+	if runtime.GOOS != "windows" {
+		return "", fmt.Errorf("registry checks require Windows (current OS: %s)", runtime.GOOS)
+	}
+
+	// Normalise hive abbreviations to full names for reg.exe
+	hiveMap := map[string]string{
+		"HKLM": "HKEY_LOCAL_MACHINE",
+		"HKCU": "HKEY_CURRENT_USER",
+		"HKCR": "HKEY_CLASSES_ROOT",
+		"HKU":  "HKEY_USERS",
+		"HKCC": "HKEY_CURRENT_CONFIG",
+	}
+	if full, ok := hiveMap[strings.ToUpper(hive)]; ok {
+		hive = full
+	}
+
+	fullKey := hive + `\` + keyPath
+
+	cmd := exec.Command("reg", "query", fullKey, "/v", valueName)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("reg query %s /v %s: %w", fullKey, valueName, err)
+	}
+
+	// Parse reg.exe output:
+	//   HKEY_LOCAL_MACHINE\...\key
+	//       ValueName    REG_DWORD    0x1
+	for _, line := range strings.Split(string(out), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(strings.ToLower(line), strings.ToLower(valueName)) {
+			fields := strings.Fields(line)
+			if len(fields) >= 3 {
+				return fields[len(fields)-1], nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("value %s not found in %s", valueName, fullKey)
+}
+
+// CheckAuditPolicy queries Windows audit policy for a specific subcategory via
+// auditpol.exe and returns the configured setting ("Success and Failure",
+// "Success", "Failure", "No Auditing").
+func (s *SystemChecker) CheckAuditPolicy(subcategory string) (string, error) {
+	if runtime.GOOS != "windows" {
+		return "", fmt.Errorf("audit policy checks require Windows (current OS: %s)", runtime.GOOS)
+	}
+
+	cmd := exec.Command("auditpol", "/get", "/subcategory:"+subcategory)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("auditpol /get /subcategory:%s: %w", subcategory, err)
+	}
+
+	// auditpol output format:
+	//   System audit policy
+	//   Category/Subcategory                      Setting
+	//     Logon/Logoff                            -
+	//       Logon                                  Success and Failure
+	for _, line := range strings.Split(string(out), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "System audit") || strings.HasPrefix(trimmed, "Category") {
+			continue
+		}
+		// The setting is at the end after the subcategory name.
+		// Example: "  Logon                                  Success and Failure"
+		idx := strings.LastIndexAny(trimmed, "  ")
+		if idx > 0 {
+			possible := strings.TrimSpace(trimmed[idx:])
+			if possible == "Success and Failure" || possible == "Success" ||
+				possible == "Failure" || possible == "No Auditing" {
+				return possible, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("could not parse auditpol output for subcategory: %s", subcategory)
+}
+
+// CheckWindowsFeature checks whether a Windows optional feature is enabled.
+// Returns true if the feature is present and enabled.
+func (s *SystemChecker) CheckWindowsFeature(featureName string) (bool, error) {
+	if runtime.GOOS != "windows" {
+		return false, fmt.Errorf("Windows feature checks require Windows (current OS: %s)", runtime.GOOS)
+	}
+
+	script := fmt.Sprintf(
+		"(Get-WindowsOptionalFeature -Online -FeatureName '%s').State",
+		featureName,
+	)
+	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script)
+	out, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("Get-WindowsOptionalFeature %s: %w", featureName, err)
+	}
+
+	return strings.TrimSpace(string(out)) == "Enabled", nil
+}
+
+// CheckBitLocker returns the BitLocker protection status string for the given
+// drive letter (e.g. "C:").  Typical return values: "Protection On",
+// "Protection Off", "Protection Unknown".
+func (s *SystemChecker) CheckBitLocker(drive string) (string, error) {
+	if runtime.GOOS != "windows" {
+		return "", fmt.Errorf("BitLocker checks require Windows (current OS: %s)", runtime.GOOS)
+	}
+
+	cmd := exec.Command("manage-bde", "-status", drive)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("manage-bde -status %s: %w", drive, err)
+	}
+
+	for _, line := range strings.Split(string(out), "\n") {
+		if strings.Contains(line, "Protection Status:") {
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) == 2 {
+				return strings.TrimSpace(parts[1]), nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("BitLocker status not found for drive %s", drive)
+}
+
+// CheckWindowsDefender returns the Windows Defender real-time protection state
+// via PowerShell Get-MpPreference.
+func (s *SystemChecker) CheckWindowsDefender() (bool, error) {
+	if runtime.GOOS != "windows" {
+		return false, fmt.Errorf("Windows Defender check requires Windows (current OS: %s)", runtime.GOOS)
+	}
+
+	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive",
+		"-Command", "(Get-MpPreference).DisableRealtimeMonitoring")
+	out, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("Get-MpPreference: %w", err)
+	}
+
+	// "False" means Defender IS enabled (NOT disabled)
+	val := strings.TrimSpace(string(out))
+	return strings.EqualFold(val, "False"), nil
+}
+
+// CheckWindowsRegistryDWORD is a convenience wrapper that reads a REG_DWORD
+// value and converts it to an integer.  Returns -1 on parse failure.
+func (s *SystemChecker) CheckWindowsRegistryDWORD(hive, keyPath, valueName string) (int64, error) {
+	raw, err := s.CheckRegistryValue(hive, keyPath, valueName)
+	if err != nil {
+		return -1, err
+	}
+	// reg.exe returns DWORD in hex: 0x1, 0x0, etc.
+	raw = strings.TrimSpace(raw)
+	if strings.HasPrefix(raw, "0x") || strings.HasPrefix(raw, "0X") {
+		v, err := strconv.ParseInt(raw[2:], 16, 64)
+		return v, err
+	}
+	v, err := strconv.ParseInt(raw, 10, 64)
+	return v, err
+}
+
+// CheckSMBSigning verifies that SMB signing is required on the local machine
+// via the registry.
+func (s *SystemChecker) CheckSMBSigning() (bool, error) {
+	if runtime.GOOS != "windows" {
+		return false, fmt.Errorf("SMB signing check requires Windows (current OS: %s)", runtime.GOOS)
+	}
+
+	// RequireSecuritySignature=1 means signing is mandatory for SMB server.
+	v, err := s.CheckWindowsRegistryDWORD(
+		"HKLM",
+		`SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters`,
+		"RequireSecuritySignature",
+	)
+	if err != nil {
+		return false, err
+	}
+	return v == 1, nil
+}
+
+// CheckNTLMMinVersion returns the LmCompatibilityLevel registry value which
+// controls NTLM authentication version.  Value of 5 means NTLMv2 only.
+func (s *SystemChecker) CheckNTLMMinVersion() (int64, error) {
+	if runtime.GOOS != "windows" {
+		return -1, fmt.Errorf("NTLM check requires Windows (current OS: %s)", runtime.GOOS)
+	}
+
+	return s.CheckWindowsRegistryDWORD(
+		"HKLM",
+		`SYSTEM\CurrentControlSet\Control\Lsa`,
+		"LmCompatibilityLevel",
+	)
+}

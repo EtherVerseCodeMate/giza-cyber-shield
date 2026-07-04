@@ -37,7 +37,8 @@ interface AuditReportData {
   executive_summary: string;
 }
 
-export const ComplianceAuditReport = () => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const ComplianceAuditReport = ({ organizationId: _orgId }: { organizationId?: string } = {}) => {
   const [activeReport, setActiveReport] = useState<string>("executive");
 
   // Awaiting telemetry for real report data

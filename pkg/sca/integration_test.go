@@ -38,6 +38,14 @@ func TestIntegration_FullPipeline(t *testing.T) {
 	}
 	t.Logf("Scanning project: %s", targetPath)
 
+	// Verify the local Grype vulnerability DB is pre-installed.
+	// The adapter runs with update=false (sovereign air-gap); if no local DB exists,
+	// this test cannot run — it must not download from the internet.
+	probe := NewGrypeAdapter()
+	if _, _, err := probe.loadDB(); err != nil {
+		t.Skipf("Skipping: Grype vulnerability DB not installed locally (run `grype db update` once to seed it): %v", err)
+	}
+
 	// Create pipeline with nil feed manager (no live API calls in tests)
 	pipeline := NewPipeline(nil)
 
@@ -304,6 +312,11 @@ func TestIntegration_GrypeOnly(t *testing.T) {
 	projectRoot := findProjectRoot(t)
 	targetPath := filepath.Join(projectRoot, "pkg", "sca", "testdata", "tiny-project")
 	adapter := NewGrypeAdapter()
+
+	// Verify local Grype DB exists before running (no network downloads allowed).
+	if _, _, err := adapter.loadDB(); err != nil {
+		t.Skipf("Skipping: Grype vulnerability DB not installed locally: %v", err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()

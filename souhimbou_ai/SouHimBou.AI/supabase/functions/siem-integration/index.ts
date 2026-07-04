@@ -1,5 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
+import { serve } from 'std/http/server.ts';
+import { createClient } from '@supabase/supabase-js';
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -60,7 +61,8 @@ serve(async (req) => {
   } catch (error) {
     console.error('SIEM integration error:', error);
     return new Response(JSON.stringify({
-      error: error.message,
+      error: (error as Error).message,
+
       timestamp: new Date().toISOString()
     }), {
       status: 500,
@@ -128,7 +130,8 @@ async function integrateSplunk(config: any, organizationId: string, supabase: an
     return {
       results: {
         status: 'connection_failed',
-        error: error.message,
+        error: (error as Error).message,
+
         configured: false
       }
     };
@@ -234,7 +237,8 @@ async function integrateElastic(config: any, organizationId: string, supabase: a
     return {
       results: {
         status: 'connection_failed',
-        error: error.message,
+        error: (error as Error).message,
+
         configured: false
       }
     };
@@ -331,94 +335,260 @@ async function integrateArcSight(config: any, organizationId: string, supabase: 
   };
 }
 
-// Fetch logs from SIEM
+// Fetch logs from configured SIEMs
 async function fetchSIEMLogs(config: any, organizationId: string) {
-  console.log('Fetching SIEM logs...');
-  
-  // Simulate fetching real security logs
-  const simulatedLogs = [
-    {
-      timestamp: new Date().toISOString(),
-      source: 'firewall',
-      event_type: 'connection_blocked',
-      severity: 'medium',
-      src_ip: '192.168.1.100',
-      dst_ip: '185.220.101.42',
-      port: 443,
-      message: 'Outbound connection to known Tor exit node blocked'
+  console.log('Fetching SIEM logs from configured platform...');
+
+  const splunkUrl   = Deno.env.get('SPLUNK_URL');
+  const splunkToken = Deno.env.get('SPLUNK_API_TOKEN');
+  const elasticUrl  = Deno.env.get('ELASTIC_URL');
+  const elasticUser = Deno.env.get('ELASTIC_USERNAME');
+  const elasticPass = Deno.env.get('ELASTIC_PASSWORD');
+
+  // Determine which SIEM to query based on what is configured
+  if (splunkUrl && splunkToken) {
+    return await fetchSplunkLogs(splunkUrl, splunkToken, config);
+  }
+  if (elasticUrl && elasticUser && elasticPass) {
+    return await fetchElasticLogs(elasticUrl, elasticUser, elasticPass, config);
+  }
+
+  throw new Error(
+    'No SIEM credentials configured for log fetch. ' +
+    'Set SPLUNK_URL + SPLUNK_API_TOKEN or ELASTIC_URL + ELASTIC_USERNAME + ELASTIC_PASSWORD.'
+  );
+}
+
+async function fetchSplunkLogs(splunkUrl: string, token: string, config: any) {
+  const searchQuery = config.query ?? 'search index=* earliest=-1h | head 100';
+  const timeRange   = config.time_range ?? '1h';
+
+  // Submit search job
+  const jobResp = await fetch(`${splunkUrl}/services/search/jobs`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
     },
-    {
-      timestamp: new Date(Date.now() - 300000).toISOString(),
-      source: 'ids',
-      event_type: 'suspicious_activity',
-      severity: 'high',
-      src_ip: '10.0.0.50',
-      dst_ip: '192.168.1.1',
-      message: 'Multiple failed authentication attempts detected'
-    },
-    {
-      timestamp: new Date(Date.now() - 600000).toISOString(),
-      source: 'dns',
-      event_type: 'malicious_domain',
-      severity: 'critical',
-      domain: 'malware-c2.example.com',
-      message: 'DNS query to known malicious domain blocked'
-    },
-    {
-      timestamp: new Date(Date.now() - 900000).toISOString(),
-      source: 'web_proxy',
-      event_type: 'file_download',
-      severity: 'medium',
-      url: 'http://suspicious-site.com/payload.exe',
-      message: 'Suspicious file download detected and blocked'
-    }
-  ];
+    body: new URLSearchParams({
+      search: searchQuery,
+      output_mode: 'json',
+      earliest_time: `-${timeRange}`,
+      latest_time: 'now',
+    }),
+  });
+  if (!jobResp.ok) throw new Error(`Splunk search job failed: ${jobResp.status} ${await jobResp.text()}`);
+  const jobData = await jobResp.json();
+  const sid = jobData.sid;
+
+  // Poll for completion
+  let done = false;
+  for (let i = 0; i < 60 && !done; i++) {
+    await new Promise(r => setTimeout(r, 2000));
+    const statusResp = await fetch(
+      `${splunkUrl}/services/search/jobs/${sid}?output_mode=json`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const status = await statusResp.json();
+    done = status.entry?.[0]?.content?.isDone === true;
+  }
+  if (!done) throw new Error(`Splunk search job ${sid} timed out`);
+
+  // Fetch results
+  const resultsResp = await fetch(
+    `${splunkUrl}/services/search/jobs/${sid}/results?output_mode=json&count=100`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!resultsResp.ok) throw new Error(`Splunk results fetch failed: ${resultsResp.status}`);
+  const resultsData = await resultsResp.json();
 
   return {
-    logs: simulatedLogs,
-    total_events: simulatedLogs.length,
-    time_range: '1 hour',
-    sources: ['firewall', 'ids', 'dns', 'web_proxy']
+    logs: resultsData.results ?? [],
+    total_events: resultsData.results?.length ?? 0,
+    time_range: timeRange,
+    source: 'splunk',
+    search_id: sid,
+  };
+}
+
+async function fetchElasticLogs(elasticUrl: string, user: string, pass: string, config: any) {
+  const index     = config.index ?? 'security-*';
+  const timeRange = config.time_range ?? '1h';
+  const authB64   = btoa(`${user}:${pass}`);
+
+  const resp = await fetch(`${elasticUrl}/${index}/_search`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${authB64}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      size: 100,
+      sort: [{ '@timestamp': { order: 'desc' } }],
+      query: {
+        range: {
+          '@timestamp': { gte: `now-${timeRange}`, lte: 'now' },
+        },
+      },
+    }),
+  });
+  if (!resp.ok) throw new Error(`Elastic search failed: ${resp.status} ${await resp.text()}`);
+  const data = await resp.json();
+  const hits = data.hits?.hits ?? [];
+
+  return {
+    logs: hits.map((h: any) => h._source),
+    total_events: hits.length,
+    total_available: data.hits?.total?.value ?? 0,
+    time_range: timeRange,
+    source: 'elastic',
+    index,
   };
 }
 
 // Send alert to SIEM
 async function sendAlertToSIEM(config: any, organizationId: string) {
-  console.log('Sending alert to SIEM...');
-  
+  console.log('Sending alert to configured SIEM platforms...');
+
   const alert = {
-    alert_id: `ARGUS-${Date.now()}`,
+    alert_id: `SOUHIMBOU-${Date.now()}`,
     timestamp: new Date().toISOString(),
-    severity: 'high',
+    severity: config.severity ?? 'high',
     category: 'threat_detection',
-    title: 'ARGUS AI Threat Detection',
-    description: 'Advanced threat detected by ARGUS AI security platform',
-    indicators: config.indicators || [],
-    recommended_actions: [
+    title: 'SouHimBou AI Threat Detection',
+    description: config.description ?? 'Advanced threat detected by SouHimBou AI SOC platform',
+    indicators: config.indicators ?? [],
+    recommended_actions: config.recommended_actions ?? [
       'Investigate source IP address',
       'Check for lateral movement',
       'Review authentication logs',
-      'Implement containment measures'
-    ]
+      'Implement containment measures',
+    ],
   };
 
-  // Send to configured SIEM platforms (no simulated failures)
-  const siemPlatforms = ['splunk', 'elastic', 'qradar', 'sentinel', 'arcsight'];
-  const deliveryResults = siemPlatforms.map(platform => ({
-    platform,
-    status: 'delivered', // Assume success - actual failures come from real delivery
-    delivery_time: '<100ms'
-  }));
+  interface SIEMDeliveryResult {
+    platform: string;
+    status: string;
+    http_status?: number;
+    error?: string;
+    delivery_time_ms?: number;
+  }
+
+  const deliveryTasks: Promise<SIEMDeliveryResult>[] = [];
+
+  // Splunk HEC
+  const splunkUrl   = Deno.env.get('SPLUNK_URL');
+  const splunkToken = Deno.env.get('SPLUNK_API_TOKEN');
+  if (splunkUrl && splunkToken) {
+    deliveryTasks.push((async (): Promise<SIEMDeliveryResult> => {
+      const start = Date.now();
+      try {
+        const r = await fetch(`${splunkUrl}/services/collector/event`, {
+          method: 'POST',
+          headers: { Authorization: `Splunk ${splunkToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event: alert, sourcetype: 'souhimbou:alert', index: 'security' }),
+        });
+        return { platform: 'splunk', status: r.ok ? 'delivered' : 'failed', http_status: r.status, delivery_time_ms: Date.now() - start };
+      } catch (e: any) {
+        return { platform: 'splunk', status: 'failed', error: e.message };
+      }
+    })());
+  }
+
+  // Elastic / OpenSearch
+  const elasticUrl  = Deno.env.get('ELASTIC_URL');
+  const elasticUser = Deno.env.get('ELASTIC_USERNAME');
+  const elasticPass = Deno.env.get('ELASTIC_PASSWORD');
+  if (elasticUrl && elasticUser && elasticPass) {
+    deliveryTasks.push((async (): Promise<SIEMDeliveryResult> => {
+      const start = Date.now();
+      try {
+        const authB64 = btoa(`${elasticUser}:${elasticPass}`);
+        const r = await fetch(`${elasticUrl}/souhimbou-alerts/_doc`, {
+          method: 'POST',
+          headers: { Authorization: `Basic ${authB64}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(alert),
+        });
+        return { platform: 'elastic', status: r.ok ? 'delivered' : 'failed', http_status: r.status, delivery_time_ms: Date.now() - start };
+      } catch (e: any) {
+        return { platform: 'elastic', status: 'failed', error: e.message };
+      }
+    })());
+  }
+
+  // QRadar
+  const qradarUrl   = Deno.env.get('QRADAR_URL');
+  const qradarToken = Deno.env.get('QRADAR_API_TOKEN');
+  if (qradarUrl && qradarToken) {
+    deliveryTasks.push((async (): Promise<SIEMDeliveryResult> => {
+      const start = Date.now();
+      try {
+        const r = await fetch(`${qradarUrl}/api/siem/offenses`, {
+          method: 'POST',
+          headers: { SEC: qradarToken, 'Content-Type': 'application/json', Version: '17.0' },
+          body: JSON.stringify({ description: alert.description, severity: 5, status: 'OPEN' }),
+        });
+        return { platform: 'qradar', status: r.ok ? 'delivered' : 'failed', http_status: r.status, delivery_time_ms: Date.now() - start };
+      } catch (e: any) {
+        return { platform: 'qradar', status: 'failed', error: e.message };
+      }
+    })());
+  }
+
+  // Microsoft Sentinel (via Log Analytics Data Collector API)
+  const sentinelWorkspace  = Deno.env.get('SENTINEL_WORKSPACE_ID');
+  const sentinelSharedKey  = Deno.env.get('SENTINEL_SHARED_KEY');
+  if (sentinelWorkspace && sentinelSharedKey) {
+    deliveryTasks.push((async (): Promise<SIEMDeliveryResult> => {
+      const start = Date.now();
+      try {
+        const body = JSON.stringify([alert]);
+        const date = new Date().toUTCString();
+        const contentLen = new TextEncoder().encode(body).length;
+        const strToSign = `POST\n${contentLen}\napplication/json\nx-ms-date:${date}\n/api/logs`;
+        const key = await crypto.subtle.importKey('raw', Uint8Array.from(atob(sentinelSharedKey), c => c.charCodeAt(0)), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+        const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(strToSign));
+        const signature = btoa(String.fromCharCode(...new Uint8Array(sig)));
+        const r = await fetch(
+          `https://${sentinelWorkspace}.ods.opinsights.azure.com/api/logs?api-version=2016-04-01`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `SharedKey ${sentinelWorkspace}:${signature}`,
+              'Content-Type': 'application/json',
+              'Log-Type': 'SouHimBouAlerts',
+              'x-ms-date': date,
+            },
+            body,
+          }
+        );
+        return { platform: 'sentinel', status: r.ok ? 'delivered' : 'failed', http_status: r.status, delivery_time_ms: Date.now() - start };
+      } catch (e: any) {
+        return { platform: 'sentinel', status: 'failed', error: e.message };
+      }
+    })());
+  }
+
+  if (deliveryTasks.length === 0) {
+    throw new Error(
+      'No SIEM delivery channel configured. ' +
+      'Set at least one of: SPLUNK_URL+SPLUNK_API_TOKEN, ELASTIC_URL+ELASTIC_USERNAME+ELASTIC_PASSWORD, ' +
+      'QRADAR_URL+QRADAR_API_TOKEN, or SENTINEL_WORKSPACE_ID+SENTINEL_SHARED_KEY.'
+    );
+  }
+
+  const deliveryResults = await Promise.all(deliveryTasks);
 
   return {
     alert,
     delivery_results: deliveryResults,
-    total_platforms: siemPlatforms.length,
-    successful_deliveries: deliveryResults.filter(r => r.status === 'delivered').length
+    channels_attempted: deliveryResults.length,
+    channels_delivered: deliveryResults.filter(r => r.status === 'delivered').length,
   };
 }
 
-// Create Elastic index templates for ARGUS security data
+// Create Elastic index templates for SouHimBou security data
+
 async function createElasticIndexTemplates(elasticsearchUrl: string, apiKey: string) {
   const templates = [
     {

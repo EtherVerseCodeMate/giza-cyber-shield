@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"encoding/json"
@@ -69,7 +69,7 @@ func (wiz *Wizard) makePage1Welcome() fyne.CanvasObject {
 			"zero egress, post-quantum attested, in a single native binary.\n\n" +
 			"Features:\n" +
 			"  • 3D Compliance Graph Desktop (CISO-facing, native GUI)\n" +
-			"  • 36,195-row STIG/CCI/NIST/CMMC mapping database\n" +
+			"  • 25,185-row (deduplicated) STIG/CCI/NIST/CMMC mapping database\n" +
 			"  • ML-DSA-65 post-quantum attestation (patent pending)\n" +
 			"  • Privileged remediation daemon with Adinkra symbol gate\n" +
 			"  • Air-gap ready. No Node.js. No browser. No telemetry.\n\n" +

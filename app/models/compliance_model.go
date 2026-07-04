@@ -8,10 +8,13 @@
 package models
 
 import (
+	"fmt"
 	"math"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
 )
 
 // NodeKind is the internal Sephirot-based node type classification.
@@ -169,6 +172,16 @@ type GraphNode struct {
 	IPAddress string
 	OS        string
 
+	// FixArgv is the remediation command matrix from the STIG check table.
+	// Each inner slice is one argv-safe command (no shell; no metacharacters).
+	// nil means no automated fix is available — manual remediation required.
+	// Populated by ingestReport from stig.GetFixArgv(FindingID).
+	FixArgv [][]string
+
+	// STIGFamily is the STIG_File value for Tier 4 aggregate nodes created by
+	// LoadNotAssessedBaseline.  Empty for all other node kinds.
+	STIGFamily string
+
 	// Visual glow hint (computed, never displayed as text)
 	Glow GlowKind
 
@@ -239,6 +252,10 @@ type ComplianceGraphModel struct {
 
 	// Coverage disclaimers per §4 Phase 4 error state (framework → human-readable coverage)
 	FrameworkCoverage map[string]string
+
+	// familyTotalRules stores STIG_File → total rule count from the DB, set by
+	// LoadNotAssessedBaseline.  Used by ResetFindings to restore node descriptions.
+	familyTotalRules map[string]int
 }
 
 // NewComplianceGraphModel creates an empty model seeded with the Governance Root
@@ -248,15 +265,8 @@ func NewComplianceGraphModel() *ComplianceGraphModel {
 		SPRSScore:        110,
 		countedPractices: make(map[string]bool),
 		nodeByID:         make(map[string]*GraphNode),
-		FrameworkCoverage: map[string]string{
-			"RHEL-09-STIG-V1R3": "9 of 291+ controls (live checks — see Phase 4 coverage disclaimer)",
-			"CIS-RHEL-9-L1":     "sample coverage",
-			"CIS-RHEL-9-L2":     "sample coverage",
-			"NIST-800-53-Rev5":  "sample coverage",
-			"NIST-800-171-Rev2": "sample coverage",
-			"CMMC-3.0-L3":       "sample coverage",
-			"PQC-Readiness":     "full (PQC-01-STIG-V1R1)",
-		},
+		FrameworkCoverage: make(map[string]string),
+		familyTotalRules:  make(map[string]int),
 	}
 	m.buildInitialGraph()
 	return m
@@ -316,6 +326,34 @@ type FindingInput struct {
 	Remediation string
 	References  []string
 	CheckedAt   time.Time
+
+	// SPRSPracticeWeight is the CMMC Appendix A practice weight (1, 3, or 5).
+	// When non-zero it takes precedence over the CAT-severity heuristic in
+	// sprsWeightFor().  The check engine and CKL/CKLB/OSCAL importers populate
+	// this from db.GetCrossReferences (CCI → CMMC practice → Appendix A weight).
+	// Zero means "not resolved from DB"; fall back to severity-based heuristic.
+	SPRSPracticeWeight int
+
+	// FixArgv is the remediation command matrix from the STIG check table.
+	// Each inner slice is one argv-safe command (no shell; no metacharacters).
+	// nil means no automated fix is available — manual remediation only.
+	// Populated from stig.GetFixArgv(ID) by ingestReport and CKL/CKLB importers.
+	FixArgv [][]string
+}
+
+// resolveWeight returns the SPRS deduction for a finding.
+//
+// Priority order (per CMMC Appendix A / §0.5):
+//  1. f.SPRSPracticeWeight — populated by the check engine or importer from the
+//     STIG→CCI→CMMC mapping DB.  This is the correct axis: CMMC practice weight
+//     (1 = Level 1, 3 = most Level 2, 5 = high-value Level 2 practices).
+//  2. sprsWeightFor(f.SeverityRaw) — STIG CAT heuristic fallback when no DB
+//     cross-reference is available (e.g. manual review findings).
+func resolveWeight(f FindingInput) int {
+	if f.SPRSPracticeWeight > 0 {
+		return f.SPRSPracticeWeight
+	}
+	return sprsWeightFor(f.SeverityRaw)
 }
 
 // sprsWeightFor converts a raw STIG/CMMC severity string to its SPRS weight.
@@ -338,7 +376,7 @@ func (m *ComplianceGraphModel) AddFinding(f FindingInput) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	sprs := sprsWeightFor(f.SeverityRaw)
+	sprs := resolveWeight(f)
 
 	node := &GraphNode{
 		ID:          "finding_" + f.ID,
@@ -355,6 +393,7 @@ func (m *ComplianceGraphModel) AddFinding(f FindingInput) {
 		Remediation: f.Remediation,
 		References:  f.References,
 		CheckedAt:   f.CheckedAt,
+		FixArgv:     f.FixArgv,
 		Radius:      nodeRadiusForWeight(sprs),
 		State: HypercubeState{
 			Severity:  sprs >= 5,
@@ -478,14 +517,196 @@ func (m *ComplianceGraphModel) ResetFindings() {
 	m.nodeByID = make(map[string]*GraphNode, len(kept))
 	for _, n := range kept {
 		m.nodeByID[n.ID] = n
+		// Restore "0 of N assessed" description on Tier 4 STIG family aggregate nodes.
+		if n.STIGFamily != "" {
+			if total, ok := m.familyTotalRules[n.STIGFamily]; ok && total > 0 {
+				n.Description = fmt.Sprintf("0 of %d assessed", total)
+			}
+		}
 	}
 	m.SPRSScore = 110
 	m.countedPractices = make(map[string]bool)
 }
 
+// LoadNotAssessedBaseline populates the graph with one aggregate NodeChokmah node
+// per STIG benchmark family in the compliance database.  Each node shows the family
+// name and "0 of N assessed" until findings arrive or a checklist is imported.
+//
+// Designed to satisfy spec §11 aggregated render mode: at startup the graph has only
+// 1 root + 14 CMMC domain + ≤400 STIG family nodes — well below the 500-node threshold.
+// Per-rule detail nodes are added only by AddFinding and the import parsers.
+//
+// Idempotent: families whose node already exists are skipped; safe to call multiple times.
+func (m *ComplianceGraphModel) LoadNotAssessedBaseline() {
+	families, err := stig.GetAllSTIGFamilies()
+	if err != nil || len(families) == 0 {
+		return
+	}
+	counts, err := stig.FamilyRuleCounts()
+	if err != nil {
+		counts = make(map[string]int)
+	}
+
+	// Golden-angle spiral gives even distribution for arbitrary node counts.
+	// Nodes spiral outward from baseRadius to baseRadius+radiusSpan.
+	const (
+		goldenAngle = 2.39996322972865332 // math.Pi * (3 - math.Sqrt(5)), radians
+		baseRadius  = float32(460)
+		radiusSpan  = float32(440) // total spread: innermost at 460, outermost at 900
+	)
+	n := float64(len(families))
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for i, family := range families {
+		nodeID := "stig_fam_" + sanitizeFamilyID(family)
+		if _, exists := m.nodeByID[nodeID]; exists {
+			continue
+		}
+
+		ruleCount := counts[family]
+
+		// Spiral position: radius grows linearly; angle advances by golden angle.
+		t := float64(i) / n
+		r := baseRadius + float32(t)*radiusSpan
+		angle := float64(i) * goldenAngle
+
+		desc := fmt.Sprintf("0 of %d assessed", ruleCount)
+		if ruleCount == 0 {
+			desc = "Not mapped in database"
+		}
+
+		node := &GraphNode{
+			ID:          nodeID,
+			Kind:        NodeChokmah,
+			polar:       polarEarth,
+			STIGFamily:  family,
+			Label:       humanizeFamilyName(family),
+			Description: desc,
+			Status:      StatusNotReviewed,
+			X:           r * float32(math.Cos(angle)),
+			Y:           r * float32(math.Sin(angle)),
+			Radius:      10,
+			Glow:        GlowGray,
+			State:       HypercubeState{Lifecycle: true},
+		}
+		m.addNodeLocked(node)
+		m.addEdgeLocked(&graphEdge{
+			FromID:   "keter_root",
+			ToID:     nodeID,
+			edgeType: "not_assessed",
+			Strength: 0.2,
+		})
+
+		if ruleCount > 0 {
+			m.familyTotalRules[family] = ruleCount
+		}
+	}
+}
+
+// sanitizeFamilyID converts a STIG_File value to a valid graph node ID fragment.
+// Replaces any character that is not alphanumeric or underscore with '_'.
+func sanitizeFamilyID(name string) string {
+	var b strings.Builder
+	b.Grow(len(name))
+	for _, r := range name {
+		if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' {
+			b.WriteRune(r)
+		} else {
+			b.WriteRune('_')
+		}
+	}
+	return b.String()
+}
+
+// humanizeFamilyName strips the "U_" prefix, "_STIG" suffix, and version codes from
+// a STIG_File value to produce a short human-readable label (§10 compliant).
+// "U_RHEL_9_STIG_V1R3" → "RHEL 9"
+func humanizeFamilyName(name string) string {
+	s := strings.TrimPrefix(name, "U_")
+	if idx := strings.Index(s, "_STIG"); idx > 0 {
+		s = s[:idx]
+	}
+	// Strip trailing version fragment like "_V1R3" or "_V2R10"
+	if idx := strings.LastIndex(s, "_V"); idx > 0 {
+		tail := s[idx+1:]
+		if len(tail) >= 2 && tail[0] == 'V' {
+			s = s[:idx]
+		}
+	}
+	return strings.TrimSpace(strings.ReplaceAll(s, "_", " "))
+}
+
+// SetFrameworkCoverage records how many findings were assessed for a framework.
+// Called from the scan ingestion path after results are known.
+// Example: SetFrameworkCoverage("RHEL-09-STIG-V1R3", 9, 291)
+func (m *ComplianceGraphModel) SetFrameworkCoverage(framework string, assessed, total int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if assessed == 0 {
+		m.FrameworkCoverage[framework] = ""
+		return
+	}
+	m.FrameworkCoverage[framework] = fmt.Sprintf("%d of %d %s controls assessed", assessed, total, framework)
+}
+
+// CoverageString returns the computed coverage disclaimer for the given framework,
+// or "" if no scan data is available (which hides the disclaimer from the status bar).
+func (m *ComplianceGraphModel) CoverageString(framework string) string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.FrameworkCoverage[framework]
+}
+
+// FinalizeScan records scan completion metadata under the write lock,
+// preventing data races between the scan goroutine and the UI render thread.
+func (m *ComplianceGraphModel) FinalizeScan(scanTime time.Time, hostname string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.ScanRunning = false
+	if !scanTime.IsZero() {
+		m.LastScanTime = scanTime
+	}
+	if hostname != "" {
+		m.LastScanHost = hostname
+	}
+}
+
 // RLock / RUnlock expose the read lock for the widget renderer.
 func (m *ComplianceGraphModel) RLock()   { m.mu.RLock() }
 func (m *ComplianceGraphModel) RUnlock() { m.mu.RUnlock() }
+
+// SPRS returns the current SPRS score under a read lock.
+// Safe to call from any goroutine, including the scan goroutine.
+func (m *ComplianceGraphModel) SPRS() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.SPRSScore
+}
+
+// ScanTime returns the timestamp of the most recent completed scan.
+func (m *ComplianceGraphModel) ScanTime() time.Time {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.LastScanTime
+}
+
+// SetScanStarted marks the scan as running and sets the current phase,
+// all under a single write lock to prevent torn reads by the renderer.
+func (m *ComplianceGraphModel) SetScanStarted(phase int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.ScanRunning = true
+	m.CurrentPhase = phase
+}
+
+// Phase returns the current §0.6 phase index under a read lock.
+func (m *ComplianceGraphModel) Phase() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.CurrentPhase
+}
 
 // NodeByID returns the node with the given ID, nil if not found.
 // Must be called under at least a read lock.
@@ -693,4 +914,46 @@ func PracticeIDFromRefs(refs []string) string {
 		}
 	}
 	return ""
+}
+
+// PracticeWeightFromID returns the CMMC Appendix A SPRS point value for a practice.
+//
+// Source: NIST SP 800-171 DoD Assessment Methodology, Appendix A.
+// Weights: 1 for Level 1 practices, 5 for high-value Level 2 practices, 3 otherwise.
+// The 110-practice total deduction universe sums to 110.
+//
+// Level 1 (L1) — 17 practices, 1 pt each.
+// Level 2 (L2) — 110 total. The 14 listed below are 5 pts; remaining L2 are 3 pts.
+// Returns 0 when practiceID is empty (caller falls back to severity heuristic).
+func PracticeWeightFromID(practiceID string) int {
+	if practiceID == "" {
+		return 0
+	}
+	// Level 1 practices are worth 1 point each.
+	if strings.Contains(practiceID, ".L1-") {
+		return 1
+	}
+	// High-value Level 2 practices (5 points) per CMMC Appendix A.
+	switch practiceID {
+	case
+		// Access Control — CUI flow enforcement
+		"AC.L2-3.1.3",
+		// Audit & Accountability — protected audit logs
+		"AU.L2-3.3.1", "AU.L2-3.3.2",
+		// Identification & Authentication — MFA
+		"IA.L2-3.5.3", "IA.L2-3.5.4",
+		// Incident Response
+		"IR.L2-3.6.1", "IR.L2-3.6.2",
+		// Risk Assessment — threat modeling
+		"RA.L2-3.11.1", "RA.L2-3.11.2",
+		// System & Communications — FIPS / key management
+		"SC.L2-3.13.8", "SC.L2-3.13.10", "SC.L2-3.13.11",
+		// System & Information Integrity — flaw remediation
+		"SI.L2-3.14.1",
+		// Configuration Management — security baseline
+		"CM.L2-3.4.1":
+		return 5
+	}
+	// All other Level 2 practices: 3 points.
+	return 3
 }

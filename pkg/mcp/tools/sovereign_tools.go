@@ -1,9 +1,9 @@
-package tools
+﻿package tools
 
 // sovereign_tools.go — P0/P1 MCP tools for sovereign (no-Supabase) operation.
 //
 // ALL tools in this file work 100% offline — no Supabase, no network calls,
-// no external dependencies beyond the embedded 36,195-row compliance database.
+// no external dependencies beyond the embedded 25,185-row (deduplicated) compliance database.
 //
 // Tools implemented:
 //   khepra_export_attestation  — PQC-signed C3PAO evidence package (JSON)
@@ -244,7 +244,7 @@ func HandleKhepraExportPOAM(ctx context.Context, call mcp.MCPToolCall) (any, []s
 // ─── khepra_query_stig ───────────────────────────────────────────────────────
 //
 // Look up a control by STIG ID, CCI number, NIST 800-53 control, or free-text
-// search across the embedded 36,195-row compliance database. 100% offline.
+// search across the embedded 25,185-row (deduplicated) compliance database. 100% offline.
 
 type STIGQueryResult struct {
 	Query          string             `json:"query"`

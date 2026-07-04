@@ -61,6 +61,14 @@ type GraphCanvas struct {
 	// OnNodeSelect is invoked on the Fyne main thread when the user taps a node.
 	// Receives nil to signal deselect (tap on empty canvas).
 	OnNodeSelect func(*models.GraphNode)
+
+	// Context menu callbacks — wired by the parent tab view.
+	// Nil callbacks silently no-op; each action is optional.
+	OnStageFix        func(nodeID string)
+	OnOpenPOAM        func(nodeID string)
+	OnViewInSSP       func(nodeID string)
+	OnImportForFamily func(familyName string)
+	OnRescanHost      func(nodeID string)
 }
 
 // NewGraphCanvas creates and initialises the compliance graph widget.
@@ -90,8 +98,10 @@ func (g *GraphCanvas) CreateRenderer() fyne.WidgetRenderer {
 // MinSize satisfies fyne.Widget.
 func (g *GraphCanvas) MinSize() fyne.Size { return fyne.NewSize(400, 300) }
 
-// Tapped satisfies fyne.Tappable.
-func (g *GraphCanvas) Tapped(ev *fyne.PointEvent) {
+// hitTest converts a screen position to graph space and returns the nearest node
+// within tap radius, or nil if no node is hit.  The model RLock is acquired and
+// released inside this call — callers must not hold the model lock.
+func (g *GraphCanvas) hitTest(pos fyne.Position) *models.GraphNode {
 	size := g.Size()
 	cx, cy := size.Width/2, size.Height/2
 
@@ -100,11 +110,11 @@ func (g *GraphCanvas) Tapped(ev *fyne.PointEvent) {
 	px, py := g.panX, g.panY
 	g.mu.RUnlock()
 
-	// Screen → graph-space
-	gx := float32((float64(ev.Position.X-cx)/float64(z) + float64(px)))
-	gy := float32((float64(ev.Position.Y-cy)/float64(z) + float64(py)))
+	gx := float32(float64(pos.X-cx)/float64(z) + float64(px))
+	gy := float32(float64(pos.Y-cy)/float64(z) + float64(py))
 
 	g.model.RLock()
+	defer g.model.RUnlock()
 	var hit *models.GraphNode
 	hitDist := float32(math.MaxFloat32)
 	for _, n := range g.model.Nodes {
@@ -116,8 +126,12 @@ func (g *GraphCanvas) Tapped(ev *fyne.PointEvent) {
 			hit = n
 		}
 	}
-	g.model.RUnlock()
+	return hit
+}
 
+// Tapped satisfies fyne.Tappable — left-click selects a node.
+func (g *GraphCanvas) Tapped(ev *fyne.PointEvent) {
+	hit := g.hitTest(ev.Position)
 	g.mu.Lock()
 	if hit != nil {
 		g.selectedID = hit.ID
@@ -125,15 +139,128 @@ func (g *GraphCanvas) Tapped(ev *fyne.PointEvent) {
 		g.selectedID = ""
 	}
 	g.mu.Unlock()
-
 	if g.OnNodeSelect != nil {
 		g.OnNodeSelect(hit)
 	}
 	canvas.Refresh(g)
 }
 
-// TappedSecondary satisfies fyne.SecondaryTappable (reserved for context menu).
-func (g *GraphCanvas) TappedSecondary(_ *fyne.PointEvent) {}
+// TappedSecondary satisfies fyne.SecondaryTappable — right-click shows a
+// contextual action menu relevant to the node type.
+func (g *GraphCanvas) TappedSecondary(ev *fyne.PointEvent) {
+	node := g.hitTest(ev.Position)
+	if node == nil {
+		return
+	}
+
+	// Select the node so the sidebar reflects the right-click target.
+	g.mu.Lock()
+	g.selectedID = node.ID
+	g.mu.Unlock()
+	if g.OnNodeSelect != nil {
+		g.OnNodeSelect(node)
+	}
+
+	// Capture stable copies of node fields before the model can mutate.
+	nodeID := node.ID
+	nodeKind := node.Kind
+	nodeStatus := node.Status
+	stigFamily := node.STIGFamily
+
+	items := []*fyne.MenuItem{
+		fyne.NewMenuItem("Inspect", func() {
+			if g.OnNodeSelect != nil {
+				g.OnNodeSelect(node)
+			}
+		}),
+	}
+
+	switch nodeKind {
+	case models.NodeTiphereth: // Finding node
+		items = append(items, fyne.NewMenuItemSeparator())
+		if nodeStatus == models.StatusNotMet {
+			items = append(items, fyne.NewMenuItem("Stage Fix", func() {
+				if g.OnStageFix != nil {
+					g.OnStageFix(nodeID)
+				}
+			}))
+		}
+		items = append(items, fyne.NewMenuItem("Open POA&M", func() {
+			if g.OnOpenPOAM != nil {
+				g.OnOpenPOAM(nodeID)
+			}
+		}))
+		items = append(items, fyne.NewMenuItem("View in SSP", func() {
+			if g.OnViewInSSP != nil {
+				g.OnViewInSSP(nodeID)
+			}
+		}))
+
+	case models.NodeChokmah: // STIG family aggregate node
+		items = append(items, fyne.NewMenuItemSeparator())
+		items = append(items, fyne.NewMenuItem("Import Checklist for This Family", func() {
+			if g.OnImportForFamily != nil {
+				g.OnImportForFamily(stigFamily)
+			}
+		}))
+
+	case models.NodeChesed: // Asset node
+		items = append(items, fyne.NewMenuItemSeparator())
+		items = append(items, fyne.NewMenuItem("Re-scan Host", func() {
+			if g.OnRescanHost != nil {
+				g.OnRescanHost(nodeID)
+			}
+		}))
+
+	default: // Domain, Practice, etc.
+		items = append(items, fyne.NewMenuItemSeparator())
+		items = append(items, fyne.NewMenuItem("View in SSP", func() {
+			if g.OnViewInSSP != nil {
+				g.OnViewInSSP(nodeID)
+			}
+		}))
+		items = append(items, fyne.NewMenuItem("Open POA&M", func() {
+			if g.OnOpenPOAM != nil {
+				g.OnOpenPOAM(nodeID)
+			}
+		}))
+	}
+
+	menu := fyne.NewMenu("", items...)
+	c := fyne.CurrentApp().Driver().CanvasForObject(g)
+	if c != nil {
+		widget.ShowPopUpMenuAtPosition(menu, c, ev.AbsolutePosition)
+	}
+}
+
+// Scrolled implements fyne.Scrollable — mouse wheel / trackpad scroll → zoom.
+// Scroll up (negative DY) zooms in; scroll down (positive DY) zooms out.
+func (g *GraphCanvas) Scrolled(ev *fyne.ScrollEvent) {
+	factor := float32(math.Exp(float64(-ev.Scrolled.DY) * 0.008))
+	g.mu.Lock()
+	g.zoom *= factor
+	if g.zoom < 0.05 {
+		g.zoom = 0.05
+	}
+	if g.zoom > 20 {
+		g.zoom = 20
+	}
+	g.mu.Unlock()
+	canvas.Refresh(g)
+}
+
+// Dragged implements fyne.Draggable — click-drag pans the viewport.
+func (g *GraphCanvas) Dragged(ev *fyne.DragEvent) {
+	g.mu.Lock()
+	z := g.zoom
+	g.panX -= ev.Dragged.DX / z
+	g.panY -= ev.Dragged.DY / z
+	g.mu.Unlock()
+	canvas.Refresh(g)
+}
+
+// DragEnd satisfies fyne.Draggable.
+func (g *GraphCanvas) DragEnd() {}
 
 // startPhysics launches the background physics+animation goroutine.
 func (g *GraphCanvas) startPhysics() {
@@ -149,7 +276,7 @@ func (g *GraphCanvas) startPhysics() {
 			g.mu.Lock()
 			g.animTick++
 			g.mu.Unlock()
-			canvas.Refresh(g)
+			fyne.Do(func() { canvas.Refresh(g) })
 		}
 	}()
 }
