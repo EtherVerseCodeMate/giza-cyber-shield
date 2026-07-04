@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -222,10 +223,11 @@ func (c *SubnetConnector) discoverFallback(ctx context.Context, ch chan<- Discov
 	sem := make(chan struct{}, c.opts.ConcurrentHosts)
 	var wg sync.WaitGroup
 
+Loop:
 	for _, ip := range ips {
 		select {
 		case <-ctx.Done():
-			break
+			break Loop
 		case sem <- struct{}{}:
 		}
 		wg.Add(1)
@@ -249,7 +251,7 @@ func (c *SubnetConnector) probeHost(ctx context.Context, ip string) (DiscoveredH
 	d := net.Dialer{Timeout: c.opts.DialTimeout}
 
 	for _, port := range c.opts.Ports {
-		addr := fmt.Sprintf("%s:%d", ip, port)
+		addr := net.JoinHostPort(ip, strconv.Itoa(port))
 		conn, err := d.DialContext(ctx, "tcp", addr)
 		if err != nil {
 			continue

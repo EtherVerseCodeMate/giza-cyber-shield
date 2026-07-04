@@ -14,6 +14,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -41,7 +42,7 @@ func (c *SSHConnector) Test(ctx context.Context) (*TestResult, error) {
 	if port == 0 {
 		port = DefaultPort(ProtoSSH)
 	}
-	addr := fmt.Sprintf("%s:%d", host, port)
+	addr := net.JoinHostPort(host, strconv.Itoa(port))
 
 	// Build auth methods from credential.
 	authMethods, err := c.buildAuthMethods()
