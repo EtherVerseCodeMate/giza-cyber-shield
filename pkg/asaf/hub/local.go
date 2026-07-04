@@ -11,6 +11,7 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/client"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/connector"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/daemon"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/policy"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
 )
@@ -34,6 +35,7 @@ type LocalBackend struct {
 	dagStore     dag.Store                  // local DAG (pkg/dag.Memory unless caller provides persistent)
 	aiProvider   AIProviderBridge           // nil if offline / not configured
 	registry     *connector.ConnectorRegistry // nil if agent key not loaded yet
+	ebg          *policy.EgressBoundaryGuard // enforces target confinement before dial
 
 	mu              sync.RWMutex
 	lastSPRS        int
@@ -56,6 +58,7 @@ func NewLocalBackend(daemonClient *client.Client, dagStore dag.Store, aiProvider
 		daemonClient: daemonClient,
 		dagStore:     dagStore,
 		aiProvider:   aiProvider,
+		ebg:          policy.NewEgressBoundaryGuard([]string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}, dagStore, nil, nil, nil, "local-desktop", nil),
 		lastSPRS:     110,
 	}
 }
@@ -427,6 +430,19 @@ func (b *LocalBackend) AddAsset(_ context.Context, req AddAssetRequest) (*Asset,
 
 // TestConnection implements Backend — dispatches to the correct connector.
 func (b *LocalBackend) TestConnection(ctx context.Context, cfg ConnectorConfig, cred *ConnectorCred) (*TestResult, error) {
+	if b.ebg != nil {
+		hostToCheck := cfg.Host
+		if cfg.Protocol == connector.ProtoNmap {
+			hostToCheck = cfg.CIDRRange // rudimentary check for Nmap Mode A
+			if ip, _, err := net.ParseCIDR(hostToCheck); err == nil {
+				hostToCheck = ip.String()
+			}
+		}
+		if err := b.ebg.CheckTarget(ctx, hostToCheck); err != nil {
+			return &TestResult{Success: false, Message: "Egress Blocked: " + err.Error()}, nil
+		}
+	}
+
 	var c connector.Connector
 	switch cfg.Protocol {
 	case connector.ProtoSSH:
@@ -476,6 +492,15 @@ func (b *LocalBackend) ImportCSV(ctx context.Context, rows []CSVAssetRow, enclav
 
 // DiscoverSubnet implements Backend — runs subnet discovery via SubnetConnector.
 func (b *LocalBackend) DiscoverSubnet(ctx context.Context, cidr string, opts DiscoveryOptions) (<-chan DiscoveredHost, error) {
+	if b.ebg != nil {
+		ip, _, err := net.ParseCIDR(cidr)
+		if err == nil {
+			if err := b.ebg.CheckTarget(ctx, ip.String()); err != nil {
+				return nil, fmt.Errorf("egress blocked: %w", err)
+			}
+		}
+	}
+
 	cfg := connector.ConnectorConfig{
 		CIDRRange: cidr,
 		EnclaveID: localEnclaveID,
