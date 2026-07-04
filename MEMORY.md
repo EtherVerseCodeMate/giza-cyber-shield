@@ -661,3 +661,57 @@ Run at the close of every sprint and before any pilot demo or Iron Bank resubmis
 repo root as `AUDIT_<PRODUCT>_<YYYY-MM-DD>.md`. Compare each run against the prior report's open items —
 a finding that regressed (came back after being marked RESOLVED) is automatically escalated one severity.
 
+---
+
+## 🛡️ STANDING RULE — Egress-Capable Components Require a Direction-Correct Perimeter Guard
+
+> Origin: Diagonal-dimension CRITICAL finding, 2026-07-03/04 audit of the Polymorphic API Connector
+> (fleet SSH/WinRM/nmap/CSV/cloud connectors) and the Blackhole VPN (Hub↔reporter dispatch channel).
+
+**The mistake this rule prevents:** assuming "we have SEKHEM WAF, so we're covered" for any new
+network-facing component, without checking which *direction* that component moves traffic.
+
+**The finding:** `pkg/sekhem/waf.go` + `pkg/gateway/gateway.go` (`Handler(upstream http.Handler)
+http.Handler`) is a real, substantial L7 guard — but it wraps **inbound** HTTP servers only. It
+inspects requests *arriving at* the Hub/MCP. It provides **zero** protection to a component that
+*originates* outbound connections — `net.Dial`, SSH, WinRM, raw TCP probes, cloud API pulls — because
+there is no inbound `http.Handler` for it to wrap. Verified: neither the Polymorphic Connector's dial
+paths (`pkg/asaf/fleet`, `pkg/asaf/hub`) nor the Blackhole VPN's enrollment/dispatch (`blackhole.go`)
+had any CIDR confinement, egress allowlisting, pre-dial Guardian/pentest vetting, or DAG-attested
+dial-attempt logging at time of finding. A `maat.Guardian.WeighAndDecide` policy layer exists but
+evaluates already-aggregated `Isfet` events after the fact — nothing feeds it a proposed dial target
+*before* the dial happens.
+
+**Why this matters at CMMC-product stakes:** the connector holds decrypted credentials (AES-256-GCM
+vault) and dials operator- or CSV-or-CIDR-supplied targets. An attacker who can influence an import
+file, a discovery CIDR, or an enrollment request can direct authenticated, credentialed outbound
+connections to a target of their choosing, with **no independent control point** that blocks it,
+flags it, or even logs the attempt as its own auditable fact (only the resulting side-effect, if any,
+gets logged today). This is an SSRF-shaped risk with privileged credentials attached — worse than a
+silent-failure mock, because it can be a silent-*success* of a malicious action.
+
+**THE RULE:** Every external-facing or egress-capable component — anything that either (a) accepts
+inbound network traffic, or (b) *originates* outbound connections to operator-, config-, or
+discovery-supplied targets (SSH/WinRM/API/cloud connectors, Blackhole VPN dispatch, any future
+integration) — MUST be paired with the perimeter control matching its actual traffic direction before
+it ships to an operator UI or a customer deployment:
+
+- **Inbound traffic** → SEKHEM WAF / `pkg/gateway` Handler wrapping. (Already correct for the Hub/MCP
+  HTTP surfaces — keep doing this.)
+- **Outbound/egress traffic** → an **Egress Boundary Guard**, which does NOT yet exist as a component
+  and must be built, not assumed:
+  1. **Enclave-CIDR confinement, enforced not advisory** — every dial target must resolve inside a
+     Phase-1-declared enclave boundary. Reject + log any out-of-scope target; never silently proceed
+     (mirrors the spec's own Phase-1 rule that a scope discrepancy is flagged, never auto-overridden).
+  2. **DAG-attested dial attempts**, independent of outcome — every outbound connection attempt is its
+     own signed DAG node (who, what target, what credential, when), not just the eventual result.
+  3. **Pre-dial Guardian/pentest vetting** — the proposed target is checked *before* the dial fires,
+     not fed to a policy engine only after telemetry accumulates.
+  4. **Anomaly → IR handoff** — rate-of-dial spikes, out-of-enclave attempts, repeated auth failures
+     auto-open a `pkg/ir` incident; they do not just increment a log counter.
+
+**Enforcement:** before any new egress-capable component (a connector, an agent dispatcher, a cloud
+integration) is wired into a UI or shipped to a customer, the 4-Layer audit's Diagonal pass must
+explicitly answer: *"What perimeter control matches this component's traffic direction, and where is
+it in the code?"* "We have a WAF" is not an acceptable answer for anything that dials out.
+
