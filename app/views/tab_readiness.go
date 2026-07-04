@@ -19,13 +19,13 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	asaftheme "github.com/EtherVerseCodeMate/giza-cyber-shield/app/theme"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hubclient"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hub"
 )
 
 // ReadinessTab is Tab 6 — SPRS tiles + KASA status + domain heatmap.
 type ReadinessTab struct {
 	win     fyne.Window
-	backend hubclient.Backend
+	backend hub.Backend
 
 	// SPRS tile labels
 	sprsScoreLabel   *canvas.Text
@@ -46,7 +46,7 @@ type ReadinessTab struct {
 }
 
 // NewReadinessTab constructs Tab 6.
-func NewReadinessTab(win fyne.Window, backend hubclient.Backend) *ReadinessTab {
+func NewReadinessTab(win fyne.Window, backend hub.Backend) *ReadinessTab {
 	t := &ReadinessTab{
 		win:          win,
 		backend:      backend,

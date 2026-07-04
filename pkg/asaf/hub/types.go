@@ -1,4 +1,4 @@
-// package hubclient defines the Backend interface and supporting types for the
+// package hub defines the Backend interface and supporting types for the
 // AdinKhepra ASAF desktop client.  Three concrete implementations exist:
 //
 //   - LocalBackend  — ModeStandalone: stig.Validator + Imhotep Unix socket
@@ -7,7 +7,7 @@
 //
 // All Fyne views (app/views/*.go) accept only the Backend interface; they never
 // import a concrete type.  This allows identical view code in all three modes.
-package hubclient
+package hub
 
 import (
 	"time"
