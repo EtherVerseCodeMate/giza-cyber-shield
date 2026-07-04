@@ -28,13 +28,13 @@ import (
 
 	asaftheme "github.com/EtherVerseCodeMate/giza-cyber-shield/app/theme"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/connector"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hub"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hubclient"
 )
 
 // ShowConnectWizard opens the fleet enrollment wizard as a new modal window.
 // onEnrolled is called (from the UI goroutine) whenever one or more assets are
 // successfully enrolled so the Fleet Manager tree can refresh.
-func ShowConnectWizard(parent fyne.Window, backend hub.Backend, onEnrolled func()) {
+func ShowConnectWizard(parent fyne.Window, backend hubclient.Backend, onEnrolled func()) {
 	w := fyne.CurrentApp().NewWindow("Connect Assets — Enrollment Wizard")
 	w.Resize(fyne.NewSize(820, 580))
 	w.CenterOnScreen()
@@ -86,10 +86,10 @@ func ShowConnectWizard(parent fyne.Window, backend hub.Backend, onEnrolled func(
 type connectWizard struct {
 	win     fyne.Window
 	parent  fyne.Window
-	backend hub.Backend
+	backend hubclient.Backend
 	onEnrolled func()
 
-	enclaves       []hub.Enclave
+	enclaves       []hubclient.Enclave
 	enclaveNamesA  []string // for Mode A select
 	enclaveNamesD  []string // for Mode D select
 	enclaveSelectA *widget.Select
@@ -97,7 +97,7 @@ type connectWizard struct {
 
 	// Mode A state
 	modeACancelFn  context.CancelFunc
-	modeADiscovered []hub.DiscoveredHost
+	modeADiscovered []hubclient.DiscoveredHost
 	modeASelected  map[string]bool // key = IP
 	modeATable     *widget.Table
 	modeAStatus    *widget.Label
@@ -111,7 +111,7 @@ type connectWizard struct {
 	modeBImportBtn *widget.Button
 
 	// Mode D state
-	modeDResult *hub.TestResult
+	modeDResult *hubclient.TestResult
 }
 
 
@@ -345,7 +345,7 @@ func (cw *connectWizard) runModeAScan(cidr, portPreset string, scanBtn *widget.B
 		cw.modeAEnrollBtn.Disable()
 	})
 
-	opts := hub.DiscoveryOptions{
+	opts := hubclient.DiscoveryOptions{
 		Ports:    cw.presetPorts(portPreset),
 		MaxHosts: 250,
 		Timeout:  10 * time.Second,
@@ -401,7 +401,7 @@ func (cw *connectWizard) updateModeAEnrollBtn() {
 
 func (cw *connectWizard) enrollModeASelected(enclaveName string) {
 	enclaveID := cw.enclaveIDByName(enclaveName)
-	var toEnroll []hub.DiscoveredHost
+	var toEnroll []hubclient.DiscoveredHost
 	for _, h := range cw.modeADiscovered {
 		if cw.modeASelected[h.IP] {
 			toEnroll = append(toEnroll, h)
@@ -422,7 +422,7 @@ func (cw *connectWizard) enrollModeASelected(enclaveName string) {
 			if hostname == "" {
 				hostname = h.IP
 			}
-			_, err := cw.backend.AddAsset(ctx, hub.AddAssetRequest{
+			_, err := cw.backend.AddAsset(ctx, hubclient.AddAssetRequest{
 				EnclaveID:   enclaveID,
 				Hostname:    hostname,
 				IPAddress:   h.IP,
@@ -748,8 +748,8 @@ func (cw *connectWizard) buildModeD() fyne.CanvasObject {
 	enrollBtn.Importance = widget.HighImportance
 	enrollBtn.Disable()
 
-	buildCred := func() *hub.ConnectorCred {
-		cred := &hub.ConnectorCred{
+	buildCred := func() *hubclient.ConnectorCred {
+		cred := &hubclient.ConnectorCred{
 			Username: usernameEntry.Text,
 			Secret:   secretEntry.Text,
 		}
@@ -762,7 +762,7 @@ func (cw *connectWizard) buildModeD() fyne.CanvasObject {
 		return cred
 	}
 
-	buildCfg := func() hub.ConnectorConfig {
+	buildCfg := func() hubclient.ConnectorConfig {
 		proto := connector.ProtoSSH
 		if strings.Contains(protoRadio.Selected, "WinRM") {
 			proto = connector.ProtoWinRM
@@ -770,7 +770,7 @@ func (cw *connectWizard) buildModeD() fyne.CanvasObject {
 		port := 22
 		fmt.Sscanf(portEntry.Text, "%d", &port)
 
-		return hub.ConnectorConfig{
+		return hubclient.ConnectorConfig{
 			Protocol:   proto,
 			Host:       strings.TrimSpace(hostEntry.Text),
 			Port:       port,
@@ -858,7 +858,7 @@ func (cw *connectWizard) buildModeD() fyne.CanvasObject {
 			hostname := host
 			ip := host
 
-			_, err := cw.backend.AddAsset(ctx, hub.AddAssetRequest{
+			_, err := cw.backend.AddAsset(ctx, hubclient.AddAssetRequest{
 				EnclaveID:   cfg.EnclaveID,
 				Hostname:    hostname,
 				IPAddress:   ip,

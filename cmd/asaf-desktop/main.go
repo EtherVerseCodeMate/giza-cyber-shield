@@ -31,7 +31,7 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/app/views"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/connector"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hub"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hubclient"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/llm/ollama"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
@@ -145,14 +145,14 @@ func runGUI(hubURL string, embedHub bool, agentID string, insecure bool) {
 	tier := checkLicense()
 
 	// Determine AppMode and build the Backend.
-	var mode hub.AppMode
+	var mode hubclient.AppMode
 	switch {
 	case embedHub:
-		mode = hub.ModeEmbeddedHub
+		mode = hubclient.ModeEmbeddedHub
 	case hubURL != "":
-		mode = hub.ModeConnected
+		mode = hubclient.ModeConnected
 	default:
-		mode = hub.ModeStandalone
+		mode = hubclient.ModeStandalone
 	}
 
 	// Read Ollama settings persisted by the Settings tab.
@@ -175,13 +175,13 @@ func runGUI(hubURL string, embedHub bool, agentID string, insecure bool) {
 // buildStandaloneBackend creates a LocalBackend, probing Ollama at the given URL.
 // If Ollama is not reachable, aiProvider is nil and Ask() returns an actionable message.
 // The agent ML-DSA-65 key is loaded/generated so the ConnectorRegistry can encrypt its vault.
-func buildStandaloneBackend(ollamaURL, ollamaModel string) hub.Backend {
-	var ai hub.AIProviderBridge // nil = offline mode
+func buildStandaloneBackend(ollamaURL, ollamaModel string) hubclient.Backend {
+	var ai hubclient.AIProviderBridge // nil = offline mode
 	if probeOllama(ollamaURL) {
 		client := ollama.NewClient(ollamaURL, ollamaModel, "")
 		ai = &ollamaBridge{client: client, model: ollamaModel}
 	}
-	b := hub.NewLocalBackend(nil, nil, ai)
+	b := hubclient.NewLocalBackend(nil, nil, ai)
 
 	// Wire the ConnectorRegistry so Mode A/B/D enrollment can persist configs.
 	// Non-fatal: if the key cannot be loaded the registry is simply absent (in-memory only).
@@ -198,14 +198,14 @@ func buildStandaloneBackend(ollamaURL, ollamaModel string) hub.Backend {
 }
 
 // buildBackend constructs the appropriate Backend for the given mode.
-func buildBackend(mode hub.AppMode, hubURL, agentID string, insecure bool, ollamaURL, ollamaModel string) (hub.Backend, error) {
+func buildBackend(mode hubclient.AppMode, hubURL, agentID string, insecure bool, ollamaURL, ollamaModel string) (hubclient.Backend, error) {
 	switch mode {
-	case hub.ModeStandalone:
+	case hubclient.ModeStandalone:
 		return buildStandaloneBackend(ollamaURL, ollamaModel), nil
 
-	case hub.ModeConnected, hub.ModeEmbeddedHub:
+	case hubclient.ModeConnected, hubclient.ModeEmbeddedHub:
 		effectiveURL := hubURL
-		if mode == hub.ModeEmbeddedHub {
+		if mode == hubclient.ModeEmbeddedHub {
 			// EmbeddedHub: the subprocess will be started by showMainWindow after this returns.
 			// Use localhost temporarily; the tab_settings view updates it post-launch.
 			effectiveURL = "http://localhost:8443"
@@ -222,12 +222,12 @@ func buildBackend(mode hub.AppMode, hubURL, agentID string, insecure bool, ollam
 			return nil, fmt.Errorf("agent key: %w", err)
 		}
 
-		return hub.New(hub.Config{
+		return hubclient.New(hubclient.Config{
 			HubURL:   effectiveURL,
 			AgentID:  id,
 			PrivKey:  privKey,
 			Insecure: insecure,
-			Embedded: mode == hub.ModeEmbeddedHub,
+			Embedded: mode == hubclient.ModeEmbeddedHub,
 		})
 	}
 	return buildStandaloneBackend(ollamaURL, ollamaModel), nil
@@ -252,7 +252,7 @@ type ollamaBridge struct {
 	model  string
 }
 
-func (b *ollamaBridge) Chat(msgs []hub.AIMessage, _ bool) (string, error) {
+func (b *ollamaBridge) Chat(msgs []hubclient.AIMessage, _ bool) (string, error) {
 	if len(msgs) == 0 {
 		return "", nil
 	}
@@ -337,7 +337,7 @@ func showSplash(a fyne.App) fyne.Window {
 	return w
 }
 
-func showMainWindow(a fyne.App, tier string, backend hub.Backend) {
+func showMainWindow(a fyne.App, tier string, backend hubclient.Backend) {
 	// Brand resources — embedded at compile time, zero runtime I/O.
 	iconRes := fyne.NewStaticResource("icon.svg", iconSVG)
 	_ = lockupDarkSVG // reserved for future raster export path
@@ -393,9 +393,9 @@ func showMainWindow(a fyne.App, tier string, backend hub.Backend) {
 	// Mode badge — shows connection status per spec §14
 	var modeLabel string
 	switch backend.Mode() {
-	case hub.ModeConnected:
+	case hubclient.ModeConnected:
 		modeLabel = "● Remote Administration — " + backend.HubURL()
-	case hub.ModeEmbeddedHub:
+	case hubclient.ModeEmbeddedHub:
 		modeLabel = "● Embedded Hub — localhost:8443"
 	default:
 		modeLabel = "○ Standalone"

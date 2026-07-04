@@ -22,10 +22,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nouchix/PQC-Khepra-MCP/pkg/adinkra"
-	"github.com/nouchix/PQC-Khepra-MCP/pkg/asaf/fleet"
-	"github.com/nouchix/PQC-Khepra-MCP/pkg/dag"
-	"github.com/nouchix/PQC-Khepra-MCP/pkg/remote"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/fleet"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/remote"
 )
 
 // FleetScanResult is a scan result enriched with fleet metadata.

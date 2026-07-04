@@ -20,13 +20,13 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	asaftheme "github.com/EtherVerseCodeMate/giza-cyber-shield/app/theme"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hub"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hubclient"
 )
 
 // SSPTab is Tab 3 — System Security Plan auto-generation.
 type SSPTab struct {
 	win     fyne.Window
-	backend hub.Backend
+	backend hubclient.Backend
 
 	statusLabel *canvas.Text
 	progress    *widget.ProgressBar
@@ -35,7 +35,7 @@ type SSPTab struct {
 }
 
 // NewSSPTab constructs Tab 3.
-func NewSSPTab(win fyne.Window, backend hub.Backend) *SSPTab {
+func NewSSPTab(win fyne.Window, backend hubclient.Backend) *SSPTab {
 	t := &SSPTab{win: win, backend: backend}
 	t.build()
 	return t
@@ -137,7 +137,7 @@ func (t *SSPTab) generateSSP() {
 		}
 		fyne.Do(func() { t.progress.SetValue(0.3) })
 
-		var allAssets []hub.Asset
+		var allAssets []hubclient.Asset
 		for _, enc := range enclaves {
 			assets, err := t.backend.GetAssets(ctx, enc.ID)
 			if err != nil {
@@ -147,7 +147,7 @@ func (t *SSPTab) generateSSP() {
 		}
 		fyne.Do(func() { t.progress.SetValue(0.5) })
 
-		var sprsResult *hub.SPRSResult
+		var sprsResult *hubclient.SPRSResult
 		if len(enclaves) > 0 {
 			sprsResult, _ = t.backend.GetSPRS(ctx, enclaves[0].ID)
 		}
@@ -202,7 +202,7 @@ func (t *SSPTab) setError(msg string) {
 }
 
 // buildSSPText assembles the SSP narrative from retrieved data.
-func buildSSPText(enclaves []hub.Enclave, assets []hub.Asset, sprs *hub.SPRSResult) string {
+func buildSSPText(enclaves []hubclient.Enclave, assets []hubclient.Asset, sprs *hubclient.SPRSResult) string {
 	var sb strings.Builder
 	now := time.Now().UTC().Format("2006-01-02")
 

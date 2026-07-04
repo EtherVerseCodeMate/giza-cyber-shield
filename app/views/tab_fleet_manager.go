@@ -22,19 +22,19 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	asaftheme "github.com/EtherVerseCodeMate/giza-cyber-shield/app/theme"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hub"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hubclient"
 )
 
 // FleetManagerTab is Tab 2 — the fleet asset inventory and remote administration panel.
 type FleetManagerTab struct {
 	win     fyne.Window
-	backend hub.Backend
+	backend hubclient.Backend
 
 	// Left tree
 	tree      *widget.Tree
-	enclaves  []hub.Enclave
-	assets    []hub.Asset          // flat list; filtered by enclave in tree
-	assetByID map[string]hub.Asset // fast lookup for tree update callbacks
+	enclaves  []hubclient.Enclave
+	assets    []hubclient.Asset          // flat list; filtered by enclave in tree
+	assetByID map[string]hubclient.Asset // fast lookup for tree update callbacks
 
 	// Right detail panel
 	detailArea *fyne.Container
@@ -43,11 +43,11 @@ type FleetManagerTab struct {
 }
 
 // NewFleetManagerTab constructs Tab 2.
-func NewFleetManagerTab(win fyne.Window, backend hub.Backend) *FleetManagerTab {
+func NewFleetManagerTab(win fyne.Window, backend hubclient.Backend) *FleetManagerTab {
 	t := &FleetManagerTab{
 		win:       win,
 		backend:   backend,
-		assetByID: make(map[string]hub.Asset),
+		assetByID: make(map[string]hubclient.Asset),
 	}
 	t.build()
 	go t.refresh()
@@ -108,8 +108,8 @@ func (t *FleetManagerTab) build() {
 
 const fleetTreeRootUID = "__fleet_root__"
 
-func fleetEnclaveUID(e hub.Enclave) string { return "enc:" + e.ID }
-func fleetAssetUID(a hub.Asset) string     { return "asset:" + a.ID }
+func fleetEnclaveUID(e hubclient.Enclave) string { return "enc:" + e.ID }
+func fleetAssetUID(a hubclient.Asset) string     { return "asset:" + a.ID }
 
 func (t *FleetManagerTab) treeChildUIDs(uid string) []string {
 	if uid == "" {
@@ -211,7 +211,7 @@ func (t *FleetManagerTab) idleDetail() fyne.CanvasObject {
 	return container.NewCenter(hint)
 }
 
-func (t *FleetManagerTab) showAssetDetail(a hub.Asset) {
+func (t *FleetManagerTab) showAssetDetail(a hubclient.Asset) {
 	hostnameLabel := canvas.NewText(a.Hostname, asaftheme.TextPrimary)
 	hostnameLabel.TextSize = 18
 	hostnameLabel.TextStyle = fyne.TextStyle{Bold: true}
@@ -253,7 +253,7 @@ func (t *FleetManagerTab) showAssetDetail(a hub.Asset) {
 	})
 
 	streamBtn := widget.NewButton("View Live Stream", func() {
-		if t.backend.Mode() == hub.ModeStandalone {
+		if t.backend.Mode() == hubclient.ModeStandalone {
 			dialog.ShowInformation("Not Available",
 				"Live event streams require a Hub connection (--hub <url>).", t.win)
 			return
@@ -276,7 +276,7 @@ func (t *FleetManagerTab) showAssetDetail(a hub.Asset) {
 	})
 }
 
-func (t *FleetManagerTab) showKASAStream(a hub.Asset) {
+func (t *FleetManagerTab) showKASAStream(a hubclient.Asset) {
 	var feedData []string
 	list := widget.NewList(
 		func() int { return len(feedData) },
@@ -346,7 +346,7 @@ func (t *FleetManagerTab) refresh() {
 	sort.Slice(enclaves, func(i, j int) bool { return enclaves[i].Name < enclaves[j].Name })
 	sort.Slice(assets, func(i, j int) bool { return assets[i].Hostname < assets[j].Hostname })
 
-	byID := make(map[string]hub.Asset, len(assets))
+	byID := make(map[string]hubclient.Asset, len(assets))
 	for _, a := range assets {
 		byID[fleetAssetUID(a)] = a
 	}

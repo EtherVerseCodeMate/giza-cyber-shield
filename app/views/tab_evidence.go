@@ -21,13 +21,13 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	asaftheme "github.com/EtherVerseCodeMate/giza-cyber-shield/app/theme"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hub"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hubclient"
 )
 
 // EvidenceTab is Tab 7 — C3PAO evidence package export.
 type EvidenceTab struct {
 	win     fyne.Window
-	backend hub.Backend
+	backend hubclient.Backend
 
 	// Checklist item states (checked = included in package)
 	includeSSP      *widget.Check
@@ -43,7 +43,7 @@ type EvidenceTab struct {
 }
 
 // NewEvidenceTab constructs Tab 7.
-func NewEvidenceTab(win fyne.Window, backend hub.Backend) *EvidenceTab {
+func NewEvidenceTab(win fyne.Window, backend hubclient.Backend) *EvidenceTab {
 	t := &EvidenceTab{win: win, backend: backend}
 	t.build()
 	return t
@@ -259,7 +259,7 @@ func (t *EvidenceTab) buildPackage() {
 	fyne.Do(func() { t.progress.SetValue(0.10) })
 
 	// Collect DAG history
-	var dagNodes []hub.DAGNode
+	var dagNodes []hubclient.DAGNode
 	if t.includeDAG.Checked {
 		t.appendLog("Retrieving DAG audit trail…")
 		nodes, err := t.backend.GetDAGHistory(ctx)

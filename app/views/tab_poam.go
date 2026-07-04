@@ -21,7 +21,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	asaftheme "github.com/EtherVerseCodeMate/giza-cyber-shield/app/theme"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hub"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hubclient"
 )
 
 // poamEntry is one open finding row in the POA&M table.
@@ -40,7 +40,7 @@ type poamEntry struct {
 // POAMTab is Tab 4 — Plan of Action & Milestones.
 type POAMTab struct {
 	win     fyne.Window
-	backend hub.Backend
+	backend hubclient.Backend
 
 	entries     []poamEntry
 	filterSev   string
@@ -52,7 +52,7 @@ type POAMTab struct {
 }
 
 // NewPOAMTab constructs Tab 4.
-func NewPOAMTab(win fyne.Window, backend hub.Backend) *POAMTab {
+func NewPOAMTab(win fyne.Window, backend hubclient.Backend) *POAMTab {
 	t := &POAMTab{
 		win:       win,
 		backend:   backend,

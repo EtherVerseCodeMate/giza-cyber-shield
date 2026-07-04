@@ -8,7 +8,7 @@ require (
 	github.com/anchore/grype v0.115.0
 	github.com/anchore/syft v1.46.0
 	github.com/cloudflare/circl v1.6.4
-	github.com/fsnotify/fsnotify v1.9.0
+	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gin-gonic/gin v1.12.0
 	github.com/glebarez/go-sqlite v1.22.0
 	github.com/go-pdf/fpdf v0.9.0
@@ -17,12 +17,13 @@ require (
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/masterzen/winrm v0.0.0-20250927112105-5f8e6c707321
 	github.com/mikesmitty/edkey v0.0.0-20170222072505-3356ea4e686a
+	github.com/nouchix/PQC-Khepra-MCP v1.0.0
 	github.com/xuri/excelize/v2 v2.10.1
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/crypto v0.53.0
 	golang.org/x/sys v0.46.0
 	google.golang.org/grpc v1.82.0
-	modernc.org/sqlite v1.51.0
+	modernc.org/sqlite v1.53.0
 	tailscale.com v1.100.0
 )
 
@@ -400,7 +401,9 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 // indirect
 	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af // indirect
 	gvisor.dev/gvisor v0.0.0-20260224225140-573d5e7127a8 // indirect
-	modernc.org/libc v1.72.3 // indirect
+	modernc.org/libc v1.73.4 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
+
+replace github.com/nouchix/PQC-Khepra-MCP => ../PQC-Khepra-MCP

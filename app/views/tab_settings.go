@@ -24,13 +24,13 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	asaftheme "github.com/EtherVerseCodeMate/giza-cyber-shield/app/theme"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hub"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hubclient"
 )
 
 // SettingsTab is Tab 8 — connection manager + AI provider + agent identity + diagnostics.
 type SettingsTab struct {
 	win     fyne.Window
-	backend hub.Backend
+	backend hubclient.Backend
 
 	// Connection section
 	modeLabel   *widget.Label
@@ -50,7 +50,7 @@ type SettingsTab struct {
 }
 
 // NewSettingsTab constructs Tab 8.
-func NewSettingsTab(win fyne.Window, backend hub.Backend) *SettingsTab {
+func NewSettingsTab(win fyne.Window, backend hubclient.Backend) *SettingsTab {
 	t := &SettingsTab{win: win, backend: backend}
 	t.build()
 	go t.refreshDiagnostics()
@@ -98,9 +98,9 @@ func (t *SettingsTab) build() {
 
 	connHelpText := func() string {
 		switch mode {
-		case hub.ModeConnected:
-			return "Connected to remote Stargate Hub. All compliance data flows through the Hub API."
-		case hub.ModeEmbeddedHub:
+		case hubclient.ModeConnected:
+			return "Connected to remote Stargate hubclient. All compliance data flows through the Hub API."
+		case hubclient.ModeEmbeddedHub:
 			return "Running embedded Hub subprocess on localhost:8443. No external network required."
 		default:
 			return "Standalone mode: STIG scan runs locally. Use --hub <url> or --embed-hub to connect."

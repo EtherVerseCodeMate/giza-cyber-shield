@@ -1,4 +1,4 @@
-﻿package main
+package main
 
 import (
 	"encoding/json"
@@ -44,7 +44,7 @@ func (wiz *Wizard) buildPage(idx int) fyne.CanvasObject {
 	return widget.NewLabel("Unknown page")
 }
 
-// ─── Page 1: Welcome ──────────────────────────────────────────────────────────
+// --- Page 1: Welcome ----------------------------------------------------------
 
 func (wiz *Wizard) makePage1Welcome() fyne.CanvasObject {
 	iconRes := fyne.NewStaticResource("icon.svg", iconSVGBytes)
@@ -65,19 +65,19 @@ func (wiz *Wizard) makePage1Welcome() fyne.CanvasObject {
 	desc := widget.NewLabel(
 		"This wizard will install AdinKhepra ASAF on your computer.\n\n" +
 			"AdinKhepra ASAF is the sovereign CMMC autopilot engine for DIB contractors.\n" +
-			"It answers the question: \"Will I pass my CMMC L2 audit?\" — offline, with\n" +
+			"It answers the question: \"Will I pass my CMMC L2 audit?\" � offline, with\n" +
 			"zero egress, post-quantum attested, in a single native binary.\n\n" +
 			"Features:\n" +
-			"  • 3D Compliance Graph Desktop (CISO-facing, native GUI)\n" +
-			"  • 25,185-row (deduplicated) STIG/CCI/NIST/CMMC mapping database\n" +
-			"  • ML-DSA-65 post-quantum attestation (patent pending)\n" +
-			"  • Privileged remediation daemon with Adinkra symbol gate\n" +
-			"  • Air-gap ready. No Node.js. No browser. No telemetry.\n\n" +
+			"  � 3D Compliance Graph Desktop (CISO-facing, native GUI)\n" +
+			"  � 25,185-row (deduplicated) STIG/CCI/NIST/CMMC mapping database\n" +
+			"  � ML-DSA-65 post-quantum attestation (patent pending)\n" +
+			"  � Privileged remediation daemon with Adinkra symbol gate\n" +
+			"  � Air-gap ready. No Node.js. No browser. No telemetry.\n\n" +
 			"Click Next to continue.",
 	)
 	desc.Wrapping = fyne.TextWrapWord
 
-	publisher := widget.NewLabel(Publisher + "  ·  https://adinkhepra.com")
+	publisher := widget.NewLabel(Publisher + "  �  https://adinkhepra.com")
 	publisher.TextStyle = fyne.TextStyle{Italic: true}
 
 	heroBox := container.NewVBox(
@@ -93,7 +93,7 @@ func (wiz *Wizard) makePage1Welcome() fyne.CanvasObject {
 	)
 }
 
-// ─── Page 2: EULA ─────────────────────────────────────────────────────────────
+// --- Page 2: EULA -------------------------------------------------------------
 
 func (wiz *Wizard) makePage2EULA() fyne.CanvasObject {
 	eulaEntry := widget.NewMultiLineEntry()
@@ -129,7 +129,7 @@ func (wiz *Wizard) makePage2EULA() fyne.CanvasObject {
 	)
 }
 
-// ─── Page 3: License Key ──────────────────────────────────────────────────────
+// --- Page 3: License Key ------------------------------------------------------
 
 func (wiz *Wizard) makePage3LicenseKey() fyne.CanvasObject {
 	note := widget.NewLabel(
@@ -139,7 +139,7 @@ func (wiz *Wizard) makePage3LicenseKey() fyne.CanvasObject {
 	note.Wrapping = fyne.TextWrapWord
 
 	keyEntry := widget.NewMultiLineEntry()
-	keyEntry.SetPlaceHolder("Paste license JSON here…")
+	keyEntry.SetPlaceHolder("Paste license JSON here�")
 	if wiz.licenseJSON != "" {
 		keyEntry.SetText(wiz.licenseJSON)
 	}
@@ -158,7 +158,7 @@ func (wiz *Wizard) makePage3LicenseKey() fyne.CanvasObject {
 		wiz.cfg.LicenseJSON = s
 	}
 
-	browseBtn := widget.NewButton("Browse for license.adinkhepra…", func() {
+	browseBtn := widget.NewButton("Browse for license.adinkhepra�", func() {
 		dialog.ShowFileOpen(func(f fyne.URIReadCloser, err error) {
 			if err != nil || f == nil {
 				return
@@ -212,7 +212,7 @@ func parseLicenseTier(raw string) string {
 	return outer.License.Tier
 }
 
-// ─── Page 4: Install Directory ────────────────────────────────────────────────
+// --- Page 4: Install Directory ------------------------------------------------
 
 func (wiz *Wizard) makePage4InstallDir() fyne.CanvasObject {
 	note := widget.NewLabel("Choose where AdinKhepra ASAF will be installed.")
@@ -221,7 +221,7 @@ func (wiz *Wizard) makePage4InstallDir() fyne.CanvasObject {
 	dirEntry.SetText(wiz.cfg.InstallDir)
 	dirEntry.OnChanged = func(s string) { wiz.cfg.InstallDir = s }
 
-	browseBtn := widget.NewButton("Browse…", func() {
+	browseBtn := widget.NewButton("Browse�", func() {
 		dialog.ShowFolderOpen(func(f fyne.ListableURI, err error) {
 			if err != nil || f == nil {
 				return
@@ -256,7 +256,7 @@ func (wiz *Wizard) makePage4InstallDir() fyne.CanvasObject {
 	)
 }
 
-// ─── Page 5: Components ──────────────────────────────────────────────────────
+// --- Page 5: Components ------------------------------------------------------
 
 func (wiz *Wizard) makePage5Components() fyne.CanvasObject {
 	note := widget.NewLabel("Select the components to install:")
@@ -269,13 +269,13 @@ func (wiz *Wizard) makePage5Components() fyne.CanvasObject {
 	chkDesktop.Disable()
 
 	chkCLI := widget.NewCheck(
-		"AdinKhepra CLI  (adinkhepra.exe — ERT, scan, validate)",
+		"AdinKhepra CLI  (adinkhepra.exe � ERT, scan, validate)",
 		func(b bool) { wiz.cfg.Components.CLI = b },
 	)
 	chkCLI.SetChecked(wiz.cfg.Components.CLI)
 
 	chkDaemon := widget.NewCheck(
-		"ASAF System Daemon  (Windows Service — privileged execution layer)",
+		"ASAF System Daemon  (Windows Service � privileged execution layer)",
 		func(b bool) { wiz.cfg.Components.Daemon = b },
 	)
 	chkDaemon.SetChecked(wiz.cfg.Components.Daemon)
@@ -323,12 +323,12 @@ func (wiz *Wizard) makePage5Components() fyne.CanvasObject {
 	)
 }
 
-// ─── Page 6: Installing ───────────────────────────────────────────────────────
+// --- Page 6: Installing -------------------------------------------------------
 
 func (wiz *Wizard) makePage6Installing() fyne.CanvasObject {
 	wiz.progressBar.SetValue(0)
 
-	statusLbl := canvas.NewText("Preparing installation…", asafBlue)
+	statusLbl := canvas.NewText("Preparing installation�", asafBlue)
 	statusLbl.TextSize = 13
 
 	wiz.logEntry.SetText("")
@@ -344,7 +344,7 @@ func (wiz *Wizard) makePage6Installing() fyne.CanvasObject {
 	)
 }
 
-// ─── Page 7: Finish ───────────────────────────────────────────────────────────
+// --- Page 7: Finish -----------------------------------------------------------
 
 func (wiz *Wizard) makePage7Finish() fyne.CanvasObject {
 	var headline *canvas.Text
@@ -398,5 +398,5 @@ func shortenKeyID(id string) string {
 	if len(id) <= 16 {
 		return id
 	}
-	return id[:8] + "…" + id[len(id)-8:]
+	return id[:8] + "�" + id[len(id)-8:]
 }

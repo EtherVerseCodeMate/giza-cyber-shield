@@ -2,10 +2,12 @@ package policy
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net"
 	"time"
 
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/agi"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/ir"
@@ -70,7 +72,16 @@ func (ebg *EgressBoundaryGuard) CheckTarget(ctx context.Context, targetIP string
 				"agent":         ebg.AgentID,
 			},
 		}
-		// Note: in a full implementation, you would sign this node before Add
+		node.Hash = node.ComputeHash()
+		node.ID = node.Hash
+
+		if len(ebg.SignKey) > 0 {
+			if sigBytes, err := adinkra.Sign(ebg.SignKey, []byte(node.Hash)); err == nil {
+				node.Signature = base64.StdEncoding.EncodeToString(sigBytes)
+			}
+		}
+
+		// Pass nil for parents for now, DAGStore handles linking
 		ebg.DAGStore.Add(node, nil)
 	}
 

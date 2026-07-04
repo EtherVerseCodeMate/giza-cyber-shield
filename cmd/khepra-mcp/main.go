@@ -1,11 +1,11 @@
-﻿// Khepra MCP Server — Hardened Entry Point (AD-006 / AD-008)
+// Khepra MCP Server � Hardened Entry Point (AD-006 / AD-008)
 //
 // This binary implements the world's first PQC-secured MCP server.
 // It runs as a subprocess launched by AI tools (Claude, Cursor, Windsurf)
 // via stdin/stdout JSON-RPC transport as defined by the MCP specification.
 //
 // Security chain:
-//   DEMARC → Manifest → Polymorphic → MCPGateway → Executor → Attestation
+//   DEMARC ? Manifest ? Polymorphic ? MCPGateway ? Executor ? Attestation
 //
 // All tool responses are PQC-signed (Adinkhepra ML-DSA-65) and DAG-anchored.
 // Tool schemas are pinned via signed manifest with fail-closed startup verification.
@@ -52,7 +52,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	// ── Adinkra PQC Key Setup ────────────────────────────────────────────────
+	// -- Adinkra PQC Key Setup ------------------------------------------------
 	symbol := getEnvOr("PHANTOM_SYMBOL", "Eban")
 	_ = adinkra.GetSpectralFingerprint(symbol) // Validate symbol exists
 
@@ -65,24 +65,24 @@ func main() {
 	keyHash := sha256.Sum256(pubKey)
 	keyID := hex.EncodeToString(keyHash[:8])
 
-	// ── Deployment Mode — read once, logged clearly ──────────────────────────
+	// -- Deployment Mode � read once, logged clearly --------------------------
 	// This is the canonical mode log line. All downstream components inherit
 	// their storage and network policy from config.LoadRuntime().
 	runCfg := config.LoadRuntime()
-	logger.Printf("━━━ KHEPRA MCP SERVER ━━━")
+	logger.Printf("??? KHEPRA MCP SERVER ???")
 	logger.Printf("  mode:           %s", runCfg.Mode)
 	logger.Printf("  network_policy: %s", runCfg.NetworkPolicy)
 	if runCfg.IsAirGapped {
-		logger.Printf("  dag_store:      PersistentMemory (disk) → %s", runCfg.DAGPath)
+		logger.Printf("  dag_store:      PersistentMemory (disk) ? %s", runCfg.DAGPath)
 		logger.Printf("  supabase:       DISABLED (air-gap mode)")
 	} else {
 		logger.Printf("  dag_store:      Memory (in-process, stateless SaaS)")
-		logger.Printf("  supabase:       ENABLED (SaaS mode — requires saas build tag)")
+		logger.Printf("  supabase:       ENABLED (SaaS mode � requires saas build tag)")
 	}
 	logger.Printf("  symbol=%s | key_id=%s", symbol, keyID)
 
-	// ── Transport mode enforcement ────────────────────────────────────────────
-	// sovereign/ironbank: stdio only — refuse HTTP listener (air-gap policy).
+	// -- Transport mode enforcement --------------------------------------------
+	// sovereign/ironbank: stdio only � refuse HTTP listener (air-gap policy).
 	// edge/hybrid: HTTP/SSE allowed (Fly.io reverse proxy handles TLS).
 	if runCfg.IsAirGapped {
 		if os.Getenv("KHEPRA_HTTP_PORT") != "" {
@@ -91,18 +91,18 @@ func main() {
 				"Remove KHEPRA_HTTP_PORT or switch to KHEPRA_MODE=edge for HTTP.",
 				os.Getenv("KHEPRA_HTTP_PORT"), runCfg.Mode)
 		}
-		logger.Printf("  transport:      stdio only (air-gap policy — HTTP listener refused)")
+		logger.Printf("  transport:      stdio only (air-gap policy � HTTP listener refused)")
 	} else {
 		logger.Printf("  transport:      stdio + HTTP/SSE available (set KHEPRA_HTTP_PORT to enable)")
 	}
 
-	// ── License Validation ──────────────────────────────────────────────
+	// -- License Validation ----------------------------------------------
 	// ParseMCPLicense loads KHEPRA_LICENSE_KEY and verifies offline via
 	// ML-DSA-65 + device binding + expiry + IPFS CRL (sovereign.go stack).
 	// Community tier (no key) is non-fatal; tampered/expired = fatal.
 	licenseClaim, licErr := license.ParseMCPLicense()
 	if errors.Is(licErr, license.ErrNoLicenseKey) {
-		logger.Printf("[LICENSE] Community tier — Enterprise tools gated. Set KHEPRA_LICENSE_KEY to unlock.")
+		logger.Printf("[LICENSE] Community tier � Enterprise tools gated. Set KHEPRA_LICENSE_KEY to unlock.")
 	} else if licErr != nil {
 		// Key present but invalid (tampered / expired / wrong machine) = fatal
 		logger.Fatalf("FATAL: license validation failed: %v", licErr)
@@ -115,9 +115,9 @@ func main() {
 		)
 	}
 
-	// ── Build Security Chain ─────────────────────────────────────────────────
+	// -- Build Security Chain -------------------------------------------------
 
-	// 1. DEMARC Gateway — pre-authenticated identity for stdio transport
+	// 1. DEMARC Gateway � pre-authenticated identity for stdio transport
 	demarc := &khepramcp.AdinkraDemarcGateway{
 		StdioIdentity: khepramcp.Identity{
 			Subject:   "khepra-mcp-stdio",
@@ -128,24 +128,24 @@ func main() {
 		},
 	}
 
-	// 2. Polymorphic Engine — PQC envelope wrapping
+	// 2. Polymorphic Engine � PQC envelope wrapping
 	poly := &khepramcp.AdinkraPolymorphicEngine{
 		Symbol:     symbol,
 		PrivateKey: privKey,
 		PublicKey:  pubKey,
 	}
 
-	// 3. MCP Gateway — RBAC + injection scanning
+	// 3. MCP Gateway � RBAC + injection scanning
 	gateway := khepramcp.NewDefaultMCPGateway()
 
-	// 4. Manifest Registry — load and verify pinned tool definitions
+	// 4. Manifest Registry � load and verify pinned tool definitions
 	registry, err := loadManifestRegistry(ctx, pubKey, keyID, logger)
 	if err != nil {
-		logger.Fatalf("FATAL: manifest registry failed — fail-closed: %v", err)
+		logger.Fatalf("FATAL: manifest registry failed � fail-closed: %v", err)
 	}
 	logger.Printf("manifest loaded: %d tools, version=%s", registry.ToolCount(), registry.Version())
 
-	// 5. Executor — risk-classified dispatch
+	// 5. Executor � risk-classified dispatch
 	sandboxBackend := khepramcp.NewDockerSandbox(khepramcp.DockerSandboxConfig{
 		Image:  getEnvOr("PHANTOM_IMAGE", "khepra-phantom:latest"),
 		Config: khepramcp.DefaultSandboxConfig(),
@@ -165,19 +165,19 @@ func main() {
 	// 6. Register in-process tool handlers
 	registerToolHandlers(executor)
 
-	// 7. DAG Attestor — PQC-signed audit trail
+	// 7. DAG Attestor � PQC-signed audit trail
 	// dag.NewStore() selects PersistentMemory (sovereign) or Memory (SaaS/edge)
 	// based on KHEPRA_MODE. This is already resolved in runCfg above.
 	_ = runCfg // consumed above; dag.NewStore() re-reads KHEPRA_MODE internally
 	dagStore := dag.NewStore()
 	attestor := khepramcp.NewDAGAttestor(dagStore, symbol, privKey)
 
-	// ── Assemble Router ──────────────────────────────────────────────────────
+	// -- Assemble Router ------------------------------------------------------
 	//
 	// Wire all security hardening fields introduced in the NSA/ASD reconciliation:
-	//   SignedAuditLog    — per-entry ML-DSA-65-signed NDJSON chain (DFARS 252.204-7012)
-	//   InvocationRootKey — per-call ephemeral HMAC tokens (ASD/CISA short-lived credentials)
-	//   MaxConcurrent     — concurrent call cap per agent (NSA prompt-storm defense)
+	//   SignedAuditLog    � per-entry ML-DSA-65-signed NDJSON chain (DFARS 252.204-7012)
+	//   InvocationRootKey � per-call ephemeral HMAC tokens (ASD/CISA short-lived credentials)
+	//   MaxConcurrent     � concurrent call cap per agent (NSA prompt-storm defense)
 
 	// Open the tamper-evident audit log
 	var signedLog *khepramcp.SignedAuditLog
@@ -197,7 +197,7 @@ func main() {
 	})
 	if salErr != nil {
 		// Non-fatal: log warning but continue without signed log
-		logger.Printf("WARN: signed audit log unavailable (%s): %v — continuing without", auditLogPath, salErr)
+		logger.Printf("WARN: signed audit log unavailable (%s): %v � continuing without", auditLogPath, salErr)
 	} else {
 		signedLog = sal
 		logger.Printf("signed audit log: %s", auditLogPath)
@@ -233,7 +233,7 @@ func main() {
 		logger.Fatalf("FATAL: router construction failed: %v", err)
 	}
 
-	// ── Start HardenedServer ─────────────────────────────────────────────────
+	// -- Start HardenedServer -------------------------------------------------
 	server, err := khepramcp.NewHardenedServer(khepramcp.HardenedServerConfig{
 		Mode:       khepramcp.TransportStdio,
 		Router:     router,
@@ -244,9 +244,9 @@ func main() {
 		logger.Fatalf("FATAL: server construction failed: %v", err)
 	}
 
-	// ── Register Shutdown Hooks ──────────────────────────────────────────────
+	// -- Register Shutdown Hooks ----------------------------------------------
 	// 0. Stop heartbeat daemon (handled by sovereign telemetry_client.go)
-	// (no separate daemon to stop — sovereign stack manages its own lifecycle)
+	// (no separate daemon to stop � sovereign stack manages its own lifecycle)
 	// 1. Zero-out PQC private key material
 	server.OnShutdown(func() {
 		for i := range privKey {
@@ -298,72 +298,72 @@ func main() {
 	logger.Printf("shutdown complete")
 }
 
-// ─── Tool Handler Registration ─────────────────────────────────────────────────
+// --- Tool Handler Registration -------------------------------------------------
 
 func registerToolHandlers(executor *khepramcp.Executor) {
-	// ── ACP: Agent Control Plane (credential lifecycle) ───────────────────
+	// -- ACP: Agent Control Plane (credential lifecycle) -------------------
 	executor.RegisterFunc("acp_status", tools.HandleACPStatus)
 	executor.RegisterFunc("acp_issue", tools.HandleACPIssue)
 	executor.RegisterFunc("acp_revoke", tools.HandleACPRevoke)
 
-	// ── NHI: Non-Human Identity (service account / API key governance) ────
+	// -- NHI: Non-Human Identity (service account / API key governance) ----
 	executor.RegisterFunc("nhi_inventory", tools.HandleNHIInventory)
 	executor.RegisterFunc("nhi_orphans", tools.HandleNHIOrphans)
 	executor.RegisterFunc("nhi_excessive", tools.HandleNHIExcessive)
 	executor.RegisterFunc("nhi_expired", tools.HandleNHIExpired)
 	executor.RegisterFunc("nhi_revoke", tools.HandleNHIRevoke)
 
-	// ── ERT: Enterprise Risk & Threat scanner (Docker sandbox) ────────────
+	// -- ERT: Enterprise Risk & Threat scanner (Docker sandbox) ------------
 	executor.RegisterFunc("ert_scan", tools.HandleERTScan)
 
-	// ── ERT Packages A–D (in-process, JSON output, ASAF-enriched) ─────────
-	// Package A — Mission Assurance Modeling (NIST 800-171 + SCA scoring)
+	// -- ERT Packages A�D (in-process, JSON output, ASAF-enriched) ---------
+	// Package A � Mission Assurance Modeling (NIST 800-171 + SCA scoring)
 	executor.RegisterFunc("ert_readiness", tools.HandleERTReadiness)
-	// Package B — Supply Chain Hunter (Syft→Grype→Enricher pipeline)
+	// Package B � Supply Chain Hunter (Syft?Grype?Enricher pipeline)
 	executor.RegisterFunc("ert_architect", tools.HandleERTArchitect)
-	// Package C — PQC Attestation (SBOM crypto inventory + weak primitive scan)
+	// Package C � PQC Attestation (SBOM crypto inventory + weak primitive scan)
 	executor.RegisterFunc("ert_crypto", tools.HandleERTCrypto)
-	// Package D — Causal Risk Attestation (KernelRouter synthesis + DAG)
+	// Package D � Causal Risk Attestation (KernelRouter synthesis + DAG)
 	executor.RegisterFunc("ert_godfather", tools.HandleERTGodfather)
 
-	// ── DAG Attestation — export signed audit trail ────────────────────────
+	// -- DAG Attestation � export signed audit trail ------------------------
 	executor.RegisterFunc("dag_attestation", tools.HandleDAGAttestation)
 
-	// ── Godfather Report + Human-in-the-Loop Gate ─────────────────────────
+	// -- Godfather Report + Human-in-the-Loop Gate -------------------------
 	// NSA/ASD Security Track 6: high-impact outputs require analyst approval
 	executor.RegisterFunc("godfather_report", tools.HandleGodfatherReport)
 	executor.RegisterFunc("godfather_approve", tools.HandleGodfatherApprove)
 
-	// ── NIST Map: offline BM25 semantic control search (zero token cost) ──
+	// -- NIST Map: offline BM25 semantic control search (zero token cost) --
 	executor.RegisterFunc("nist_map", tools.HandleNistMapTool)
 
-	// ── khepra_watch: filesystem-triggered continuous monitoring ──────────
+	// -- khepra_watch: filesystem-triggered continuous monitoring ----------
 	// CMMC AC.2.006, CM.2.061, SI.2.217 continuous monitoring requirement
 	executor.RegisterFunc("khepra_watch", tools.HandleKhepraWatchTool)
 
-	// ── SouHimBou AI: Step 01 — Discover & Classify Assets ──────────────────
+	// -- SouHimBou AI: Step 01 � Discover & Classify Assets ------------------
 	// Inventories environment: OS, runtimes, containers, CI/CD, AI agents,
-	// crypto libs, MCP configs → matches applicable STIG profiles → recommends
-	// CMMC level → suggests next tools (Step 02 handoff)
+	// crypto libs, MCP configs ? matches applicable STIG profiles ? recommends
+	// CMMC level ? suggests next tools (Step 02 handoff)
 	executor.RegisterFunc("discover_assets", tools.HandleDiscoverAssets)
 
-	// ── Compliance Tools (Architecture Doc Layer 4 — PQC-MCP exposures) ───
+	// -- Compliance Tools (Architecture Doc Layer 4 � PQC-MCP exposures) ---
 	// Gap-closure: these were listed in KHEPRA_Four_Layer_Architecture_v1.docx
 	// but were not previously registered. NSA/ASD audit-gap fix.
 	//
-	// stig_check  — RHEL-09-STIG V1R3 check via pkg/stig Validator
+	// stig_check  � RHEL-09-STIG V1R3 check via pkg/stig Validator
 	executor.RegisterFunc("stig_check", tools.HandleSTIGCheck)
-	// pqc_stig — World's First DoD PQC STIG (PQC-01-STIG-V1R1, CNSA 2.0 / FIPS 203/204/205)
+	// pqc_stig � World's First DoD PQC STIG (PQC-01-STIG-V1R1, CNSA 2.0 / FIPS 203/204/205)
 	executor.RegisterFunc("pqc_stig", tools.HandlePQCSTIG)
-	// cmmc_assess — CMMC Level 1/2/3 assessment via pkg/stig Validator
+	// cmmc_assess � CMMC Level 1/2/3 assessment via pkg/stig Validator
 	executor.RegisterFunc("cmmc_assess", tools.HandleCMMCAssess)
-	// agent_record — Layer 4→3 bridge: SouHimBou AI Flight Recorder
+	// agent_record � Layer 4?3 bridge: SouHimBou AI Flight Recorder
 	executor.RegisterFunc("agent_record", tools.HandleAgentRecord)
 
-	// ── Sovereign Tools (no Supabase, no network — 100% offline) ───────────
-	// P0: C3PAO artifact — existential differentiator
+	// -- Sovereign Tools (no Supabase, no network � 100% offline) -----------
+	// P0: C3PAO artifact � existential differentiator
 	executor.RegisterFunc("khepra_export_attestation", tools.HandleKhepraExportAttestation)
-	// P0: POA&M — DFARS 252.204-7012 mandatory
+	// P0: POA&M � DFARS 252.204-7012 mandatory
 	executor.RegisterFunc("khepra_export_poam", tools.HandleKhepraExportPOAM)
 	// P1: STIG/CCI/NIST control lookup via embedded 25,185-row (deduplicated) database
 	executor.RegisterFunc("khepra_query_stig", tools.HandleKhepraQuerySTIG)
@@ -374,21 +374,21 @@ func registerToolHandlers(executor *khepramcp.Executor) {
 	// P2: Session DAG chain export
 	executor.RegisterFunc("khepra_get_dag_chain", tools.HandleKhepraGetDAGChain)
 
-	// ── SouHimBou AI: Flight Recorder (Step 03 — Generate Evidence) ─────────
+	// -- SouHimBou AI: Flight Recorder (Step 03 � Generate Evidence) ---------
 	// flight_export: export a CMMC-aligned evidence packet from the flight log
-	//   Maps all agent actions → NIST 800-171 / CMMC 2.0 controls
+	//   Maps all agent actions ? NIST 800-171 / CMMC 2.0 controls
 	//   Verifies tamper chain + computes all SOW pilot KPIs
 	executor.RegisterFunc("flight_export", tools.HandleFlightExport)
 
-	// ── OWASP Agentic Top 10 for 2026 (ASI01-ASI10) ───────────────────────
+	// -- OWASP Agentic Top 10 for 2026 (ASI01-ASI10) -----------------------
 	// Assesses this MCP server deployment against all 10 ASI risks.
 	// Returns scored findings, active controls, gaps, and a PQC-signed
 	// evidence packet with executive summary and production readiness verdict.
 	// Competitive differentiator: only tool that maps agent stack to OWASP
-	// Agentic Top 10 with ML-DSA-65 signed evidence — 100% offline.
+	// Agentic Top 10 with ML-DSA-65 signed evidence � 100% offline.
 	executor.RegisterFunc("owasp_agent_assess", tools.HandleOWASPAgentAssess)
 
-	// ── Dark Crypto Intelligence Network (Community Tier) ───────────────────
+	// -- Dark Crypto Intelligence Network (Community Tier) -------------------
 	// Privacy-preserving contribution of anonymized crypto inventory to the
 	// global Dark Crypto Intelligence Network. No file paths, IPs, hostnames,
 	// credentials, or code contents leave the machine. Users receive back their
@@ -397,7 +397,7 @@ func registerToolHandlers(executor *khepramcp.Executor) {
 	executor.RegisterFunc("dark_crypto_contribute", tools.HandleDarkCryptoContribute)
 }
 
-// ─── Manifest Loading ──────────────────────────────────────────────────────────
+// --- Manifest Loading ----------------------------------------------------------
 
 func loadManifestRegistry(ctx context.Context, pubKey []byte, keyID string, logger *log.Logger) (*khepramcp.ManifestRegistry, error) {
 	manifestPath := getEnvOr("KHEPRA_MANIFEST_PATH", "manifest.json")
@@ -413,7 +413,7 @@ func loadManifestRegistry(ctx context.Context, pubKey []byte, keyID string, logg
 	}
 
 	// Fallback: generate embedded bootstrap manifest
-	logger.Printf("no manifest file found at %s — generating bootstrap manifest", manifestPath)
+	logger.Printf("no manifest file found at %s � generating bootstrap manifest", manifestPath)
 	return generateBootstrapManifest(ctx, pubKey, keyID)
 }
 
@@ -440,14 +440,14 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 	}
 
 	// noArgSchema is used for tools that require no parameters.
-	// MCP clients REQUIRE inputSchema to be present — omitting it hides the tool.
+	// MCP clients REQUIRE inputSchema to be present � omitting it hides the tool.
 	noArgSchema := map[string]any{
 		"type":       "object",
 		"properties": map[string]any{},
 	}
 
 	return []khepramcp.ToolSpec{
-		// ── ACP (Agent Control Plane) ────────────────────────────────────────
+		// -- ACP (Agent Control Plane) ----------------------------------------
 		{
 			Name: "acp_status", Description: "List active ACP credentials and their expiry status",
 			RiskClass: khepramcp.RiskReadOnly, Scope: "acp:read",
@@ -487,7 +487,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			},
 		},
 
-		// ── NHI (Non-Human Identity) ─────────────────────────────────────────
+		// -- NHI (Non-Human Identity) -----------------------------------------
 		{
 			Name: "nhi_inventory", Description: "List all non-human identities (service accounts, API keys, certificates)",
 			RiskClass: khepramcp.RiskReadOnly, Scope: "nhi:read",
@@ -535,7 +535,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			},
 		},
 
-		// ── ERT (Enterprise Risk & Threat Scanner) ───────────────────────────
+		// -- ERT (Enterprise Risk & Threat Scanner) ---------------------------
 		// Runs in Docker sandbox with capability mounts scoped to the scan target.
 		// ASD/CISA confused-deputy defense: only the directories declared here
 		// are accessible inside the container.
@@ -558,10 +558,10 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			},
 		},
 
-		// ── ERT Packages A–D (in-process, structured JSON, ASAF-enriched) ────
+		// -- ERT Packages A�D (in-process, structured JSON, ASAF-enriched) ----
 		{
 			Name:           "ert_readiness",
-			Description:    "Package A: NIST 800-171 Rev2 compliance assessment + live SCA risk factor. Returns alignment score (0–100), control gaps, and prioritized remediation roadmap. Air-gap safe.",
+			Description:    "Package A: NIST 800-171 Rev2 compliance assessment + live SCA risk factor. Returns alignment score (0�100), control gaps, and prioritized remediation roadmap. Air-gap safe.",
 			RiskClass:      khepramcp.RiskReadOnly, Scope: "ert:compliance",
 			SchemaVersion:  "1.0.0", SchemaHash: hash("ert_readiness"),
 			AllowedBackend: "in-process", TimeoutMs: 60000,
@@ -575,7 +575,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 		},
 		{
 			Name:           "ert_architect",
-			Description:    "Package B: Live supply chain risk — Syft SBOM generation + Grype CVE matching + threat intel enrichment (CISA KEV, EPSS, MITRE ATT&CK). Returns enriched findings with NIST 800-171 control mapping.",
+			Description:    "Package B: Live supply chain risk � Syft SBOM generation + Grype CVE matching + threat intel enrichment (CISA KEV, EPSS, MITRE ATT&CK). Returns enriched findings with NIST 800-171 control mapping.",
 			RiskClass:      khepramcp.RiskReadOnly, Scope: "ert:supply-chain",
 			SchemaVersion:  "1.0.0", SchemaHash: hash("ert_architect"),
 			AllowedBackend: "in-process", TimeoutMs: 300000,
@@ -590,7 +590,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 		},
 		{
 			Name:           "ert_crypto",
-			Description:    "Package C: PQC readiness attestation — source-level crypto primitive scan, SBOM crypto library inventory (OpenSSL, Kyber, Dilithium, etc.), weak primitive detection (MD5/SHA1/DES/RC4), CNSA 2.0 scenario-based quantum risk context.",
+			Description:    "Package C: PQC readiness attestation � source-level crypto primitive scan, SBOM crypto library inventory (OpenSSL, Kyber, Dilithium, etc.), weak primitive detection (MD5/SHA1/DES/RC4), CNSA 2.0 scenario-based quantum risk context.",
 			RiskClass:      khepramcp.RiskReadOnly, Scope: "ert:pqc",
 			SchemaVersion:  "1.0.0", SchemaHash: hash("ert_crypto"),
 			AllowedBackend: "in-process", TimeoutMs: 180000,
@@ -618,7 +618,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			},
 		},
 
-		// ── DAG Attestation ──────────────────────────────────────────────────
+		// -- DAG Attestation --------------------------------------------------
 		{
 			Name:           "dag_attestation",
 			Description:    "Export the PQC-signed DAG audit trail for the current session. Returns all DAG nodes with ML-DSA-65 signatures, timestamps, and Adinkra symbol chain. Use after any ERT scan to produce a cryptographically-verifiable evidence package.",
@@ -629,7 +629,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			ArgsSchema:     noArgSchema,
 		},
 
-		// ── STIG Check ────────────────────────────────────────────────────────
+		// -- STIG Check --------------------------------------------------------
 		// Architecture Doc Layer 4 tool. Runs RHEL-09-STIG V1R3 or any
 		// supported framework via the pkg/stig Validator engine.
 		{
@@ -650,12 +650,12 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			},
 		},
 
-		// ── CMMC Assessment ───────────────────────────────────────────────────
+		// -- CMMC Assessment ---------------------------------------------------
 		// Architecture Doc Layer 4 tool. Full CMMC 3.0 Level 1/2/3 assessment
 		// via the pkg/stig compliance database (25,185 control mappings, deduplicated).
 		{
 			Name: "cmmc_assess",
-			Description: "Assess a system or artifact against CMMC Level 1, 2, or 3 practices. Uses the KHEPRA compliance database (25,185 STIG→CCI→NIST→CMMC mappings). Returns satisfaction score, gap list, C3PAO readiness flag, and PQC status. Required before CMMC-AB assessment.",
+			Description: "Assess a system or artifact against CMMC Level 1, 2, or 3 practices. Uses the KHEPRA compliance database (25,185 STIG?CCI?NIST?CMMC mappings). Returns satisfaction score, gap list, C3PAO readiness flag, and PQC status. Required before CMMC-AB assessment.",
 			RiskClass:      khepramcp.RiskReadOnly, Scope: "compliance:read",
 			SchemaVersion:  "1.0.0", SchemaHash: hash("cmmc_assess"),
 			AllowedBackend: "in-process", TimeoutMs: 60000,
@@ -671,7 +671,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			},
 		},
 
-		// ── Agent Record (Layer 4 → Layer 3 bridge) ───────────────────────────
+		// -- Agent Record (Layer 4 ? Layer 3 bridge) ---------------------------
 		// Forwards agent action events to SouHimBou AI Flight Recorder.
 		// Sovereign fallback: records in local PQC-signed DAG audit log.
 		{
@@ -694,12 +694,12 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			},
 		},
 
-		// ── Godfather Report (HITL-gated) ─────────────────────────────────────
+		// -- Godfather Report (HITL-gated) -------------------------------------
 		// Security Track 6: staged delivery with 30-min TTL token.
 		// Full report only released after human calls godfather_approve.
 		{
 			Name: "godfather_report",
-			Description: "Generate a complete CMMC/STIG/NIST compliance report. When approval_required=true, returns a staged token — the full report is held until a human calls godfather_approve.",
+			Description: "Generate a complete CMMC/STIG/NIST compliance report. When approval_required=true, returns a staged token � the full report is held until a human calls godfather_approve.",
 			RiskClass: khepramcp.RiskReadOnly, Scope: "compliance:report",
 			SchemaVersion: "1.0.0", SchemaHash: hash("godfather_report"),
 			AllowedBackend: "in-process", TimeoutMs: 30000,
@@ -715,7 +715,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 		},
 		{
 			Name: "godfather_approve",
-			Description: "Deliver a staged Godfather Report. Requires the staged_token returned by godfather_report. Single-use — token is consumed on delivery.",
+			Description: "Deliver a staged Godfather Report. Requires the staged_token returned by godfather_report. Single-use � token is consumed on delivery.",
 			RiskClass: khepramcp.RiskReadOnly, Scope: "compliance:report",
 			SchemaVersion: "1.0.0", SchemaHash: hash("godfather_approve"),
 			AllowedBackend: "in-process", TimeoutMs: 5000,
@@ -729,7 +729,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			},
 		},
 
-		// ── NIST Map (offline BM25 semantic search) ──────────────────────────
+		// -- NIST Map (offline BM25 semantic search) --------------------------
 		// Zero token cost, zero network calls, air-gap safe.
 		// 25,185 NIST/CMMC/STIG control mappings indexed at startup.
 		{
@@ -750,7 +750,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			},
 		},
 
-		// ── khepra_watch (continuous monitoring) ─────────────────────────────
+		// -- khepra_watch (continuous monitoring) -----------------------------
 		// Registers filesystem watches that fire ert_scan on file change.
 		// Satisfies CMMC AC.2.006, CM.2.061, SI.2.217.
 		{
@@ -770,11 +770,11 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			},
 		},
 
-		// ── Sovereign Tools (no Supabase, 100% offline) ────────────────────
-		// P0 — C3PAO evidence package: the existential differentiator
+		// -- Sovereign Tools (no Supabase, 100% offline) --------------------
+		// P0 � C3PAO evidence package: the existential differentiator
 		{
 			Name:        "khepra_export_attestation",
-			Description: "Export a PQC-signed attestation package (JSON) covering all active compliance frameworks. No Supabase. No network. The C3PAO-ready evidence artifact — Dilithium-signed, DAG-anchored, NIST SP 800-171A compliant. Include dag_node_id in your C3PAO submission package.",
+			Description: "Export a PQC-signed attestation package (JSON) covering all active compliance frameworks. No Supabase. No network. The C3PAO-ready evidence artifact � Dilithium-signed, DAG-anchored, NIST SP 800-171A compliant. Include dag_node_id in your C3PAO submission package.",
 			RiskClass: khepramcp.RiskReadOnly, Scope: "compliance:attest",
 			SchemaVersion: "1.0.0", SchemaHash: hash("khepra_export_attestation"),
 			AllowedBackend: "in-process", TimeoutMs: 120000,
@@ -787,7 +787,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			},
 		},
 
-		// P0 — POA&M: DFARS 252.204-7012 mandated Plan of Action & Milestones
+		// P0 � POA&M: DFARS 252.204-7012 mandated Plan of Action & Milestones
 		{
 			Name:        "khepra_export_poam",
 			Description: "Export a Plan of Action & Milestones (POA&M) from STIG/CMMC scan findings. DFARS 252.204-7012 and NIST SP 800-171A requirement. Returns prioritized remediation items with estimated costs and scheduled completion dates. 100% offline.",
@@ -803,10 +803,10 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			},
 		},
 
-		// P1 — STIG control lookup by ID or free-text search
+		// P1 � STIG control lookup by ID or free-text search
 		{
 			Name:        "khepra_query_stig",
-			Description: "Look up STIG controls, CCI items, or NIST 800-53 controls by ID or keyword. Backed by the embedded 25,185-row (deduplicated) STIG↔CCI↔NIST↔CMMC cross-reference database. Returns cross-references, severity, and remediation context. 100% offline.",
+			Description: "Look up STIG controls, CCI items, or NIST 800-53 controls by ID or keyword. Backed by the embedded 25,185-row (deduplicated) STIG?CCI?NIST?CMMC cross-reference database. Returns cross-references, severity, and remediation context. 100% offline.",
 			RiskClass: khepramcp.RiskReadOnly, Scope: "stig:read",
 			SchemaVersion: "1.0.0", SchemaHash: hash("khepra_query_stig"),
 			AllowedBackend: "in-process", TimeoutMs: 10000,
@@ -820,7 +820,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			},
 		},
 
-		// P1 — Fast compliance score without full scan (dashboard use)
+		// P1 � Fast compliance score without full scan (dashboard use)
 		{
 			Name:        "khepra_get_compliance_score",
 			Description: "Get the compliance score for a specific framework without running a full scan. Targeted scan against a single framework. Good for dashboards and quick health checks. Frameworks: CMMC, STIG, NIST-171, NIST-53, PQC, PQC-STIG.",
@@ -837,10 +837,10 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			},
 		},
 
-		// P1 — CISA KEV + CVE threat intel from embedded offline database
+		// P1 � CISA KEV + CVE threat intel from embedded offline database
 		{
 			Name:        "khepra_query_threat_intel",
-			Description: "Query CISA Known Exploited Vulnerabilities (KEV) and NVD CVE data from the embedded offline database. Search by CVE ID (CVE-2021-44228) or keyword (log4j, apache, openssl). Returns severity, KEV status, and remediation action. 100% offline — no NVD API calls.",
+			Description: "Query CISA Known Exploited Vulnerabilities (KEV) and NVD CVE data from the embedded offline database. Search by CVE ID (CVE-2021-44228) or keyword (log4j, apache, openssl). Returns severity, KEV status, and remediation action. 100% offline � no NVD API calls.",
 			RiskClass: khepramcp.RiskReadOnly, Scope: "threat:read",
 			SchemaVersion: "1.0.0", SchemaHash: hash("khepra_query_threat_intel"),
 			AllowedBackend: "in-process", TimeoutMs: 10000,
@@ -854,7 +854,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			},
 		},
 
-		// P2 — Session DAG audit chain export
+		// P2 � Session DAG audit chain export
 		{
 			Name:        "khepra_get_dag_chain",
 			Description: "Retrieve the ML-DSA-65-signed DAG audit chain for the current session. Each node represents a tool call with a PQC signature, timestamp, and Adinkra symbol. Use to produce a forensic evidence package for C3PAO or DFARS audit. 100% offline.",
@@ -865,10 +865,10 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			ArgsSchema: noArgSchema,
 		},
 
-		// SouHimBou AI Step 01 — Discover & Classify
+		// SouHimBou AI Step 01 � Discover & Classify
 		{
 			Name:        "discover_assets",
-			Description: "SouHimBou AI Step 01 — Discover & Classify Assets. Walks the project or system root and automatically inventories: OS (via /etc/os-release), language runtimes (Go, Python, Node.js, Java, Rust), container images (Dockerfile FROM directives), CI/CD pipelines, IaC (Terraform, Ansible), AI agent integrations (Claude, OpenAI, LangChain), MCP server configs, secret stores, and cryptographic libraries. Matches detected assets to applicable STIG profiles (RHEL-09-STIG-V1R3, Container STIG, CNSA 2.0 PQC, AI-Agent-MCP-SEC). Recommends CMMC level (L1/L2/L3) and generates a prioritized list of next tools to run. Output feeds directly into stig_check, cmmc_assess, ert_crypto, ert_architect, and flight_export.",
+			Description: "SouHimBou AI Step 01 � Discover & Classify Assets. Walks the project or system root and automatically inventories: OS (via /etc/os-release), language runtimes (Go, Python, Node.js, Java, Rust), container images (Dockerfile FROM directives), CI/CD pipelines, IaC (Terraform, Ansible), AI agent integrations (Claude, OpenAI, LangChain), MCP server configs, secret stores, and cryptographic libraries. Matches detected assets to applicable STIG profiles (RHEL-09-STIG-V1R3, Container STIG, CNSA 2.0 PQC, AI-Agent-MCP-SEC). Recommends CMMC level (L1/L2/L3) and generates a prioritized list of next tools to run. Output feeds directly into stig_check, cmmc_assess, ert_crypto, ert_architect, and flight_export.",
 			RiskClass: khepramcp.RiskReadOnly, Scope: "compliance:read",
 			SchemaVersion: "1.0.0", SchemaHash: hash("discover_assets"),
 			AllowedBackend: "in-process", TimeoutMs: 30000,
@@ -882,7 +882,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			},
 		},
 
-		// SouHimBou AI Step 01 — Discover & Classify: agent_record
+		// SouHimBou AI Step 01 � Discover & Classify: agent_record
 		{
 			Name:        "agent_record",
 			Description: "SouHimBou AI Flight Recorder: record an agent action in the tamper-evident flight log. Captures intent summary, session context, and CMMC control mappings. In sovereign mode, writes to a local ML-DSA-65-signed NDJSON log. If SOUHIMBOU_ENDPOINT is set, forwards to the SouHimBou AI SaaS. Required field: action (human-readable description of what the agent did).",
@@ -902,7 +902,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 			},
 		},
 
-		// SouHimBou AI Step 03 — Generate Evidence: flight_export
+		// SouHimBou AI Step 03 � Generate Evidence: flight_export
 		{
 			Name:        "flight_export",
 			Description: "SouHimBou AI Flight Recorder: export a CMMC-aligned evidence packet from the flight log. Reads the persistent signed flight log, verifies the ML-DSA-65 tamper chain, and produces a structured EvidencePacket mapping all agent actions to NIST SP 800-171 Rev 2 and CMMC 2.0 Level 2 controls. Computes all SOW pilot KPIs: calls captured, % privileged calls signed, mean evidence time, control mapping count. 100% offline.",
@@ -921,7 +921,7 @@ func defaultToolSpecs() []khepramcp.ToolSpec {
 	}
 }
 
-// ─── Confirmation Gate ─────────────────────────────────────────────────────────
+// --- Confirmation Gate ---------------------------------------------------------
 
 // StdioConfirmationGate auto-approves destructive operations for stdio sessions.
 // This is acceptable for single-tenant subprocess model where the human controls
@@ -936,7 +936,7 @@ func (g *StdioConfirmationGate) Confirm(_ context.Context, spec khepramcp.ToolSp
 	return nil
 }
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
+// --- Helpers -------------------------------------------------------------------
 
 func getEnvOr(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {

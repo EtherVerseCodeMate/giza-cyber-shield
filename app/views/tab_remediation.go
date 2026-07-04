@@ -22,15 +22,15 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	asaftheme "github.com/EtherVerseCodeMate/giza-cyber-shield/app/theme"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hub"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hubclient"
 )
 
 // RemediationTab is Tab 5 — Imhotep staged-fix approval queue.
 type RemediationTab struct {
 	win     fyne.Window
-	backend hub.Backend
+	backend hubclient.Backend
 
-	pending     []hub.PendingChange
+	pending     []hubclient.PendingChange
 	selected    int // index into pending, -1 = none
 	list        *widget.List
 	detailArea  *fyne.Container
@@ -39,7 +39,7 @@ type RemediationTab struct {
 }
 
 // NewRemediationTab constructs Tab 5.
-func NewRemediationTab(win fyne.Window, backend hub.Backend) *RemediationTab {
+func NewRemediationTab(win fyne.Window, backend hubclient.Backend) *RemediationTab {
 	t := &RemediationTab{
 		win:      win,
 		backend:  backend,
@@ -142,7 +142,7 @@ func (t *RemediationTab) idleRemediationDetail() fyne.CanvasObject {
 	return container.NewCenter(hint)
 }
 
-func (t *RemediationTab) showDetail(p hub.PendingChange) {
+func (t *RemediationTab) showDetail(p hubclient.PendingChange) {
 	// Derive display fields from actual PendingChange fields
 	displayTitle := p.ControlID + " — " + p.Hostname
 	sevStr := "CAT II"
@@ -246,7 +246,7 @@ func (t *RemediationTab) showDetail(p hub.PendingChange) {
 
 // confirmAndApprove presents a mandatory two-step confirmation before calling backend.Approve.
 // The [APPROVE FOR PRODUCTION] button MUST ALWAYS show this dialog — it is an absolute requirement.
-func (t *RemediationTab) confirmAndApprove(p hub.PendingChange) {
+func (t *RemediationTab) confirmAndApprove(p hubclient.PendingChange) {
 	// Step 1 — primary confirmation
 	primaryMsg := fmt.Sprintf(
 		"You are about to execute the following command on production:\n\n"+
@@ -284,7 +284,7 @@ func (t *RemediationTab) confirmAndApprove(p hub.PendingChange) {
 	)
 }
 
-func (t *RemediationTab) executeApprove(p hub.PendingChange) {
+func (t *RemediationTab) executeApprove(p hubclient.PendingChange) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 

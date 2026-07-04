@@ -22,7 +22,7 @@ import (
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/app/models"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/app/widgets"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hub"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hubclient"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
 )
 
@@ -30,7 +30,7 @@ import (
 // then call Content() to get the Fyne container to embed in AppTabs.
 type ComplianceGraphTab struct {
 	win         fyne.Window
-	backend     hub.Backend
+	backend     hubclient.Backend
 	model       *models.ComplianceGraphModel
 	graphCanvas *widgets.GraphCanvas
 	sidebar     *widgets.NodeSidebar
@@ -42,7 +42,7 @@ type ComplianceGraphTab struct {
 // NewComplianceGraphTab constructs Tab 1 and wires all inter-widget callbacks.
 // win is the parent window used for file dialogs and error sheets.
 // backend provides the compliance data source (local or Hub).
-func NewComplianceGraphTab(win fyne.Window, backend hub.Backend) *ComplianceGraphTab {
+func NewComplianceGraphTab(win fyne.Window, backend hubclient.Backend) *ComplianceGraphTab {
 	t := &ComplianceGraphTab{win: win, backend: backend}
 
 	// Model — seeds governance root + 14 domain nodes + Tier 4 family baseline
