@@ -682,6 +682,17 @@ dial-attempt logging at time of finding. A `maat.Guardian.WeighAndDecide` policy
 evaluates already-aggregated `Isfet` events after the fact — nothing feeds it a proposed dial target
 *before* the dial happens.
 
+**Third confirmed instance — the MCP tool-calling boundary itself:** KASA (the agentic engine,
+`pkg/agi`) is exposed to any connected MCP client via `pkg/mcp/tools/kasa_tools.go`. Its
+`HandleKASAScan` reads `target` directly from the MCP tool-call arguments and passes it unmodified to
+`engine.RunScan(target)` (`pkg/agi/engine.go:749`), which dials straight into `e.scanner.Run(target)`
+with **no CIDR check, no allowlist, no confinement whatsoever**. Any MCP client — including a
+prompt-injected or compromised AI agent, the exact adversarial-AI threat model this stack's inbound
+WAF (OWASP-MCP-01 prompt-injection detection) already defends against on the *request* side — can
+invoke the `kasa_scan` tool with an arbitrary internal target and KASA will actively scan it. This is
+the same missing Egress Boundary Guard, surfacing at the highest-risk seam of the three: a boundary
+explicitly designed to be driven by AI agents.
+
 **Why this matters at CMMC-product stakes:** the connector holds decrypted credentials (AES-256-GCM
 vault) and dials operator- or CSV-or-CIDR-supplied targets. An attacker who can influence an import
 file, a discovery CIDR, or an enrollment request can direct authenticated, credentialed outbound
