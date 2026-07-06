@@ -37,6 +37,10 @@ type ComplianceGraphTab struct {
 	phasePanel  *widgets.PhasePanel
 	statusBar   *widgets.StatusBar
 	content     *fyne.Container
+
+	// OnSwitchTab is set by showMainWindow to switch the active AppTabs item.
+	// tabIndex follows the tab order in showMainWindow (0=Compliance, 2=SSP, 3=POA&M, …).
+	OnSwitchTab func(tabIndex int)
 }
 
 // NewComplianceGraphTab constructs Tab 1 and wires all inter-widget callbacks.
@@ -140,10 +144,14 @@ func NewComplianceGraphTab(win fyne.Window, backend hub.Backend) *ComplianceGrap
 		}, t.win)
 	}
 	t.sidebar.OnOpenPOAMPressed = func(nodeID string) {
-		// Open POA&M → Tab 5; surfaced here for discovery.
+		if t.OnSwitchTab != nil {
+			t.OnSwitchTab(3) // POA&M is index 3 in showMainWindow tab order
+		}
 	}
 	t.sidebar.OnViewInSSPPressed = func(nodeID string) {
-		// View in SSP → Tab 3; surfaced here for discovery.
+		if t.OnSwitchTab != nil {
+			t.OnSwitchTab(2) // SSP is index 2 in showMainWindow tab order
+		}
 	}
 
 	// Import Checklist — file picker for .ckl/.cklb/.json; additive (no pre-reset)
@@ -205,6 +213,10 @@ func (t *ComplianceGraphTab) runScan() {
 				hostname = report.Hostname
 			}
 			t.model.FinalizeScan(scanTime, hostname)
+
+			// Push result back to the backend so Readiness Gate, SSP, POA&M,
+			// and the KASA feed all read the same post-scan state.
+			t.backend.NotifyScanDone(report, t.model.SPRS(), hostname)
 
 			t.phasePanel.SetPhase(t.model.Phase(), false)
 			t.statusBar.Update(t.model.SPRS(), t.model.ScanTime(), false)

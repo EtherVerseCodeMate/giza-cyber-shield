@@ -75,6 +75,13 @@ type Backend interface {
 	// In connected: POST /api/v1/mcp/ask
 	Ask(ctx context.Context, query string) (*AskResponse, error)
 
+	// NotifyScanDone pushes the completed scan result back into the backend so that
+	// all other tabs (Readiness Gate, SSP, POA&M, KASA feed) see up-to-date data.
+	// Called by the Compliance Graph tab after ingestReport + FinalizeScan complete.
+	// LocalBackend: stores lastReport, lastSPRS, lastScanHost, lastScanTime.
+	// HubClient: no-op — Hub manages its own state server-side.
+	NotifyScanDone(report *stig.ComprehensiveReport, sprsScore int, hostname string)
+
 	// StreamKASA opens a real-time KASA event stream.
 	// In standalone: bridges the local pkg/agi Engine log.
 	// In connected: SSE GET /api/v1/kasa/stream

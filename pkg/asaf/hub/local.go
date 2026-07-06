@@ -81,6 +81,12 @@ func (b *LocalBackend) SetLastScan(report *stig.ComprehensiveReport, sprs int, h
 	b.lastScanTime = time.Now()
 }
 
+// NotifyScanDone implements Backend — stores the completed scan result so that
+// Readiness Gate, SSP, POA&M, and the KASA feed all see consistent post-scan data.
+func (b *LocalBackend) NotifyScanDone(report *stig.ComprehensiveReport, sprsScore int, hostname string) {
+	b.SetLastScan(report, sprsScore, hostname)
+}
+
 // Mode implements Backend.
 func (b *LocalBackend) Mode() AppMode { return ModeStandalone }
 
@@ -271,21 +277,22 @@ func (b *LocalBackend) GetDAGHistory(_ context.Context) ([]DAGNode, error) {
 }
 
 // Ask implements Backend — routes to local AI provider (Ollama → offline fallback).
-func (b *LocalBackend) Ask(_ context.Context, query string) (*AskResponse, error) {
+// ctx is honoured: the caller's deadline (e.g. 30s from tab_ssp.go) propagates
+// to the Ollama HTTP request so the UI isn't blocked past the context deadline.
+func (b *LocalBackend) Ask(ctx context.Context, query string) (*AskResponse, error) {
 	if b.aiProvider == nil {
-		// In Standalone mode with no Ollama: return actionable instructions.
 		return &AskResponse{
 			Answer: "[Standalone Mode — AI Not Configured]\n\n" +
 				"To enable Ask AI in Standalone mode, start Ollama locally:\n" +
-				"  ollama pull llama3.1:8b\n" +
-				"  ollama run llama3.1:8b\n\n" +
+				"  ollama serve\n" +
+				"  ollama pull gemma3:4b\n\n" +
 				"Then go to Settings → AI Provider and click [Apply & Save].\n\n" +
 				"Or connect to a Stargate Hub (Settings → Hub URL) for cloud-routed AI.\n\n" +
 				"Your query was: " + query,
 		}, nil
 	}
 	msgs := []AIMessage{{Role: "user", Content: query}}
-	answer, err := b.aiProvider.Chat(msgs, false)
+	answer, err := b.aiProvider.ChatCtx(ctx, msgs, false)
 	if err != nil {
 		return nil, fmt.Errorf("local ask: %w", err)
 	}

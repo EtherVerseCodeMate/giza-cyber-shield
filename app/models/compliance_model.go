@@ -424,15 +424,23 @@ func (m *ComplianceGraphModel) AddFinding(f FindingInput) {
 		})
 	}
 
-	// SPRS deduction: deduct only once per unique CMMC practice (§0.5 canonical model)
-	if f.Status == StatusNotMet && f.PracticeID != "" && !m.countedPractices[f.PracticeID] {
-		m.SPRSScore -= sprs
-		m.countedPractices[f.PracticeID] = true
-	} else if f.Status == StatusNotMet && f.PracticeID == "" {
-		// No practice mapping: deduct by finding ID (conservative)
-		if !m.countedPractices["finding:"+f.ID] {
+	// SPRS deduction — CMMC Appendix A canonical model (§0.5):
+	// Deduct once per unique CMMC practice ID. When no practice is identified but
+	// a domain is known, deduct once per domain (not per finding) to avoid
+	// multiplying unmapped checks into an impossible negative score.
+	// Findings with neither practice nor domain are not deducted (unscoped by CMMC).
+	if f.Status == StatusNotMet {
+		var deductKey string
+		switch {
+		case f.PracticeID != "":
+			deductKey = "practice:" + f.PracticeID
+		case f.DomainCode != "":
+			// One deduction per domain for unmapped findings — conservative but bounded.
+			deductKey = "domain:" + f.DomainCode
+		}
+		if deductKey != "" && !m.countedPractices[deductKey] {
 			m.SPRSScore -= sprs
-			m.countedPractices["finding:"+f.ID] = true
+			m.countedPractices[deductKey] = true
 		}
 	}
 

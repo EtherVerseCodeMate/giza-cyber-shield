@@ -263,20 +263,36 @@ func (g *GraphCanvas) Dragged(ev *fyne.DragEvent) {
 func (g *GraphCanvas) DragEnd() {}
 
 // startPhysics launches the background physics+animation goroutine.
+//
+// Single-ticker design at physTickMillis (16ms). While physics steps remain,
+// stepPhysics() runs every tick and the canvas is refreshed at 60fps.
+// Once settled (stepsLeft==0), stepPhysics is skipped and the canvas is
+// refreshed every idleRefreshEvery ticks (~6 × 16ms = ~100ms) to drive
+// glow/pulse animation at low CPU cost. TriggerLayout() resetting stepsLeft
+// is picked up within one tick (16ms), so post-scan layout restarts instantly.
 func (g *GraphCanvas) startPhysics() {
+	const idleRefreshEvery = 6 // refresh once per ~96ms at idle
+
 	atomic.StoreInt32(&g.stepsLeft, physSteps)
 	go func() {
 		ticker := time.NewTicker(physTickMillis * time.Millisecond)
 		defer ticker.Stop()
+		idleTick := 0
 		for range ticker.C {
-			if atomic.LoadInt32(&g.stepsLeft) > 0 {
+			active := atomic.LoadInt32(&g.stepsLeft) > 0
+			if active {
 				g.stepPhysics()
 				atomic.AddInt32(&g.stepsLeft, -1)
+				idleTick = 0
+			} else {
+				idleTick++
 			}
-			g.mu.Lock()
-			g.animTick++
-			g.mu.Unlock()
-			fyne.Do(func() { canvas.Refresh(g) })
+			if active || idleTick%idleRefreshEvery == 0 {
+				g.mu.Lock()
+				g.animTick++
+				g.mu.Unlock()
+				fyne.Do(func() { canvas.Refresh(g) })
+			}
 		}
 	}()
 }

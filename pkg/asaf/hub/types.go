@@ -10,6 +10,7 @@
 package hub
 
 import (
+	"context"
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/connector"
@@ -192,5 +193,8 @@ type AIMessage struct {
 // Implemented by ollamaBridge in cmd/asaf-desktop/main.go.
 type AIProviderBridge interface {
 	Chat(messages []AIMessage, stream bool) (string, error)
+	// ChatCtx is like Chat but honours the caller's context deadline.
+	// Implementations MUST pass ctx to all downstream HTTP requests.
+	ChatCtx(ctx context.Context, messages []AIMessage, stream bool) (string, error)
 	Name() string
 }
