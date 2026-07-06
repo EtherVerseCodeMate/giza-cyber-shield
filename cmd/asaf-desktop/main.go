@@ -449,6 +449,11 @@ func showMainWindow(a fyne.App, tier string, backend hub.Backend) {
 	// Wire context-menu tab navigation callbacks (set after tabs is created so SelectIndex is available)
 	tab1.OnSwitchTab = func(i int) { tabs.SelectIndex(i) }
 
+	// Wire scan-done notification: after every scan, push fresh data to Readiness Gate, SSP, POA&M.
+	tab1.OnScanDone = func() {
+		tab6.Refresh()
+	}
+
 	// Footer — always visible per §13 (patent line required)
 	footer := container.NewHBox(
 		widget.NewLabel(fmt.Sprintf("v%s", appVersion)),

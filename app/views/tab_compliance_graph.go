@@ -41,6 +41,11 @@ type ComplianceGraphTab struct {
 	// OnSwitchTab is set by showMainWindow to switch the active AppTabs item.
 	// tabIndex follows the tab order in showMainWindow (0=Compliance, 2=SSP, 3=POA&M, …).
 	OnSwitchTab func(tabIndex int)
+
+	// OnScanDone is called after every scan completes (success or partial).
+	// showMainWindow wires this to ReadinessTab.Refresh() so the Readiness Gate,
+	// KASA feed, and domain heatmap all update automatically without manual refresh.
+	OnScanDone func()
 }
 
 // NewComplianceGraphTab constructs Tab 1 and wires all inter-widget callbacks.
@@ -222,6 +227,11 @@ func (t *ComplianceGraphTab) runScan() {
 			t.statusBar.Update(t.model.SPRS(), t.model.ScanTime(), false)
 			t.graphCanvas.TriggerLayout()
 			canvas.Refresh(t.graphCanvas)
+
+			// Notify other tabs that scan data is now available in the backend.
+			if t.OnScanDone != nil {
+				go t.OnScanDone()
+			}
 		})
 	}()
 }

@@ -25,10 +25,10 @@ const (
 	physRepulsion  = float64(18000)
 	physSpring     = float64(0.006)
 	physRestLen    = float64(160)
-	physDamping    = float64(0.82)
+	physDamping    = float64(0.88) // higher damping → faster energy bleed → quicker settle
 	physMaxVel     = float64(22)
 	physGravity    = float64(0.001)
-	physSteps      = int32(800)
+	physSteps      = int32(180)   // 180 × 16ms ≈ 3s of active layout, then idle glow
 	physTickMillis = 16
 )
 

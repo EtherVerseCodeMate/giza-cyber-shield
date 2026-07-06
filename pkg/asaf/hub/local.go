@@ -184,20 +184,37 @@ func (b *LocalBackend) GetSPRS(_ context.Context, _ string) (*SPRSResult, error)
 }
 
 // Scan implements Backend — runs a STIG baseline scan in-process.
+// v.Validate() is run in a goroutine so the caller's context deadline
+// (set to 5 minutes in executeScan) is honoured and can cancel the scan
+// if any subprocess hangs (e.g. auditpol, manage-bde, PowerShell on AV-intercepted hosts).
 func (b *LocalBackend) Scan(ctx context.Context, assetID string) (*stig.ComprehensiveReport, error) {
-	// assetID in standalone mode is ignored — we always scan localhost.
 	_ = assetID
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	default:
 	}
-	v := stig.NewValidator("")
-	report, err := v.Validate()
-	if err != nil && report == nil {
-		return nil, fmt.Errorf("local scan: %w", err)
+
+	type scanResult struct {
+		report *stig.ComprehensiveReport
+		err    error
 	}
-	return report, err
+	ch := make(chan scanResult, 1)
+	go func() {
+		v := stig.NewValidator("")
+		report, err := v.Validate()
+		ch <- scanResult{report, err}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil, fmt.Errorf("local scan: %w", ctx.Err())
+	case r := <-ch:
+		if r.err != nil && r.report == nil {
+			return nil, fmt.Errorf("local scan: %w", r.err)
+		}
+		return r.report, r.err
+	}
 }
 
 // GetPendingApprovals implements Backend — queries local Imhotep daemon staging queue.
