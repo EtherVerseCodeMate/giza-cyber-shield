@@ -16,7 +16,7 @@ import (
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/g0dm0d3"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/intelligence"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/logging"
 )
 
@@ -50,12 +50,12 @@ func watchCmd(args []string) {
 	wrapper := asaf.NewASAFWrapper(dagStore, logger)
 	recorder := asaf.NewRecorder(wrapper)
 
-	brain := g0dm0d3.NewServer(dagStore)
+	brain := intelligence.NewServer(dagStore)
 	fmt.Printf("  ðŸ§  G0DM0D3 AI: %s\n", brain.Provider.Name())
 
 	defaultAgent, err := wrapper.WrapMCPAgent("default-watch", "mcp-interceptor")
 	if err != nil {
-		log.Printf("  âš ï¸  Could not start default session: %v", err)
+		log.Printf("  âš ï¸   Could not start default session: %v", err)
 	} else {
 		fmt.Printf("  ðŸ“¡ ASAF session: %s\n", defaultAgent.SessionID)
 	}
@@ -126,7 +126,7 @@ func printWatchEndpoints(port int) {
 	fmt.Printf("     http://localhost:%d/                         — Sovereign UI Dashboard\n", port)
 	fmt.Printf("     http://localhost:%d/api/asaf/stream          — Flight Fabric SSE\n", port)
 	fmt.Printf("     http://localhost:%d/api/asaf/sessions        — Active sessions\n", port)
-	fmt.Printf("     http://localhost:%d/api/g0dm0d3/chat         — AI chat\n", port)
+	fmt.Printf("     http://localhost:%d/api/intelligence/chat    — AI chat\n", port)
 	fmt.Printf("     http://localhost:%d/api/dag/nodes            — DAG nodes\n", port)
 	fmt.Printf("     http://localhost:%d/api/dag/stream           — DAG SSE (real-time)\n", port)
 	fmt.Printf("     http://localhost:%d/api/v1/scan/agent        — AI Agent Scanner (POST)\n", port)
@@ -143,7 +143,7 @@ func printWatchEndpoints(port int) {
 func registerWatchRoutes(
 	mux *http.ServeMux,
 	recorder *asaf.Recorder,
-	brain *g0dm0d3.G0DM0D3Server,
+	brain *intelligence.G0DM0D3Server,
 	dagStore *dag.PersistentMemory,
 	wrapper *asaf.ASAFWrapper,
 	defaultAgent *asaf.WrappedAgent,
@@ -238,8 +238,8 @@ func registerWatchRoutes(
 	mux.HandleFunc("/api/asaf/record", buildRecordHandler(wrapper, recorder, defaultAgent))
 
 	// ————————————————————————— G0DM0D3 AI endpoints ———————————————————————————————————————————————
-	mux.HandleFunc("/api/g0dm0d3/chat", brain.HandleChat)
-	mux.HandleFunc("/api/g0dm0d3/status", brain.HandleStatus)
+	mux.HandleFunc("/api/intelligence/chat", brain.HandleChat)
+	mux.HandleFunc("/api/intelligence/status", brain.HandleStatus)
 
 	// ————————————————————————— DAG endpoints ———————————————————————————————————————————————————————
 	mux.HandleFunc("/api/dag/nodes", buildDAGNodesHandler(dagStore))

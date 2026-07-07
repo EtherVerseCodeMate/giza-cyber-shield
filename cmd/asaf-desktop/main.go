@@ -254,7 +254,7 @@ func probeOllama(baseURL string) bool {
 	return resp.StatusCode == http.StatusOK
 }
 
-// ollamaBridge wraps ollama.Client to implement g0dm0d3.AIProvider.
+// ollamaBridge wraps ollama.Client to implement intelligence.AIProvider.
 // Kept in main to avoid a circular import (cmd → pkg).
 type ollamaBridge struct {
 	client *ollama.Client

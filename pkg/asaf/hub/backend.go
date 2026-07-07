@@ -71,7 +71,7 @@ type Backend interface {
 	GetDAGHistory(ctx context.Context) ([]DAGNode, error)
 
 	// Ask sends a natural language compliance query.
-	// In standalone: routes to local g0dm0d3 AI brain (Ollama → offline fallback).
+	// In standalone: routes to local intelligence AI brain (Ollama → offline fallback).
 	// In connected: POST /api/v1/mcp/ask
 	Ask(ctx context.Context, query string) (*AskResponse, error)
 
