@@ -54,11 +54,10 @@ type ComplianceGraphTab struct {
 func NewComplianceGraphTab(win fyne.Window, backend hub.Backend) *ComplianceGraphTab {
 	t := &ComplianceGraphTab{win: win, backend: backend}
 
-	// Model — seeds governance root + 14 domain nodes + Tier 4 family baseline
+	// Model — seeds governance root + 14 domain nodes.
 	t.model = models.NewComplianceGraphModel()
-	go t.model.LoadNotAssessedBaseline() // background: DB load + 397 node creation
 
-	// Widgets
+	// Widgets — must be created before the baseline goroutine so TriggerLayout is safe.
 	t.graphCanvas = widgets.NewGraphCanvas(t.model)
 	t.sidebar = widgets.NewNodeSidebar()
 	t.phasePanel = widgets.NewPhasePanel(t.model.CurrentPhase)
@@ -72,6 +71,13 @@ func NewComplianceGraphTab(win fyne.Window, backend hub.Backend) *ComplianceGrap
 	if db, err := stig.GetDatabase(); err == nil {
 		t.statusBar.SetMappingCount(db.RowCount())
 	}
+
+	// Load Tier 4 STIG family aggregate nodes in the background (DB parse + ~400 nodes).
+	// TriggerLayout fires once complete so physics lays out the new nodes immediately.
+	go func() {
+		t.model.LoadNotAssessedBaseline()
+		t.graphCanvas.TriggerLayout()
+	}()
 
 	// Node tap → sidebar
 	t.graphCanvas.OnNodeSelect = func(n *models.GraphNode) {
