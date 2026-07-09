@@ -295,10 +295,7 @@ const CFG={
   claudeKey: new URLSearchParams(location.search).get("key") || window.__DEMO_CLAUDE_KEY || "",
 };
 let _dagESS=null; // EventSource handle
-const FX=[
-// FX populated by live ERT scan only — starts empty
-];
-let FX=[],TOTEXP=0,REMCOST=18600;
+let FX=[],TOTEXP=0,REMCOST=18600; // populated by live ERT scan only
 const SCAN_TS=()=>new Date().toISOString();
 let trm,fit,dnodes=[],fc=0,scanning=false,nc=0,sc=0,fdc=0;
 function clock(){document.getElementById("stime").textContent=new Date().toLocaleTimeString("en-US",{hour12:false});setTimeout(clock,1000)}
