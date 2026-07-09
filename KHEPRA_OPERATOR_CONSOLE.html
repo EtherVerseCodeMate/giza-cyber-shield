@@ -310,7 +310,7 @@ const FX=[
   {id:"SI-3",t:"Missing CSP + Reflected XSS",sev:"CAT II",poam:true,reject:"HYGIENE",pts:1,exp:380000,ctrl:"CMMC.SI.L1-3.14.2",nist:"3.14.2",cci:"CCI-002754",mitre:"T1059.007",d:"No Content-Security-Policy header. Reflected XSS confirmed on search endpoint - arbitrary JS executes in victim browser.",r:"strict-dynamic CSP + output encoding + DOMPurify. Est: 3h"},
   {id:"CM-6",t:"PHP Version Disclosure + Default Error Pages",sev:"CAT II",poam:true,reject:"HYGIENE",pts:3,exp:180000,ctrl:"CMMC.CM.L2-3.4.6",nist:"3.4.6",cci:"CCI-001499",mitre:"T1592",d:"X-Powered-By: PHP/7.4.3 header exposes version. Default Apache error pages reveal server path. Enables targeted CVE exploitation.",r:"Suppress headers in php.ini + custom error pages. Est: 1h"}
 ];
-const TOTEXP=FX.reduce((s,f)=>s+f.exp,0),REMCOST=18600;
+let TOTEXP=FX.reduce((s,f)=>s+f.exp,0),REMCOST=18600;
 const SCAN_TS=()=>new Date().toISOString();
 let trm,fit,dnodes=[],fc=0,scanning=false,nc=0,sc=0,fdc=0;
 function clock(){document.getElementById("stime").textContent=new Date().toLocaleTimeString("en-US",{hour12:false});setTimeout(clock,1000)}
@@ -1147,8 +1147,7 @@ async function sendChat(){
   const modelEl=document.getElementById("chat-model-row");
   try{
     // Build context: include current findings summary if available
-    const ctx=dnodes.length>3?"Current DAG: "+dnodes.slice(-5).map(n=>n.label).join(" → ")+". ":""
-      +"Target: "+(document.getElementById("tgt-url").value||"http://2.24.105.170:4280")+". ";
+    const ctx=(dnodes.length>3?"Current DAG: "+dnodes.slice(-5).map(n=>n.label).join(" > ")+". ":"")+"Target: "+(document.getElementById("tgt-url").value||"http://2.24.105.170:4280")+". ";
     const systemPrompt="You are Imhotep, the AI Security Architect embedded in the KHEPRA Sovereign Security Platform. "
       +"You specialize in CMMC Level 2, NIST 800-171, STIG, and post-quantum cryptography (ML-DSA-65, ML-KEM-768). "
       +"Be concise, authoritative, and reference specific control IDs and dollar impacts when relevant. "
