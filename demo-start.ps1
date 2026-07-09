@@ -115,7 +115,16 @@ Write-Host "  Console:    $consoleFile" -ForegroundColor White
 Write-Host ""
 
 if (Test-Path $consoleFile) {
-    Start-Process $consoleFile
+    $claudeKey = $env:ANTHROPIC_API_KEY
+    if ($claudeKey) {
+        # Inject key as URL param — CFG.claudeKey reads it via URLSearchParams
+        $consoleUri = "file:///" + ($consoleFile -replace '\\', '/') + "?key=$claudeKey"
+        Write-Host "[IMHOTEP] Claude key injected into console URL" -ForegroundColor Green
+        Start-Process $consoleUri
+    } else {
+        Write-Host "[WARN] No ANTHROPIC_API_KEY found — Imhotep will use scripted fallback" -ForegroundColor Yellow
+        Start-Process $consoleFile
+    }
 } else {
     Write-Host "[ERROR] Console file not found: $consoleFile" -ForegroundColor Red
 }

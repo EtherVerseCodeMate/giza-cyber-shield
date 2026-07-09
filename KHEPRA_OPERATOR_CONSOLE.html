@@ -290,10 +290,9 @@ const CFG={
   mcpServer: "http://mcp.souhimbou.ai",          // PQC-Khepra-MCP hosted endpoint
   dagStream: "http://localhost:45444/api/dag/stream",   // SSE DAG feed (webui pkg)
   dagNodes:  "http://localhost:45444/api/v1/dag/nodes", // REST DAG nodes
-  // Imhotep chat — uses existing /api/v1/mcp/ask with BYOK Claude via header
   chatAPI:   "http://localhost:45444/api/v1/mcp/ask",
-  // Your Anthropic key — loaded from .env.demo.local, injected below
-  claudeKey: window.__DEMO_CLAUDE_KEY || "",
+  // Key resolution: URL ?key= > window inject > env placeholder (demo-start.ps1 sets ?key=)
+  claudeKey: new URLSearchParams(location.search).get("key") || window.__DEMO_CLAUDE_KEY || "",
 };
 let _dagESS=null; // EventSource handle
 const FX=[
@@ -1042,7 +1041,7 @@ const sim=d3.forceSimulation(nodes).force("link",d3.forceLink(links).id(d=>d.id)
 const link=svg.append("g").selectAll("line").data(links).enter().append("line").attr("class","link");
 const node=svg.append("g").selectAll("g").data(nodes).enter().append("g").attr("class",d=>"node "+d.type);
 node.append("circle").attr("r",10).attr("fill",d=>(cm[d.type]||cm.default)+"22").attr("stroke",d=>cm[d.type]||cm.default);
-node.append("title").text(d=>d.label+"\n"+d.hash);
+node.append("title").text(d=>d.label+"\\n"+d.hash);
 sim.on("tick",()=>{link.attr("x1",d=>d.source.x).attr("y1",d=>d.source.y).attr("x2",d=>d.target.x).attr("y2",d=>d.target.y);node.attr("transform",d=>"translate("+d.x+","+d.y+")")});
 <\/script></body></html>`);
   await dl(200);
@@ -1144,27 +1143,53 @@ async function sendChat(){
       +"You specialize in CMMC Level 2, NIST 800-171, STIG, and post-quantum cryptography (ML-DSA-65, ML-KEM-768). "
       +"Be concise, authoritative, and reference specific control IDs and dollar impacts when relevant. "
       +ctx;
-    // Try /api/v1/mcp/ask with BYOK Claude key
+    // ── Path 1: Anthropic API directly (works from browser with BYOK key) ──────
     let replied=false;
     if(CFG.claudeKey){
       try{
-        const mcpRes=await Promise.race([
-          fetch(CFG.chatAPI,{
+        const antRes=await Promise.race([
+          fetch("https://api.anthropic.com/v1/messages",{
             method:"POST",
-            headers:{"Content-Type":"application/json","X-Anthropic-Key":CFG.claudeKey},
-            body:JSON.stringify({messages:_chatHistory,system:systemPrompt,max_tokens:512})
+            headers:{
+              "Content-Type":"application/json",
+              "x-api-key":CFG.claudeKey,
+              "anthropic-version":"2023-06-01",
+              "anthropic-dangerous-direct-browser-access":"true"
+            },
+            body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:512,system:systemPrompt,messages:_chatHistory})
           }),
           new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),15000))
         ]);
-        if(mcpRes.ok){
-          const d=await mcpRes.json();
-          const reply=d.content?.[0]?.text||d.reply||d.response||d.message||JSON.stringify(d).slice(0,400);
+        if(antRes.ok){
+          const d=await antRes.json();
+          const reply=d.content?.[0]?.text||"";
           thinkEl.innerHTML=formatChatReply(reply);
           _chatHistory.push({role:"assistant",content:reply});
-          modelEl.textContent="claude-sonnet (BYOK via /api/v1/mcp/ask)";
+          modelEl.textContent="claude-sonnet-4-5 (Anthropic direct)";
           replied=true;
         }
       }catch(_){}
+      // ── Path 2: apiserver proxy (if local apiserver is running) ────────────
+      if(!replied){
+        try{
+          const mcpRes=await Promise.race([
+            fetch(CFG.chatAPI,{
+              method:"POST",
+              headers:{"Content-Type":"application/json","X-Anthropic-Key":CFG.claudeKey},
+              body:JSON.stringify({messages:_chatHistory,system:systemPrompt,max_tokens:512})
+            }),
+            new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),8000))
+          ]);
+          if(mcpRes.ok){
+            const d=await mcpRes.json();
+            const reply=d.content?.[0]?.text||d.reply||d.response||d.message||JSON.stringify(d).slice(0,400);
+            thinkEl.innerHTML=formatChatReply(reply);
+            _chatHistory.push({role:"assistant",content:reply});
+            modelEl.textContent="claude-sonnet (BYOK via /api/v1/mcp/ask)";
+            replied=true;
+          }
+        }catch(_){}
+      }
     }
     if(!replied){
       // Fallback: Ollama local
