@@ -839,6 +839,9 @@ func (m *ComplianceGraphModel) Snapshot() (nodes []PhysicsState, edges [][2]stri
 
 // EdgesSnapshot returns a read-only copy of edge pairs under a single read lock.
 // For use by renderers that only need edge topology, not node physics state.
+// IMPORTANT: do NOT call this while already holding the model read lock — the
+// inner RLock can deadlock against a waiting writer (ApplyPhysics). Use
+// RenderSnapshot instead when nodes and edges are needed together.
 func (m *ComplianceGraphModel) EdgesSnapshot() [][2]string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -847,6 +850,21 @@ func (m *ComplianceGraphModel) EdgesSnapshot() [][2]string {
 		out[i] = [2]string{e.FromID, e.ToID}
 	}
 	return out
+}
+
+// RenderSnapshot returns the current node slice and edge pairs under a SINGLE
+// read-lock acquisition. Use this from renderers that need both, to avoid the
+// lock-inversion deadlock that occurs when EdgesSnapshot (which acquires its
+// own RLock) is called while the caller already holds the model RLock.
+func (m *ComplianceGraphModel) RenderSnapshot() (nodes []*GraphNode, edges [][2]string) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	nodes = m.Nodes
+	edges = make([][2]string, len(m.Edges))
+	for i, e := range m.Edges {
+		edges[i] = [2]string{e.FromID, e.ToID}
+	}
+	return
 }
 
 // ApplyPhysics writes back updated physics positions to nodes under a write lock.

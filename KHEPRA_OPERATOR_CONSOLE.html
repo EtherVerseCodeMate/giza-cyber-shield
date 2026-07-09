@@ -23,6 +23,7 @@
   --hh:48px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+#hdr svg{width:22px!important;height:26px!important;min-width:22px!important;max-width:22px!important;flex-shrink:0!important;overflow:hidden!important;position:relative!important;display:block!important}
 html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);overflow:hidden}
 #shell{display:grid;grid-template-rows:20px var(--hh) 1fr 26px;height:100vh}
 #classif{background:rgba(204,42,54,.1);border-bottom:1px solid rgba(204,42,54,.35);
@@ -160,7 +161,7 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 <div id="shell">
 <div id="classif">KHEPRA OPERATOR CONSOLE &nbsp;&middot;&nbsp; SOVEREIGN MODE &nbsp;&middot;&nbsp; ML-DSA-65 ACTIVE &nbsp;&middot;&nbsp; FOR AUTHORIZED USE ONLY</div>
 <header id="hdr">
-  <svg width="22" height="26" viewBox="0 0 40 48" fill="none" style="flex-shrink:0">
+  <svg width="22" height="26" viewBox="0 0 40 48" fill="none" style="flex-shrink:0;display:block;min-width:22px;max-width:22px;min-height:26px;max-height:26px;overflow:hidden">
     <path d="M20 2L4 10v14c0 10.5 6.8 20.3 16 23 9.2-2.7 16-12.5 16-23V10L20 2z" fill="rgba(26,159,232,.12)" stroke="#1a9fe8" stroke-width="1.5"/>
     <path d="M20 10L11 15v9c0 6.5 4.2 12.6 9 14.5 4.8-1.9 9-8 9-14.5v-9L20 10z" fill="rgba(229,165,75,.15)" stroke="#e5a54b" stroke-width="1"/>
     <text x="20" y="28" text-anchor="middle" font-family="JetBrains Mono" font-size="8" fill="#e5a54b" font-weight="600">PQC</text>
@@ -182,7 +183,7 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
   <div id="tgt-bar">
     <div class="tgt-lbl">TARGET</div>
     <div class="tgt-row">
-      <input id="tgt-url" value="http://2.24.105.170:8080" placeholder="http://target:port">
+      <input id="tgt-url" value="http://127.0.0.1:4280" placeholder="http://target:port">
       <select id="tgt-fw">
         <option>CMMC L2</option><option>NIST 800-53</option>
         <option>STIG</option><option>ALL</option>

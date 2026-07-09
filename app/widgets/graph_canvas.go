@@ -473,10 +473,10 @@ func (r *graphRenderer) Refresh() {
 		return cx + (gx-px)*z, cy + (gy-py)*z
 	}
 
-	r.parent.model.RLock()
-	nodes := r.parent.model.Nodes
-	edges := r.parent.model.EdgesSnapshot()
-	r.parent.model.RUnlock()
+	// RenderSnapshot acquires a single read lock and returns both nodes and edges.
+	// Using two separate lock calls (one for nodes, one for EdgesSnapshot) is unsafe:
+	// a waiting writer between the two calls causes a deadlock.
+	nodes, edges := r.parent.model.RenderSnapshot()
 
 	// Build index for edge resolution
 	idxByID := make(map[string]int, len(nodes))
