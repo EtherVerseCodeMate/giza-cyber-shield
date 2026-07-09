@@ -257,11 +257,14 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 </div><script>
 // ── KHEPRA Demo Configuration ────────────────────────────────────────────────
 const CFG={
-  asafAPI:   "http://localhost:45444",      // adinkhepra apiserver (local)
-  mcpServer: "http://mcp.souhimbou.ai",    // PQC-Khepra-MCP hosted endpoint
-  dagStream: "http://localhost:45444/api/dag/stream", // SSE DAG feed
-  dagNodes:  "http://localhost:45444/api/dag/nodes",
-  chatAPI:   "http://localhost:45444/api/chat",
+  asafAPI:   "http://localhost:45444",          // adinkhepra apiserver (local)
+  mcpServer: "http://mcp.souhimbou.ai",          // PQC-Khepra-MCP hosted endpoint
+  dagStream: "http://localhost:45444/api/dag/stream",   // SSE DAG feed (webui pkg)
+  dagNodes:  "http://localhost:45444/api/v1/dag/nodes", // REST DAG nodes
+  // Imhotep chat — uses existing /api/v1/mcp/ask with BYOK Claude via header
+  chatAPI:   "http://localhost:45444/api/v1/mcp/ask",
+  // Your Anthropic key — loaded from .env.demo.local, injected below
+  claudeKey: window.__DEMO_CLAUDE_KEY || "",
 };
 let _dagESS=null; // EventSource handle
 const FX=[
