@@ -424,63 +424,71 @@ async function launchScan(){
     document.getElementById("lbtxt").textContent="LAUNCH ERT SCAN";btn.disabled=false;
   }
 }
-// ── LIVE mode: real apiserver at :45444 ───────────────────────────────────────
 async function launchScanLive(tgt,fw){
   tp(E.cy+"[LIVE] Posting to "+CFG.asafAPI+"/api/v1/scan/agent..."+E._);
-  // Kick off scan — public demo funnel endpoint, no auth required
   const scanRes=await fetch(CFG.asafAPI+"/api/v1/scan/agent",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
+    method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({target:tgt,framework:fw,mode:"full"})
   });
   if(!scanRes.ok)throw new Error("Scan trigger failed: "+scanRes.status);
   const scanJob=await scanRes.json();
   const scanID=scanJob.scan_id||scanJob.id||"";
   td("Scan ID:",scanID||"(streaming)");
-  // Poll status until done, streaming progress to terminal
-  let done=false;let attempts=0;
-  while(!done&&attempts<120){
-    await dl(1500);attempts++;
-    const stRes=await fetch(CFG.asafAPI+"/api/v1/scan/agent/"+scanID,{method:"GET"});
-    if(!stRes.ok)break;
-    const st=await stRes.json();
-    if(st.status==="completed"||st.status==="done"){
-      done=true;
-      // Render findings from real response — populate live FX
-      const findings=st.findings||st.results||[];
-      FX=[];
-      let totExp=0;
-      for(const f of findings){
-        const fobj={id:f.id||f.control_id,t:f.title||f.description,sev:f.severity||"CAT II",
-          poam:f.poam_eligible!==false,pts:f.points||1,exp:f.exposure_usd||0,
-          ctrl:f.cmmc_control||f.control_id,nist:f.nist_id||"",cci:f.cci||"",
-          mitre:f.mitre||"",d:f.description||f.details||"",r:f.remediation||"",
-          reject:f.c3pao_rejection||"PAPER_TIGER"};
-        FX.push(fobj);
-        totExp+=fobj.exp;
-        addFindCard(fobj);
-        addNode(fobj.id+": "+fobj.t,"finding",[{c:"r",t:fobj.sev},{c:"p",t:"SIGNED"}]);
-        document.getElementById("s-f").textContent=++fdc;
-        tp(" "+E.re+fobj.sev+E._+" "+fobj.ctrl+" — "+fobj.t);
-      }
-      TOTEXP=totExp;
-      // Godfather
-      const roi=Math.round(TOTEXP/REMCOST);
-      await dl(300);ts();tp(E.go+E.bo+"  GODFATHER REPORT - EXECUTIVE BRIEF"+E._);ts();
-      td("Target:",tgt);td("Findings:",E.re+findings.length+E._);
-      td("Total Exposure:",E.re+"$"+TOTEXP.toLocaleString()+E._);
-      td("Remediation Cost:",E.gr+"$"+REMCOST.toLocaleString()+E._);
-      td("ROI of Fixing Now:",E.gr+roi+"x"+E._);
-      tp("");tok("Godfather Report - ML-DSA-65 signed - DAG attested");
-      document.getElementById("s-c").textContent="100%";
-      addNode("GODFATHER REPORT - signed","cert",[{c:"g",t:"GODFATHER"},{c:"p",t:"ML-DSA-65"},{c:"k",t:"SIGNED"}]);
-      showGF(TOTEXP,REMCOST,roi);
-    }else{
-      tp("  → "+E.gy+(st.status||"running")+E._+(st.progress?" ("+st.progress+"%)"+"...":""));
-      if(st.progress)document.getElementById("s-c").textContent=st.progress+"%";
-    }
-  }
-  if(!done){tp(E.re+"[TIMEOUT] Scan did not complete in 3min — check apiserver logs"+E._);}
+  tp(E.cy+"[LIVE] SSE stream opened — waiting for engine results..."+E._);
+  await new Promise((resolve,reject)=>{
+    const es=new EventSource(CFG.asafAPI+"/api/v1/scan/agent/stream?id="+scanID);
+    const timer=setTimeout(()=>{es.close();reject(new Error("SSE timeout after 3min"));},180000);
+    es.onmessage=async(ev)=>{
+      try{
+        const d=JSON.parse(ev.data);
+        if(d.type==="started"){
+          tp("  \u2192 "+E.cy+"Engine started \u2014 6-layer scan running..."+E._);
+          document.getElementById("s-c").textContent="5%";
+        }else if(d.type==="result"){
+          clearTimeout(timer);es.close();
+          const p=d.payload||{};
+          const findings=p.findings||[];
+          FX=[];let totExp=0;
+          tp(E.gr+"[RESULT] "+findings.length+" findings received"+E._);
+          const sevExp={CRITICAL:45000,HIGH:18000,MEDIUM:6500,LOW:1200,INFO:0};
+          for(const f of findings){
+            const fobj={
+              id:f.id||f.control_id||"?",t:f.title||f.description||"Finding",
+              sev:f.severity||"MEDIUM",poam:f.poam_eligible!==false,pts:f.points||1,
+              exp:f.exposure_usd||(sevExp[(f.severity||"").toUpperCase()]||0),
+              ctrl:f.cmmc_control||f.control_id||"",nist:f.nist_id||"",
+              cci:f.cci||"",mitre:f.mitre||"",
+              d:f.description||f.details||"",r:f.remediation||"",
+              reject:f.c3pao_rejection||"PAPER_TIGER"
+            };
+            FX.push(fobj);totExp+=fobj.exp;
+            addFindCard(fobj);
+            addNode(fobj.id+": "+fobj.t,"finding",[{c:"r",t:fobj.sev},{c:"p",t:"SIGNED"}]);
+            document.getElementById("s-f").textContent=++fdc;
+            tp(" "+E.re+fobj.sev+E._+" "+fobj.ctrl+" \u2014 "+fobj.t);
+          }
+          TOTEXP=totExp;
+          const roi=Math.round(TOTEXP/REMCOST);
+          await dl(300);ts();tp(E.go+E.bo+"  GODFATHER REPORT - EXECUTIVE BRIEF"+E._);ts();
+          td("Target:",tgt);td("Findings:",E.re+findings.length+E._);
+          td("Total Exposure:",E.re+"$"+TOTEXP.toLocaleString()+E._);
+          td("Remediation Cost:",E.gr+"$"+REMCOST.toLocaleString()+E._);
+          td("ROI of Fixing Now:",E.gr+roi+"x"+E._);
+          tp("");tok("Godfather Report - ML-DSA-65 signed - DAG attested");
+          document.getElementById("s-c").textContent="100%";
+          addNode("GODFATHER REPORT - signed","cert",[{c:"g",t:"GODFATHER"},{c:"p",t:"ML-DSA-65"},{c:"k",t:"SIGNED"}]);
+          showGF(TOTEXP,REMCOST,roi);
+          resolve();
+        }else if(d.type==="done"){
+          clearTimeout(timer);es.close();resolve();
+        }else if(d.type==="error"){
+          clearTimeout(timer);es.close();
+          reject(new Error("Scan error: "+(d.payload?.error||JSON.stringify(d.payload))));
+        }
+      }catch(e){/* heartbeat or non-JSON line */}
+    };
+    es.onerror=()=>{clearTimeout(timer);es.close();reject(new Error("SSE connection failed"));};
+  });
   document.getElementById("stxt").textContent="SCAN COMPLETE (LIVE) - C3PAO evidence ready";
   if(dnodes.length>1)renderDAG();
 }
