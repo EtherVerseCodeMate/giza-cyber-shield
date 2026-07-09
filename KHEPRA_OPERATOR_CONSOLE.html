@@ -426,9 +426,9 @@ async function launchScan(){
 }
 // ── LIVE mode: real apiserver at :45444 ───────────────────────────────────────
 async function launchScanLive(tgt,fw){
-  tp(E.cy+"[LIVE] Posting to "+CFG.asafAPI+"/api/v1/scans/trigger..."+E._);
-  // Kick off scan
-  const scanRes=await fetch(CFG.asafAPI+"/api/v1/scans/trigger",{
+  tp(E.cy+"[LIVE] Posting to "+CFG.asafAPI+"/api/v1/scan/agent..."+E._);
+  // Kick off scan — public demo funnel endpoint, no auth required
+  const scanRes=await fetch(CFG.asafAPI+"/api/v1/scan/agent",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({target:tgt,framework:fw,mode:"full"})
@@ -441,7 +441,7 @@ async function launchScanLive(tgt,fw){
   let done=false;let attempts=0;
   while(!done&&attempts<120){
     await dl(1500);attempts++;
-    const stRes=await fetch(CFG.asafAPI+"/api/v1/scans/"+scanID,{method:"GET"});
+    const stRes=await fetch(CFG.asafAPI+"/api/v1/scan/agent/"+scanID,{method:"GET"});
     if(!stRes.ok)break;
     const st=await stRes.json();
     if(st.status==="completed"||st.status==="done"){
