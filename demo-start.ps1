@@ -57,26 +57,45 @@ if (Test-Path $tiersFile) {
 
 $BinDir = Join-Path $ScriptDir "bin"
 
-# ── Start apiserver (REST API :45444) ───────────────────────────────────────────
+# ── Start apiserver (REST API :45444) ────────────────────────────────────────────────────
 $apiserverExe = Join-Path $BinDir "apiserver.exe"
 if (Test-Path $apiserverExe) {
     Write-Host "[START] apiserver.exe → http://localhost:45444" -ForegroundColor Cyan
+    # ── CRITICAL: --tls=false prevents main.go:208-212 from overriding --port to 8080 ──
+    # Without this, TLS defaults to true, TLS_DOMAIN is empty → port forced to 8080.
+    $env:TLS_ENABLED = "false"
+    # KHEPRA_SERVICE_SECRET: HMAC-SHA256 shared secret for apiserver <-> khepra-mcp auth.
+    # NOT the license key. NOT the ML-DSA-65 signing key. Internal inter-service auth only.
+    if (-not $env:KHEPRA_SERVICE_SECRET) {
+        $env:KHEPRA_SERVICE_SECRET = "khepra-dev-" + [System.Guid]::NewGuid().ToString("N")
+        Write-Host "[ENV] KHEPRA_SERVICE_SECRET generated for dev session (inter-service auth)" -ForegroundColor DarkGray
+    }
     Start-Process -FilePath $apiserverExe `
-        -ArgumentList "--port", "45444" `
+        -ArgumentList "--port", "45444", "--tls=false" `
         -WorkingDirectory $ScriptDir `
         -WindowStyle Minimized
-    Start-Sleep -Milliseconds 1500
-    # Health check
-    try {
-        $hc = Invoke-WebRequest -Uri "http://localhost:45444/healthz" -TimeoutSec 3 -UseBasicParsing
-        Write-Host "[OK] apiserver healthy" -ForegroundColor Green
-    } catch {
-        Write-Host "[WARN] apiserver not responding yet — may still be starting" -ForegroundColor Yellow
+    Start-Sleep -Milliseconds 2500
+    # Health check with retries (startup takes ~2s for SEKHEM/DAG init)
+    $retries = 0
+    $apiserverUp = $false
+    while ($retries -lt 6 -and -not $apiserverUp) {
+        try {
+            $hc = Invoke-WebRequest -Uri "http://localhost:45444/healthz" -TimeoutSec 2 -UseBasicParsing
+            Write-Host "[OK] apiserver healthy on :45444" -ForegroundColor Green
+            $apiserverUp = $true
+        } catch {
+            $retries++
+            Start-Sleep -Milliseconds 800
+        }
+    }
+    if (-not $apiserverUp) {
+        Write-Host "[WARN] apiserver not responding on :45444 — check the apiserver window for errors" -ForegroundColor Yellow
     }
 } else {
-    Write-Host "[WARN] apiserver.exe not found at $apiserverExe — API will be in scripted mode" -ForegroundColor Yellow
-    Write-Host "       Build with: go build -o bin/apiserver.exe ./cmd/apiserver" -ForegroundColor DarkGray
+    Write-Host "[WARN] apiserver.exe not found at $apiserverExe" -ForegroundColor Yellow
+    Write-Host "       Build: go build -o bin/apiserver.exe ./cmd/apiserver" -ForegroundColor DarkGray
 }
+
 
 # ── Start adinkhepra watch server (DAG viewer :8443) ───────────────────────────
 $watchExe = Join-Path $BinDir "adinkhepra.exe"

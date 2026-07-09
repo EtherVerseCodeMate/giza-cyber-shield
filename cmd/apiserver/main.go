@@ -204,11 +204,20 @@ func parseConfig() (*serverConfig, map[string]interface{}) {
 		*telemetryURL = envTelemetry
 	}
 
-	// Warn if TLS is enabled but domain is not configured
+	// Warn if TLS is enabled but domain is not configured.
+	// PORT OVERRIDE POLICY: only fall back to 8080 when the port is still at the
+	// TLS default (443). If the caller explicitly passed --port or PORT=N, that
+	// intent is respected — we disable TLS but keep their port.
 	if *tlsEnabled && *tlsDomain == "" {
-		log.Println("WARNING: TLS_DOMAIN not set. Falling back to HTTP on port 8080.")
+		log.Println("WARNING: TLS_DOMAIN not set. Disabling TLS and falling back to HTTP.")
 		*tlsEnabled = false
-		*port = 8080
+		if *port == 443 {
+			// Port was never explicitly set — use the HTTP default.
+			*port = 8080
+			log.Println("WARNING: No explicit port set. Defaulting to HTTP port 8080.")
+		} else {
+			log.Printf("INFO: TLS disabled. Using explicitly configured port %d.", *port)
+		}
 	}
 
 	// Validate service secret
@@ -281,24 +290,33 @@ func initServices(cfg *serverConfig, flags map[string]interface{}, dagStore dag.
 		TLSEnabled:   cfg.tlsEnabled,
 		TLSDomain:    cfg.tlsDomain,
 		CertCacheDir: cfg.certCacheDir,
-		AllowedOrigins: []string{
-			// NouchiX / ASAF production origins
-			"https://docs.nouchix.com",        // ASAF NLP UI — served here, fetches localhost agent
-			"https://nouchix.com",
-			"https://www.nouchix.com",
-			"https://adinkhepra.com",
-			"https://www.adinkhepra.com",
-			"https://adinkhepra.dev",
-			"https://souhimbou.ai",
-			"https://www.souhimbou.ai",
-			"https://gateway.souhimbou.ai",
-			"https://telemetry.souhimbou.ai",
-			// Local development
-			"http://localhost:3000",
-			"http://localhost:5173",
-			"http://localhost:7777", // serve-nlp default
-			"http://localhost:8080",
-		},
+		AllowedOrigins: func() []string {
+			// Base production + local dev origins
+			origins := []string{
+				"https://docs.nouchix.com",
+				"https://nouchix.com",
+				"https://www.nouchix.com",
+				"https://adinkhepra.com",
+				"https://www.adinkhepra.com",
+				"https://adinkhepra.dev",
+				"https://souhimbou.ai",
+				"https://www.souhimbou.ai",
+				"https://gateway.souhimbou.ai",
+				"https://telemetry.souhimbou.ai",
+				"http://localhost:3000",
+				"http://localhost:5173",
+				"http://localhost:7777",
+				"http://localhost:8080",
+				"http://localhost:45444",
+			}
+			// Dev mode: allow file:// pages (browser sends Origin: null) and
+			// any other local port. NEVER enable in production/Iron Bank builds.
+			if os.Getenv("ADINKHEPRA_DEV") == "1" {
+				origins = append(origins, "null") // file:// origin
+				log.Println("[CORS] DEV mode: null origin (file://) allowed")
+			}
+			return origins
+		}(),
 		Debug: cfg.debug,
 	}
 
