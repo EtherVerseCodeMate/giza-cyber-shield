@@ -285,13 +285,16 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 </div>
 </div><script>
 // ── KHEPRA Demo Configuration ────────────────────────────────────────────────
+// VPS is 2.24.105.170 — all services should be running there permanently.
+// localhost:45444 is dev-only fallback (?local=1 URL param or when running demo-start.ps1).
+const _isLocal = new URLSearchParams(location.search).has("local") || location.hostname === "localhost";
 const CFG={
-  asafAPI:   "http://localhost:45444",
+  asafAPI:   _isLocal ? "http://localhost:45444" : "https://agent.souhimbou.ai",
   mcpServer: "https://mcp.souhimbou.ai",
   mcpToken:  "kYIcYS2wD4fMXBonFBRqpI8wNNiJNGVqr4KVlYkMe1e7f848",
-  dagStream: "http://localhost:45444/api/dag/stream",
-  dagNodes:  "http://localhost:45444/api/v1/dag/nodes",
-  chatAPI:   "http://localhost:45444/api/v1/mcp/ask",
+  dagStream: _isLocal ? "http://localhost:45444/api/dag/stream"  : "https://agent.souhimbou.ai/api/dag/stream",
+  dagNodes:  _isLocal ? "http://localhost:45444/api/v1/dag/nodes": "https://agent.souhimbou.ai/api/v1/dag/nodes",
+  chatAPI:   _isLocal ? "http://localhost:45444/api/v1/mcp/ask"  : "https://agent.souhimbou.ai/api/v1/mcp/ask",
   claudeKey: new URLSearchParams(location.search).get("key") || window.__DEMO_CLAUDE_KEY || "",
 };
 let _dagESS=null; // EventSource handle
