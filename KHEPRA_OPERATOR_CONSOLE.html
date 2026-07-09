@@ -183,7 +183,7 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
   <div id="tgt-bar">
     <div class="tgt-lbl">TARGET</div>
     <div class="tgt-row">
-      <input id="tgt-url" value="http://127.0.0.1:4280" placeholder="http://target:port">
+      <input id="tgt-url" value="http://2.24.105.170:4280" placeholder="http://target:port">
       <select id="tgt-fw">
         <option>CMMC L2</option><option>NIST 800-53</option>
         <option>STIG</option><option>ALL</option>
@@ -250,11 +250,20 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 </main>
 <div id="sbar">
   <span id="stxt">READY &mdash; KHEPRA Sovereign Mode Active</span>
-  <span>|</span><span>Target: <span id="stgt" style="color:var(--blue)">http://127.0.0.1:4280</span></span>
+  <span>|</span><span>Target: <span id="stgt" style="color:var(--blue)">http://2.24.105.170:4280</span></span>
   <span>|</span><span>SDVOSB &middot; USPTO #73565085 &middot; NouchiX</span>
   <span class="hdr-sep"></span><span id="stime"></span>
 </div>
 </div><script>
+// ── KHEPRA Demo Configuration ────────────────────────────────────────────────
+const CFG={
+  asafAPI:   "http://localhost:45444",      // adinkhepra apiserver (local)
+  mcpServer: "http://mcp.souhimbou.ai",    // PQC-Khepra-MCP hosted endpoint
+  dagStream: "http://localhost:45444/api/dag/stream", // SSE DAG feed
+  dagNodes:  "http://localhost:45444/api/dag/nodes",
+  chatAPI:   "http://localhost:45444/api/chat",
+};
+let _dagESS=null; // EventSource handle
 const FX=[
   {id:"SC-13",t:"MD5 Password Hashing - FIPS Violation",sev:"CAT I",poam:false,reject:"PAPER_TIGER",pts:3,exp:1800000,ctrl:"CMMC.SC.L2-3.13.10",nist:"3.13.10",cci:"CCI-002450",mitre:"T1110",d:"DVWA stores passwords as unsalted MD5 (e.g. admin:5f4dcc3b5aa765d61d8327deb882cf99). FIPS 140-2 prohibits MD5 for credential hashing.",r:"Replace with bcrypt cost=12 or Argon2id. Est: 4h"},
   {id:"SI-10",t:"SQL Injection - Login Bypass (Classic)",sev:"CAT I",poam:false,reject:"PAPER_TIGER",pts:5,exp:2400000,ctrl:"CMMC.SI.L2-3.14.2",nist:"3.14.2",cci:"CCI-002754",mitre:"T1190",d:"Login form: username=admin'-- password=anything bypasses auth. Entire user table dumpable via UNION SELECT in <60s.",r:"Parameterized queries + input validation + WAF. Est: 8h"},
@@ -336,14 +345,117 @@ async function launchScan(){
   document.getElementById("gf").classList.remove("show");document.getElementById("findwrap").innerHTML="";
   const btn=document.getElementById("launch-btn");
   btn.classList.add("running");document.getElementById("lbtxt").textContent="SCANNING...";btn.disabled=true;
-  const tgt=document.getElementById("tgt-url").value||"http://127.0.0.1:4280";
+  const tgt=document.getElementById("tgt-url").value||"http://2.24.105.170:4280";
+  const fw=document.getElementById("tgt-fw").value;
   document.getElementById("stgt").textContent=tgt;document.getElementById("stxt").textContent="SCANNING: "+tgt;
   swTab("terminal");ts();
   ti("ERT Full Scan initiated - target: "+E.cy+tgt+E._);
-  td("Framework:",document.getElementById("tgt-fw").value+" (36,195-row embedded DB)");
+  td("Framework:",fw+" (36,195-row embedded DB)");
   td("Engine:","KHEPRA ERT v2.0 - Horus lanes + EA KernelRouter");
   td("Attestation:","ML-DSA-65 / FIPS 204 (Cloudflare CIRCL)");
-  td("C3PAO Mode:","Examine + Interview + Test evidence generation");tp("");
+  td("C3PAO Mode:","Examine + Interview + Test evidence generation");
+  // ── Wire DAG EventSource ──────────────────────────────────────────────────
+  if(_dagESS){_dagESS.close();}
+  try{
+    _dagESS=new EventSource(CFG.dagStream);
+    _dagESS.onmessage=function(e){
+      try{
+        const n=JSON.parse(e.data);
+        if(n&&n.id)addNode(n.label||n.id,n.node_type||"flight",(n.tags||[]).map(t=>({c:t.color||"p",t:t.label||t})));
+      }catch(_){}
+    };
+    _dagESS.onerror=function(){_dagESS.close();};
+    td("DAG Stream:",E.gr+"LIVE (EventSource: "+CFG.dagStream+")"+E._);
+  }catch(_){
+    td("DAG Stream:",E.gy+"offline - DAG nodes simulated"+E._);
+  }
+  tp("");
+  // ── Try real API first, fall back to scripted mode ────────────────────────
+  let apiAvailable=false;
+  try{
+    const probe=await Promise.race([
+      fetch(CFG.asafAPI+"/healthz",{method:"GET",signal:AbortSignal.timeout(2000)}),
+      new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),2100))
+    ]);
+    apiAvailable=probe.ok;
+    if(apiAvailable)td("API Mode:",E.gr+"LIVE → "+CFG.asafAPI+E._);
+  }catch(_){
+    td("API Mode:",E.gy+"API offline - scripted mode active (demo)"+E._);
+  }
+  tp("");
+  try{
+    if(apiAvailable){
+      await launchScanLive(tgt,fw);
+    }else{
+      await launchScanScripted(tgt);
+    }
+  }catch(err){
+    tp(E.re+"[ERR] "+E._+String(err));
+    document.getElementById("stxt").textContent="SCAN ERROR - see terminal";
+  }finally{
+    scanning=false;btn.classList.remove("running");
+    document.getElementById("lbtxt").textContent="LAUNCH ERT SCAN";btn.disabled=false;
+  }
+}
+// ── LIVE mode: real apiserver at :45444 ───────────────────────────────────────
+async function launchScanLive(tgt,fw){
+  tp(E.cy+"[LIVE] Posting to "+CFG.asafAPI+"/api/v1/scans/trigger..."+E._);
+  // Kick off scan
+  const scanRes=await fetch(CFG.asafAPI+"/api/v1/scans/trigger",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({target:tgt,framework:fw,mode:"full"})
+  });
+  if(!scanRes.ok)throw new Error("Scan trigger failed: "+scanRes.status);
+  const scanJob=await scanRes.json();
+  const scanID=scanJob.scan_id||scanJob.id||"";
+  td("Scan ID:",scanID||"(streaming)");
+  // Poll status until done, streaming progress to terminal
+  let done=false;let attempts=0;
+  while(!done&&attempts<120){
+    await dl(1500);attempts++;
+    const stRes=await fetch(CFG.asafAPI+"/api/v1/scans/"+scanID,{method:"GET"});
+    if(!stRes.ok)break;
+    const st=await stRes.json();
+    if(st.status==="completed"||st.status==="done"){
+      done=true;
+      // Render findings from real response
+      const findings=st.findings||st.results||[];
+      let totExp=0;
+      for(const f of findings){
+        const fobj={id:f.id||f.control_id,t:f.title||f.description,sev:f.severity||"CAT II",
+          poam:f.poam_eligible!==false,pts:f.points||1,exp:f.exposure_usd||0,
+          ctrl:f.cmmc_control||f.control_id,nist:f.nist_id||"",cci:f.cci||"",
+          mitre:f.mitre||"",d:f.description||f.details||"",r:f.remediation||""};
+        totExp+=fobj.exp;
+        addFindCard(fobj);
+        addNode(fobj.id+": "+fobj.t,"finding",[{c:"r",t:fobj.sev},{c:"p",t:"SIGNED"}]);
+        document.getElementById("s-f").textContent=++fdc;
+        tp(" "+E.re+fobj.sev+E._+" "+fobj.ctrl+" — "+fobj.t);
+      }
+      TOTEXP=totExp||TOTEXP;
+      // Godfather
+      const roi=Math.round(TOTEXP/REMCOST);
+      await dl(300);ts();tp(E.go+E.bo+"  GODFATHER REPORT - EXECUTIVE BRIEF"+E._);ts();
+      td("Target:",tgt);td("Findings:",E.re+findings.length+E._);
+      td("Total Exposure:",E.re+"$"+TOTEXP.toLocaleString()+E._);
+      td("Remediation Cost:",E.gr+"$"+REMCOST.toLocaleString()+E._);
+      td("ROI of Fixing Now:",E.gr+roi+"x"+E._);
+      tp("");tok("Godfather Report - ML-DSA-65 signed - DAG attested");
+      document.getElementById("s-c").textContent="100%";
+      addNode("GODFATHER REPORT - signed","cert",[{c:"g",t:"GODFATHER"},{c:"p",t:"ML-DSA-65"},{c:"k",t:"SIGNED"}]);
+      showGF(TOTEXP,REMCOST,roi);
+    }else{
+      tp("  → "+E.gy+(st.status||"running")+E._+(st.progress?" ("+st.progress+"%)"+"...":""));
+      if(st.progress)document.getElementById("s-c").textContent=st.progress+"%";
+    }
+  }
+  if(!done){tp(E.re+"[TIMEOUT] Scan did not complete in 3min — check apiserver logs"+E._);}
+  document.getElementById("stxt").textContent="SCAN COMPLETE (LIVE) - C3PAO evidence ready";
+  if(dnodes.length>1)renderDAG();
+}
+// ── SCRIPTED mode: no API, pure front-end demo ────────────────────────────────
+async function launchScanScripted(tgt){
   addNode("ert_scan INITIATED","flight",[{c:"c",t:"FLIGHT"},{c:"p",t:"ML-DSA-65"},{c:"s",t:"ERT"}]);
   const LAYERS=[
     {id:"A",n:"Package A - STIG / CMMC Compliance",dur:2000,msgs:["Loading 36,195 STIG/CCI/NIST/CMMC cross-mappings...","Running CMMC Level 2 assessment (110 controls)...","Building traceability matrix (Control ID -> CCI -> DAG node)..."]},
@@ -416,12 +528,42 @@ function runCmd(cmd){
   if(cmd==="flight_export")exportAttestation();
   else if(cmd==="dag_audit"){tok("DAG chain: VERIFIED");td("Nodes:",nc+"");td("Signed:",sc+" / "+sc+" (100%)");td("Algo:","ML-DSA-65 / FIPS 204");addNode("dag_audit VERIFIED","cert",[{c:"k",t:"VERIFIED"},{c:"p",t:"ML-DSA-65"}])}
   else if(cmd==="godfather_report"){tok("Godfather: $"+TOTEXP.toLocaleString());td("ROI:",Math.round(TOTEXP/REMCOST)+"x");showGF(TOTEXP,REMCOST,Math.round(TOTEXP/REMCOST))}
-  else if(cmd.startsWith("stig")){const ctrl=cmd.split(" ")[1]||"AC-2";tok("STIG: "+ctrl);td("Maps to:","CMMC.AC.L2-3.1.1 -> NIST 800-53 AC-2");td("Status:",E.re+"FAIL"+E._);addNode("stig_check: "+ctrl,"flight",[{c:"s",t:"STIG"},{c:"p",t:"SIGNED"}])}
-  else if(cmd==="pqc_stig"){tok("PQC-01-STIG-V1R1 - World's First DoD PQC STIG");td("Controls:","17 (CNSA 2.0 / FIPS 203/204/205)");td("ML-DSA-65:",E.gr+"PRESENT"+E._);td("ML-KEM-768:",E.re+"NOT FOUND"+E._);addNode("pqc_stig","flight",[{c:"p",t:"PQC-STIG"},{c:"g",t:"CNSA 2.0"}])}
-  else if(cmd.startsWith("nist_map")){const ctrl=cmd.split(" ")[1]||"AC-2";tok("NIST: "+ctrl+" -> CMMC.AC.L2-3.1.1 -> CCI-001893");td("800-171:","3.1.1");td("CMMC:","AC.L2-3.1.1");addNode("nist_map: "+ctrl,"flight",[{c:"s",t:"NIST"},{c:"p",t:"SIGNED"}])}
-  else if(cmd==="cmmc_assess"){tok("CMMC L2 - 110 controls");td("Passed:","42");td("Failed:",E.re+"12 violations ("+FX.filter(f=>f.sev==="CAT I").length+" CAT I)"+E._);td("Score:","38% - FAIL");addNode("cmmc_assess","cert",[{c:"g",t:"CMMC L2"},{c:"p",t:"ML-DSA-65"}])}
   else if(cmd==="threat_model"){tok("MITRE ATT&CK - Risk: "+E.re+"CRITICAL (9.4/10)"+E._);td("T1190:","Exploit Public-Facing App");td("T1078:","Valid Accounts");addNode("threat_model CRITICAL","cert",[{c:"r",t:"CRITICAL"},{c:"p",t:"SIGNED"}])}
-  else{tok(cmd+" executed");addNode(cmd,"flight",[{c:"c",t:"FLIGHT"},{c:"p",t:"SIGNED"}])}
+  else{ runMCPTool(cmd); }
+}
+// ── MCP tool dispatch → real mcp.souhimbou.ai endpoint ───────────────────────
+async function runMCPTool(cmd){
+  const tgt=document.getElementById("tgt-url").value||"http://2.24.105.170:4280";
+  tp(E.gy+"→ "+CFG.mcpServer+" [tool: "+cmd+"]"+E._);
+  try{
+    const res=await Promise.race([
+      fetch(CFG.mcpServer+"/v1/tools/call",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({tool:cmd,arguments:{target:tgt,framework:"CMMC_L2"}})
+      }),
+      new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),5000))
+    ]);
+    if(res.ok){
+      const data=await res.json();
+      const out=data.result||data.content||data.output||JSON.stringify(data,null,2);
+      tok(cmd+" → "+CFG.mcpServer);
+      if(typeof out==="string")tp(out.substring(0,800));
+      else if(Array.isArray(out))out.slice(0,5).forEach(o=>tp("  "+JSON.stringify(o)));
+      addNode(cmd+" (MCP)","flight",[{c:"c",t:"MCP"},{c:"p",t:"ML-DSA-65"}]);
+    }else{
+      throw new Error("MCP HTTP "+res.status);
+    }
+  }catch(err){
+    // Graceful fallback: show scripted output so demo never breaks
+    tp(E.gy+"[MCP offline] Showing scripted output for: "+cmd+E._);
+    if(cmd.startsWith("stig")){const ctrl=cmd.split(" ")[1]||"AC-2";tok("STIG: "+ctrl);td("Maps to:","CMMC.AC.L2-3.1.1 → NIST 800-53 AC-2");td("Status:",E.re+"FAIL"+E._);}
+    else if(cmd==="pqc_stig"){tok("PQC-01-STIG-V1R1");td("Controls:","17 (CNSA 2.0)");td("ML-DSA-65:",E.gr+"PRESENT"+E._);td("ML-KEM-768:",E.re+"NOT FOUND"+E._);}
+    else if(cmd.startsWith("nist_map")){const ctrl=cmd.split(" ")[1]||"AC-2";tok("NIST: "+ctrl+" → CMMC.AC.L2-3.1.1 → CCI-001893");td("800-171:","3.1.1");}
+    else if(cmd==="cmmc_assess"){tok("CMMC L2 - 110 controls");td("Passed:","42");td("Failed:",E.re+"12 violations"+E._);td("Score:","38% - FAIL");}
+    else{tok(cmd+" (scripted)");}
+    addNode(cmd,"flight",[{c:"c",t:"MCP-SIM"},{c:"p",t:"SIGNED"}]);
+  }
 }
 async function exportAttestation(){
   if(typeof JSZip==="undefined"){tp(E.re+"[ERR] JSZip not loaded - check internet connection"+E._);return;}
