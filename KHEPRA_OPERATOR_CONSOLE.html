@@ -307,19 +307,20 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 </div>
 </div><script>
 // ── KHEPRA Demo Configuration ────────────────────────────────────────────────
-// VPS: 2.24.105.170 — all services live at agent.souhimbou.ai.
-// ?local=1 → explicitly use localhost:45444 (local apiserver dev mode only).
-// Serving from http://localhost:3000 does NOT trigger local mode — that is the
-// CORS workaround for demo: Origin=http://localhost:3000 is in AllowedOrigins
-// on agent.souhimbou.ai, but we still talk to the VPS for live scan data.
-const _isLocal = new URLSearchParams(location.search).has("local");
+// When served from http://localhost:3000 (demo-start.py), _isLocal=true and
+// asafAPI=window.location.origin (http://localhost:3000). The Python server
+// proxies all /api/ requests to https://agent.souhimbou.ai -- zero CORS.
+// In production (served from VPS or opened directly), asafAPI=agent.souhimbou.ai.
+// ?local=1 forces the old localhost:45444 direct mode (local binary testing only).
+const _isLocal = location.hostname === "localhost" && !new URLSearchParams(location.search).has("local");
+const _localDirect = new URLSearchParams(location.search).has("local");
 const CFG={
-  asafAPI:   _isLocal ? "http://localhost:45444" : "https://agent.souhimbou.ai",
+  asafAPI:   _isLocal ? window.location.origin : (_localDirect ? "http://localhost:45444" : "https://agent.souhimbou.ai"),
   mcpServer: "https://mcp.souhimbou.ai",
   mcpToken:  "kYIcYS2wD4fMXBonFBRqpI8wNNiJNGVqr4KVlYkMe1e7f848",
-  dagStream: _isLocal ? "http://localhost:45444/api/dag/stream"  : "https://agent.souhimbou.ai/api/dag/stream",
-  dagNodes:  _isLocal ? "http://localhost:45444/api/v1/dag/nodes": "https://agent.souhimbou.ai/api/v1/dag/nodes",
-  chatAPI:   _isLocal ? "http://localhost:45444/api/v1/mcp/ask"  : "https://agent.souhimbou.ai/api/v1/mcp/ask",
+  dagStream: _isLocal ? window.location.origin+"/api/dag/stream" : (_localDirect ? "http://localhost:45444/api/dag/stream" : "https://agent.souhimbou.ai/api/dag/stream"),
+  dagNodes:  _isLocal ? window.location.origin+"/api/v1/dag/nodes" : (_localDirect ? "http://localhost:45444/api/v1/dag/nodes" : "https://agent.souhimbou.ai/api/v1/dag/nodes"),
+  chatAPI:   _isLocal ? window.location.origin+"/api/v1/mcp/ask" : (_localDirect ? "http://localhost:45444/api/v1/mcp/ask" : "https://agent.souhimbou.ai/api/v1/mcp/ask"),
   claudeKey: new URLSearchParams(location.search).get("key") || window.__DEMO_CLAUDE_KEY || "",
 };
 let _dagESS=null; // EventSource handle
