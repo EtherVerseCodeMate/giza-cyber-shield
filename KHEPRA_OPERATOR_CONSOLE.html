@@ -607,8 +607,7 @@ async function launchOmniScanLive(repoPath){
           doneCount++;
           _omniUpdateScanner(p.scanner,'done',p.count);
           const pct=Math.round((doneCount/50)*100);
-          document.getElementById('omni-lbtxt').textContent='\u26A1 SCANNING… ('+doneCount+'/50 — '+pct+'%)';
-          document.getElementById('s-c').textContent=pct+'%';
+          document.getElementById('omni-lbtxt').textContent='\u26A1 SCANNING\u2026 ('+doneCount+'/50 \u2014 '+pct+'%)';
           tok('['+p.scanner+'] '+p.count+' findings (total so far: '+p.total+')');
           addNode(p.scanner+' DONE ('+p.count+')',p.count>0?'finding':'flight',[{c:p.count>0?'r':'k',t:p.count+' findings'},{c:'p',t:'ML-DSA-65'}]);
         }else if(d.type==='result'){
@@ -653,8 +652,24 @@ async function launchOmniScanLive(repoPath){
           }
           TOTEXP=p.total_exposure_usd||totExp;
           const roi=Math.round(TOTEXP/REMCOST);
-          document.getElementById('s-c').textContent='100%';
-          document.getElementById('stxt').textContent='OMNI-SCAN COMPLETE — '+FX.length+' findings — $'+TOTEXP.toLocaleString()+' exposure — C3PAO evidence ready';
+          // Compute real CMMC score from unique failing controls
+          // CMMC L2 = 110 practices across 14 domains. Each unique control with
+          // at least one finding is counted as failing. Score = passing/total.
+          const _failCtrl=new Set();
+          for(const f of FX){
+            // Use the cmcc_controls array from the raw findings
+            (f.ctrl?[f.ctrl]:[]).forEach(c=>_failCtrl.add(c));
+          }
+          // Also count from p.critical+p.high as a floor estimate if no ctrl IDs
+          const CMMC_L2_TOTAL=110;
+          const _failCount=_failCtrl.size>0 ? Math.min(_failCtrl.size,CMMC_L2_TOTAL)
+                           : Math.min(Math.round((p.critical||0)*1.5+(p.high||0)),CMMC_L2_TOTAL);
+          const cmmcScore=Math.max(0,Math.round(((CMMC_L2_TOTAL-_failCount)/CMMC_L2_TOTAL)*100));
+          const sEl=document.getElementById('s-c');
+          sEl.textContent=cmmcScore+'%';
+          sEl.className='sval'+(cmmcScore>=80?' k':cmmcScore>=50?' go':' re');
+          td('CMMC Score:',cmmcScore+'% ('+(CMMC_L2_TOTAL-_failCount)+'/'+CMMC_L2_TOTAL+' controls passing)');
+          document.getElementById('stxt').textContent='OMNI-SCAN COMPLETE — '+FX.length+' findings — $'+TOTEXP.toLocaleString()+' exposure — CMMC Score: '+cmmcScore+'% — C3PAO evidence ready';
           addNode('OMNI-SCAN GODFATHER REPORT','cert',[{c:'g',t:'GODFATHER'},{c:'p',t:'ML-DSA-65'},{c:'k',t:'SIGNED'}]);
           showGF(TOTEXP,REMCOST,roi);
           if(dnodes.length>1)renderDAG();
