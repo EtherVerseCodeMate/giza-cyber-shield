@@ -1,0 +1,17 @@
+{
+  "id": "HKUUPGASMEINELPTHOYRAYIAKOMMLPOTUYTRMMTGPIYMKIIRNMNEMYNHOROSEMHO",
+  "parents": [
+    "KELGSMANPEEMNNYNULGIONISMRGIPMNIPKYTKOIPYITHHMOKTRSLOKGSKYATUKTE"
+  ],
+  "action": "ASAF_SESSION_START",
+  "symbol": "Eban",
+  "time": "2026-07-10T18:46:22Z",
+  "pqc_metadata": {
+    "agent_id": "default-watch",
+    "agent_type": "mcp-interceptor",
+    "framework": "ASAF",
+    "session_id": "asaf-654c2cbb6e7cb5c32bdad29fb0a2a16e",
+    "version": "1.0"
+  },
+  "hash": "HKUUPGASMEINELPTHOYRAYIAKOMMLPOTUYTRMMTGPIYMKIIRNMNEMYNHOROSEMHO"
+}

@@ -264,7 +264,9 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 self.send_header("Cache-Control", "no-cache")
                 self.send_header("X-Accel-Buffering", "no")
                 self.end_headers()
-                # Stream SSE line by line
+                # Stream SSE line by line.
+                # BrokenPipeError / ConnectionAbortedError (WinError 10053) are
+                # expected when the browser closes the tab or reloads — not errors.
                 try:
                     while True:
                         line = resp.readline()
@@ -272,14 +274,21 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                             break
                         self.wfile.write(line)
                         self.wfile.flush()
-                except Exception:
+                except _DISCONNECT_ERRORS:
                     pass
+                except OSError as e:
+                    if getattr(e, 'winerror', None) == 10053:
+                        pass
+                    # else: genuine socket error, swallow silently in demo mode
             else:
                 data = resp.read()
                 self.send_header("Content-Type", ct or "application/json")
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
-                self.wfile.write(data)
+                try:
+                    self.wfile.write(data)
+                except _DISCONNECT_ERRORS:
+                    pass
         else:
             # ── Serve static file ───────────────────────────────────────────
             clean = path.split("?")[0].lstrip("/") or "KHEPRA_OPERATOR_CONSOLE.html"
@@ -287,7 +296,10 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             if not file_path.exists() or not file_path.is_file():
                 self.send_response(404)
                 self.end_headers()
-                self.wfile.write(b"404 Not Found")
+                try:
+                    self.wfile.write(b"404 Not Found")
+                except _DISCONNECT_ERRORS:
+                    pass
                 return
             data = file_path.read_bytes()
             ext = file_path.suffix.lower()
@@ -299,7 +311,10 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(data)))
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
-            self.wfile.write(data)
+            try:
+                self.wfile.write(data)
+            except _DISCONNECT_ERRORS:
+                pass  # Browser navigated away mid-load — not an error
 
     def do_GET(self):  self._proxy("GET")
     def do_POST(self): self._proxy("POST")
@@ -307,8 +322,26 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
     def do_DELETE(self): self._proxy("DELETE")
     def do_PATCH(self):  self._proxy("PATCH")
 
+# Windows WinError 10053 (WSAECONNABORTED) and BrokenPipeError are expected:
+# they fire whenever the browser closes a connection while Python is still writing
+# (SSE stream ends, tab closes mid-download, browser prefetch cancelled, etc.).
+# Suppress them at the server level so they never print during a demo.
+_DISCONNECT_ERRORS = (ConnectionAbortedError, BrokenPipeError, ConnectionResetError)
+
+class SilentHTTPServer(http.server.HTTPServer):
+    """Suppress expected browser-disconnect socket errors on Windows."""
+    def handle_error(self, request, client_address):
+        exc_type, exc_val, _ = sys.exc_info()
+        if exc_type in _DISCONNECT_ERRORS:
+            return  # Browser closed connection — normal during SSE / static serving
+        if exc_type is OSError and getattr(exc_val, 'winerror', None) == 10053:
+            return  # Same error, different path
+        # Unexpected error — show it
+        import traceback
+        traceback.print_exc()
+
 def start_http_server():
-    server = http.server.HTTPServer(("localhost", HTTP_PORT), ProxyHandler)
+    server = SilentHTTPServer(("localhost", HTTP_PORT), ProxyHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     return thread, server
