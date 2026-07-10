@@ -60,7 +60,7 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 #tgt-url:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--bglow)}
 #tgt-fw{background:var(--bg3);border:1px solid var(--border);border-radius:5px;
   padding:6px 7px;font-size:11px;color:var(--text);font-family:var(--mono);outline:none;cursor:pointer}
-#launch-btn{margin:10px 14px;padding:11px;border-radius:6px;border:none;cursor:pointer;
+#launch-btn{margin:10px 14px 4px;padding:11px;border-radius:6px;border:none;cursor:pointer;
   background:linear-gradient(135deg,#a93226,#e74c3c);color:#fff;font-family:var(--mono);
   font-size:12px;font-weight:600;letter-spacing:2px;transition:all .2s;
   display:flex;align-items:center;justify-content:center;gap:8px}
@@ -69,6 +69,24 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 #launch-btn.running{background:linear-gradient(135deg,#1a1a2e,#2d1b3d);border:1px solid rgba(239,68,68,.35)}
 .pring{width:9px;height:9px;border-radius:50%;background:var(--red);animation:ping 1.2s infinite;display:none}
 #launch-btn.running .pring{display:block}
+/* ── OMNI-SCAN button ─────────────────────────────────────────────────────── */
+#omni-tgt-row{display:flex;gap:5px;padding:0 14px 4px}
+#omni-tgt{flex:1;background:var(--bg3);border:1px solid rgba(26,159,232,.4);border-radius:5px;
+  padding:5px 8px;font-size:10px;color:var(--cyan);font-family:var(--mono);outline:none}
+#omni-btn{margin:0 14px 8px;padding:11px;border-radius:6px;border:1px solid rgba(26,159,232,.5);cursor:pointer;
+  background:linear-gradient(135deg,rgba(26,159,232,.12),rgba(6,182,212,.18));color:var(--cyan);font-family:var(--mono);
+  font-size:12px;font-weight:600;letter-spacing:2px;transition:all .2s;
+  display:flex;align-items:center;justify-content:center;gap:8px}
+#omni-btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 22px rgba(26,159,232,.35);border-color:var(--blue)}
+#omni-btn:disabled{opacity:.4;cursor:default}
+#omni-btn.running{background:linear-gradient(135deg,#050c16,#0a1628);border-color:rgba(26,159,232,.6);animation:cglow 1.8s infinite}
+#omni-divider{margin:0 14px 6px;border:none;border-top:1px solid var(--border);opacity:.5}
+.omni-progress-bar{height:3px;background:linear-gradient(90deg,var(--blue),var(--cyan));border-radius:2px;transition:width .4s ease;width:0}
+.omni-lrow{margin-bottom:4px;font-family:var(--mono);font-size:9px;color:var(--text2);
+  display:flex;align-items:center;gap:5px;padding:0 14px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.omni-lrow .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;background:var(--muted)}
+.omni-lrow .dot.run{background:var(--blue);box-shadow:0 0 5px var(--blue);animation:ping .9s infinite}
+.omni-lrow .dot.done{background:var(--ok)}
 #layers{padding:0 14px 8px;flex-shrink:0}
 .lrow{margin-bottom:7px}
 .ltop{display:flex;align-items:center;gap:7px;margin-bottom:3px}
@@ -210,6 +228,10 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
     </div>
   </div>
   <button id="launch-btn" onclick="launchScan()"><div class="pring"></div><span id="lbtxt">&#128308; LAUNCH ERT SCAN</span></button>
+  <hr id="omni-divider">
+  <div id="omni-tgt-row"><input id="omni-tgt" value="/opt/dvws-node" placeholder="repo path on VPS"></div>
+  <button id="omni-btn" onclick="launchOmniScan()"><span id="omni-lbtxt">&#9889; OMNI-SCAN &mdash; 50 MODULES</span></button>
+  <div id="omni-scanners" style="margin-bottom:4px"></div>
   <div id="layers">
     <div class="lrow"><div class="ltop"><div class="lion">&#128269;</div><div class="lname">Package A &mdash; STIG / CMMC</div><div class="lstat" id="ls-A">IDLE</div></div><div class="lbg"><div class="lbar" id="lb-A"></div></div></div>
     <div class="lrow"><div class="ltop"><div class="lion">&#128272;</div><div class="lname">Package B &mdash; PQC Crypto</div><div class="lstat" id="ls-B">IDLE</div></div><div class="lbg"><div class="lbar" id="lb-B"></div></div></div>
@@ -285,9 +307,12 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 </div>
 </div><script>
 // ── KHEPRA Demo Configuration ────────────────────────────────────────────────
-// VPS is 2.24.105.170 — all services running permanently on agent.souhimbou.ai.
-// localhost:45444 is dev-only fallback (?local=1 URL param or when running demo-start.ps1).
-const _isLocal = new URLSearchParams(location.search).has("local") || location.hostname === "localhost";
+// VPS: 2.24.105.170 — all services live at agent.souhimbou.ai.
+// ?local=1 → explicitly use localhost:45444 (local apiserver dev mode only).
+// Serving from http://localhost:3000 does NOT trigger local mode — that is the
+// CORS workaround for demo: Origin=http://localhost:3000 is in AllowedOrigins
+// on agent.souhimbou.ai, but we still talk to the VPS for live scan data.
+const _isLocal = new URLSearchParams(location.search).has("local");
 const CFG={
   asafAPI:   _isLocal ? "http://localhost:45444" : "https://agent.souhimbou.ai",
   mcpServer: "https://mcp.souhimbou.ai",
@@ -471,6 +496,176 @@ async function launchScanLive(tgt,fw){
   });
   document.getElementById("stxt").textContent="SCAN COMPLETE (LIVE) - C3PAO evidence ready";
   if(dnodes.length>1)renderDAG();
+}
+// ── OMNI-SCAN (50 real scanners across 7 layers) ─────────────────────────────
+let _omniScanning=false;
+const _OMNI_SCANNER_ICONS={
+  'DNS':'🌐','SCA':'📦','STIG':'🛡️','Network':'🔌','Enumerate':'📋','PKI':'🔐',
+  'WebApp':'🖥️','Sonar':'🛰️','Horus':'🔍','Fingerprint':'🦠','Crypto':'🔑',
+  'PQC':'⚛️','Intel':'🧠','Fleet':'📦','Ouroboros':'🐍','Packet':'📡',
+  'NIST':'📊','Forensics':'🧬','Maat':'⚖️','default':'🔎'
+};
+function _omniIcon(scanner){
+  const k=Object.keys(_OMNI_SCANNER_ICONS).find(k=>scanner.startsWith(k));
+  return _OMNI_SCANNER_ICONS[k||'default'];
+}
+async function launchOmniScan(){
+  if(_omniScanning)return;
+  _omniScanning=true;fdc=0;
+  document.getElementById('s-f').textContent=0;
+  document.getElementById('s-c').textContent='0%';
+  document.getElementById('gf').classList.remove('show');
+  document.getElementById('findwrap').innerHTML='';
+  document.getElementById('omni-scanners').innerHTML='';
+  const btn=document.getElementById('omni-btn');
+  btn.classList.add('running');btn.disabled=true;
+  document.getElementById('omni-lbtxt').textContent='\u26A1 SCANNING… (0/50)';
+  const repoPath=document.getElementById('omni-tgt').value||'/opt/dvws-node';
+  document.getElementById('stgt').textContent=repoPath;
+  document.getElementById('stxt').textContent='OMNI-SCAN: '+repoPath;
+  swTab('terminal');ts();
+  ti('OMNI-SCAN initiated — target: '+E.cy+repoPath+E._);
+  td('Scanners:','50 modules across 7 layers (concurrent)');
+  td('Engine:','KHEPRA ASAF v2.0 — SCA+SAST+DAST+OS+DNS+Packet+Fleet');
+  td('Attestation:','ML-DSA-65 / FIPS 204 (Cloudflare CIRCL)');
+  td('Framework:','CMMC Level 2 | NIST 800-171 | 36,195-row STIG DB');
+  tp('');
+  // Wire DAG stream
+  if(_dagESS){_dagESS.close();}
+  try{
+    _dagESS=new EventSource(CFG.dagStream);
+    _dagESS.onmessage=function(e){try{const n=JSON.parse(e.data);if(n&&n.id)addNode(n.label||n.id,n.node_type||'flight',(n.tags||[]).map(t=>({c:t.color||'p',t:t.label||t})));}catch(_){}}
+    _dagESS.onerror=function(){_dagESS.close();};
+    td('DAG Stream:',E.gr+'LIVE ('+CFG.dagStream+')'+E._);
+  }catch(_){td('DAG Stream:',E.gy+'offline'+E._);}
+  tp('');
+  try{
+    await launchOmniScanLive(repoPath);
+  }catch(err){
+    tp(E.re+'[ERR] '+E._+String(err));
+    document.getElementById('stxt').textContent='OMNI-SCAN ERROR — see terminal';
+  }finally{
+    _omniScanning=false;
+    btn.classList.remove('running');btn.disabled=false;
+    document.getElementById('omni-lbtxt').textContent='\u26A1 OMNI-SCAN — 50 MODULES';
+  }
+}
+async function launchOmniScanLive(repoPath){
+  const apiBase=CFG.asafAPI; // https://agent.souhimbou.ai
+  tp(E.cy+'[OMNI] POST '+apiBase+'/api/v1/scan/omni'+E._);
+  const scanRes=await fetch(apiBase+'/api/v1/scan/omni',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({target:repoPath,framework:'CMMC_L2'})
+  });
+  if(!scanRes.ok) throw new Error('Omni trigger failed: HTTP '+scanRes.status);
+  const job=await scanRes.json();
+  const scanID=job.scan_id||job.id||'';
+  const liveURL=job.live_url||'';
+  td('Scan ID:',scanID);
+  td('Live URL:',liveURL||'(auto-detected)');
+  tp(E.cy+'[OMNI] SSE stream open — waiting for 50 scanners…'+E._);tp('');
+  // Track scanner progress
+  let doneCount=0;
+  const _omniScannerEls={};
+  function _omniUpdateScanner(name,state,count){
+    const wrap=document.getElementById('omni-scanners');
+    if(!_omniScannerEls[name]){
+      const d=document.createElement('div');
+      d.className='omni-lrow';
+      d.innerHTML='<div class="dot" id="odot-'+name.replace(/\./g,'_')+'"></div><span id="olbl-'+name.replace(/\./g,'_')+'">'+_omniIcon(name)+' '+name+'</span>';
+      wrap.appendChild(d);
+      _omniScannerEls[name]=true;
+    }
+    const dot=document.getElementById('odot-'+name.replace(/\./g,'_'));
+    const lbl=document.getElementById('olbl-'+name.replace(/\./g,'_'));
+    if(dot){dot.className='dot '+state;}
+    if(lbl&&count!==undefined){lbl.title=count+' findings';}
+  }
+  await new Promise((resolve,reject)=>{
+    const es=new EventSource(apiBase+'/api/v1/scan/omni/stream?id='+scanID);
+    const timer=setTimeout(()=>{es.close();reject(new Error('Omni SSE timeout after 5min'));},300000);
+    const sevExp={CRITICAL:75000,HIGH:25000,MEDIUM:8000,LOW:1500,INFO:0};
+    es.onmessage=async(ev)=>{
+      try{
+        const d=JSON.parse(ev.data);
+        if(d.type==='started'){
+          const p=d.payload;
+          tp('  '+E.go+'\u2605 '+p.scanners+' scanners — '+p.layers+' layers — target: '+p.target+E._);
+          tp('  '+E.cy+'Live URL: '+(p.live_url||'n/a')+E._);tp('');
+          addNode('OMNI-SCAN STARTED — 50 scanners','genesis',[{c:'k',t:'OMNI'},{c:'p',t:'ML-DSA-65'}]);
+        }else if(d.type==='phase_start'){
+          const p=d.payload;
+          ts();ti('Phase '+p.phase+': '+p.desc);
+        }else if(d.type==='progress'){
+          const p=d.payload;
+          _omniUpdateScanner(p.scanner,'run',undefined);
+          tp('  '+E.gy+'→'+E._+' [L'+p.layer+'] '+E.cy+p.scanner+E._+' — '+p.msg);
+        }else if(d.type==='scanner_done'){
+          const p=d.payload;
+          doneCount++;
+          _omniUpdateScanner(p.scanner,'done',p.count);
+          const pct=Math.round((doneCount/50)*100);
+          document.getElementById('omni-lbtxt').textContent='\u26A1 SCANNING… ('+doneCount+'/50 — '+pct+'%)';
+          document.getElementById('s-c').textContent=pct+'%';
+          tok('['+p.scanner+'] '+p.count+' findings (total so far: '+p.total+')');
+          addNode(p.scanner+' DONE ('+p.count+')',p.count>0?'finding':'flight',[{c:p.count>0?'r':'k',t:p.count+' findings'},{c:'p',t:'ML-DSA-65'}]);
+        }else if(d.type==='result'){
+          clearTimeout(timer);es.close();
+          const p=d.payload||{};
+          const rpt=p.report||{};
+          const findings=rpt.findings||[];
+          FX=[];let totExp=0;
+          ts();tp(E.go+E.bo+'  OMNI-SCAN GODFATHER BRIEF'+E._);ts();
+          td('Scanners run:',E.gr+p.scanners_run+'/50'+E._);
+          td('Duration:',E.gr+(p.scan_duration_s||0).toFixed(1)+'s'+E._);
+          td('Findings:',E.re+p.finding_count+' total'+E._);
+          td('CRITICAL:',E.re+(p.critical||0)+' (NON-POA&M — $75K each)'+E._);
+          td('HIGH:',E.go+(p.high||0)+' ($25K each)'+E._);
+          td('MEDIUM:','  '+(p.medium||0)+' ($8K each)');
+          td('LOW:','  '+(p.low||0)+' ($1.5K each)');
+          td('Total Exposure:',E.re+'$'+(p.total_exposure_usd||0).toLocaleString()+E._);
+          td('CAT I Non-POA&M:',(p.poam_cat1_count||0)+' findings block CMMC certification until remediated');
+          td('DAG Node:',E.gr+(rpt.dag_node_id||'N/A')+'  (ML-DSA-65 signed)'+E._);
+          tp('');tp(E.gy+(p.godfather_summary||'')+E._);tp('');
+          // Parse findings into FX for findings panel + Godfather widget
+          for(const f of findings){
+            const sev=(f.severity||'MEDIUM').toUpperCase();
+            const fobj={
+              id:f.id||'?',
+              t:f.title||f.description||'Finding',
+              sev:sev==='CRITICAL'?'CAT I':sev==='HIGH'?'CAT II':sev==='MEDIUM'?'CAT III':'INFO',
+              poam:sev!=='CRITICAL',
+              pts:sev==='CRITICAL'?5:sev==='HIGH'?3:sev==='MEDIUM'?2:1,
+              exp:f.exposure_usd||(sevExp[sev]||0),
+              ctrl:(f.cmcc_controls&&f.cmcc_controls[0])||'',
+              nist:(f.nist_controls&&f.nist_controls[0])||'',
+              cci:'',mitre:'',
+              d:f.description||'',
+              r:f.remediation||'',
+              reject:'PAPER_TIGER'
+            };
+            FX.push(fobj);totExp+=fobj.exp;
+            addFindCard(fobj);
+            addNode(fobj.id+': '+fobj.t,'finding',[{c:'r',t:fobj.sev},{c:'p',t:'SIGNED'}]);
+            document.getElementById('s-f').textContent=++fdc;
+          }
+          TOTEXP=p.total_exposure_usd||totExp;
+          const roi=Math.round(TOTEXP/REMCOST);
+          document.getElementById('s-c').textContent='100%';
+          document.getElementById('stxt').textContent='OMNI-SCAN COMPLETE — '+FX.length+' findings — $'+TOTEXP.toLocaleString()+' exposure — C3PAO evidence ready';
+          addNode('OMNI-SCAN GODFATHER REPORT','cert',[{c:'g',t:'GODFATHER'},{c:'p',t:'ML-DSA-65'},{c:'k',t:'SIGNED'}]);
+          showGF(TOTEXP,REMCOST,roi);
+          if(dnodes.length>1)renderDAG();
+          resolve();
+        }else if(d.type==='error'){
+          clearTimeout(timer);es.close();
+          reject(new Error('Scan error: '+(d.payload?.error||JSON.stringify(d.payload))));
+        }
+      }catch(e){/* heartbeat / non-JSON */}
+    };
+    es.onerror=()=>{clearTimeout(timer);es.close();reject(new Error('SSE connection failed'));}
+  });
 }
 // launchScanScripted removed — all scan paths require live ERT engine
 async function _removed_launchScanScripted(tgt){
@@ -1089,6 +1284,10 @@ const node=svg.append("g").selectAll("g").data(nodes).enter().append("g").attr("
 node.append("circle").attr("r",10).attr("fill",d=>(cm[d.type]||cm.default)+"22").attr("stroke",d=>cm[d.type]||cm.default);
 node.append("title").text(d=>d.label+"\\n"+d.hash);
 sim.on("tick",()=>{link.attr("x1",d=>d.source.x).attr("y1",d=>d.source.y).attr("x2",d=>d.target.x).attr("y2",d=>d.target.y);node.attr("transform",d=>"translate("+d.x+","+d.y+")")});
+async function launchOmniScan(){
+  alert("Initiating Omni-Scan 50-scanner audit...");
+  // Simulated scan process
+}
 <\/script></body></html>`);
   await dl(200);
 
