@@ -202,7 +202,7 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
   <div id="tgt-bar">
     <div class="tgt-lbl">TARGET</div>
     <div class="tgt-row">
-      <input id="tgt-url" value="https://agent.souhimbou.ai" placeholder="http://target:port">
+      <input id="tgt-url" value="http://2.24.105.170:4280" placeholder="http://target:port">
       <select id="tgt-fw">
         <option>CMMC L2</option><option>NIST 800-53</option>
         <option>STIG</option><option>ALL</option>
@@ -389,33 +389,13 @@ async function launchScan(){
   }catch(_){
     td("DAG Stream:",E.gy+"offline - Security Ledger from REST only"+E._);
   }
-  tp("");
-  // ── Try real API first, fall back to scripted mode ────────────────────────
-  let apiAvailable=false;
-  try{
-    const probe=await Promise.race([
-      fetch(CFG.asafAPI+"/healthz",{method:"GET",signal:AbortSignal.timeout(2000)}),
-      new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),2100))
-    ]);
-    apiAvailable=probe.ok;
-    if(apiAvailable)td("API Mode:",E.gr+"LIVE → "+CFG.asafAPI+E._);
-  }catch(_){
-    td("API Mode:",E.re+"ENGINE OFFLINE — apiserver not reachable at "+CFG.asafAPI+E._);
-  }
+  // ── API Mode: probe asynchronously (non-blocking) — always proceed to scan
+  fetch(CFG.asafAPI+"/healthz",{method:"GET",signal:AbortSignal.timeout(3000)})
+    .then(r=>{if(r.ok)td("API Mode:",E.gr+"LIVE → "+CFG.asafAPI+E._);})
+    .catch(()=>{td("API Mode:",E.gy+"probe skipped (CORS/network) — scan proceeding"+E._);});
   tp("");
   try{
-    if(apiAvailable){
-      await launchScanLive(tgt,fw);
-    }else{
-      tp(E.re+E.bo+"[ENGINE OFFLINE]"+E._+" ERT engine not reachable.");
-      tp("  → Start: "+E.cy+"./bin/apiserver.exe --port 45444"+E._);
-      tp("  → Or:   "+E.cy+"go run ./cmd/apiserver --port 45444"+E._);
-      tp("  → Then: "+E.gy+"hard refresh this page (Ctrl+Shift+R)"+E._);
-      document.getElementById("stxt").textContent="ENGINE OFFLINE — start apiserver";
-      scanning=false;btn.classList.remove("running");
-      document.getElementById("lbtxt").textContent="LAUNCH ERT SCAN";btn.disabled=false;
-      return;
-    }
+    await launchScanLive(tgt,fw);
   }catch(err){
     tp(E.re+"[ERR] "+E._+String(err));
     document.getElementById("stxt").textContent="SCAN ERROR - see terminal";
