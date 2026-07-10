@@ -172,9 +172,58 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
 
     def _proxy(self, method: str):
-        """Forward /api/* to the VPS; serve static files otherwise."""
+        """Forward /api/* to the VPS; /claude-proxy to Anthropic; static files otherwise."""
         import urllib.parse
         path = self.path  # includes query string
+
+        # ── Claude API proxy (server-side, no browser CORS issue) ───────────────
+        # Browser sends POST /claude-proxy with {model, messages, system, max_tokens}
+        # Python injects the API key from env and forwards to api.anthropic.com
+        if path.startswith("/claude-proxy"):
+            ant_key = os.environ.get("ANTHROPIC_API_KEY", "")
+            if not ant_key:
+                self.send_response(503)
+                self._send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"error":"ANTHROPIC_API_KEY not set in demo environment"}')
+                return
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length) if length else b""
+            ant_req = urllib.request.Request(
+                "https://api.anthropic.com/v1/messages",
+                data=body,
+                headers={
+                    "Content-Type": "application/json",
+                    "x-api-key": ant_key,
+                    "anthropic-version": "2023-06-01",
+                },
+                method="POST",
+            )
+            try:
+                ant_resp = urllib.request.urlopen(ant_req, timeout=30)
+                data = ant_resp.read()
+                self.send_response(200)
+                self._send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+            except urllib.error.HTTPError as e:
+                data = e.read()
+                self.send_response(e.code)
+                self._send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+            except Exception as e:
+                self.send_response(502)
+                self._send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(f'{{"error":"Anthropic proxy error: {e}"}}'.encode())
+            return
 
         if path.startswith("/api/"):
             # ── Proxy to VPS ────────────────────────────────────────────────

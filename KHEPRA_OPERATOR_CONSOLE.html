@@ -1404,29 +1404,43 @@ async function sendChat(){
       +"You specialize in CMMC Level 2, NIST 800-171, STIG, and post-quantum cryptography (ML-DSA-65, ML-KEM-768). "
       +"Be concise, authoritative, and reference specific control IDs and dollar impacts when relevant. "
       +ctx;
-    // ── Path 1: Anthropic API directly (works from browser with BYOK key) ──────
+    // ── Path 1: Anthropic API ─────────────────────────────────────────────────
+    // When running via demo-start.py (localhost), route through the Python proxy
+    // which injects the API key server-side (bypasses http:// CORS block on
+    // api.anthropic.com). When running from VPS/production, call Anthropic direct.
     let replied=false;
-    if(CFG.claudeKey){
+    if(CFG.claudeKey || _isLocal){
       try{
-        const antRes=await Promise.race([
-          fetch("https://api.anthropic.com/v1/messages",{
-            method:"POST",
-            headers:{
-              "Content-Type":"application/json",
-              "x-api-key":CFG.claudeKey,
-              "anthropic-version":"2023-06-01",
-              "anthropic-dangerous-direct-browser-access":"true"
-            },
-            body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:512,system:systemPrompt,messages:_chatHistory})
-          }),
-          new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),15000))
-        ]);
+        let antRes;
+        if(_isLocal){
+          // Server-side proxy: Python injects ANTHROPIC_API_KEY from env
+          antRes=await Promise.race([
+            fetch(window.location.origin+"/claude-proxy",{
+              method:"POST",
+              headers:{"Content-Type":"application/json"},
+              body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:512,system:systemPrompt,messages:_chatHistory})
+            }),
+            new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),15000))
+          ]);
+        }else{
+          // Direct Anthropic API (HTTPS origin, e.g. from VPS console)
+          antRes=await Promise.race([
+            fetch("https://api.anthropic.com/v1/messages",{
+              method:"POST",
+              headers:{"Content-Type":"application/json","x-api-key":CFG.claudeKey,
+                       "anthropic-version":"2023-06-01",
+                       "anthropic-dangerous-direct-browser-access":"true"},
+              body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:512,system:systemPrompt,messages:_chatHistory})
+            }),
+            new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),15000))
+          ]);
+        }
         if(antRes.ok){
           const d=await antRes.json();
           const reply=d.content?.[0]?.text||"";
           thinkEl.innerHTML=formatChatReply(reply);
           _chatHistory.push({role:"assistant",content:reply});
-          modelEl.textContent="claude-sonnet-4-5 (Anthropic direct)";
+          modelEl.textContent="claude-sonnet-4-5"+(_isLocal?" (via demo-start.py proxy)":" (Anthropic direct)");
           replied=true;
         }
       }catch(_){}
@@ -1474,7 +1488,7 @@ async function sendChat(){
       }catch(_){}
     }
     if(!replied){
-      thinkEl.innerHTML="<span style='color:var(--amber)'>[IMHOTEP OFFLINE]</span> No AI provider reachable.<br><span style='color:var(--text2);font-size:11px'>→ Open console with <code>?key=sk-ant-...</code> from demo-start.ps1<br>→ Or start Ollama: <code>ollama serve</code></span>";
+      thinkEl.innerHTML="<span style='color:var(--amber)'>[IMHOTEP OFFLINE]</span> No AI provider reachable.<br><span style='color:var(--text2);font-size:11px'>→ Make sure <code>ANTHROPIC_API_KEY</code> is in <code>.env.demo.local</code> and restart <code>demo-start.py</code><br>→ Or start Ollama: <code>ollama serve</code></span>";
       modelEl.textContent="offline";
     }
   }catch(err){
