@@ -202,7 +202,7 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
   <div id="tgt-bar">
     <div class="tgt-lbl">TARGET</div>
     <div class="tgt-row">
-      <input id="tgt-url" value="http://2.24.105.170:4280" placeholder="http://target:port">
+      <input id="tgt-url" value="https://agent.souhimbou.ai" placeholder="http://target:port">
       <select id="tgt-fw">
         <option>CMMC L2</option><option>NIST 800-53</option>
         <option>STIG</option><option>ALL</option>
@@ -285,7 +285,7 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 </div>
 </div><script>
 // ── KHEPRA Demo Configuration ────────────────────────────────────────────────
-// VPS is 2.24.105.170 — all services should be running there permanently.
+// VPS is 2.24.105.170 — all services running permanently on agent.souhimbou.ai.
 // localhost:45444 is dev-only fallback (?local=1 URL param or when running demo-start.ps1).
 const _isLocal = new URLSearchParams(location.search).has("local") || location.hostname === "localhost";
 const CFG={

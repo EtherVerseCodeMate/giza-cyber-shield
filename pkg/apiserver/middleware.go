@@ -1,4 +1,4 @@
-//go:build saas
+﻿//go:build saas
 
 package apiserver
 
@@ -109,6 +109,10 @@ func CORSMiddleware(allowedOrigins ...string) gin.HandlerFunc {
 		origin := c.Request.Header.Get("Origin")
 		if allowed[origin] {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+		} else if origin == "" || origin == "null" {
+			// file:// and null-origin clients (demo console opened locally, Electron, etc.)
+			// All public endpoints are already auth-free, so wildcard is safe here.
+			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		}
 
 		// ── Chrome Private Network Access (PNA) ───────────────────────────────
