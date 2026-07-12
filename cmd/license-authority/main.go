@@ -157,7 +157,7 @@ func (s *server) handleRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.log.Printf("Issued capsule %s for %q (%s, exp %s)",
-		capsule.CapsuleID, req.Tenant, req.RequestedTier, capsule.ExpiresAt.Format(time.RFC3339))
+		capsule.CapsuleID, req.Tenant, req.RequestedTier, capsule.IssuedAt.Add(s.cfg.ttl).Format(time.RFC3339))
 	s.writeJSON(w, http.StatusOK, capsule)
 }
 

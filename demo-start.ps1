@@ -82,7 +82,7 @@ if (Test-Path $apiserverExe) {
     $apiserverUp = $false
     while ($retries -lt 6 -and -not $apiserverUp) {
         try {
-            $hc = Invoke-WebRequest -Uri "http://localhost:45444/healthz" -TimeoutSec 2 -UseBasicParsing
+            $null = Invoke-WebRequest -Uri "http://localhost:45444/healthz" -TimeoutSec 2 -UseBasicParsing
             Write-Host "[OK] apiserver healthy on :45444" -ForegroundColor Green
             $apiserverUp = $true
         }
@@ -132,7 +132,7 @@ catch {
 # Browsers send Origin: null for file:// — blocked by CORS on agent.souhimbou.ai.
 # Serving from http://localhost:3000 sets Origin: http://localhost:3000 which IS
 # in the AllowedOrigins list — all API calls to agent.souhimbou.ai succeed.
-$consoleFile = Join-Path $ScriptDir "KHEPRA_OPERATOR_CONSOLE.html"
+# $consoleFile = Join-Path $ScriptDir "KHEPRA_OPERATOR_CONSOLE.html"
 $claudeKey = $env:ANTHROPIC_API_KEY
 $consoleUrl = "http://localhost:3000/KHEPRA_OPERATOR_CONSOLE.html" + $(if ($claudeKey) { "?key=$claudeKey" } else { "" })
 

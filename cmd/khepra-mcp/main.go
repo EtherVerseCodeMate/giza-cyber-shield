@@ -1,4 +1,4 @@
-﻿// Khepra MCP Server — Hardened Entry Point (AD-006 / AD-008)
+// Khepra MCP Server — Hardened Entry Point (AD-006 / AD-008)
 //
 // This binary implements the world's first PQC-secured MCP server.
 // It runs as a subprocess launched by AI tools (Claude, Cursor, Windsurf)
@@ -39,8 +39,8 @@ import (
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/config"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
+	"github.com/nouchix/PQC-Khepra-MCP/pkg/dag"
+	"github.com/nouchix/PQC-Khepra-MCP/pkg/license"
 	khepramcp "github.com/nouchix/PQC-Khepra-MCP/pkg/mcp"
 	"github.com/nouchix/PQC-Khepra-MCP/pkg/mcp/tools"
 )

@@ -1,4 +1,4 @@
-package main
+ï»¿package main
 
 import (
 	"encoding/json"
@@ -65,19 +65,19 @@ func (wiz *Wizard) makePage1Welcome() fyne.CanvasObject {
 	desc := widget.NewLabel(
 		"This wizard will install AdinKhepra ASAF on your computer.\n\n" +
 			"AdinKhepra ASAF is the sovereign CMMC autopilot engine for DIB contractors.\n" +
-			"It answers the question: \"Will I pass my CMMC L2 audit?\" — offline, with\n" +
+			"It answers the question: \"Will I pass my CMMC L2 audit?\" â€” offline, with\n" +
 			"zero egress, post-quantum attested, in a single native binary.\n\n" +
 			"Features:\n" +
-			"  • 3D Compliance Graph Desktop (CISO-facing, native GUI)\n" +
-			"  • 25,185-row (deduplicated) STIG/CCI/NIST/CMMC mapping database\n" +
-			"  • ML-DSA-65 post-quantum attestation (patent pending)\n" +
-			"  • Privileged remediation daemon with Adinkra symbol gate\n" +
-			"  • Air-gap ready. No Node.js. No browser. No telemetry.\n\n" +
+			"  â€¢ 3D Compliance Graph Desktop (CISO-facing, native GUI)\n" +
+			"  â€¢ 25,185-row (deduplicated) STIG/CCI/NIST/CMMC mapping database\n" +
+			"  â€¢ ML-DSA-65 post-quantum attestation (patent pending)\n" +
+			"  â€¢ Privileged remediation daemon with Adinkra symbol gate\n" +
+			"  â€¢ Air-gap ready. No Node.js. No browser. No telemetry.\n\n" +
 			"Click Next to continue.",
 	)
 	desc.Wrapping = fyne.TextWrapWord
 
-	publisher := widget.NewLabel(Publisher + "  ·  https://adinkhepra.com")
+	publisher := widget.NewLabel(Publisher + "  Â·  https://adinkhepra.com")
 	publisher.TextStyle = fyne.TextStyle{Italic: true}
 
 	heroBox := container.NewVBox(
@@ -139,7 +139,7 @@ func (wiz *Wizard) makePage3LicenseKey() fyne.CanvasObject {
 	note.Wrapping = fyne.TextWrapWord
 
 	keyEntry := widget.NewMultiLineEntry()
-	keyEntry.SetPlaceHolder("Paste license JSON here…")
+	keyEntry.SetPlaceHolder("Paste license JSON hereâ€¦")
 	if wiz.licenseJSON != "" {
 		keyEntry.SetText(wiz.licenseJSON)
 	}
@@ -158,7 +158,7 @@ func (wiz *Wizard) makePage3LicenseKey() fyne.CanvasObject {
 		wiz.cfg.LicenseJSON = s
 	}
 
-	browseBtn := widget.NewButton("Browse for license.adinkhepra…", func() {
+	browseBtn := widget.NewButton("Browse for license.adinkhepraâ€¦", func() {
 		dialog.ShowFileOpen(func(f fyne.URIReadCloser, err error) {
 			if err != nil || f == nil {
 				return
@@ -221,7 +221,7 @@ func (wiz *Wizard) makePage4InstallDir() fyne.CanvasObject {
 	dirEntry.SetText(wiz.cfg.InstallDir)
 	dirEntry.OnChanged = func(s string) { wiz.cfg.InstallDir = s }
 
-	browseBtn := widget.NewButton("Browse…", func() {
+	browseBtn := widget.NewButton("Browseâ€¦", func() {
 		dialog.ShowFolderOpen(func(f fyne.ListableURI, err error) {
 			if err != nil || f == nil {
 				return
@@ -269,13 +269,13 @@ func (wiz *Wizard) makePage5Components() fyne.CanvasObject {
 	chkDesktop.Disable()
 
 	chkCLI := widget.NewCheck(
-		"AdinKhepra CLI  (adinkhepra.exe — ERT, scan, validate)",
+		"AdinKhepra CLI  (adinkhepra.exe â€” ERT, scan, validate)",
 		func(b bool) { wiz.cfg.Components.CLI = b },
 	)
 	chkCLI.SetChecked(wiz.cfg.Components.CLI)
 
 	chkDaemon := widget.NewCheck(
-		"ASAF System Daemon  (Windows Service — privileged execution layer)",
+		"ASAF System Daemon  (Windows Service â€” privileged execution layer)",
 		func(b bool) { wiz.cfg.Components.Daemon = b },
 	)
 	chkDaemon.SetChecked(wiz.cfg.Components.Daemon)
@@ -328,7 +328,7 @@ func (wiz *Wizard) makePage5Components() fyne.CanvasObject {
 func (wiz *Wizard) makePage6Installing() fyne.CanvasObject {
 	wiz.progressBar.SetValue(0)
 
-	statusLbl := canvas.NewText("Preparing installation…", asafBlue)
+	statusLbl := canvas.NewText("Preparing installationâ€¦", asafBlue)
 	statusLbl.TextSize = 13
 
 	wiz.logEntry.SetText("")
@@ -398,5 +398,5 @@ func shortenKeyID(id string) string {
 	if len(id) <= 16 {
 		return id
 	}
-	return id[:8] + "…" + id[len(id)-8:]
+	return id[:8] + "â€¦" + id[len(id)-8:]
 }
