@@ -111,7 +111,7 @@ func parseWatchPort(args []string) int {
 // printWatchBanner prints the ASAF startup banner.
 func printWatchBanner() {
 	fmt.Println(watchDivider)
-	fmt.Println("  ðŸ”’ ADINKHEPRA ASAF // Natural Language Security Platform")
+	fmt.Println("  🔒 ADINKHEPRA ASAF // Natural Language Security Platform")
 	fmt.Println(watchDivider)
 	fmt.Println()
 	fmt.Println("  AI-powered CyberOps. Every action signed. Auditor-ready.")

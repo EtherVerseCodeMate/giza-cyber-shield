@@ -46,7 +46,8 @@ type ChangeRequest struct {
 	DAGParent string `json:"dag_parent"` // parent DAG node ID proving authorization chain
 
 	// Execution
-	Command []string `json:"command"` // privileged command (e.g. ["sysctl", "-w", "crypto.fips_enabled=1"])
+	Command     []string `json:"command"`                // privileged command (e.g. ["sysctl", "-w", "crypto.fips_enabled=1"])
+	STIGProfile string   `json:"stig_profile,omitempty"` // "rhel9" | "rhel10" | "ubuntu" | "windows" — selects mirror image
 
 	// Gate flags
 	Staging  bool `json:"staging"`  // true = execute in mirror container only
@@ -73,10 +74,12 @@ type ChangeResult struct {
 	Stdout        string `json:"stdout"`
 	Stderr        string `json:"stderr"`
 	DAGNodeID     string `json:"dag_node_id"` // ML-DSA-65 signed execution record
-	StagingID     string `json:"staging_id,omitempty"`     // populated when Staging=true
-	StagingStatus string `json:"staging_status,omitempty"` // "running" | "success" | "failed" — poll response only
-	StagingDiff   string `json:"staging_diff,omitempty"`   // before/after state capture — poll response only
-	Error         string `json:"error,omitempty"`
+	StagingID       string     `json:"staging_id,omitempty"`       // populated when Staging=true
+	StagingStatus   string     `json:"staging_status,omitempty"`   // "running" | "success" | "failed" — poll response only
+	StagingDiff     string     `json:"staging_diff,omitempty"`     // human-readable before/after summary — poll response only
+	FileDiffs       []FileDiff `json:"file_diffs,omitempty"`       // structured per-file diffs — poll response only
+	StagingAttested bool       `json:"staging_attested,omitempty"` // true = StagingResult carries ML-DSA-65 attestation
+	Error           string     `json:"error,omitempty"`
 }
 
 // SecurityEvent is logged to the DAG for every authorization failure.
@@ -138,13 +141,18 @@ func New(cfg Config) (*ASAFDaemon, error) {
 		return nil, fmt.Errorf("daemon: cannot create DAG directory: %w", err)
 	}
 
-	// Open persistent DAG store
-	dagStore := dag.NewMemory() // will be swapped to PersistentStore in production
+	// Open persistent DAG store. PersistentMemory uses atomic writes per node
+	// (tmp+rename) and survives daemon restarts — required for the C3PAO evidence
+	// chain to remain intact across service reloads.
+	dagStore, err := dag.NewPersistentMemory(cfg.DAGPath)
+	if err != nil {
+		return nil, fmt.Errorf("daemon: cannot open DAG store at %s: %w", cfg.DAGPath, err)
+	}
 
 	return &ASAFDaemon{
 		cfg:      cfg,
 		dagStore: dagStore,
-		staging:  NewStagingManager(cfg.Logger),
+		staging:  NewStagingManager(cfg.Logger, cfg.DaemonPrivKey),
 		logger:   cfg.Logger,
 	}, nil
 }
@@ -337,15 +345,20 @@ func (d *ASAFDaemon) pollStaging(jobID string) *ChangeResult {
 	if !found {
 		return &ChangeResult{Error: fmt.Sprintf("unknown staging job: %s", jobID)}
 	}
-	return &ChangeResult{
+	cr := &ChangeResult{
 		Success:       job.Status == "success",
-		ExitCode:      job.ExitCode,
-		Stdout:        job.Stdout,
 		StagingID:     job.ID,
 		StagingStatus: job.Status,
-		StagingDiff:   job.Diff,
 		Error:         job.Error,
 	}
+	if job.Result != nil {
+		cr.ExitCode        = job.Result.ExitCode
+		cr.Stdout          = job.Result.Stdout
+		cr.StagingDiff     = job.Result.TextDiff()
+		cr.FileDiffs        = job.Result.Diffs
+		cr.StagingAttested = len(job.Result.Attestation) > 0
+	}
+	return cr
 }
 
 // attestExecution writes a ML-DSA-65 signed DAG node recording the execution.
