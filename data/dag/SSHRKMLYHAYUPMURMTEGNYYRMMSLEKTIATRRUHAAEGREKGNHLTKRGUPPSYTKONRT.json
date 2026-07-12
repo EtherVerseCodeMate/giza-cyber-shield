@@ -1,0 +1,17 @@
+{
+  "id": "SSHRKMLYHAYUPMURMTEGNYYRMMSLEKTIATRRUHAAEGREKGNHLTKRGUPPSYTKONRT",
+  "parents": [
+    "GKSOEHEERPOPSHHGHRUMSOGREGLOMIKRKHRMLYSRNGIKRIPTKRSRLYMMOYEEAONN"
+  ],
+  "action": "ASAF_SESSION_START",
+  "symbol": "Eban",
+  "time": "2026-07-12T02:14:54Z",
+  "pqc_metadata": {
+    "agent_id": "default-watch",
+    "agent_type": "mcp-interceptor",
+    "framework": "ASAF",
+    "session_id": "asaf-27e82519f5ffaaf0ed15e93cf707cce8",
+    "version": "1.0"
+  },
+  "hash": "SSHRKMLYHAYUPMURMTEGNYYRMMSLEKTIATRRUHAAEGREKGNHLTKRGUPPSYTKONRT"
+}

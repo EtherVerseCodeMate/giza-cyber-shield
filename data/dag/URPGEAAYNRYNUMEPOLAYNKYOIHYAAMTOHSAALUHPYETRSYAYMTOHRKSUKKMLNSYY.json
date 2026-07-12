@@ -1,0 +1,11 @@
+{
+  "id": "URPGEAAYNRYNUMEPOLAYNKYOIHYAAMTOHSAALUHPYETRSYAYMTOHRKSUKKMLNSYY",
+  "parents": null,
+  "action": "seshat-inscription",
+  "symbol": "maat-decision",
+  "time": "2026-07-11T23:15:06-04:00",
+  "pqc_metadata": {
+    "data": "map[action:observe autonomous:true isfet_id:CVE-2022-27191 kasa_wisdom:KASA unavailable realm:duat severity:MODERATE]"
+  },
+  "hash": "URPGEAAYNRYNUMEPOLAYNKYOIHYAAMTOHSAALUHPYETRSYAYMTOHRKSUKKMLNSYY"
+}
