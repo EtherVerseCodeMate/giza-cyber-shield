@@ -178,23 +178,24 @@ func rewriteLines(lines []string, key, value string) ([]string, bool) {
 // Handles three separator styles:
 //   "Key Value"   → key="Key",   value="Value"
 //   "key = value" → key="key",   value="value"
-//   "key=value"   → key="key",   value="value"
+//   "key=value"   → key="key",   value="value"   (single token — no spaces)
 // The line must already be trimmed of leading/trailing whitespace.
 func parseKeyValue(trimmed string) (key, value string) {
 	fields := strings.Fields(trimmed)
 	if len(fields) == 0 {
 		return "", ""
 	}
+	// Compact "key=value" — entire pair is one token when there are no spaces.
+	if idx := strings.Index(fields[0], "="); idx > 0 {
+		return fields[0][:idx], fields[0][idx+1:]
+	}
 	key = fields[0]
 	switch {
 	case len(fields) >= 3 && fields[1] == "=":
-		// "key = value" — value may be multi-token; join the rest
+		// "key = value" — value may be multi-token; join the rest.
 		value = strings.Join(fields[2:], " ")
-	case len(fields) >= 2 && strings.HasPrefix(fields[1], "=") && len(fields[1]) > 1:
-		// "key=value" (no spaces) — value is everything after the "="
-		value = fields[1][1:]
 	case len(fields) >= 2:
-		// "Key Value" — plain space-separated
+		// "Key Value" — plain space-separated.
 		value = strings.Join(fields[1:], " ")
 	}
 	return key, value
@@ -203,11 +204,12 @@ func parseKeyValue(trimmed string) (key, value string) {
 // detectLineSeparator returns the separator used in a single trimmed line.
 func detectLineSeparator(trimmed string) string {
 	fields := strings.Fields(trimmed)
+	// Compact "key=value" — single token with embedded "=".
+	if len(fields) >= 1 && strings.Contains(fields[0], "=") {
+		return "="
+	}
 	if len(fields) >= 2 && fields[1] == "=" {
 		return " = "
-	}
-	if len(fields) >= 2 && strings.HasPrefix(fields[1], "=") && len(fields[1]) > 1 {
-		return "="
 	}
 	return " "
 }
