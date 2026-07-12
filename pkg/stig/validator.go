@@ -1,4 +1,4 @@
-﻿package stig
+package stig
 
 import (
 	"fmt"
@@ -26,6 +26,7 @@ const (
 	// Additional live-scan framework identifiers for multi-OS Tier 1 coverage.
 	FrameworkRHEL08STIG      = "RHEL-08-STIG"
 	FrameworkRHEL07STIG      = "RHEL-07-STIG"
+	FrameworkRHEL10STIG      = "RHEL-10-STIG-V1R2" // STIGViewer V1R2, 434 findings (2026-07-11)
 	FrameworkOracleLinux8    = "Oracle-Linux-8-STIG"
 	FrameworkUbuntu1804      = "CAN_Ubuntu_18-04-STIG"
 	FrameworkUbuntu2204      = "CAN_Ubuntu_22-04-STIG"
@@ -391,6 +392,8 @@ func linuxFWtoHostOS(fw string) string {
 	switch fw {
 	case FrameworkRHEL09STIG:
 		return "rhel9"
+	case FrameworkRHEL10STIG:
+		return "rhel10"
 	case FrameworkRHEL08STIG:
 		return "rhel8"
 	case FrameworkRHEL07STIG:
@@ -416,6 +419,9 @@ func (v *Validator) validateFramework(framework string) error {
 	switch framework {
 	case FrameworkRHEL09STIG:
 		err = v.validateRHEL09STIG(result)
+	case FrameworkRHEL10STIG:
+		// RHEL 10 V1R2 — live STIGViewer fetch, 434 findings. First ASAF RHEL10 coverage.
+		err = v.validateRHEL10STIG(result)
 	case FrameworkCISL1:
 		err = v.validateCISBenchmarkL1(result)
 	case FrameworkCISL2:

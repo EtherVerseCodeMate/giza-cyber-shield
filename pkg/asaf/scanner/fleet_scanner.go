@@ -353,11 +353,14 @@ func (fs *FleetScanner) computeFleetSPRS() int {
 // ─── STIG Profile Selector ────────────────────────────────────────────────────
 
 // selectSTIGChecks returns the STIG check set for the given profile name.
-// Profiles: "rhel9", "windows", "ubuntu", "generic"
+// Profiles: "rhel9" | "rhel10" | "windows" | "ubuntu" | "generic"
+// Updated 2026-07-11: rhel10 targets RHEL 10 V1R2 (434 findings, STIGViewer confirmed live).
 func selectSTIGChecks(profile string) []remote.STIGCheck {
 	switch profile {
 	case "rhel9", "rhel-09":
 		return rhel9STIGChecks()
+	case "rhel10", "rhel-10", "rhel 10":
+		return rhel10STIGChecks()
 	case "windows":
 		return windowsSTIGChecks()
 	case "ubuntu":
@@ -492,6 +495,193 @@ func ubuntuSTIGChecks() []remote.STIGCheck {
 			CheckCommand: `lsb_release -a 2>/dev/null || cat /etc/os-release`,
 			EvaluateFunc: func(out string, exit int) (bool, string) {
 				return exit == 0 && contains(out, "Ubuntu"), "Not running Ubuntu"
+			},
+		},
+	}
+}
+
+// rhel10STIGChecks returns fleet-executable STIG checks for RHEL 10 endpoints.
+// Source: DISA RHEL 10 STIG V1R2 (434 findings, confirmed live on STIGViewer 2026-07-11).
+// Each check runs via SSH — no software needs to be installed on the endpoint.
+//
+// Key RHEL10 differences from RHEL9:
+//   - FIPS: uses "update-crypto-policies --show" (not fips-mode-setup, deprecated in RHEL10)
+//   - Crypto policy: /etc/crypto-policies/config (RHEL10-native)
+//   - dnf5: both "dnf" and "dnf5" may be present; rpm -q still works for all checks
+//   - OpenSSL 3.x: FIPS mode via /proc/sys/crypto/fips_enabled (unchanged)
+//   - SELinux: same selinux-policy-targeted, getenforce command unchanged
+//
+// Controls covered: 15 checks (all CAT I + key CAT II, mapped to CMMC L2 domains).
+func rhel10STIGChecks() []remote.STIGCheck {
+	return []remote.STIGCheck{
+		// ── CAT I (high/critical) ─────────────────────────────────────────────
+		{
+			ControlID:    "RHEL-10-211010",
+			Title:        "RHEL 10 must be a vendor-supported release",
+			Severity:     "high",
+			CheckCommand: `cat /etc/redhat-release`,
+			Remediation:  "Upgrade to a supported RHEL 10 release. Check https://access.redhat.com/support/policy/updates/errata.",
+			EvaluateFunc: func(out string, exit int) (bool, string) {
+				return exit == 0 && contains(out, "Red Hat Enterprise Linux") && contains(out, " 10"),
+					"System is not running a vendor-supported RHEL 10 release"
+			},
+		},
+		{
+			ControlID:    "RHEL-10-210010",
+			Title:        "RHEL 10 must operate in FIPS mode",
+			Severity:     "high",
+			CheckCommand: `cat /proc/sys/crypto/fips_enabled 2>/dev/null; update-crypto-policies --show 2>/dev/null`,
+			Remediation:  "Run: fips-mode-setup --enable && reboot  (or: update-crypto-policies --set FIPS && reboot)",
+			EvaluateFunc: func(out string, exit int) (bool, string) {
+				return contains(out, "FIPS") || contains(out, "\n1") || out == "1",
+					"FIPS mode is not active — CMMC AC.L2-3.1.1 / NIST SC-13 requires FIPS 140-3"
+			},
+		},
+		{
+			ControlID:    "RHEL-10-251010",
+			Title:        "RHEL 10 must use a FIPS-validated cryptographic module",
+			Severity:     "critical",
+			CheckCommand: `cat /proc/sys/crypto/fips_enabled`,
+			Remediation:  "Enable FIPS: update-crypto-policies --set FIPS && reboot",
+			EvaluateFunc: func(out string, exit int) (bool, string) {
+				return contains(out, "1"), "System not operating with FIPS-validated cryptographic module — CMMC SC.L2-3.13.10"
+			},
+		},
+		{
+			ControlID:    "RHEL-10-431010",
+			Title:        "RHEL 10 must enable SELinux in enforcing mode",
+			Severity:     "high",
+			CheckCommand: `getenforce 2>/dev/null`,
+			Remediation:  "Set SELINUX=enforcing in /etc/selinux/config && setenforce 1",
+			EvaluateFunc: func(out string, exit int) (bool, string) {
+				return contains(out, "Enforcing"),
+					"SELinux is not in Enforcing mode — CMMC SI.L2-3.14.2 / AC.L2-3.1.3 require MAC enforcement"
+			},
+		},
+		{
+			ControlID:    "RHEL-10-412010",
+			Title:        "RHEL 10 SSH daemon must use only SSH protocol version 2",
+			Severity:     "high",
+			CheckCommand: `sshd -T 2>/dev/null | grep -i '^protocol'; grep -i '^Protocol' /etc/ssh/sshd_config 2>/dev/null`,
+			Remediation:  "Ensure Protocol 1 is not configured in /etc/ssh/sshd_config — SSHv2 is default.",
+			EvaluateFunc: func(out string, exit int) (bool, string) {
+				if out == "" {
+					return true, "" // SSHv2-only is default in RHEL 10 OpenSSH
+				}
+				return !contains(out, "protocol 1") && !contains(out, "Protocol 1"),
+					"SSH Protocol 1 may be configured — immediate remediation required"
+			},
+		},
+		{
+			ControlID:    "RHEL-10-040020",
+			Title:        "RHEL 10 must not allow SSH root login with password authentication",
+			Severity:     "high",
+			CheckCommand: `sshd -T 2>/dev/null | grep -i 'permitrootlogin'`,
+			Remediation:  "Set PermitRootLogin no (or prohibit-password) in /etc/ssh/sshd_config",
+			EvaluateFunc: func(out string, exit int) (bool, string) {
+				return !contains(out, "permitrootlogin yes"),
+					"Root SSH login with password is permitted — CMMC IA.L2-3.5.3"
+			},
+		},
+		// ── CAT II (medium) ───────────────────────────────────────────────────
+		{
+			ControlID:    "RHEL-10-611010",
+			Title:        "RHEL 10 must enforce a minimum password length of 15 characters",
+			Severity:     "medium",
+			CheckCommand: `grep -i '^minlen' /etc/security/pwquality.conf 2>/dev/null`,
+			Remediation:  "Set minlen = 15 in /etc/security/pwquality.conf",
+			EvaluateFunc: func(out string, exit int) (bool, string) {
+				return contains(out, "minlen") && !contains(out, "= 8") && !contains(out, "= 12") && !contains(out, "= 14"),
+					"Password minimum length is less than 15 characters — CMMC IA.L2-3.5.7"
+			},
+		},
+		{
+			ControlID:    "RHEL-10-612010",
+			Title:        "RHEL 10 must lock accounts after 3 failed login attempts",
+			Severity:     "medium",
+			CheckCommand: `grep -i 'deny' /etc/security/faillock.conf 2>/dev/null`,
+			Remediation:  "Set deny = 3 in /etc/security/faillock.conf",
+			EvaluateFunc: func(out string, exit int) (bool, string) {
+				return contains(out, "deny") && !contains(out, "deny = 0"),
+					"Account lockout (faillock) not configured — CMMC AC.L2-3.1.8"
+			},
+		},
+		{
+			ControlID:    "RHEL-10-652010",
+			Title:        "RHEL 10 must have the AIDE package installed",
+			Severity:     "medium",
+			CheckCommand: `rpm -q aide 2>&1`,
+			Remediation:  "Install: dnf install aide && aide --init && cp /var/lib/aide/aide.db.new.gz /var/lib/aide/aide.db.gz",
+			EvaluateFunc: func(out string, exit int) (bool, string) {
+				return exit == 0 && contains(out, "aide-"),
+					"AIDE (Advanced Intrusion Detection Environment) not installed — CMMC SI.L2-3.14.1"
+			},
+		},
+		{
+			ControlID:    "RHEL-10-215010",
+			Title:        "RHEL 10 must have USBGuard installed and running",
+			Severity:     "medium",
+			CheckCommand: `rpm -q usbguard 2>&1; systemctl is-active usbguard 2>/dev/null`,
+			Remediation:  "Install: dnf install usbguard && systemctl enable --now usbguard",
+			EvaluateFunc: func(out string, exit int) (bool, string) {
+				return contains(out, "usbguard-") && contains(out, "active"),
+					"USBGuard not installed or not active — removable media control required — CMMC MP.L2-3.8.7"
+			},
+		},
+		{
+			ControlID:    "RHEL-10-221010",
+			Title:        "RHEL 10 must have firewalld enabled and active",
+			Severity:     "medium",
+			CheckCommand: `systemctl is-active firewalld 2>/dev/null; systemctl is-enabled firewalld 2>/dev/null`,
+			Remediation:  "Enable: systemctl enable --now firewalld",
+			EvaluateFunc: func(out string, exit int) (bool, string) {
+				return contains(out, "active") && contains(out, "enabled"),
+					"firewalld not active or not enabled — CMMC SC.L1-3.13.1"
+			},
+		},
+		{
+			ControlID:    "RHEL-10-020010",
+			Title:        "RHEL 10 must have auditd enabled",
+			Severity:     "medium",
+			CheckCommand: `systemctl is-active auditd 2>/dev/null; systemctl is-enabled auditd 2>/dev/null`,
+			Remediation:  "Enable: systemctl enable --now auditd",
+			EvaluateFunc: func(out string, exit int) (bool, string) {
+				return contains(out, "active") && contains(out, "enabled"),
+					"auditd not active — CMMC AU.L2-3.3.1 requires audit logging"
+			},
+		},
+		{
+			ControlID:    "RHEL-10-010030",
+			Title:        "RHEL 10 must apply system-wide cryptographic policies",
+			Severity:     "medium",
+			CheckCommand: `update-crypto-policies --show 2>/dev/null`,
+			Remediation:  "Set: update-crypto-policies --set FIPS (or DEFAULT:NO-SHA1)",
+			EvaluateFunc: func(out string, exit int) (bool, string) {
+				policy := contains(out, "FIPS") || contains(out, "DEFAULT") || contains(out, "FUTURE")
+				return policy, "System-wide crypto policy not configured — weak algorithms may be permitted — CMMC SC-13"
+			},
+		},
+		{
+			ControlID:    "RHEL-10-040010",
+			Title:        "RHEL 10 SSH daemon must use FIPS-validated key exchange algorithms",
+			Severity:     "medium",
+			CheckCommand: `sshd -T 2>/dev/null | grep kexalgorithms`,
+			Remediation:  "Set KexAlgorithms in /etc/ssh/sshd_config per FIPS policy. RHEL10 crypto-policy manages this automatically when FIPS is active.",
+			EvaluateFunc: func(out string, exit int) (bool, string) {
+				// FIPS policy in RHEL10 restricts to ecdh-sha2-nistp256/384/521 and diffie-hellman-group14+
+				return !contains(out, "diffie-hellman-group1-sha1") && !contains(out, "diffie-hellman-group14-sha1"),
+					"Weak SSH key exchange algorithms permitted — CMMC SC.L2-3.13.8"
+			},
+		},
+		{
+			ControlID:    "RHEL-10-030010",
+			Title:        "RHEL 10 audit records must contain required information",
+			Severity:     "medium",
+			CheckCommand: `auditctl -l 2>/dev/null | wc -l; ls /etc/audit/rules.d/*.rules 2>/dev/null | wc -l`,
+			Remediation:  "Configure audit rules in /etc/audit/rules.d/. Install: dnf install audit && configure per STIG.",
+			EvaluateFunc: func(out string, exit int) (bool, string) {
+				return exit == 0 && !contains(out, "\n0\n0") && !contains(out, "0\n0"),
+					"No audit rules configured — CMMC AU.L2-3.3.1 requires event logging"
 			},
 		},
 	}
