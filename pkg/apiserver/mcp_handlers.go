@@ -33,8 +33,8 @@ import (
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/llm"
-	"github.com/nouchix/PQC-Khepra-MCP/pkg/mcp"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/supabase"
+	"github.com/nouchix/PQC-Khepra-MCP/pkg/mcp"
 )
 
 // Protocol and algorithm constants used across MCP handlers.
@@ -179,7 +179,7 @@ func (s *Server) handleMCPToolCall(c *gin.Context) {
 	}
 
 	start := time.Now()
-	dagNodeID := uuid.New().String() // In production: create DAG node via pkg/dag
+	dagNodeID := uuid.New().String()
 
 	// Route to appropriate handler based on tool name
 	var result interface{}
@@ -213,6 +213,16 @@ func (s *Server) handleMCPToolCall(c *gin.Context) {
 	default:
 		c.JSON(http.StatusNotFound, gin.H{"error": "unknown tool: " + req.ToolName})
 		return
+	}
+
+	// Anchor this call in the tamper-evident DAG — dagNodeID is only meaningful
+	// as an attestation reference if it's actually written here.
+	if s.dagStore != nil {
+		_ = s.dagStore.Add(dagNodeID, "mcp:tool_call:"+req.ToolName, nil, map[string]string{
+			"tool_name":  req.ToolName,
+			"session_id": req.SessionID,
+			"called_at":  time.Now().UTC().Format(time.RFC3339),
+		})
 	}
 
 	durationMS := time.Since(start).Milliseconds()
