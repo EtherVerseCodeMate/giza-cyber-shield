@@ -48,7 +48,7 @@ func (s *SOAREngine) ExecutePlaybook(playbook *Playbook, environment string, app
 		PQC: map[string]string{
 			"payload": fmt.Sprintf(`{"playbook": "%s", "version": "%s", "environment": "%s"}`, playbook.Name, playbook.Version, environment),
 		},
-		Time:   time.Now().Format(time.RFC3339),
+		Time: time.Now().Format(time.RFC3339),
 	}, []string{})
 
 	var actionsToRun []string
@@ -60,27 +60,25 @@ func (s *SOAREngine) ExecutePlaybook(playbook *Playbook, environment string, app
 		return errors.New("invalid environment: must be staging or production")
 	}
 
-	for _, action := range actionsToRun {
-		// Simulate action execution for now
-		fmt.Printf("[SOAR] Executing %s action: %s\n", environment, action)
-	}
-
-	// Attest execution completion to DAG
-	// Use HybridKeyPair to sign the completion node
-	signature, err := s.agent.KeyPair.SignArtifact([]byte("SOAR_PLAYBOOK_COMPLETED"))
-	if err != nil {
-		return fmt.Errorf("failed to sign DAG node: %w", err)
-	}
-
+	// TRL10: no real action executor is implemented in this engine — actions
+	// are plain strings with no dispatcher (contrast pkg/souhimbou/soar.go in
+	// PQC-Khepra-MCP, which has a working runAction dispatcher for these same
+	// concepts). Rather than pretend the actions ran and sign a false
+	// "COMPLETED"/"success" DAG attestation, fail loudly so nobody mistakes
+	// this for a working automated-response path.
 	s.agent.Memory.Add(&dag.Node{
-		Action: "SOAR_PLAYBOOK_COMPLETED",
+		Action: "SOAR_PLAYBOOK_NOT_EXECUTED",
 		Symbol: playbook.Symbol,
 		PQC: map[string]string{
-			"status": "success",
-			"signature": fmt.Sprintf("%x", signature.SignatureKhepra[:16]),
+			"status": "not_implemented",
+			"reason": "no action executor is wired up in this engine",
 		},
-		Time:   time.Now().Format(time.RFC3339),
+		Time: time.Now().Format(time.RFC3339),
 	}, []string{})
 
-	return nil
+	return fmt.Errorf(
+		"soar: action execution is not implemented for playbook %q (%d %s actions requested: %v) — "+
+			"no automated response ran; use PQC-Khepra-MCP's pkg/souhimbou/soar.go runAction dispatcher instead",
+		playbook.Name, len(actionsToRun), environment, actionsToRun,
+	)
 }

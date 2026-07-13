@@ -1,352 +1,117 @@
-# Khepra Protocol - Project Status
-**Real-Time Implementation Dashboard**
+# SecRed Knowledge Inc. — Unified Project Status
 
-**Last Updated**: 2025-12-26
-**Sprint**: Phase 1 - Deepening the Roots
-**Status**: ✅ **COMPLETE & READY FOR DEPLOYMENT**
+**Last Updated**: 2026-07-13
+**Canonical source**: `EtherVerseCodeMate/giza-cyber-shield` (this file is mirrored, verbatim, into `nouchix/Adinkhepra-ASAF` and `nouchix/PQC-Khepra-MCP` — update here first, then copy across. See "Keeping this in sync" at the bottom.)
+**You are here**: `EtherVerseCodeMate/giza-cyber-shield` — the primary development monorepo.
 
----
-
-## 📊 Implementation Metrics
-
-### Code Statistics
-```
-Total Files Created:     17
-Production Go Code:      ~1,750 lines
-Documentation:           ~250 pages
-Test Coverage:           0% (pending)
-Build Status:            ⚠️ Not tested (binaries need compilation)
-```
-
-### Feature Completion (Phase 1)
-```
-File Integrity Monitoring (FIM):        ✅ 100%
-Network Topology & Attack Paths:        ✅ 100%
-SBOM Generation:                        ✅ 100%
-CLI Integration:                        ⚠️  80% (code written, not integrated)
-Unit Tests:                             ⏳  0% (not started)
-Documentation:                          ✅ 100%
-```
-
-### Customer Discovery Materials
-```
-Executive Roundtable Pitch:             ✅ 100%
-Demo Script (Visual):                   ✅ 100%
-Deployment Playbook:                    ✅ 100%
-Pilot Summary:                          ✅ 100%
-Quick Reference Card:                   ✅ 100%
-Demo Checklist:                         ✅ 100%
-```
+**Supersedes**: The previous single-repo version of this file (dated 2025-12-26, "Phase 1 — Deepening the Roots") described a pre-pilot planning stage confined to this repo and overstated readiness relative to the incoming investor LOI's gated milestones. This version replaces it and extends coverage across all three repos that make up the product.
 
 ---
 
-## 🎯 Phase 1 Deliverables (Q1 2026)
+## Why this spans three repos
 
-### ✅ Completed
-- [x] **FIM Core Engine** ([pkg/fim/watcher.go](pkg/fim/watcher.go))
-  - Real-time file monitoring with fsnotify
-  - Baseline SHA256 hashing
-  - STIG control mapping (RHEL-08-010160, WIN10-CC-000050)
-  - DAG integration (`fim:violation` nodes)
-  - Cross-platform (Linux + Windows)
+The product SecRed Knowledge Inc. is raising against is not contained in one repository:
 
-- [x] **FIM DAG Integration** ([pkg/fim/dag_integration.go](pkg/fim/dag_integration.go))
-  - Automatic DAG node generation for violations
-  - CRITICAL alert generation
-  - STIG control linkage
+| Repo | Role |
+|---|---|
+| **`EtherVerseCodeMate/giza-cyber-shield`** | Primary development monorepo. ASAF Go CLI (compliance graph, blast radius, PQC signing), Souhimbou AI web app, CMMC/NIST control library, CI. Per `Adinkhepra-ASAF/README.md`: *"Development branch: EtherVerseCodeMate/giza-cyber-shield."* |
+| **`nouchix/Adinkhepra-ASAF`** | Public release repo: signed ASAF binaries, changelog, and a separate Next.js marketing/enrollment/checkout site aimed at DIB buyers. |
+| **`nouchix/PQC-Khepra-MCP`** | The KHEPRA MCP Server product — hosted at `mcp.souhimbou.ai`, Community/Sovereign/Pharaoh license tiers, Iron Bank/GovCloud deployment track. |
 
-- [x] **Network Topology Engine** ([pkg/network/topology.go](pkg/network/topology.go))
-  - Host/service/account modeling
-  - BFS lateral movement path computation
-  - Blast radius calculation
-  - MITRE ATT&CK mapping (T1021)
-  - Attack graph DAG integration
-
-- [x] **SBOM Generator** ([pkg/sbom/generator.go](pkg/sbom/generator.go))
-  - Multi-scanner support (Syft, Trivy, Grype)
-  - CycloneDX JSON output
-  - CVE database correlation
-  - Context-aware risk scoring (CVSS × Exploitability × Public Exploit)
-  - STIG control mapping (CVE → STIG ID)
-  - DAG integration (`component:library` nodes)
-
-- [x] **Strategic Documentation** (7 files, 250+ pages)
-  - Executive Roundtable pitch deck
-  - 15-minute demo script with visual aids
-  - 4-week pilot deployment playbook
-  - Causal Reality architectural analysis
-  - Implementation roadmap (Q1-Q4 2026)
-  - Quick reference materials
-
-- [x] **CLI Integration Guide** ([docs/architecture/CLI_INTEGRATION_GUIDE.md](docs/architecture/CLI_INTEGRATION_GUIDE.md))
-  - Command specifications for `fim`, `network`, `sbom`
-  - Usage examples and integration patterns
-
-### ⏳ In Progress (Next 2-3 Weeks)
-- [ ] **CLI Command Integration**
-  - Add `fim`, `network`, `sbom` subcommands to `cmd/adinkhepra/main.go`
-  - Implement command files: `cmd_fim.go`, `cmd_network.go`, `cmd_sbom.go`
-  - Update help text and documentation
-
-- [ ] **Unit Tests**
-  - FIM tests: Baseline establishment, hash verification, event detection
-  - Network tests: Attack path computation, blast radius calculation
-  - SBOM tests: CVE correlation, risk scoring, SBOM diff
-
-- [ ] **Integration Testing**
-  - End-to-end: Sonar scan → FIM baseline → Network topology → SBOM → DAG → PDF report
-  - Performance testing: 10k+ file monitoring, 1000-node network graphs
-
-### 📅 Scheduled (Q2 2026)
-- [ ] **Dashboard Visualization**
-  - D3.js/GraphViz export for attack graphs
-  - Interactive FIM alert dashboard
-  - Real-time DAG graph viewer
-
-- [ ] **PDF Report Generation**
-  - Auto-generate executive summaries with FIM/Network/SBOM findings
-  - CMMC compliance scorecard integration
-  - Ansible remediation playbook generation
-
-- [ ] **Pilot Program Execution**
-  - First 2 pilot customers (Executive Roundtable signups)
-  - 4-week pilot workflow execution
-  - Case study generation for marketing
+An investor or partner evaluating "the company" needs the status of all three, not just whichever repo they happen to be looking at — hence one status file, mirrored into all three.
 
 ---
 
-## 🚀 Deployment Readiness
+## LOI framing (applies to all three repos)
 
-### Prerequisites (Before First Pilot)
+SecRed Knowledge Inc. has an LOI on the table for $400,000 at a $5,714,286 post-money valuation (7% fully diluted; pre-money ≈ **$5,314,286 / ~$5.31M**) from Aida Fahad and Hitesh Bodani, in two tranches:
 
-**Technical**:
-- [ ] Compile binaries: `go build ./cmd/adinkhepra`, `go build ./cmd/sonar`
-- [ ] Install dependencies: `go get github.com/fsnotify/fsnotify`
-- [ ] Install external tools: Syft, Trivy, Grype (for SBOM)
-- [ ] Set up demo server with known vulnerabilities
-- [ ] Generate demo PDF report (sanitized data)
-- [ ] Test web dashboard (localhost:8080)
+- **Tranche 1 — $100,000 (2.00% equity)**: releases upon **execution of definitive agreements (SSA/SHA)**, which follows a 60-day due-diligence window that only starts once the Dubai LLC is registered. Signing the LOI itself does **not** release cash — it's non-binding except for Confidentiality, Exclusivity, and Governing Law (LOI §13).
+- **Tranche 2 — $300,000 (5.00% equity)**: releases only once **both** milestone gates below are satisfied, 120–180 days after Tranche 1 funds.
 
-**Documentation**:
-- [x] Print Executive Roundtable materials (handouts, slides)
-- [x] Memorize 30-second elevator pitch
-- [x] Rehearse 15-minute demo (10+ practice runs)
-- [x] Prepare laptop (charging, font size, backup files)
-
-**Materials**:
-- [ ] Business cards (50 minimum)
-- [ ] Pilot proposal templates (SOW for 3 tiers)
-- [ ] Sample reports (sanitized from demo)
-- [ ] Quick reference card (printed, in pocket)
+Treat any doc across any of the three repos claiming "100% complete" or "READY TO LAUNCH" with skepticism unless corroborated by code, per the repo-by-repo findings below — this pattern of status-inflation shows up in all three.
 
 ---
 
-## 📋 Known Issues & Limitations
+## Repo-by-repo snapshot
 
-### Technical Debt
-1. **FIM Performance**: Monitoring 10k+ files may cause high CPU usage (needs testing)
-2. **Network Scalability**: 1000-node graphs not tested (potential bottleneck)
-3. **SBOM Scanner Dependency**: Requires external tools (Syft, Trivy) to be installed
-4. **No Unit Tests**: 0% test coverage (critical for production readiness)
+### 1. `giza-cyber-shield` (primary dev monorepo)
+- **Team**: solo founder — single git committer identity (`skone@alumni.albany.edu`) across all commits in this repo.
+- **CMMC control library**: `CMMC_TRACKER.md` (auto-generated, last regenerated 2026-05-31) shows 89.7% self-attested score across 97 tracked NIST SP 800-171 Rev 3 controls (77 implemented, 20 partial) — real SSP documentation, no C3PAO assessment yet.
+- **CMMC Compliance Graph Autopilot**: real code (`app/views/tab_compliance_graph.go`, `app/widgets/graph_canvas.go`, `cmd/adinkhepra/cmd_blast_radius.go`). `ADINKHEPRA_ASAF_SPEC.md:1468` marks the 3D force graph/blast-radius work "Engineering complete" — a spec-status label, not a GA claim. `ADINKHEPRA_ASAF_SPEC.md:734` shows **"Dollar exposure: hidden"** for the default tier. No GA/launch entry in `CHANGELOG.md`.
+- **Souhimbou AI**: still Beta-labeled in its own UI (`souhimbou_ai/SouHimBou.AI/src/components/beta/BetaBanner.tsx:21-22`, citing a "Q2 2025" GovCloud target already 5+ quarters past). Billing is half-wired: the Next.js checkout route makes a real Stripe call, but `pkg/apiserver/stripe_billing.go:84-148` (the Go SaaS billing path) is scaffolding — line 144 comment: `// In production: call Stripe API to create a real session` (not implemented) — and ships a `/api/v1/billing/simulate-complete` endpoint to fake a completed payment. `SOUHIMBOU_AUDIT_REPORT_2026-02-12.md` found dashboards returning `Math.random()` as real metrics; the Feb 2026 remediation sprint fixed auth/crypto P0s but the mock-data findings aren't confirmed resolved.
+- **Revenue**: `docs/strategies/SPRINT_28_GTM_OCEANS11.md:22` — "11 KHEPRI sign-ups with zero paid conversions." $0 MRR.
+- **Hiring**: `MEMORY.md:331` lists "1 Go engineer + 1 GovCon BD" as a **future roadmap target**, not a completed hire.
+- **Dubai/GCC/SDVOSB**: zero references anywhere in this repo.
+- **Doc hygiene**: 100+ top-level status `.md` files, several (`IMPLEMENTATION_COMPLETE.md`, `READY_FOR_PUBLICATION.md`, `READY_TO_MERGE.md`, `DEPLOYMENT_SUCCESS.md`) describe isolated sub-components as "100% complete" — none describe overall Tranche 2 readiness and none should be quoted as such.
 
-### Missing Features (Phase 2+)
-1. **Threat Hunting Query Language**: No declarative DAG queries yet
-2. **Automated Remediation**: Ansible playbooks generated but not auto-applied
-3. **SIEM Integration**: No Splunk/ServiceNow connectors
-4. **AI Code Provenance**: SBOM doesn't track AI-generated code yet
+### 2. `Adinkhepra-ASAF` (public release repo)
+- **Versioning drift**: `CHANGELOG.md` shows v0.1.0/v0.1.1 (2026-05-25) and v1.1.0 (2026-06-30, "TRL10 Security Hardening + Sovereign Auth"), but `package.json` still reads `"version": "1.0.0"`. 20+ commits after the v1.1.0 tag (through 2026-07-11) remain unversioned/unreleased (new `compliance-graph/` enrollment wizard, DAG data).
+- **Auth was recently broken**: the v1.1.0 changelog itself documents that Supabase auth previously pointed to a dead local port (`localhost:45444`) — "auth silently appeared to work while doing nothing" — only just fixed.
+- **Pricing mismatch with the Avidus brief**: the $0/$99/$499/mo figure referenced in partner conversations appears only in this repo's `README.md` describing a *different* hosted product (`app.nouchix.com`, Profile A/SaaS). This repo's actual shipped checkout (`src/app/api/checkout/route.ts`) charges DIB/enterprise tiers instead: Advisory $5,000 one-time, Pilot $45,000/yr, Program Std $75,000/yr, Program Adv $120,000/yr, Enterprise $150,000–$250,000/yr. Any partner-facing pricing conversation needs to specify which product/tier is meant.
+- **CMMC Compliance Graph here specifically**: a real force-directed 3D graph (`3d-force-graph`, loaded from a CDN — not an npm dependency) renders against a hardcoded `DEMO_DAG` fixture, not a live backend. The terms "blast radius" and "Autopilot" don't appear anywhere in this repo's UI — the GA feature named in the LOI milestone doesn't exist under that name in the customer-facing release repo yet.
+- **SDVOSB**: marketed on the landing page as "Sole-Source Pending Certification — Up to $5M" and "Current VOSB · Army Signal Corps 25S SATCOM · Active Secret Clearance" — consistent with `giza-cyber-shield`'s findings: the underlying veteran/clearance status looks genuine, SBA certification itself is not yet filed/active.
+- **Dubai/GCC**: zero references.
+- **Assessment**: pre-launch/early-pilot stage. Real, working Next.js app and real Stripe checkout call, but no confirmed paying production customers.
 
-### Documentation Gaps
-1. **API Reference**: No auto-generated API docs for Go packages
-2. **Deployment Guide**: No step-by-step installation instructions
-3. **Troubleshooting**: No FAQ or common error solutions
-
----
-
-## 🎓 Lessons Learned
-
-### What Went Well
-- **Philosophical Clarity**: "Roots vs Leaves" framework provided clear implementation priorities
-- **Customer-First Approach**: Built demo materials before finalizing code
-- **Rapid Prototyping**: ~1,750 lines of production code in < 48 hours
-- **Documentation Quality**: 250+ pages of strategic materials created
-
-### What Could Be Improved
-- **Test-Driven Development**: Should have written tests alongside code
-- **Incremental Integration**: Should have integrated CLI commands as features were built
-- **Performance Validation**: Need to test at scale (10k files, 1000 nodes) before pilot
-
-### Key Insights
-1. **Demos Sell, Not Features**: Spent 60% of time on demo materials, 40% on code—right balance
-2. **Laymen Terms Matter**: "X-ray machine", "nuclear-grade math" resonates more than "Dilithium3 signatures"
-3. **Proof Over Promises**: "Client-verifiable cryptographic receipts" is the killer differentiator
+### 3. `PQC-Khepra-MCP` (MCP server product)
+- **Team**: no independent human engineering team confirmed beyond the same founder pattern plus AI-assisted commits and dependabot.
+- **Billing**: real, working Stripe webhook with genuine HMAC-SHA256 signature verification (`cmd/webhook/main.go`) and a real Next.js checkout route. But this repo has its **own separate copy** of `pkg/apiserver/stripe_billing.go` with the identical stub pattern found in `giza-cyber-shield` — `handleCreateCheckout` doesn't call Stripe, and ships the same `/api/v1/billing/simulate-complete` fake-payment endpoint. **Two repos, one unfinished feature, duplicated rather than shared** — worth consolidating into one codebase rather than paying to fix it twice.
+- **Infra**: 14 active GitHub Actions workflows (CodeQL, Trivy, DAST, SAST, container publish to `ghcr.io/nouchix/pqc-khepra-mcp`) — real CI. `Dockerfile.ironbank` targets `registry1.dso.mil` with RHEL-09-STIG hardening, but no artifact confirms an actual Iron Bank submission/approval. `aws-govcloud/` has real CloudFormation, but its deployment security checklist is entirely unchecked and the template still has `"STRIPE_SECRET_KEY": "REPLACE_ME"` placeholders — designed, not executed.
+- **`mcp.souhimbou.ai`**: real server code (`cmd/khepra-mcp/main.go`, 76 registered MCP tools) and a real Caddy/TLS deploy config naming a specific VPS — deployment-config-complete. Live reachability not independently verifiable from this environment (egress restricted).
+- **Dubai/GCC/SDVOSB/hiring**: zero references.
 
 ---
 
-## 📊 Competitive Analysis
+## Cross-repo findings (true in all three)
 
-### Market Position
-**Target Market**: Defense Industrial Base (DIB) contractors needing CMMC Level 3
-**TAM**: $20B+ (Post-Quantum Cryptography + Security Automation)
-**Competition**: Palantir, Tenable, Qualys, Rapid7
-
-### Competitive Advantages
-1. **Post-Quantum Cryptography**: Only tool with NIST PQC (Dilithium3 + Kyber) built-in
-2. **Causal Risk Graphs**: DAG-based causality vs isolated findings
-3. **Continuous Monitoring**: 24/7 FIM + network topology vs annual audits
-4. **Client-Verifiable Proofs**: No trust required (verify signatures independently)
-5. **Transparent Pricing**: $15K-$150K pilots vs $300K/year traditional audits
-
-### Unique Selling Propositions (USPs)
-- "From Compliance Theater to Causal Reality"
-- "Security X-ray machine with quantum-proof receipts"
-- "Attack path proves blast radius in 6 steps, not checklists"
-- "Find 10+ critical issues or 50% refund"
+1. **Solo founder, no hires yet.** This is the single most consistent — and most binding — gap against the LOI's "2 key hires" milestone. No repo shows evidence of an onboarded engineering or BD hire.
+2. **Billing is the same half-built pattern in two of three repos**: real checkout call, faked completion path. Fixing it once, in whichever repo becomes canonical, likely resolves both instances.
+3. **Zero Dubai/GCC/UAE evidence anywhere**, across all three repos and all docs.
+4. **SDVOSB**: real underlying veteran/clearance status; SBA certification not filed in any repo.
+5. **Status-inflation pattern repeats**: each repo has multiple docs using "100%"/"READY"/"COMPLETE" language for sub-components, none of which describe overall Tranche 2 readiness.
 
 ---
 
-## 💰 Revenue Projections (Conservative)
+## Tranche 2 Gate 1 — Revenue & Market Traction (need 2 of 3)
 
-### Pilot Phase (Q1 2026)
-- **2 pilot signups** @ $15K each = **$30K**
-- **1 pilot upgrade to Tier 2** = **$35K**
-- **Total Q1**: $65K
+| Requirement | Status | Evidence |
+|---|---|---|
+| 3+ signed DIB pilot/program contracts, ≥$135K aggregate | ❌ **NOT MET** | No signed-contract ledger in any of the three repos. `giza-cyber-shield/docs/strategies/SPRINT_28_POSTMORTEM.md` references a possible HPE sub-contractor conversation in hypothetical framing only. |
+| ≥$10K MRR from Souhimbou AI SaaS | ❌ **NOT MET** | `giza-cyber-shield/docs/strategies/SPRINT_28_GTM_OCEANS11.md:22`: "11 KHEPRI sign-ups with zero paid conversions." $0 MRR today. |
+| SDVOSB certification finalized/active with SBA | ❌ **NOT MET** | Consistent across `giza-cyber-shield` and `Adinkhepra-ASAF`: genuine VOSB/veteran status, but no SBA SDVOSB certification number or filing evidence anywhere. |
 
-### Expansion Phase (Q2-Q4 2026)
-- **5 enterprise deployments** @ $50K-$150K = **$400K**
-- **Annual subscriptions** (3 clients) @ $100K/year = **$300K**
-- **Total Q2-Q4**: $700K
+**Gate 1: 0 of 3 met.** Need 2.
 
-### Year 1 Total: **$765K ARR**
+## Tranche 2 Gate 2 — Product & Operational Readiness (need ALL 4)
 
-### Year 2 Projections (2027)
-- **20 enterprise clients** @ $100K/year = **$2M ARR**
-- **Government contracts** (2-3) @ $500K-$1M = **$2M ARR**
-- **Total Year 2**: $4M ARR
+| Requirement | Status | Evidence |
+|---|---|---|
+| CMMC Compliance Graph Autopilot — GA within ADINKHEPRA ASAF | 🟡 **PARTIAL** | Engineering-complete in `giza-cyber-shield` per spec; dollar-exposure explicitly gated off; the public release repo (`Adinkhepra-ASAF`) only shows it against demo fixture data and doesn't use the feature's own name anywhere in its UI. |
+| Souhimbou AI: Beta → GA, live billing, functional STIG Compliance Console | 🟡 **PARTIAL** | Still Beta-labeled; billing stub duplicated across `giza-cyber-shield` and `PQC-Khepra-MCP`; Feb 2026 mock-data audit findings not confirmed resolved. |
+| Dubai subsidiary fully operational with ≥1 active GCC client engagement/partnership | ❌ **NOT MET** | Zero references across all three repos. LOI §4 requires Dubai LLC registration (25 days from execution) before this can even begin. |
+| ≥2 key hires/FTE contractors (engineering + BD) | ❌ **NOT MET** | Solo-founder pattern confirmed across all three repos; `MEMORY.md` lists hires as a future target, not an achieved one. |
 
-**Assumptions**:
-- 20% conversion rate (pilot → enterprise)
-- 80% annual renewal rate
-- 2x growth YoY (conservative for cybersecurity)
+**Gate 2: 0 of 4 fully met; 2 of 4 partially underway.** Need all 4.
 
 ---
 
-## 🏆 Success Criteria
+## Overall Tranche 2 readiness
 
-### Phase 1 (Complete)
-- [x] Implement 3 critical "roots": FIM, Network Topology, SBOM
-- [x] Create 250+ pages of customer discovery materials
-- [x] Prepare 15-minute demo with live technical demonstration
-- [x] Define 3-tier pilot pricing ($15K/$50K/$150K)
-
-### Phase 2 (Q1 2026)
-- [ ] Sign first 2 pilot customers (early adopter discount)
-- [ ] Execute 4-week pilot program successfully
-- [ ] Generate case study for marketing (sanitized)
-- [ ] Achieve 100% customer satisfaction (pilot survey)
-
-### Phase 3 (Q2 2026)
-- [ ] Convert 1 pilot to enterprise deployment
-- [ ] Achieve CMMC Level 3 certification for client
-- [ ] Publish white paper on "Causal Reality vs Compliance Theater"
-- [ ] Speak at industry conference (RSA, Black Hat)
+**Neither gate is satisfied, in any repo.** The fastest, cheapest wins are the ones where real code already exists across these three repos and needs finishing/shipping rather than building from zero — principally the duplicated billing stub and the gated CMMC dollar-exposure feature. See `AVIDUS_TRANCHE2_ALIGNMENT.md` (in `giza-cyber-shield`) for how Tranche 1 ($100K) should be sequenced against these specific, named gaps.
 
 ---
 
-## 📧 Contact & Support
+## Keeping this in sync
 
-**Project Lead**: Souhimbou Doh Kone
-**Email**: skone@alumni.albany.edu
-**Company**: SecRed Knowledge Inc. dba NouchiX
-**GitHub**: EtherVerseCodeMate/giza-cyber-shield
+This file exists identically in:
+- `giza-cyber-shield/PROJECT_STATUS.md` (canonical — edit here first)
+- `Adinkhepra-ASAF/PROJECT_STATUS.md`
+- `PQC-Khepra-MCP/PROJECT_STATUS.md`
 
-**Internal Support**:
-- Technical questions: Slack #khepra-dev
-- Sales support: Slack #khepra-sales
-- Pilot execution: Slack #khepra-field-ops
+When any repo's status changes materially, update the canonical copy in `giza-cyber-shield` first, then copy the file verbatim (only the "You are here" line differs between copies) into the other two repos on the same branch/PR cadence.
 
 ---
 
-## 🔄 Next Sprint Planning
-
-### Sprint Goals (Week of 2025-12-30)
-1. **Integrate CLI commands** (3 days)
-   - Implement `cmd_fim.go`, `cmd_network.go`, `cmd_sbom.go`
-   - Update `main.go` with new subcommands
-   - Test all CLI workflows
-
-2. **Write unit tests** (2 days)
-   - FIM: 10 tests (baseline, hashing, events, STIG mapping)
-   - Network: 8 tests (attack paths, blast radius, severity)
-   - SBOM: 7 tests (CVE correlation, risk scoring, diff)
-   - Target: 80% code coverage
-
-3. **Build demo environment** (1 day)
-   - Set up vulnerable demo server
-   - Generate demo snapshots with known CVEs
-   - Create sanitized PDF report template
-
-4. **Rehearse demo** (1 day)
-   - Practice 15-minute pitch 10x
-   - Record screencast backup
-   - Prepare printed materials
-
-### Sprint Retrospective (Week of 2026-01-06)
-- What went well?
-- What could be improved?
-- What should we start/stop/continue?
-
----
-
-## 📚 Documentation Index
-
-### For Developers
-- [Phase 1 Implementation Status](docs/architecture/PHASE1_IMPLEMENTATION_STATUS.md)
-- [CLI Integration Guide](docs/architecture/CLI_INTEGRATION_GUIDE.md)
-- [Implementation Roadmap](docs/architecture/IMPLEMENTATION_ROADMAP.md)
-- [Causal Reality Analysis](docs/architecture/CAUSAL_REALITY_ANALYSIS.md)
-
-### For Sales/Marketing
-- [Executive Roundtable Pitch](docs/consulting/EXECUTIVE_ROUNDTABLE_PITCH.md)
-- [Demo Script (Visual)](docs/consulting/DEMO_SCRIPT_VISUAL.md)
-- [Pilot Summary](docs/consulting/PILOT_SUMMARY.md)
-- [Demo Checklist](EXECUTIVE_DEMO_CHECKLIST.md)
-- [Quick Reference Card](DEMO_QUICK_REFERENCE_CARD.md)
-
-### For Operations
-- [Deployment Playbook](docs/consulting/DEPLOYMENT_PLAYBOOK.md)
-- [Consulting README](docs/consulting/README.md)
-- [STIG Implementation Status](STIG_IMPLEMENTATION_STATUS.md)
-- [Secure Software Development Lifecycle](docs/SECURE_DEVELOPMENT_LIFECYCLE.md)
-
----
-
-## ✅ Final Status: READY FOR EXECUTIVE ROUNDTABLE
-
-**Green Light Criteria**:
-- [x] Core features implemented (FIM, Network, SBOM)
-- [x] Demo materials prepared (250+ pages)
-- [x] Pricing defined ($15K/$50K/$150K)
-- [x] 15-minute demo script rehearsed
-- [x] Quick reference card printed
-- [x] Backup plans ready (screencast, printouts)
-
-**Recommended Actions**:
-1. Print [Demo Checklist](EXECUTIVE_DEMO_CHECKLIST.md) - Bring to demo
-2. Print [Quick Reference Card](DEMO_QUICK_REFERENCE_CARD.md) - Keep in pocket
-3. Read [Pilot Summary](docs/consulting/PILOT_SUMMARY.md) - Final review (30 min)
-4. Practice 30-second elevator pitch - 10 repetitions
-5. **Deliver the demo and close your first pilots!**
-
----
-
-**Status**: ✅ **READY TO LAUNCH**
-
-**Last Commit**: feat: implement Phase 1 features + executive demo materials
-
-**Next Milestone**: First pilot customer signup (target: 2026-01-15)
-
----
-
-**Document Maintained By**: Khepra Protocol Core Team
-**Review Cadence**: Weekly (during pilot phase)
-**Automation**: Update metrics via GitHub Actions (future)
+**Document Maintained By**: SecRed Knowledge Inc. / NouchiX
+**Review Cadence**: Re-run this audit at each Tranche 2 milestone checkpoint (target: every 30 days once Tranche 1 funds, per the 120–180 day clock in LOI §7).
