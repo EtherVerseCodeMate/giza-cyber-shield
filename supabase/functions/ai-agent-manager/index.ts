@@ -281,16 +281,16 @@ async function checkAgentPermission(supabase: any, agentId: string, actionType: 
 }
 
 async function performAgentAction(actionData: any): Promise<any> {
-  // This is where the agent would actually perform the requested action
-  // Fixed delay for consistent behavior (no random simulation)
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
-  return {
-    action: actionData.type,
-    result: 'Action completed successfully',
-    timestamp: new Date().toISOString(),
-    data: actionData
-  };
+  // TRL10: no real per-type action dispatcher is wired up for this engine —
+  // there is no tool/API integration behind actionData.type. The previous
+  // implementation unconditionally returned "Action completed successfully"
+  // after a fixed delay, which fabricated both the result and the
+  // agent_actions audit trail entry written by the caller. Fail honestly
+  // instead so the audit trail reflects reality.
+  throw new Error(
+    `Agent action execution is not implemented for action type "${actionData?.type}" — ` +
+    'no real tool/API dispatcher is wired up in ai-agent-manager.'
+  );
 }
 
 function calculateRiskScore(actionData: any): number {
