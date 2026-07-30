@@ -221,3 +221,12 @@ Company: **NouchiX / Sacred Knowledge Inc**
 Patent: Pending
 
 > "The agentic AI era is here. The security layer for it wasn't — until now."
+
+
+---
+### 🚀 System Architecture Update: Public Kernel Extraction Complete
+**Status:** ✅ Condition 3 (Kernel Standalone) Met
+
+The core Khepra MCP (`PQC-Khepra-MCP`) has been successfully decoupled from all proprietary orchestration and security planes (Adinkra, Sekhem, Giza). Through the introduction of the `kernelports` dependency injection boundary, the `khepra-kernel` now builds and operates in complete isolation. All legacy internal tools continue to compile seamlessly against the original repository. 
+
+*This paves the way for the formal Apache-2.0 open-source release of the standalone PQC-Khepra-MCP kernel!*
