@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KHEPRA ASAF — DVWS Chain</title>
+  <script src="https://unpkg.com/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
+  <style>
+    body {
+      margin: 0; padding: 0; background-color: #050c16; font-family: 'Inter', sans-serif; color: #e2e8f0; overflow: hidden;
+    }
+    #graph-container { width: 100vw; height: 100vh; }
+    .hud {
+      position: absolute; z-index: 10; background: rgba(8, 15, 28, 0.9); border: 1px solid rgba(26, 159, 232, 0.2);
+      border-radius: 12px; padding: 20px; backdrop-filter: blur(8px); box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+    }
+    #header { top: 20px; left: 20px; width: 320px; }
+    #legend { bottom: 20px; left: 20px; width: 250px; }
+    .badge {
+      display: inline-block; font-family: monospace; font-size: 10px; padding: 4px 8px; border-radius: 4px; margin-bottom: 12px; letter-spacing: 1px;
+    }
+    .badge.verified { background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); }
+    h1 { margin: 0 0 8px 0; font-size: 18px; font-weight: 800; color: #ffffff; line-height: 1.2; }
+    p.subtitle { margin: 0 0 16px 0; font-size: 12px; color: #94a3b8; }
+    .metric {
+      margin-top: 12px; padding: 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px;
+    }
+    .metric-title { font-family: monospace; font-size: 10px; color: #93c5fd; text-transform: uppercase; margin-bottom: 4px; }
+    .metric-value { font-size: 18px; font-weight: 900; color: #3b82f6; }
+    .legend-item { display: flex; align-items: center; margin-bottom: 8px; font-family: monospace; font-size: 11px; color: #cbd5e1; }
+    .legend-color { width: 12px; height: 12px; border-radius: 50%; margin-right: 12px; }
+  </style>
+</head>
+<body>
+  <div id="graph-container"></div>
+  
+  <div id="header" class="hud">
+    <div class="badge verified">NON_AI_LEGACY_SURFACE</div>
+    <h1>Target 1: DVWS / DVWA</h1>
+    <p class="subtitle">Control Group Baseline Verification</p>
+    
+    <div class="metric">
+      <div class="metric-title">Governance Status</div>
+      <div class="metric-value">DEFER_TO_TRADITIONAL_APPSEC</div>
+    </div>
+  </div>
+  
+  <div id="legend" class="hud">
+    <div style="font-family: monospace; font-size: 10px; color: #64748b; margin-bottom: 12px; text-transform: uppercase;">Node Types</div>
+    <div class="legend-item"><div class="legend-color" style="background: #94a3b8"></div>Genesis</div>
+    <div class="legend-item"><div class="legend-color" style="background: #3b82f6"></div>Probe / Authentication</div>
+    <div class="legend-item"><div class="legend-color" style="background: #eab308"></div>Classification</div>
+  </div>
+
+  <script>
+    const DAG_DATA = {
+      nodes: [
+        { id: 'g0', type: 'genesis', label: 'GENESIS', desc: 'State: INITIALIZED', val: 12 },
+        { id: 'e1', type: 'probe', label: 'Network Reachability', desc: 'Port 4280. Express (Node.js). AI: NONE', val: 10 },
+        { id: 'e2', type: 'probe', label: 'API Authentication Test', desc: 'Valid JWT Issued. Expiry 2026-08-01', val: 14 },
+        { id: 'e3', type: 'class', label: 'Governance Classification', desc: 'NON_AI_LEGACY_SURFACE. No AI Agent Detected.', val: 24 }
+      ],
+      links: [
+        { source: 'g0', target: 'e1' },
+        { source: 'e1', target: 'e2' },
+        { source: 'e2', target: 'e3' }
+      ]
+    };
+
+    const NODE_COLORS = { genesis: '#94a3b8', probe: '#3b82f6', class: '#eab308' };
+
+    const elem = document.getElementById('graph-container');
+    const Graph = ForceGraph3D()(elem)
+      .backgroundColor('#050c16')
+      .graphData(DAG_DATA)
+      .nodeId('id')
+      .nodeVal('val')
+      .nodeColor(n => NODE_COLORS[n.type])
+      .nodeOpacity(0.9)
+      .linkColor(() => 'rgba(26, 159, 232, 0.4)')
+      .linkWidth(1)
+      .linkDirectionalParticles(2)
+      .linkDirectionalParticleColor(() => '#1a9fe8')
+      .nodeLabel(n => \`
+        <div style="background: rgba(8,15,28,0.95); border: 1px solid \${NODE_COLORS[n.type]}; padding: 12px; border-radius: 8px; font-family: monospace; color: #fff; max-width: 250px;">
+          <div style="font-weight: bold; color: \${NODE_COLORS[n.type]}; font-size: 14px; margin-bottom: 6px;">\${n.label}</div>
+          <div style="font-size: 11px; color: #cbd5e1; line-height: 1.4;">\${n.desc}</div>
+        </div>
+      \`);
+
+    setTimeout(() => { Graph.zoomToFit(800, 100); }, 1500);
+    window.addEventListener('resize', () => { Graph.width(elem.clientWidth).height(elem.clientHeight); });
+  </script>
+</body>
+</html>

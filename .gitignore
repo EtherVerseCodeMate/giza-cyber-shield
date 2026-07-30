@@ -153,3 +153,6 @@ vercel.env
 # Demo local secrets (never commit)
 .env.demo.local
 .env.local
+
+# Ignore environment files
+*.env
