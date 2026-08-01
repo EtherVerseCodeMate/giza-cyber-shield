@@ -176,7 +176,7 @@ func runGUI(hubURL string, embedHub bool, agentID string, insecure bool) {
 
 	splash.Close()
 
-	showMainWindow(a, tier, backend)
+	showAuthScreen(a, tier, backend)
 
 	a.Run()
 }

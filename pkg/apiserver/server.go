@@ -41,6 +41,7 @@ type Server struct {
 	sekhemTriad *sekhem.SekhemTriad   // Ouroboros cycle, WAF realm, sensor/actuator mesh (optional)
 	recorder    *asaf.Recorder        // ASAF flight recorder — nil until WithASAFRecorder is called
 	autopilot   *AutopilotEngine      // Continuous compliance scheduler (Autopilot tier)
+	nativeAuth  *auth.NativeAuthManager // Standalone native SQLite/Argon2 auth
 }
 
 const (
@@ -467,6 +468,11 @@ func (s *Server) WithSekhemTriad(triad *sekhem.SekhemTriad) {
 //	GET  /api/v1/asaf/history  — authenticated action history
 func (s *Server) WithASAFRecorder(r *asaf.Recorder) {
 	s.recorder = r
+}
+
+// WithNativeAuth injects the standalone native authentication manager.
+func (s *Server) WithNativeAuth(am *auth.NativeAuthManager) {
+	s.nativeAuth = am
 }
 
 // setupASAFRoutes registers all ASAF recording endpoints.

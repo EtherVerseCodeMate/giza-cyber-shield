@@ -219,6 +219,13 @@ func (s *Server) setPQCContext(c *gin.Context, claims *auth.PQCTokenClaims, meth
 func (s *Server) setupAuthRoutes(r *gin.RouterGroup) {
 	authGroup := r.Group("/auth")
 	{
+		// Native Go+SQLite authentication for Standalone Desktop Mode
+		if s.nativeAuth != nil {
+			authGroup.POST("/native/signup", s.handleNativeSignup)
+			authGroup.POST("/native/login", s.handleNativeLogin)
+			authGroup.GET("/native/me", s.handleNativeMe)
+		}
+
 		// Exchange any valid credential for a native PQC token
 		authGroup.POST("/token", s.handleAuthToken)
 

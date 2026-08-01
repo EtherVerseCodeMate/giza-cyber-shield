@@ -11,16 +11,16 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-// User represents a STARGATE embedded user
-type User struct {
+// NativeUser represents a STARGATE embedded user
+type NativeUser struct {
 	ID           string
 	Email        string
 	PasswordHash string
 	CreatedAt    time.Time
 }
 
-// Session represents an active login session
-type Session struct {
+// NativeSession represents an active login session
+type NativeSession struct {
 	ID        string
 	UserID    string
 	ExpiresAt time.Time
@@ -114,7 +114,7 @@ func VerifyPassword(password, encodedHash string) (bool, error) {
 }
 
 // CreateUser creates a new user in the local database
-func (m *NativeAuthManager) CreateUser(email, password string) (*User, error) {
+func (m *NativeAuthManager) CreateUser(email, password string) (*NativeUser, error) {
 	userID, err := GenerateSessionToken() // reuse CSPRNG for ID
 	if err != nil {
 		return nil, err
@@ -124,7 +124,7 @@ func (m *NativeAuthManager) CreateUser(email, password string) (*User, error) {
 		return nil, err
 	}
 
-	user := &User{
+	user := &NativeUser{
 		ID:           userID,
 		Email:        email,
 		PasswordHash: hash,
@@ -140,9 +140,9 @@ func (m *NativeAuthManager) CreateUser(email, password string) (*User, error) {
 }
 
 // Authenticate checks credentials and returns the User if valid
-func (m *NativeAuthManager) Authenticate(email, password string) (*User, error) {
+func (m *NativeAuthManager) Authenticate(email, password string) (*NativeUser, error) {
 	row := m.db.QueryRow("SELECT id, email, password_hash, created_at FROM users WHERE email = ?", email)
-	var u User
+	var u NativeUser
 	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.CreatedAt); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("invalid credentials") // Prevent user enumeration
@@ -158,7 +158,7 @@ func (m *NativeAuthManager) Authenticate(email, password string) (*User, error) 
 }
 
 // CreateSession generates a new session token for the user
-func (m *NativeAuthManager) CreateSession(userID string) (*Session, error) {
+func (m *NativeAuthManager) CreateSession(userID string) (*NativeSession, error) {
 	token, err := GenerateSessionToken()
 	if err != nil {
 		return nil, err
@@ -166,7 +166,7 @@ func (m *NativeAuthManager) CreateSession(userID string) (*Session, error) {
 
 	// 30 day expiration
 	expiresAt := time.Now().UTC().AddDate(0, 0, 30)
-	session := &Session{
+	session := &NativeSession{
 		ID:        token,
 		UserID:    userID,
 		ExpiresAt: expiresAt,
@@ -181,9 +181,9 @@ func (m *NativeAuthManager) CreateSession(userID string) (*Session, error) {
 }
 
 // ValidateSession checks if a session token is valid and not expired
-func (m *NativeAuthManager) ValidateSession(token string) (*Session, error) {
+func (m *NativeAuthManager) ValidateSession(token string) (*NativeSession, error) {
 	row := m.db.QueryRow("SELECT id, user_id, expires_at FROM sessions WHERE id = ?", token)
-	var s Session
+	var s NativeSession
 	if err := row.Scan(&s.ID, &s.UserID, &s.ExpiresAt); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("invalid session")
