@@ -1,10 +1,11 @@
-﻿//go:build saas
+//go:build saas
 
 package apiserver
 
 import (
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +24,12 @@ type wafHandler interface {
 // AuthMiddleware validates API key authentication
 func (s *Server) AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// ── DEV MODE BYPASS ───────────────────────────────────────────────────────
+		if os.Getenv("KHEPRA_DEV_MODE") == "true" {
+			c.Next()
+			return
+		}
+
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			c.JSON(http.StatusUnauthorized, ErrorResponse{

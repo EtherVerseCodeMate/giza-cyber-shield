@@ -80,6 +80,12 @@ func (s *Server) PQCGinMiddleware() gin.HandlerFunc {
 	supabaseSecret := []byte(os.Getenv("SUPABASE_JWT_SECRET"))
 
 	return func(c *gin.Context) {
+		// ── DEV MODE BYPASS ───────────────────────────────────────────────────────
+		if os.Getenv("KHEPRA_DEV_MODE") == "true" {
+			c.Next()
+			return
+		}
+
 		// ── Priority 1: Native X-Khepra-PQC-Token header ─────────────────────
 		if pqcTok := c.GetHeader("X-Khepra-PQC-Token"); pqcTok != "" && s.pqcGateway != nil {
 			claims, err := s.pqcGateway.VerifyPQCToken(pqcTok)
