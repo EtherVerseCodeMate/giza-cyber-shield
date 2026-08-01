@@ -1795,6 +1795,7 @@ github.com/nouchix/PQC-Khepra-MCP/pkg/lorentz
 github.com/nouchix/PQC-Khepra-MCP/pkg/maat
 github.com/nouchix/PQC-Khepra-MCP/pkg/mcp
 github.com/nouchix/PQC-Khepra-MCP/pkg/mcp/kernelports
+github.com/nouchix/PQC-Khepra-MCP/pkg/mcp/legacy
 github.com/nouchix/PQC-Khepra-MCP/pkg/mcp/scanner
 github.com/nouchix/PQC-Khepra-MCP/pkg/mcp/tools
 github.com/nouchix/PQC-Khepra-MCP/pkg/nhi

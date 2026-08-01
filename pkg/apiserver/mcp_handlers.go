@@ -34,7 +34,7 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/llm"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/supabase"
-	"github.com/nouchix/PQC-Khepra-MCP/pkg/mcp"
+	mcp "github.com/nouchix/PQC-Khepra-MCP/pkg/mcp/legacy"
 )
 
 // Protocol and algorithm constants used across MCP handlers.

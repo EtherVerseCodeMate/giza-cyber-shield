@@ -55,7 +55,7 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/llm/ollama"
-	"github.com/nouchix/PQC-Khepra-MCP/pkg/mcp"
+	mcp "github.com/nouchix/PQC-Khepra-MCP/pkg/mcp/legacy"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/sekhem"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/supabase"
 )
