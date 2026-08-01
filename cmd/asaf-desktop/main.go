@@ -433,6 +433,7 @@ func showMainWindow(a fyne.App, tier string, backend hub.Backend) {
 	tab6 := views.NewReadinessTab(w, backend)
 	tab7 := views.NewEvidenceTab(w, backend)
 	tab8 := views.NewSettingsTab(w, backend)
+	tab9 := views.NewBillingTab(w, backend)
 
 	tabs := container.NewAppTabs(
 		container.NewTabItem("Compliance Graph", tab1.Content()),
@@ -443,6 +444,7 @@ func showMainWindow(a fyne.App, tier string, backend hub.Backend) {
 		container.NewTabItem("Readiness Gate", tab6.Content()),
 		container.NewTabItem("Evidence Package", tab7.Content()),
 		container.NewTabItem("Settings", tab8.Content()),
+		container.NewTabItem("Subscription & Billing", tab9.Content()),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
 

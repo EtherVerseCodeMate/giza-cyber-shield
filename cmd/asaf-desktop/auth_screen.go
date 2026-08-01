@@ -15,7 +15,6 @@ import (
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/hub"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/auth"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 )
 
 // initAuthManager opens the local SQLite db for auth
@@ -35,7 +34,7 @@ func initAuthManager(a fyne.App) *auth.NativeAuthManager {
 }
 
 // showAuthScreen blocks and forces login/signup before proceeding.
-func showAuthScreen(a fyne.App, tier license.EgyptianTier, backend hub.Backend) {
+func showAuthScreen(a fyne.App, tier string, backend hub.Backend) {
 	am := initAuthManager(a)
 	if am == nil {
 		// Fallback if sqlite fails (e.g. read-only filesystem)
