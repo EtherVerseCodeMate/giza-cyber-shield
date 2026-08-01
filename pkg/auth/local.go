@@ -12,7 +12,7 @@ import (
 
 const (
 	// Argon2id parameters
-	time    = 1
+	argonTime = 1
 	memory  = 64 * 1024
 	threads = 4
 	keyLen  = 32
@@ -27,7 +27,7 @@ func EncryptKey(rawKey []byte, passphrase string) ([]byte, error) {
 		return nil, err
 	}
 
-	key := argon2.IDKey([]byte(passphrase), salt, time, memory, threads, keyLen)
+	key := argon2.IDKey([]byte(passphrase), salt, argonTime, memory, threads, keyLen)
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -67,7 +67,7 @@ func DecryptKey(data []byte, passphrase string) ([]byte, error) {
 	nonce := data[saltLen : saltLen+blockLen]
 	ciphertext := data[saltLen+blockLen:]
 
-	key := argon2.IDKey([]byte(passphrase), salt, time, memory, threads, keyLen)
+	key := argon2.IDKey([]byte(passphrase), salt, argonTime, memory, threads, keyLen)
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
