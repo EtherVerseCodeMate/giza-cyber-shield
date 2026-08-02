@@ -1,0 +1,11 @@
+{
+  "id": "NMROLHMNYKKAYGGENGOPRYGLONNETGTGGPLRIHEKMASGYPLRPYIMUHKSKEGTOOGE",
+  "parents": null,
+  "action": "seshat-inscription",
+  "symbol": "maat-decision",
+  "time": "2026-08-02T14:08:05-04:00",
+  "pqc_metadata": {
+    "data": "map[action:observe autonomous:true isfet_id:c3443c10bf99d836bb56ab531cbea5b1 kasa_wisdom:KASA unavailable realm:duat severity:MODERATE]"
+  },
+  "hash": "NMROLHMNYKKAYGGENGOPRYGLONNETGTGGPLRIHEKMASGYPLRPYIMUHKSKEGTOOGE"
+}

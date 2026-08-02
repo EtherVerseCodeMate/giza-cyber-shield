@@ -428,3 +428,9 @@ func (c *HubClient) do(req *http.Request, result any) error {
 	}
 	return nil
 }
+
+func (c *HubClient) SetBoundary(ctx context.Context, cidrs []string) error {
+	// For connected mode, boundary scoping is managed server-side by the Hub.
+	// This could be wired to a POST /api/v1/fleet/boundary if the Hub supported dynamic updates.
+	return nil
+}

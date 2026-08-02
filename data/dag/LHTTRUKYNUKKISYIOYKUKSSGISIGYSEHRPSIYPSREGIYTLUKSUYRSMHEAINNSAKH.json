@@ -1,0 +1,11 @@
+{
+  "id": "LHTTRUKYNUKKISYIOYKUKSSGISIGYSEHRPSIYPSREGIYTLUKSUYRSMHEAINNSAKH",
+  "parents": null,
+  "action": "seshat-inscription",
+  "symbol": "maat-decision",
+  "time": "2026-08-02T13:30:25-04:00",
+  "pqc_metadata": {
+    "data": "map[action:observe autonomous:true isfet_id:CVE-2023-32681 kasa_wisdom:KASA unavailable realm:duat severity:MODERATE]"
+  },
+  "hash": "LHTTRUKYNUKKISYIOYKUKSSGISIGYSEHRPSIYPSREGIYTLUKSUYRSMHEAINNSAKH"
+}

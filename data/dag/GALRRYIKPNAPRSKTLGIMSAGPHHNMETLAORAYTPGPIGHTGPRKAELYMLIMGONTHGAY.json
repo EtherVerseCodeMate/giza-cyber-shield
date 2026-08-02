@@ -1,0 +1,11 @@
+{
+  "id": "GALRRYIKPNAPRSKTLGIMSAGPHHNMETLAORAYTPGPIGHTGPRKAELYMLIMGONTHGAY",
+  "parents": null,
+  "action": "seshat-inscription",
+  "symbol": "maat-decision",
+  "time": "2026-08-02T13:44:45-04:00",
+  "pqc_metadata": {
+    "data": "map[action:banish autonomous:true isfet_id:CONFIG-SSL-001 kasa_wisdom:KASA unavailable realm:duat severity:SEVERE]"
+  },
+  "hash": "GALRRYIKPNAPRSKTLGIMSAGPHHNMETLAORAYTPGPIGHTGPRKAELYMLIMGONTHGAY"
+}

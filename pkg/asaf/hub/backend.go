@@ -119,6 +119,9 @@ type Backend interface {
 	// In standalone: writes to ConnectorRegistry.
 	// In connected: POST /api/v1/fleet/connectors
 	SaveConnector(ctx context.Context, cfg ConnectorConfig, cred *ConnectorCred) error
+
+	// SetBoundary updates the allowed egress CIDRs for the local guard.
+	SetBoundary(ctx context.Context, cidrs []string) error
 }
 
 // ErrNotConnected is returned by Hub-only operations when in ModeStandalone.

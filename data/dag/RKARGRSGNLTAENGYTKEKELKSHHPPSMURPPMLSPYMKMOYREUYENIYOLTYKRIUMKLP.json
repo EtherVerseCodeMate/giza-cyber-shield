@@ -1,0 +1,11 @@
+{
+  "id": "RKARGRSGNLTAENGYTKEKELKSHHPPSMURPPMLSPYMKMOYREUYENIYOLTYKRIUMKLP",
+  "parents": null,
+  "action": "seshat-inscription",
+  "symbol": "maat-decision",
+  "time": "2026-08-02T14:09:25-04:00",
+  "pqc_metadata": {
+    "data": "map[action:observe autonomous:true isfet_id:ce98648ec17e8504917ef597f1e8a994 kasa_wisdom:KASA unavailable realm:duat severity:MODERATE]"
+  },
+  "hash": "RKARGRSGNLTAENGYTKEKELKSHHPPSMURPPMLSPYMKMOYREUYENIYOLTYKRIUMKLP"
+}

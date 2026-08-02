@@ -453,7 +453,9 @@ func showMainWindow(a fyne.App, tier string, backend hub.Backend) {
 
 	// Wire scan-done notification: after every scan, push fresh data to Readiness Gate, SSP, POA&M.
 	tab1.OnScanDone = func() {
-		tab6.Refresh()
+		tab3.Refresh() // Live SSP updates
+		tab4.Refresh() // Live POAM updates
+		tab6.Refresh() // Readiness Gate
 	}
 
 	// Footer — always visible per §13 (patent line required)

@@ -1,0 +1,11 @@
+{
+  "id": "PHTKOPTYTTISYOEAPHTNEIPOMTTRNIKLEUNSNISHSUSLAMYEIUIIREHTPOIPSMAM",
+  "parents": null,
+  "action": "seshat-inscription",
+  "symbol": "maat-decision",
+  "time": "2026-08-02T14:08:55-04:00",
+  "pqc_metadata": {
+    "data": "map[action:banish autonomous:true isfet_id:CONFIG-SSL-001 kasa_wisdom:KASA unavailable realm:duat severity:SEVERE]"
+  },
+  "hash": "PHTKOPTYTTISYOEAPHTNEIPOMTTRNIKLEUNSNISHSUSLAMYEIUIIREHTPOIPSMAM"
+}
