@@ -305,7 +305,7 @@ func (b *LocalBackend) Ask(ctx context.Context, query string) (*AskResponse, err
 				"  ollama pull gemma3:4b\n\n" +
 				"Then go to Settings → AI Provider and click [Apply & Save].\n\n" +
 				"Alternatively, if your environment permits egress, you can configure the remote\n" +
-				"endpoint (https://api.souhimbou.ai) in the AI Provider settings.\n\n" +
+				"endpoint (https://mcp.souhimbou.ai) in the AI Provider settings.\n\n" +
 				"Or connect to a Stargate Hub (Settings → Hub URL) for cloud-routed AI.\n\n" +
 				"Your query was: " + query,
 		}, nil
