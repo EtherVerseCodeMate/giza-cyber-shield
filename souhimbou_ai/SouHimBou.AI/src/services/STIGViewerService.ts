@@ -58,6 +58,8 @@ export class STIGViewerService {
     'Oracle Linux 8'
   ];
 
+  private static cachedStigs: any[] | null = null;
+
   /**
    * Helper to map platform names to STIGViewer slugs
    */
@@ -70,6 +72,53 @@ export class STIGViewerService {
     if (p.includes('red hat enterprise linux 9') || p.includes('rhel 9')) return 'red_hat_enterprise_linux_9';
     if (p.includes('red hat enterprise linux 10') || p.includes('rhel 10')) return 'red_hat_enterprise_linux_10';
     return platform.toLowerCase().replace(/\s+/g, '_');
+  }
+
+  /**
+   * Dynamically fetch and resolve the slug for a given platform name by crawling the catalog.
+   */
+  private static async resolveSlugDynamically(platform: string, headers: Record<string, string>): Promise<string> {
+    try {
+      if (!this.cachedStigs) {
+        const response = await fetch('/api/v1/stig/viewer/stigs', {
+          method: 'GET',
+          headers,
+        });
+        if (response.ok) {
+          const res = await response.json();
+          this.cachedStigs = res.stigs || res || [];
+        }
+      }
+
+      if (this.cachedStigs && this.cachedStigs.length > 0) {
+        const platformLower = platform.toLowerCase();
+        
+        // Try exact match or containment match
+        let bestMatch = this.cachedStigs.find((s: any) => {
+          const id = (s.stigId || s.benchmarkId || '').toLowerCase();
+          const title = (s.title || '').toLowerCase();
+          return id === platformLower || title.includes(platformLower) || platformLower.includes(title);
+        });
+
+        // Try fuzzy word overlap match if no exact containment
+        if (!bestMatch) {
+          const platformWords = platformLower.split(/[\s_-]+/);
+          bestMatch = this.cachedStigs.find((s: any) => {
+            const title = (s.title || '').toLowerCase();
+            const id = (s.stigId || s.benchmarkId || '').toLowerCase();
+            return platformWords.every(word => title.includes(word) || id.includes(word));
+          });
+        }
+
+        if (bestMatch) {
+          return bestMatch.stigId || bestMatch.benchmarkId;
+        }
+      }
+    } catch (e) {
+      console.warn('Dynamic STIG catalog crawl failed, using fallback parser:', e);
+    }
+
+    return this.getSlugForPlatform(platform);
   }
 
   /**
@@ -120,7 +169,6 @@ export class STIGViewerService {
     try {
       // 1. Sovereign Mode: Bypass Supabase and query the local Go Gateway directly
       if (!isSaasMode()) {
-        const slug = this.getSlugForPlatform(_platform);
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
         };
@@ -128,6 +176,9 @@ export class STIGViewerService {
         if (token) {
           headers['Authorization'] = token;
         }
+
+        // Dynamically resolve slug using catalog crawl
+        const slug = await this.resolveSlugDynamically(_platform, headers);
 
         // Query the local proxy route that directs to STIG Viewer API
         const response = await fetch(`/api/v1/stig/viewer/stigs/${slug}/controls?limit=100&search=${stigId}`, {
