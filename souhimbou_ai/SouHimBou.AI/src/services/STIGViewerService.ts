@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { isSaasMode } from '@/lib/supabase';
 
 export interface STIGRule {
   id: string;
@@ -58,6 +59,20 @@ export class STIGViewerService {
   ];
 
   /**
+   * Helper to map platform names to STIGViewer slugs
+   */
+  private static getSlugForPlatform(platform: string): string {
+    const p = platform.toLowerCase();
+    if (p.includes('windows server 2022')) return 'microsoft_windows_server_2022';
+    if (p.includes('windows server 2019')) return 'microsoft_windows_server_2019';
+    if (p.includes('ubuntu 22.04')) return 'canonical_ubuntu_22.04_lts';
+    if (p.includes('oracle linux 8')) return 'oracle_linux_8';
+    if (p.includes('red hat enterprise linux 9') || p.includes('rhel 9')) return 'red_hat_enterprise_linux_9';
+    if (p.includes('red hat enterprise linux 10') || p.includes('rhel 10')) return 'red_hat_enterprise_linux_10';
+    return platform.toLowerCase().replace(/\s+/g, '_');
+  }
+
+  /**
    * Perform STIG fingerprinting for a target system
    */
   static async performSTIGFingerprinting(
@@ -99,10 +114,55 @@ export class STIGViewerService {
   }
 
   /**
-   * Lookup specific STIG rule by ID via the real Go Gateway relay
+   * Lookup specific STIG rule by ID via local gateway (sovereign) or cloud relay (SaaS)
    */
   static async lookupSTIGRule(stigId: string, _platform: string, organizationId?: string): Promise<STIGRule> {
     try {
+      // 1. Sovereign Mode: Bypass Supabase and query the local Go Gateway directly
+      if (!isSaasMode()) {
+        const slug = this.getSlugForPlatform(_platform);
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        const token = localStorage.getItem('asaf_license_key');
+        if (token) {
+          headers['Authorization'] = token;
+        }
+
+        // Query the local proxy route that directs to STIG Viewer API
+        const response = await fetch(`/api/v1/stig/viewer/stigs/${slug}/controls?limit=100&search=${stigId}`, {
+          method: 'GET',
+          headers,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Local gateway returned HTTP ${response.status}`);
+        }
+
+        const res = await response.json();
+        // Match the requested rule ID or group ID
+        const ruleData = res.findings?.find((f: any) => f.ruleId === stigId || f.groupId === stigId) || res.findings?.[0];
+        
+        if (!ruleData) {
+          throw new Error(`STIG rule ${stigId} not found in local catalog`);
+        }
+
+        return {
+          id: ruleData.ruleId,
+          stigId: ruleData.groupId || stigId,
+          title: ruleData.title || ruleData.ruleTitle,
+          description: ruleData.description || ruleData.vulnDiscussion,
+          checkText: ruleData.checkContent || 'Refer to documentation',
+          fixText: ruleData.fixText || 'See official STIG guide',
+          severity: (ruleData.severity?.toLowerCase()?.replaceAll('_', '') ?? 'cat2') as STIGRule['severity'],
+          vulnId: ruleData.ruleId || 'N/A',
+          ruleId: ruleData.ruleId,
+          version: ruleData.ruleVersion || '1.0',
+          platform: _platform,
+        };
+      }
+
+      // 2. SaaS/Cloud Mode Fallback: Use Supabase stig-relay function
       if (!organizationId) {
         throw new Error('Organization ID is required for live STIG data');
       }
