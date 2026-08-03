@@ -57,63 +57,36 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Test build artifact validator
+      # Real integration: drive the actual detector (tests/validation/detector.py),
+      # not a grep of the fixture for its own marker. Layout-agnostic — no hardcoded
+      # flat/nested fixture paths.
+      - name: Detector flags every vulnerable fixture (no false negatives)
         run: |
-          echo "🔍 Testing build artifact validator..."
+          set -e
+          fail=0
+          while IFS= read -r f; do
+            if python3 tests/validation/detector.py "$f" >/dev/null; then
+              echo "✗ detector MISSED a known-vulnerable fixture: $f"; fail=1
+            else
+              echo "✓ flagged: $f"
+            fi
+          done < <(find tests/validation/fixtures/fail -type f \( -name '*.go' -o -name '*.ts' \))
+          exit $fail
 
-          # Should PASS: Clean files
-          ! grep -rEi "khepra-dev-key|aaru-realm-key|aten-realm-key" tests/validation/fixtures/pass/ || exit 1
-
-          # Should FAIL: Hardcoded keys detected
-          if grep -q "khepra-dev-key" tests/validation/fixtures/fail/hardcoded_keys.go; then
-            echo "✓ Hardcoded key detection working correctly"
-          else
-            echo "✗ Hardcoded key detection FAILED"
-            exit 1
-          fi
-
-      - name: Test security validator
+      - name: Detector clears every safe fixture (no false positives)
         run: |
-          echo "🔍 Testing security validator..."
+          set -e
+          fail=0
+          while IFS= read -r f; do
+            if python3 tests/validation/detector.py "$f" >/dev/null; then
+              echo "✓ clean: $f"
+            else
+              echo "✗ detector FALSE-POSITIVE on a safe fixture: $f"
+              python3 tests/validation/detector.py "$f" || true
+              fail=1
+            fi
+          done < <(find tests/validation/fixtures/pass -type f \( -name '*.go' -o -name '*.ts' \))
+          exit $fail
 
-          # Should PASS: Safe queries
-          ! grep -n "fmt.Sprintf.*SELECT\|fmt.Sprintf.*INSERT\|fmt.Sprintf.*UPDATE" \
-            tests/validation/fixtures/pass/safe_database.go || exit 1
-
-          # Should FAIL: SQL injection detected
-          if grep -q "fmt.Sprintf.*SELECT" tests/validation/fixtures/fail/sql_injection.go; then
-            echo "✓ SQL injection detection working correctly"
-          else
-            echo "✗ SQL injection detection FAILED"
-            exit 1
-          fi
-
-      - name: Test command injection validator
-        run: |
-          echo "🔍 Testing command injection validator..."
-
-          # Should PASS: Safe commands
-          ! grep -n "exec.Command.*fmt.Sprintf\|exec.Command.*+" \
-            tests/validation/fixtures/pass/safe_command.go || exit 1
-
-          # Should FAIL: Command injection detected
-          if grep -q "fmt.Sprintf" tests/validation/fixtures/fail/command_injection.go; then
-            echo "✓ Command injection detection working correctly"
-          else
-            echo "✗ Command injection detection FAILED"
-            exit 1
-          fi
-
-      - name: Summary
-        run: |
-          echo ""
-          echo "╔════════════════════════════════════════════════════════════╗"
-          echo "║       Validation Test Suite - All Tests Passed            ║"
-          echo "╚════════════════════════════════════════════════════════════╝"
-          echo ""
-          echo "✓ Hardcoded key detection: WORKING"
-          echo "✓ SQL injection detection: WORKING"
-          echo "✓ Command injection detection: WORKING"
-          echo "✓ Secrets detection: WORKING"
-          echo ""
-          echo "All CI/CD validators are functioning correctly."
+      - name: Full confusion-matrix suite (precision + recall)
+        run: bash tests/validation/scripts/run-validation-tests.sh
