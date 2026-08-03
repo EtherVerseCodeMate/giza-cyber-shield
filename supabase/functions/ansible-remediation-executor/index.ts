@@ -6,6 +6,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ============================================================================
+// FAIL-LOUD CONFIGURATION CHECK
+// When AWX credentials are absent this function MUST fail closed.
+// It MUST NOT compute a fake success or write a simulated completion record.
+// Writing success=true without a real side-effect breaks the audit trail and
+// is treated as CRITICAL per the SouHimBou audit framework (C-TD-03 / C-DG-02).
+// ============================================================================
+const AWX_URL   = Deno.env.get('ANSIBLE_AWX_API_URL');
+const AWX_TOKEN = Deno.env.get('ANSIBLE_AWX_TOKEN');
+
 interface RemediationRequest {
   action: 'execute' | 'validate' | 'rollback' | 'sync_playbooks';
   organization_id: string;
@@ -14,6 +24,78 @@ interface RemediationRequest {
   stig_rule_ids?: string[];
   platform?: string;
   approved?: boolean;
+}
+
+/** Launch an AWX/Tower job template and poll until completion (max 10 min). */
+async function launchAWXJob(
+  playbookName: string,
+  inventoryHosts: string[],
+  extraVars: Record<string, unknown>
+): Promise<{ success: boolean; jobId: string; stdout: string; rc: number }> {
+  if (!AWX_URL || !AWX_TOKEN) {
+    throw new Error(
+      'ANSIBLE_AWX_API_URL or ANSIBLE_AWX_TOKEN not set. ' +
+      'Remediation cannot execute without real AWX credentials. ' +
+      'Configure secrets in Supabase Vault and redeploy.'
+    );
+  }
+
+  const headers = {
+    'Authorization': `Bearer ${AWX_TOKEN}`,
+    'Content-Type': 'application/json',
+  };
+
+  // 1. Find the job template by name
+  const searchResp = await fetch(
+    `${AWX_URL}/api/v2/job_templates/?name=${encodeURIComponent(playbookName)}`,
+    { headers }
+  );
+  if (!searchResp.ok) {
+    throw new Error(`AWX job template lookup failed: ${searchResp.status} ${await searchResp.text()}`);
+  }
+  const searchData = await searchResp.json();
+  if (!searchData.results?.length) {
+    throw new Error(`AWX job template not found: ${playbookName}`);
+  }
+  const templateId = searchData.results[0].id;
+
+  // 2. Launch the job
+  const launchResp = await fetch(`${AWX_URL}/api/v2/job_templates/${templateId}/launch/`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      limit: inventoryHosts.join(','),
+      extra_vars: extraVars,
+    }),
+  });
+  if (!launchResp.ok) {
+    throw new Error(`AWX launch failed: ${launchResp.status} ${await launchResp.text()}`);
+  }
+  const launchData = await launchResp.json();
+  const jobId: number = launchData.job;
+
+  // 3. Poll for completion (max 120 attempts x 5 s = 10 min)
+  let attempts = 0;
+  while (attempts < 120) {
+    await new Promise(r => setTimeout(r, 5000));
+    const statusResp = await fetch(`${AWX_URL}/api/v2/jobs/${jobId}/`, { headers });
+    if (!statusResp.ok) throw new Error(`AWX status poll failed: ${statusResp.status}`);
+    const job = await statusResp.json();
+
+    if (['successful', 'failed', 'error', 'canceled'].includes(job.status)) {
+      // Fetch stdout
+      const stdoutResp = await fetch(`${AWX_URL}/api/v2/jobs/${jobId}/stdout/?format=txt`, { headers });
+      const stdout = stdoutResp.ok ? await stdoutResp.text() : `Job ${jobId} completed with status: ${job.status}`;
+      return {
+        success: job.status === 'successful',
+        jobId: String(jobId),
+        stdout,
+        rc: job.status === 'successful' ? 0 : 1,
+      };
+    }
+    attempts++;
+  }
+  throw new Error(`AWX job ${jobId} timed out after 10 minutes`);
 }
 
 serve(async (req) => {
@@ -44,7 +126,6 @@ serve(async (req) => {
 
     switch (action) {
       case 'sync_playbooks': {
-        // Sync Ansible Lockdown playbooks from GitHub
         const platforms = ['RHEL8', 'RHEL9', 'Ubuntu22', 'Windows-2019', 'Windows-2022'];
         let playbooksAdded = 0;
 
@@ -55,8 +136,6 @@ serve(async (req) => {
             const response = await fetch(repoUrl);
             if (response.ok) {
               const playbookContent = await response.text();
-              
-              // Extract STIG rules from playbook vars
               const stigRules = extractSTIGRulesFromPlaybook(playbookContent);
               
               await supabase
@@ -100,7 +179,6 @@ serve(async (req) => {
         let executionRecord;
 
         if (execution_id) {
-          // Resume existing execution
           const { data } = await supabase
             .from('remediation_executions')
             .select('*')
@@ -113,18 +191,14 @@ serve(async (req) => {
             throw new Error('Execution requires approval');
           }
         } else {
-          // Create new execution
           const { data: asset } = await supabase
             .from('security_assets')
             .select('*')
             .eq('id', asset_id)
             .single();
 
-          if (!asset) {
-            throw new Error('Asset not found');
-          }
+          if (!asset) throw new Error('Asset not found');
 
-          // Find appropriate playbook
           const { data: playbook } = await supabase
             .from('remediation_playbooks')
             .select('*')
@@ -133,21 +207,20 @@ serve(async (req) => {
             .eq('is_active', true)
             .single();
 
-          if (!playbook) {
-            throw new Error('No active playbook found for this platform');
-          }
+          if (!playbook) throw new Error('No active playbook found for this platform');
 
-          // Create execution record
           const { data: newExecution } = await supabase
             .from('remediation_executions')
             .insert({
               organization_id,
               asset_id: asset.id,
               playbook_id: playbook.id,
-              stig_rule_id: stig_rule_ids[0],
+              stig_rule_id: stig_rule_ids![0],
               execution_status: playbook.requires_approval ? 'pending' : 'approved',
               initiated_by: user.id,
               approved_by: playbook.requires_approval ? null : user.id,
+              is_simulated: false,
+              execution_channel: 'ansible_awx',
             })
             .select()
             .single();
@@ -166,9 +239,7 @@ serve(async (req) => {
           }
         }
 
-        // Execute remediation (in production, this would trigger actual Ansible execution)
         const startTime = Date.now();
-        
         await supabase
           .from('remediation_executions')
           .update({
@@ -178,106 +249,93 @@ serve(async (req) => {
           })
           .eq('id', executionRecord.id);
 
-        // Simulate Ansible execution with deterministic outcome
-        const { data: playbook } = await supabase
-          .from('remediation_playbooks')
-          .select('*')
-          .eq('id', executionRecord.playbook_id)
-          .single();
+        const [{ data: playbook }, { data: asset }] = await Promise.all([
+          supabase.from('remediation_playbooks').select('*').eq('id', executionRecord.playbook_id).single(),
+          supabase.from('security_assets').select('*').eq('id', executionRecord.asset_id).single(),
+        ]);
 
-        const { data: asset } = await supabase
-          .from('security_assets')
-          .select('*')
-          .eq('id', executionRecord.asset_id)
-          .single();
-
-        // Deterministic success based on playbook success rate and asset risk
-        const successThreshold = (playbook.success_rate || 85) - (asset.risk_score || 0) * 0.1;
-        const executionSuccess = Math.floor((asset.compliance_score || 50) + successThreshold) > 100;
-        
-        const duration = Math.floor((Date.now() - startTime) / 1000);
-        
-        const stdout = executionSuccess 
-          ? generateSuccessOutput(executionRecord.stig_rule_id, asset.asset_name)
-          : generateFailureOutput(executionRecord.stig_rule_id, asset.asset_name);
-
-        const changesApplied = executionSuccess ? [
+        // ----------------------------------------------------------------
+        // REAL AWX EXECUTION — throws (fail-loud) if credentials absent
+        // ----------------------------------------------------------------
+        const awxResult = await launchAWXJob(
+          playbook.playbook_name,
+          [asset.asset_name],
           {
-            rule_id: executionRecord.stig_rule_id,
-            action: 'applied',
-            timestamp: new Date().toISOString(),
-            details: `STIG rule ${executionRecord.stig_rule_id} successfully remediated`,
+            stig_rule_id: executionRecord.stig_rule_id,
+            target_host: asset.asset_name,
+            organization_id,
           }
-        ] : [];
+        );
 
-        // Update execution record
+        const duration = Math.floor((Date.now() - startTime) / 1000);
+        const changesApplied = awxResult.success ? [{
+          rule_id: executionRecord.stig_rule_id,
+          action: 'applied',
+          timestamp: new Date().toISOString(),
+          details: `STIG rule ${executionRecord.stig_rule_id} remediated via AWX job ${awxResult.jobId}`,
+        }] : [];
+
         await supabase
           .from('remediation_executions')
           .update({
-            execution_status: executionSuccess ? 'completed' : 'failed',
+            execution_status: awxResult.success ? 'completed' : 'failed',
             completed_at: new Date().toISOString(),
             duration_seconds: duration,
-            stdout_log: stdout,
-            stderr_log: executionSuccess ? '' : 'Remediation failed - check stdout for details',
-            exit_code: executionSuccess ? 0 : 1,
+            stdout_log: awxResult.stdout,
+            stderr_log: awxResult.success ? '' : 'See stdout_log for failure details',
+            exit_code: awxResult.rc,
             changes_applied: changesApplied,
-            rollback_available: executionSuccess,
+            rollback_available: awxResult.success,
+            is_simulated: false,
+            execution_channel: 'ansible_awx',
+            awx_job_id: awxResult.jobId,
           })
           .eq('id', executionRecord.id);
 
-        // Update playbook statistics
-        await supabase.rpc('increment', {
-          row_id: playbook.id,
-          table_name: 'remediation_playbooks',
-          column_name: 'total_executions',
-        });
+        await supabase.rpc('increment', { row_id: playbook.id, table_name: 'remediation_playbooks', column_name: 'total_executions' });
 
-        if (executionSuccess) {
-          await supabase.rpc('increment', {
-            row_id: playbook.id,
-            table_name: 'remediation_playbooks',
-            column_name: 'successful_executions',
+        if (awxResult.success) {
+          await supabase.rpc('increment', { row_id: playbook.id, table_name: 'remediation_playbooks', column_name: 'successful_executions' });
+
+          await supabase.from('stig_assessment_results').upsert({
+            organization_id,
+            asset_id: asset.id,
+            stig_rule_id: executionRecord.stig_rule_id,
+            assessment_status: 'pass',
+            finding_details: `Automatically remediated via Ansible AWX job ${awxResult.jobId}`,
+            assessed_by: user.id,
+            assessed_at: new Date().toISOString(),
           });
 
-          // Update asset compliance status
-          await supabase
-            .from('stig_assessment_results')
-            .upsert({
-              organization_id,
-              asset_id: asset.id,
-              stig_rule_id: executionRecord.stig_rule_id,
-              assessment_status: 'pass',
-              finding_details: 'Automatically remediated via Ansible',
-              assessed_by: user.id,
-              assessed_at: new Date().toISOString(),
-            });
-
-          // Insert evidence
-          await supabase
-            .from('stig_evidence')
-            .insert({
-              organization_id,
-              asset_id: asset.id,
-              stig_rule_id: executionRecord.stig_rule_id,
-              evidence_type: 'automated_remediation',
-              evidence_data: {
-                execution_id: executionRecord.id,
-                playbook_id: playbook.id,
-                stdout: stdout,
-                changes: changesApplied,
-              },
-              collection_method: 'ansible_lockdown',
-              collected_by: user.id,
-            });
+          await supabase.from('stig_evidence').insert({
+            organization_id,
+            asset_id: asset.id,
+            stig_rule_id: executionRecord.stig_rule_id,
+            evidence_type: 'automated_remediation',
+            evidence_data: {
+              execution_id: executionRecord.id,
+              playbook_id: playbook.id,
+              awx_job_id: awxResult.jobId,
+              stdout: awxResult.stdout,
+              changes: changesApplied,
+              is_simulated: false,
+              execution_channel: 'ansible_awx',
+            },
+            collection_method: 'ansible_awx',
+            collected_by: user.id,
+          });
         }
 
         return new Response(JSON.stringify({
-          success: executionSuccess,
+          success: awxResult.success,
           execution_id: executionRecord.id,
+          awx_job_id: awxResult.jobId,
           duration_seconds: duration,
           changes_applied: changesApplied,
-          stdout: stdout,
-          message: executionSuccess ? 'Remediation completed successfully' : 'Remediation failed',
+          stdout: awxResult.stdout,
+          message: awxResult.success ? 'Remediation completed successfully' : 'Remediation failed',
+          is_simulated: false,
+          execution_channel: 'ansible_awx',
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -286,9 +344,7 @@ serve(async (req) => {
       case 'rollback': {
         const { execution_id } = requestData;
 
-        if (!execution_id) {
-          throw new Error('execution_id required');
-        }
+        if (!execution_id) throw new Error('execution_id required');
 
         const { data: execution } = await supabase
           .from('remediation_executions')
@@ -300,27 +356,39 @@ serve(async (req) => {
           throw new Error('Rollback not available for this execution');
         }
 
-        // Execute rollback
-        await supabase
-          .from('remediation_executions')
-          .update({
-            execution_status: 'rolled_back',
-          })
-          .eq('id', execution_id);
+        if (!execution.awx_job_id) {
+          throw new Error('Cannot rollback: original execution has no AWX job ID — rollback anchor missing');
+        }
 
-        // Update assessment status
-        await supabase
-          .from('stig_assessment_results')
-          .update({
+        const [{ data: playbook }, { data: asset }] = await Promise.all([
+          supabase.from('remediation_playbooks').select('*').eq('id', execution.playbook_id).single(),
+          supabase.from('security_assets').select('*').eq('id', execution.asset_id).single(),
+        ]);
+
+        const rollbackResult = await launchAWXJob(
+          `${playbook.playbook_name} - Rollback`,
+          [asset.asset_name],
+          { stig_rule_id: execution.stig_rule_id, original_awx_job_id: execution.awx_job_id, rollback: true }
+        );
+
+        await supabase.from('remediation_executions').update({
+          execution_status: rollbackResult.success ? 'rolled_back' : 'rollback_failed',
+          is_simulated: false,
+          execution_channel: 'ansible_awx',
+        }).eq('id', execution_id);
+
+        if (rollbackResult.success) {
+          await supabase.from('stig_assessment_results').update({
             assessment_status: 'not_reviewed',
-            finding_details: 'Remediation rolled back',
-          })
-          .eq('asset_id', execution.asset_id)
-          .eq('stig_rule_id', execution.stig_rule_id);
+            finding_details: `Remediation rolled back via AWX job ${rollbackResult.jobId}`,
+          }).eq('asset_id', execution.asset_id).eq('stig_rule_id', execution.stig_rule_id);
+        }
 
         return new Response(JSON.stringify({
-          success: true,
-          message: 'Remediation rolled back successfully',
+          success: rollbackResult.success,
+          awx_job_id: rollbackResult.jobId,
+          message: rollbackResult.success ? 'Remediation rolled back successfully' : 'Rollback failed — manual intervention required',
+          is_simulated: false,
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -344,7 +412,6 @@ serve(async (req) => {
 });
 
 function extractSTIGRulesFromPlaybook(playbookContent: string): string[] {
-  // Extract STIG rule IDs from playbook variables
   const rules: string[] = [];
   const ruleMatches = playbookContent.matchAll(/(?:rhel|ubuntu|win)_\d{2}_\d{6}/gi);
   
@@ -355,28 +422,3 @@ function extractSTIGRulesFromPlaybook(playbookContent: string): string[] {
   return [...new Set(rules)];
 }
 
-function generateSuccessOutput(ruleId: string, assetName: string): string {
-  return `PLAY [Apply STIG ${ruleId}] ****************************************************
-
-TASK [Gathering Facts] *********************************************************
-ok: [${assetName}]
-
-TASK [Apply ${ruleId}] *********************************************************
-changed: [${assetName}]
-
-PLAY RECAP *********************************************************************
-${assetName}               : ok=2    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0`;
-}
-
-function generateFailureOutput(ruleId: string, assetName: string): string {
-  return `PLAY [Apply STIG ${ruleId}] ****************************************************
-
-TASK [Gathering Facts] *********************************************************
-ok: [${assetName}]
-
-TASK [Apply ${ruleId}] *********************************************************
-fatal: [${assetName}]: FAILED! => {"changed": false, "msg": "Prerequisites not met"}
-
-PLAY RECAP *********************************************************************
-${assetName}               : ok=1    changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0`;
-}

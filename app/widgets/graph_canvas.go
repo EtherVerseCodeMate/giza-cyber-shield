@@ -25,18 +25,19 @@ const (
 	physRepulsion  = float64(18000)
 	physSpring     = float64(0.006)
 	physRestLen    = float64(160)
-	physDamping    = float64(0.82)
+	physDamping    = float64(0.88) // higher damping → faster energy bleed → quicker settle
 	physMaxVel     = float64(22)
 	physGravity    = float64(0.001)
-	physSteps      = int32(800)
+	physSteps      = int32(180)   // 180 × 16ms ≈ 3s of active layout, then idle glow
 	physTickMillis = 16
 )
 
 // Pool sizes pre-allocated to avoid per-frame heap allocations.
-// Covers Pilot (≤50 assets), Program (≤500), and aggregated Enterprise views.
+// Sized for 1 root + 14 domains + ~400 STIG family aggregates + finding nodes.
+// Excess nodes beyond the pool are invisible; increase if node counts grow further.
 const (
-	maxPoolEdges = 600
-	maxPoolNodes = 300
+	maxPoolEdges = 1200
+	maxPoolNodes = 600
 )
 
 // (physics state is models.PhysicsState — see app/models/compliance_model.go)
@@ -83,9 +84,23 @@ func NewGraphCanvas(m *models.ComplianceGraphModel) *GraphCanvas {
 }
 
 // TriggerLayout restarts the physics engine for a full layout pass.
-// Call this after adding new nodes to the model.
+// Steps scale with the current node count so larger graphs settle properly:
+//   < 50 nodes  → 180 steps (~3s)
+//   50–200 nodes → 300 steps (~5s)
+//   > 200 nodes  → 450 steps (~7s)
 func (g *GraphCanvas) TriggerLayout() {
-	atomic.StoreInt32(&g.stepsLeft, physSteps)
+	g.model.RLock()
+	n := len(g.model.Nodes)
+	g.model.RUnlock()
+
+	steps := int32(physSteps) // baseline: 180
+	if n > 50 {
+		steps = 300
+	}
+	if n > 200 {
+		steps = 450
+	}
+	atomic.StoreInt32(&g.stepsLeft, steps)
 }
 
 // CreateRenderer satisfies fyne.Widget.
@@ -263,31 +278,59 @@ func (g *GraphCanvas) Dragged(ev *fyne.DragEvent) {
 func (g *GraphCanvas) DragEnd() {}
 
 // startPhysics launches the background physics+animation goroutine.
+//
+// Single-ticker design at physTickMillis (16ms). While physics steps remain,
+// stepPhysics() runs every tick and the canvas is refreshed at 60fps.
+// Early exit: if kinetic energy drops below physSettleKE the engine marks
+// itself settled regardless of stepsLeft, avoiding wasted CPU after convergence.
+// Once idle, the canvas refreshes every idleRefreshEvery ticks (~96ms) to
+// animate glow/pulse at low CPU cost. TriggerLayout() is picked up within
+// one 16ms tick so post-scan layout restart is immediate.
 func (g *GraphCanvas) startPhysics() {
+	const (
+		idleRefreshEvery = 6         // refresh once per ~96ms at idle
+		physSettleKE     = float64(8) // kinetic energy threshold for early settle
+	)
+
 	atomic.StoreInt32(&g.stepsLeft, physSteps)
 	go func() {
 		ticker := time.NewTicker(physTickMillis * time.Millisecond)
 		defer ticker.Stop()
+		idleTick := 0
 		for range ticker.C {
-			if atomic.LoadInt32(&g.stepsLeft) > 0 {
-				g.stepPhysics()
-				atomic.AddInt32(&g.stepsLeft, -1)
+			active := atomic.LoadInt32(&g.stepsLeft) > 0
+			if active {
+				ke := g.stepPhysics()
+				if ke < physSettleKE {
+					// Kinetic energy negligible — layout has converged; stop early.
+					atomic.StoreInt32(&g.stepsLeft, 0)
+					active = false
+				} else {
+					atomic.AddInt32(&g.stepsLeft, -1)
+				}
+				idleTick = 0
+			} else {
+				idleTick++
 			}
-			g.mu.Lock()
-			g.animTick++
-			g.mu.Unlock()
-			fyne.Do(func() { canvas.Refresh(g) })
+			if active || idleTick%idleRefreshEvery == 0 {
+				g.mu.Lock()
+				g.animTick++
+				g.mu.Unlock()
+				fyne.Do(func() { canvas.Refresh(g) })
+			}
 		}
 	}()
 }
 
-// stepPhysics executes one force-directed physics step.
+// stepPhysics executes one force-directed physics step and returns total
+// kinetic energy (sum of |v|² across all unpinned nodes). The caller uses this
+// to detect convergence and stop physics early.
 //
 // Thread safety pattern (avoids double-lock deadlock):
 //   1. Call model.Snapshot() — acquires + releases one read lock, returns copies
 //   2. Compute forces on local data (no lock held)
 //   3. Call model.ApplyPhysics() — acquires + releases one write lock
-func (g *GraphCanvas) stepPhysics() {
+func (g *GraphCanvas) stepPhysics() float64 {
 	snap, edges := g.model.Snapshot()
 
 	idxByID := make(map[string]int, len(snap))
@@ -338,29 +381,30 @@ func (g *GraphCanvas) stepPhysics() {
 		forces[ti].y -= mag * uy
 	}
 
-	// Velocity and position integration
+	// Velocity and position integration; accumulate kinetic energy for convergence check.
+	var ke float64
+	clamp := func(v float64) float64 {
+		if v > physMaxVel {
+			return physMaxVel
+		}
+		if v < -physMaxVel {
+			return -physMaxVel
+		}
+		return v
+	}
 	for i := range snap {
 		if snap[i].Pinned {
 			continue
 		}
-		snap[i].VX = (snap[i].VX + forces[i].x - physGravity*snap[i].X) * physDamping
-		snap[i].VY = (snap[i].VY + forces[i].y - physGravity*snap[i].Y) * physDamping
-		clamp := func(v float64) float64 {
-			if v > physMaxVel {
-				return physMaxVel
-			}
-			if v < -physMaxVel {
-				return -physMaxVel
-			}
-			return v
-		}
-		snap[i].VX = clamp(snap[i].VX)
-		snap[i].VY = clamp(snap[i].VY)
+		snap[i].VX = clamp((snap[i].VX+forces[i].x-physGravity*snap[i].X)*physDamping)
+		snap[i].VY = clamp((snap[i].VY+forces[i].y-physGravity*snap[i].Y)*physDamping)
 		snap[i].X += snap[i].VX
 		snap[i].Y += snap[i].VY
+		ke += snap[i].VX*snap[i].VX + snap[i].VY*snap[i].VY
 	}
 
 	g.model.ApplyPhysics(snap)
+	return ke
 }
 
 // graphRenderer is the Fyne WidgetRenderer for GraphCanvas.
@@ -429,10 +473,10 @@ func (r *graphRenderer) Refresh() {
 		return cx + (gx-px)*z, cy + (gy-py)*z
 	}
 
-	r.parent.model.RLock()
-	nodes := r.parent.model.Nodes
-	edges := r.parent.model.EdgesSnapshot()
-	r.parent.model.RUnlock()
+	// RenderSnapshot acquires a single read lock and returns both nodes and edges.
+	// Using two separate lock calls (one for nodes, one for EdgesSnapshot) is unsafe:
+	// a waiting writer between the two calls causes a deadlock.
+	nodes, edges := r.parent.model.RenderSnapshot()
 
 	// Build index for edge resolution
 	idxByID := make(map[string]int, len(nodes))

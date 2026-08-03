@@ -27,6 +27,10 @@ type ReadinessTab struct {
 	win     fyne.Window
 	backend hub.Backend
 
+	// Refresh is exported so showMainWindow can trigger a data refresh after a scan.
+	// Set by showMainWindow immediately after NewReadinessTab is called.
+	TriggerRefresh func()
+
 	// SPRS tile labels
 	sprsScoreLabel   *canvas.Text
 	sprsStatusLabel  *canvas.Text
@@ -59,6 +63,10 @@ func NewReadinessTab(win fyne.Window, backend hub.Backend) *ReadinessTab {
 }
 
 func (t *ReadinessTab) Content() fyne.CanvasObject { return t.content }
+
+// Refresh re-polls the backend for updated SPRS and fleet data.
+// Safe to call from any goroutine; UI mutations are marshalled to the Fyne thread.
+func (t *ReadinessTab) Refresh() { go t.refresh() }
 
 func (t *ReadinessTab) build() {
 	pageTitle := canvas.NewText("Readiness Gate", asaftheme.TextPrimary)
@@ -219,6 +227,7 @@ func (t *ReadinessTab) refresh() {
 	var totalAssets int
 	var aggregateSPRS int
 	domainScores := make(map[string]float64)
+	scanned := false // true once at least one enclave has a completed scan
 
 	for _, enc := range enclaves {
 		assets, _ := t.backend.GetAssets(ctx, enc.ID)
@@ -226,6 +235,9 @@ func (t *ReadinessTab) refresh() {
 
 		sprs, err := t.backend.GetSPRS(ctx, enc.ID)
 		if err == nil && sprs != nil {
+			if !sprs.ComputedAt.IsZero() {
+				scanned = true
+			}
 			aggregateSPRS += sprs.Score
 			for domain, score := range sprs.DomainScores {
 				domainScores[domain] += score
@@ -244,11 +256,23 @@ func (t *ReadinessTab) refresh() {
 		t.assetCountText.Text = fmt.Sprintf("%d", totalAssets)
 		t.assetCountText.Refresh()
 
-		t.sprsScoreLabel.Text = fmt.Sprintf("%d", avgSPRS)
-		t.sprsScoreLabel.Color = sprsColorFor(avgSPRS)
+		if scanned {
+			t.sprsScoreLabel.Text = fmt.Sprintf("%d", avgSPRS)
+			t.sprsScoreLabel.Color = sprsColorFor(avgSPRS)
+		} else {
+			t.sprsScoreLabel.Text = "—"
+			t.sprsScoreLabel.Color = asaftheme.TextMuted
+		}
 		t.sprsScoreLabel.Refresh()
 
-		statusText, statusColor := sprsStatusText(avgSPRS)
+		var statusText string
+		var statusColor color.Color
+		if scanned {
+			statusText, statusColor = sprsStatusText(avgSPRS)
+		} else {
+			statusText = "Run a scan on the Compliance Graph tab to assess this host."
+			statusColor = asaftheme.TextMuted
+		}
 		t.sprsStatusLabel.Text = statusText
 		t.sprsStatusLabel.Color = statusColor
 		t.sprsStatusLabel.Refresh()

@@ -44,7 +44,7 @@ func (wiz *Wizard) buildPage(idx int) fyne.CanvasObject {
 	return widget.NewLabel("Unknown page")
 }
 
-// ─── Page 1: Welcome ──────────────────────────────────────────────────────────
+// --- Page 1: Welcome ----------------------------------------------------------
 
 func (wiz *Wizard) makePage1Welcome() fyne.CanvasObject {
 	iconRes := fyne.NewStaticResource("icon.svg", iconSVGBytes)
@@ -93,7 +93,7 @@ func (wiz *Wizard) makePage1Welcome() fyne.CanvasObject {
 	)
 }
 
-// ─── Page 2: EULA ─────────────────────────────────────────────────────────────
+// --- Page 2: EULA -------------------------------------------------------------
 
 func (wiz *Wizard) makePage2EULA() fyne.CanvasObject {
 	eulaEntry := widget.NewMultiLineEntry()
@@ -129,7 +129,7 @@ func (wiz *Wizard) makePage2EULA() fyne.CanvasObject {
 	)
 }
 
-// ─── Page 3: License Key ──────────────────────────────────────────────────────
+// --- Page 3: License Key ------------------------------------------------------
 
 func (wiz *Wizard) makePage3LicenseKey() fyne.CanvasObject {
 	note := widget.NewLabel(
@@ -212,7 +212,7 @@ func parseLicenseTier(raw string) string {
 	return outer.License.Tier
 }
 
-// ─── Page 4: Install Directory ────────────────────────────────────────────────
+// --- Page 4: Install Directory ------------------------------------------------
 
 func (wiz *Wizard) makePage4InstallDir() fyne.CanvasObject {
 	note := widget.NewLabel("Choose where AdinKhepra ASAF will be installed.")
@@ -256,7 +256,7 @@ func (wiz *Wizard) makePage4InstallDir() fyne.CanvasObject {
 	)
 }
 
-// ─── Page 5: Components ──────────────────────────────────────────────────────
+// --- Page 5: Components ------------------------------------------------------
 
 func (wiz *Wizard) makePage5Components() fyne.CanvasObject {
 	note := widget.NewLabel("Select the components to install:")
@@ -323,7 +323,7 @@ func (wiz *Wizard) makePage5Components() fyne.CanvasObject {
 	)
 }
 
-// ─── Page 6: Installing ───────────────────────────────────────────────────────
+// --- Page 6: Installing -------------------------------------------------------
 
 func (wiz *Wizard) makePage6Installing() fyne.CanvasObject {
 	wiz.progressBar.SetValue(0)
@@ -344,7 +344,7 @@ func (wiz *Wizard) makePage6Installing() fyne.CanvasObject {
 	)
 }
 
-// ─── Page 7: Finish ───────────────────────────────────────────────────────────
+// --- Page 7: Finish -----------------------------------------------------------
 
 func (wiz *Wizard) makePage7Finish() fyne.CanvasObject {
 	var headline *canvas.Text

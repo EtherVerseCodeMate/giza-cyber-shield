@@ -134,6 +134,8 @@ func DefaultPort(p ConnectorProtocol) int {
 func AutoDetectSTIGProfile(osStr string) string {
 	lower := toLower(osStr)
 	switch {
+	case (contains(lower, "rhel") || contains(lower, "red hat")) && contains(lower, " 10"):
+		return "rhel10" // RHEL 10 V1R2 — must check before generic rhel match
 	case contains(lower, "rhel") || contains(lower, "red hat"):
 		return "rhel9"
 	case contains(lower, "centos") || contains(lower, "almalinux") || contains(lower, "rocky"):

@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"net"
 	"sync"
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/client"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/connector"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/daemon"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/policy"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
 )
@@ -34,6 +36,7 @@ type LocalBackend struct {
 	dagStore     dag.Store                  // local DAG (pkg/dag.Memory unless caller provides persistent)
 	aiProvider   AIProviderBridge           // nil if offline / not configured
 	registry     *connector.ConnectorRegistry // nil if agent key not loaded yet
+	ebg          *policy.EgressBoundaryGuard // enforces target confinement before dial
 
 	mu              sync.RWMutex
 	lastSPRS        int
@@ -56,6 +59,7 @@ func NewLocalBackend(daemonClient *client.Client, dagStore dag.Store, aiProvider
 		daemonClient: daemonClient,
 		dagStore:     dagStore,
 		aiProvider:   aiProvider,
+		ebg:          policy.NewEgressBoundaryGuard([]string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}, dagStore, nil, nil, nil, "local-desktop", nil),
 		lastSPRS:     110,
 	}
 }
@@ -75,6 +79,12 @@ func (b *LocalBackend) SetLastScan(report *stig.ComprehensiveReport, sprs int, h
 	b.lastSPRS = sprs
 	b.lastScanHost = host
 	b.lastScanTime = time.Now()
+}
+
+// NotifyScanDone implements Backend — stores the completed scan result so that
+// Readiness Gate, SSP, POA&M, and the KASA feed all see consistent post-scan data.
+func (b *LocalBackend) NotifyScanDone(report *stig.ComprehensiveReport, sprsScore int, hostname string) {
+	b.SetLastScan(report, sprsScore, hostname)
 }
 
 // Mode implements Backend.
@@ -174,20 +184,37 @@ func (b *LocalBackend) GetSPRS(_ context.Context, _ string) (*SPRSResult, error)
 }
 
 // Scan implements Backend — runs a STIG baseline scan in-process.
+// v.Validate() is run in a goroutine so the caller's context deadline
+// (set to 5 minutes in executeScan) is honoured and can cancel the scan
+// if any subprocess hangs (e.g. auditpol, manage-bde, PowerShell on AV-intercepted hosts).
 func (b *LocalBackend) Scan(ctx context.Context, assetID string) (*stig.ComprehensiveReport, error) {
-	// assetID in standalone mode is ignored — we always scan localhost.
 	_ = assetID
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	default:
 	}
-	v := stig.NewValidator("")
-	report, err := v.Validate()
-	if err != nil && report == nil {
-		return nil, fmt.Errorf("local scan: %w", err)
+
+	type scanResult struct {
+		report *stig.ComprehensiveReport
+		err    error
 	}
-	return report, err
+	ch := make(chan scanResult, 1)
+	go func() {
+		v := stig.NewValidator("")
+		report, err := v.Validate()
+		ch <- scanResult{report, err}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil, fmt.Errorf("local scan: %w", ctx.Err())
+	case r := <-ch:
+		if r.err != nil && r.report == nil {
+			return nil, fmt.Errorf("local scan: %w", r.err)
+		}
+		return r.report, r.err
+	}
 }
 
 // GetPendingApprovals implements Backend — queries local Imhotep daemon staging queue.
@@ -267,21 +294,24 @@ func (b *LocalBackend) GetDAGHistory(_ context.Context) ([]DAGNode, error) {
 }
 
 // Ask implements Backend — routes to local AI provider (Ollama → offline fallback).
-func (b *LocalBackend) Ask(_ context.Context, query string) (*AskResponse, error) {
+// ctx is honoured: the caller's deadline (e.g. 30s from tab_ssp.go) propagates
+// to the Ollama HTTP request so the UI isn't blocked past the context deadline.
+func (b *LocalBackend) Ask(ctx context.Context, query string) (*AskResponse, error) {
 	if b.aiProvider == nil {
-		// In Standalone mode with no Ollama: return actionable instructions.
 		return &AskResponse{
 			Answer: "[Standalone Mode — AI Not Configured]\n\n" +
 				"To enable Ask AI in Standalone mode, start Ollama locally:\n" +
-				"  ollama pull llama3.1:8b\n" +
-				"  ollama run llama3.1:8b\n\n" +
+				"  ollama serve\n" +
+				"  ollama pull gemma3:4b\n\n" +
 				"Then go to Settings → AI Provider and click [Apply & Save].\n\n" +
+				"Alternatively, if your environment permits egress, you can configure the remote\n" +
+				"endpoint (https://mcp.souhimbou.ai) in the AI Provider settings.\n\n" +
 				"Or connect to a Stargate Hub (Settings → Hub URL) for cloud-routed AI.\n\n" +
 				"Your query was: " + query,
 		}, nil
 	}
 	msgs := []AIMessage{{Role: "user", Content: query}}
-	answer, err := b.aiProvider.Chat(msgs, false)
+	answer, err := b.aiProvider.ChatCtx(ctx, msgs, false)
 	if err != nil {
 		return nil, fmt.Errorf("local ask: %w", err)
 	}
@@ -427,6 +457,19 @@ func (b *LocalBackend) AddAsset(_ context.Context, req AddAssetRequest) (*Asset,
 
 // TestConnection implements Backend — dispatches to the correct connector.
 func (b *LocalBackend) TestConnection(ctx context.Context, cfg ConnectorConfig, cred *ConnectorCred) (*TestResult, error) {
+	if b.ebg != nil {
+		hostToCheck := cfg.Host
+		if cfg.Protocol == connector.ProtoNmap {
+			hostToCheck = cfg.CIDRRange // rudimentary check for Nmap Mode A
+			if ip, _, err := net.ParseCIDR(hostToCheck); err == nil {
+				hostToCheck = ip.String()
+			}
+		}
+		if err := b.ebg.CheckTarget(ctx, hostToCheck); err != nil {
+			return &TestResult{Success: false, Message: "Egress Blocked: " + err.Error()}, nil
+		}
+	}
+
 	var c connector.Connector
 	switch cfg.Protocol {
 	case connector.ProtoSSH:
@@ -476,6 +519,15 @@ func (b *LocalBackend) ImportCSV(ctx context.Context, rows []CSVAssetRow, enclav
 
 // DiscoverSubnet implements Backend — runs subnet discovery via SubnetConnector.
 func (b *LocalBackend) DiscoverSubnet(ctx context.Context, cidr string, opts DiscoveryOptions) (<-chan DiscoveredHost, error) {
+	if b.ebg != nil {
+		ip, _, err := net.ParseCIDR(cidr)
+		if err == nil {
+			if err := b.ebg.CheckTarget(ctx, ip.String()); err != nil {
+				return nil, fmt.Errorf("egress blocked: %w", err)
+			}
+		}
+	}
+
 	cfg := connector.ConnectorConfig{
 		CIDRRange: cidr,
 		EnclaveID: localEnclaveID,
@@ -510,4 +562,13 @@ func (b *LocalBackend) SaveConnector(_ context.Context, cfg ConnectorConfig, cre
 		return fmt.Errorf("connector registry not initialised — agent key not loaded yet")
 	}
 	return reg.Save(cfg, cred)
+}
+
+func (b *LocalBackend) SetBoundary(ctx context.Context, cidrs []string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.ebg != nil {
+		b.ebg.EnclaveCIDRs = append(b.ebg.EnclaveCIDRs, cidrs...)
+	}
+	return nil
 }

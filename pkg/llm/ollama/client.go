@@ -2,6 +2,7 @@ package ollama
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -38,8 +39,14 @@ type generateResponse struct {
 	Done     bool   `json:"done"`
 }
 
-// Generate sends a prompt to the Ollama API.
+// Generate sends a prompt to the Ollama API using a background context.
 func (c *Client) Generate(prompt string, systemPrompt string) (string, error) {
+	return c.GenerateCtx(context.Background(), prompt, systemPrompt)
+}
+
+// GenerateCtx sends a prompt to the Ollama API, honouring ctx for cancellation
+// and deadline propagation. Use this from any call site that has a caller context.
+func (c *Client) GenerateCtx(ctx context.Context, prompt string, systemPrompt string) (string, error) {
 	reqBody := generateRequest{
 		Model:  c.Model,
 		Prompt: prompt,
@@ -53,7 +60,7 @@ func (c *Client) Generate(prompt string, systemPrompt string) (string, error) {
 	}
 
 	url := fmt.Sprintf("%s/api/generate", c.BaseURL)
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", err
 	}

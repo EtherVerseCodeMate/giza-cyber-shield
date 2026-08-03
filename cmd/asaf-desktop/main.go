@@ -10,6 +10,7 @@
 package main
 
 import (
+	"context"
 	_ "embed"
 	"encoding/json"
 	"flag"
@@ -156,8 +157,16 @@ func runGUI(hubURL string, embedHub bool, agentID string, insecure bool) {
 	}
 
 	// Read Ollama settings persisted by the Settings tab.
+	// If the stored model preference is the default placeholder and Ollama is
+	// reachable, discover what's actually installed rather than sending a 404.
 	ollamaURL := a.Preferences().StringWithFallback("ollama_url", "http://localhost:11434")
-	ollamaModel := a.Preferences().StringWithFallback("ollama_model", "llama3.1:8b")
+	ollamaModel := a.Preferences().StringWithFallback("ollama_model", "")
+	if ollamaModel == "" || ollamaModel == "llama3.1:8b" {
+		if discovered := ollama.DiscoverModel(ollamaURL); discovered != "" {
+			ollamaModel = discovered
+			a.Preferences().SetString("ollama_model", ollamaModel)
+		}
+	}
 
 	backend, err := buildBackend(mode, hubURL, agentID, insecure, ollamaURL, ollamaModel)
 	if err != nil {
@@ -167,7 +176,7 @@ func runGUI(hubURL string, embedHub bool, agentID string, insecure bool) {
 
 	splash.Close()
 
-	showMainWindow(a, tier, backend)
+	showAuthScreen(a, tier, backend)
 
 	a.Run()
 }
@@ -245,18 +254,21 @@ func probeOllama(baseURL string) bool {
 	return resp.StatusCode == http.StatusOK
 }
 
-// ollamaBridge wraps ollama.Client to implement g0dm0d3.AIProvider.
+// ollamaBridge wraps ollama.Client to implement intelligence.AIProvider.
 // Kept in main to avoid a circular import (cmd → pkg).
 type ollamaBridge struct {
 	client *ollama.Client
 	model  string
 }
 
-func (b *ollamaBridge) Chat(msgs []hub.AIMessage, _ bool) (string, error) {
+func (b *ollamaBridge) Chat(msgs []hub.AIMessage, stream bool) (string, error) {
+	return b.ChatCtx(context.Background(), msgs, stream)
+}
+
+func (b *ollamaBridge) ChatCtx(ctx context.Context, msgs []hub.AIMessage, _ bool) (string, error) {
 	if len(msgs) == 0 {
 		return "", nil
 	}
-	// Build system prompt from any system messages, use last user message as prompt.
 	systemPrompt := "You are an AI compliance assistant for AdinKhepra ASAF. " +
 		"Answer questions about CMMC, STIG, NIST 800-171, and cybersecurity compliance."
 	for _, m := range msgs {
@@ -265,7 +277,7 @@ func (b *ollamaBridge) Chat(msgs []hub.AIMessage, _ bool) (string, error) {
 		}
 	}
 	prompt := msgs[len(msgs)-1].Content
-	return b.client.Generate(prompt, systemPrompt)
+	return b.client.GenerateCtx(ctx, prompt, systemPrompt)
 }
 
 func (b *ollamaBridge) Name() string { return "ollama/" + b.model }
@@ -421,6 +433,7 @@ func showMainWindow(a fyne.App, tier string, backend hub.Backend) {
 	tab6 := views.NewReadinessTab(w, backend)
 	tab7 := views.NewEvidenceTab(w, backend)
 	tab8 := views.NewSettingsTab(w, backend)
+	tab9 := views.NewBillingTab(w, backend)
 
 	tabs := container.NewAppTabs(
 		container.NewTabItem("Compliance Graph", tab1.Content()),
@@ -431,8 +444,19 @@ func showMainWindow(a fyne.App, tier string, backend hub.Backend) {
 		container.NewTabItem("Readiness Gate", tab6.Content()),
 		container.NewTabItem("Evidence Package", tab7.Content()),
 		container.NewTabItem("Settings", tab8.Content()),
+		container.NewTabItem("Subscription & Billing", tab9.Content()),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
+
+	// Wire context-menu tab navigation callbacks (set after tabs is created so SelectIndex is available)
+	tab1.OnSwitchTab = func(i int) { tabs.SelectIndex(i) }
+
+	// Wire scan-done notification: after every scan, push fresh data to Readiness Gate, SSP, POA&M.
+	tab1.OnScanDone = func() {
+		tab3.Refresh() // Live SSP updates
+		tab4.Refresh() // Live POAM updates
+		tab6.Refresh() // Readiness Gate
+	}
 
 	// Footer — always visible per §13 (patent line required)
 	footer := container.NewHBox(

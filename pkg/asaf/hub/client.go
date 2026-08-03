@@ -211,6 +211,9 @@ func (c *HubClient) Ask(ctx context.Context, query string) (*AskResponse, error)
 	return &resp, nil
 }
 
+// NotifyScanDone implements Backend — no-op for HubClient; the Hub manages its own state.
+func (c *HubClient) NotifyScanDone(_ *stig.ComprehensiveReport, _ int, _ string) {}
+
 // StreamKASA implements Backend — opens an SSE stream to /api/v1/kasa/stream.
 // Returns a channel of KASAEvents; the caller must cancel ctx to close.
 func (c *HubClient) StreamKASA(ctx context.Context) (<-chan KASAEvent, error) {
@@ -423,5 +426,11 @@ func (c *HubClient) do(req *http.Request, result any) error {
 	if result != nil {
 		return json.NewDecoder(resp.Body).Decode(result)
 	}
+	return nil
+}
+
+func (c *HubClient) SetBoundary(ctx context.Context, cidrs []string) error {
+	// For connected mode, boundary scoping is managed server-side by the Hub.
+	// This could be wired to a POST /api/v1/fleet/boundary if the Hub supported dynamic updates.
 	return nil
 }

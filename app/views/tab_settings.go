@@ -99,7 +99,7 @@ func (t *SettingsTab) build() {
 	connHelpText := func() string {
 		switch mode {
 		case hub.ModeConnected:
-			return "Connected to remote Stargate Hub. All compliance data flows through the Hub API."
+			return "Connected to remote Stargate hub. All compliance data flows through the Hub API."
 		case hub.ModeEmbeddedHub:
 			return "Running embedded Hub subprocess on localhost:8443. No external network required."
 		default:

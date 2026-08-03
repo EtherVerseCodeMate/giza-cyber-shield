@@ -149,3 +149,10 @@ test_key_*
 telemetry-keys/
 vercel.env
 *.key
+
+# Demo local secrets (never commit)
+.env.demo.local
+.env.local
+
+# Ignore environment files
+*.env

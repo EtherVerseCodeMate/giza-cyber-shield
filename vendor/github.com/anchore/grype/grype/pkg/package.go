@@ -381,7 +381,7 @@ func apkMetadataFromPkg(p syftPkg.Package) any {
 	if m, ok := p.Metadata.(syftPkg.ApkDBEntry); ok {
 		// Grype's APK Metadata only has files, so return early
 		// and leave the field blank if there are no files.
-		if len(m.Files) == 0 {
+		if len(m.Files) == 0 && m.Architecture == "" {
 			return nil
 		}
 
@@ -391,7 +391,10 @@ func apkMetadataFromPkg(p syftPkg.Package) any {
 			fileRecords = append(fileRecords, r)
 		}
 
-		return ApkMetadata{Files: fileRecords}
+		return ApkMetadata{
+			Files: fileRecords,
+			Arch:  m.Architecture,
+		}
 	}
 
 	return nil
@@ -408,6 +411,9 @@ func golangMetadataFromPkg(p syftPkg.Package) any {
 		metadata.Architecture = value.Architecture
 		metadata.H1Digest = value.H1Digest
 		metadata.MainModule = value.MainModule
+		// normalize once here, on the provider path, so the gosymbols qualifier never re-normalizes
+		// per candidate vulnerability during matching.
+		metadata.Symbols = normalizeGoSymbols(value.Symbols)
 		return metadata
 	case syftPkg.GolangModuleEntry:
 		metadata := GolangModMetadata{}
@@ -455,10 +461,11 @@ func rpmDataFromPkg(p syftPkg.Package) (metadata *RpmMetadata, upstreams []Upstr
 			upstreams = handleSourceRPM(p.Name, m.SourceRpm)
 		}
 
-		if m.Epoch != nil || m.ModularityLabel != nil {
+		if m.Epoch != nil || m.ModularityLabel != nil || m.Arch != "" {
 			metadata = &RpmMetadata{
 				Epoch:           m.Epoch,
 				ModularityLabel: m.ModularityLabel,
+				Arch:            m.Arch,
 			}
 		}
 	case syftPkg.RpmArchive:
@@ -466,10 +473,11 @@ func rpmDataFromPkg(p syftPkg.Package) (metadata *RpmMetadata, upstreams []Upstr
 			upstreams = handleSourceRPM(p.Name, m.SourceRpm)
 		}
 
-		if m.Epoch != nil || m.ModularityLabel != nil {
+		if m.Epoch != nil || m.ModularityLabel != nil || m.Arch != "" {
 			metadata = &RpmMetadata{
 				Epoch:           m.Epoch,
 				ModularityLabel: m.ModularityLabel,
+				Arch:            m.Arch,
 			}
 		}
 	}

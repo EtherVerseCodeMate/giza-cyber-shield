@@ -13,6 +13,7 @@
 package stig
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -1215,8 +1216,13 @@ func runPowerShell(command string) (string, error) {
 	return out, err
 }
 
-// execCommand is a thin wrapper over exec.Command that returns trimmed stdout.
+// execCommand runs a subprocess with a 10-second hard timeout.
+// AV products (e.g. BitDefender ATP) can intercept and delay auditpol,
+// manage-bde, and PowerShell calls indefinitely; the timeout ensures the
+// scan goroutine is never permanently stuck on a single check.
 func execCommand(name string, args ...string) (string, error) {
-	out, err := exec.Command(name, args...).Output()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, name, args...).Output()
 	return strings.TrimSpace(string(out)), err
 }

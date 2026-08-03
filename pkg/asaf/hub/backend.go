@@ -71,9 +71,16 @@ type Backend interface {
 	GetDAGHistory(ctx context.Context) ([]DAGNode, error)
 
 	// Ask sends a natural language compliance query.
-	// In standalone: routes to local g0dm0d3 AI brain (Ollama → offline fallback).
+	// In standalone: routes to local intelligence AI brain (Ollama → offline fallback).
 	// In connected: POST /api/v1/mcp/ask
 	Ask(ctx context.Context, query string) (*AskResponse, error)
+
+	// NotifyScanDone pushes the completed scan result back into the backend so that
+	// all other tabs (Readiness Gate, SSP, POA&M, KASA feed) see up-to-date data.
+	// Called by the Compliance Graph tab after ingestReport + FinalizeScan complete.
+	// LocalBackend: stores lastReport, lastSPRS, lastScanHost, lastScanTime.
+	// HubClient: no-op — Hub manages its own state server-side.
+	NotifyScanDone(report *stig.ComprehensiveReport, sprsScore int, hostname string)
 
 	// StreamKASA opens a real-time KASA event stream.
 	// In standalone: bridges the local pkg/agi Engine log.
@@ -112,6 +119,9 @@ type Backend interface {
 	// In standalone: writes to ConnectorRegistry.
 	// In connected: POST /api/v1/fleet/connectors
 	SaveConnector(ctx context.Context, cfg ConnectorConfig, cred *ConnectorCred) error
+
+	// SetBoundary updates the allowed egress CIDRs for the local guard.
+	SetBoundary(ctx context.Context, cidrs []string) error
 }
 
 // ErrNotConnected is returned by Hub-only operations when in ModeStandalone.

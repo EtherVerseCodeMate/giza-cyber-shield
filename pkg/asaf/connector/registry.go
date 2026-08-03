@@ -34,6 +34,10 @@ type ConnectorRegistry struct {
 // NewConnectorRegistry loads (or creates) the connector store from the ASAF config dir.
 // agentKeyBytes should be the ML-DSA-65 private key bytes used to derive the vault key.
 func NewConnectorRegistry(agentKeyBytes []byte) (*ConnectorRegistry, error) {
+	if len(agentKeyBytes) == 0 {
+		return nil, fmt.Errorf("connector registry: ML-DSA-65 agent key required, vault fails closed without it")
+	}
+
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("connector registry: home dir: %w", err)

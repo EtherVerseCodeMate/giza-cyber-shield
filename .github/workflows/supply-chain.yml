@@ -15,7 +15,15 @@ permissions:
   attestations: write  # Required for cosign image attestation
 
 env:
-  GO_VERSION: '1.26'
+  # Must satisfy the go.mod directive (go 1.26.4): cyclonedx-gomod invokes
+  # `go list` against the hosted toolchain directly, so an older pin makes
+  # the SBOM job fail with "failed to load modules".
+  GO_VERSION: '1.26.4'
+  # Resolve modules from the committed vendor/ tree. go.mod replaces
+  # github.com/nouchix/PQC-Khepra-MCP with ../PQC-Khepra-MCP, which does not
+  # exist in a single-repo CI checkout — any `go list` outside vendor mode
+  # (e.g. inside cyclonedx-gomod) fails to load the module graph.
+  GOFLAGS: '-mod=vendor'
   # GHCR (open-core community + Antigravity/Cline/Cursor distribution)
   GHCR_REGISTRY: ghcr.io
   GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/khepra-mcp

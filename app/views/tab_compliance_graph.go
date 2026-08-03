@@ -37,6 +37,15 @@ type ComplianceGraphTab struct {
 	phasePanel  *widgets.PhasePanel
 	statusBar   *widgets.StatusBar
 	content     *fyne.Container
+
+	// OnSwitchTab is set by showMainWindow to switch the active AppTabs item.
+	// tabIndex follows the tab order in showMainWindow (0=Compliance, 2=SSP, 3=POA&M, …).
+	OnSwitchTab func(tabIndex int)
+
+	// OnScanDone is called after every scan completes (success or partial).
+	// showMainWindow wires this to ReadinessTab.Refresh() so the Readiness Gate,
+	// KASA feed, and domain heatmap all update automatically without manual refresh.
+	OnScanDone func()
 }
 
 // NewComplianceGraphTab constructs Tab 1 and wires all inter-widget callbacks.
@@ -45,11 +54,10 @@ type ComplianceGraphTab struct {
 func NewComplianceGraphTab(win fyne.Window, backend hub.Backend) *ComplianceGraphTab {
 	t := &ComplianceGraphTab{win: win, backend: backend}
 
-	// Model — seeds governance root + 14 domain nodes + Tier 4 family baseline
+	// Model — seeds governance root + 14 domain nodes.
 	t.model = models.NewComplianceGraphModel()
-	go t.model.LoadNotAssessedBaseline() // background: DB load + 397 node creation
 
-	// Widgets
+	// Widgets — must be created before the baseline goroutine so TriggerLayout is safe.
 	t.graphCanvas = widgets.NewGraphCanvas(t.model)
 	t.sidebar = widgets.NewNodeSidebar()
 	t.phasePanel = widgets.NewPhasePanel(t.model.CurrentPhase)
@@ -63,6 +71,13 @@ func NewComplianceGraphTab(win fyne.Window, backend hub.Backend) *ComplianceGrap
 	if db, err := stig.GetDatabase(); err == nil {
 		t.statusBar.SetMappingCount(db.RowCount())
 	}
+
+	// Load Tier 4 STIG family aggregate nodes in the background (DB parse + ~400 nodes).
+	// TriggerLayout fires once complete so physics lays out the new nodes immediately.
+	go func() {
+		t.model.LoadNotAssessedBaseline()
+		t.graphCanvas.TriggerLayout()
+	}()
 
 	// Node tap → sidebar
 	t.graphCanvas.OnNodeSelect = func(n *models.GraphNode) {
@@ -140,10 +155,14 @@ func NewComplianceGraphTab(win fyne.Window, backend hub.Backend) *ComplianceGrap
 		}, t.win)
 	}
 	t.sidebar.OnOpenPOAMPressed = func(nodeID string) {
-		// Open POA&M → Tab 5; surfaced here for discovery.
+		if t.OnSwitchTab != nil {
+			t.OnSwitchTab(3) // POA&M is index 3 in showMainWindow tab order
+		}
 	}
 	t.sidebar.OnViewInSSPPressed = func(nodeID string) {
-		// View in SSP → Tab 3; surfaced here for discovery.
+		if t.OnSwitchTab != nil {
+			t.OnSwitchTab(2) // SSP is index 2 in showMainWindow tab order
+		}
 	}
 
 	// Import Checklist — file picker for .ckl/.cklb/.json; additive (no pre-reset)
@@ -206,10 +225,19 @@ func (t *ComplianceGraphTab) runScan() {
 			}
 			t.model.FinalizeScan(scanTime, hostname)
 
+			// Push result back to the backend so Readiness Gate, SSP, POA&M,
+			// and the KASA feed all read the same post-scan state.
+			t.backend.NotifyScanDone(report, t.model.SPRS(), hostname)
+
 			t.phasePanel.SetPhase(t.model.Phase(), false)
 			t.statusBar.Update(t.model.SPRS(), t.model.ScanTime(), false)
 			t.graphCanvas.TriggerLayout()
 			canvas.Refresh(t.graphCanvas)
+
+			// Notify other tabs that scan data is now available in the backend.
+			if t.OnScanDone != nil {
+				go t.OnScanDone()
+			}
 		})
 	}()
 }

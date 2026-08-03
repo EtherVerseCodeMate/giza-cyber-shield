@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -71,27 +71,11 @@ export const ThreatIntelligenceOrchestrator = () => {
   const [syncInProgress, setSyncInProgress] = useState(false);
   const { threats, loading } = useThreatIntelligence();
 
-  // Simulated MITRE ATT&CK data
-  useEffect(() => {
-    setMitreMatrix([
-      {
-        id: 'enterprise',
-        name: 'ATT&CK for Enterprise',
-        techniques: generateMockMITRETechniques(),
-        coverage: 78,
-        lastUpdate: new Date()
-      }
-    ]);
-
-    setCvssAssessments(generateMockCVSSAssessments());
-    
-    setThreatIntel({
-      sources: ['MITRE ATT&CK', 'NVD CVSS', 'CISA KEV', 'AlienVault OTX', 'AbuseIPDB'],
-      indicators: 15420,
-      lastSync: new Date(),
-      coverage: { mitre: 78, cvss: 92, openSource: 85 }
-    });
-  }, []);
+  // MITRE ATT&CK matrices, CVSS assessments, and threat-intelligence metrics
+  // must be hydrated from a live backend feed (MITRE ATT&CK / NVD CVSS / CISA
+  // KEV / etc.). No feed is wired yet, so this state is intentionally left at
+  // its empty/zero defaults — the UI must render an explicit "no live data"
+  // state rather than display fabricated coverage, indicator counts, or CVEs.
 
   const handleSyncIntelligence = async () => {
     setSyncInProgress(true);
@@ -604,37 +588,8 @@ export const ThreatIntelligenceOrchestrator = () => {
   );
 };
 
-// Mock data generators
-function generateMockMITRETechniques(): MITRETechnique[] {
-  const tactics = ['Reconnaissance', 'Initial Access', 'Execution', 'Persistence', 'Privilege Escalation', 'Defense Evasion', 'Credential Access', 'Discovery', 'Lateral Movement', 'Collection', 'Command and Control', 'Exfiltration', 'Impact'];
-  const platforms = ['Windows', 'Linux', 'macOS', 'AWS', 'Azure', 'GCP', 'Office 365'];
-  
-  return Array.from({ length: 25 }, (_, i) => ({
-    id: `T${(1000 + i).toString()}`,
-    name: `Technique ${i + 1}`,
-    tactic: tactics[i % tactics.length],
-    description: `Sample technique description for T${1000 + i}`,
-    platforms: platforms.slice(0, (i % 4) + 1), // Deterministic slice based on index
-    detectionCoverage: 0, // Real coverage requires threat detection engine data
-    mitigationStatus: 'none' as any, // Real status requires threat intelligence database
-    references: [`https://attack.mitre.org/techniques/T${1000 + i}`]
-  }));
-}
-
-function generateMockCVSSAssessments(): CVSSAssessment[] {
-  const severities: Array<'None' | 'Low' | 'Medium' | 'High' | 'Critical'> = ['Low', 'Medium', 'High', 'Critical'];
-  const symbols = ['Eban', 'Nyame', 'Nkyinkyim', 'Fawohodie', 'Adwo'];
-  
-  return Array.from({ length: 15 }, (_, i) => ({
-    cveId: `CVE-2024-${(1000 + i).toString()}`,
-    baseScore: 0, // Real CVSS score requires NVD or vulnerability feed
-    vector: `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`,
-    severity: severities[i % severities.length], // Deterministic cycle through severities
-    lastAssessed: new Date(),
-    khepraAnalysis: {
-      culturalRisk: 0, // Real cultural risk requires Khepra analysis engine
-      adinkraMapping: symbols[i % symbols.length], // Deterministic cycle
-      protocolRecommendation: `Apply ${symbols[i % symbols.length]} transformation with enhanced monitoring`
-    }
-  }));
-}
+// NOTE: The former generateMockMITRETechniques() and generateMockCVSSAssessments()
+// fabricated 25 techniques and 15 CVSS assessments with placeholder values and
+// presented them as live threat intelligence (SouHimBou audit BU-01, CRITICAL).
+// They have been removed. MITRE/CVSS data must come from a real backend feed;
+// until one is wired, the component renders its empty "no live data" state.

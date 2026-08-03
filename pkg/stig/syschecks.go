@@ -2,12 +2,14 @@ package stig
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // SystemChecker provides real system validation checks
@@ -65,17 +67,24 @@ func (s *SystemChecker) CheckFileOwnership(path string) (uid, gid int, err error
 	return 0, 0, fmt.Errorf("ownership validation requires a Linux build (syscall.Stat_t unavailable on %s)", runtime.GOOS)
 }
 
-// CheckPackageInstalled checks if an RPM/DEB package is installed
+// CheckPackageInstalled checks if an RPM/DEB package is installed.
+// Returns false (not an error) on Windows where these tools don't exist.
 func (s *SystemChecker) CheckPackageInstalled(packageName string) (bool, string, error) {
+	if runtime.GOOS == "windows" {
+		return false, "not applicable on Windows", nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	// Try RPM first (RHEL/CentOS/Fedora)
-	cmd := exec.Command("rpm", "-q", packageName)
+	cmd := exec.CommandContext(ctx, "rpm", "-q", packageName)
 	output, err := cmd.Output()
 	if err == nil {
 		return true, strings.TrimSpace(string(output)), nil
 	}
 
 	// Try dpkg (Debian/Ubuntu)
-	cmd = exec.Command("dpkg", "-l", packageName)
+	cmd = exec.CommandContext(ctx, "dpkg", "-l", packageName)
 	output, err = cmd.Output()
 	if err == nil {
 		lines := strings.Split(string(output), "\n")
@@ -89,34 +98,47 @@ func (s *SystemChecker) CheckPackageInstalled(packageName string) (bool, string,
 	return false, "not installed", nil
 }
 
-// CheckServiceEnabled checks if a systemd service is enabled
+// CheckServiceEnabled checks if a systemd service is enabled.
+// Returns false (not an error) on Windows where systemctl does not exist.
 func (s *SystemChecker) CheckServiceEnabled(serviceName string) (bool, error) {
-	cmd := exec.Command("systemctl", "is-enabled", serviceName)
+	if runtime.GOOS == "windows" {
+		return false, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "systemctl", "is-enabled", serviceName)
 	output, err := cmd.Output()
 	if err != nil {
 		return false, nil // Not enabled
 	}
-
-	status := strings.TrimSpace(string(output))
-	return status == "enabled", nil
+	return strings.TrimSpace(string(output)) == "enabled", nil
 }
 
-// CheckServiceActive checks if a systemd service is active
+// CheckServiceActive checks if a systemd service is active.
+// Returns false (not an error) on Windows where systemctl does not exist.
 func (s *SystemChecker) CheckServiceActive(serviceName string) (bool, error) {
-	cmd := exec.Command("systemctl", "is-active", serviceName)
+	if runtime.GOOS == "windows" {
+		return false, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "systemctl", "is-active", serviceName)
 	output, err := cmd.Output()
 	if err != nil {
 		return false, nil // Not active
 	}
-
-	status := strings.TrimSpace(string(output))
-	return status == "active", nil
+	return strings.TrimSpace(string(output)) == "active", nil
 }
 
-// CheckSELinuxMode checks SELinux mode (enforcing, permissive, disabled)
+// CheckSELinuxMode checks SELinux mode (enforcing, permissive, disabled).
+// Returns "disabled" on Windows where SELinux does not apply.
 func (s *SystemChecker) CheckSELinuxMode() (string, error) {
-	// Try getenforce command
-	cmd := exec.Command("getenforce")
+	if runtime.GOOS == "windows" {
+		return "disabled", nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "getenforce")
 	output, err := cmd.Output()
 	if err == nil {
 		return strings.ToLower(strings.TrimSpace(string(output))), nil
@@ -127,9 +149,7 @@ func (s *SystemChecker) CheckSELinuxMode() (string, error) {
 	if err != nil {
 		return "disabled", nil // SELinux not available
 	}
-
-	enforce := strings.TrimSpace(string(content))
-	if enforce == "1" {
+	if strings.TrimSpace(string(content)) == "1" {
 		return "enforcing", nil
 	}
 	return "permissive", nil
@@ -147,15 +167,19 @@ func (s *SystemChecker) CheckFIPSMode() (bool, error) {
 	return enabled == "1", nil
 }
 
-// CheckSysctlValue reads a sysctl parameter value
+// CheckSysctlValue reads a sysctl parameter value.
+// Returns an error on Windows where sysctl does not exist.
 func (s *SystemChecker) CheckSysctlValue(param string) (string, error) {
-	cmd := exec.Command("sysctl", "-n", param)
-	output, err := cmd.Output()
+	if runtime.GOOS == "windows" {
+		return "", fmt.Errorf("sysctl not available on Windows")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "sysctl", "-n", param).Output()
 	if err != nil {
 		return "", err
 	}
-
-	return strings.TrimSpace(string(output)), nil
+	return strings.TrimSpace(string(out)), nil
 }
 
 // CheckKernelParameter checks if a kernel parameter is set
@@ -224,9 +248,28 @@ func (s *SystemChecker) CheckPasswordPolicy() (map[string]string, error) {
 	return policy, nil
 }
 
-// GetOSVersion gets operating system version
+// GetOSVersion gets operating system version.
 func (s *SystemChecker) GetOSVersion() (string, error) {
-	// Try /etc/os-release first (most modern systems)
+	if runtime.GOOS == "windows" {
+		// Use reg.exe to read the Windows version string — no subprocess hang risk.
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		out, err := exec.CommandContext(ctx, "reg", "query",
+			`HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion`, "/v", "ProductName").Output()
+		if err == nil {
+			for _, line := range strings.Split(string(out), "\n") {
+				if strings.Contains(line, "ProductName") {
+					fields := strings.Fields(line)
+					if len(fields) >= 3 {
+						return strings.Join(fields[2:], " "), nil
+					}
+				}
+			}
+		}
+		return "Windows (version unknown)", nil
+	}
+
+	// Try /etc/os-release first (most modern Linux systems)
 	if exists, _ := s.CheckFileExists("/etc/os-release"); exists {
 		file, err := os.Open("/etc/os-release")
 		if err != nil {
@@ -248,24 +291,42 @@ func (s *SystemChecker) GetOSVersion() (string, error) {
 		}
 	}
 
-	// Fallback to uname
-	cmd := exec.Command("uname", "-a")
-	output, err := cmd.Output()
+	// Fallback to uname (Linux/macOS only — never called on Windows)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	output, err := exec.CommandContext(ctx, "uname", "-a").Output()
 	if err != nil {
 		return "Unknown", nil
 	}
-
 	return strings.TrimSpace(string(output)), nil
 }
 
-// GetKernelVersion gets kernel version
+// GetKernelVersion gets kernel version.
+// On Windows returns the NT version string via registry; on Linux uses uname.
 func (s *SystemChecker) GetKernelVersion() (string, error) {
-	cmd := exec.Command("uname", "-r")
-	output, err := cmd.Output()
+	if runtime.GOOS == "windows" {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		out, err := exec.CommandContext(ctx, "reg", "query",
+			`HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion`, "/v", "CurrentBuildNumber").Output()
+		if err == nil {
+			for _, line := range strings.Split(string(out), "\n") {
+				if strings.Contains(line, "CurrentBuildNumber") {
+					fields := strings.Fields(line)
+					if len(fields) >= 3 {
+						return "NT build " + fields[len(fields)-1], nil
+					}
+				}
+			}
+		}
+		return "Windows (build unknown)", nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	output, err := exec.CommandContext(ctx, "uname", "-r").Output()
 	if err != nil {
 		return "Unknown", nil
 	}
-
 	return strings.TrimSpace(string(output)), nil
 }
 
@@ -359,27 +420,32 @@ func (s *SystemChecker) CheckCryptoModules() ([]string, error) {
 	return cryptoModules, scanner.Err()
 }
 
-// CheckListeningPorts checks for listening network ports
+// CheckListeningPorts checks for listening network ports.
+// On Windows, uses netstat (ss is not available); on Linux prefers ss with netstat fallback.
 func (s *SystemChecker) CheckListeningPorts() ([]string, error) {
-	cmd := exec.Command("ss", "-lntu")
-	output, err := cmd.Output()
-	if err != nil {
-		// Fallback to netstat
-		cmd = exec.Command("netstat", "-lntu")
-		output, err = cmd.Output()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var output []byte
+	var err error
+	if runtime.GOOS == "windows" {
+		output, err = exec.CommandContext(ctx, "netstat", "-ano").Output()
+	} else {
+		output, err = exec.CommandContext(ctx, "ss", "-lntu").Output()
 		if err != nil {
-			return nil, err
+			output, err = exec.CommandContext(ctx, "netstat", "-lntu").Output()
 		}
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	ports := []string{}
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "LISTEN") {
+	for _, line := range strings.Split(string(output), "\n") {
+		if strings.Contains(line, "LISTEN") || strings.Contains(line, "LISTENING") {
 			ports = append(ports, line)
 		}
 	}
-
 	return ports, nil
 }
 
@@ -411,8 +477,9 @@ func (s *SystemChecker) CheckRegistryValue(hive, keyPath, valueName string) (str
 
 	fullKey := hive + `\` + keyPath
 
-	cmd := exec.Command("reg", "query", fullKey, "/v", valueName)
-	out, err := cmd.Output()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "reg", "query", fullKey, "/v", valueName).Output()
 	if err != nil {
 		return "", fmt.Errorf("reg query %s /v %s: %w", fullKey, valueName, err)
 	}
@@ -441,8 +508,9 @@ func (s *SystemChecker) CheckAuditPolicy(subcategory string) (string, error) {
 		return "", fmt.Errorf("audit policy checks require Windows (current OS: %s)", runtime.GOOS)
 	}
 
-	cmd := exec.Command("auditpol", "/get", "/subcategory:"+subcategory)
-	out, err := cmd.Output()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "auditpol", "/get", "/subcategory:"+subcategory).Output()
 	if err != nil {
 		return "", fmt.Errorf("auditpol /get /subcategory:%s: %w", subcategory, err)
 	}
@@ -483,12 +551,12 @@ func (s *SystemChecker) CheckWindowsFeature(featureName string) (bool, error) {
 		"(Get-WindowsOptionalFeature -Online -FeatureName '%s').State",
 		featureName,
 	)
-	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script)
-	out, err := cmd.Output()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "powershell", "-NoProfile", "-NonInteractive", "-Command", script).Output()
 	if err != nil {
 		return false, fmt.Errorf("Get-WindowsOptionalFeature %s: %w", featureName, err)
 	}
-
 	return strings.TrimSpace(string(out)) == "Enabled", nil
 }
 
@@ -500,8 +568,9 @@ func (s *SystemChecker) CheckBitLocker(drive string) (string, error) {
 		return "", fmt.Errorf("BitLocker checks require Windows (current OS: %s)", runtime.GOOS)
 	}
 
-	cmd := exec.Command("manage-bde", "-status", drive)
-	out, err := cmd.Output()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "manage-bde", "-status", drive).Output()
 	if err != nil {
 		return "", fmt.Errorf("manage-bde -status %s: %w", drive, err)
 	}
@@ -525,9 +594,10 @@ func (s *SystemChecker) CheckWindowsDefender() (bool, error) {
 		return false, fmt.Errorf("Windows Defender check requires Windows (current OS: %s)", runtime.GOOS)
 	}
 
-	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive",
-		"-Command", "(Get-MpPreference).DisableRealtimeMonitoring")
-	out, err := cmd.Output()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "powershell", "-NoProfile", "-NonInteractive",
+		"-Command", "(Get-MpPreference).DisableRealtimeMonitoring").Output()
 	if err != nil {
 		return false, fmt.Errorf("Get-MpPreference: %w", err)
 	}

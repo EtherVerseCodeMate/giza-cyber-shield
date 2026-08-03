@@ -122,10 +122,18 @@ func editConfig(path, key, value string) error {
 //   - Any subsequent uncommented duplicates of the same key are commented out.
 //   - Commented lines (#Key ...) are left untouched.
 //   - If no active directive exists, the key=value pair is appended.
+//
+// Supported formats (auto-detected from the file; separator preserved on write):
+//   "Key Value"      — sshd_config, /etc/default/* style
+//   "key = value"    — faillock.conf, pwquality.conf, sysctl.d style
+//   "key=value"      — compact INI style
 func rewriteLines(lines []string, key, value string) ([]string, bool) {
 	out := make([]string, 0, len(lines)+1)
 	found := false
 	alreadyCorrect := false
+
+	// Detect the file's prevailing separator for use when appending a new line.
+	appendSep := detectFileSeparator(lines)
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -135,22 +143,19 @@ func rewriteLines(lines []string, key, value string) ([]string, bool) {
 			continue
 		}
 
-		fields := strings.Fields(trimmed)
-		if len(fields) >= 1 && strings.EqualFold(fields[0], key) {
+		lineKey, currentVal := parseKeyValue(trimmed)
+		if strings.EqualFold(lineKey, key) {
 			if !found {
-				// First active occurrence.
-				currentVal := ""
-				if len(fields) >= 2 {
-					currentVal = fields[1]
-				}
 				if currentVal == value {
 					// Already correct — idempotent; preserve line verbatim.
 					out = append(out, line)
 					alreadyCorrect = true
 				} else {
-					// Rewrite with new value, preserving leading whitespace.
+					// Rewrite with new value, preserving leading whitespace and
+					// the original separator (space / " = " / "=").
 					indent := leadingWhitespace(line)
-					out = append(out, indent+key+" "+value)
+					sep := detectLineSeparator(trimmed)
+					out = append(out, indent+key+sep+value)
 				}
 				found = true
 			} else {
@@ -163,10 +168,63 @@ func rewriteLines(lines []string, key, value string) ([]string, bool) {
 	}
 
 	if !found {
-		out = append(out, key+" "+value)
+		out = append(out, key+appendSep+value)
 		return out, true
 	}
 	return out, !alreadyCorrect
+}
+
+// parseKeyValue extracts the key and value from a config file line.
+// Handles three separator styles:
+//   "Key Value"   → key="Key",   value="Value"
+//   "key = value" → key="key",   value="value"
+//   "key=value"   → key="key",   value="value"   (single token — no spaces)
+// The line must already be trimmed of leading/trailing whitespace.
+func parseKeyValue(trimmed string) (key, value string) {
+	fields := strings.Fields(trimmed)
+	if len(fields) == 0 {
+		return "", ""
+	}
+	// Compact "key=value" — entire pair is one token when there are no spaces.
+	if idx := strings.Index(fields[0], "="); idx > 0 {
+		return fields[0][:idx], fields[0][idx+1:]
+	}
+	key = fields[0]
+	switch {
+	case len(fields) >= 3 && fields[1] == "=":
+		// "key = value" — value may be multi-token; join the rest.
+		value = strings.Join(fields[2:], " ")
+	case len(fields) >= 2:
+		// "Key Value" — plain space-separated.
+		value = strings.Join(fields[1:], " ")
+	}
+	return key, value
+}
+
+// detectLineSeparator returns the separator used in a single trimmed line.
+func detectLineSeparator(trimmed string) string {
+	fields := strings.Fields(trimmed)
+	// Compact "key=value" — single token with embedded "=".
+	if len(fields) >= 1 && strings.Contains(fields[0], "=") {
+		return "="
+	}
+	if len(fields) >= 2 && fields[1] == "=" {
+		return " = "
+	}
+	return " "
+}
+
+// detectFileSeparator returns the prevailing separator style across all
+// non-comment, non-empty lines, for use when appending a new directive.
+func detectFileSeparator(lines []string) string {
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") || trimmed == "" {
+			continue
+		}
+		return detectLineSeparator(trimmed)
+	}
+	return " "
 }
 
 // leadingWhitespace returns the leading whitespace characters of s.

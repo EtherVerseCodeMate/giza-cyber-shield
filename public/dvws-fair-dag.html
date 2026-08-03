@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KHEPRA ASAF — DVWS Chain</title>
+  <script src="https://unpkg.com/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
+  <style>
+    body {
+      margin: 0; padding: 0; background-color: #050c16; font-family: 'Inter', sans-serif; color: #e2e8f0; overflow: hidden;
+    }
+    #graph-container { width: 100vw; height: 100vh; }
+    .hud {
+      position: absolute; z-index: 10; background: rgba(8, 15, 28, 0.9); border: 1px solid rgba(26, 159, 232, 0.2);
+      border-radius: 12px; padding: 20px; backdrop-filter: blur(8px); box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+    }
+    #header { top: 20px; left: 20px; width: 320px; }
+    #legend { bottom: 20px; left: 20px; width: 250px; }
+    .badge {
+      display: inline-block; font-family: monospace; font-size: 10px; padding: 4px 8px; border-radius: 4px; margin-bottom: 12px; letter-spacing: 1px;
+    }
+    .badge.verified { background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); }
+    h1 { margin: 0 0 8px 0; font-size: 18px; font-weight: 800; color: #ffffff; line-height: 1.2; }
+    p.subtitle { margin: 0 0 16px 0; font-size: 12px; color: #94a3b8; }
+    .metric {
+      margin-top: 12px; padding: 12px; background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 8px;
+    }
+    .metric-title { font-family: monospace; font-size: 10px; color: #fde047; text-transform: uppercase; margin-bottom: 4px; }
+    .metric-value { font-size: 24px; font-weight: 900; color: #eab308; }
+    
+    .metric-prevented {
+      background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); margin-top: 8px;
+    }
+    .metric-prevented .metric-title { color: #86efac; }
+    .metric-prevented .metric-value { color: #22c55e; font-size: 18px; }
+
+    .legend-item { display: flex; align-items: center; margin-bottom: 8px; font-family: monospace; font-size: 11px; color: #cbd5e1; }
+    .legend-color { width: 12px; height: 12px; border-radius: 50%; margin-right: 12px; }
+  </style>
+</head>
+<body>
+  <div id="graph-container"></div>
+  
+  <div id="header" class="hud">
+    <div class="badge verified">ML-DSA-65 VERIFIED</div>
+    <h1>Target 1: DVWS / DVWA</h1>
+    <p class="subtitle">Control Group Baseline Verification</p>
+    
+    <div class="metric">
+      <div class="metric-title">Baseline Risk (OmniScanner)</div>
+      <div class="metric-value">$1,200,000</div>
+    </div>
+
+    <div class="metric metric-prevented">
+      <div class="metric-title">Dynamic AI Risk (Hyperfocus)</div>
+      <div class="metric-value">$0 (No AI Detected)</div>
+    </div>
+  </div>
+  
+  <div id="legend" class="hud">
+    <div style="font-family: monospace; font-size: 10px; color: #64748b; margin-bottom: 12px; text-transform: uppercase;">Node Types</div>
+    <div class="legend-item"><div class="legend-color" style="background: #94a3b8"></div>Genesis</div>
+    <div class="legend-item"><div class="legend-color" style="background: #a855f7"></div>OmniScanner Baseline</div>
+    <div class="legend-item"><div class="legend-color" style="background: #eab308"></div>Vulnerability Finding</div>
+    <div class="legend-item"><div class="legend-color" style="background: #3b82f6"></div>Hyperfocus AI Scan</div>
+    <div class="legend-item"><div class="legend-color" style="background: #22c55e"></div>Cryptographic Attest</div>
+  </div>
+
+  <script>
+    const DAG_DATA = {
+      nodes: [
+        { id: 'g0', type: 'genesis', label: 'GENESIS', desc: 'State: CHAIN_INITIALIZED', val: 12 },
+        { id: 'o1', type: 'omni', label: 'OmniScanner Initiation', desc: '50+ Vulnerability Tools Activated', val: 10 },
+        { id: 'o2', type: 'vuln', label: 'Discovery: SQL Injection', desc: 'CVE-2023-XXXX. Severity: HIGH', val: 16 },
+        { id: 'o3', type: 'vuln', label: 'Discovery: Broken Access Control', desc: 'Admin Endpoint Exposed', val: 14 },
+        { id: 'o4', type: 'omni', label: 'Baseline FAIR Risk Calc', desc: 'Calculated Exposure: $1.2M', val: 18 },
+        { id: 'h1', type: 'hyper', label: 'Hyperfocus Scan', desc: 'Searching for AI Agent Signatures...', val: 14 },
+        { id: 'h2', type: 'hyper', label: 'Governance Classification', desc: 'NON_AI_LEGACY_SURFACE', val: 20 },
+        { id: 'a1', type: 'attest', label: 'Chain Attestation', desc: 'ML-DSA-65 Signed Baseline Report', val: 16 }
+      ],
+      links: [
+        { source: 'g0', target: 'o1' },
+        { source: 'o1', target: 'o2' },
+        { source: 'o1', target: 'o3' },
+        { source: 'o2', target: 'o4' },
+        { source: 'o3', target: 'o4' },
+        { source: 'o4', target: 'h1' },
+        { source: 'h1', target: 'h2' },
+        { source: 'h2', target: 'a1' }
+      ]
+    };
+
+    const NODE_COLORS = { 
+      genesis: '#94a3b8', 
+      omni: '#a855f7', 
+      vuln: '#eab308', 
+      hyper: '#3b82f6', 
+      attest: '#22c55e' 
+    };
+
+    const elem = document.getElementById('graph-container');
+    const Graph = ForceGraph3D()(elem)
+      .backgroundColor('#050c16')
+      .graphData(DAG_DATA)
+      .nodeId('id')
+      .nodeVal('val')
+      .nodeColor(n => NODE_COLORS[n.type])
+      .nodeOpacity(0.9)
+      .linkColor(() => 'rgba(26, 159, 232, 0.4)')
+      .linkWidth(1)
+      .linkDirectionalParticles(2)
+      .linkDirectionalParticleColor(() => '#1a9fe8')
+      .nodeLabel(n => `
+        <div style="background: rgba(8,15,28,0.95); border: 1px solid ${NODE_COLORS[n.type]}; padding: 12px; border-radius: 8px; font-family: monospace; color: #fff; max-width: 250px;">
+          <div style="font-weight: bold; color: ${NODE_COLORS[n.type]}; font-size: 14px; margin-bottom: 6px;">${n.label}</div>
+          <div style="font-size: 11px; color: #cbd5e1; line-height: 1.4;">${n.desc}</div>
+        </div>
+      `);
+
+    setTimeout(() => { Graph.zoomToFit(800, 100); }, 1500);
+    window.addEventListener('resize', () => { Graph.width(elem.clientWidth).height(elem.clientHeight); });
+  </script>
+</body>
+</html>

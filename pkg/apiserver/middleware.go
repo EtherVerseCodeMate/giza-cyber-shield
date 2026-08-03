@@ -5,6 +5,7 @@ package apiserver
 import (
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +24,12 @@ type wafHandler interface {
 // AuthMiddleware validates API key authentication
 func (s *Server) AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// ── DEV MODE BYPASS ───────────────────────────────────────────────────────
+		if os.Getenv("KHEPRA_DEV_MODE") == "true" {
+			c.Next()
+			return
+		}
+
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			c.JSON(http.StatusUnauthorized, ErrorResponse{
@@ -109,6 +116,10 @@ func CORSMiddleware(allowedOrigins ...string) gin.HandlerFunc {
 		origin := c.Request.Header.Get("Origin")
 		if allowed[origin] {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+		} else if origin == "" || origin == "null" {
+			// file:// and null-origin clients (demo console opened locally, Electron, etc.)
+			// All public endpoints are already auth-free, so wildcard is safe here.
+			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		}
 
 		// ── Chrome Private Network Access (PNA) ───────────────────────────────

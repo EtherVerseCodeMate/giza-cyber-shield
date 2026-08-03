@@ -1,4 +1,4 @@
-// Package hub defines the Backend interface and supporting types for the
+// package hub defines the Backend interface and supporting types for the
 // AdinKhepra ASAF desktop client.  Three concrete implementations exist:
 //
 //   - LocalBackend  — ModeStandalone: stig.Validator + Imhotep Unix socket
@@ -10,6 +10,7 @@
 package hub
 
 import (
+	"context"
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/connector"
@@ -153,7 +154,7 @@ type DAGNode struct {
 	Signature string            `json:"signature,omitempty"`
 }
 
-// AskResponse is the Hub's /api/v1/mcp/ask response — the same as g0dm0d3
+// AskResponse is the Hub's /api/v1/mcp/ask response — the same as intelligence
 // or a local AI answer, depending on mode.
 type AskResponse struct {
 	Answer      string   `json:"answer"`
@@ -188,9 +189,12 @@ type AIMessage struct {
 }
 
 // AIProviderBridge is a minimal interface for passing an AI provider into
-// LocalBackend without importing g0dm0d3 (avoids circular dependency).
+// LocalBackend without importing intelligence (avoids circular dependency).
 // Implemented by ollamaBridge in cmd/asaf-desktop/main.go.
 type AIProviderBridge interface {
 	Chat(messages []AIMessage, stream bool) (string, error)
+	// ChatCtx is like Chat but honours the caller's context deadline.
+	// Implementations MUST pass ctx to all downstream HTTP requests.
+	ChatCtx(ctx context.Context, messages []AIMessage, stream bool) (string, error)
 	Name() string
 }
