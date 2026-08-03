@@ -43,14 +43,17 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
 	"time"
 
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/apiserver"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/policy"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/auth"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
@@ -87,6 +90,9 @@ func main() {
 
 	// ── Natural Language Security Engine ─────────────────────────────────────
 	initNLProcessor(server)
+
+	// ── STIG API Client (Secure Proxy) ───────────────────────────────────────
+	initSTIGProxy(server, dagStore, triad)
 
 	// Start server in background (setupMiddleware runs here with WAFShield ready)
 	go func() {
@@ -432,4 +438,46 @@ func printBanner() {
 ╚═══════════════════════════════════════════════════════════════════╝
 `
 	fmt.Println(banner)
+}
+
+func initSTIGProxy(server *apiserver.Server, dagStore dag.Store, triad *sekhem.SekhemTriad) {
+	// Generate a unique identity for the Egress Guard (used in DAG signing)
+	_, signKey, err := adinkra.GenerateDilithiumKey()
+	if err != nil {
+		log.Printf("[SEKHEM] Warning: Failed to generate PQC key for Egress Guard: %v", err)
+	}
+
+	// Resolve www.stigviewer.com to dynamically lock the egress CIDR boundary
+	ips, err := net.LookupIP("www.stigviewer.com")
+	var allowedCIDRs []string
+	if err == nil {
+		for _, ip := range ips {
+			if ip.To4() != nil {
+				allowedCIDRs = append(allowedCIDRs, fmt.Sprintf("%s/32", ip.String()))
+			} else {
+				allowedCIDRs = append(allowedCIDRs, fmt.Sprintf("%s/128", ip.String()))
+			}
+		}
+	} else {
+		log.Printf("[SEKHEM] Warning: Failed to resolve www.stigviewer.com, STIG proxy will be blocked: %v", err)
+	}
+
+	// Create Egress Boundary Guard for STIG Proxy.
+	// The Guardian (KASA) and IRManager are nil here unless exposed by triad.
+	ebg := policy.NewEgressBoundaryGuard(
+		allowedCIDRs, // strict /32 and /128 locks on STIGViewer IPs
+		dagStore,
+		nil, // triad.IRManager (if exposed)
+		nil, // triad.Guardian (if exposed)
+		"STIG_PROXY_EBG",
+		signKey,
+	)
+
+	proxyHandler, err := apiserver.NewSTIGProxyHandler(ebg)
+	if err != nil {
+		log.Fatalf("Failed to initialize STIG Proxy: %v", err)
+	}
+
+	server.WithSTIGProxy(proxyHandler)
+	log.Println("STIG API Proxy Client: SECURED (Egress Boundary Guard + DAG Attestation)")
 }

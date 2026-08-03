@@ -42,6 +42,7 @@ type Server struct {
 	recorder    *asaf.Recorder        // ASAF flight recorder — nil until WithASAFRecorder is called
 	autopilot   *AutopilotEngine      // Continuous compliance scheduler (Autopilot tier)
 	nativeAuth  *auth.NativeAuthManager // Standalone native SQLite/Argon2 auth
+	stigProxy   *STIGProxyHandler     // STIG API Proxy Handler
 }
 
 const (
@@ -220,6 +221,9 @@ func (s *Server) setupRoutes() {
 		// STIG endpoints
 		stig := v1.Group("/stig")
 		{
+			// Proxy all requests directly to the STIGViewer API via the EgressBoundaryGuard
+			stig.Any("/viewer/*proxyPath", s.handleSTIGProxy)
+			
 			stig.POST("/validate", s.handleSTIGValidation)
 			stig.POST("/remediate", s.handleSTIGRemediation)
 		}
@@ -473,6 +477,11 @@ func (s *Server) WithASAFRecorder(r *asaf.Recorder) {
 // WithNativeAuth injects the standalone native authentication manager.
 func (s *Server) WithNativeAuth(am *auth.NativeAuthManager) {
 	s.nativeAuth = am
+}
+
+// WithSTIGProxy injects the STIG API Proxy Handler.
+func (s *Server) WithSTIGProxy(proxy *STIGProxyHandler) {
+	s.stigProxy = proxy
 }
 
 // setupASAFRoutes registers all ASAF recording endpoints.
