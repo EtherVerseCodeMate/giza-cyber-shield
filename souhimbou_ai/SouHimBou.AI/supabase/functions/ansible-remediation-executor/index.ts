@@ -422,28 +422,3 @@ function extractSTIGRulesFromPlaybook(playbookContent: string): string[] {
   return [...new Set(rules)];
 }
 
-function generateSuccessOutput(ruleId: string, assetName: string): string {
-  return `PLAY [Apply STIG ${ruleId}] ****************************************************
-
-TASK [Gathering Facts] *********************************************************
-ok: [${assetName}]
-
-TASK [Apply ${ruleId}] *********************************************************
-changed: [${assetName}]
-
-PLAY RECAP *********************************************************************
-${assetName}               : ok=2    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0`;
-}
-
-function generateFailureOutput(ruleId: string, assetName: string): string {
-  return `PLAY [Apply STIG ${ruleId}] ****************************************************
-
-TASK [Gathering Facts] *********************************************************
-ok: [${assetName}]
-
-TASK [Apply ${ruleId}] *********************************************************
-fatal: [${assetName}]: FAILED! => {"changed": false, "msg": "Prerequisites not met"}
-
-PLAY RECAP *********************************************************************
-${assetName}               : ok=1    changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0`;
-}

@@ -667,12 +667,19 @@ async function escalateAlert(alertId: string) {
 }
 
 async function scheduleEscalation(alert: any) {
-  // Mock escalation scheduling - in production, use a job queue
-  console.log(`Scheduling escalation for alert ${alert.id} in 5 minutes`);
-
-  setTimeout(async () => {
-    await escalateAlert(alert.id);
-  }, 5 * 60 * 1000); // 5 minutes
+  // TRL10: this is a Deno edge function — each invocation's isolate is torn
+  // down once the HTTP response is sent, so a 5-minute setTimeout here never
+  // actually fires. The previous implementation logged "Scheduling
+  // escalation... in 5 minutes" as if a real delayed job had been queued,
+  // which was never true. Real escalation requires a cron-invoked or
+  // queue-based checker (e.g. a scheduled function that scans alerts past
+  // their sla_deadline and calls escalateAlert) — not implemented yet, so
+  // this honestly logs that limitation instead of fabricating a schedule.
+  console.warn(
+    `Escalation for alert ${alert.id} was requested but NOT scheduled — ` +
+    'no cron/queue-based escalation checker is wired up yet. This alert will ' +
+    'only escalate if something else calls escalateAlert() directly.'
+  );
 }
 
 async function testNotification(data: any) {
