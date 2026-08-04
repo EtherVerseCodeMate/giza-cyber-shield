@@ -1,0 +1,11 @@
+{
+  "id": "UHSKMGRHSUKITSOKIYLOEAOGUGSKETEROPGPSYHSNRIUUMIOOOHURNIYOOYKANHU",
+  "parents": null,
+  "action": "seshat-inscription",
+  "symbol": "maat-decision",
+  "time": "2026-08-03T17:33:44-04:00",
+  "pqc_metadata": {
+    "data": "map[action:banish autonomous:true isfet_id:DRIFT-NET-PORT kasa_wisdom:KASA unavailable realm:duat severity:SEVERE]"
+  },
+  "hash": "UHSKMGRHSUKITSOKIYLOEAOGUGSKETEROPGPSYHSNRIUUMIOOOHURNIYOOYKANHU"
+}
