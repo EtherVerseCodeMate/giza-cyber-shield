@@ -18,11 +18,11 @@ require (
 	github.com/masterzen/winrm v0.0.0-20250927112105-5f8e6c707321
 	github.com/mikesmitty/edkey v0.0.0-20170222072505-3356ea4e686a
 	github.com/nouchix/PQC-Khepra-MCP v1.0.0
-	github.com/xuri/excelize/v2 v2.11.0
+	github.com/xuri/excelize/v2 v2.12.0
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/crypto v0.54.0
 	golang.org/x/sys v0.47.0
-	google.golang.org/grpc v1.82.1
+	google.golang.org/grpc v1.83.0
 	modernc.org/sqlite v1.54.0
 	tailscale.com v1.102.0
 )
