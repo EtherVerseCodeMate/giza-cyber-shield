@@ -1,6 +1,6 @@
 module github.com/EtherVerseCodeMate/giza-cyber-shield
 
-go 1.26.5
+go 1.23
 
 require (
 	fyne.io/fyne/v2 v2.7.4
