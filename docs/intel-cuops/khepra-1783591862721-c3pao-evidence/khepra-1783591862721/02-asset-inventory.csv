@@ -1,0 +1,5 @@
+asset_id,hostname,ip_address,os,role,cui_handler,in_scope,discovery_method,discovered_at
+AST-001,dvwa-host,2.24.105.170,Linux/Apache 2.4,Web Application,YES,YES,Sonar Port Scan,2026-07-09T10:11:02.719Z
+AST-002,dvwa-db,2.24.105.170,MariaDB 10.5,Database,YES,YES,Sonar Banner Grab,2026-07-09T10:11:02.719Z
+AST-003,dvwa-php,2.24.105.170,PHP/7.4.3,Application Runtime,YES,YES,X-Powered-By Header,2026-07-09T10:11:02.719Z
+DAG_signature,ML-DSA-65:0x377BCA809600CDA9

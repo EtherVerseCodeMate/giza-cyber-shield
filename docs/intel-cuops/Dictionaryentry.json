@@ -1,0 +1,23 @@
+{
+  "Dictionaryentry": {
+    "@type": "Dictionaryentry",
+    "schemaVersion": 1,
+    "dictionaryCode": "String",
+    "entryId": "String",
+    "entryLabel": "String",
+    "entryUrl": "URL",
+    "format": "String",
+    "entryContent": "String",
+    "topics": [
+      {
+        "topics(item)": {
+          "@type": "Topics(item)",
+          "topicId": "String",
+          "topicLabel": "String",
+          "topicParentId": "String",
+          "topicUrl": "URL"
+        }
+      }
+    ]
+  }
+}

@@ -1,10 +1,10 @@
-// Copyright (c) Tailscale Inc & AUTHORS
+// Copyright (c) Tailscale Inc & contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
 // Package ringlog contains a limited-size concurrency-safe generic ring log.
 package ringlog
 
-import "sync"
+import "tailscale.com/syncs"
 
 // New creates a new [RingLog] containing at most max items.
 func New[T any](max int) *RingLog[T] {
@@ -15,7 +15,7 @@ func New[T any](max int) *RingLog[T] {
 
 // RingLog is a concurrency-safe fixed size log window containing entries of [T].
 type RingLog[T any] struct {
-	mu  sync.Mutex
+	mu  syncs.Mutex
 	pos int
 	buf []T
 	max int

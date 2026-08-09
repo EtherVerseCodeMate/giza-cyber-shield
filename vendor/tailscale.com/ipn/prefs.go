@@ -1,4 +1,4 @@
-// Copyright (c) Tailscale Inc & AUTHORS
+// Copyright (c) Tailscale Inc & contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
 package ipn
@@ -17,9 +17,11 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"time"
 
 	"tailscale.com/atomicfile"
 	"tailscale.com/drive"
+	"tailscale.com/feature/buildfeatures"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/net/netaddr"
 	"tailscale.com/net/tsaddr"
@@ -128,7 +130,8 @@ type Prefs struct {
 	ExitNodeAllowLANAccess bool
 
 	// CorpDNS specifies whether to install the Tailscale network's
-	// DNS configuration, if it exists.
+	// DNS configuration, if it exists. It is the internal name for
+	// the "tailscale set --accept-dns=" flag.
 	CorpDNS bool
 
 	// RunSSH bool is whether this node should run an SSH
@@ -206,6 +209,12 @@ type Prefs struct {
 	// control server.
 	AdvertiseServices []string
 
+	// Sync is whether this node should sync its configuration from
+	// the control plane. If unset, this defaults to true.
+	// This exists primarily for testing, to verify that netmap caching
+	// and offline operation work correctly.
+	Sync opt.Bool
+
 	// NoSNAT specifies whether to source NAT traffic going to
 	// destinations in AdvertiseRoutes. The default is to apply source
 	// NAT, which makes the traffic appear to come from the router
@@ -264,8 +273,28 @@ type Prefs struct {
 
 	// NetfilterKind specifies what netfilter implementation to use.
 	//
+	// It can be "iptables", "nftables", or "" to auto-detect.
+	//
 	// Linux-only.
 	NetfilterKind string
+
+	// RemoteConfig, if true, delegates full remote control of this node's
+	// prefs and LocalAPI to the tailnet admin via the control plane. When
+	// enabled, the control server can read and edit any of this node's
+	// prefs at any time, and invoke any LocalAPI endpoint on this node,
+	// without any further local consent (no CLI or GUI confirmation).
+	//
+	// This is an alternative to Tailscale's default per-feature double
+	// opt-in model, in which both the tailnet admin and the local machine
+	// owner must agree to each individual setting change. RemoteConfig is
+	// a single client-side "I trust the tailnet admin" switch that hands
+	// over full remote management of this node.
+	//
+	// Only enable this when the tailnet admin owns the machine (e.g. a
+	// corporate fleet device) or the local user has explicitly delegated
+	// full control to the tailnet admin. Do NOT enable this on personal
+	// or BYOD devices where the tailnet admin is not fully trusted.
+	RemoteConfig bool
 
 	// DriveShares are the configured DriveShares, stored in increasing order
 	// by name.
@@ -274,20 +303,13 @@ type Prefs struct {
 	// RelayServerPort is the UDP port number for the relay server to bind to,
 	// on all interfaces. A non-nil zero value signifies a random unused port
 	// should be used. A nil value signifies relay server functionality
-	// should be disabled. This field is currently experimental, and therefore
-	// no guarantees are made about its current naming and functionality when
-	// non-nil/enabled.
-	RelayServerPort *int `json:",omitempty"`
+	// should be disabled.
+	RelayServerPort *uint16 `json:",omitempty"`
 
-	// AllowSingleHosts was a legacy field that was always true
-	// for the past 4.5 years. It controlled whether Tailscale
-	// peers got /32 or /127 routes for each other.
-	// As of 2024-05-17 we're starting to ignore it, but to let
-	// people still downgrade Tailscale versions and not break
-	// all peer-to-peer networking we still write it to disk (as JSON)
-	// so it can be loaded back by old versions.
-	// TODO(bradfitz): delete this in 2025 sometime. See #12058.
-	AllowSingleHosts marshalAsTrueInJSON
+	// RelayServerStaticEndpoints are static IP:port endpoints to advertise as
+	// candidates for relay connections. Only relevant when RelayServerPort is
+	// non-nil.
+	RelayServerStaticEndpoints []netip.AddrPort `json:",omitempty"`
 
 	// The Persist field is named 'Config' in the file for backward
 	// compatibility with earlier versions.
@@ -319,13 +341,6 @@ func (au1 AutoUpdatePrefs) Equals(au2 AutoUpdatePrefs) bool {
 		ok1 == ok2
 }
 
-type marshalAsTrueInJSON struct{}
-
-var trueJSON = []byte("true")
-
-func (marshalAsTrueInJSON) MarshalJSON() ([]byte, error) { return trueJSON, nil }
-func (*marshalAsTrueInJSON) UnmarshalJSON([]byte) error  { return nil }
-
 // AppConnectorPrefs are the app connector settings for the node agent.
 type AppConnectorPrefs struct {
 	// Advertise specifies whether the app connector subsystem is advertising
@@ -341,37 +356,40 @@ type AppConnectorPrefs struct {
 type MaskedPrefs struct {
 	Prefs
 
-	ControlURLSet             bool                `json:",omitempty"`
-	RouteAllSet               bool                `json:",omitempty"`
-	ExitNodeIDSet             bool                `json:",omitempty"`
-	ExitNodeIPSet             bool                `json:",omitempty"`
-	AutoExitNodeSet           bool                `json:",omitempty"`
-	InternalExitNodePriorSet  bool                `json:",omitempty"` // Internal; can't be set by LocalAPI clients
-	ExitNodeAllowLANAccessSet bool                `json:",omitempty"`
-	CorpDNSSet                bool                `json:",omitempty"`
-	RunSSHSet                 bool                `json:",omitempty"`
-	RunWebClientSet           bool                `json:",omitempty"`
-	WantRunningSet            bool                `json:",omitempty"`
-	LoggedOutSet              bool                `json:",omitempty"`
-	ShieldsUpSet              bool                `json:",omitempty"`
-	AdvertiseTagsSet          bool                `json:",omitempty"`
-	HostnameSet               bool                `json:",omitempty"`
-	NotepadURLsSet            bool                `json:",omitempty"`
-	ForceDaemonSet            bool                `json:",omitempty"`
-	EggSet                    bool                `json:",omitempty"`
-	AdvertiseRoutesSet        bool                `json:",omitempty"`
-	AdvertiseServicesSet      bool                `json:",omitempty"`
-	NoSNATSet                 bool                `json:",omitempty"`
-	NoStatefulFilteringSet    bool                `json:",omitempty"`
-	NetfilterModeSet          bool                `json:",omitempty"`
-	OperatorUserSet           bool                `json:",omitempty"`
-	ProfileNameSet            bool                `json:",omitempty"`
-	AutoUpdateSet             AutoUpdatePrefsMask `json:",omitempty"`
-	AppConnectorSet           bool                `json:",omitempty"`
-	PostureCheckingSet        bool                `json:",omitempty"`
-	NetfilterKindSet          bool                `json:",omitempty"`
-	DriveSharesSet            bool                `json:",omitempty"`
-	RelayServerPortSet        bool                `json:",omitempty"`
+	ControlURLSet                 bool                `json:",omitempty"`
+	RouteAllSet                   bool                `json:",omitempty"`
+	ExitNodeIDSet                 bool                `json:",omitempty"`
+	ExitNodeIPSet                 bool                `json:",omitempty"`
+	AutoExitNodeSet               bool                `json:",omitempty"`
+	InternalExitNodePriorSet      bool                `json:",omitempty"` // Internal; can't be set by LocalAPI clients
+	ExitNodeAllowLANAccessSet     bool                `json:",omitempty"`
+	CorpDNSSet                    bool                `json:",omitempty"`
+	RunSSHSet                     bool                `json:",omitempty"`
+	RunWebClientSet               bool                `json:",omitempty"`
+	WantRunningSet                bool                `json:",omitempty"`
+	LoggedOutSet                  bool                `json:",omitempty"`
+	ShieldsUpSet                  bool                `json:",omitempty"`
+	AdvertiseTagsSet              bool                `json:",omitempty"`
+	HostnameSet                   bool                `json:",omitempty"`
+	NotepadURLsSet                bool                `json:",omitempty"`
+	ForceDaemonSet                bool                `json:",omitempty"`
+	EggSet                        bool                `json:",omitempty"`
+	AdvertiseRoutesSet            bool                `json:",omitempty"`
+	AdvertiseServicesSet          bool                `json:",omitempty"`
+	SyncSet                       bool                `json:",omitzero"`
+	NoSNATSet                     bool                `json:",omitempty"`
+	NoStatefulFilteringSet        bool                `json:",omitempty"`
+	NetfilterModeSet              bool                `json:",omitempty"`
+	OperatorUserSet               bool                `json:",omitempty"`
+	ProfileNameSet                bool                `json:",omitempty"`
+	AutoUpdateSet                 AutoUpdatePrefsMask `json:",omitzero"`
+	AppConnectorSet               bool                `json:",omitempty"`
+	PostureCheckingSet            bool                `json:",omitempty"`
+	NetfilterKindSet              bool                `json:",omitempty"`
+	RemoteConfigSet               bool                `json:",omitempty"`
+	DriveSharesSet                bool                `json:",omitempty"`
+	RelayServerPortSet            bool                `json:",omitempty"`
+	RelayServerStaticEndpointsSet bool                `json:",omitzero"`
 }
 
 // SetsInternal reports whether mp has any of the Internal*Set field bools set
@@ -425,12 +443,11 @@ func applyPrefsEdits(src, dst reflect.Value, mask map[string]reflect.Value) {
 
 func maskFields(v reflect.Value) map[string]reflect.Value {
 	mask := make(map[string]reflect.Value)
-	for i := range v.NumField() {
-		f := v.Type().Field(i).Name
-		if !strings.HasSuffix(f, "Set") {
+	for sf, fv := range v.Fields() {
+		if !strings.HasSuffix(sf.Name, "Set") {
 			continue
 		}
-		mask[strings.TrimSuffix(f, "Set")] = v.Field(i)
+		mask[strings.TrimSuffix(sf.Name, "Set")] = fv
 	}
 	return mask
 }
@@ -529,16 +546,23 @@ func (p *Prefs) Pretty() string { return p.pretty(runtime.GOOS) }
 func (p *Prefs) pretty(goos string) string {
 	var sb strings.Builder
 	sb.WriteString("Prefs{")
-	fmt.Fprintf(&sb, "ra=%v ", p.RouteAll)
-	fmt.Fprintf(&sb, "dns=%v want=%v ", p.CorpDNS, p.WantRunning)
-	if p.RunSSH {
+	if buildfeatures.HasUseRoutes {
+		fmt.Fprintf(&sb, "ra=%v ", p.RouteAll)
+	}
+	if buildfeatures.HasDNS {
+		fmt.Fprintf(&sb, "dns=%v want=%v ", p.CorpDNS, p.WantRunning)
+	}
+	if buildfeatures.HasSSH && p.RunSSH {
 		sb.WriteString("ssh=true ")
 	}
-	if p.RunWebClient {
+	if buildfeatures.HasWebClient && p.RunWebClient {
 		sb.WriteString("webclient=true ")
 	}
 	if p.LoggedOut {
 		sb.WriteString("loggedout=true ")
+	}
+	if p.Sync.EqualBool(false) {
+		sb.WriteString("sync=false ")
 	}
 	if p.ForceDaemon {
 		sb.WriteString("server=true ")
@@ -549,26 +573,33 @@ func (p *Prefs) pretty(goos string) string {
 	if p.ShieldsUp {
 		sb.WriteString("shields=true ")
 	}
-	if p.ExitNodeIP.IsValid() {
-		fmt.Fprintf(&sb, "exit=%v lan=%t ", p.ExitNodeIP, p.ExitNodeAllowLANAccess)
-	} else if !p.ExitNodeID.IsZero() {
-		fmt.Fprintf(&sb, "exit=%v lan=%t ", p.ExitNodeID, p.ExitNodeAllowLANAccess)
+	if p.RemoteConfig {
+		sb.WriteString("remoteconfig=true ")
 	}
-	if p.AutoExitNode.IsSet() {
-		fmt.Fprintf(&sb, "auto=%v ", p.AutoExitNode)
+	if buildfeatures.HasUseExitNode {
+		if p.ExitNodeIP.IsValid() {
+			fmt.Fprintf(&sb, "exit=%v lan=%t ", p.ExitNodeIP, p.ExitNodeAllowLANAccess)
+		} else if !p.ExitNodeID.IsZero() {
+			fmt.Fprintf(&sb, "exit=%v lan=%t ", p.ExitNodeID, p.ExitNodeAllowLANAccess)
+		}
+		if p.AutoExitNode.IsSet() {
+			fmt.Fprintf(&sb, "auto=%v ", p.AutoExitNode)
+		}
 	}
-	if len(p.AdvertiseRoutes) > 0 || goos == "linux" {
-		fmt.Fprintf(&sb, "routes=%v ", p.AdvertiseRoutes)
-	}
-	if len(p.AdvertiseRoutes) > 0 || p.NoSNAT {
-		fmt.Fprintf(&sb, "snat=%v ", !p.NoSNAT)
-	}
-	if len(p.AdvertiseRoutes) > 0 || p.NoStatefulFiltering.EqualBool(true) {
-		// Only print if we're advertising any routes, or the user has
-		// turned off stateful filtering (NoStatefulFiltering=true ⇒
-		// StatefulFiltering=false).
-		bb, _ := p.NoStatefulFiltering.Get()
-		fmt.Fprintf(&sb, "statefulFiltering=%v ", !bb)
+	if buildfeatures.HasAdvertiseRoutes {
+		if len(p.AdvertiseRoutes) > 0 || goos == "linux" {
+			fmt.Fprintf(&sb, "routes=%v ", p.AdvertiseRoutes)
+		}
+		if len(p.AdvertiseRoutes) > 0 || p.NoSNAT {
+			fmt.Fprintf(&sb, "snat=%v ", !p.NoSNAT)
+		}
+		if len(p.AdvertiseRoutes) > 0 || p.NoStatefulFiltering.EqualBool(true) {
+			// Only print if we're advertising any routes, or the user has
+			// turned off stateful filtering (NoStatefulFiltering=true ⇒
+			// StatefulFiltering=false).
+			bb, _ := p.NoStatefulFiltering.Get()
+			fmt.Fprintf(&sb, "statefulFiltering=%v ", !bb)
+		}
 	}
 	if len(p.AdvertiseTags) > 0 {
 		fmt.Fprintf(&sb, "tags=%s ", strings.Join(p.AdvertiseTags, ","))
@@ -591,10 +622,17 @@ func (p *Prefs) pretty(goos string) string {
 	if p.NetfilterKind != "" {
 		fmt.Fprintf(&sb, "netfilterKind=%s ", p.NetfilterKind)
 	}
-	sb.WriteString(p.AutoUpdate.Pretty())
-	sb.WriteString(p.AppConnector.Pretty())
-	if p.RelayServerPort != nil {
+	if buildfeatures.HasClientUpdate {
+		sb.WriteString(p.AutoUpdate.Pretty())
+	}
+	if buildfeatures.HasAppConnectors {
+		sb.WriteString(p.AppConnector.Pretty())
+	}
+	if buildfeatures.HasRelayServer && p.RelayServerPort != nil {
 		fmt.Fprintf(&sb, "relayServerPort=%d ", *p.RelayServerPort)
+	}
+	if buildfeatures.HasRelayServer && len(p.RelayServerStaticEndpoints) > 0 {
+		fmt.Fprintf(&sb, "relayServerStaticEndpoints=%v ", p.RelayServerStaticEndpoints)
 	}
 	if p.Persist != nil {
 		sb.WriteString(p.Persist.Pretty())
@@ -638,6 +676,7 @@ func (p *Prefs) Equals(p2 *Prefs) bool {
 		p.ExitNodeAllowLANAccess == p2.ExitNodeAllowLANAccess &&
 		p.CorpDNS == p2.CorpDNS &&
 		p.RunSSH == p2.RunSSH &&
+		p.Sync.Normalized() == p2.Sync.Normalized() &&
 		p.RunWebClient == p2.RunWebClient &&
 		p.WantRunning == p2.WantRunning &&
 		p.LoggedOut == p2.LoggedOut &&
@@ -659,7 +698,9 @@ func (p *Prefs) Equals(p2 *Prefs) bool {
 		p.PostureChecking == p2.PostureChecking &&
 		slices.EqualFunc(p.DriveShares, p2.DriveShares, drive.SharesEqual) &&
 		p.NetfilterKind == p2.NetfilterKind &&
-		compareIntPtrs(p.RelayServerPort, p2.RelayServerPort)
+		p.RemoteConfig == p2.RemoteConfig &&
+		compareUint16Ptrs(p.RelayServerPort, p2.RelayServerPort) &&
+		slices.Equal(p.RelayServerStaticEndpoints, p2.RelayServerStaticEndpoints)
 }
 
 func (au AutoUpdatePrefs) Pretty() string {
@@ -679,7 +720,7 @@ func (ap AppConnectorPrefs) Pretty() string {
 	return ""
 }
 
-func compareIntPtrs(a, b *int) bool {
+func compareUint16Ptrs(a, b *uint16) bool {
 	if (a == nil) != (b == nil) {
 		return false
 	}
@@ -694,6 +735,7 @@ func NewPrefs() *Prefs {
 	// Provide default values for options which might be missing
 	// from the json data for any reason. The json can still
 	// override them to false.
+
 	p := &Prefs{
 		// ControlURL is explicitly not set to signal that
 		// it's not yet configured, which relaxes the CLI "up"
@@ -785,6 +827,9 @@ func (p *Prefs) AdvertisesExitNode() bool {
 // SetAdvertiseExitNode mutates p (if non-nil) to add or remove the two
 // /0 exit node routes.
 func (p *Prefs) SetAdvertiseExitNode(runExit bool) {
+	if !buildfeatures.HasAdvertiseExitNode {
+		return
+	}
 	if p == nil {
 		return
 	}
@@ -807,22 +852,15 @@ func (p *Prefs) SetAdvertiseExitNode(runExit bool) {
 // Tailscale IP.
 func peerWithTailscaleIP(st *ipnstate.Status, ip netip.Addr) (ps *ipnstate.PeerStatus, ok bool) {
 	for _, ps := range st.Peer {
-		for _, ip2 := range ps.TailscaleIPs {
-			if ip == ip2 {
-				return ps, true
-			}
+		if slices.Contains(ps.TailscaleIPs, ip) {
+			return ps, true
 		}
 	}
 	return nil, false
 }
 
 func isRemoteIP(st *ipnstate.Status, ip netip.Addr) bool {
-	for _, selfIP := range st.TailscaleIPs {
-		if ip == selfIP {
-			return false
-		}
-	}
-	return true
+	return !slices.Contains(st.TailscaleIPs, ip)
 }
 
 // ClearExitNode sets the ExitNodeID and ExitNodeIP to their zero values.
@@ -842,10 +880,14 @@ func (e ExitNodeLocalIPError) Error() string {
 	return fmt.Sprintf("cannot use %s as an exit node as it is a local IP address to this machine", e.hostOrIP)
 }
 
+// exitNodeIPOfArg returns the IP address of the exit node based on the
+// user-provided string.
 func exitNodeIPOfArg(s string, st *ipnstate.Status) (ip netip.Addr, err error) {
 	if s == "" {
 		return ip, os.ErrInvalid
 	}
+
+	// If the string is a valid IP address, that's the exit node.
 	ip, err = netip.ParseAddr(s)
 	if err == nil {
 		if !isRemoteIP(st, ip) {
@@ -864,10 +906,26 @@ func exitNodeIPOfArg(s string, st *ipnstate.Status) (ip netip.Addr, err error) {
 		}
 		return ip, nil
 	}
+
+	// If the string is not a valid IP address, assume it's a hostname.
+	// Search the list of peers for a matching hostname.
+	if len(st.Peer) == 0 {
+		return ip, errors.New("cannot resolve exit node by hostname while Tailscale is starting up; " +
+			"please use its Tailscale IP address instead")
+	}
 	match := 0
 	for _, ps := range st.Peer {
-		baseName := dnsname.TrimSuffix(ps.DNSName, st.MagicDNSSuffix)
-		if !strings.EqualFold(s, baseName) && !strings.EqualFold(s, ps.DNSName) {
+		// Compare to the peer name in three forms:
+		//
+		//	- base name ("example")
+		//	- FQDN ("example.tail1234.ts.net.")
+		// 	- FQDN sans dot ("example.tail1234.ts.net", as returned by `tailscale exit-node list`
+		//	  and the admin console)
+		//
+		fqdn := ps.DNSName
+		baseName := dnsname.TrimSuffix(fqdn, st.MagicDNSSuffix)
+		fqdnSansDot := dnsname.TrimSuffix(fqdn, ".")
+		if !strings.EqualFold(s, baseName) && !strings.EqualFold(s, fqdn) && !strings.EqualFold(s, fqdnSansDot) {
 			continue
 		}
 		match++
@@ -881,7 +939,7 @@ func exitNodeIPOfArg(s string, st *ipnstate.Status) (ip netip.Addr, err error) {
 	}
 	switch match {
 	case 0:
-		return ip, fmt.Errorf("invalid value %q for --exit-node; must be IP or unique node name", s)
+		return ip, fmt.Errorf("invalid value %q for --exit-node; must be IP or peer hostname", s)
 	case 1:
 		if !isRemoteIP(st, ip) {
 			return ip, ExitNodeLocalIPError{s}
@@ -937,8 +995,13 @@ func PrefsFromBytes(b []byte, base *Prefs) error {
 	if len(b) == 0 {
 		return nil
 	}
-
 	return json.Unmarshal(b, base)
+}
+
+func (p *Prefs) normalizeOptBools() {
+	if p.Sync == opt.ExplicitlyUnset {
+		p.Sync = ""
+	}
 }
 
 var jsonEscapedZero = []byte(`\u0000`)
@@ -1053,6 +1116,12 @@ type LoginProfile struct {
 	// ControlURL is the URL of the control server that this profile is logged
 	// into.
 	ControlURL string
+
+	// Created is when this profile was first added to this client. It is
+	// stamped once at profile creation and never changes. It is used to sort
+	// the profile list with newest first; profiles created before this field
+	// existed have a zero value and sort after all stamped profiles.
+	Created time.Time `json:",omitzero"`
 }
 
 // Equals reports whether p and p2 are equal.

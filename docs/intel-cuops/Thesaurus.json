@@ -1,0 +1,27 @@
+{
+  "Thesaurus": {
+    "@type": "Thesaurus",
+    "schemaVersion": 1,
+    "thesaurusName": "String",
+    "thesaurusEntries": [
+      {
+        "thesaurusEntries(item)": {
+          "@type": "ThesaurusEntries(item)",
+          "term": "String",
+          "partOfSpeech": "String",
+          "relations": [
+            {
+              "relations(item)": {
+                "@type": "Relations(item)",
+                "predicate": "String",
+                "relatedTerm": "String",
+                "literalValue": "String",
+                "confidenceScore": "Decimal"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

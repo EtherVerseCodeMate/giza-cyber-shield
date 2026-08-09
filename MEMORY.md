@@ -1,7 +1,62 @@
 # MEMORY.md — KHEPRA / NouchiX Strategic Operating Memory
 
-> **PERMANENT REFERENCE** — Last updated: 2026-06-29
+> **PERMANENT REFERENCE** — Last updated: 2026-07-02
 > This file is the strategic compass. CLAUDE.md holds technical norms. Together they are the full context.
+
+---
+
+## 🛰️ Sovereignty Boundary Policy (TRL10 control)
+
+> **INVIOLABLE.** This is the rule that makes "sovereign, network-native, zero vendor cloud"
+> true rather than a slogan. It is the difference between passing and failing the CMMC/DFARS
+> audit the product sells. Enforced by `scripts/sovereignty_boundary_guard.sh` +
+> `.github/workflows/sovereignty-boundary.yml` — run it in BOTH giza-cyber-shield and
+> PQC-Khepra-MCP. Reviewed exceptions live in `scripts/sovereignty_allowlist.txt`.
+
+### The one rule
+
+**A customer's CUI data plane never lands on a NouchiX-operated host.** The customer Hub
+(`:8443`), Fleet API, customer DAG/audit trail, scan findings, and the credential vault run
+on the CUSTOMER's infrastructure (their metal or their managed GovCloud) — per tenant, always.
+`asaf.company.com:8443` in the architecture docs is a **placeholder for the customer's own
+Hub**, NOT a URL we host. It must never be `mcp.souhimbou.ai`, `gateway.souhimbou.ai`, or any
+vendor subdomain. (Answered definitively 2026-07-02; see `TRL10_SOVEREIGNTY_BOUNDARY_2026-07-02.md`.)
+
+### Control plane vs data plane
+
+| Plane | May run on a vendor host? | Examples |
+|---|---|---|
+| **Control plane** | ✅ yes (allowlisted) | license validation/heartbeat (`telemetry.souhimbou.ai`), installer + checksums + docs (`get.nouchix.com`), Stripe webhook, release mirror |
+| **Demo / discovery** | ✅ yes, SYNTHETIC only (allowlisted, must be marked "no CUI") | public MCP tool endpoint (`mcp.souhimbou.ai`), public eval scan (`gateway.souhimbou.ai`) |
+| **Customer data plane** | ❌ **NEVER** | Hub `:8443`, Fleet API, customer DAG, scan findings, credential vault |
+
+### Why (the three reasons, in severity order)
+
+1. **DFARS/CMMC self-own** — CUI on a commercial VPS (not FedRAMP/GovCloud) is itself a
+   252.204-7012 violation. The tool would fail the audit it sells. Multi-tenanting several
+   DIB contractors' failure data on one box compounds it.
+2. **Kills the sovereignty value prop** that justifies $25K–250K/yr — a shared vendor Hub is
+   the Vanta/Drata SaaS model PART 0 of the Stargate architecture explicitly says NO to.
+3. **Conflates product boundaries** — the unified binary has TWO ports (`:8443` Hub / customer
+   data, `:8444` MCP / agent channel). Even MCP, when acting on a customer's assets, runs on
+   the customer's infra. Do not merge the SOC-SaaS (SouHimBou AI), the agent channel (PQC-MCP),
+   and the sovereign Hub under one vendor URL.
+
+### Verified state (2026-07-02)
+
+- ✅ **Client boundary intact**: `cmd/asaf-desktop` and `cmd/khepra-reporter` do NOT default
+  their Hub/upstream to any vendor host (only `telemetry.souhimbou.ai` for licensing — control
+  plane). Guard Check 1 passes.
+- ⚠️ **Demo scan surfaces need hardening**: `gateway.souhimbou.ai` exposes
+  `POST /api/v1/scan/agent` with `ASAF_ALLOW_EVAL_WITHOUT_LICENSE=true`, accepts an arbitrary
+  `Target` + `APIKey`, and shares a Supabase service-role key + a persistent DAG volume with
+  the demo MCP. Acceptable ONLY as SYNTHETIC demo with: input guard (no real CUI targets/creds),
+  a visible "DEMO — do not submit CUI" banner, and demo-DAG isolation. Tracked as TRL10 blockers.
+
+### When you touch anything that binds a URL
+
+Ask: is this the control plane, a demo surface, or the customer data plane? If data plane and
+the host is ours → STOP, it's a boundary violation. Run the guard before you push.
 
 ---
 
@@ -535,4 +590,139 @@ KASA's autonomous loop writes to its OWN separate in-memory DAG store (`kasaStor
 - Porting `mitochondrial-proxy` Supabase Edge Function into Product C
 - Wiring SEKHEM WAF into live request filtering (no live HTTP ingress in stdio-first MCP)
 - Merging Product A's Compliance Graph UI with Product C's live feed (Product B's dashboard is the Presight demo consumer)
+
+---
+
+## 🔱 The 4-Layer SouHimBou Audit Framework (RUN FREQUENTLY)
+
+> **STANDING ORDER** — This is our recurring blindspot audit. Run it per-product-boundary
+> (never one blurred sweep across all three). The whole point is to catch the gap between
+> what we *claim* and what the code *does* before a C3PAO, an Iron Bank reviewer, or a
+> pilot customer catches it for us. A finding is only real with a `file:line` citation.
+
+### The three audit boundaries (always audit separately)
+
+| Boundary | What it is | Where the code lives |
+|---|---|---|
+| **Product A — AdinKhepra ASAF Desktop** | CISO-facing CMMC autopilot GUI + privileged daemon | `giza-cyber-shield`: `cmd/asaf-desktop`, `app/`, `pkg/stig`, `pkg/asaf/daemon` |
+| **Product B — PQC-Khepra-MCP** | Sovereign MCP server / scanner (agent channel) | `PQC-Khepra-MCP`: `cmd/khepra-mcp`, `pkg/mcp`, `pkg/gateway`, `pkg/stig` |
+| **Product C — SouHimBou AI** | Agentic SOC + Flight Recorder SaaS | `giza-cyber-shield`: `souhimbou_ai/`, `pkg/flight`, `pkg/souhimbou`, Supabase functions |
+
+### The four dimensions (every audit covers all four)
+
+1. **Top-Down (Strategy → Code)** — Take each marketing/spec claim and hunt for the code that
+   backs it. A claim with no implementation, or backed by a mock, is a Top-Down finding.
+   *Question: "We say we do X. Where is X in the code?"*
+2. **Bottom-Up (Code → Claims)** — Read the code and find behavior the docs don't admit:
+   hardcoded keys, dev backdoors, stubs, silent mock fallbacks, `TODO`/`STUB`/"in production".
+   *Question: "The code does Y. Do we admit Y anywhere?"*
+3. **Horizontal (Cross-Cutting)** — One concern across all languages/modules: is the same
+   pattern handled consistently? The classic trap is two sibling functions where one was
+   fixed and its near-twin was not. *Question: "Is this pattern uniform everywhere it appears?"*
+4. **Diagonal (Trust Boundary)** — Trace one feature/datum through every seam
+   (detect → store → act → display → operator). Find the seam where a component *claims*
+   success but the next hop never received the truth. *Question: "Where does 'done' become a lie?"*
+
+### Severity ladder
+
+- **CRITICAL** — Fabricated evidence in an audit trail, mocked security-critical action reporting
+  success (alerts, remediation, containment/rollback), auth backdoor, forgeable license/signature.
+  Disqualifying for TRL10 / C3PAO.
+- **HIGH** — Silent mock fallback in a production data path, unencrypted sensitive data,
+  claim-vs-reality gap in a customer-facing capability.
+- **MEDIUM** — Coverage overstatement, inconsistent cross-cutting handling, weak-but-not-broken auth.
+- **LOW** — Stale numbers/comments, cosmetic stubs behind an honest disclaimer, doc drift.
+
+### Required executive-summary table (top of every report)
+
+| Dimension | Findings | RESOLVED | CRITICAL | HIGH | MEDIUM | LOW |
+|-----------|----------|----------|----------|------|--------|-----|
+| **Top-Down** (Strategy → Code) | | | | | | |
+| **Bottom-Up** (Code → Claims) | | | | | | |
+| **Horizontal** (Cross-Cutting) | | | | | | |
+| **Diagonal** (Trust Boundary) | | | | | | |
+
+### The recurring anti-patterns to always grep for
+
+- **Silent mock fallback**: `if (!apiKey) return generateMock…()` / `catch { return mockData() }` —
+  must be replaced with fail-loud + telemetry. This is the #1 killer; it looks operational in a demo
+  and never delivers in production.
+- **Fabricated success**: a function that computes/returns `success: true` (or writes to the DAG)
+  without the real side effect actually happening. Worst when in the alert, remediation, or
+  containment/rollback path.
+- **Orphaned build artifacts**: a fixed file in `pkg/` with a stale, still-vulnerable twin under a
+  build/mirror directory. Grep the whole tree for the filename and diff.
+- **Coverage overstatement**: "full X coverage" strings where the code implements a sample subset.
+  Must carry a non-dismissible, *computed* disclaimer.
+
+### Cadence
+
+Run at the close of every sprint and before any pilot demo or Iron Bank resubmission. Reports live at
+repo root as `AUDIT_<PRODUCT>_<YYYY-MM-DD>.md`. Compare each run against the prior report's open items —
+a finding that regressed (came back after being marked RESOLVED) is automatically escalated one severity.
+
+---
+
+## 🛡️ STANDING RULE — Egress-Capable Components Require a Direction-Correct Perimeter Guard
+
+> Origin: Diagonal-dimension CRITICAL finding, 2026-07-03/04 audit of the Polymorphic API Connector
+> (fleet SSH/WinRM/nmap/CSV/cloud connectors) and the Blackhole VPN (Hub↔reporter dispatch channel).
+
+**The mistake this rule prevents:** assuming "we have SEKHEM WAF, so we're covered" for any new
+network-facing component, without checking which *direction* that component moves traffic.
+
+**The finding:** `pkg/sekhem/waf.go` + `pkg/gateway/gateway.go` (`Handler(upstream http.Handler)
+http.Handler`) is a real, substantial L7 guard — but it wraps **inbound** HTTP servers only. It
+inspects requests *arriving at* the Hub/MCP. It provides **zero** protection to a component that
+*originates* outbound connections — `net.Dial`, SSH, WinRM, raw TCP probes, cloud API pulls — because
+there is no inbound `http.Handler` for it to wrap. Verified: neither the Polymorphic Connector's dial
+paths (`pkg/asaf/fleet`, `pkg/asaf/hub`) nor the Blackhole VPN's enrollment/dispatch (`blackhole.go`)
+had any CIDR confinement, egress allowlisting, pre-dial Guardian/pentest vetting, or DAG-attested
+dial-attempt logging at time of finding. A `maat.Guardian.WeighAndDecide` policy layer exists but
+evaluates already-aggregated `Isfet` events after the fact — nothing feeds it a proposed dial target
+*before* the dial happens.
+
+**Third confirmed instance — the MCP tool-calling boundary itself:** KASA (the agentic engine,
+`pkg/agi`) is exposed to any connected MCP client via `pkg/mcp/tools/kasa_tools.go`. Its
+`HandleKASAScan` reads `target` directly from the MCP tool-call arguments and passes it unmodified to
+`engine.RunScan(target)` (`pkg/agi/engine.go:749`), which dials straight into `e.scanner.Run(target)`
+with **no CIDR check, no allowlist, no confinement whatsoever**. Any MCP client — including a
+prompt-injected or compromised AI agent, the exact adversarial-AI threat model this stack's inbound
+WAF (OWASP-MCP-01 prompt-injection detection) already defends against on the *request* side — can
+invoke the `kasa_scan` tool with an arbitrary internal target and KASA will actively scan it. This is
+the same missing Egress Boundary Guard, surfacing at the highest-risk seam of the three: a boundary
+explicitly designed to be driven by AI agents.
+
+**Why this matters at CMMC-product stakes:** the connector holds decrypted credentials (AES-256-GCM
+vault) and dials operator- or CSV-or-CIDR-supplied targets. An attacker who can influence an import
+file, a discovery CIDR, or an enrollment request can direct authenticated, credentialed outbound
+connections to a target of their choosing, with **no independent control point** that blocks it,
+flags it, or even logs the attempt as its own auditable fact (only the resulting side-effect, if any,
+gets logged today). This is an SSRF-shaped risk with privileged credentials attached — worse than a
+silent-failure mock, because it can be a silent-*success* of a malicious action.
+
+**THE RULE:** Every external-facing or egress-capable component — anything that either (a) accepts
+inbound network traffic, or (b) *originates* outbound connections to operator-, config-, or
+discovery-supplied targets (SSH/WinRM/API/cloud connectors, Blackhole VPN dispatch, any future
+integration) — MUST be paired with the perimeter control matching its actual traffic direction before
+it ships to an operator UI or a customer deployment:
+
+- **Inbound traffic** → SEKHEM WAF / `pkg/gateway` Handler wrapping. (Already correct for the Hub/MCP
+  HTTP surfaces — keep doing this.)
+- **Outbound/egress traffic** → an **Egress Boundary Guard**, which does NOT yet exist as a component
+  and must be built, not assumed:
+  1. **Enclave-CIDR confinement, enforced not advisory** — every dial target must resolve inside a
+     Phase-1-declared enclave boundary. Reject + log any out-of-scope target; never silently proceed
+     (mirrors the spec's own Phase-1 rule that a scope discrepancy is flagged, never auto-overridden).
+  2. **DAG-attested dial attempts**, independent of outcome — every outbound connection attempt is its
+     own signed DAG node (who, what target, what credential, when), not just the eventual result.
+  3. **Pre-dial Guardian/pentest vetting** — the proposed target is checked *before* the dial fires,
+     not fed to a policy engine only after telemetry accumulates.
+  4. **Anomaly → IR handoff** — rate-of-dial spikes, out-of-enclave attempts, repeated auth failures
+     auto-open a `pkg/ir` incident; they do not just increment a log counter.
+
+**Enforcement:** before any new egress-capable component (a connector, an agent dispatcher, a cloud
+integration) is wired into a UI or shipped to a customer, the 4-Layer audit's Diagonal pass must
+explicitly answer: *"What perimeter control matches this component's traffic direction, and where is
+it in the code?"* "We have a WAF" is not an acceptable answer for anything that dials out.
 

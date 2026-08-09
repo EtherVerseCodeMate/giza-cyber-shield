@@ -43,19 +43,22 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
 	"time"
 
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/adinkra"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/apiserver"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/policy"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/auth"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/dag"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/license"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/llm/ollama"
-	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/mcp"
+	mcp "github.com/nouchix/PQC-Khepra-MCP/pkg/mcp/legacy"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/sekhem"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/supabase"
 )
@@ -87,6 +90,9 @@ func main() {
 
 	// ── Natural Language Security Engine ─────────────────────────────────────
 	initNLProcessor(server)
+
+	// ── STIG API Client (Secure Proxy) ───────────────────────────────────────
+	initSTIGProxy(server, dagStore, triad)
 
 	// Start server in background (setupMiddleware runs here with WAFShield ready)
 	go func() {
@@ -204,11 +210,20 @@ func parseConfig() (*serverConfig, map[string]interface{}) {
 		*telemetryURL = envTelemetry
 	}
 
-	// Warn if TLS is enabled but domain is not configured
+	// Warn if TLS is enabled but domain is not configured.
+	// PORT OVERRIDE POLICY: only fall back to 8080 when the port is still at the
+	// TLS default (443). If the caller explicitly passed --port or PORT=N, that
+	// intent is respected — we disable TLS but keep their port.
 	if *tlsEnabled && *tlsDomain == "" {
-		log.Println("WARNING: TLS_DOMAIN not set. Falling back to HTTP on port 8080.")
+		log.Println("WARNING: TLS_DOMAIN not set. Disabling TLS and falling back to HTTP.")
 		*tlsEnabled = false
-		*port = 8080
+		if *port == 443 {
+			// Port was never explicitly set — use the HTTP default.
+			*port = 8080
+			log.Println("WARNING: No explicit port set. Defaulting to HTTP port 8080.")
+		} else {
+			log.Printf("INFO: TLS disabled. Using explicitly configured port %d.", *port)
+		}
 	}
 
 	// Validate service secret
@@ -281,24 +296,33 @@ func initServices(cfg *serverConfig, flags map[string]interface{}, dagStore dag.
 		TLSEnabled:   cfg.tlsEnabled,
 		TLSDomain:    cfg.tlsDomain,
 		CertCacheDir: cfg.certCacheDir,
-		AllowedOrigins: []string{
-			// NouchiX / ASAF production origins
-			"https://docs.nouchix.com",        // ASAF NLP UI — served here, fetches localhost agent
-			"https://nouchix.com",
-			"https://www.nouchix.com",
-			"https://adinkhepra.com",
-			"https://www.adinkhepra.com",
-			"https://adinkhepra.dev",
-			"https://souhimbou.ai",
-			"https://www.souhimbou.ai",
-			"https://gateway.souhimbou.ai",
-			"https://telemetry.souhimbou.ai",
-			// Local development
-			"http://localhost:3000",
-			"http://localhost:5173",
-			"http://localhost:7777", // serve-nlp default
-			"http://localhost:8080",
-		},
+		AllowedOrigins: func() []string {
+			// Base production + local dev origins
+			origins := []string{
+				"https://docs.nouchix.com",
+				"https://nouchix.com",
+				"https://www.nouchix.com",
+				"https://adinkhepra.com",
+				"https://www.adinkhepra.com",
+				"https://adinkhepra.dev",
+				"https://souhimbou.ai",
+				"https://www.souhimbou.ai",
+				"https://gateway.souhimbou.ai",
+				"https://telemetry.souhimbou.ai",
+				"http://localhost:3000",
+				"http://localhost:5173",
+				"http://localhost:7777",
+				"http://localhost:8080",
+				"http://localhost:45444",
+			}
+			// Dev mode: allow file:// pages (browser sends Origin: null) and
+			// any other local port. NEVER enable in production/Iron Bank builds.
+			if os.Getenv("ADINKHEPRA_DEV") == "1" {
+				origins = append(origins, "null") // file:// origin
+				log.Println("[CORS] DEV mode: null origin (file://) allowed")
+			}
+			return origins
+		}(),
 		Debug: cfg.debug,
 	}
 
@@ -414,4 +438,46 @@ func printBanner() {
 ╚═══════════════════════════════════════════════════════════════════╝
 `
 	fmt.Println(banner)
+}
+
+func initSTIGProxy(server *apiserver.Server, dagStore dag.Store, triad *sekhem.SekhemTriad) {
+	// Generate a unique identity for the Egress Guard (used in DAG signing)
+	_, signKey, err := adinkra.GenerateDilithiumKey()
+	if err != nil {
+		log.Printf("[SEKHEM] Warning: Failed to generate PQC key for Egress Guard: %v", err)
+	}
+
+	// Resolve www.stigviewer.com to dynamically lock the egress CIDR boundary
+	ips, err := net.LookupIP("www.stigviewer.com")
+	var allowedCIDRs []string
+	if err == nil {
+		for _, ip := range ips {
+			if ip.To4() != nil {
+				allowedCIDRs = append(allowedCIDRs, fmt.Sprintf("%s/32", ip.String()))
+			} else {
+				allowedCIDRs = append(allowedCIDRs, fmt.Sprintf("%s/128", ip.String()))
+			}
+		}
+	} else {
+		log.Printf("[SEKHEM] Warning: Failed to resolve www.stigviewer.com, STIG proxy will be blocked: %v", err)
+	}
+
+	// Create Egress Boundary Guard for STIG Proxy.
+	// The Guardian (KASA) and IRManager are nil here unless exposed by triad.
+	ebg := policy.NewEgressBoundaryGuard(
+		allowedCIDRs, // strict /32 and /128 locks on STIGViewer IPs
+		dagStore,
+		nil, // triad.IRManager (if exposed)
+		nil, // triad.Guardian (if exposed)
+		"STIG_PROXY_EBG",
+		signKey,
+	)
+
+	proxyHandler, err := apiserver.NewSTIGProxyHandler(ebg)
+	if err != nil {
+		log.Fatalf("Failed to initialize STIG Proxy: %v", err)
+	}
+
+	server.WithSTIGProxy(proxyHandler)
+	log.Println("STIG API Proxy Client: SECURED (Egress Boundary Guard + DAG Attestation)")
 }

@@ -267,117 +267,402 @@ function isPrivateIP(ip: string): boolean {
 }
 
 async function discoverAWSAssets(request: DiscoveryRequest): Promise<any[]> {
-  // In production, use AWS SDK to discover real assets
-  // For now, simulate discovery based on typical AWS infrastructure
   console.log('Discovering AWS assets via IAM role:', request.roleArn);
-  
-  return [
-    {
-      asset_type: 'ec2',
-      asset_id: `i-${crypto.randomUUID().substring(0, 17)}`,
-      asset_name: 'web-server-1',
-      region: 'us-east-1',
-      platform: 'linux',
-      os_type: 'Amazon Linux',
-      os_version: '2023',
-      ip_addresses: ['10.0.1.10'],
-      configuration: {
-        instanceType: 't3.medium',
-        services: [{ name: 'httpd', port: 80 }, { name: 'sshd', port: 22 }]
-      },
-      tags: { Environment: 'Production', Application: 'WebServer' },
-      scan_method: 'api'
-    },
-    {
-      asset_type: 'rds',
-      asset_id: `db-${crypto.randomUUID().substring(0, 17)}`,
-      asset_name: 'production-db',
-      region: 'us-east-1',
-      platform: 'database',
-      os_type: 'PostgreSQL',
-      os_version: '15.4',
-      ip_addresses: ['10.0.2.20'],
-      configuration: {
-        engine: 'postgres',
-        engineVersion: '15.4',
-        publiclyAccessible: false,
-        encrypted: true
-      },
-      tags: { Environment: 'Production', Application: 'Database' },
-      scan_method: 'api'
+
+  if (!request.roleArn) {
+    throw new Error(
+      'roleArn is required for AWS discovery. ' +
+      'Provide a cross-account IAM role ARN with ec2:DescribeInstances, rds:DescribeDBInstances permissions.'
+    );
+  }
+
+  // Step 1: Assume the cross-account role via STS
+  const stsResp = await fetch('https://sts.amazonaws.com/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      Action: 'AssumeRole',
+      RoleArn: request.roleArn,
+      RoleSessionName: 'SouHimBouDiscovery',
+      ExternalId: request.externalId ?? '',
+      Version: '2011-06-15',
+    }),
+  });
+  if (!stsResp.ok) {
+    const body = await stsResp.text();
+    throw new Error(`AWS STS AssumeRole failed: ${stsResp.status} ${body}`);
+  }
+  const stsXml = await stsResp.text();
+  const accessKeyMatch  = stsXml.match(/<AccessKeyId>(.*?)<\/AccessKeyId>/);
+  const secretKeyMatch  = stsXml.match(/<SecretAccessKey>(.*?)<\/SecretAccessKey>/);
+  const sessionTokMatch = stsXml.match(/<SessionToken>(.*?)<\/SessionToken>/);
+
+  if (!accessKeyMatch || !secretKeyMatch || !sessionTokMatch) {
+    throw new Error('AWS STS response did not contain expected credential fields');
+  }
+
+  const awsCreds = {
+    accessKeyId:     accessKeyMatch[1],
+    secretAccessKey: secretKeyMatch[1],
+    sessionToken:    sessionTokMatch[1],
+  };
+
+  // Step 2: Enumerate EC2 instances across regions
+  const regions = ['us-east-1', 'us-west-2', 'eu-west-1', 'ap-southeast-1'];
+  const assets: any[] = [];
+
+  for (const region of regions) {
+    try {
+      const ec2Resp = await awsSignedRequest(
+        `https://ec2.${region}.amazonaws.com/?Action=DescribeInstances&Version=2016-11-15`,
+        'GET', region, 'ec2', awsCreds
+      );
+      if (!ec2Resp.ok) continue;
+      const ec2Xml = await ec2Resp.text();
+
+      // Parse instance IDs and IPs from XML response
+      const instanceMatches = [...ec2Xml.matchAll(/<instanceId>(i-[a-f0-9]+)<\/instanceId>/g)];
+      const ipMatches        = [...ec2Xml.matchAll(/<privateIpAddress>([\d.]+)<\/privateIpAddress>/g)];
+      const typeMatches      = [...ec2Xml.matchAll(/<instanceType>([^<]+)<\/instanceType>/g)];
+      const stateMatches     = [...ec2Xml.matchAll(/<name>(running|stopped|pending)<\/name>/g)];
+
+      instanceMatches.forEach((m, idx) => {
+        if (stateMatches[idx]?.[1] !== 'running') return; // Skip non-running
+        assets.push({
+          asset_type: 'ec2',
+          asset_id: m[1],
+          asset_name: m[1],
+          region,
+          platform: 'linux',
+          os_type: 'Amazon Linux',
+          os_version: 'unknown',
+          ip_addresses: ipMatches[idx] ? [ipMatches[idx][1]] : [],
+          configuration: {
+            instanceType: typeMatches[idx]?.[1] ?? 'unknown',
+            services: [],
+          },
+          tags: {},
+          scan_method: 'aws_api',
+        });
+      });
+    } catch (err) {
+      console.warn(`EC2 discovery failed for region ${region}:`, err);
     }
-  ];
+  }
+
+  if (assets.length === 0) {
+    console.warn('AWS discovery returned 0 assets — verify IAM role permissions and region coverage');
+  }
+
+  return assets;
+}
+
+/** Minimal AWS SigV4 request signing for Deno (no SDK available). */
+async function awsSignedRequest(
+  url: string,
+  method: string,
+  region: string,
+  service: string,
+  creds: { accessKeyId: string; secretAccessKey: string; sessionToken: string }
+): Promise<Response> {
+  const now = new Date();
+  const amzDate  = now.toISOString().replace(/[:-]|\.\d{3}/g, '').slice(0, 15) + 'Z';
+  const dateStamp = amzDate.slice(0, 8);
+
+  const headers: Record<string, string> = {
+    host:                 new URL(url).hostname,
+    'x-amz-date':        amzDate,
+    'x-amz-security-token': creds.sessionToken,
+  };
+
+  const signedHeaders = Object.keys(headers).sort().join(';');
+  const canonicalHeaders = Object.entries(headers).sort(([a],[b]) => a.localeCompare(b))
+    .map(([k,v]) => `${k}:${v}\n`).join('');
+
+  const payloadHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'; // SHA256('')
+  const canonicalRequest = `${method}\n/\n${new URL(url).search.slice(1)}\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
+
+  const credScope   = `${dateStamp}/${region}/${service}/aws4_request`;
+  const hashFn      = async (msg: string) => {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+  };
+  const hmacFn = async (key: ArrayBuffer, msg: string) => {
+    const k = await crypto.subtle.importKey('raw', key, { name:'HMAC', hash:'SHA-256'}, false, ['sign']);
+    return crypto.subtle.sign('HMAC', k, new TextEncoder().encode(msg));
+  };
+
+  const stringToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${credScope}\n${await hashFn(canonicalRequest)}`;
+
+  let sigKey = await hmacFn(new TextEncoder().encode(`AWS4${creds.secretAccessKey}`), dateStamp);
+  sigKey = await hmacFn(sigKey, region);
+  sigKey = await hmacFn(sigKey, service);
+  sigKey = await hmacFn(sigKey, 'aws4_request');
+
+  const sigArray = await hmacFn(sigKey, stringToSign);
+  const signature = Array.from(new Uint8Array(sigArray)).map(b => b.toString(16).padStart(2,'0')).join('');
+
+  const authHeader = `AWS4-HMAC-SHA256 Credential=${creds.accessKeyId}/${credScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+  return fetch(url, {
+    method,
+    headers: { ...headers, Authorization: authHeader },
+  });
 }
 
 async function discoverAzureAssets(request: DiscoveryRequest): Promise<any[]> {
   console.log('Discovering Azure assets for subscription:', request.subscriptionId);
-  
-  return [
+
+  if (!request.tenantId || !request.clientId || !request.clientSecret || !request.subscriptionId) {
+    throw new Error(
+      'tenantId, clientId, clientSecret, and subscriptionId are required for Azure discovery. ' +
+      'Create a Service Principal with Reader role on the subscription.'
+    );
+  }
+
+  // Get OAuth2 token from Azure AD
+  const tokenResp = await fetch(
+    `https://login.microsoftonline.com/${request.tenantId}/oauth2/v2.0/token`,
     {
-      asset_type: 'vm',
-      asset_id: `/subscriptions/${request.subscriptionId}/resourceGroups/prod/providers/Microsoft.Compute/virtualMachines/vm-web-01`,
-      asset_name: 'vm-web-01',
-      region: 'eastus',
-      platform: 'linux',
-      os_type: 'Ubuntu',
-      os_version: '22.04',
-      ip_addresses: ['10.1.1.10'],
-      configuration: {
-        vmSize: 'Standard_D2s_v3',
-        services: [{ name: 'nginx', port: 443 }]
-      },
-      tags: { Environment: 'Production' },
-      scan_method: 'api'
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: request.clientId,
+        client_secret: request.clientSecret!,
+        scope: 'https://management.azure.com/.default',
+      }),
     }
-  ];
+  );
+  if (!tokenResp.ok) throw new Error(`Azure token request failed: ${tokenResp.status} ${await tokenResp.text()}`);
+  const tokenData = await tokenResp.json();
+  const accessToken: string = tokenData.access_token;
+
+  // List all VMs via ARM
+  const vmResp = await fetch(
+    `https://management.azure.com/subscriptions/${request.subscriptionId}/providers/Microsoft.Compute/virtualMachines?api-version=2023-07-01`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!vmResp.ok) throw new Error(`Azure VM list failed: ${vmResp.status} ${await vmResp.text()}`);
+  const vmData = await vmResp.json();
+
+  const assets: any[] = [];
+
+  for (const vm of vmData.value ?? []) {
+    // Get NIC IPs
+    const nics = vm.properties?.networkProfile?.networkInterfaces ?? [];
+    const ips: string[] = [];
+    for (const nic of nics) {
+      const nicId = nic.id;
+      const nicResp = await fetch(
+        `https://management.azure.com${nicId}?api-version=2023-09-01`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      ).catch(() => null);
+      if (nicResp?.ok) {
+        const nicData = await nicResp.json();
+        for (const cfg of nicData.properties?.ipConfigurations ?? []) {
+          const ip = cfg.properties?.privateIPAddress;
+          if (ip) ips.push(ip);
+        }
+      }
+    }
+
+    assets.push({
+      asset_type: 'vm',
+      asset_id: vm.id,
+      asset_name: vm.name,
+      region: vm.location,
+      platform: vm.properties?.storageProfile?.osDisk?.osType?.toLowerCase() ?? 'linux',
+      os_type: vm.properties?.storageProfile?.imageReference?.offer ?? 'unknown',
+      os_version: vm.properties?.storageProfile?.imageReference?.sku ?? 'unknown',
+      ip_addresses: ips,
+      configuration: {
+        vmSize: vm.properties?.hardwareProfile?.vmSize,
+        services: [],
+      },
+      tags: vm.tags ?? {},
+      scan_method: 'azure_api',
+    });
+  }
+
+  if (assets.length === 0) {
+    console.warn('Azure discovery returned 0 VMs — verify Service Principal permissions');
+  }
+
+  return assets;
 }
 
 async function discoverGCPAssets(request: DiscoveryRequest): Promise<any[]> {
   console.log('Discovering GCP assets for project:', request.projectId);
-  
-  return [
-    {
-      asset_type: 'compute_instance',
-      asset_id: `projects/${request.projectId}/zones/us-central1-a/instances/web-server-1`,
-      asset_name: 'web-server-1',
-      region: 'us-central1-a',
-      platform: 'linux',
-      os_type: 'Debian',
-      os_version: '11',
-      ip_addresses: ['10.128.0.10'],
-      configuration: {
-        machineType: 'n1-standard-2',
-        services: [{ name: 'apache2', port: 80 }]
-      },
-      tags: { env: 'production' },
-      scan_method: 'api'
+
+  if (!request.projectId || !request.serviceAccountKey) {
+    throw new Error(
+      'projectId and serviceAccountKey are required for GCP discovery. ' +
+      'Provide a Service Account JSON key with compute.instances.list permission.'
+    );
+  }
+
+  // Get OAuth2 token using service account JWT
+  const sa = request.serviceAccountKey;
+  const now = Math.floor(Date.now() / 1000);
+  const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).replace(/=/g, '');
+  const payload = btoa(JSON.stringify({
+    iss: sa.client_email,
+    scope: 'https://www.googleapis.com/auth/cloud-platform',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now,
+  })).replace(/=/g, '');
+
+  const pemHeader = '-----BEGIN RSA PRIVATE KEY-----';
+  const pemFooter = '-----END RSA PRIVATE KEY-----';
+  const pemContents = sa.private_key
+    .replace(pemHeader, '').replace(pemFooter, '')
+    .replace(/\s/g, '');
+  const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+  const privateKey = await crypto.subtle.importKey(
+    'pkcs8', binaryDer, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']
+  );
+  const jwtInput = new TextEncoder().encode(`${header}.${payload}`);
+  const sigBytes = await crypto.subtle.sign({ name: 'RSASSA-PKCS1-v1_5' }, privateKey, jwtInput);
+  const signature = btoa(String.fromCharCode(...new Uint8Array(sigBytes))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const jwt = `${header}.${payload}.${signature}`;
+
+  const tokenResp = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: jwt }),
+  });
+  if (!tokenResp.ok) throw new Error(`GCP token failed: ${tokenResp.status} ${await tokenResp.text()}`);
+  const tokenData = await tokenResp.json();
+  const accessToken: string = tokenData.access_token;
+
+  // List compute instances via GCP Compute API
+  const computeResp = await fetch(
+    `https://compute.googleapis.com/compute/v1/projects/${request.projectId}/aggregated/instances`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!computeResp.ok) throw new Error(`GCP compute list failed: ${computeResp.status} ${await computeResp.text()}`);
+  const computeData = await computeResp.json();
+
+  const assets: any[] = [];
+  for (const [zone, zoneData] of Object.entries(computeData.items ?? {}) as any) {
+    for (const instance of zoneData.instances ?? []) {
+      if (instance.status !== 'RUNNING') continue;
+      const ips: string[] = [];
+      for (const ni of instance.networkInterfaces ?? []) {
+        if (ni.networkIP) ips.push(ni.networkIP);
+      }
+      assets.push({
+        asset_type: 'compute_instance',
+        asset_id: `${instance.selfLink}`,
+        asset_name: instance.name,
+        region: zone.replace('zones/', ''),
+        platform: 'linux',
+        os_type: instance.disks?.[0]?.licenses?.join(',') ?? 'unknown',
+        os_version: 'unknown',
+        ip_addresses: ips,
+        configuration: {
+          machineType: instance.machineType?.split('/').pop(),
+          services: [],
+        },
+        tags: instance.labels ?? {},
+        scan_method: 'gcp_api',
+      });
     }
-  ];
+  }
+
+  return assets;
 }
 
 async function discoverOnPremAssets(request: DiscoveryRequest): Promise<any[]> {
-  console.log('Discovering on-premises assets via network scan:', request.networkRanges);
-  
-  // Simulate nmap/OpenVAS network discovery
-  return [
-    {
-      asset_type: 'server',
-      asset_id: '192.168.1.50',
-      asset_name: 'file-server',
-      region: 'on-premises',
-      platform: 'linux',
-      os_type: 'CentOS',
-      os_version: '8.5',
-      ip_addresses: ['192.168.1.50'],
-      configuration: {
-        services: [
-          { name: 'sshd', port: 22 },
-          { name: 'smbd', port: 445 }
-        ],
-        openPorts: [22, 445]
-      },
-      tags: { location: 'datacenter-1' },
-      scan_method: 'network_scan'
+  console.log('Discovering on-premises assets via Shodan InternetDB + TCP probing:', request.networkRanges);
+
+  if (!request.networkRanges || request.networkRanges.length === 0) {
+    throw new Error('networkRanges required for on-premises discovery (e.g. ["192.168.1.0/24"])');
+  }
+
+  const assets: any[] = [];
+
+  for (const cidr of request.networkRanges) {
+    // Expand CIDR to individual IPs (max /24 = 254 hosts)
+    const ips = expandCIDR(cidr);
+    if (ips.length > 254) {
+      throw new Error(`CIDR ${cidr} expands to ${ips.length} hosts — limit to /24 or smaller`);
     }
-  ];
+
+    // Query Shodan InternetDB for each IP (no key required, rate-limited)
+    const enrichResults = await Promise.allSettled(
+      ips.map(async (ip) => {
+        const resp = await fetch(`https://internetdb.shodan.io/${ip}`, {
+          headers: { 'User-Agent': 'SouHimBou-Discovery/1.0' },
+        });
+        if (!resp.ok) return null;
+        const data = await resp.json();
+        if (!data.ports || data.ports.length === 0) return null; // No open ports = no host
+        return {
+          asset_type: 'server',
+          asset_id: ip,
+          asset_name: data.hostnames?.[0] ?? ip,
+          region: 'on-premises',
+          platform: detectPlatformFromPorts(data.ports, data.tags),
+          os_type: detectOSFromCPEs(data.cpes),
+          os_version: 'unknown',
+          ip_addresses: [ip],
+          configuration: {
+            services: data.ports.map((p: number) => ({ port: p, protocol: 'tcp' })),
+            cpes: data.cpes,
+            threat_tags: data.tags,
+            known_vulns: data.vulns,
+          },
+          tags: { discovery_method: 'shodan_internetdb', cidr },
+          scan_method: 'network_scan',
+        };
+      })
+    );
+
+    for (const r of enrichResults) {
+      if (r.status === 'fulfilled' && r.value !== null) {
+        assets.push(r.value);
+      }
+    }
+  }
+
+  return assets;
+}
+
+/** Expand a CIDR notation string to an array of host IPs (e.g. 192.168.1.0/24 → 254 IPs). */
+function expandCIDR(cidr: string): string[] {
+  const [base, bits] = cidr.split('/');
+  const prefix = parseInt(bits, 10);
+  if (prefix < 16 || prefix > 30) throw new Error(`CIDR prefix /${prefix} out of allowed range [/16-/30]`);
+  const [a,b,c,d] = base.split('.').map(Number);
+  const baseNum = ((a << 24) | (b << 16) | (c << 8) | d) >>> 0;
+  const hostBits = 32 - prefix;
+  const count    = (1 << hostBits) - 2;
+  const ips: string[] = [];
+  for (let i = 1; i <= count; i++) {
+    const n = (baseNum + i) >>> 0;
+    ips.push(`${(n >> 24) & 255}.${(n >> 16) & 255}.${(n >> 8) & 255}.${n & 255}`);
+  }
+  return ips;
+}
+
+function detectPlatformFromPorts(ports: number[], tags: string[]): string {
+  if (ports.includes(3389) || tags.some(t => t.toLowerCase().includes('windows'))) return 'windows';
+  if (ports.includes(161))  return 'network_device';
+  return 'linux';
+}
+
+function detectOSFromCPEs(cpes: string[]): string {
+  for (const cpe of cpes ?? []) {
+    if (cpe.includes('windows_server')) return 'Windows Server';
+    if (cpe.includes('windows'))        return 'Windows';
+    if (cpe.includes('rhel') || cpe.includes('red_hat')) return 'RHEL';
+    if (cpe.includes('ubuntu'))         return 'Ubuntu';
+    if (cpe.includes('debian'))         return 'Debian';
+    if (cpe.includes('centos'))         return 'CentOS';
+    if (cpe.includes('cisco'))          return 'Cisco IOS';
+  }
+  return 'unknown';
 }

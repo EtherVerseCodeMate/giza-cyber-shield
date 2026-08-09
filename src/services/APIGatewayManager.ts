@@ -323,22 +323,15 @@ export class APIGatewayManager {
     error?: string;
   }> {
     try {
-      // Mock service forwarding - ready for real service integration
-      if (route.target_service === 'disa-stigs-api') {
-        return {
-          success: true,
-          data: { message: 'Mock DISA STIGs API response', payload }
-        };
-      } else if (route.target_service === 'open-controls') {
-        return {
-          success: true,
-          data: { message: 'Mock Open Controls response', payload }
-        };
-      }
-
+      // No live upstream is configured for these target services yet. Rather
+      // than return fabricated "success" payloads (SouHimBou audit BU-03,
+      // CRITICAL), report the integration as unavailable so callers surface a
+      // real error state instead of trusting mock data. Wire real HTTP transit
+      // (target URL + credentials) here when the upstream services are
+      // provisioned.
       return {
         success: false,
-        error: `Unknown target service: ${route.target_service}`
+        error: `Target service not integrated: ${route.target_service}`
       };
     } catch (error) {
       return {

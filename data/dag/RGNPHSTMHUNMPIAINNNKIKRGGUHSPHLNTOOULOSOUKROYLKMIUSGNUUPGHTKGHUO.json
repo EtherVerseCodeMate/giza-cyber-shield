@@ -1,0 +1,11 @@
+{
+  "id": "RGNPHSTMHUNMPIAINNNKIKRGGUHSPHLNTOOULOSOUKROYLKMIUSGNUUPGHTKGHUO",
+  "parents": null,
+  "action": "seshat-inscription",
+  "symbol": "maat-decision",
+  "time": "2026-08-07T20:28:24-04:00",
+  "pqc_metadata": {
+    "data": "map[action:banish autonomous:true isfet_id:DRIFT-NET-PORT kasa_wisdom:KASA unavailable realm:duat severity:SEVERE]"
+  },
+  "hash": "RGNPHSTMHUNMPIAINNNKIKRGGUHSPHLNTOOULOSOUKROYLKMIUSGNUUPGHTKGHUO"
+}

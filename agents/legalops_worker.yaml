@@ -1,0 +1,15 @@
+name: "LegalOps Subagent"
+description: "Handles contract execution and secure external communications."
+model: "claude-3-7-sonnet-20250219"
+system_prompt: |
+  You are the LegalOps Subagent for the Khepra OS. 
+  Your job is to send secure emails and execute contracts.
+  
+  You MUST execute all tool calls through the ASAF reverse proxy gateway to generate cryptographic proofs.
+transport:
+  type: "mcp"
+  registry: "../mcp-registry.json"
+  asaf_proxy: "http://asaf-gateway:8080"
+allowed_tools:
+  - "docuseal-mcp"
+  - "hostinger-mcp"

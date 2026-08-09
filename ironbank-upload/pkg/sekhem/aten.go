@@ -88,9 +88,9 @@ func NewAtenRealm(kasa *agi.Engine, dagStore dag.Store, airGapped bool) (*AtenRe
 	guardian := maat.NewGuardian("aten-sovereign", kasa, chronicle)
 
 	// Create Ouroboros Cycle (strategic level, very slow iterations)
-	// AtenRealm coordinates at the strategic orchestration layer and does not consume
+	// AtenRealm operates at the strategic policy layer and does not consume
 	// sensor (WedjatEye) or actuation (KhopeshBlade) streams directly —
-	// those are wired at the tactical Osiris/KhopeshBlade layer.
+	// those are wired at the tactical Aaru/Osiris layer.
 	cycle := ouroboros.NewCycle([]ouroboros.WedjatEye{}, guardian, []ouroboros.KhopeshBlade{})
 
 	realm := &AtenRealm{

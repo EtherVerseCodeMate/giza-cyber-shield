@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -170,7 +171,23 @@ func (tc *TelemetryClient) RegisterWithEnrollmentToken(machineID, customerName, 
 }
 
 // post sends a POST request to the telemetry server with retry logic
+// noEgressMode reports whether the configured KHEPRA_MODE forbids outbound
+// telemetry. Sovereign and Iron Bank deployments validate licenses offline via
+// ML-DSA-65 and must never dial the telemetry server (SouHimBou audit TD-01).
+// An unset or other mode (Community / SaaS) keeps telemetry enabled.
+func noEgressMode() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("KHEPRA_MODE"))) {
+	case "sovereign", "ironbank":
+		return true
+	default:
+		return false
+	}
+}
+
 func (tc *TelemetryClient) post(endpoint string, reqBody interface{}, respBody interface{}) error {
+	if noEgressMode() {
+		return fmt.Errorf("telemetry suppressed: KHEPRA_MODE=%q validates offline and makes no outbound calls (SouHimBou TD-01)", os.Getenv("KHEPRA_MODE"))
+	}
 	url := tc.serverURL + endpoint
 
 	// Marshal request
@@ -227,6 +244,9 @@ func (tc *TelemetryClient) post(endpoint string, reqBody interface{}, respBody i
 
 // HealthCheck verifies connectivity to the telemetry server
 func (tc *TelemetryClient) HealthCheck() (bool, error) {
+	if noEgressMode() {
+		return false, fmt.Errorf("telemetry health check skipped: sovereign/ironbank mode makes no outbound calls (SouHimBou TD-01)")
+	}
 	resp, err := tc.httpClient.Get(tc.serverURL + "/health")
 	if err != nil {
 		return false, fmt.Errorf("failed to reach telemetry server: %w", err)

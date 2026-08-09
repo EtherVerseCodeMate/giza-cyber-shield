@@ -1,0 +1,11 @@
+{
+  "id": "KESPMIUYHOSGLPNNSNONOLTIAELAOOUKSMMPAILEMIUEATOMRUGPPKTSSSYPTUUN",
+  "parents": null,
+  "action": "seshat-inscription",
+  "symbol": "maat-decision",
+  "time": "2026-08-08T19:41:05-04:00",
+  "pqc_metadata": {
+    "data": "map[action:banish autonomous:true isfet_id:CVE-2021-23337 kasa_wisdom:KASA unavailable realm:duat severity:SEVERE]"
+  },
+  "hash": "KESPMIUYHOSGLPNNSNONOLTIAELAOOUKSMMPAILEMIUEATOMRUGPPKTSSSYPTUUN"
+}

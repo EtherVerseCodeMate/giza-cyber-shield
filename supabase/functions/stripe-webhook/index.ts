@@ -12,31 +12,53 @@ const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET")!;
 
 // ── Price ID → License Tier Mapping ──────────────────────────────────────────
 // Maps live Stripe price IDs to internal license tier constants.
-// Fallback to env vars; defaults are the live IDs created 2026-06-15.
+// Last updated: 2026-07-09 — deconflicted SouHimBou AI vs PQC-Khepra-MCP products.
+//
+// Product ownership:
+//   prod_UhvNflskmq9PoV  → SouHimBou.AI Flight Recorder  (Starter/Enterprise/Professional)
+//   prod_UqvQtvapGfRbcP  → PQC-Khepra-MCP Server          (Sovereign — air-gapped self-hosted)
+//   prod_UnxN8gjNCMeYqj+ → AdinKhepra ASAF                (ASAF_* prices — separate webhook)
+//
+// ARCHIVED (do not use): price_1TiVXoDqGyad2D3Vr78bgbTI (old Sovereign on SouHimBou product)
 const PRICE_TIER_MAP: Record<string, string> = {
-  // One-time services → no recurring tier change, just grant access
-  [Deno.env.get("STRIPE_PRICE_CERTIFY")    || "price_1TiVvxDqGyad2D3VlUm3ba6s"]: "certify",
-  [Deno.env.get("STRIPE_PRICE_DIAGNOSTIC") || "price_1TiVXpDqGyad2D3VXMnYnrZP"]: "diagnostic",
-  [Deno.env.get("STRIPE_PRICE_ADVISORY")   || "price_1TiVXqDqGyad2D3VQizyv9o7"]: "advisory",
-  [Deno.env.get("STRIPE_PRICE_SPRINT")     || "price_1TiVw1DqGyad2D3VTs0ewSp0"]: "sprint",
-  // Subscriptions → maps to Khepra license tier
-  [Deno.env.get("STRIPE_PRICE_AUTOPILOT")  || "price_1TiVvyDqGyad2D3V4mszc5v5"]: "pilot",       // TierPilot
-  [Deno.env.get("STRIPE_PRICE_STARTER")    || "price_1TiVXPDqGyad2D3VSpr7L05X"]: "pilot",        // TierPilot
-  [Deno.env.get("STRIPE_PRICE_PRO")        || "price_1TiVXoDqGyad2D3V5AZQ0EiW"]: "pilot",        // TierPilot
-  [Deno.env.get("STRIPE_PRICE_ENTERPRISE") || "price_1TiVXoDqGyad2D3Vr78bgbTI"]: "enterprise",   // TierEnterprise
+  // ── Professional Services (one-time, no software tier) ──────────────────────
+  [Deno.env.get("STRIPE_PRICE_CERTIFY")       || "price_1TiVvxDqGyad2D3VlUm3ba6s"]: "certify",
+  [Deno.env.get("STRIPE_PRICE_DIAGNOSTIC")    || "price_1TiVXpDqGyad2D3VXMnYnrZP"]: "diagnostic",
+  [Deno.env.get("STRIPE_PRICE_ADVISORY")      || "price_1TiVXqDqGyad2D3VQizyv9o7"]: "advisory",
+  [Deno.env.get("STRIPE_PRICE_SPRINT")        || "price_1TiVw1DqGyad2D3VTs0ewSp0"]: "sprint",
+
+  // ── SouHimBou AI (souhimbou.ai) — prod_UhvNflskmq9PoV ────────────────────
+  // $299/mo Starter → pilot tools in hosted MCP endpoint
+  [Deno.env.get("STRIPE_PRICE_STARTER")       || "price_1TiVXPDqGyad2D3VSpr7L05X"]: "pilot",
+  // $499/mo Enterprise → enterprise tools in hosted MCP endpoint
+  [Deno.env.get("STRIPE_PRICE_ENTERPRISE_SOC")|| "price_1TiVvyDqGyad2D3V4mszc5v5"]: "enterprise",
+  // $999/mo Professional → full tool suite in hosted MCP endpoint
+  [Deno.env.get("STRIPE_PRICE_PROFESSIONAL")  || "price_1TiVXoDqGyad2D3V5AZQ0EiW"]: "enterprise",
+
+  // ── PQC-Khepra-MCP Server (air-gapped self-hosted) — prod_UqvQtvapGfRbcP ──
+  // $2,999/mo Sovereign → master tier, QKD license capsule, no cloud egress
+  [Deno.env.get("STRIPE_PRICE_MCP_SOVEREIGN") || "price_1TrDa4DqGyad2D3V7QqGxnjK"]: "master",
 };
 
 // Maps internal tier to the features granted
+// Tiers: certify | diagnostic | advisory | sprint | pilot | enterprise | master
 const TIER_FEATURES: Record<string, string[]> = {
+  // Professional services (one-time grants)
   certify:    ["cmmc_certify", "audit_export", "attestation_badge"],
   diagnostic: ["cmmc_certify", "cmmc_diagnostic", "audit_export", "advisory_checkout"],
   advisory:   ["cmmc_certify", "cmmc_diagnostic", "advisory_checkout", "diagnostic_service"],
   sprint:     ["cmmc_certify", "cmmc_diagnostic", "cmmc_sprint", "advisory_checkout"],
+  // SouHimBou AI hosted tiers
   pilot:      ["cmmc_autopilot", "stig_codex", "flight_recorder", "dag_viewer",
                "evidence_engine", "audit_export", "multi_org"],
   enterprise: ["cmmc_autopilot", "stig_codex", "flight_recorder", "pqc_attestation",
                "dag_viewer", "evidence_engine", "soar_integration", "govcloud_deploy",
                "audit_export", "multi_org", "advisory_checkout", "diagnostic_service"],
+  // PQC-Khepra-MCP Server — Sovereign self-hosted
+  master:     ["cmmc_autopilot", "stig_codex", "flight_recorder", "pqc_attestation",
+               "dag_viewer", "evidence_engine", "soar_integration", "govcloud_deploy",
+               "audit_export", "multi_org", "advisory_checkout", "diagnostic_service",
+               "mcp_sovereign_deploy", "air_gap_license", "qkd_capsule", "khepra_master_tier"],
 };
 
 serve(async (req) => {

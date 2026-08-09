@@ -1,0 +1,207 @@
+{
+  "chain_id": "khepra-1783591862721",
+  "genesis": "2026-07-09T10:11:02.719Z",
+  "algorithm": "ML-DSA-65 / FIPS 204",
+  "node_count": 22,
+  "nodes": [
+    {
+      "index": 0,
+      "label": "GENESIS - KHEPRA session key",
+      "type": "genesis",
+      "hash": "0x2FBDF8E0365A3B6B",
+      "parent_hash": "GENESIS",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 1,
+      "label": "KASA agent runtime initialized",
+      "type": "flight",
+      "hash": "0xFCE1BB2EA3A62941",
+      "parent_hash": "0x2FBDF8E0365A3B6B",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 2,
+      "label": "DAG attestation bridge active",
+      "type": "cert",
+      "hash": "0xF5E3E8C1F05BAF9E",
+      "parent_hash": "0xFCE1BB2EA3A62941",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 3,
+      "label": "ert_scan INITIATED",
+      "type": "flight",
+      "hash": "0x377BCA809600CDA9",
+      "parent_hash": "0xF5E3E8C1F05BAF9E",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 4,
+      "label": "Package A - STIG / CMMC Compliance",
+      "type": "flight",
+      "hash": "0x58BE341796C8F17C",
+      "parent_hash": "0x377BCA809600CDA9",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 5,
+      "label": "Package B - PQC Cryptography",
+      "type": "flight",
+      "hash": "0xED544D761800637F",
+      "parent_hash": "0x58BE341796C8F17C",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 6,
+      "label": "Package C - Sonar / Network Intelligence",
+      "type": "flight",
+      "hash": "0xA5B0885E200337B5",
+      "parent_hash": "0xED544D761800637F",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 7,
+      "label": "Package D - EA KernelRouter",
+      "type": "flight",
+      "hash": "0x9AFB7E3AEA2A40C1",
+      "parent_hash": "0xA5B0885E200337B5",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 8,
+      "label": "Godfather Synthesis",
+      "type": "flight",
+      "hash": "0x6BD3D95B3B4E2BB0",
+      "parent_hash": "0x9AFB7E3AEA2A40C1",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 9,
+      "label": "SC-13: MD5 Password Hashing - FIPS Violation",
+      "type": "finding",
+      "hash": "0x01A905E7D4FD600A",
+      "parent_hash": "0x6BD3D95B3B4E2BB0",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 10,
+      "label": "SI-10: SQL Injection - Login Bypass (Classic)",
+      "type": "finding",
+      "hash": "0xD0AF046AA7CCAFE3",
+      "parent_hash": "0x01A905E7D4FD600A",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 11,
+      "label": "SI-10c: Blind SQL Injection - Data Exfiltration",
+      "type": "finding",
+      "hash": "0x8B601426741B208B",
+      "parent_hash": "0xD0AF046AA7CCAFE3",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 12,
+      "label": "SI-10b: Command Injection - OS-Level RCE",
+      "type": "finding",
+      "hash": "0x1FA0D1BACE97B511",
+      "parent_hash": "0x8B601426741B208B",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 13,
+      "label": "SI-7: Unrestricted File Upload - PHP Webshell RCE",
+      "type": "finding",
+      "hash": "0x652D8C00128E2B75",
+      "parent_hash": "0x1FA0D1BACE97B511",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 14,
+      "label": "IA-5: Hardcoded Database Credentials",
+      "type": "finding",
+      "hash": "0xCBAB3B4191347874",
+      "parent_hash": "0x652D8C00128E2B75",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 15,
+      "label": "AC-4: CSRF - State-Changing Action Without Token",
+      "type": "finding",
+      "hash": "0xA3574E93A70CDCC8",
+      "parent_hash": "0xCBAB3B4191347874",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 16,
+      "label": "SI-10d: Stored XSS - Persistent Script Injection",
+      "type": "finding",
+      "hash": "0x1A0A1F602084F6A7",
+      "parent_hash": "0xA3574E93A70CDCC8",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 17,
+      "label": "AC-3: Insecure Direct Object Reference - User Data Exposure",
+      "type": "finding",
+      "hash": "0xDB8737E585D7EF8D",
+      "parent_hash": "0x1A0A1F602084F6A7",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 18,
+      "label": "AC-17: Missing HSTS / Insecure Transport",
+      "type": "finding",
+      "hash": "0xE9CE0341C51A4B9C",
+      "parent_hash": "0xDB8737E585D7EF8D",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 19,
+      "label": "SI-3: Missing CSP + Reflected XSS",
+      "type": "finding",
+      "hash": "0x7B98F777EB858D1B",
+      "parent_hash": "0xE9CE0341C51A4B9C",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 20,
+      "label": "CM-6: PHP Version Disclosure + Default Error Pages",
+      "type": "finding",
+      "hash": "0x6B54D5E27CF2B9BF",
+      "parent_hash": "0x7B98F777EB858D1B",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    },
+    {
+      "index": 21,
+      "label": "GODFATHER REPORT - signed",
+      "type": "cert",
+      "hash": "0x9A4E441F9E34CBAA",
+      "parent_hash": "0x6B54D5E27CF2B9BF",
+      "timestamp": "2026-07-09T10:11:02.719Z",
+      "signed_by": "ML-DSA-65 / FIPS 204"
+    }
+  ],
+  "chain_signature": "ML-DSA-65:0x1A0A1F602084F6A7"
+}

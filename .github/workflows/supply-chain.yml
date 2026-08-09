@@ -15,7 +15,15 @@ permissions:
   attestations: write  # Required for cosign image attestation
 
 env:
-  GO_VERSION: '1.23'
+  # Must satisfy the go.mod directive (go 1.26.4): cyclonedx-gomod invokes
+  # `go list` against the hosted toolchain directly, so an older pin makes
+  # the SBOM job fail with "failed to load modules".
+  GO_VERSION: '1.26.4'
+  # Resolve modules from the committed vendor/ tree. go.mod replaces
+  # github.com/nouchix/PQC-Khepra-MCP with ../PQC-Khepra-MCP, which does not
+  # exist in a single-repo CI checkout — any `go list` outside vendor mode
+  # (e.g. inside cyclonedx-gomod) fails to load the module graph.
+  GOFLAGS: '-mod=vendor'
   # GHCR (open-core community + Antigravity/Cline/Cursor distribution)
   GHCR_REGISTRY: ghcr.io
   GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/khepra-mcp
@@ -40,6 +48,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          lfs: true   # materialize embedded compliance CSVs (A-TD-01)
 
       - name: Setup Go ${{ env.GO_VERSION }}
         uses: actions/setup-go@v5
@@ -101,7 +110,9 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
+        with:
+          lfs: true   # materialize embedded compliance CSVs (A-TD-01)
 
       - name: Setup Go ${{ env.GO_VERSION }}
         uses: actions/setup-go@v5
@@ -156,7 +167,7 @@ jobs:
 
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: |
             ${{ env.GHCR_IMAGE }}
@@ -219,7 +230,7 @@ jobs:
       actions: read
       id-token: write
       contents: write
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     with:
       base64-subjects: ${{ needs.build.outputs.image-digest }}
       provenance-name: khepra-mcp.intoto.jsonl
@@ -263,7 +274,9 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
+        with:
+          lfs: true   # materialize embedded compliance CSVs (A-TD-01)
 
       - name: Setup Go ${{ env.GO_VERSION }}
         uses: actions/setup-go@v5

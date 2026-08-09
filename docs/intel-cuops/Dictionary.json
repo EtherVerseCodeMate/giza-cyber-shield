@@ -1,0 +1,40 @@
+{
+  "Dictionary": {
+    "@type": "Dictionary",
+    "schemaVersion": 1,
+    "dictionaryName": "String",
+    "dictionaryEntries": [
+      {
+        "dictionaryEntries(item)": {
+          "@type": "DictionaryEntries(item)",
+          "headword": "String",
+          "normalizedForm": "String",
+          "lemmaKey": "String",
+          "partOfSpeech": "String",
+          "definition": "String",
+          "entityType": "String",
+          "sensitivity": "String",
+          "informationClass": "String",
+          "cognitiveLevel": "String",
+          "responsibilityLevel": "String",
+          "automationTier": "String",
+          "isMultiwordExpression": "Boolean",
+          "isAmbiguous": "Boolean",
+          "polysemous": "Boolean",
+          "status": "String",
+          "confidenceScore": "Decimal",
+          "variants": [
+            {
+              "variants(item)": {
+                "@type": "Variants(item)",
+                "variantForm": "String",
+                "variantType": "String",
+                "context": "String"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

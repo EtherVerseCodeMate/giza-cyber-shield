@@ -1,12 +1,16 @@
 package stig
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
+
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/client"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/asaf/daemon"
 )
 
 // ExecutionLink defines the interface for running commands across the DEMARC
@@ -39,6 +43,57 @@ func (d *DEMARCLink) Execute(command string, args []string) (string, error) {
 }
 
 func (d *DEMARCLink) GetContext() string { return "agent:" + d.MachineID }
+
+// DaemonLink routes privileged commands through the asaf-daemon ChangeRequest
+// pipeline (ML-DSA-65 signed, staged, approved, DAG-attested).
+// This is the production ExecutionLink — no direct sudo, no shell metacharacters.
+type DaemonLink struct {
+	client    *client.Client
+	controlID string // STIG/CMMC control being remediated; populated per-call by Remediate
+	dagParent string // parent DAG node for attestation chain
+}
+
+// NewDaemonLink constructs a DaemonLink.  controlID and dagParent are overwritten
+// per-call; supply empty strings here and set them via WithControl before each
+// Remediate call if needed.
+func NewDaemonLink(c *client.Client) *DaemonLink {
+	return &DaemonLink{client: c}
+}
+
+// WithControl returns a shallow copy of the link with controlID and dagParent set.
+// Used by Remediate to stamp each ChangeRequest with the STIG rule being fixed.
+func (d *DaemonLink) WithControl(controlID, dagParent string) *DaemonLink {
+	cp := *d
+	cp.controlID = controlID
+	cp.dagParent = dagParent
+	return &cp
+}
+
+// Execute builds a signed, staged ChangeRequest for command+args and submits it
+// to the daemon. The daemon validates the symbol, stages the change in a mirror
+// container, and returns immediately with a StagingID — human approval is required
+// before production execution (Staging=true, Approved=false).
+func (d *DaemonLink) Execute(command string, args []string) (string, error) {
+	fullCmd := append([]string{command}, args...)
+	symbol := daemon.RequiredSymbol(fullCmd)
+	if symbol == "" {
+		return "", fmt.Errorf("command %q: not in authorized daemon catalog (deny-by-default)", command)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	result, err := d.client.Submit(ctx, d.controlID, symbol, fullCmd, d.dagParent, true, false)
+	if err != nil {
+		return "", fmt.Errorf("daemon submit %q: %w", command, err)
+	}
+	if !result.Success {
+		return result.Stdout + result.Stderr, fmt.Errorf("daemon: %s", result.Error)
+	}
+	return result.Stdout, nil
+}
+
+func (d *DaemonLink) GetContext() string { return "daemon" }
 
 // Remediator orchestrates automated security fixes with Failsafe protection
 type Remediator struct {
@@ -98,7 +153,7 @@ func (r *Remediator) Remediate(findingID string) (*RemediationResult, error) {
 func (r *Remediator) RemediatePackageInstall(packageName string) (*RemediationResult, error) {
 	res := &RemediationResult{FindingID: packageName, Command: "dnf install -y " + packageName, RemediatedAt: time.Now()}
 
-	out, err := r.link.Execute("sudo", []string{"dnf", "install", "-y", packageName})
+	out, err := r.link.Execute("dnf", []string{"install", "-y", packageName})
 	res.Output = out
 
 	if err != nil {
@@ -114,7 +169,7 @@ func (r *Remediator) RemediatePackageInstall(packageName string) (*RemediationRe
 func (r *Remediator) RemediateServiceEnable(serviceName string) (*RemediationResult, error) {
 	res := &RemediationResult{FindingID: serviceName, Command: "systemctl enable --now " + serviceName, RemediatedAt: time.Now()}
 
-	out, err := r.link.Execute("sudo", []string{"systemctl", "enable", "--now", serviceName})
+	out, err := r.link.Execute("systemctl", []string{"enable", "--now", serviceName})
 	res.Output = out
 
 	if err != nil {
@@ -142,7 +197,7 @@ func (r *Remediator) RemediateFirewalld() (*RemediationResult, error) {
 func (r *Remediator) RemediateFIPSMode() (*RemediationResult, error) {
 	res := &RemediationResult{FindingID: "fips", Command: "fips-mode-setup --enable", RemediatedAt: time.Now()}
 
-	out, err := r.link.Execute("sudo", []string{"fips-mode-setup", "--enable"})
+	out, err := r.link.Execute("fips-mode-setup", []string{"--enable"})
 	res.Output = out
 
 	if err != nil {
@@ -155,12 +210,21 @@ func (r *Remediator) RemediateFIPSMode() (*RemediationResult, error) {
 	return res, nil
 }
 
-// RemediateSSHConfig updates sshd_config with Augean Failsafe
+// RemediateSSHConfig updates sshd_config via the asaf-confedit helper.
+// asaf-confedit is an idempotent key=value setter registered in the daemon's
+// ops_catalog under Nkyinkyim — it never invokes a shell and supports
+// snapshot+rollback internally. This replaces the former "sudo bash -c" path
+// that bypassed the daemon's validateCommand / symbolRequirements gates.
 func (r *Remediator) RemediateSSHConfig(param, value string) (*RemediationResult, error) {
 	configPath := "/etc/ssh/sshd_config"
-	res := &RemediationResult{FindingID: "ssh_" + param, Command: "failsafe_update_sshd_config", RemediatedAt: time.Now()}
+	res := &RemediationResult{
+		FindingID:    "ssh_" + param,
+		Command:      fmt.Sprintf("asaf-confedit %s %s %s", configPath, param, value),
+		RemediatedAt: time.Now(),
+	}
 
-	// 1. Snapshot (Failsafe)
+	// 1. Snapshot before mutation (Failsafe — daemon also snapshots internally,
+	//    this gives a local rollback path if daemon is unavailable).
 	backup, err := r.snapshotFile(configPath)
 	if err != nil {
 		res.Status = "Failed"
@@ -168,27 +232,23 @@ func (r *Remediator) RemediateSSHConfig(param, value string) (*RemediationResult
 		return res, err
 	}
 
-	// 2. Perform Update
-	script := fmt.Sprintf("grep -q '^%s' %s && sed -i 's/^%s.*/%s %s/' %s || echo '%s %s' >> %s",
-		param, configPath, param, param, value, configPath, param, value, configPath)
-
-	out, err := r.link.Execute("sudo", []string{"bash", "-c", script})
+	// 2. Invoke asaf-confedit directly (no shell, no metacharacter injection risk).
+	//    argv: ["asaf-confedit", "/etc/ssh/sshd_config", "PermitRootLogin", "no"]
+	out, err := r.link.Execute("asaf-confedit", []string{configPath, param, value})
 	res.Output = out
 
 	if err != nil {
 		res.Status = "Failed"
-		// 3. Auto-Rollback if script fails
 		r.rollbackFile(configPath, backup)
-		return res, err
+		return res, fmt.Errorf("asaf-confedit %s %s %s: %w", configPath, param, value, err)
 	}
 
-	// 4. Verify & Restart
-	_, err = r.link.Execute("sudo", []string{"systemctl", "reload", "sshd"})
-	if err != nil {
+	// 3. Reload sshd to apply the change.
+	if _, err = r.link.Execute("systemctl", []string{"reload", "sshd"}); err != nil {
 		res.Status = "Failed"
 		res.Output += " [RELOAD FAILED - ROLLING BACK]"
 		r.rollbackFile(configPath, backup)
-		return res, err
+		return res, fmt.Errorf("systemctl reload sshd: %w", err)
 	}
 
 	res.Status = "Success"
@@ -221,14 +281,22 @@ func (r *Remediator) snapshotFile(path string) (string, error) {
 	return target, err
 }
 
-// rollbackFile restores a file from a snapshot
+// rollbackFile restores a file from a snapshot using pure Go I/O.
+// Only runs on the local path — the daemon handles its own rollback on the
+// daemon side, and DaemonLink sets GetContext() == "daemon".
 func (r *Remediator) rollbackFile(path, backup string) error {
 	if r.link.GetContext() != "local" {
-		return nil // Agent handles its own rollback
+		return nil
 	}
-
-	// cp is used for rollback to preserve file permissions and avoid
-	// cross-device rename failures that mv can produce on remote mounts.
-	cmd := exec.Command("sudo", "cp", backup, path)
-	return cmd.Run()
+	data, err := os.ReadFile(backup)
+	if err != nil {
+		return fmt.Errorf("rollback read %s: %w", backup, err)
+	}
+	// Preserve permissions of the original (write-only, no mode change).
+	info, err := os.Stat(path)
+	mode := os.FileMode(0600)
+	if err == nil {
+		mode = info.Mode()
+	}
+	return os.WriteFile(path, data, mode)
 }

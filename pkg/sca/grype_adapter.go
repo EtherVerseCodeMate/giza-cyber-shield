@@ -138,7 +138,9 @@ func (a *GrypeAdapter) loadDB() (vulnerability.Provider, *vulnerability.Provider
 		distCfg := v6dist.DefaultConfig()
 		installCfg := v6inst.DefaultConfig(khepraIdentity())
 
-		a.dbProvider, a.dbStatus, a.dbLoadErr = grype.LoadVulnerabilityDB(distCfg, installCfg, true)
+		// update=false: sovereign air-gap — DB must be pre-installed via `grype db update`.
+		// Never download at runtime; outbound network calls are prohibited.
+		a.dbProvider, a.dbStatus, a.dbLoadErr = grype.LoadVulnerabilityDB(distCfg, installCfg, false)
 	})
 	return a.dbProvider, a.dbStatus, a.dbLoadErr
 }
