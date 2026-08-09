@@ -23,6 +23,10 @@ func NewWaitPool(max uint32, new func() any) *WaitPool {
 	return p
 }
 
+func (p *WaitPool) hasAccounting() bool {
+	return p != nil && p.max != 0
+}
+
 func (p *WaitPool) Get() any {
 	if p.max != 0 {
 		p.lock.Lock()
@@ -68,7 +72,6 @@ func (device *Device) PopulatePools() {
 
 func (device *Device) GetInboundElementsContainer() *QueueInboundElementsContainer {
 	c := device.pool.inboundElementsContainer.Get().(*QueueInboundElementsContainer)
-	c.Mutex = sync.Mutex{}
 	return c
 }
 
@@ -82,7 +85,6 @@ func (device *Device) PutInboundElementsContainer(c *QueueInboundElementsContain
 
 func (device *Device) GetOutboundElementsContainer() *QueueOutboundElementsContainer {
 	c := device.pool.outboundElementsContainer.Get().(*QueueOutboundElementsContainer)
-	c.Mutex = sync.Mutex{}
 	return c
 }
 

@@ -285,17 +285,71 @@ function calculateRiskLevel(ports: number[], services: any[]) {
   return 'LOW';
 }
 
+/**
+ * Container image vulnerability scanning.
+ * Delegates to a Grype API sidecar (GRYPE_API_URL) or Trivy REST API (TRIVY_API_URL).
+ * Both are open-source scanners against real CVE databases (NVD + GHSA + RHSA).
+ * Fails loud if neither scanner is configured — never returns a fabricated finding.
+ *
+ * To run locally:
+ *   docker run -p 9090:9090 anchore/grype-api:latest
+ *   docker run -p 8081:8080 aquasec/trivy:latest server
+ */
 async function scanContainerImage(image: string) {
-  // Simulate container vulnerability scanning
-  return [
-    {
-      cve: 'CVE-2021-44228',
-      severity: 'CRITICAL',
-      package: 'log4j-core',
-      version: '2.14.1',
-      fixed_version: '2.16.0'
+  const grypeUrl = Deno.env.get('GRYPE_API_URL');
+  const trivyUrl = Deno.env.get('TRIVY_API_URL');
+
+  if (!grypeUrl && !trivyUrl) {
+    throw new Error(
+      'GRYPE_API_URL or TRIVY_API_URL not configured. ' +
+      'Container vulnerability scanning requires a Grype or Trivy API sidecar. ' +
+      'Deploy anchore/grype-api or aquasec/trivy server and set the env var.'
+    );
+  }
+
+  if (grypeUrl) {
+    const resp = await fetch(`${grypeUrl}/v1/scan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image }),
+    });
+    if (!resp.ok) throw new Error(`Grype scan failed for ${image}: ${resp.status} ${await resp.text()}`);
+    const data = await resp.json();
+    // Normalize Grype output to our schema
+    return (data.matches ?? []).map((m: any) => ({
+      cve: m.vulnerability?.id,
+      severity: m.vulnerability?.severity?.toUpperCase() ?? 'UNKNOWN',
+      package: m.artifact?.name,
+      version: m.artifact?.version,
+      fixed_version: m.vulnerability?.fix?.versions?.[0] ?? 'No fix available',
+      description: m.vulnerability?.description ?? '',
+      data_source: 'grype',
+    }));
+  }
+
+  // Trivy REST API
+  const resp = await fetch(`${trivyUrl}/twirp/trivy.Scanner/Scan`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ target: image, artifact_type: 'container_image', options: {} }),
+  });
+  if (!resp.ok) throw new Error(`Trivy scan failed for ${image}: ${resp.status} ${await resp.text()}`);
+  const data = await resp.json();
+  const vulns: any[] = [];
+  for (const result of data.results ?? []) {
+    for (const v of result.Vulnerabilities ?? []) {
+      vulns.push({
+        cve: v.VulnerabilityID,
+        severity: v.Severity?.toUpperCase() ?? 'UNKNOWN',
+        package: v.PkgName,
+        version: v.InstalledVersion,
+        fixed_version: v.FixedVersion || 'No fix available',
+        description: v.Description ?? '',
+        data_source: 'trivy',
+      });
     }
-  ];
+  }
+  return vulns;
 }
 
 async function performSTIGFingerprinting(target: string): Promise<DiscoveredAsset[]> {

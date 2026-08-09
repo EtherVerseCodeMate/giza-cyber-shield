@@ -65,9 +65,14 @@ Reporting:
   adinkhepra report     <subcmd>    PDF report generation (executive, technical, compliance)
   adinkhepra ert        <subcmd>    Executive Roundtable — godfather|readiness|architect|crypto
 
+CMMC Graph UI (Sovereign):
+  adinkhepra serve      [-port 8443]          Start CMMC Graph UI + DAG Viewer + KASA agent + Sekhem WAF
+                                              Opens at http://localhost:8443 — sovereign mode, zero egress
+                                              Set KHEPRA_MODE=sovereign for on-prem SQLite auth
+
 Agent & Scan:
   adinkhepra scan       --target <host|ip>   Full scan: STIG + AI agent audit + PQC inventory
-  adinkhepra watch      [-port 45444]         Start ASAF wrapper + live dashboard
+  adinkhepra watch      [-port 8443]          Start ASAF wrapper + live dashboard
   adinkhepra certify    --target <host|ip>    Full audit + ADINKHEPRA certificate
 
 Key Management (PQC):

@@ -1,0 +1,11 @@
+{
+  "id": "MKARSNPITYSHMNLEAAYOAHIEPPULIREKOSHOULSHIPAGNMPEOSHRUSLRMSTMNLMY",
+  "parents": null,
+  "action": "seshat-inscription",
+  "symbol": "maat-decision",
+  "time": "2026-08-08T01:01:17-04:00",
+  "pqc_metadata": {
+    "data": "map[action:banish autonomous:true isfet_id:DRIFT-NET-PORT kasa_wisdom:KASA unavailable realm:duat severity:SEVERE]"
+  },
+  "hash": "MKARSNPITYSHMNLEAAYOAHIEPPULIREKOSHOULSHIPAGNMPEOSHRUSLRMSTMNLMY"
+}

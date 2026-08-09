@@ -83,15 +83,23 @@ func newAutodrainingInboundQueue(device *Device) *autodrainingInboundQueue {
 	q := &autodrainingInboundQueue{
 		c: make(chan *QueueInboundElementsContainer, QueueInboundSize),
 	}
-	runtime.SetFinalizer(q, device.flushInboundQueue)
+	if device.needsInboundQueueFinalizer() {
+		runtime.AddCleanup(q, device.flushInboundQueue, q.c)
+	}
 	return q
 }
 
-func (device *Device) flushInboundQueue(q *autodrainingInboundQueue) {
+func (device *Device) needsInboundQueueFinalizer() bool {
+	return device.pool.messageBuffers.hasAccounting() ||
+		device.pool.inboundElements.hasAccounting() ||
+		device.pool.inboundElementsContainer.hasAccounting()
+}
+
+func (device *Device) flushInboundQueue(c <-chan *QueueInboundElementsContainer) {
 	for {
 		select {
-		case elemsContainer := <-q.c:
-			elemsContainer.Lock()
+		case elemsContainer := <-c:
+			elemsContainer.filling.Wait()
 			for _, elem := range elemsContainer.elems {
 				device.PutMessageBuffer(elem.buffer)
 				device.PutInboundElement(elem)
@@ -116,15 +124,23 @@ func newAutodrainingOutboundQueue(device *Device) *autodrainingOutboundQueue {
 	q := &autodrainingOutboundQueue{
 		c: make(chan *QueueOutboundElementsContainer, QueueOutboundSize),
 	}
-	runtime.SetFinalizer(q, device.flushOutboundQueue)
+	if device.needsOutboundQueueFinalizer() {
+		runtime.AddCleanup(q, device.flushOutboundQueue, q.c)
+	}
 	return q
 }
 
-func (device *Device) flushOutboundQueue(q *autodrainingOutboundQueue) {
+func (device *Device) needsOutboundQueueFinalizer() bool {
+	return device.pool.messageBuffers.hasAccounting() ||
+		device.pool.outboundElements.hasAccounting() ||
+		device.pool.outboundElementsContainer.hasAccounting()
+}
+
+func (device *Device) flushOutboundQueue(c <-chan *QueueOutboundElementsContainer) {
 	for {
 		select {
-		case elemsContainer := <-q.c:
-			elemsContainer.Lock()
+		case elemsContainer := <-c:
+			elemsContainer.filling.Wait()
 			for _, elem := range elemsContainer.elems {
 				device.PutMessageBuffer(elem.buffer)
 				device.PutOutboundElement(elem)

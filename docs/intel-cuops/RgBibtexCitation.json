@@ -1,0 +1,26 @@
+{
+  "RgBibtexCitation": {
+    "@type": "RgBibtexCitation",
+    "schemaVersion": 1,
+    "entryType": "String",
+    "citationKey": "String",
+    "title": "String",
+    "author": "String",
+    "institution": "String",
+    "howpublished": "String",
+    "year": "String",
+    "month": "String",
+    "url": "URL",
+    "urldate": "Date",
+    "note": "String",
+    "keywords": "String",
+    "copyright": "String",
+    "jurisdiction": "String",
+    "lastrevised": "Date",
+    "restriction": "String",
+    "contenttype": "String",
+    "cyberscore": "String",
+    "publisherid": "String",
+    "reggenomeid": "String"
+  }
+}

@@ -38,7 +38,8 @@ interface OrchestrationMetrics {
   automationRate: number;
 }
 
-export const AgenticComplianceOrchestrator: React.FC = () => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const AgenticComplianceOrchestrator: React.FC<{ organizationId?: string }> = ({ organizationId: _orgId }) => {
   const [agents, setAgents] = useState<AIAgent[]>([]);
   const [tasks, setTasks] = useState<ComplianceTask[]>([]);
   const [metrics, setMetrics] = useState<OrchestrationMetrics>({

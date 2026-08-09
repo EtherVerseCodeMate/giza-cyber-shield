@@ -1,0 +1,22 @@
+{
+  "Glossary": {
+    "@type": "Glossary",
+    "schemaVersion": 1,
+    "glossaryName": "String",
+    "glossaryEntries": [
+      {
+        "glossaryEntries(item)": {
+          "@type": "GlossaryEntries(item)",
+          "term": "String",
+          "partOfSpeech": "String",
+          "senseNumber": "Integer",
+          "senseLabel": "String",
+          "senseDefinition": "String",
+          "mandatory": "Boolean",
+          "status": "String",
+          "confidenceScore": "Decimal"
+        }
+      }
+    ]
+  }
+}

@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,10 +11,19 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/compliance"
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/connectors"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/enumerate"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/ert"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/fingerprint"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanner"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/scanners"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/sonar"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/stig"
+	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/vuln"
 )
 
 const nemoClawNamePrefix = "NemoClaw @ "
@@ -69,9 +79,18 @@ func tcpOpen(host string, port int, d time.Duration) bool {
 	return true
 }
 
-// runASAFOnboardingScan completes a scan record using real TCP probes and optional local NemoClaw policy audit.
+// runASAFOnboardingScan completes a scan record using ALL real scanning engines:
+//   - pkg/sonar    — Unified port scan + Horus vuln/secret/compliance/container lanes
+//   - pkg/ert      — ScanOrchestrator: SCA (Syft+Grype), Horus lanes, Sonar lane
+//   - pkg/stig     — STIG/CMMC/NIST 800-171 compliance validator
+//   - pkg/scanner  — TCP port scanner (stdlib, no CGO)
+//   - pkg/scanners — Built-in vuln/secret/compliance/container scans (Horus)
+//   - pkg/vuln     — Dependency vulnerability hunter (go.mod/package.json/requirements)
+//   - pkg/fingerprint — Device fingerprint collection
+//   - pkg/enumerate   — Network + system intelligence collection
+//   - pkg/connectors  — NemoClaw agent discovery and audit
 func runASAFOnboardingScan(scanID string, req ScanRequest) {
-	time.Sleep(1200 * time.Millisecond)
+	time.Sleep(800 * time.Millisecond)
 
 	host, ports := parseScanTarget(req.TargetURL)
 	if host == "" {
@@ -79,34 +98,413 @@ func runASAFOnboardingScan(scanID string, req ScanRequest) {
 		return
 	}
 
-	findings, gatewayExposed, openCount := probePorts(host, ports)
-	findings = append(findings, enrichFromExternalAPIs(host)...)
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
+	defer cancel()
 
-	platform, totalChecks, passCount, failCount, nemoFindings := auditNemoClawAgents()
-	findings = append(findings, nemoFindings...)
+	var (
+		allFindings []ScanFindingItem
+		mu          sync.Mutex
+	)
 
-	if strings.EqualFold(strings.TrimSpace(req.Profile), "nemoclaw") && platform != "nemoclaw" {
-		findings = append(findings, ScanFindingItem{
-			Severity: "medium",
-			Text:     "Profile NemoClaw requested but no local NemoClaw/OpenShell config was discovered on this host. Run assessment on the machine that holds ~/.nemoclaw (or use a deployed agent) for NMC-001–NMC-009 results.",
-		})
+	addFindings := func(items ...ScanFindingItem) {
+		mu.Lock()
+		allFindings = append(allFindings, items...)
+		mu.Unlock()
 	}
 
-	findings = append(findings, ScanFindingItem{
+	var wg sync.WaitGroup
+
+	// ── Lane 1: Sonar Unified (port scan + all Horus lanes) ──────────────────
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		sonarOrch := sonar.NewUnifiedOrchestrator(nil, nil, nil)
+		sonarReq := sonar.UnifiedScanRequest{
+			Target:    req.TargetURL,
+			ScanTypes: []sonar.ScanType{sonar.ScanTypeFull},
+			Timeout:   4 * time.Minute,
+		}
+		result, err := sonarOrch.ExecuteScan(ctx, sonarReq)
+		if err != nil {
+			addFindings(ScanFindingItem{Severity: "low",
+				Text: fmt.Sprintf("[SONAR] Scan error: %v", err)})
+			return
+		}
+		// Port results
+		for _, pr := range result.NetworkData {
+			sev := "medium"
+			if pr.Port == 22 || pr.Port == 3389 || pr.Port == 23 {
+				sev = "high"
+			}
+			banner := ""
+			if pr.Banner != "" {
+				banner = " — " + pr.Banner
+			}
+			addFindings(ScanFindingItem{
+				Severity: sev,
+				Text: fmt.Sprintf("[PKG-C SONAR] Port %d open on %s (service: %s)%s",
+					pr.Port, host, pr.Service, banner),
+			})
+		}
+		// Horus vulnerabilities
+		for _, v := range result.Vulnerabilities {
+			addFindings(ScanFindingItem{
+				Severity: strings.ToLower(v.Severity),
+				Text: fmt.Sprintf("[PKG-C HORUS-VULN] %s — %s (CVSS: %.1f)",
+					v.ID, v.Description, v.CVSS),
+			})
+		}
+		// Horus secrets
+		for _, s := range result.Secrets {
+			addFindings(ScanFindingItem{
+				Severity: "high",
+				Text: fmt.Sprintf("[PKG-C HORUS-SECRET] %s detected in %s (entropy: %.2f)",
+					s.Type, s.File, s.Entropy),
+			})
+		}
+		// Horus compliance
+		if cr := result.ComplianceReport; cr != nil {
+			for _, r := range cr.Findings {
+				if r.Status == "PASS" || r.Status == "NOT_APPLICABLE" {
+					continue
+				}
+				addFindings(ScanFindingItem{
+					Severity: strings.ToLower(r.Severity),
+					Text: fmt.Sprintf("[PKG-C HORUS-COMPLIANCE] %s: %s — %s",
+						r.ID, r.Title, r.Description),
+				})
+			}
+		}
+		// Container findings
+		if cf := result.ContainerFindings; cf != nil {
+			for _, issue := range cf.Misconfigurations {
+				addFindings(ScanFindingItem{
+					Severity: "medium",
+					Text:     fmt.Sprintf("[PKG-C HORUS-CONTAINER] %s", issue),
+				})
+			}
+		}
+	}()
+
+	// ── Lane 2: pkg/scanner — TCP port scanner ────────────────────────────────
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		sc := scanner.New()
+		sc.Ports = ports
+		results, err := sc.Run(host)
+		if err != nil {
+			return
+		}
+		for _, r := range results {
+			if r.Status != "OPEN" {
+				continue
+			}
+			sev := "medium"
+			if r.Port == 22 || r.Port == 3389 {
+				sev = "high"
+			}
+			addFindings(ScanFindingItem{
+				Severity: sev,
+				Text: fmt.Sprintf("[PKG-A SCANNER] TCP %d open on %s — service: %s",
+					r.Port, host, r.Service),
+			})
+		}
+	}()
+
+	// ── Lane 3: pkg/scanners — Built-in Horus scans ───────────────────────────
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		targetPath := req.TargetURL
+
+		// Built-in vulnerability scan
+		if vulnResult, err := scanners.RunBuiltInVulnerabilityScan(targetPath); err == nil {
+			for _, v := range vulnResult {
+				addFindings(ScanFindingItem{
+					Severity: strings.ToLower(v.Severity),
+					Text: fmt.Sprintf("[PKG-D HORUS-VULN] %s — %s",
+						v.ID, v.Description),
+				})
+			}
+		}
+
+		// Built-in secret scan
+		if secrets, err := scanners.RunBuiltInSecretScan(targetPath); err == nil {
+			for _, s := range secrets {
+				addFindings(ScanFindingItem{
+					Severity: "high",
+					Text: fmt.Sprintf("[PKG-D HORUS-SECRET] %s in %s (entropy %.2f) — %s",
+						s.Type, s.File, s.Entropy, s.Redacted),
+				})
+			}
+		}
+
+		// Built-in compliance scan
+		framework := req.ScanType
+		if framework == "" || framework == "full" {
+			framework = "nist"
+		}
+		if cr, err := scanners.RunBuiltInComplianceScan(framework); err == nil {
+			for _, f := range cr.Findings {
+				if f.Status == "PASS" || f.Status == "NOT_APPLICABLE" {
+					continue
+				}
+				addFindings(ScanFindingItem{
+					Severity: strings.ToLower(f.Severity),
+					Text: fmt.Sprintf("[PKG-A HORUS-COMPLIANCE] %s: %s — %s",
+						f.ID, f.Title, f.Description),
+				})
+			}
+		}
+
+		// Built-in container scan
+		if cf, err := scanners.RunBuiltInContainerScan(targetPath); err == nil && cf != nil {
+			for _, issue := range cf.Misconfigurations {
+				addFindings(ScanFindingItem{
+					Severity: "medium",
+					Text:     fmt.Sprintf("[PKG-D HORUS-CONTAINER] %s", issue),
+				})
+			}
+		}
+	}()
+
+	// ── Lane 4: pkg/ert — ERT ScanOrchestrator (SCA + Horus lanes) ───────────
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		// ERT operates on filesystem paths or image refs; use TargetURL as hint
+		// for the target path (works for local paths; skips gracefully for URLs)
+		targetPath := req.TargetURL
+		if strings.HasPrefix(targetPath, "http") {
+			// For HTTP targets: use current working dir as the scan path
+			// (scans the deployed agent/service directory for static analysis)
+			if wd, err := os.Getwd(); err == nil {
+				targetPath = wd
+			}
+		}
+
+		orch := ert.NewScanOrchestrator()
+		orch.RegisterLane(ert.NewHorusVulnLane())
+		orch.RegisterLane(ert.NewHorusSecretLane())
+		orch.RegisterLane(ert.NewHorusComplianceLane())
+		orch.RegisterLane(ert.NewHorusContainerLane())
+		// Sonar lane wired to network target
+		sonarLaneCfg := ert.SonarLaneConfig{
+			Ports:       ports,
+			ScanTimeout: 90 * time.Second,
+		}
+		orch.RegisterLane(ert.NewSonarLane(sonarLaneCfg))
+
+		ertReq := ert.ScanRequest{
+			TargetPath:          targetPath,
+			ComplianceFramework: "nist",
+			Timeout:             4 * time.Minute,
+		}
+		ertResult, err := orch.Execute(ctx, ertReq)
+		if err != nil {
+			addFindings(ScanFindingItem{Severity: "low",
+				Text: fmt.Sprintf("[ERT] Orchestrator error: %v", err)})
+			return
+		}
+		for _, f := range ertResult.Findings {
+			sev := strings.ToLower(f.Severity)
+			text := fmt.Sprintf("[ERT:%s] %s — %s", f.Source, f.Title, f.Description)
+			if f.CVEID != "" {
+				text += fmt.Sprintf(" (CVE: %s, CVSS: %.1f)", f.CVEID, f.CVSSv3)
+			}
+			if f.ControlID != "" {
+				text += fmt.Sprintf(" [%s: %s]", f.Framework, f.ControlID)
+			}
+			addFindings(ScanFindingItem{Severity: sev, Text: text})
+		}
+	}()
+
+	// ── Lane 5: pkg/stig — STIG/CMMC/NIST 800-171 Validator ─────────────────
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		targetPath := req.TargetURL
+		if strings.HasPrefix(targetPath, "http") {
+			if wd, err := os.Getwd(); err == nil {
+				targetPath = wd
+			}
+		}
+		validator := stig.NewValidator(targetPath)
+		result, err := validator.Validate()
+		if err != nil {
+			addFindings(ScanFindingItem{Severity: "low",
+				Text: fmt.Sprintf("[STIG] Validator error: %v", err)})
+			return
+		}
+		// ComprehensiveReport.Results is map[framework]*ValidationResult
+		for _, vr := range result.Results {
+			if vr == nil {
+				continue
+			}
+			for _, f := range vr.Findings {
+				if f.Status == "Pass" || f.Status == "Not Applicable" || f.Status == "Manual Review Required" {
+					continue
+				}
+				sev := "medium"
+				if f.Severity == stig.SeverityCAT1 || f.Severity == stig.SeverityCritical {
+					sev = "high"
+				} else if f.Severity == stig.SeverityCAT3 || f.Severity == stig.SeverityLow {
+					sev = "low"
+				}
+				refs := strings.Join(f.References, ", ")
+				addFindings(ScanFindingItem{
+					Severity: sev,
+					Text: fmt.Sprintf("[PKG-A STIG] %s — %s | refs: %s",
+						f.ID, f.Title, refs),
+				})
+			}
+		}
+	}()
+
+	// ── Lane 6: pkg/vuln — Dependency vulnerability hunter ───────────────────
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		targetPath := req.TargetURL
+		if strings.HasPrefix(targetPath, "http") {
+			if wd, err := os.Getwd(); err == nil {
+				targetPath = wd
+			}
+		}
+		hunter := vuln.NewHunter(targetPath)
+		scanResult, err := hunter.Scan(ctx)
+		if err != nil || scanResult == nil {
+			return
+		}
+		epssClient := vuln.NewEPSSClient()
+		for _, v := range scanResult.Vulnerabilities {
+			sev := strings.ToLower(string(v.Severity))
+			text := fmt.Sprintf("[PKG-D CVE] %s in %s (fixed: %s) — %s",
+				v.ID, v.Package, v.FixedVersion, v.Description)
+			// Enrich with EPSS score (no network context — uses cached feed)
+			if v.ID != "" {
+				if rec, ok := epssClient.Lookup(v.ID); ok {
+					text += fmt.Sprintf(" (EPSS: %.3f, %s-pct)", rec.EPSSScore, fmt.Sprintf("%.0f", rec.Percentile*100))
+					if rec.EPSSScore > 0.7 {
+						sev = "critical"
+					}
+				}
+			}
+			addFindings(ScanFindingItem{Severity: sev, Text: text})
+		}
+	}()
+
+	// ── Lane 7: pkg/fingerprint + pkg/enumerate — Asset intelligence ──────────
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		// Device fingerprint (local host — useful for on-prem ASAF deployments)
+		if fp, err := fingerprint.CollectDeviceFingerprint(); err == nil {
+			if len(fp.SpoofingIndicators) > 0 {
+				addFindings(ScanFindingItem{
+					Severity: "medium",
+					Text: fmt.Sprintf("[PKG-C FINGERPRINT] Spoofing indicators detected: %s",
+						strings.Join(fp.SpoofingIndicators, ", ")),
+				})
+			}
+			// TPM status
+			if !fp.TPMPresent {
+				addFindings(ScanFindingItem{
+					Severity: "medium",
+					Text:     "[PKG-C FINGERPRINT] TPM not detected — hardware attestation unavailable. CMMC.SC.L2-3.13.10 at risk.",
+				})
+			}
+		}
+
+		// Network intelligence (local node — boundary mapping for SRM)
+		if netIntel, err := enumerate.CollectNetworkIntelligence(); err == nil {
+			for _, iface := range netIntel.Interfaces {
+				isUp := false
+				for _, flag := range iface.Flags {
+					if flag == "UP" {
+						isUp = true
+						break
+					}
+				}
+				if isUp && len(iface.IPAddresses) > 0 {
+					addFindings(ScanFindingItem{
+						Severity: "info",
+						Text: fmt.Sprintf("[PKG-C ENUM] Interface %s: %s (boundary node)",
+							iface.Name, strings.Join(iface.IPAddresses, ", ")),
+					})
+				}
+			}
+			// Listening ports cross-reference (netIntel.Ports = []NetworkPort)
+			for _, lp := range netIntel.Ports {
+				if lp.Port > 0 && lp.Port != 22 {
+					addFindings(ScanFindingItem{
+						Severity: "low",
+						Text: fmt.Sprintf("[PKG-C ENUM] Listening: %s/%d (bind: %s)",
+							lp.Protocol, lp.Port, lp.BindAddr),
+					})
+				}
+			}
+		}
+	}()
+
+	// ── Lane 8: Legacy TCP probe + Shodan/APIVoid + NemoClaw ─────────────────
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		legacyFindings, gatewayExposed, _ := probePorts(host, ports)
+		legacyFindings = append(legacyFindings, enrichFromExternalAPIs(host)...)
+		_, _, _, _, nemoFindings := auditNemoClawAgents()
+		legacyFindings = append(legacyFindings, nemoFindings...)
+		if gatewayExposed {
+			addFindings(ScanFindingItem{
+				Severity: "critical",
+				Text:     "[PKG-C SONAR] KHEPRA agent gateway port (18789) exposed — verify auth, binding, and firewall policy before handling CUI.",
+			})
+		}
+		addFindings(legacyFindings...)
+	}()
+
+	// ── Wait for all lanes ────────────────────────────────────────────────────
+	wg.Wait()
+
+	// ── Add structural CMMC finding (always present) ─────────────────────────
+	allFindings = append(allFindings, ScanFindingItem{
 		Severity: "medium",
-		Text:     "CMMC / NIST 800-171 readiness: align logs, configuration exports, and change records into a single assessor-ready evidence package (traceability for C3PAO intake).",
+		Text:     "[PKG-A CMMC] CMMC / NIST 800-171 readiness: align logs, configuration exports, and change records into a single assessor-ready evidence package (traceability for C3PAO intake).",
 	})
 
-	if openCount == 0 && platform != "nemoclaw" {
-		findings = append(findings, ScanFindingItem{
-			Severity: "low",
-			Text:     "Default probe ports (18789 / 443) did not accept TCP from this scanner — validate that scope matches your boundary (internal-only services will not appear as open from an external scanner).",
-		})
+	// ── Compute risk and finalize ─────────────────────────────────────────────
+	critCount := 0
+	highCount := 0
+	for _, f := range allFindings {
+		switch f.Severity {
+		case "critical":
+			critCount++
+		case "high":
+			highCount++
+		}
 	}
+	gatewayExposed := false
+	for _, f := range allFindings {
+		if strings.Contains(f.Text, "18789") {
+			gatewayExposed = true
+		}
+	}
+	openCount := 0
+	for _, f := range allFindings {
+		if strings.Contains(f.Text, "TCP") && strings.Contains(f.Text, "open") {
+			openCount++
+		}
+	}
+	risk := computeRiskScore(gatewayExposed, openCount, allFindings)
 
-	risk := computeRiskScore(gatewayExposed, openCount, findings)
-	finalizeScan(scanID, req, findings, platform, totalChecks, passCount, failCount, gatewayExposed, openCount, risk)
+	finalizeScan(scanID, req, allFindings, "asaf-multi-engine",
+		len(allFindings), len(allFindings)-critCount-highCount, critCount+highCount,
+		gatewayExposed, openCount, risk)
 }
+
 
 // markScanFailed sets a scan record to the failed state with a single finding.
 func markScanFailed(scanID, reason string) {

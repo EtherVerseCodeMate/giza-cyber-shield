@@ -84,7 +84,8 @@ const agentModes: AgentMode[] = [
   }
 ];
 
-export const AgenticComplianceArchitect: React.FC = () => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const AgenticComplianceArchitect: React.FC<{ organizationId?: string }> = ({ organizationId: _orgId }) => {
   const [agentStatus, setAgentStatus] = useState<'running' | 'paused' | 'configuring'>('paused');
   const [activeMode, setActiveMode] = useState<string>('observe');
   const [controlGaps, setControlGaps] = useState<ControlGap[]>([]);

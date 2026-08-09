@@ -1,20 +1,24 @@
 {
-    "compilerOptions": {
-        "lib": [
-            "deno.ns",
-            "deno.unstable"
-        ],
-        "strict": false,
-        "noImplicitAny": false
-    },
-    "lint": {
-        "rules": {
-            "exclude": [
-                "no-explicit-any"
-            ]
-        }
-    },
-    "imports": {
-        "std/": "https://deno.land/std@0.168.0/"
+  "compilerOptions": {
+    "lib": ["deno.ns", "deno.unstable", "dom"],
+    "strict": false,
+    "noImplicitAny": false,
+    "allowImportingTsExtensions": true
+  },
+  "lint": {
+    "rules": {
+      "exclude": ["no-explicit-any"]
     }
+  },
+  "fmt": {
+    "lineWidth": 120,
+    "singleQuote": true
+  },
+  "imports": {
+    "std/":            "https://deno.land/std@0.208.0/",
+    "std/http/":       "https://deno.land/std@0.208.0/http/",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
+    "@supabase/functions-js": "https://esm.sh/@supabase/functions-js@2",
+    "hono":            "https://esm.sh/hono@4"
+  }
 }

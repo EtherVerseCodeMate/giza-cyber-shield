@@ -22,7 +22,7 @@ interface TrustConstellationProps {
 }
 
 const TrustConstellation3D = ({ nodes, edges, onNodeClick }: TrustConstellationProps) => {
-    const fgRef = useRef<any>();
+    const fgRef = useRef<any>(undefined);
 
     useEffect(() => {
         // Auto-rotate camera for dramatic effect

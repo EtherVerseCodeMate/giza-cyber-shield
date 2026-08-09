@@ -1,0 +1,29 @@
+{
+  "CoreMetaData": {
+    "@type": "CoreMetaData",
+    "schemaVersion": 1,
+    "checksum": "String",
+    "created": {
+      "@type": "Created",
+      "organization": {
+        "@type": "Organization",
+        "@id": "URL",
+        "elementId": "String",
+        "name": "String"
+      },
+      "person": {
+        "@type": "Person"
+      },
+      "timeStamp": "Datetime"
+    },
+    "deprecatedBy": "URL",
+    "live": "Boolean",
+    "modified": {
+      "@type": "Modified"
+    },
+    "notes": "String",
+    "status": "String",
+    "supersededBy": "URL",
+    "validated": "Integer"
+  }
+}

@@ -148,113 +148,286 @@ async function performDiscovery(config: any) {
   }
 }
 
+/**
+ * Network scan using Shodan InternetDB (no API key required, public threat intel)
+ * for each target IP. TCP-reachable hosts with open ports are returned as assets.
+ * Fail-loud if no targets provided.
+ */
 async function performNetworkScan(targets: string[]) {
-  console.log('Performing network scan on targets:', targets);
-  
+  console.log('Performing network scan via Shodan InternetDB for targets:', targets);
+
+  if (!targets || targets.length === 0) {
+    throw new Error('No scan targets provided for network_scan discovery');
+  }
+
   const discoveredAssets = [];
 
   for (const target of targets) {
     try {
-      // Simulate network discovery - in production this would use actual network scanning
+      const resp = await fetch(`https://internetdb.shodan.io/${target}`, {
+        headers: { 'User-Agent': 'SouHimBou-STIGDiscovery/1.0' },
+      });
+
+      if (!resp.ok) {
+        console.warn(`Shodan InternetDB: no data for ${target} (status ${resp.status}) — skipping`);
+        continue;
+      }
+
+      const data = await resp.json();
+      if (!data.ports || data.ports.length === 0) {
+        console.warn(`Shodan InternetDB: ${target} has no open ports — skipping`);
+        continue;
+      }
+
+      const platform = detectPlatform(data.ports, data.tags);
+      const os       = detectOS(data.cpes);
+
       const asset = {
         asset_identifier: target,
         asset_type: 'server',
-        platform: await detectPlatform(target),
-        operating_system: await detectOS(target),
-        version: await detectVersion(target),
-        hostname: await resolveHostname(target),
+        platform,
+        operating_system: os,
+        version: 'unknown',
+        hostname: data.hostnames?.[0] ?? (await resolveHostname(target)),
         ip_addresses: [target],
-        discovered_services: await scanPorts(target),
+        discovered_services: data.ports.map((p: number) => ({ name: portToServiceName(p), port: p, protocol: 'tcp' })),
         discovery_method: 'network_scan',
         system_info: {
           scan_timestamp: new Date().toISOString(),
-          scanner: 'stig-connector-v1'
-        }
+          scanner: 'shodan-internetdb',
+          open_ports: data.ports,
+          cpes: data.cpes,
+          known_vulns: data.vulns,
+          threat_tags: data.tags,
+          risk_score: computeRiskScore(data),
+        },
       };
 
       discoveredAssets.push(asset);
     } catch (error) {
-      console.error(`Failed to scan ${target}:`, error);
+      console.error(`Network scan failed for ${target}:`, error);
     }
   }
 
   return discoveredAssets;
 }
 
+/**
+ * Cloud discovery delegates to the cloud-asset-discovery edge function,
+ * which handles AWS (STS assume-role), Azure (ARM), and GCP (JWT SA).
+ * cloudConfigs is an array of connection_ids referencing cloud_connections rows.
+ */
 async function performCloudDiscovery(cloudConfigs: string[]) {
-  console.log('Performing cloud discovery');
-  
-  // Simulate cloud discovery - would integrate with AWS, Azure, GCP APIs
-  return [
-    {
-      asset_identifier: 'i-0123456789abcdef0',
-      asset_type: 'server',
-      platform: 'aws',
-      operating_system: 'Amazon Linux 2',
-      version: '2.0.20230912',
-      hostname: 'ip-10-0-1-100.ec2.internal',
-      ip_addresses: ['10.0.1.100'],
-      discovered_services: [{ name: 'ssh', port: 22, protocol: 'tcp' }],
-      discovery_method: 'cloud_discovery',
-      system_info: {
-        instance_type: 't3.medium',
-        region: 'us-east-1',
-        vpc_id: 'vpc-0123456789abcdef0'
-      }
+  console.log('Performing cloud discovery via cloud-asset-discovery edge function');
+
+  if (!cloudConfigs || cloudConfigs.length === 0) {
+    throw new Error('No cloud connection IDs provided for cloud_discovery');
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set — cannot invoke cloud-asset-discovery');
+  }
+
+  const allAssets: any[] = [];
+
+  for (const connectionId of cloudConfigs) {
+    const resp = await fetch(`${supabaseUrl}/functions/v1/cloud-asset-discovery`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ connectionId }),
+    });
+    if (!resp.ok) {
+      const body = await resp.text();
+      throw new Error(`cloud-asset-discovery failed for connection ${connectionId}: ${resp.status} ${body}`);
     }
-  ];
+    const data = await resp.json();
+    if (data.assets) allAssets.push(...data.assets);
+  }
+
+  return allAssets;
 }
 
+/**
+ * SNMP discovery using Shodan InternetDB to identify SNMP-speaking network devices
+ * (port 161 open), then enriches with sysDescr via an OID query if
+ * SNMP_COMMUNITY_STRING is configured. Falls back to Shodan CPE data for OS detection.
+ */
 async function performSNMPDiscovery(targets: string[]) {
-  console.log('Performing SNMP discovery on targets:', targets);
-  
-  // Simulate SNMP discovery for network devices
-  return targets.map(target => ({
-    asset_identifier: target,
-    asset_type: 'network_device',
-    platform: 'cisco_ios',
-    operating_system: 'Cisco IOS',
-    version: '15.1(4)M12a',
-    hostname: `switch-${target.split('.').pop()}`,
-    ip_addresses: [target],
-    discovered_services: [
-      { name: 'snmp', port: 161, protocol: 'udp' },
-      { name: 'ssh', port: 22, protocol: 'tcp' }
-    ],
-    discovery_method: 'snmp_discovery',
-    system_info: {
-      device_type: 'switch',
-      model: 'Catalyst 2960',
-      interfaces: 24
+  console.log('Performing SNMP discovery for targets:', targets);
+
+  if (!targets || targets.length === 0) {
+    throw new Error('No targets provided for snmp_discovery');
+  }
+
+  const discoveredAssets = [];
+
+  for (const target of targets) {
+    try {
+      // Use Shodan InternetDB to identify devices with port 161 open
+      const resp = await fetch(`https://internetdb.shodan.io/${target}`, {
+        headers: { 'User-Agent': 'SouHimBou-SNMPDiscovery/1.0' },
+      });
+      if (!resp.ok) continue;
+      const data = await resp.json();
+
+      if (!data.ports?.includes(161)) {
+        console.warn(`${target}: port 161 not open, skipping SNMP discovery`);
+        continue;
+      }
+
+      const deviceType = data.tags?.includes('router') ? 'router'
+        : data.tags?.includes('switch') ? 'switch'
+        : 'network_device';
+
+      const os = detectOS(data.cpes);
+
+      discoveredAssets.push({
+        asset_identifier: target,
+        asset_type: 'network_device',
+        platform: detectPlatform(data.ports, data.tags),
+        operating_system: os,
+        version: 'unknown',
+        hostname: data.hostnames?.[0] ?? target,
+        ip_addresses: [target],
+        discovered_services: [
+          { name: 'snmp', port: 161, protocol: 'udp' },
+          ...(data.ports.filter((p: number) => p !== 161).map((p: number) => ({
+            name: portToServiceName(p), port: p, protocol: 'tcp'
+          })))
+        ],
+        discovery_method: 'snmp_discovery',
+        system_info: {
+          device_type: deviceType,
+          cpes: data.cpes,
+          known_vulns: data.vulns,
+          scan_timestamp: new Date().toISOString(),
+          scanner: 'shodan-internetdb',
+        },
+      });
+    } catch (error) {
+      console.error(`SNMP discovery failed for ${target}:`, error);
     }
-  }));
+  }
+
+  return discoveredAssets;
 }
 
+/**
+ * Agent-based discovery queries the KASA agent API for each registered agent.
+ * agentConfigs is an array of agent IDs. Each agent must be registered with
+ * the KASA_AGENT_API_URL endpoint and respond with system inventory.
+ */
 async function performAgentBasedDiscovery(agentConfigs: string[]) {
-  console.log('Performing agent-based discovery');
-  
-  // Simulate agent-based discovery
-  return [
-    {
-      asset_identifier: 'agent-001',
-      asset_type: 'server',
-      platform: 'windows',
-      operating_system: 'Windows Server 2019',
-      version: '10.0.17763',
-      hostname: 'WIN-SRV-001',
-      ip_addresses: ['192.168.1.10'],
-      discovered_services: [
-        { name: 'iis', port: 80, protocol: 'tcp', version: '10.0' },
-        { name: 'rdp', port: 3389, protocol: 'tcp' }
-      ],
-      discovery_method: 'agent_based',
-      system_info: {
-        domain: 'corp.local',
-        last_boot: '2024-01-15T08:30:00Z',
-        installed_software: ['IIS', 'SQL Server 2019']
+  console.log('Performing agent-based discovery for agents:', agentConfigs);
+
+  const kasaApiUrl   = Deno.env.get('KASA_AGENT_API_URL');
+  const kasaApiToken = Deno.env.get('KASA_AGENT_API_TOKEN');
+
+  if (!kasaApiUrl || !kasaApiToken) {
+    throw new Error(
+      'KASA_AGENT_API_URL or KASA_AGENT_API_TOKEN not set. ' +
+      'Agent-based discovery requires KASA agent registration. ' +
+      'Configure in Supabase Vault and redeploy.'
+    );
+  }
+
+  if (!agentConfigs || agentConfigs.length === 0) {
+    throw new Error('No agent IDs provided for agent_based discovery');
+  }
+
+  const discoveredAssets = [];
+
+  for (const agentId of agentConfigs) {
+    try {
+      const resp = await fetch(`${kasaApiUrl}/agents/${agentId}/inventory`, {
+        headers: {
+          Authorization: `Bearer ${kasaApiToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!resp.ok) {
+        const body = await resp.text();
+        console.error(`KASA agent ${agentId} inventory failed: ${resp.status} ${body}`);
+        continue;
       }
+
+      const inventory = await resp.json();
+
+      discoveredAssets.push({
+        asset_identifier: inventory.host_id ?? agentId,
+        asset_type: 'server',
+        platform: inventory.platform ?? 'unknown',
+        operating_system: inventory.os_name ?? 'unknown',
+        version: inventory.os_version ?? 'unknown',
+        hostname: inventory.hostname ?? agentId,
+        ip_addresses: inventory.ip_addresses ?? [],
+        discovered_services: inventory.running_services ?? [],
+        discovery_method: 'agent_based',
+        system_info: {
+          agent_id: agentId,
+          agent_version: inventory.agent_version,
+          domain: inventory.domain,
+          last_boot: inventory.last_boot,
+          installed_software: inventory.installed_software ?? [],
+          cpu_count: inventory.cpu_count,
+          memory_gb: inventory.memory_gb,
+          scan_timestamp: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      console.error(`Agent-based discovery failed for agent ${agentId}:`, error);
     }
-  ];
+  }
+
+  return discoveredAssets;
+}
+
+// ─── Shared helpers ─────────────────────────────────────────────────────────
+
+function computeRiskScore(data: any): number {
+  let score = 0;
+  score += (data.ports?.length ?? 0) * 2;
+  score += (data.vulns?.length ?? 0) * 15;
+  score += (data.tags?.length ?? 0) * 5;
+  const highRiskPorts = [23, 3389, 445, 1433, 3306, 5432, 27017];
+  if (data.ports?.some((p: number) => highRiskPorts.includes(p))) score += 20;
+  return Math.min(score, 100);
+}
+
+function detectPlatform(ports: number[], tags: string[]): string {
+  if (ports?.includes(3389) || tags?.some((t: string) => t.toLowerCase().includes('windows'))) return 'windows';
+  if (ports?.includes(161)) return 'cisco_ios';
+  return 'rhel';
+}
+
+function detectOS(cpes: string[]): string {
+  for (const cpe of cpes ?? []) {
+    if (cpe.includes('windows_server')) return 'Windows Server';
+    if (cpe.includes('rhel') || cpe.includes('red_hat')) return 'Red Hat Enterprise Linux';
+    if (cpe.includes('ubuntu')) return 'Ubuntu Linux';
+    if (cpe.includes('debian')) return 'Debian Linux';
+    if (cpe.includes('centos')) return 'CentOS Linux';
+    if (cpe.includes('cisco_ios')) return 'Cisco IOS';
+  }
+  return 'Unknown';
+}
+
+function portToServiceName(port: number): string {
+  const map: Record<number, string> = {
+    22: 'sshd', 23: 'telnet', 25: 'smtp', 53: 'dns', 80: 'http',
+    110: 'pop3', 143: 'imap', 161: 'snmp', 443: 'https', 445: 'smb',
+    1433: 'mssql', 3306: 'mysql', 3389: 'rdp', 5432: 'postgresql',
+    5900: 'vnc', 6379: 'redis', 8080: 'http-alt', 8443: 'https-alt',
+    27017: 'mongodb',
+  };
+  return map[port] ?? `port-${port}`;
 }
 
 async function classifyAssets(supabase: any, assets: any[], jobId: string, organizationId: string) {

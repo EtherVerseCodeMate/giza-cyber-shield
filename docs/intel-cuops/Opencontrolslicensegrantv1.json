@@ -1,0 +1,98 @@
+{
+  "Opencontrolslicensegrantv1": {
+    "@type": "String",
+    "schemaVersion": "String",
+    "@context": "https://opencontrols.ai",
+    "@id": "URL",
+    "grantId": "String",
+    "subject": {
+      "@type": "Subject",
+      "domain": "String",
+      "analyzedUrl": "String",
+      "work": "String",
+      "directory": "String",
+      "scope": "String",
+      "category": "String",
+      "contentSummary": "String"
+    },
+    "grantor": {
+      "@type": "Grantor",
+      "name": "String"
+    },
+    "grantee": {
+      "@type": "Grantee",
+      "account": "String"
+    },
+    "rights": {
+      "@type": "Rights",
+      "scrape": {
+        "@type": "Scrape",
+        "state": "String",
+        "confidence": "String",
+        "conditions": [
+          {
+            "conditions(item)": "String"
+          }
+        ],
+        "needsReview": "String",
+        "note": "String",
+        "basis": [
+          {
+            "basis(item)": "String"
+          }
+        ]
+      },
+      "tdm": {
+        "@type": "Tdm"
+      },
+      "aiTrain": {
+        "@type": "AiTrain"
+      },
+      "aiUse": {
+        "@type": "AiUse"
+      },
+      "derive": {
+        "@type": "Derive"
+      },
+      "redistribute": {
+        "@type": "Redistribute"
+      },
+      "transform": {
+        "@type": "Transform"
+      },
+      "tag": {
+        "@type": "Tag"
+      }
+    },
+    "term": {
+      "@type": "Term",
+      "elementId": "String",
+      "effectiveFrom": "Datetime",
+      "expiresAt": "Datetime"
+    },
+    "grantEvidence": {
+      "@type": "GrantEvidence",
+      "instrument": "String",
+      "reference": "String",
+      "signedBy": "String",
+      "signatureMethod": "String"
+    },
+    "verification": {
+      "@type": "Verification",
+      "status": "String",
+      "verifyUrl": "String",
+      "registry": "String"
+    },
+    "references": [
+      {
+        "references(item)": {
+          "@type": "References(item)",
+          "id": "String",
+          "title": "String",
+          "url": "URL"
+        }
+      }
+    ],
+    "disclaimer": "String"
+  }
+}

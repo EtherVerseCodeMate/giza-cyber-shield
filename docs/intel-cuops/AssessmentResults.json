@@ -1,0 +1,732 @@
+{
+  "AssessmentResults": {
+    "@type": "AssessmentResults",
+    "schemaVersion": 1,
+    "uuid": "String",
+    "metadata": {
+      "@type": "Metadata",
+      "title": "String",
+      "published": "Datetime",
+      "last-modified": "Datetime",
+      "version": "String",
+      "oscal-version": "String",
+      "revisions": [
+        {
+          "revisions(item)": {
+            "@type": "Revisions(item)",
+            "props": [
+              {
+                "props(item)": {
+                  "@type": "Props(item)",
+                  "name": "String",
+                  "ns": "URI",
+                  "value": "String",
+                  "class": "String",
+                  "group": "String",
+                  "remarks": "String"
+                }
+              }
+            ],
+            "links": [
+              {
+                "links(item)": {
+                  "@type": "Links(item)",
+                  "href": "URI",
+                  "rel": "String",
+                  "media-type": "String",
+                  "resource-fragment": "String",
+                  "text": "String"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "document-ids": [
+        {
+          "document-ids(item)": {
+            "@type": "Document-ids(item)",
+            "scheme": "URI",
+            "identifier": "String"
+          }
+        }
+      ],
+      "roles": [
+        {
+          "roles(item)": {
+            "@type": "Roles(item)",
+            "description": "String",
+            "id": "String",
+            "short-name": "String"
+          }
+        }
+      ],
+      "locations": [
+        {
+          "locations(item)": {
+            "@type": "Locations(item)",
+            "address": {
+              "@type": "Address",
+              "type": "String",
+              "addr-lines": [
+                {
+                  "addr-lines(item)": "String"
+                }
+              ],
+              "city": "String",
+              "state": "String",
+              "postal-code": "String",
+              "country": "String"
+            },
+            "email-addresses": [
+              {
+                "email-addresses(item)": "String"
+              }
+            ],
+            "telephone-numbers": [
+              {
+                "telephone-numbers(item)": "TelephoneNumber"
+              }
+            ],
+            "urls": [
+              {
+                "urls(item)": "URI"
+              }
+            ]
+          }
+        }
+      ],
+      "parties": [
+        {
+          "parties(item)": {
+            "@type": "Parties(item)",
+            "external-ids": [
+              {
+                "external-ids(item)": {
+                  "@type": "External-ids(item)"
+                }
+              }
+            ],
+            "addresses": [
+              {
+                "addresses(item)": {
+                  "@type": "Addresses(item)"
+                }
+              }
+            ],
+            "member-of-organizations": [
+              {
+                "member-of-organizations(item)": "String"
+              }
+            ],
+            "location-uuids": [
+              {
+                "location-uuids(item)": "String"
+              }
+            ]
+          }
+        }
+      ],
+      "responsible-parties": [
+        {
+          "responsible-parties(item)": {
+            "@type": "Responsible-parties(item)",
+            "role-id": "String",
+            "party-uuids": [
+              {
+                "party-uuids(item)": "String"
+              }
+            ]
+          }
+        }
+      ],
+      "actions": [
+        {
+          "actions(item)": {
+            "@type": "Actions(item)",
+            "date": "Datetime",
+            "system": "URI"
+          }
+        }
+      ]
+    },
+    "import-ap": {
+      "@type": "Import-ap"
+    },
+    "local-definitions": {
+      "@type": "Local-definitions",
+      "components": [
+        {
+          "components(item)": {
+            "@type": "Components(item)",
+            "purpose": "String",
+            "responsible-roles": [
+              {
+                "responsible-roles(item)": {
+                  "@type": "Responsible-roles(item)"
+                }
+              }
+            ],
+            "status": "String",
+            "protocols": [
+              {
+                "protocols(item)": {
+                  "@type": "Protocols(item)",
+                  "port-ranges": [
+                    {
+                      "port-ranges(item)": {
+                        "@type": "Port-ranges(item)",
+                        "start": "Integer",
+                        "end": "Integer",
+                        "transport": "String"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "control-implementations": [
+              {
+                "control-implementations(item)": {
+                  "@type": "Control-implementations(item)",
+                  "source": "URI",
+                  "set-parameters": [
+                    {
+                      "set-parameters(item)": {
+                        "@type": "Set-parameters(item)",
+                        "param-id": "String",
+                        "depends-on": "String",
+                        "label": "String",
+                        "usage": "String",
+                        "constraints": [
+                          {
+                            "constraints(item)": {
+                              "@type": "Constraints(item)",
+                              "tests": [
+                                {
+                                  "tests(item)": {
+                                    "@type": "Tests(item)",
+                                    "expression": "String"
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ],
+                        "guidelines": [
+                          {
+                            "guidelines(item)": {
+                              "@type": "Guidelines(item)",
+                              "prose": "String"
+                            }
+                          }
+                        ],
+                        "values": [
+                          {
+                            "values(item)": "String"
+                          }
+                        ],
+                        "select": {
+                          "@type": "Select",
+                          "how-many": "String",
+                          "choice": [
+                            {
+                              "choice(item)": "String"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ],
+                  "implemented-requirements": [
+                    {
+                      "implemented-requirements(item)": {
+                        "@type": "Implemented-requirements(item)",
+                        "control-id": "String",
+                        "statements": [
+                          {
+                            "statements(item)": {
+                              "@type": "Statements(item)",
+                              "statement-id": "String",
+                              "by-components": [
+                                {
+                                  "by-components(item)": {
+                                    "@type": "By-components(item)",
+                                    "component-uuid": "String",
+                                    "implementation-status": {
+                                      "@type": "Implementation-status"
+                                    },
+                                    "export": {
+                                      "@type": "Export",
+                                      "provided": [
+                                        {
+                                          "provided(item)": {
+                                            "@type": "Provided(item)"
+                                          }
+                                        }
+                                      ],
+                                      "responsibilities": [
+                                        {
+                                          "responsibilities(item)": {
+                                            "@type": "Responsibilities(item)",
+                                            "provided-uuid": "String"
+                                          }
+                                        }
+                                      ]
+                                    },
+                                    "inherited": [
+                                      {
+                                        "inherited(item)": {
+                                          "@type": "Inherited(item)"
+                                        }
+                                      }
+                                    ],
+                                    "satisfied": [
+                                      {
+                                        "satisfied(item)": {
+                                          "@type": "Satisfied(item)",
+                                          "responsibility-uuid": "String"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "inventory-items": [
+        {
+          "inventory-items(item)": {
+            "@type": "Inventory-items(item)",
+            "implemented-components": [
+              {
+                "implemented-components(item)": {
+                  "@type": "Implemented-components(item)"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "users": [
+        {
+          "users(item)": {
+            "@type": "Users(item)",
+            "role-ids": [
+              {
+                "role-ids(item)": "String"
+              }
+            ],
+            "authorized-privileges": [
+              {
+                "authorized-privileges(item)": {
+                  "@type": "Authorized-privileges(item)",
+                  "functions-performed": [
+                    {
+                      "functions-performed(item)": "String"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "assessment-assets": {
+        "@type": "Assessment-assets",
+        "assessment-platforms": [
+          {
+            "assessment-platforms(item)": {
+              "@type": "Assessment-platforms(item)",
+              "uses-components": [
+                {
+                  "uses-components(item)": {
+                    "@type": "Uses-components(item)"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "objectives-and-methods": [
+        {
+          "objectives-and-methods(item)": {
+            "@type": "Objectives-and-methods(item)",
+            "parts": [
+              {
+                "parts(item)": {
+                  "@type": "Parts(item)"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "activities": [
+        {
+          "activities(item)": {
+            "@type": "Activities(item)",
+            "steps": [
+              {
+                "steps(item)": {
+                  "@type": "Steps(item)",
+                  "reviewed-controls": {
+                    "@type": "Reviewed-controls",
+                    "control-selections": [
+                      {
+                        "control-selections(item)": {
+                          "@type": "Control-selections(item)",
+                          "include-all": "String",
+                          "exclude-controls": [
+                            {
+                              "exclude-controls(item)": {
+                                "@type": "Exclude-controls(item)",
+                                "with-child-controls": "String",
+                                "with-ids": [
+                                  {
+                                    "with-ids(item)": "String"
+                                  }
+                                ],
+                                "statement-ids": [
+                                  {
+                                    "statement-ids(item)": "String"
+                                  }
+                                ],
+                                "matching": [
+                                  {
+                                    "matching(item)": {
+                                      "@type": "Matching(item)",
+                                      "pattern": "String"
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          ],
+                          "include-controls": [
+                            {
+                              "include-controls(item)": {
+                                "@type": "Include-controls(item)"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ],
+                    "control-objective-selections": [
+                      {
+                        "control-objective-selections(item)": {
+                          "@type": "Control-objective-selections(item)",
+                          "exclude-objectives": [
+                            {
+                              "exclude-objectives(item)": {
+                                "@type": "Exclude-objectives(item)",
+                                "objective-id": "String"
+                              }
+                            }
+                          ],
+                          "include-objectives": [
+                            {
+                              "include-objectives(item)": {
+                                "@type": "Include-objectives(item)"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "related-controls": {
+              "@type": "Related-controls"
+            }
+          }
+        }
+      ]
+    },
+    "results": [
+      {
+        "results(item)": {
+          "@type": "Results(item)",
+          "attestations": [
+            {
+              "attestations(item)": {
+                "@type": "Attestations(item)"
+              }
+            }
+          ],
+          "assessment-log": {
+            "@type": "Assessment-log",
+            "entries": [
+              {
+                "entries(item)": {
+                  "@type": "Entries(item)",
+                  "logged-by": [
+                    {
+                      "logged-by(item)": {
+                        "@type": "Logged-by(item)",
+                        "party-uuid": "String"
+                      }
+                    }
+                  ],
+                  "related-tasks": [
+                    {
+                      "related-tasks(item)": {
+                        "@type": "Related-tasks(item)",
+                        "task-uuid": "String",
+                        "subjects": [
+                          {
+                            "subjects(item)": {
+                              "@type": "Subjects(item)",
+                              "subject-uuid": "String",
+                              "exclude-subjects": [
+                                {
+                                  "exclude-subjects(item)": {
+                                    "@type": "Exclude-subjects(item)"
+                                  }
+                                }
+                              ],
+                              "include-subjects": [
+                                {
+                                  "include-subjects(item)": {
+                                    "@type": "Include-subjects(item)"
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ],
+                        "identified-subject": {
+                          "@type": "Identified-subject",
+                          "subject-placeholder-uuid": "String"
+                        }
+                      }
+                    }
+                  ],
+                  "status-change": "String",
+                  "related-responses": [
+                    {
+                      "related-responses(item)": {
+                        "@type": "Related-responses(item)",
+                        "response-uuid": "String"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "observations": [
+            {
+              "observations(item)": {
+                "@type": "Observations(item)",
+                "methods": [
+                  {
+                    "methods(item)": "String"
+                  }
+                ],
+                "types": [
+                  {
+                    "types(item)": "String"
+                  }
+                ],
+                "origins": [
+                  {
+                    "origins(item)": {
+                      "@type": "Origins(item)",
+                      "actors": [
+                        {
+                          "actors(item)": {
+                            "@type": "Actors(item)",
+                            "actor-uuid": "String"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "relevant-evidence": [
+                  {
+                    "relevant-evidence(item)": {
+                      "@type": "Relevant-evidence(item)"
+                    }
+                  }
+                ],
+                "collected": "Datetime",
+                "expires": "Datetime"
+              }
+            }
+          ],
+          "risks": [
+            {
+              "risks(item)": {
+                "@type": "Risks(item)",
+                "statement": "String",
+                "threat-ids": [
+                  {
+                    "threat-ids(item)": {
+                      "@type": "Threat-ids(item)"
+                    }
+                  }
+                ],
+                "characterizations": [
+                  {
+                    "characterizations(item)": {
+                      "@type": "Characterizations(item)",
+                      "origin": {
+                        "@type": "Origin"
+                      },
+                      "facets": [
+                        {
+                          "facets(item)": {
+                            "@type": "Facets(item)"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "mitigating-factors": [
+                  {
+                    "mitigating-factors(item)": {
+                      "@type": "Mitigating-factors(item)",
+                      "implementation-uuid": "String"
+                    }
+                  }
+                ],
+                "deadline": "Datetime",
+                "remediations": [
+                  {
+                    "remediations(item)": {
+                      "@type": "Remediations(item)",
+                      "lifecycle": "String",
+                      "required-assets": [
+                        {
+                          "required-assets(item)": {
+                            "@type": "Required-assets(item)"
+                          }
+                        }
+                      ],
+                      "tasks": [
+                        {
+                          "tasks(item)": {
+                            "@type": "Tasks(item)",
+                            "timing": {
+                              "@type": "Timing",
+                              "on-date": {
+                                "@type": "On-date"
+                              },
+                              "within-date-range": {
+                                "@type": "Within-date-range"
+                              },
+                              "at-frequency": {
+                                "@type": "At-frequency",
+                                "period": "Integer",
+                                "unit": "String"
+                              }
+                            },
+                            "dependencies": [
+                              {
+                                "dependencies(item)": {
+                                  "@type": "Dependencies(item)"
+                                }
+                              }
+                            ],
+                            "associated-activities": [
+                              {
+                                "associated-activities(item)": {
+                                  "@type": "Associated-activities(item)",
+                                  "activity-uuid": "String"
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "risk-log": {
+                  "@type": "Risk-log"
+                },
+                "related-observations": [
+                  {
+                    "related-observations(item)": {
+                      "@type": "Related-observations(item)",
+                      "observation-uuid": "String"
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "findings": [
+            {
+              "findings(item)": {
+                "@type": "Findings(item)",
+                "target": {
+                  "@type": "Target",
+                  "target-id": "String"
+                },
+                "implementation-statement-uuid": "String",
+                "related-risks": [
+                  {
+                    "related-risks(item)": {
+                      "@type": "Related-risks(item)",
+                      "risk-uuid": "String"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "back-matter": {
+      "@type": "Back-matter",
+      "resources": [
+        {
+          "resources(item)": {
+            "@type": "Resources(item)",
+            "citation": {
+              "@type": "Citation"
+            },
+            "rlinks": [
+              {
+                "rlinks(item)": {
+                  "@type": "Rlinks(item)",
+                  "hashes": [
+                    {
+                      "hashes(item)": {
+                        "@type": "Hashes(item)",
+                        "algorithm": "String"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "base64": {
+              "@type": "Base64",
+              "filename": "String"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

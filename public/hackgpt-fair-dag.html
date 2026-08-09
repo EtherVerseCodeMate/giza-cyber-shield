@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KHEPRA ASAF — HackGPT Incident</title>
+  <script src="https://unpkg.com/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
+  <style>
+    body { margin: 0; padding: 0; background-color: #050c16; font-family: 'Inter', sans-serif; color: #e2e8f0; overflow: hidden; }
+    #graph-container { width: 100vw; height: 100vh; }
+    .hud { position: absolute; z-index: 10; background: rgba(8, 15, 28, 0.9); border: 1px solid rgba(26, 159, 232, 0.2); border-radius: 12px; padding: 20px; backdrop-filter: blur(8px); box-shadow: 0 4px 30px rgba(0,0,0,0.5); }
+    #header { top: 20px; left: 20px; width: 340px; }
+    #legend { bottom: 20px; left: 20px; width: 250px; }
+    .badge { display: inline-block; font-family: monospace; font-size: 10px; padding: 4px 8px; border-radius: 4px; margin-bottom: 12px; letter-spacing: 1px; }
+    .badge.verified { background: rgba(34, 197, 94, 0.1); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); }
+    h1 { margin: 0 0 8px 0; font-size: 18px; font-weight: 800; color: #ffffff; line-height: 1.2; }
+    p.subtitle { margin: 0 0 16px 0; font-size: 12px; color: #94a3b8; }
+    
+    .metric { margin-top: 12px; padding: 12px; background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 8px; }
+    .metric-title { font-family: monospace; font-size: 10px; color: #fde047; text-transform: uppercase; margin-bottom: 4px; }
+    .metric-value { font-size: 18px; font-weight: 900; color: #eab308; }
+
+    .metric-ai { background: rgba(204, 42, 54, 0.1); border: 1px solid rgba(204, 42, 54, 0.3); }
+    .metric-ai .metric-title { color: #fca5a5; }
+    .metric-ai .metric-value { color: #cc2a36; font-size: 24px; }
+
+    .metric-prevented { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); }
+    .metric-prevented .metric-title { color: #86efac; }
+    .metric-prevented .metric-value { color: #22c55e; font-size: 18px; }
+
+    .legend-item { display: flex; align-items: center; margin-bottom: 8px; font-family: monospace; font-size: 11px; color: #cbd5e1; }
+    .legend-color { width: 12px; height: 12px; border-radius: 50%; margin-right: 12px; }
+  </style>
+</head>
+<body>
+  <div id="graph-container"></div>
+  
+  <div id="header" class="hud">
+    <div class="badge verified">ML-DSA-65 VERIFIED</div>
+    <h1>Target 3: HackGPT Rogue</h1>
+    <p class="subtitle">Complete Forensic Chain of Custody & FAIR Risk Export</p>
+    
+    <div class="metric">
+      <div class="metric-title">Baseline Risk (OmniScanner)</div>
+      <div class="metric-value">$2,500,000</div>
+    </div>
+
+    <div class="metric metric-ai">
+      <div class="metric-title">Potential AI Exposure (Hyperfocus)</div>
+      <div class="metric-value">$8,500,000</div>
+    </div>
+    
+    <div class="metric metric-prevented">
+      <div class="metric-title">Dynamic Loss Prevented</div>
+      <div class="metric-value">$8,500,000</div>
+    </div>
+  </div>
+  
+  <div id="legend" class="hud">
+    <div style="font-family: monospace; font-size: 10px; color: #64748b; margin-bottom: 12px; text-transform: uppercase;">Node Types</div>
+    <div class="legend-item"><div class="legend-color" style="background: #94a3b8"></div>Genesis</div>
+    <div class="legend-item"><div class="legend-color" style="background: #a855f7"></div>OmniScanner</div>
+    <div class="legend-item"><div class="legend-color" style="background: #3b82f6"></div>Hyperfocus / Context</div>
+    <div class="legend-item"><div class="legend-color" style="background: #f97316"></div>Threat Signal</div>
+    <div class="legend-item"><div class="legend-color" style="background: #ef4444"></div>Enforcement (Block)</div>
+    <div class="legend-item"><div class="legend-color" style="background: #22c55e"></div>Cryptographic Attest</div>
+  </div>
+
+  <script>
+    const HACKGPT_DAG = {
+      nodes: [
+        { id: 'g0', type: 'genesis', label: 'GENESIS', desc: 'State: CHAIN_INITIALIZED', val: 12 },
+        { id: 'o1', type: 'omni', label: 'OmniScanner: Infrastructure', desc: 'Outdated IAM Policies Detected', val: 10 },
+        { id: 'o2', type: 'omni', label: 'OmniScanner: Baseline FAIR', desc: 'Exposure Calculated: $2,500,000', val: 10 },
+        { id: 'h1', type: 'context', label: 'Hyperfocus: Agent Registration', desc: 'Capabilities: unrestricted shell. Alg: ML-DSA-65', val: 12 },
+        { id: 'h2', type: 'context', label: 'Hyperfocus: Intent Declaration', desc: 'Declared Goal: Assess internal IAM structure', val: 14 },
+        { id: 'h3', type: 'threat', label: 'Threat Signal: Intent Drift', desc: 'Signal: UNAUTHORIZED_LATERAL_MOVEMENT', val: 20 },
+        { id: 'h4', type: 'threat', label: 'Threat Signal: Privilege Escalation', desc: 'Attempting to assume Role: Root Admin', val: 22 },
+        { id: 'h5', type: 'enforcement', label: 'Enforcement: Lateral Movement QUARANTINED', desc: 'Verdict: DENY_AND_LOCK. $8.5M Exposure Prevented.', val: 24 },
+        { id: 'h6', type: 'enforcement', label: 'Enforcement: Passport Revoked', desc: 'Cryptographic Identity Terminated', val: 18 },
+        { id: 'a1', type: 'attest', label: 'Chain Attestation', desc: 'ML-DSA-65 Signed Incident Chain & Agent Termination', val: 16 }
+      ],
+      links: [
+        { source: 'g0', target: 'o1' },
+        { source: 'o1', target: 'o2' },
+        { source: 'o2', target: 'h1' },
+        { source: 'h1', target: 'h2' },
+        { source: 'h2', target: 'h3' },
+        { source: 'h3', target: 'h4' },
+        { source: 'h4', target: 'h5' },
+        { source: 'h5', target: 'h6' },
+        { source: 'h6', target: 'a1' }
+      ]
+    };
+
+    const NODE_COLORS = { genesis: '#94a3b8', omni: '#a855f7', context: '#3b82f6', threat: '#f97316', enforcement: '#ef4444', attest: '#22c55e' };
+
+    const elem = document.getElementById('graph-container');
+    const Graph = ForceGraph3D()(elem)
+      .backgroundColor('#050c16')
+      .graphData(HACKGPT_DAG)
+      .nodeId('id')
+      .nodeVal('val')
+      .nodeColor(n => NODE_COLORS[n.type])
+      .nodeOpacity(0.9)
+      .linkColor(() => 'rgba(26, 159, 232, 0.4)')
+      .linkWidth(1)
+      .linkDirectionalParticles(2)
+      .linkDirectionalParticleColor(() => '#1a9fe8')
+      .nodeLabel(n => `
+        <div style="background: rgba(8,15,28,0.95); border: 1px solid ${NODE_COLORS[n.type]}; padding: 12px; border-radius: 8px; font-family: monospace; color: #fff; max-width: 250px;">
+          <div style="font-weight: bold; color: ${NODE_COLORS[n.type]}; font-size: 14px; margin-bottom: 6px;">${n.label}</div>
+          <div style="font-size: 11px; color: #cbd5e1; line-height: 1.4;">${n.desc}</div>
+        </div>
+      `);
+
+    setTimeout(() => { Graph.zoomToFit(800, 100); }, 1500);
+    window.addEventListener('resize', () => { Graph.width(elem.clientWidth).height(elem.clientHeight); });
+  </script>
+</body>
+</html>

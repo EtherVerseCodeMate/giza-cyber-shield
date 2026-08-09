@@ -1,0 +1,130 @@
+{
+  "Opencontrolsusagelicensev1": {
+    "@type": "Opencontrolsusagelicensev1",
+    "schemaVersion": 1,
+    "@id": "URL",
+    "subject": {
+      "@type": "String",
+      "domain": "String",
+      "analyzedUrl": "String",
+      "work": "String",
+      "directory": "String",
+      "scope": "String",
+      "category": "String",
+      "contentSummary": "String"
+    },
+    "assumptions": {
+      "@type": "Assumptions",
+      "jurisdiction": "String",
+      "purpose": "String"
+    },
+    "issuer": {
+      "@type": "Issuer",
+      "name": "String"
+    },
+    "issuedAt": "String",
+    "lastCheckedAt": "String",
+    "verdict": {
+      "@type": "Verdict",
+      "confidence": "String",
+      "needsReview": "String"
+    },
+    "rights": {
+      "@type": "Rights",
+      "scrape": {
+        "@type": "Scrape",
+        "state": "String",
+        "conditions": [
+          {
+            "conditions(item)": "String"
+          }
+        ],
+        "note": "String",
+        "basis": [
+          {
+            "basis(item)": "String"
+          }
+        ]
+      },
+      "tdm": {
+        "@type": "Tdm"
+      },
+      "aiTrain": {
+        "@type": "AiTrain"
+      },
+      "aiUse": {
+        "@type": "AiUse"
+      },
+      "derive": {
+        "@type": "Derive"
+      },
+      "redistribute": {
+        "@type": "Redistribute"
+      },
+      "transform": {
+        "@type": "Transform"
+      },
+      "tag": {
+        "@type": "Tag"
+      }
+    },
+    "detectedLicenses": [
+      {
+        "detectedLicenses(item)": {
+          "@type": "DetectedLicenses(item)",
+          "licenseType": "String",
+          "code": "String",
+          "url": "URL",
+          "machineReadable": "String"
+        }
+      }
+    ],
+    "signals": [
+      {
+        "signals(item)": {
+          "@type": "Signals(item)",
+          "signal": "String",
+          "sourceUrl": "String",
+          "parser": "String",
+          "checkedAt": "String",
+          "licenseCode": "String",
+          "evidence": [
+            {
+              "evidence(item)": {
+                "@type": "Evidence(item)",
+                "excerpt": "String",
+                "locator": "String",
+                "matched": "String"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "provenance": {
+      "@type": "Provenance",
+      "analyzer": "String",
+      "fetch": {
+        "@type": "Fetch",
+        "userAgent": "String",
+        "respectedRobots": "String"
+      },
+      "ruleSets": [
+        {
+          "ruleSets(item)": {
+            "@type": "RuleSets(item)",
+            "id": "String",
+            "version": "String"
+          }
+        }
+      ]
+    },
+    "registration": {
+      "@type": "Registration",
+      "registry": "String",
+      "recordUrl": "String",
+      "status": "String"
+    },
+    "disclaimer": "String"
+  }
+}

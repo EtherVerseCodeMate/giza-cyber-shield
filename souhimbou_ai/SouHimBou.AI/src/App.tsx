@@ -19,7 +19,7 @@ import Episode3 from "./pages/blog/Episode3";
 import Episode4 from "./pages/blog/Episode4";
 import BuildingCyberImmunity from "./pages/blog/BuildingCyberImmunity";
 import LaunchingVDP from "./pages/blog/LaunchingVDP";
-import Vdp from "./pages/Vdp";
+import Vdp from "./pages/VDP";
 import HallOfFame from "./pages/HallOfFame";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
@@ -38,6 +38,7 @@ import CommandCenter from "./pages/CommandCenter";
 import NotFound from "./pages/NotFound";
 import LegalPage from "./pages/LegalPage";
 import { ThreatHuntingDashboard } from "./pages/ThreatHuntingDashboard";
+import IntegrationsPage from "./pages/IntegrationsPage";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import NLChatPanel from "@/components/NLChatPanel";
 import Advisory from "./pages/Advisory";
@@ -116,6 +117,7 @@ const App = () => {
                     <Route path="/ultimate" element={<ProtectedRoute><UltimateDashboard /></ProtectedRoute>} />
                     <Route path="/command-center" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
                     <Route path="/threat-hunting" element={<ProtectedRoute><ThreatHuntingDashboard /></ProtectedRoute>} />
+                    <Route path="/integrations" element={<ProtectedRoute><IntegrationsPage /></ProtectedRoute>} />
 
                     {/* DoD Solutions (public marketing page) */}
                     <Route path="/dod" element={<DoD />} />

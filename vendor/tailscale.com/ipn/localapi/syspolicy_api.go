@@ -1,4 +1,4 @@
-// Copyright (c) Tailscale Inc & AUTHORS
+// Copyright (c) Tailscale Inc & contributors
 // SPDX-License-Identifier: BSD-3-Clause
 
 //go:build !ts_omit_syspolicy
@@ -17,7 +17,7 @@ import (
 )
 
 func init() {
-	handler["policy/"] = (*Handler).servePolicy
+	Register("policy/", (*Handler).servePolicy)
 }
 
 func (h *Handler) servePolicy(w http.ResponseWriter, r *http.Request) {

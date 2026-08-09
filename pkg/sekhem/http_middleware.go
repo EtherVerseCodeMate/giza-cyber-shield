@@ -221,7 +221,7 @@ func scrubSecrets(body []byte) []byte {
 		// Each match is: `"field_name": "sensitive_value"`
 		// We want to keep the field name and replace only the value part.
 		out = pat.ReplaceAllFunc(out, func(match []byte) []byte {
-			// Find the colon-quote boundary: `": "value"`
+			// Find the colon-quote boundary: `": "`
 			colonIdx := bytes.Index(match, []byte(`": "`))
 			if colonIdx < 0 {
 				// Fallback: replace everything after the first colon
@@ -229,10 +229,16 @@ func scrubSecrets(body []byte) []byte {
 				if colonIdx < 0 {
 					return match
 				}
-				return append(match[:colonIdx+1], []byte(` `+redactedValue)...)
+				var res []byte
+				res = append(res, match[:colonIdx+1]...)
+				res = append(res, []byte(` `+redactedValue)...)
+				return res
 			}
 			// Preserve: `"field_name": [REDACTED]`
-			return append(match[:colonIdx+2], []byte(redactedValue)...)
+			var res []byte
+			res = append(res, match[:colonIdx+2]...)
+			res = append(res, []byte(redactedValue)...)
+			return res
 		})
 	}
 	return out

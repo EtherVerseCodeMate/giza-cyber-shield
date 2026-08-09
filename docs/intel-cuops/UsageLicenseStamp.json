@@ -1,0 +1,25 @@
+{
+  "UsageLicenseStamp": {
+    "@type": "UsageLicenseStamp",
+    "schemaVersion": 1,
+    "licenseId": "String",
+    "summary": "String",
+    "permits": [
+      {
+        "permits(item)": "String"
+      }
+    ],
+    "restricts": [
+      {
+        "restricts(item)": "String"
+      }
+    ],
+    "conditions": [
+      {
+        "conditions(item)": "String"
+      }
+    ],
+    "checkedOn": "Date",
+    "verifyUrl": "String"
+  }
+}

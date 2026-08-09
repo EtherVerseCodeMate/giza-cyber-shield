@@ -1,0 +1,226 @@
+ADINKHEPRA ASAF END USER LICENSE AGREEMENT
+Version 1.1 | Effective Date: July 1, 2026
+SecRed Knowledge Inc. ("SecRed", "We", "Us")
+https://adinkhepra.com | legal@secred.ai
+
+PLEASE READ THIS END USER LICENSE AGREEMENT ("AGREEMENT") CAREFULLY BEFORE
+INSTALLING OR USING ADINKHEPRA ASAF. BY CLICKING "I ACCEPT" OR BY INSTALLING,
+COPYING, OR OTHERWISE USING THE SOFTWARE, YOU AGREE TO BE BOUND BY THE TERMS
+OF THIS AGREEMENT. IF YOU DO NOT ACCEPT THESE TERMS, DO NOT INSTALL OR USE
+THE SOFTWARE.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. DEFINITIONS
+
+"Software" means AdinKhepra ASAF (Agentic Security Attestation Framework),
+including the Compliance Graph Desktop application, ASAF System Daemon, CLI,
+installer wizard, post-quantum cryptographic libraries, STIG/CCI/CMMC
+compliance database, APDL policy language, and any associated documentation
+and updates provided by SecRed.
+
+"License Key" means the ML-DSA-65 signed device-bound token issued by SecRed
+that activates a specific license tier (Community, Pilot, Enterprise, or
+Master) for a specific device.
+
+"Licensed Device" means the specific hardware identified by the machine
+identifier embedded in your License Key.
+
+"CUI" means Controlled Unclassified Information as defined by 32 C.F.R.
+Part 2002 and the National Archives CUI Registry.
+
+"DIB Contractor" means a Defense Industrial Base contractor subject to DFARS
+252.204-7012 and/or CMMC Program requirements.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+2. LICENSE GRANT
+
+Subject to the terms of this Agreement and timely payment of applicable fees,
+SecRed grants you a limited, non-exclusive, non-transferable, non-sublicensable
+license to:
+
+(a) Install and use one (1) copy of the Software on the Licensed Device;
+(b) Use the Software solely for your internal CMMC compliance assessment,
+    STIG validation, and related information security operations;
+(c) Generate compliance reports, evidence packages, and audit artifacts using
+    the Software for submission to authorized C3PAO assessors.
+
+Community Edition: A no-cost license with feature limitations as described in
+Section 3. The Community Edition may be installed on any device.
+
+Pilot Edition ($25,000/year): Licensed for up to three (3) scan targets with
+limited evidence export capability, as described in your Order Form.
+
+Enterprise Edition ($75,000–$250,000/year): Licensed for unlimited scan
+targets with full C3PAO evidence package generation, APDL policy editor, and
+staging gate capabilities, as described in your Order Form.
+
+Master Edition: Internal SecRed Knowledge Inc. use only.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+3. LICENSE TIER FEATURE RESTRICTIONS
+
+Community (no License Key required):
+- Compliance Graph: read-only, localhost scan only
+- ERT Package A (ert-readiness) only
+- Evidence export: disabled
+- APDL policy editor: read-only
+- Dollar exposure estimates: hidden
+
+Pilot:
+- Scan targets: up to 3 hosts
+- ERT Packages A and B
+- Evidence export: CSV format only
+- APDL policy editor: read-only
+
+Enterprise:
+- Scan targets: unlimited
+- ERT Packages A, B, C, and D (full Godfather Report)
+- Evidence export: full C3PAO package (OSCAL + POAM + PDF + DAG)
+- APDL policy editor: edit mode enabled
+- Staging gate: active (requires ASAF System Daemon)
+- Production change approval: requires second enrolled identity
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+4. RESTRICTIONS
+
+You may not, and may not permit others to:
+
+(a) Copy, modify, translate, adapt, or create derivative works of the Software;
+(b) Reverse engineer, decompile, disassemble, or otherwise attempt to derive
+    the source code of the Software, except to the extent expressly permitted
+    by applicable law notwithstanding this limitation;
+(c) Remove or alter any proprietary notices, labels, or marks on the Software;
+(d) Sublicense, sell, rent, lease, transfer, assign, or otherwise dispose of
+    the Software;
+(e) Use the Software to provide compliance services to third parties without
+    a separate written agreement with SecRed;
+(f) Use the Software in any manner that violates applicable law, including
+    export control regulations;
+(g) Circumvent or disable any license enforcement, tier gating, or device
+    binding mechanisms;
+(h) Use the Software to process information classified above CUI without
+    explicit written authorization from SecRed.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+5. DATA AND TELEMETRY
+
+AdinKhepra ASAF collects NO telemetry by default. The Software does not
+transmit compliance findings, system configuration data, network topology,
+policy content, or any other information to SecRed or any third party.
+
+Zero egress is the default operating mode. Any outbound network connection
+(such as an optional commercial LLM inference endpoint) requires explicit
+opt-in at installation time and is blocked when the Software is operating
+in a CUI-processing context.
+
+SouHimBou AI (a separate SecRed product) may optionally report anonymous
+usage statistics. AdinKhepra ASAF is not SouHimBou AI and does not share
+this behavior.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+6. INTELLECTUAL PROPERTY
+
+The Software and all copies thereof are proprietary to SecRed Knowledge Inc.
+and title thereto remains in SecRed. The Software is protected by United
+States copyright law, international copyright treaties, and other applicable
+intellectual property law.
+
+USPTO Patent Application #73565085 (KHEPRA Protocol, provisional) covers
+aspects of the post-quantum attestation architecture implemented in this
+Software. All rights reserved.
+
+The 36,195-row STIG/CCI/NIST/CMMC compliance mapping database included with
+the Software is a proprietary compilation owned by SecRed Knowledge Inc.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+7. DISCLAIMER OF WARRANTIES
+
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.
+
+SECRED DOES NOT WARRANT THAT THE SOFTWARE WILL MEET YOUR REQUIREMENTS, THAT
+OPERATION OF THE SOFTWARE WILL BE UNINTERRUPTED OR ERROR-FREE, OR THAT
+DEFECTS IN THE SOFTWARE WILL BE CORRECTED.
+
+THE SOFTWARE IS A DECISION-SUPPORT TOOL. COMPLIANCE POSTURE DETERMINATIONS
+MADE USING THE SOFTWARE ARE NOT A GUARANTEE OF AUDIT PASSAGE. ENGAGING A
+CERTIFIED THIRD-PARTY ASSESSMENT ORGANIZATION (C3PAO) REMAINS REQUIRED FOR
+CMMC CERTIFICATION.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+8. LIMITATION OF LIABILITY
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, SECRED SHALL NOT BE LIABLE
+FOR ANY INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING LOSS OF PROFITS, DATA, BUSINESS, OR GOODWILL) ARISING OUT OF OR
+IN CONNECTION WITH THIS AGREEMENT OR THE USE OF THE SOFTWARE, EVEN IF SECRED
+HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+SECRED'S TOTAL CUMULATIVE LIABILITY TO YOU FOR ALL CLAIMS ARISING OUT OF OR
+RELATED TO THIS AGREEMENT SHALL NOT EXCEED THE AMOUNT PAID BY YOU FOR THE
+SOFTWARE LICENSE IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+9. TERM AND TERMINATION
+
+This Agreement is effective until terminated. Your rights under this Agreement
+will terminate automatically and without notice if you fail to comply with any
+term of this Agreement. Upon termination, you must destroy all copies of the
+Software in your possession.
+
+SecRed may terminate this Agreement upon thirty (30) days' written notice if
+you materially breach this Agreement and fail to cure such breach within that
+period.
+
+Sections 4 (Restrictions), 6 (Intellectual Property), 7 (Disclaimer), 8
+(Limitation of Liability), 10 (Governing Law), and 11 (Entire Agreement)
+survive termination.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+10. GOVERNING LAW AND DISPUTES
+
+This Agreement is governed by the laws of the State of New York, without
+regard to its conflict of law provisions. Any dispute arising under this
+Agreement shall be resolved by binding arbitration administered by JAMS in
+New York, New York, under JAMS' Commercial Arbitration Rules.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+11. ENTIRE AGREEMENT
+
+This Agreement constitutes the entire agreement between you and SecRed
+regarding the Software and supersedes all prior agreements and understandings
+(oral or written) relating to the Software. This Agreement may only be
+modified by a written amendment signed by an authorized officer of SecRed.
+
+If any provision of this Agreement is held to be invalid or unenforceable,
+the remaining provisions will continue in full force and effect.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+12. EXPORT COMPLIANCE
+
+You acknowledge that the Software incorporates post-quantum cryptographic
+algorithms (ML-DSA-65 / CRYSTALS-Dilithium3, ML-KEM-768) and may be subject
+to U.S. export control regulations including EAR. You agree not to export or
+re-export the Software in violation of applicable law.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SecRed Knowledge Inc.
+"Securely Unlocking Sacred In Knowledge"
+https://adinkhepra.com | creatinghappyhumans@gmail.com
+
+© 2026 SecRed Knowledge Inc. All rights reserved.
+AdinKhepra ASAF is protected by USPTO Patent Application #73565085.

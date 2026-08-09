@@ -46,7 +46,8 @@ type ChangeRequest struct {
 	DAGParent string `json:"dag_parent"` // parent DAG node ID proving authorization chain
 
 	// Execution
-	Command []string `json:"command"` // privileged command (e.g. ["sysctl", "-w", "crypto.fips_enabled=1"])
+	Command     []string `json:"command"`                // privileged command (e.g. ["sysctl", "-w", "crypto.fips_enabled=1"])
+	STIGProfile string   `json:"stig_profile,omitempty"` // "rhel9" | "rhel10" | "ubuntu" | "windows" — selects mirror image
 
 	// Gate flags
 	Staging  bool `json:"staging"`  // true = execute in mirror container only
@@ -73,10 +74,12 @@ type ChangeResult struct {
 	Stdout        string `json:"stdout"`
 	Stderr        string `json:"stderr"`
 	DAGNodeID     string `json:"dag_node_id"` // ML-DSA-65 signed execution record
-	StagingID     string `json:"staging_id,omitempty"`     // populated when Staging=true
-	StagingStatus string `json:"staging_status,omitempty"` // "running" | "success" | "failed" — poll response only
-	StagingDiff   string `json:"staging_diff,omitempty"`   // before/after state capture — poll response only
-	Error         string `json:"error,omitempty"`
+	StagingID       string     `json:"staging_id,omitempty"`       // populated when Staging=true
+	StagingStatus   string     `json:"staging_status,omitempty"`   // "running" | "success" | "failed" — poll response only
+	StagingDiff     string     `json:"staging_diff,omitempty"`     // human-readable before/after summary — poll response only
+	FileDiffs       []FileDiff `json:"file_diffs,omitempty"`       // structured per-file diffs — poll response only
+	StagingAttested bool       `json:"staging_attested,omitempty"` // true = StagingResult carries ML-DSA-65 attestation
+	Error           string     `json:"error,omitempty"`
 }
 
 // SecurityEvent is logged to the DAG for every authorization failure.
@@ -138,13 +141,18 @@ func New(cfg Config) (*ASAFDaemon, error) {
 		return nil, fmt.Errorf("daemon: cannot create DAG directory: %w", err)
 	}
 
-	// Open persistent DAG store
-	dagStore := dag.NewMemory() // will be swapped to PersistentStore in production
+	// Open persistent DAG store. PersistentMemory uses atomic writes per node
+	// (tmp+rename) and survives daemon restarts — required for the C3PAO evidence
+	// chain to remain intact across service reloads.
+	dagStore, err := dag.NewPersistentMemory(cfg.DAGPath)
+	if err != nil {
+		return nil, fmt.Errorf("daemon: cannot open DAG store at %s: %w", cfg.DAGPath, err)
+	}
 
 	return &ASAFDaemon{
 		cfg:      cfg,
 		dagStore: dagStore,
-		staging:  NewStagingManager(cfg.Logger),
+		staging:  NewStagingManager(cfg.Logger, cfg.DaemonPrivKey),
 		logger:   cfg.Logger,
 	}, nil
 }
@@ -237,21 +245,34 @@ func (d *ASAFDaemon) Execute(req *ChangeRequest) *ChangeResult {
 		return d.pollStaging(req.Poll)
 	}
 
-	// ── 2. SYMBOL-BASED AUTHORIZATION (EBAN ENFORCEMENT) ─────────────────────
-	// Kernel-level operations require Eban (fortress symbol).
-	// This is a hard constraint — not configurable, not bypassable.
-	if isKernelCommand(req.Command) && req.Symbol != "Eban" {
-		reason := fmt.Sprintf("kernel operation %v requires Symbol=Eban, got %q", req.Command, req.Symbol)
-		d.logSecurityEvent("SYMBOL_CONSTRAINT_VIOLATED", req, reason)
-		return &ChangeResult{Error: reason}
-	}
-
-	// ── 3. COMMAND VALIDATION ─────────────────────────────────────────────────
+	// ── 2. COMMAND VALIDATION ─────────────────────────────────────────────────
+	// Must run before the symbol check below: requiredSymbol() only knows
+	// about catalog commands, so an uncataloged command has to be rejected
+	// here first rather than silently passing symbol authorization with an
+	// empty "required" symbol.
 	if len(req.Command) == 0 {
 		return &ChangeResult{Error: "command is required"}
 	}
 	if err := validateCommand(req.Command); err != nil {
 		return &ChangeResult{Error: "command validation failed: " + err.Error()}
+	}
+
+	// ── 3. SYMBOL-BASED AUTHORIZATION (FULL CATALOG ENFORCEMENT) ─────────────
+	// Every catalog command has a required Adinkra symbol (see
+	// symbolRequirements in ops_catalog.go) — Eban for kernel-level ops,
+	// but also Nkyinkyim for services/files, Dwennimmen for user management,
+	// and Fawohodie for package installs. All four must be enforced, not just
+	// Eban: a request that only carries Nkyinkyim authorization must not be
+	// able to run useradd (Dwennimmen) or dnf install (Fawohodie) just
+	// because it wasn't a kernel command. Fixed 2026-07-01 — the previous
+	// check only compared against "Eban", which meant symbolRequirements
+	// entries for every other symbol were computed by requiredSymbol() but
+	// never actually consulted, so any signed request authorized ANY
+	// non-kernel catalog operation regardless of its claimed Symbol.
+	if want := requiredSymbol(req.Command); want != "" && req.Symbol != want {
+		reason := fmt.Sprintf("operation %v requires Symbol=%s, got %q", req.Command, want, req.Symbol)
+		d.logSecurityEvent("SYMBOL_CONSTRAINT_VIOLATED", req, reason)
+		return &ChangeResult{Error: reason}
 	}
 
 	// ── 4. STAGING GATE ───────────────────────────────────────────────────────
@@ -270,14 +291,32 @@ func (d *ASAFDaemon) Execute(req *ChangeRequest) *ChangeResult {
 	// ── 6. EXECUTE PRIVILEGED COMMAND ────────────────────────────────────────
 	result := executePrivileged(req.Command, d.logger)
 
-	// ── 7. DAG ATTESTATION ────────────────────────────────────────────────────
+	// ── 7. DAG ATTESTATION (FAIL-CLOSED) ─────────────────────────────────────
 	// Record the execution as a ML-DSA-65 signed DAG node.
 	// This is the tamper-evident proof that the command ran.
+	//
+	// SECURITY INVARIANT (B-DG-01): DAG attestation failure is fail-closed.
+	// If the signed audit node cannot be written, the caller MUST NOT treat
+	// the finding as closed — the compliance audit chain has a gap.
+	// The command already executed on the host; we report the gap explicitly
+	// so a CISO can investigate and re-attest rather than silently losing the
+	// audit trail. Acceptable risk: a second approval attempt re-runs the
+	// idempotent fix and produces a fresh DAG node. Unacceptable risk:
+	// a fix is "closed" in the UI with no cryptographic proof it happened.
 	nodeID, dagErr := d.attestExecution(req, result)
 	if dagErr != nil {
-		// DAG failure is logged but not fatal — execution already succeeded.
-		// The operator MUST investigate DAG write failures (possible disk issue).
-		d.logger.Printf("[WARN] DAG attestation failed for control %s: %v", req.ControlID, dagErr)
+		d.logger.Printf("[CRITICAL] DAG attestation failed for control %s command %v: %v — reporting to caller (fail-closed)",
+			req.ControlID, req.Command, dagErr)
+		return &ChangeResult{
+			Success:  false,
+			ExitCode: result.ExitCode,
+			Stdout:   result.Stdout,
+			Stderr:   result.Stderr,
+			Error: fmt.Sprintf(
+				"AUDIT CHAIN GAP: command executed (exit %d) but DAG attestation failed: %v. "+
+					"Re-run after resolving DAG store issue to produce a signed audit node.",
+				result.ExitCode, dagErr),
+		}
 	}
 
 	result.DAGNodeID = nodeID
@@ -306,15 +345,20 @@ func (d *ASAFDaemon) pollStaging(jobID string) *ChangeResult {
 	if !found {
 		return &ChangeResult{Error: fmt.Sprintf("unknown staging job: %s", jobID)}
 	}
-	return &ChangeResult{
+	cr := &ChangeResult{
 		Success:       job.Status == "success",
-		ExitCode:      job.ExitCode,
-		Stdout:        job.Stdout,
 		StagingID:     job.ID,
 		StagingStatus: job.Status,
-		StagingDiff:   job.Diff,
 		Error:         job.Error,
 	}
+	if job.Result != nil {
+		cr.ExitCode        = job.Result.ExitCode
+		cr.Stdout          = job.Result.Stdout
+		cr.StagingDiff     = job.Result.TextDiff()
+		cr.FileDiffs        = job.Result.Diffs
+		cr.StagingAttested = len(job.Result.Attestation) > 0
+	}
+	return cr
 }
 
 // attestExecution writes a ML-DSA-65 signed DAG node recording the execution.
