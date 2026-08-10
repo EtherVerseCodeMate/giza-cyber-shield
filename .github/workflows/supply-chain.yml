@@ -188,7 +188,7 @@ jobs:
 
       - name: Build and push — GHCR + ECR Public
         id: build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           # Fix Gap 3: use Dockerfile.mcp (Go 1.23, all 13 tools, mcp-runner binary)
