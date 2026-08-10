@@ -1,0 +1,2 @@
+scan_id,client,severity,title,description,remediation,causal_link_id,stig_reference,risk_score
+1ac8b6f1473e,Oumous-Laptop.lan,HIGH,Unpinned NPM Dependency Tree,Manifest found at /Applications/Whitebox/khepra-trust-os/package.json. Violation of CM protocol.,Evaluate against Unpinned Dependency,asset:file:npm:ac175d16,GEN-000000,75

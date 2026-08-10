@@ -1,0 +1,3 @@
+scan_id,client,severity,title,description,remediation,causal_link_id,stig_reference,risk_score
+c1a274ec9912,Oumous-Laptop.lan,HIGH,Unpinned NPM Dependency Tree,Manifest found at /Applications/Whitebox/PQC-Khepra-MCP/package.json. Violation of CM protocol.,Evaluate against Unpinned Dependency,asset:file:npm:a1dffbd9,GEN-000000,75
+c1a274ec9912,Oumous-Laptop.lan,HIGH,Unpinned NPM Dependency Tree,Manifest found at /Applications/Whitebox/PQC-Khepra-MCP/packages/dag-viewer/package.json. Violation of CM protocol.,Evaluate against Unpinned Dependency,asset:file:npm:ecbcca5a,GEN-000000,75

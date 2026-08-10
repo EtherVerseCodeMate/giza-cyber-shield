@@ -3,15 +3,21 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/pkg/vuln"
 )
 
 func main() {
-	ctx := context.Background()
-	log.Println("Starting SouHimBou Vulnerability Hunter...")
+	targetDir := "."
+	if len(os.Args) > 1 {
+		targetDir = os.Args[1]
+	}
 
-	h := vuln.NewHunter(".")
+	ctx := context.Background()
+	log.Printf("Starting SouHimBou Vulnerability Hunter on %s...", targetDir)
+
+	h := vuln.NewHunter(targetDir)
 	h.SetDryRun(false) 
 	h.SetAutoFix(true)
 

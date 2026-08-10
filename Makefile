@@ -9,6 +9,7 @@ build:
 	go build -o bin/$(APP) ./cmd/adinkhepra
 	go build -o bin/$(AGENT) ./cmd/agent
 	go build -o bin/$(GATEWAY) ./cmd/gateway
+	go build -o bin/sonar ./cmd/sonar
 
 run-agent: build
 	KHEPRA_AGENT_PORT=45446 ./bin/$(AGENT)
