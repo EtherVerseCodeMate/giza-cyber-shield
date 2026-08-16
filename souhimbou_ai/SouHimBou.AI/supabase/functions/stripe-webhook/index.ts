@@ -28,17 +28,14 @@ serve(async (req) => {
       throw new Error("Missing Stripe configuration");
     }
 
-    const signature = req.headers.get("stripe-signature");
-    if (!signature) {
-      throw new Error("Missing Stripe signature");
-    }
-
     const body = await req.text();
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
     // Verify webhook signature
     let event: Stripe.Event;
     try {
+      const signature = req.headers.get("Stripe-Signature");
+      if (!signature) throw new Error("Missing Stripe signature");
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
       logStep("Webhook signature verified", { eventType: event.type });
     } catch (err: any) {
@@ -221,27 +218,10 @@ async function provisionCommercialLicense(email: string, tier: string, prefix: s
     return;
   }
 
-  const uuid = crypto.randomUUID().replace(/-/g, '').substring(0, 16).toUpperCase();
-  const license_key = `${prefix}-${uuid}`;
-
-  // 1. Save to Supabase DB
-  const { error } = await supabase.from("licenses").upsert({
-    email,
-    license_key,
-    tier,
-    status: "active",
-    product: "khepra-protocol",
-    registered_at: new Date().toISOString()
-  }, { onConflict: "email" });
-
-  if (error) {
-    logStep("Failed to insert commercial license into Supabase", { error });
-    return;
-  }
-
-  // 2. Sync to Hostinger VPS (License Vault API)
-  const vaultApiUrl = Deno.env.get("HOSTINGER_VAULT_API_URL") || "https://agent.souhimbou.ai/api/licenses";
+  // 1. Sync to Hostinger VPS (License Vault API) to Mint Key
+  const vaultApiUrl = Deno.env.get("HOSTINGER_VAULT_API_URL") || "https://agent.souhimbou.ai/api/licenses/mint";
   const vaultSecret = Deno.env.get("HOSTINGER_VAULT_SECRET_KEY") || "";
+  let license_key = "";
   
   try {
     const vaultRes = await fetch(vaultApiUrl, {
@@ -250,15 +230,33 @@ async function provisionCommercialLicense(email: string, tier: string, prefix: s
         "Content-Type": "application/json",
         "Authorization": `Bearer ${vaultSecret}`
       },
-      body: JSON.stringify({ email, license_key, tier })
+      body: JSON.stringify({ email, tier })
     });
     if (!vaultRes.ok) {
-      logStep("Hostinger VPS Sync failed", { status: vaultRes.status });
-    } else {
-      logStep("Hostinger VPS Sync succeeded", { email, license_key });
+      logStep("Hostinger VPS Mint failed", { status: vaultRes.status });
+      return;
     }
+    const vaultData = await vaultRes.json();
+    license_key = vaultData.license_key;
+    logStep("Hostinger VPS Mint succeeded", { email, license_key });
   } catch (err: any) {
-    logStep("Hostinger VPS Sync request failed", { message: err.message });
+    logStep("Hostinger VPS Mint request failed", { message: err.message });
+    return;
+  }
+
+  // 2. Save to Supabase DB
+  const { error } = await supabase.from("licenses").upsert({
+    email,
+    license_key,
+    tier,
+    status: "active",
+    product: "khepra-trust-os",
+    registered_at: new Date().toISOString()
+  });
+
+  if (error) {
+    logStep("Failed to insert commercial license into Supabase", { error });
+    return;
   }
 
   // 3. Send via Resend
