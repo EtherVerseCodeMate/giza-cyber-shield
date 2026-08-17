@@ -10,7 +10,7 @@ require (
 	github.com/cloudflare/circl v1.6.4
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gin-gonic/gin v1.12.0
-	github.com/glebarez/go-sqlite v1.22.0
+	github.com/glebarez/go-sqlite v1.23.0
 	github.com/go-pdf/fpdf v0.9.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
@@ -24,7 +24,7 @@ require (
 	golang.org/x/crypto v0.54.0
 	golang.org/x/sys v0.47.0
 	google.golang.org/grpc v1.83.0
-	modernc.org/sqlite v1.54.0
+	modernc.org/sqlite v1.55.0
 	tailscale.com v1.102.0
 )
 
