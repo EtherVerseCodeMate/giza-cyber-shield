@@ -72,7 +72,7 @@ serve(async (req) => {
     const body = await req.text();
     let event: Stripe.Event;
     try {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
     } catch (err) {
       console.error("Signature verification failed:", err);
       return new Response(`Webhook Error: ${err.message}`, { status: 400 });
@@ -139,6 +139,13 @@ async function handleCheckoutCompleted(supabase: any, session: Stripe.Checkout.S
 
   // Determine tier from plan_id
   const tier = resolveTierFromPlanId(planId, session);
+  
+  // Get user email
+  const { data: userRecord } = await supabase.auth.admin.getUserById(userId);
+  const email = userRecord?.user?.email || session.customer_details?.email || "unknown@khepra.io";
+  
+  // Mint License
+  const licenseKey = await mintLicense(email, tier);
 
   // Upsert user_profiles (from our onboarding migration)
   await supabase.from("user_profiles").upsert({
@@ -150,6 +157,7 @@ async function handleCheckoutCompleted(supabase: any, session: Stripe.Checkout.S
     ...(session.mode === "subscription"
       ? { subscription_status: "active" }
       : { [`${planId}_paid`]: true, [`${planId}_paid_at`]: new Date().toISOString() }),
+    ...(licenseKey ? { license_key: licenseKey } : {})
   }, { onConflict: "user_id" });
 
   // Legacy consulting_access table (keep for backward compat)
@@ -182,6 +190,10 @@ async function handleSubscriptionUpdate(supabase: any, sub: Stripe.Subscription)
 
   const activeTier = status === "active" || status === "trialing" ? tier : "community";
   const features = TIER_FEATURES[activeTier] || [];
+  
+  const { data: userRecord } = await supabase.auth.admin.getUserById(profile.user_id);
+  const email = userRecord?.user?.email || "unknown@khepra.io";
+  const licenseKey = await mintLicense(email, activeTier);
 
   await supabase.from("user_profiles").update({
     license_tier: activeTier,
@@ -189,6 +201,7 @@ async function handleSubscriptionUpdate(supabase: any, sub: Stripe.Subscription)
     subscription_status: status,
     subscription_id: sub.id,
     license_updated_at: new Date().toISOString(),
+    ...(licenseKey ? { license_key: licenseKey } : {})
   }).eq("user_id", profile.user_id);
 
   // Legacy consulting_access
@@ -268,5 +281,31 @@ async function upsertConsultingAccess(supabase: any, userId: string, customerId:
   } else {
     await supabase.from("consulting_access")
       .insert({ user_id: userId, stripe_customer_id: customerId, ...patch });
+  }
+}
+
+async function mintLicense(email: string, tier: string): Promise<string | null> {
+  const mintServerUrl = Deno.env.get("MINT_SERVER_URL") || "http://localhost:8080";
+  const mintToken = Deno.env.get("MINT_SECRET_KEY") || "";
+  console.log(`Minting license for ${email} on tier ${tier}...`);
+  try {
+    const res = await fetch(`${mintServerUrl}/api/licenses/mint`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(mintToken ? { "Authorization": `Bearer ${mintToken}` } : {})
+      },
+      body: JSON.stringify({ email, tier })
+    });
+    if (!res.ok) {
+      console.error("Mint server failed:", await res.text());
+      return null;
+    }
+    const data = await res.json();
+    console.log(`Successfully minted license: ${data.license_key}`);
+    return data.license_key;
+  } catch(e) {
+    console.error("Mint error:", e);
+    return null;
   }
 }
