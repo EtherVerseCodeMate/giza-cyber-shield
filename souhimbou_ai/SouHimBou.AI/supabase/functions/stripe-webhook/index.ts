@@ -1,6 +1,10 @@
+// @ts-ignore
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+// @ts-ignore
 import Stripe from "https://esm.sh/stripe@14.21.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+// @ts-ignore
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+// @ts-ignore
 import { Resend } from "https://esm.sh/resend@3.1.0";
 
 const corsHeaders = {
@@ -13,7 +17,7 @@ const logStep = (step: string, details?: any) => {
   console.log(`[STRIPE-WEBHOOK] ${step}${detailsStr}`);
 };
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -36,7 +40,7 @@ serve(async (req) => {
     try {
       const signature = req.headers.get("Stripe-Signature");
       if (!signature) throw new Error("Missing Stripe signature");
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
       logStep("Webhook signature verified", { eventType: event.type });
     } catch (err: any) {
       logStep("Webhook signature verification failed", { error: err.message });
@@ -82,7 +86,7 @@ serve(async (req) => {
       status: 200,
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR in webhook", { message: errorMessage });
 
@@ -93,7 +97,7 @@ serve(async (req) => {
   }
 });
 
-async function handlePaymentSucceeded(invoice: Stripe.Invoice, supabase: any) {
+async function handlePaymentSucceeded(invoice: Stripe.Invoice, supabase: SupabaseClient) {
   logStep("Processing payment succeeded", { invoiceId: invoice.id, customerId: invoice.customer });
 
   if (!invoice.customer || !invoice.subscription) return;
@@ -112,7 +116,7 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice, supabase: any) {
   logStep("Payment succeeded - subscriber updated", { email: customer.email });
 }
 
-async function handleSubscriptionUpdated(subscription: Stripe.Subscription, supabase: any) {
+async function handleSubscriptionUpdated(subscription: Stripe.Subscription, supabase: SupabaseClient) {
   logStep("Processing subscription updated", { subscriptionId: subscription.id, customerId: subscription.customer });
 
   const customer = await getCustomerEmail(subscription.customer as string, supabase);
@@ -162,7 +166,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, supa
   });
 }
 
-async function handleSubscriptionDeleted(subscription: Stripe.Subscription, supabase: any) {
+async function handleSubscriptionDeleted(subscription: Stripe.Subscription, supabase: SupabaseClient) {
   logStep("Processing subscription deleted", { subscriptionId: subscription.id, customerId: subscription.customer });
 
   const customer = await getCustomerEmail(subscription.customer as string, supabase);
@@ -187,11 +191,11 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription, supa
   logStep("Subscription deleted - subscriber & license updated", { email: customer.email });
 }
 
-async function handlePaymentFailed(invoice: Stripe.Invoice, supabase: any) {
+async function handlePaymentFailed(invoice: Stripe.Invoice, supabase: SupabaseClient) {
   logStep("Processing payment failed", { invoiceId: invoice.id, customerId: invoice.customer });
 }
 
-async function getCustomerEmail(customerId: string, supabase: any) {
+async function getCustomerEmail(customerId: string, supabase: SupabaseClient) {
   const { data: subscriber } = await supabase
     .from("subscribers")
     .select("email, user_id")
@@ -203,7 +207,7 @@ async function getCustomerEmail(customerId: string, supabase: any) {
   return null;
 }
 
-async function provisionCommercialLicense(email: string, tier: string, prefix: string, supabase: any) {
+async function provisionCommercialLicense(email: string, tier: string, prefix: string, supabase: SupabaseClient) {
   // Check if they already have an active license for this tier
   const { data: existing } = await supabase
     .from("licenses")
