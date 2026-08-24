@@ -1,7 +1,11 @@
+// @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+// @ts-ignore
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+// @ts-ignore
 import Stripe from "https://esm.sh/stripe@14.21.0";
 
+declare const Deno: any;
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2023-10-16",
 });
@@ -61,7 +65,7 @@ const TIER_FEATURES: Record<string, string[]> = {
                "mcp_sovereign_deploy", "air_gap_license", "qkd_capsule", "khepra_master_tier"],
 };
 
-serve(async (req) => {
+serve(async (req: Request) => {
   const signature = req.headers.get("stripe-signature");
   if (!signature) {
     console.error("No Stripe signature");
@@ -73,9 +77,9 @@ serve(async (req) => {
     let event: Stripe.Event;
     try {
       event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Signature verification failed:", err);
-      return new Response(`Webhook Error: ${err.message}`, { status: 400 });
+      return new Response(`Webhook Error: ${err?.message}`, { status: 400 });
     }
 
     console.log(`Processing Stripe event: ${event.type}`);
@@ -117,15 +121,15 @@ serve(async (req) => {
       headers: { "Content-Type": "application/json" },
       status: 200,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Webhook error:", error);
-    return new Response(`Webhook Error: ${error.message}`, { status: 500 });
+    return new Response(`Webhook Error: ${error?.message}`, { status: 500 });
   }
 });
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-async function handleCheckoutCompleted(supabase: any, session: Stripe.Checkout.Session) {
+async function handleCheckoutCompleted(supabase: SupabaseClient, session: Stripe.Checkout.Session) {
   const userId = session.metadata?.user_id;
   const planId = session.metadata?.plan_id;
   const customerId = session.customer as string;
@@ -168,7 +172,7 @@ async function handleCheckoutCompleted(supabase: any, session: Stripe.Checkout.S
   console.log(`Access granted: user=${userId} tier=${tier} features=${(TIER_FEATURES[tier] || []).join(",")}`);
 }
 
-async function handleSubscriptionUpdate(supabase: any, sub: Stripe.Subscription) {
+async function handleSubscriptionUpdate(supabase: SupabaseClient, sub: Stripe.Subscription) {
   const customerId = sub.customer as string;
   const priceId = sub.items.data[0]?.price?.id;
   const tier = PRICE_TIER_MAP[priceId] || "community";
@@ -213,7 +217,7 @@ async function handleSubscriptionUpdate(supabase: any, sub: Stripe.Subscription)
   console.log(`Updated tier: user=${profile.user_id} tier=${activeTier}`);
 }
 
-async function handleSubscriptionDeleted(supabase: any, sub: Stripe.Subscription) {
+async function handleSubscriptionDeleted(supabase: SupabaseClient, sub: Stripe.Subscription) {
   const customerId = sub.customer as string;
 
   const { data: profile } = await supabase
@@ -238,7 +242,7 @@ async function handleSubscriptionDeleted(supabase: any, sub: Stripe.Subscription
   console.log(`Subscription canceled: customer=${customerId} → community tier`);
 }
 
-async function handlePaymentFailed(supabase: any, invoice: Stripe.Invoice) {
+async function handlePaymentFailed(supabase: SupabaseClient, invoice: Stripe.Invoice) {
   const customerId = invoice.customer as string;
   console.log(`Payment failed: customer=${customerId} — downgrading to community`);
 
@@ -267,7 +271,7 @@ function resolveTierFromPlanId(planId: string | null | undefined, session: Strip
   return directMap[planId] || "community";
 }
 
-async function upsertConsultingAccess(supabase: any, userId: string, customerId: string, planId: string) {
+async function upsertConsultingAccess(supabase: SupabaseClient, userId: string, customerId: string, planId: string) {
   const patch = planId === "diagnostic"
     ? { diagnostic_paid: true, diagnostic_paid_at: new Date().toISOString() }
     : { advisory_requested: true, advisory_requested_at: new Date().toISOString() };

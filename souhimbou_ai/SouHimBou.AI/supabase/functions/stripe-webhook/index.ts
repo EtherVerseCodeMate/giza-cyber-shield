@@ -1,5 +1,7 @@
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+
+declare const Deno: any;
 // @ts-ignore
 import Stripe from "https://esm.sh/stripe@14.21.0";
 // @ts-ignore
