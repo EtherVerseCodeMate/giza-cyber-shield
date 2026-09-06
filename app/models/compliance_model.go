@@ -580,10 +580,12 @@ func (m *ComplianceGraphModel) LoadNotAssessedBaseline() {
 		r := baseRadius + float32(t)*radiusSpan
 		angle := float64(i) * goldenAngle
 
-		desc := fmt.Sprintf("0 of %d assessed", ruleCount)
+		// Optimization: only render baseline nodes for families that have actual rules
+		// mapped in our database to prevent DAG viewer canvas bloat and slowdowns.
 		if ruleCount == 0 {
-			desc = "Not mapped in database"
+			continue
 		}
+		desc := fmt.Sprintf("0 of %d assessed", ruleCount)
 
 		node := &GraphNode{
 			ID:          nodeID,

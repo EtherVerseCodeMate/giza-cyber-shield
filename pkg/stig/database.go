@@ -102,6 +102,43 @@ func GetDatabase() (*ComplianceDatabase, error) {
 	return db, nil
 }
 
+// lfsPointerPrefix is the first line of an unresolved Git LFS pointer file.
+// If an embedded CSV starts with this, the build never ran `git lfs pull`
+// and the "database" is three lines of pointer text, not real content.
+const lfsPointerPrefix = "version https://git-lfs.github.com/spec/v1"
+
+// embeddedCSVs are the four compliance-mapping files embedded via go:embed.
+var embeddedCSVs = []string{
+	"data/STIG_CCI_Map.csv",
+	"data/CCI_to_NIST53.csv",
+	"data/NIST53_to_171.csv",
+	"data/NIST53_to_172.csv",
+}
+
+// verifyDataFiles fails loud if any embedded CSV is an unresolved Git LFS
+// pointer (or implausibly small) instead of real content.
+//
+// Audit finding A-TD-01: without this guard a pointer file parses as zero
+// rows — csv.Reader yields 1-field lines that the loaders skip as "malformed"
+// — so the app silently ships an EMPTY compliance database and computes a
+// wrong SPRS score with no error. The Phase 4 error-state table forbids
+// exactly this silent-failure mode; refuse to load rather than mislead.
+func verifyDataFiles() error {
+	for _, name := range embeddedCSVs {
+		data, err := embeddedData.ReadFile(name)
+		if err != nil {
+			return fmt.Errorf("compliance DB integrity: cannot read embedded %s: %w", name, err)
+		}
+		if strings.HasPrefix(string(data), lfsPointerPrefix) {
+			return fmt.Errorf("compliance DB integrity: embedded %s is an UNRESOLVED Git LFS pointer, not real data — the build did not run `git lfs pull`. Refusing to load an empty compliance database (would silently produce a wrong SPRS score). Fix the build to materialize LFS content before `go build`", name)
+		}
+		if len(data) < 512 {
+			return fmt.Errorf("compliance DB integrity: embedded %s is implausibly small (%d bytes) — likely truncated or a stub, not the real mapping data", name, len(data))
+		}
+	}
+	return nil
+}
+
 // Load loads the compliance mapping database from embedded CSV files
 func (d *ComplianceDatabase) Load() error {
 	d.mu.Lock()

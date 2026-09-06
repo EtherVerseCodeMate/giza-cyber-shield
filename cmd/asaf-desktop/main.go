@@ -182,7 +182,7 @@ func runGUI(hubURL string, embedHub bool, agentID string, insecure bool) {
 
 	splash.Close()
 
-	showMainWindow(a, tier, backend)
+	showAuthScreen(a, tier, backend)
 
 	a.Run()
 }
@@ -439,6 +439,7 @@ func showMainWindow(a fyne.App, tier string, backend hub.Backend) {
 	tab6 := views.NewReadinessTab(w, backend)
 	tab7 := views.NewEvidenceTab(w, backend)
 	tab8 := views.NewSettingsTab(w, backend)
+	tab9 := views.NewBillingTab(w, backend)
 
 	tabs := container.NewAppTabs(
 		container.NewTabItem("Compliance Graph", tab1.Content()),
@@ -449,6 +450,7 @@ func showMainWindow(a fyne.App, tier string, backend hub.Backend) {
 		container.NewTabItem("Readiness Gate", tab6.Content()),
 		container.NewTabItem("Evidence Package", tab7.Content()),
 		container.NewTabItem("Settings", tab8.Content()),
+		container.NewTabItem("Subscription & Billing", tab9.Content()),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
 
@@ -457,7 +459,9 @@ func showMainWindow(a fyne.App, tier string, backend hub.Backend) {
 
 	// Wire scan-done notification: after every scan, push fresh data to Readiness Gate, SSP, POA&M.
 	tab1.OnScanDone = func() {
-		tab6.Refresh()
+		tab3.Refresh() // Live SSP updates
+		tab4.Refresh() // Live POAM updates
+		tab6.Refresh() // Readiness Gate
 	}
 
 	// Footer — always visible per §13 (patent line required)

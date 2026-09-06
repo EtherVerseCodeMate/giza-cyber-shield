@@ -1,7 +1,11 @@
+// @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+// @ts-ignore
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+// @ts-ignore
 import Stripe from "https://esm.sh/stripe@14.21.0";
 
+declare const Deno: any;
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2023-10-16",
 });
@@ -61,7 +65,7 @@ const TIER_FEATURES: Record<string, string[]> = {
                "mcp_sovereign_deploy", "air_gap_license", "qkd_capsule", "khepra_master_tier"],
 };
 
-serve(async (req) => {
+serve(async (req: Request) => {
   const signature = req.headers.get("stripe-signature");
   if (!signature) {
     console.error("No Stripe signature");
@@ -72,10 +76,10 @@ serve(async (req) => {
     const body = await req.text();
     let event: Stripe.Event;
     try {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-    } catch (err) {
+      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
+    } catch (err: any) {
       console.error("Signature verification failed:", err);
-      return new Response(`Webhook Error: ${err.message}`, { status: 400 });
+      return new Response(`Webhook Error: ${err?.message}`, { status: 400 });
     }
 
     console.log(`Processing Stripe event: ${event.type}`);
@@ -117,15 +121,15 @@ serve(async (req) => {
       headers: { "Content-Type": "application/json" },
       status: 200,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Webhook error:", error);
-    return new Response(`Webhook Error: ${error.message}`, { status: 500 });
+    return new Response(`Webhook Error: ${error?.message}`, { status: 500 });
   }
 });
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-async function handleCheckoutCompleted(supabase: any, session: Stripe.Checkout.Session) {
+async function handleCheckoutCompleted(supabase: SupabaseClient, session: Stripe.Checkout.Session) {
   const userId = session.metadata?.user_id;
   const planId = session.metadata?.plan_id;
   const customerId = session.customer as string;
@@ -139,6 +143,13 @@ async function handleCheckoutCompleted(supabase: any, session: Stripe.Checkout.S
 
   // Determine tier from plan_id
   const tier = resolveTierFromPlanId(planId, session);
+  
+  // Get user email
+  const { data: userRecord } = await supabase.auth.admin.getUserById(userId);
+  const email = userRecord?.user?.email || session.customer_details?.email || "unknown@khepra.io";
+  
+  // Mint License
+  const licenseKey = await mintLicense(email, tier);
 
   // Upsert user_profiles (from our onboarding migration)
   await supabase.from("user_profiles").upsert({
@@ -150,6 +161,7 @@ async function handleCheckoutCompleted(supabase: any, session: Stripe.Checkout.S
     ...(session.mode === "subscription"
       ? { subscription_status: "active" }
       : { [`${planId}_paid`]: true, [`${planId}_paid_at`]: new Date().toISOString() }),
+    ...(licenseKey ? { license_key: licenseKey } : {})
   }, { onConflict: "user_id" });
 
   // Legacy consulting_access table (keep for backward compat)
@@ -160,7 +172,7 @@ async function handleCheckoutCompleted(supabase: any, session: Stripe.Checkout.S
   console.log(`Access granted: user=${userId} tier=${tier} features=${(TIER_FEATURES[tier] || []).join(",")}`);
 }
 
-async function handleSubscriptionUpdate(supabase: any, sub: Stripe.Subscription) {
+async function handleSubscriptionUpdate(supabase: SupabaseClient, sub: Stripe.Subscription) {
   const customerId = sub.customer as string;
   const priceId = sub.items.data[0]?.price?.id;
   const tier = PRICE_TIER_MAP[priceId] || "community";
@@ -182,6 +194,10 @@ async function handleSubscriptionUpdate(supabase: any, sub: Stripe.Subscription)
 
   const activeTier = status === "active" || status === "trialing" ? tier : "community";
   const features = TIER_FEATURES[activeTier] || [];
+  
+  const { data: userRecord } = await supabase.auth.admin.getUserById(profile.user_id);
+  const email = userRecord?.user?.email || "unknown@khepra.io";
+  const licenseKey = await mintLicense(email, activeTier);
 
   await supabase.from("user_profiles").update({
     license_tier: activeTier,
@@ -189,6 +205,7 @@ async function handleSubscriptionUpdate(supabase: any, sub: Stripe.Subscription)
     subscription_status: status,
     subscription_id: sub.id,
     license_updated_at: new Date().toISOString(),
+    ...(licenseKey ? { license_key: licenseKey } : {})
   }).eq("user_id", profile.user_id);
 
   // Legacy consulting_access
@@ -200,7 +217,7 @@ async function handleSubscriptionUpdate(supabase: any, sub: Stripe.Subscription)
   console.log(`Updated tier: user=${profile.user_id} tier=${activeTier}`);
 }
 
-async function handleSubscriptionDeleted(supabase: any, sub: Stripe.Subscription) {
+async function handleSubscriptionDeleted(supabase: SupabaseClient, sub: Stripe.Subscription) {
   const customerId = sub.customer as string;
 
   const { data: profile } = await supabase
@@ -225,7 +242,7 @@ async function handleSubscriptionDeleted(supabase: any, sub: Stripe.Subscription
   console.log(`Subscription canceled: customer=${customerId} → community tier`);
 }
 
-async function handlePaymentFailed(supabase: any, invoice: Stripe.Invoice) {
+async function handlePaymentFailed(supabase: SupabaseClient, invoice: Stripe.Invoice) {
   const customerId = invoice.customer as string;
   console.log(`Payment failed: customer=${customerId} — downgrading to community`);
 
@@ -254,7 +271,7 @@ function resolveTierFromPlanId(planId: string | null | undefined, session: Strip
   return directMap[planId] || "community";
 }
 
-async function upsertConsultingAccess(supabase: any, userId: string, customerId: string, planId: string) {
+async function upsertConsultingAccess(supabase: SupabaseClient, userId: string, customerId: string, planId: string) {
   const patch = planId === "diagnostic"
     ? { diagnostic_paid: true, diagnostic_paid_at: new Date().toISOString() }
     : { advisory_requested: true, advisory_requested_at: new Date().toISOString() };
@@ -268,5 +285,31 @@ async function upsertConsultingAccess(supabase: any, userId: string, customerId:
   } else {
     await supabase.from("consulting_access")
       .insert({ user_id: userId, stripe_customer_id: customerId, ...patch });
+  }
+}
+
+async function mintLicense(email: string, tier: string): Promise<string | null> {
+  const mintServerUrl = Deno.env.get("MINT_SERVER_URL") || "http://localhost:8080";
+  const mintToken = Deno.env.get("MINT_SECRET_KEY") || "";
+  console.log(`Minting license for ${email} on tier ${tier}...`);
+  try {
+    const res = await fetch(`${mintServerUrl}/api/licenses/mint`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(mintToken ? { "Authorization": `Bearer ${mintToken}` } : {})
+      },
+      body: JSON.stringify({ email, tier })
+    });
+    if (!res.ok) {
+      console.error("Mint server failed:", await res.text());
+      return null;
+    }
+    const data = await res.json();
+    console.log(`Successfully minted license: ${data.license_key}`);
+    return data.license_key;
+  } catch(e) {
+    console.error("Mint error:", e);
+    return null;
   }
 }

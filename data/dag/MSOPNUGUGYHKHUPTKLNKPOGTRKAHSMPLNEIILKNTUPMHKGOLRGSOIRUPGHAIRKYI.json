@@ -1,0 +1,11 @@
+{
+  "id": "MSOPNUGUGYHKHUPTKLNKPOGTRKAHSMPLNEIILKNTUPMHKGOLRGSOIRUPGHAIRKYI",
+  "parents": null,
+  "action": "seshat-inscription",
+  "symbol": "maat-decision",
+  "time": "2026-08-05T04:44:11-04:00",
+  "pqc_metadata": {
+    "data": "map[action:observe autonomous:true isfet_id:CVE-2022-27191 kasa_wisdom:KASA unavailable realm:duat severity:MODERATE]"
+  },
+  "hash": "MSOPNUGUGYHKHUPTKLNKPOGTRKAHSMPLNEIILKNTUPMHKGOLRGSOIRUPGHAIRKYI"
+}

@@ -16,8 +16,7 @@ import (
 	"github.com/EtherVerseCodeMate/giza-cyber-shield/app/models"
 	asaftheme "github.com/EtherVerseCodeMate/giza-cyber-shield/app/theme"
 )
-
-const nodeSidebarWidth float32 = 288
+const nodeSidebarWidth float32 = 350
 
 // NodeSidebar is the 288-px detail panel on the right of the Compliance Graph.
 // Call SetNode to populate it; pass nil to show the idle placeholder.

@@ -1,5 +1,5 @@
 module tiny-test
 
-go 1.21
+go 1.25.0
 
-require golang.org/x/text v0.3.7
+require golang.org/x/text v0.39.0

@@ -160,6 +160,7 @@ vercel.env
 .env.*.local
 .env.production
 .env.staging
+*.env
 *.pem
 *.key
 *.p12

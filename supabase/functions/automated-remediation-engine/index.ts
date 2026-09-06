@@ -272,19 +272,86 @@ function generateImpactAssessment(asset: any, stigRule: any): string {
   return impacts.length > 0 ? impacts.join(', ') : 'Minimal system impact expected';
 }
 
+/**
+ * validateRemediation — runs the Ansible job template in CHECK MODE (--check).
+ * This is a REAL AWX dry-run: it connects to the target, resolves dependencies,
+ * validates YAML syntax, checks module availability, and reports what WOULD change.
+ * It does NOT make any changes to the target system.
+ * Throws if AWX is not configured — never returns fabricated validation results.
+ */
 async function validateRemediation(asset: any, stigRule: any, playbook: any): Promise<RemediationResult> {
-  console.log(`Validating remediation for ${asset.asset_name}`);
-  
-  // Simulate validation process
-  const validationResults = {
-    script_syntax: 'valid',
-    compatibility_check: asset.platform === playbook.platform ? 'compatible' : 'incompatible',
-    dependency_check: 'satisfied',
-    security_impact: assessSecurityImpact(stigRule),
-    estimated_duration: '5-10 minutes'
+  console.log(`Validating remediation for ${asset.asset_name} via AWX check mode`);
+
+  const AWX_URL   = Deno.env.get('ANSIBLE_AWX_API_URL');
+  const AWX_TOKEN = Deno.env.get('ANSIBLE_AWX_TOKEN');
+
+  if (!AWX_URL || !AWX_TOKEN) {
+    throw new Error(
+      'ANSIBLE_AWX_API_URL or ANSIBLE_AWX_TOKEN not set. ' +
+      'Remediation validation cannot run without AWX credentials. ' +
+      'Configure secrets in Supabase Vault and redeploy.'
+    );
+  }
+
+  const headers = {
+    'Authorization': `Bearer ${AWX_TOKEN}`,
+    'Content-Type': 'application/json',
   };
 
-  const success = validationResults.compatibility_check === 'compatible';
+  // Find job template
+  const searchResp = await fetch(
+    `${AWX_URL}/api/v2/job_templates/?name=${encodeURIComponent(playbook.playbook_name)}`,
+    { headers }
+  );
+  if (!searchResp.ok) throw new Error(`AWX template lookup failed: ${searchResp.status}`);
+  const searchData = await searchResp.json();
+  if (!searchData.results?.length) throw new Error(`AWX template not found: ${playbook.playbook_name}`);
+  const templateId = searchData.results[0].id;
+
+  // Launch in check mode (dry-run)
+  const launchResp = await fetch(`${AWX_URL}/api/v2/job_templates/${templateId}/launch/`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      limit: asset.asset_name,
+      extra_vars: {
+        stig_rule_id: stigRule.rule_id,
+        ansible_check_mode: true,  // --check flag
+      },
+    }),
+  });
+  if (!launchResp.ok) throw new Error(`AWX check-mode launch failed: ${launchResp.status}`);
+  const launchData = await launchResp.json();
+  const jobId = String(launchData.job);
+
+  // Poll completion
+  let attempts = 0;
+  let jobStatus = '';
+  while (attempts < 60) {
+    await new Promise(r => setTimeout(r, 5000));
+    const statusResp = await fetch(`${AWX_URL}/api/v2/jobs/${jobId}/`, { headers });
+    const job = await statusResp.json();
+    if (['successful', 'failed', 'error', 'canceled'].includes(job.status)) {
+      jobStatus = job.status;
+      break;
+    }
+    attempts++;
+  }
+  if (!jobStatus) throw new Error(`AWX check-mode job ${jobId} timed out`);
+
+  const stdoutResp = await fetch(`${AWX_URL}/api/v2/jobs/${jobId}/stdout/?format=txt`, { headers });
+  const stdout = stdoutResp.ok ? await stdoutResp.text() : `Job ${jobId}: ${jobStatus}`;
+
+  const success = jobStatus === 'successful';
+  const validationResults = {
+    awx_job_id: jobId,
+    check_mode: true,
+    job_status: jobStatus,
+    compatibility_check: success ? 'compatible' : 'incompatible',
+    dependency_check: success ? 'satisfied' : 'failed',
+    security_impact: assessSecurityImpact(stigRule),
+    stdout_preview: stdout.slice(0, 2000),
+  };
 
   return {
     success,
@@ -293,17 +360,12 @@ async function validateRemediation(asset: any, stigRule: any, playbook: any): Pr
     remediation_actions: parseRemediationActions(playbook.remediation_script),
     validation_results: validationResults,
     rollback_available: !!playbook.rollback_script,
-    execution_log: [
-      'Validation started',
-      `Platform compatibility: ${validationResults.compatibility_check}`,
-      `Security impact: ${validationResults.security_impact}`,
-      'Validation completed'
-    ],
+    execution_log: stdout.split('\n').slice(0, 50),
     risk_assessment: {
       risk_level: playbook.risk_level,
       impact_assessment: generateImpactAssessment(asset, stigRule),
-      rollback_complexity: playbook.rollback_script ? 'LOW' : 'HIGH'
-    }
+      rollback_complexity: playbook.rollback_script ? 'LOW' : 'HIGH',
+    },
   };
 }
 
@@ -371,29 +433,85 @@ async function executeRemediation(
   }
 }
 
+/**
+ * rollbackRemediation — executes the rollback job template via AWX.
+ * Requires a dedicated rollback job template named "<playbook_name> - Rollback".
+ * Throws if AWX is not configured or the rollback template does not exist.
+ * Never uses a deterministic formula to compute success.
+ */
 async function rollbackRemediation(
-  asset: any, 
-  stigRule: any, 
-  playbook: any, 
-  supabase: any, 
+  asset: any,
+  stigRule: any,
+  playbook: any,
+  supabase: any,
   organizationId: string
 ): Promise<RemediationResult> {
-  console.log(`Rolling back remediation for ${asset.asset_name}`);
-  
+  console.log(`Rolling back remediation for ${asset.asset_name} via AWX`);
+
   if (!playbook.rollback_script) {
     throw new Error('No rollback script available for this playbook');
   }
 
-  const executionLog = [
-    'Rollback started',
-    'Restoring previous configuration',
-    'Validating rollback',
-    'Rollback completed'
-  ];
+  const AWX_URL   = Deno.env.get('ANSIBLE_AWX_API_URL');
+  const AWX_TOKEN = Deno.env.get('ANSIBLE_AWX_TOKEN');
 
-  // Execute rollback with deterministic outcome
-  // In production, this would execute actual rollback scripts
-  const success = playbook.rollback_available !== false; // Succeeds if rollback is properly configured
+  if (!AWX_URL || !AWX_TOKEN) {
+    throw new Error(
+      'ANSIBLE_AWX_API_URL or ANSIBLE_AWX_TOKEN not set. ' +
+      'Rollback cannot execute without AWX credentials.'
+    );
+  }
+
+  const headers = {
+    'Authorization': `Bearer ${AWX_TOKEN}`,
+    'Content-Type': 'application/json',
+  };
+
+  const rollbackTemplateName = `${playbook.playbook_name} - Rollback`;
+  const searchResp = await fetch(
+    `${AWX_URL}/api/v2/job_templates/?name=${encodeURIComponent(rollbackTemplateName)}`,
+    { headers }
+  );
+  if (!searchResp.ok) throw new Error(`AWX rollback template lookup failed: ${searchResp.status}`);
+  const searchData = await searchResp.json();
+  if (!searchData.results?.length) {
+    throw new Error(
+      `AWX rollback template not found: "${rollbackTemplateName}". ` +
+      'Create this template in AWX before enabling rollback for this playbook.'
+    );
+  }
+  const templateId = searchData.results[0].id;
+
+  const launchResp = await fetch(`${AWX_URL}/api/v2/job_templates/${templateId}/launch/`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      limit: asset.asset_name,
+      extra_vars: { stig_rule_id: stigRule.rule_id, rollback: true },
+    }),
+  });
+  if (!launchResp.ok) throw new Error(`AWX rollback launch failed: ${launchResp.status}`);
+  const launchData = await launchResp.json();
+  const jobId = String(launchData.job);
+
+  // Poll completion
+  let attempts = 0;
+  let jobStatus = '';
+  while (attempts < 120) {
+    await new Promise(r => setTimeout(r, 5000));
+    const statusResp = await fetch(`${AWX_URL}/api/v2/jobs/${jobId}/`, { headers });
+    const job = await statusResp.json();
+    if (['successful', 'failed', 'error', 'canceled'].includes(job.status)) {
+      jobStatus = job.status;
+      break;
+    }
+    attempts++;
+  }
+  if (!jobStatus) throw new Error(`AWX rollback job ${jobId} timed out`);
+
+  const stdoutResp = await fetch(`${AWX_URL}/api/v2/jobs/${jobId}/stdout/?format=txt`, { headers });
+  const stdout = stdoutResp.ok ? await stdoutResp.text() : `Job ${jobId}: ${jobStatus}`;
+  const success = jobStatus === 'successful';
 
   if (success) {
     await supabase
@@ -401,9 +519,9 @@ async function rollbackRemediation(
       .update({
         compliance_status: {
           ...asset.compliance_status,
-          [stigRule.rule_id]: 'NOT_COMPLIANT'
+          [stigRule.rule_id]: 'NOT_COMPLIANT',
         },
-        last_scanned: new Date().toISOString()
+        last_scanned: new Date().toISOString(),
       })
       .eq('id', asset.id);
   }
@@ -412,18 +530,20 @@ async function rollbackRemediation(
     success,
     asset_id: asset.id,
     stig_rule_id: stigRule.rule_id,
-    remediation_actions: ['Configuration rollback'],
+    remediation_actions: ['Configuration rollback via AWX'],
     validation_results: {
+      awx_job_id: jobId,
+      job_status: jobStatus,
       rollback_verification: success ? 'successful' : 'failed',
-      system_restored: success
+      system_restored: success,
     },
     rollback_available: false,
-    execution_log: executionLog,
+    execution_log: stdout.split('\n').slice(0, 50),
     risk_assessment: {
       risk_level: 'LOW',
-      impact_assessment: success ? 'System restored to previous state' : 'Rollback failed',
-      rollback_complexity: 'COMPLETED'
-    }
+      impact_assessment: success ? 'System restored via AWX rollback job' : 'Rollback failed — check AWX logs',
+      rollback_complexity: 'COMPLETED',
+    },
   };
 }
 

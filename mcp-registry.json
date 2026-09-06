@@ -1,0 +1,41 @@
+{
+  "mcpServers": {
+    "hubspot-mcp": {
+      "command": "node",
+      "args": ["build/index.js"],
+      "env": {
+        "HUBSPOT_ACCESS_TOKEN": "${HUBSPOT_ACCESS_TOKEN}"
+      },
+      "url": "http://asaf-gateway:8080/api/v1/mcp/hubspot"
+    },
+    "hunter-io-mcp": {
+      "command": "python",
+      "args": ["hunter_mcp.py"],
+      "env": {
+        "HUNTER_API_KEY": "${HUNTER_API_KEY}"
+      },
+      "url": "http://asaf-gateway:8080/api/v1/mcp/hunter"
+    },
+    "docuseal-mcp": {
+      "command": "node",
+      "args": ["docuseal_mcp.js"],
+      "env": {
+        "DOCUSEAL_API_KEY": "${DOCUSEAL_API_KEY}"
+      },
+      "url": "http://asaf-gateway:8080/api/v1/mcp/docuseal"
+    },
+    "hostinger-mcp": {
+      "command": "node",
+      "args": ["hostinger_smtp_mcp.js"],
+      "env": {
+        "SMTP_PASS": "${HOSTINGER_SMTP_PASS}"
+      },
+      "url": "http://asaf-gateway:8080/api/v1/mcp/hostinger"
+    }
+  },
+  "asaf": {
+    "enforce_mldsa_signatures": true,
+    "proof_ledger_url": "http://khepra-ledger:9090",
+    "zero_trust_proxy": true
+  }
+}

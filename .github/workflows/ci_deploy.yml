@@ -1,0 +1,61 @@
+name: CI Deploy
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      # Map GitHub secrets to env vars expected by deploy_ci.sh
+      STRIPE_SECRET: ${{ secrets.STRIPE_SECRET_KEY }}
+      STRIPE_WEBHOOK: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+      AUTOSEND_KEY: ${{ secrets.AUTOSEND_API_KEY }}
+      QUO_KEY: ${{ secrets.QUO_API_KEY }}
+      QUO_PHONE: ${{ secrets.QUO_PHONE_NUMBER }}
+      QUO_WEBHOOK_SECRET: ${{ secrets.QUO_WEBHOOK_SECRET }}
+      OTX_KEY: ${{ secrets.OTX_API_KEY }}
+      SHODAN_KEY: ${{ secrets.SHODAN_API_KEY }}
+      VT_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
+      ABUSEIPDB_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
+      URLVOID_KEY: ${{ secrets.URLVOID_API_KEY }}
+      OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GROK_KEY: ${{ secrets.GROK_API_KEY }}
+      DISCORD_PUB_KEY: ${{ secrets.DISCORD_PUBLIC_KEY }}
+      DISCORD_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+      WH_ALERT: ${{ secrets.ALERT_WEBHOOK_URL }}
+      WH_THREAT: ${{ secrets.THREAT_INTEL_WEBHOOK_URL }}
+      WH_STIG: ${{ secrets.STIG_WEBHOOK_URL }}
+      WH_DEPLOY: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+      WH_UPTIME: ${{ secrets.UPTIME_WEBHOOK_URL }}
+      WH_LICENSE: ${{ secrets.LICENSE_WEBHOOK_URL }}
+      SITE_URL: ${{ secrets.SITE_URL }}
+      KHEPRA_WEBHOOK: ${{ secrets.KHEPRA_WEBHOOK_SECRET }}
+      KHEPRA_SERVICE: ${{ secrets.KHEPRA_SERVICE_SECRET }}
+      STIG_TOKEN: ${{ secrets.STIGVIEWER_API_KEY }}
+      SUPA_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPA_JWT: ${{ secrets.SUPABASE_JWT_SECRET }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install supabase CLI
+        run: npm install -g supabase
+
+      - name: Install Flyctl
+        run: curl -L https://fly.io/install.sh | sh
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Run CI deployment script
+        run: chmod +x ./scripts/deploy_ci.sh && ./scripts/deploy_ci.sh

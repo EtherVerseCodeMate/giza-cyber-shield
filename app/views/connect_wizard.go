@@ -812,6 +812,32 @@ func (cw *connectWizard) buildModeD() fyne.CanvasObject {
 					testBadge.Refresh()
 					return
 				}
+				
+				// Agentic Boundary Scoping: Prompt user to expand boundary if egress is blocked
+				if !result.Success && strings.Contains(result.Message, "Egress Blocked") {
+					dialog.ShowConfirm("Expand Security Boundary?",
+						fmt.Sprintf("The host '%s' is outside the current security boundary.\nWould you like to expand the boundary to include this host?", host),
+						func(confirmed bool) {
+							if confirmed {
+								cidr := host
+								if !strings.Contains(cidr, "/") {
+									// Assume /32 for single IPs if no subnet mask provided
+									if net.ParseIP(cidr) != nil {
+										cidr = cidr + "/32"
+									}
+								}
+								_ = cw.backend.SetBoundary(context.Background(), []string{cidr})
+								testBtn.OnTapped() // Auto-retry
+							}
+						}, cw.win)
+					testBadge.Text = "✗ Blocked"
+					testBadge.Color = asaftheme.NodeRed
+					testDetails.SetText(result.Message)
+					cw.modeDResult = nil
+					testBadge.Refresh()
+					return
+				}
+
 				if result.Success {
 					testBadge.Text = "✓ Connected"
 					testBadge.Color = asaftheme.NodeGreen

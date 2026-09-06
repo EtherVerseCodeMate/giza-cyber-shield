@@ -1,0 +1,15 @@
+{
+  "client": "Oumous-Laptop.lan",
+  "scan_id": "1ac8b6f1473e",
+  "risks": [
+    {
+      "severity": "HIGH",
+      "title": "Unpinned NPM Dependency Tree",
+      "description": "Manifest found at /Applications/Whitebox/khepra-trust-os/package.json. Violation of CM protocol.",
+      "remediation": "Evaluate against Unpinned Dependency",
+      "causal_link_id": "asset:file:npm:ac175d16",
+      "stig_ref": "GEN-000000"
+    }
+  ],
+  "trust_map_snapshot": {}
+}

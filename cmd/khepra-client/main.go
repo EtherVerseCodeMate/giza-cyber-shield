@@ -304,7 +304,7 @@ func buildHTML(cfg Config) string {
 <script>
 const apiBase = '';  // relative — served by same Go binary
 
-let sessionId = 'sess-' + Math.random().toString(36).slice(2, 10);
+let sessionId = 'sess-' + crypto.randomUUID().slice(0, 8);
 document.getElementById('sessionInfo').textContent = 'Session: ' + sessionId;
 
 // ── Health check ──

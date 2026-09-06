@@ -304,6 +304,8 @@ func (b *LocalBackend) Ask(ctx context.Context, query string) (*AskResponse, err
 				"  ollama serve\n" +
 				"  ollama pull gemma3:4b\n\n" +
 				"Then go to Settings → AI Provider and click [Apply & Save].\n\n" +
+				"Alternatively, if your environment permits egress, you can configure the remote\n" +
+				"endpoint (https://mcp.souhimbou.ai) in the AI Provider settings.\n\n" +
 				"Or connect to a Stargate Hub (Settings → Hub URL) for cloud-routed AI.\n\n" +
 				"Your query was: " + query,
 		}, nil
@@ -560,4 +562,13 @@ func (b *LocalBackend) SaveConnector(_ context.Context, cfg ConnectorConfig, cre
 		return fmt.Errorf("connector registry not initialised — agent key not loaded yet")
 	}
 	return reg.Save(cfg, cred)
+}
+
+func (b *LocalBackend) SetBoundary(ctx context.Context, cidrs []string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.ebg != nil {
+		b.ebg.EnclaveCIDRs = append(b.ebg.EnclaveCIDRs, cidrs...)
+	}
+	return nil
 }

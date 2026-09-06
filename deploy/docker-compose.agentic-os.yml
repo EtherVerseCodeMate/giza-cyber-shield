@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  asaf-gateway:
+    image: khepra/asaf-kernel:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - ASAF_MODE=zero_trust
+      - PROOF_LEDGER_URL=http://khepra-ledger:9090
+    volumes:
+      - ../mcp-registry.json:/app/mcp-registry.json
+
+  khepra-ledger:
+    image: khepra/proof-ledger:latest
+    ports:
+      - "9090:9090"
+      
+  coordinator-agent:
+    image: antigravity/sdk-client:latest
+    environment:
+      - AGENT_CONFIG=/config/coordinator.yaml
+    volumes:
+      - ../agents/coordinator.yaml:/config/coordinator.yaml
+    depends_on:
+      - asaf-gateway
+
+  revops-agent:
+    image: antigravity/sdk-client:latest
+    environment:
+      - AGENT_CONFIG=/config/revops_worker.yaml
+    volumes:
+      - ../agents/revops_worker.yaml:/config/revops_worker.yaml
+    depends_on:
+      - asaf-gateway
+
+  legalops-agent:
+    image: antigravity/sdk-client:latest
+    environment:
+      - AGENT_CONFIG=/config/legalops_worker.yaml
+    volumes:
+      - ../agents/legalops_worker.yaml:/config/legalops_worker.yaml
+    depends_on:
+      - asaf-gateway

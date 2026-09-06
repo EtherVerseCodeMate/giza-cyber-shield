@@ -1,0 +1,23 @@
+{
+  "client": "Oumous-Laptop.lan",
+  "scan_id": "c1a274ec9912",
+  "risks": [
+    {
+      "severity": "HIGH",
+      "title": "Unpinned NPM Dependency Tree",
+      "description": "Manifest found at /Applications/Whitebox/PQC-Khepra-MCP/package.json. Violation of CM protocol.",
+      "remediation": "Evaluate against Unpinned Dependency",
+      "causal_link_id": "asset:file:npm:a1dffbd9",
+      "stig_ref": "GEN-000000"
+    },
+    {
+      "severity": "HIGH",
+      "title": "Unpinned NPM Dependency Tree",
+      "description": "Manifest found at /Applications/Whitebox/PQC-Khepra-MCP/packages/dag-viewer/package.json. Violation of CM protocol.",
+      "remediation": "Evaluate against Unpinned Dependency",
+      "causal_link_id": "asset:file:npm:ecbcca5a",
+      "stig_ref": "GEN-000000"
+    }
+  ],
+  "trust_map_snapshot": {}
+}
