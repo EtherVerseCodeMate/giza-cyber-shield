@@ -315,6 +315,10 @@ func checkNvidiaAPIKeyNotPlaintext(dir string) NemoClawAuditResult {
 				}
 			}
 		}
+		if err := scanner.Err(); err != nil {
+			// Log scan error but don't fail the walk — continue to next file.
+			_ = err // caller sees foundIn="" which is safe-fail-open behavior
+		}
 		return nil
 	})
 

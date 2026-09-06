@@ -44,7 +44,9 @@ type Gateway struct {
 	metrics *GatewayMetrics
 }
 
-// GatewayMetrics tracks gateway performance and security metrics
+// GatewayMetrics tracks gateway performance and security metrics.
+// The embedded mutex protects concurrent writes; never copy this struct directly.
+// Use GetMetricsSnapshot() to obtain a serialization-safe view.
 type GatewayMetrics struct {
 	RequestsTotal     int64
 	RequestsBlocked   int64
@@ -55,6 +57,19 @@ type GatewayMetrics struct {
 	AverageLatencyMs  float64
 	LastUpdated       time.Time
 	mu                sync.RWMutex
+}
+
+// MetricsSnapshot is a mutex-free, JSON-safe snapshot of GatewayMetrics.
+// Returned by GetMetricsSnapshot() for use in HTTP handlers and logging.
+type MetricsSnapshot struct {
+	RequestsTotal     int64     `json:"requests_total"`
+	RequestsBlocked   int64     `json:"requests_blocked"`
+	RequestsAllowed   int64     `json:"requests_allowed"`
+	AuthFailures      int64     `json:"auth_failures"`
+	AnomaliesDetected int64     `json:"anomalies_detected"`
+	RateLimitHits     int64     `json:"rate_limit_hits"`
+	AverageLatencyMs  float64   `json:"average_latency_ms"`
+	LastUpdated       time.Time `json:"last_updated"`
 }
 
 // New creates a new Khepra Secure Gateway with the given configuration
@@ -332,12 +347,31 @@ func (g *Gateway) Stop(ctx context.Context) error {
 	return g.httpServer.Shutdown(ctx)
 }
 
-// GetMetrics returns current gateway metrics
+// GetMetrics returns a field-by-field copy of GatewayMetrics.
+// NOTE: The returned value contains an embedded zero-value sync.RWMutex.
+// Do NOT pass to json.Encode directly — use GetMetricsSnapshot() instead.
 func (g *Gateway) GetMetrics() GatewayMetrics {
 	g.metrics.mu.RLock()
 	defer g.metrics.mu.RUnlock()
 
 	return GatewayMetrics{
+		RequestsTotal:     g.metrics.RequestsTotal,
+		RequestsBlocked:   g.metrics.RequestsBlocked,
+		RequestsAllowed:   g.metrics.RequestsAllowed,
+		AuthFailures:      g.metrics.AuthFailures,
+		AnomaliesDetected: g.metrics.AnomaliesDetected,
+		RateLimitHits:     g.metrics.RateLimitHits,
+		AverageLatencyMs:  g.metrics.AverageLatencyMs,
+		LastUpdated:       time.Now(),
+	}
+}
+
+// GetMetricsSnapshot returns a mutex-free MetricsSnapshot safe for JSON serialization.
+func (g *Gateway) GetMetricsSnapshot() MetricsSnapshot {
+	g.metrics.mu.RLock()
+	defer g.metrics.mu.RUnlock()
+
+	return MetricsSnapshot{
 		RequestsTotal:     g.metrics.RequestsTotal,
 		RequestsBlocked:   g.metrics.RequestsBlocked,
 		RequestsAllowed:   g.metrics.RequestsAllowed,

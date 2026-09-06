@@ -1,3 +1,8 @@
+//go:build !darwin
+// +build !darwin
+// TODO(cross-platform): darwin support requires Fyne CGO + OpenGL headers.
+// See: cmd/asaf-desktop/main.go for tracking note.
+
 package main
 
 import (

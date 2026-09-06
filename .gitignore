@@ -153,3 +153,16 @@ vercel.env
 # Demo local secrets (never commit)
 .env.demo.local
 .env.local
+
+# -- Secrets / Credentials (NEVER commit real tokens) -------------------------
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+*.pem
+*.key
+*.p12
+*.pfx
+# ROTATION REQUIRED: khepra protocol/.env contained JWTs + Stripe tokens
+# See: docs/SECURITY_ROTATION_REQUIRED.md

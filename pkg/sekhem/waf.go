@@ -397,8 +397,9 @@ func (ws *WAFShield) isBypassPath(path string) bool {
 	return false
 }
 
-// isNPMGateway returns true if the client IP is within the Docker NPM bridge subnet.
-func (ws *WAFShield) isNPMGateway(clientIP string) bool {
+// IsNPMGateway returns true if the client IP is within the Docker NPM bridge subnet.
+// Used by proxy admission controllers to allow NPM management traffic.
+func (ws *WAFShield) IsNPMGateway(clientIP string) bool {
 	ip := net.ParseIP(clientIP)
 	if ip == nil {
 		return false

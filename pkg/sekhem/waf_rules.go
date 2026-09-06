@@ -56,7 +56,7 @@ type WAFRule interface {
 
 // defaultRules constructs the ordered rule slice for a WAFShield.
 // Rules are evaluated in order; the first match terminates inspection.
-func defaultRules(shield *WAFShield) []WAFRule {
+func defaultRules(_ *WAFShield) []WAFRule {
 	return []WAFRule{
 		newSQLiRule(),
 		newXSSRule(),

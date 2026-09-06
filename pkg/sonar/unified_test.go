@@ -27,6 +27,10 @@ func TestUnifiedScanRequest(t *testing.T) {
 	if len(req.Ports) != 3 {
 		t.Errorf("Expected 3 ports, got %d", len(req.Ports))
 	}
+
+	if req.Timeout != 30*time.Second {
+		t.Errorf("Expected 30s timeout, got %v", req.Timeout)
+	}
 }
 
 func TestScanTypeConstants(t *testing.T) {
@@ -154,6 +158,12 @@ func TestUnifiedScanResult_Duration(t *testing.T) {
 		Duration:  end.Sub(start),
 	}
 
+	if result.StartTime.IsZero() {
+		t.Error("StartTime should not be zero")
+	}
+	if result.EndTime.IsZero() {
+		t.Error("EndTime should not be zero")
+	}
 	if result.Duration < 10*time.Millisecond {
 		t.Error("Duration should be at least 10ms")
 	}

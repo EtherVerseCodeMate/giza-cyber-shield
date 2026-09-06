@@ -75,9 +75,11 @@ func main() {
 
 	// Gateway metrics endpoint
 	mux.HandleFunc("/khepra/metrics", func(w http.ResponseWriter, r *http.Request) {
-		metrics := gw.GetMetrics()
+		snapshot := gw.GetMetricsSnapshot()
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(metrics)
+		if err := json.NewEncoder(w).Encode(snapshot); err != nil {
+			http.Error(w, "metrics encode error", http.StatusInternalServerError)
+		}
 	})
 
 	// Gateway health endpoint

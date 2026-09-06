@@ -98,8 +98,9 @@ func (fe *FIMEye) Name() string {
 	return fe.name
 }
 
-// mapSeverity converts CAT levels to Isfet severity
-func mapSeverity(cat string) maat.Severity {
+// MapSeverity converts DISA CAT levels to Isfet maat.Severity values.
+// CAT I (critical) → Catastrophic, CAT II → Severe, CAT III → Moderate, default → Minor.
+func MapSeverity(cat string) maat.Severity {
 	switch cat {
 	case "CAT I":
 		return maat.SeverityCatastrophic

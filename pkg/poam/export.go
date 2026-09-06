@@ -121,9 +121,10 @@ func (r *Register) ExporteMASS(outputPath, systemID, isso string) error {
 	for _, item := range r.Items {
 		catRoman := severityToCAT(item.Severity)
 		relevance := "High"
-		if catRoman == "II" {
+		switch catRoman {
+		case "II":
 			relevance = "Moderate"
-		} else if catRoman == "III" {
+		case "III":
 			relevance = "Low"
 		}
 		milestone := strings.Join(item.MilestoneActions, "; ")
@@ -134,7 +135,7 @@ func (r *Register) ExporteMASS(outputPath, systemID, isso string) error {
 		sb.WriteString(fmt.Sprintf("      <controlVulnerabilityDescription>%s</controlVulnerabilityDescription>\n", xmlEscape(item.Weakness)))
 		sb.WriteString(fmt.Sprintf("      <officeOrg>%s</officeOrg>\n", item.PointOfContact))
 		sb.WriteString(fmt.Sprintf("      <resources>$%.0f</resources>\n", item.EstimatedCost))
-		sb.WriteString(fmt.Sprintf("      <status>Ongoing</status>\n"))
+		sb.WriteString("      <status>Ongoing</status>\n")
 		sb.WriteString(fmt.Sprintf("      <scheduledCompletionDate>%s</scheduledCompletionDate>\n", item.ScheduledCompletion.Format("01/02/2006")))
 		sb.WriteString(fmt.Sprintf("      <milestone>%s</milestone>\n", xmlEscape(milestone)))
 		sb.WriteString(fmt.Sprintf("      <rawSeverity>%s</rawSeverity>\n", catRoman))

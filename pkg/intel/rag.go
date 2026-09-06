@@ -2,6 +2,7 @@ package intel
 
 import (
 	"embed"
+	"fmt"
 	"io/fs"
 	"strings"
 )
@@ -17,8 +18,8 @@ func (kb *KnowledgeBase) LoadRAGDocs() string {
 	for _, file := range files {
 		if strings.HasSuffix(file.Name(), ".md") {
 			content, _ := ragDocs.ReadFile("docs/" + file.Name())
-			sb.WriteString("=== SOURCE: " + file.Name() + " ===\n")
-			sb.WriteString(string(content))
+			fmt.Fprintf(&sb, "=== SOURCE: %s ===\n", file.Name())
+			sb.Write(content)
 			sb.WriteString("\n\n")
 		}
 	}

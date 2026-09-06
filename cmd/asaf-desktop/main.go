@@ -1,3 +1,9 @@
+//go:build !darwin
+// +build !darwin
+// TODO(cross-platform): darwin support requires Fyne CGO + OpenGL headers.
+// Track in: https://fyne.io/fyne/v2 darwin build matrix setup.
+// Supported targets: windows/amd64, linux/amd64, linux/arm64, windows/arm64.
+
 // cmd/asaf-desktop/main.go — AdinKhepra ASAF Desktop
 // Surface 2: CISO-facing native GUI (fyne.io/fyne/v2)
 // Entry point: license check → splash → main window
