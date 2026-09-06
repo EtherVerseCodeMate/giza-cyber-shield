@@ -11,7 +11,7 @@ flake8-return==1.2.0
 flake8-sfs==0.0.4
 flake8-simplify==0.19.3
 pytest>=9.1.0
-pytest-cov==6.1.0
+pytest-cov==7.1.0
 pytest-mock==3.14.0
 pytest-xdist==3.6.1
 pycodestyle==2.9.0
