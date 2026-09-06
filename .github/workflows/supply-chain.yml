@@ -51,7 +51,7 @@ jobs:
           lfs: true   # materialize embedded compliance CSVs (A-TD-01)
 
       - name: Setup Go ${{ env.GO_VERSION }}
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
@@ -115,7 +115,7 @@ jobs:
           lfs: true   # materialize embedded compliance CSVs (A-TD-01)
 
       - name: Setup Go ${{ env.GO_VERSION }}
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
@@ -279,7 +279,7 @@ jobs:
           lfs: true   # materialize embedded compliance CSVs (A-TD-01)
 
       - name: Setup Go ${{ env.GO_VERSION }}
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
